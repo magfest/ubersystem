@@ -9,25 +9,32 @@
 {% if attendee.amount_unpaid or attendee.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] and attendee.amount_unpaid_if_valid %}
 <div class="center text-center check-in">
 <h4>{{ attendee.full_name }} currently owes <strong>{{ attendee.amount_unpaid_if_valid|format_currency }}</strong>.</h4>
-<form method="post" action="mark_as_paid">
-    {{ csrf_token() }}
-    <input type="hidden" name="id" value="{{ attendee.id }}" />
-    <div class="row g-sm-3 row-cols-auto justify-content-center">
-        <div class="col">
-            <select name="payment_method" class="form-select" onChange="toggleMarkButton(this)">
-                <option value="">Payment Method</option>
-                {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,payment_method) }}
-            </select>
-        </div>
-        <div class="col"><button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button></div>
-    </div>
-</form>
-
-    <strong>OR</strong> <br/>
 {% if c.SPIN_TERMINAL_AUTH_KEY %}
+    <form method="post" action="mark_as_paid">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        <input type="hidden" name="payment_method" value="{{ c.CASH }}" />
+        <div class="center"><button class="btn btn-success" type="submit">Paid with Cash</button></div>
+    </form>
+    <strong>OR</strong> <br/>
     <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ attendee.id }}', '', loadCheckInForm)">Prompt Payment at Terminal</button>
     <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
 {% else %}
+    <form method="post" action="mark_as_paid">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        <div class="row g-sm-3 row-cols-auto justify-content-center">
+            <div class="col">
+                <select name="payment_method" class="form-select" onChange="toggleMarkButton(this)">
+                    <option value="">Payment Method</option>
+                    {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,payment_method) }}
+                </select>
+            </div>
+            <div class="col"><button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button></div>
+        </div>
+    </form>
+
+    <strong>OR</strong> <br/>
     {{ stripe_form('manual_reg_charge', attendee) }}
 {% endif %}
 </div>
@@ -86,7 +93,7 @@ $("form[action='mark_as_paid']").submit(function (e) {
             hideMessageBox();
             var message = json.message;
             if (json.success) {
-                $("#payment-loading-message").addClass("alert-success").show().children('span').html(message);
+                $("#payment-loading-message").addClass("alert-success").show().html(message);
                 setTimeout(function(){
                     loadCheckInForm();
                 }, 1000);
@@ -251,9 +258,9 @@ $().ready(function() {
     age = {{ attendee.age_now_or_at_con|default(0, true) }};
     if (age < 18 && $.field('printer_id')) {
         $.field('printer_id').val(minor_printer_id);
-        changeButtonLabel();
+        if($('#printAndOrCheckIn').length) { changeButtonLabel(); }
     } else if (age >= 18 && $.field('printer_id')) {
         $.field('printer_id').val(printer_id);
-        changeButtonLabel();
+        if($('#printAndOrCheckIn').length) { changeButtonLabel(); }
     }
 </script>
