@@ -530,7 +530,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.WATCHED_STATUS and not self.banned:
             self.badge_status = c.NEW_STATUS
         
-        if self.badge_status == c.NEW_STATUS and self.banned:
+        if self.badge_status in [c.NEW_STATUS, c.AT_DOOR_PENDING_STATUS] and self.banned:
             self.badge_status = c.WATCHED_STATUS
             try:
                 uber.tasks.email.send_email.delay(
