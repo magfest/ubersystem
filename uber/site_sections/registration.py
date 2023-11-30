@@ -210,6 +210,7 @@ class Root:
             message = save_attendee(session, params)
 
             if not message:
+                """
                 if attendee.is_new and \
                         session.attendees_with_badges().filter_by(first_name=attendee.first_name,
                                                                   last_name=attendee.last_name,
@@ -217,6 +218,7 @@ class Root:
                     session.add(attendee)
                     session.commit()
                     raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
+                """
 
                 message = '{} has been saved.'.format(attendee.full_name)
                 stay_on_form = params.get('save_return_to_search', False) == False
