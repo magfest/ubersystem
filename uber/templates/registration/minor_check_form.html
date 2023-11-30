@@ -58,24 +58,17 @@
             hideMessageBox();
             var message = json.message;
             if (json.success) {
-                $("#minor-check-message").addClass("alert-success").show().children('span').html(message);
-                if (attendeeID) {
-                    setTimeout(function(){
-                        loadCheckInFormModal(attendeeID);
-                    }, 1000);
-                } else {
-                    for(const attendeeID in json.checked_in) {
-                        if ($('#cin_' + attendeeID).length) {
-                            $('#paid_' + attendeeID).html(json.checked_in[attendeeID].paid);
-                            $('#cin_' + attendeeID).html(json.checked_in[attendeeID].checked_in);
-                            $('#age_' + attendeeID).parent().html(json.checked_in[attendeeID].age_group);
-                            $('#num_' + attendeeID).parent().html(json.checked_in[attendeeID].badge);
-                        }
+                for(const attendeeID in json.checked_in) {
+                    if ($('#cin_' + attendeeID).length) {
+                        $('#paid_' + attendeeID).html(json.checked_in[attendeeID].paid);
+                        $('#cin_' + attendeeID).html(json.checked_in[attendeeID].checked_in);
+                        $('#age_' + attendeeID).parent().html(json.checked_in[attendeeID].age_group);
+                        $('#num_' + attendeeID).parent().html(json.checked_in[attendeeID].badge);
                     }
-                    checkInModal.hide();
-                    $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
-                    window.scrollTo(0,0);
                 }
+                checkInModal.hide();
+                $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
+                window.scrollTo(0,0);
             } else {
                 showErrorMessage(message, "minor-check-message");
             }

@@ -133,7 +133,7 @@ $().ready(function() {
 {{ form_macros.form_validation('check_in_form_' ~ attendee.id,
                                 page_handler='validate_attendee_checkin',
                                 form_list=['CheckInForm'],
-                                callback="printAndOrCheckIn('" ~ attendee.id ~ "', '" ~ print_and_checkin ~ "')") }}
+                                callback="printAndOrCheckIn('" ~ attendee.id ~ "', " ~ print_and_checkin|yesno('true,false') ~ ")") }}
 <form novalidate action="/" id="check_in_form_{{ attendee.id }}" role="form" class="check-in">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -206,20 +206,23 @@ $().ready(function() {
  
 </div>
 <script type="text/javascript">
-    {% if print_and_checkin %}
-        var changeButtonLabel = function () {
-            if ($('#printer_id').val() != printer_id) {
-                $('#printAndOrCheckIn')[0].innerHTML = "Print to " + $.val('printer_id') + " & Check In";
-                $('#printAndOrCheckIn').removeClass('btn-success');
-                $('#printAndOrCheckIn').addClass('btn-warning');
-            } else {
-                $('#printAndOrCheckIn')[0].innerHTML = "Print & Check In";
-                $('#printAndOrCheckIn').removeClass('btn-warning');
-                $('#printAndOrCheckIn').addClass('btn-success');
-            }
+    var changeButtonLabel = function () {
+        if ($('#printer_id').val() != printer_id) {
+            $('#printAndOrCheckIn')[0].innerHTML = "Print to " + $.val('printer_id') + " & Check In";
+            $('#printAndOrCheckIn').removeClass('btn-success');
+            $('#printAndOrCheckIn').addClass('btn-warning');
+        } else {
+            $('#printAndOrCheckIn').removeClass('btn-warning');
+            {% if print_and_checkin %}
+            $('#printAndOrCheckIn')[0].innerHTML = "Print Badge & Check In";
+            $('#printAndOrCheckIn').addClass('btn-success');
+            {% else %}
+            $('#printAndOrCheckIn')[0].innerHTML = "Save & Check In";
+            $('#printAndOrCheckIn').addClass('btn-primary');
+            {% endif %}
         }
-        $('#printer_id').on('keyup', changeButtonLabel);
-    {% endif %}
+    }
+    $('#printer_id').on('keyup', changeButtonLabel);
     loadMinorCheckForm = function (attendeeID, printerID, reprintFee) {
         $('#checkin_modal .modal-content').load(
             '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee, function() {
@@ -231,28 +234,31 @@ $().ready(function() {
         });
     }
     var printAndOrCheckIn = function (attendeeID, print=false) {
-        if(print == false) {}
-        $.ajax({
-            method: 'POST',
-            url: '../registration/print_badge',
-            dataType: 'json',
-            data: $("#check_in_form_" + attendeeID).serialize(),
-            success: function (json) {
-                hideMessageBox('form-validations-check_in_form_' + attendeeID);
-                if (json.success) {
-                    if (json.minor_check) {
-                        loadMinorCheckForm(attendeeID, $.val('printer_id'), 0);
+        if(print == false) {
+            checkIn(attendeeID);
+        } else {
+            $.ajax({
+                method: 'POST',
+                url: '../registration/print_badge',
+                dataType: 'json',
+                data: $("#check_in_form_" + attendeeID).serialize(),
+                success: function (json) {
+                    hideMessageBox('form-validations-check_in_form_' + attendeeID);
+                    if (json.success) {
+                        if (json.minor_check) {
+                            loadMinorCheckForm(attendeeID, $.val('printer_id'), 0);
+                        } else {
+                            checkIn(attendeeID);
+                        }
                     } else {
-                        checkIn(attendeeID);
+                        showErrorMessage(json.message, 'form-validations-check_in_form_' + attendeeID);
                     }
-                } else {
-                    showErrorMessage(json.message, 'form-validations-check_in_form_' + attendeeID);
+                },
+                error: function () {
+                    showErrorMessage('Unable to connect to server, please try again.', 'form-validations-check_in_form_' + attendeeID);
                 }
-            },
-            error: function () {
-                showErrorMessage('Unable to connect to server, please try again.', 'form-validations-check_in_form_' + attendeeID);
-            }
-        });
+            });
+        }
     }
 
     age = {{ attendee.age_now_or_at_con|default(0, true) }};

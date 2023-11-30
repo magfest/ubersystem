@@ -653,7 +653,7 @@ class Root:
                 return {'success': False, 'message': "<br>".join(errors)}
             elif errors:
                 printer_messages.append(f"There was a problem with printing {attendee.full_name}'s badge: {' '.join(errors)}")
-            elif account_id:
+            else:
                 if attendee.badge_status == c.AT_DOOR_PENDING_STATUS:
                     attendee.badge_status = c.NEW_STATUS
                 attendee.checked_in = localized_now()
@@ -665,11 +665,9 @@ class Root:
                 }
                 session.commit()
                 attendee_names_list.append(attendee.full_name)
-        if account_id:
-            message = "{} successfully checked in.{}".format(readable_join(attendee_names_list),
-                                                             (" " + " ".join(printer_messages)) if printer_messages else "")
-        else:
-            message = "Badge sent to printer!"
+            
+        message = "{} successfully checked in.{}".format(readable_join(attendee_names_list),
+                                                            (" " + " ".join(printer_messages)) if printer_messages else "")
         return {'success': True, 'message': message, 'checked_in': checked_in}
 
     def check_in_form(self, session, id):
