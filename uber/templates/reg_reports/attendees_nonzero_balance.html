@@ -5,18 +5,7 @@
 <div class="card">
     <div class="card-body">
         <p>
-            {% if include_no_receipts %}
-                <a href="attendees_nonzero_balance" class="btn btn-secondary">Hide Attendees Without Receipts</a>
-            {% else %}
-                <a href="attendees_nonzero_balance?include_no_receipts=True" class="btn btn-outline-secondary">Show Attendees Without Receipts</a>
-            {% endif %}
-            <br/><span class="form-text">
-                Attendees without receipts will typically have their receipt created and 
-                be prompted to pay when they, e.g., claim their badge.
-            </span>
-        </p>
-        <p>
-            This page only shows attendees whose receipt matches their default cost{% if include_no_receipts %} or who do not have a receipt{% endif %}.
+            This page only shows attendees whose receipt matches their default cost.
             Please see the "Attendees with Receipt Discrepancies" page to view attendees who may owe money but whose default cost does not match their receipt.
         </p>
         <table class="table table-striped datatable">
@@ -35,7 +24,7 @@
             </tr>
         </thead>
         <tbody>
-        {% for attendee in attendees %}
+        {% for attendee, active_receipt in attendees %}
         <tr id="{{ attendee.id }}">
             <td>
                 {{ attendee.badge_status_label }}
@@ -50,24 +39,19 @@
                 {{ attendee.badge_type_label }}
             </td>
             <td>
-                {{ (attendee.active_receipt.item_total / 100)|format_currency 
-                    if attendee.active_receipt else attendee.default_cost|format_currency }}
+                {{ (active_receipt.item_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (attendee.active_receipt.payment_total / 100)|format_currency 
-                    if attendee.active_receipt else "Unpaid" }}
+                {{ (active_receipt.payment_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (attendee.active_receipt.refund_total / 100)|format_currency 
-                    if attendee.active_receipt else "N/A" }}
+                {{ (active_receipt.refund_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (attendee.active_receipt.txn_total / 100)|format_currency 
-                    if attendee.active_receipt else "N/A" }}
+                {{ (active_receipt.txn_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (attendee.active_receipt.current_receipt_amount / 100)|format_currency 
-                    if attendee.active_receipt else attendee.default_cost|format_currency }}
+                {{ (active_receipt.current_receipt_amount / 100)|format_currency }}
             </td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>
