@@ -56,7 +56,9 @@ printBadge = function ($form) {
         success: function (json) {
             if (json.success) {
                 if (json.message.includes('fee')) { 
-                    window.location = window.location + '&message=' + json.message
+                    const querystring = new URLSearchParams(window.location.search)
+                    querystring.set('message', json.message)
+                    window.location.search = querystring.toString()
                 } else {
                     $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
                 }
