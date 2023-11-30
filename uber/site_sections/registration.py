@@ -55,17 +55,10 @@ def load_attendee(session, params):
     return attendee, forms
 
 
-def save_attendee(session, params):
-    id = params.get('id', None)
-    message = ''
-
-    if id in [None, '', 'None']:
-        attendee = Attendee()
-    else:
-        attendee = session.attendee(id)
-        if cherrypy.request.method == 'POST':
-            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
-            session.add_all(receipt_items)
+def save_attendee(session, attendee, forms, params):
+    if cherrypy.request.method == 'POST':
+        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+        session.add_all(receipt_items)
 
     forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
                                           'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
@@ -75,22 +68,21 @@ def save_attendee(session, params):
             form['legal_name'].data = ''
         form.populate_obj(attendee, is_admin=True)
 
-    if cherrypy.request.method == 'POST':
-        message = ''
+    message = ''
 
-        if c.NUMBERED_BADGES and (params.get('no_badge_num') or not attendee.badge_num):
-            if params.get('save_check_in', False) and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
-                message = "Please enter a badge number to check this attendee in."
-            else:
-                attendee.badge_num = None
+    if c.NUMBERED_BADGES and (params.get('no_badge_num') or not attendee.badge_num):
+        if params.get('save_check_in', False) and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
+            message = "Please enter a badge number to check this attendee in."
+        else:
+            attendee.badge_num = None
 
-        if 'no_override' in params:
-            attendee.overridden_price = None
+    if 'no_override' in params:
+        attendee.overridden_price = None
 
-        if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
-            message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
+    if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
+        message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
-        return message
+    return message
 
 
 @all_renderable()
@@ -207,10 +199,9 @@ class Root:
         workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first()
 
         if cherrypy.request.method == 'POST':
-            message = save_attendee(session, params)
+            message = save_attendee(session, attendee, forms, params)
 
             if not message:
-                """
                 if attendee.is_new and \
                         session.attendees_with_badges().filter_by(first_name=attendee.first_name,
                                                                   last_name=attendee.last_name,
@@ -218,7 +209,6 @@ class Root:
                     session.add(attendee)
                     session.commit()
                     raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
-                """
 
                 message = '{} has been saved.'.format(attendee.full_name)
                 stay_on_form = params.get('save_return_to_search', False) == False
@@ -1358,7 +1348,7 @@ class Root:
         attendee, forms = load_attendee(session, params)
 
         if cherrypy.request.method == 'POST':
-            message = save_attendee(session, params)
+            message = save_attendee(session, attendee, forms)
 
         if not message:
             if attendee.is_new and \
