@@ -391,7 +391,7 @@
 
   var settleUp = function(receiptId, refundAmt) {
     bootbox.confirm({
-      title: "Settle Balance?",
+      title: "Refund " + refundAmt + "?",
       message: "This will refund this {{ model_str }} " + refundAmt +
               " on their latest refundable transaction that can cover the amount. " +
               " If refunding via cash, please simply record the refund. Please also " +
@@ -663,6 +663,9 @@
           {% elif item.closed %}
             <em>Paid {{ item.paid|datetime_local }}</em>
           {% endif %}
+          {% if item.refunded %}
+          <em>{{ (item.refunded / 100)|format_currency }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ (item.amount_left / 100)|format_currency }} left){% endif %}
+          {% endif %}
         </td>
       </tr>
     {% endfor %}
@@ -733,7 +736,7 @@
   <button class="btn btn-danger" onClick="mostlyFullRefund('{{ receipt.id }}', '{{ (receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
   {% endif %}
   {% if receipt.current_receipt_amount < 0 %}
-  <button class="btn btn-success" onClick="settleUp('{{ receipt.id }}', '{{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}')">Settle Receipt (Refund {{ (receipt.current_receipt_amount * -1 / 100)|format_currency }})</button>
+  <button class="btn btn-success" onClick="settleUp('{{ receipt.id }}', '{{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}')">Refund {{ (receipt.current_receipt_amount * -1 / 100)|format_currency }} to Card</button>
   {% endif %}
 {% else %}
   There are no active receipts for this {{ model_str }}.
