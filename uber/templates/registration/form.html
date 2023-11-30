@@ -46,9 +46,46 @@
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>
     {% if payment_enabled %}
         {% if c.SPIN_TERMINAL_AUTH_KEY %}
+            <form method="post" class="d-inline" action="mark_as_paid">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="hidden" name="payment_method" value="{{ c.CASH }}" />
+                <button class="btn btn-success" type="submit">Paid with Cash</button>
+            </form>
+            <strong>OR</strong>
             <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ attendee.id }}')">Prompt Payment at Terminal</button>
             <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
             {% include 'registration/spin_terminal_form.html' with context %}
+            <script type="text/javascript">
+                $("form[action='mark_as_paid']").submit(function (e) {
+                    e.preventDefault();
+
+                    var data = $(this).serialize();
+                    var currentForm = $(this);
+
+                    $.ajax({
+                        method: 'POST',
+                        url: '../registration/mark_as_paid',
+                        dataType: 'json',
+                        data: data,
+                        success: function (json) {
+                            hideMessageBox();
+                            var message = json.message;
+                            if (json.success) {
+                                $("#payment-loading-message").addClass("alert-success").show().html(message);
+                                setTimeout(function(){
+                                    window.location.reload();
+                                }, 1000);
+                            } else {
+                                showErrorMessage(message);
+                            }
+                        },
+                        error: function () {
+                            showErrorMessage('Unable to connect to server, please try again.');
+                        }
+                    });
+                });
+            </script>
         {% else %}
             {{ stripe_form('manual_reg_charge', attendee) }}
         {% endif %}
