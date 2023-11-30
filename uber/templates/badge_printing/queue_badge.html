@@ -1,6 +1,6 @@
 {% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
 <div class="row g-sm-3">
-<form class="print-badge d-inline" method="post">
+<form class="print-badge d-inline" action="../badge_printing/add_job_to_queue" method="post">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}">
     <div class="col">
@@ -42,11 +42,10 @@
 
 <script type="text/javascript">
 age = {{ attendee.age_now_or_at_con|default(0, true) }};
-
-if (age < 18) {
-    $.field('printer_id').val(printer_minor_id);
-} else if (age >= 18) {
-    $.field('printer_id').val(printer_default_id);
+if (age < 18 && $.field('printer_id')) {
+    $.field('printer_id').val(minor_printer_id);
+} else if (age >= 18 && $.field('printer_id')) {
+    $.field('printer_id').val(printer_id);
 }
 
 printBadge = function ($form) {
@@ -75,7 +74,7 @@ $('.print-badge').on('submit', function (event) {
     var $form = $(this);
     event.preventDefault();
     hideMessageBox();
-    if($.val('printer_id') == printer_default_id && age < 18) {
+    if($.val('printer_id') == printer_id && age < 18) {
         bootbox.confirm({
             backdrop: true,
             title: 'Please Load Minor Badge Stock',
