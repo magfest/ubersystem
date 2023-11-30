@@ -1028,7 +1028,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
-        preview_attendee.birthdate = dateparser.parse(birthdate)
+        preview_attendee.birthdate = birthdate
         current_discount = max(self.badge_cost * 100 * -1, self.age_discount * 100)
         new_discount = max(self.badge_cost * 100 * -1, preview_attendee.age_discount * 100)
 
