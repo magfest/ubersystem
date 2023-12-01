@@ -147,9 +147,7 @@ if c.ATTRACTIONS_ENABLED:
 if c.BADGE_PRINTING_ENABLED:
     c.MENU.append_menu_item(MenuItem(name='Badge Printing', submenu=[
         MenuItem(name='Printed Badges', href='../badge_printing/'),
-        MenuItem(name='Waiting to Print', href='../badge_printing/index?pending=True'),
-        MenuItem(name='Print Jobs List', href='../badge_printing/print_jobs_list'),
-        MenuItem(name='Kiosk Print', href='../badge_printing/print_next_badge'),
+        MenuItem(name='Print Jobs', href='../badge_printing/print_jobs_list'),
     ]))
 
 if c.BADGE_PRINTING_ENABLED or c.SPIN_TERMINAL_AUTH_KEY:
