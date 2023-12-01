@@ -951,11 +951,10 @@ class Root:
                 no_matching_workstations = False
 
             if terminal_id:
-                c.REDIS_STORE.delete(c.REDIS_PREFIX + 'spin_terminal_closeout:' + terminal_id)
                 no_valid_workstations = False
                 workstation_and_terminal_ids.append((id, terminal_id))
         
-        close_out_terminals(workstation_and_terminal_ids, AdminAccount.admin_name())
+        close_out_terminals.delay(workstation_and_terminal_ids, AdminAccount.admin_name())
 
         if no_matching_workstations:
             raise HTTPRedirect('manage_workstations?message={}', f"No workstations found matching ID(s) {params.get('workstation_ids')}")
