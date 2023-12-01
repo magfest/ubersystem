@@ -620,13 +620,23 @@ class Root:
             'id': id
         }
 
-    def at_door_confirmation(self, session, message='', **params):
+    def at_door_confirmation(self, session, message='', qr_code_id='', **params):
         # Currently this feature relies on attendee accounts
-        # It is not clear if that needs to be changed or not
+        # We will want real "carts" later so we can support group check-in for prereg attendees
 
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
         used_codes = defaultdict(int)
         registrations_list = []
+        account = None
+
+        if not listify(PreregCart.unpaid_preregs.values()) and qr_code_id:
+            account = session.query(AttendeeAccount).filter_by(public_id=qr_code_id).first()
+            for attendee in account.at_door_attendees:
+                registrations_list.append(attendee.full_name)
+        elif c.ATTENDEE_ACCOUNTS_ENABLED:
+            account = session.current_attendee_account()
+            qr_code_id = qr_code_id or account.public_id
+
         for attendee in cart.attendees:
             registrations_list.append(attendee.full_name)
             attendee.badge_status = c.AT_DOOR_PENDING_STATUS
@@ -644,8 +654,8 @@ class Root:
             if message:
                 session.rollback()
                 raise HTTPRedirect('index?message={}', message)
-            elif c.ATTENDEE_ACCOUNTS_ENABLED:
-                session.add_attendee_to_account(attendee, session.current_attendee_account())
+            elif account:
+                session.add_attendee_to_account(attendee, account)
         for group in cart.groups:
             session.add(group)
     
@@ -653,7 +663,8 @@ class Root:
         session.commit()
 
         return {
-            'account': session.current_attendee_account(),
+            'account': account,
+            'qr_code_id': qr_code_id,
             'completed_registrations': registrations_list,
             'logged_in_account': session.current_attendee_account(),
         }

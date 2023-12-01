@@ -42,4 +42,11 @@
     {% include "preregistration/disclaimers.html" %}
   </div>
 </div>
+<script type="text/javascript">
+  $().ready(function() {
+    const querystring = new URLSearchParams(window.location.search);
+    querystring.set('qr_code_id', "{{ qr_code_id }}");
+    history.replaceState( {} , '', "{{ c.PAGE }}" + '?' + querystring.toString() );
+  })
+</script>
 {% endblock %}
