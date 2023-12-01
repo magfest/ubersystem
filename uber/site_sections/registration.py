@@ -1346,7 +1346,7 @@ class Root:
         attendee, forms = load_attendee(session, params)
 
         if cherrypy.request.method == 'POST':
-            message = save_attendee(session, attendee, forms)
+            message = save_attendee(session, attendee, forms, params)
 
         if not message:
             if attendee.is_new and \
