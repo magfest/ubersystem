@@ -256,7 +256,7 @@ class Root:
                     Attendee.group_id != None, Attendee.first_name == '').group_by(Attendee.group_id).all()},
             'payment_enabled': True if reg_station_id else False,
             'reg_station_id': reg_station_id,
-            'workstation_assignemnt': workstation_assignment,
+            'workstation_assignment': workstation_assignment,
             'receipt': receipt,
         }  # noqa: E711
     

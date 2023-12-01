@@ -7,10 +7,10 @@
         <label for="printer_id" class="form-text">Printer ID and Reg Station #</label>
         <div class="row g-sm-3">
         <div class="col-3 mb-3">
-            <input type="text" name="printer_id" class="form-control" value="{{ printer_id }}" placeholder="Printer ID" />
+            <input type="text" name="printer_id" class="form-control" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" placeholder="Printer ID" />
         </div>
         <div class="col-3 mb-3">
-            <input type="number" name="reg_station" class="form-control" value="{{ reg_station }}" placeholder="Station #" />
+            <input type="number" name="reg_station" class="form-control" value="{{ reg_station_id }}" placeholder="Station #" />
         </div>
         </div>
     </div>
