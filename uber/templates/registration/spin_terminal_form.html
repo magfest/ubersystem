@@ -41,6 +41,9 @@
       } else if (json && json.message) {
         $('#payment-loading-message').html(json.message);
         clearInterval(intervalId);
+        if (typeof callback != 'undefined' && callback.name == "recordCardPayment") {
+          $('#payment-loading-message').html(json.message + "<br/><button type='button' class='btn btn-success' onClick='" + callback.name + "()'>Record Payment</button>")
+        }
       } else if (json && json.error) {
         $('#payment-loading-message').removeClass('alert-info').addClass('alert-danger');
         $('#payment-loading-message').html("Error: " + json.error + ".");
