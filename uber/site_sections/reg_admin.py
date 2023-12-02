@@ -843,7 +843,8 @@ class Root:
                     new_workstation_params = [{key.split('_', 1)[1]: val[i] for key, val in params.items() if key.startswith('new')} for i in range(len(params['new_reg_station_id']))]
             
             for new_params in new_workstation_params:
-                if session.query(WorkstationAssignment).filter_by(reg_station_id=new_params['reg_station_id']).first():
+                reg_station_id = new_params['reg_station_id']
+                if session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first():
                     skipped_reg_stations.append(new_params['reg_station_id'])
                 else:
                     if new_params.get('terminal_id'):

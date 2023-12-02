@@ -635,7 +635,7 @@ class Root:
                 registrations_list.append(attendee.full_name)
         elif c.ATTENDEE_ACCOUNTS_ENABLED:
             account = session.current_attendee_account()
-            qr_code_id = qr_code_id or account.public_id
+            qr_code_id = qr_code_id or (account.public_id if account else '')
 
         for attendee in cart.attendees:
             registrations_list.append(attendee.full_name)
@@ -927,9 +927,10 @@ class Root:
         if existing_model:
             existing_receipt = session.get_receipt_by_model(existing_model)
             existing_model.badge_status = c.INVALID_STATUS
-            existing_receipt.closed = datetime.now()
-            session.add(existing_receipt)
             session.add(existing_model)
+            if existing_receipt:
+                existing_receipt.closed = datetime.now()
+                session.add(existing_receipt)
             session.commit()
 
         raise HTTPRedirect('index?message={}', message)

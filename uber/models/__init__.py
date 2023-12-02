@@ -738,7 +738,7 @@ class Session(SessionManager):
         def admin_attendee_max_access(self, attendee, read_only=True):
             admin = self.current_admin_account()
             if not admin:
-                return
+                return 0
                 
             if admin.full_registration_admin or attendee.creator == admin.attendee or \
                                                 attendee == admin.attendee or attendee.is_new:
