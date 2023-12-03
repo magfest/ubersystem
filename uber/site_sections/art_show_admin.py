@@ -208,7 +208,7 @@ class Root:
                                'Close-out successful for piece {}'.format(piece.artist_and_piece_id))
 
     def artist_check_in_out(self, session, checkout=False, message='', page=1, search_text='', order='first_name'):
-        filters = [ArtShowApplication.status != c.DECLINED]
+        filters = [ArtShowApplication.status == c.APPROVED]
         if checkout:
             filters.append(ArtShowApplication.checked_in != None)
         else:
