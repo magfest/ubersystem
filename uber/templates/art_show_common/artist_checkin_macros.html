@@ -168,6 +168,7 @@
     </div>
   </div>
   {% endif %}
+</div>
 <div class="row g-sm-3">
 {% endif %}
 {% if not app.check_payable and printable %}
@@ -182,7 +183,6 @@
 {% else %}
   {{ macros.form_group(app, 'check_payable', label="Name on Check", placeholder=app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name, is_readonly=printable, use_bs5=True) }}
 {% endif %}
-</div>
 </div>
 <div class="table-responsive">
   <table class="table table-striped"{% if not printable %} id="datatable_{{ app.id }}" {% endif %}>
