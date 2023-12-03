@@ -29,6 +29,7 @@
       $('#payment-loading-message').html("Couldn't contact server!");
     });
   }
+  let return_json = {}
   var pollTerminalPayment = function (callback) {
     $.post('../registration/poll_terminal_payment',
     {csrf_token: csrf_token}, function(json) {
@@ -42,14 +43,22 @@
         $('#payment-loading-message').html(json.message);
         clearInterval(intervalId);
         if (typeof callback != 'undefined' && callback.name == "recordCardPayment") {
-          $('#payment-loading-message').html(json.message + "<br/><button type='button' class='btn btn-success' onClick='" + callback.name + "()'>Record Payment</button>")
+          return_json = json;
+          $('#payment-loading-message').html(json.message + "<br/><button type='button' class='btn btn-success' onClick='forceCallback(" + callback.name + ")'>Mark Payment as Succeeded</button>")
         }
       } else if (json && json.error) {
         $('#payment-loading-message').removeClass('alert-info').addClass('alert-danger');
         $('#payment-loading-message').html("Error: " + json.error + ".");
+        if (typeof callback != 'undefined' && callback.name == "recordCardPayment") {
+          return_json = json;
+          $('#payment-loading-message').html($('#payment-loading-message').html() + "<br/><button type='button' class='btn btn-success' onClick='forceCallback(" + callback.name + ")'>Mark Payment as Succeeded</button>")
+        }
         clearInterval(intervalId);
       }
     });
+  }
+  var forceCallback = function(callback) {
+    callback(return_json);
   }
   $().ready(function() {$('#payment-loading-message').hide();})
 </script>
