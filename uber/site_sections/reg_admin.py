@@ -517,7 +517,7 @@ class Root:
 
         error = refund.refund_or_cancel(txn)
         if error:
-            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', session.get_model_by_receipt(receipt), error)
+            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', session.get_model_by_receipt(receipt).id, error)
         
         session.add_all(refund.get_receipt_items_to_add())
         session.commit()
