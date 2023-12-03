@@ -305,7 +305,7 @@ class Root:
         else:
             message = f"Error checking status of {intent_id}: {req.error_message}"
 
-        raise HTTPRedirect('../registration/index?message={}', message)
+        raise HTTPRedirect('../reg_admin/manage_workstations?message={}', message)
     
     @ajax
     def poll_terminal_payment(self, session, **params):
@@ -329,8 +329,9 @@ class Root:
                 session.commit()
             custom_error = spin_rest_utils.better_error_message(error_message, response, terminal_id, format_currency)
             if custom_error:
+                custom_error['intent_id'] = intent_id
                 return custom_error
-            return {'error': error_message}
+            return {'error': error_message, 'intent_id': intent_id}
         elif response:
             if not intent_id:
                 return {'error': "We could not find which payment this transaction was for. You may need a manager to log it manually."}
