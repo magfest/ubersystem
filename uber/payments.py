@@ -823,6 +823,7 @@ class SpinTerminalRequest(TransactionRequest):
     def process_sale_response(self, session, response):
         from uber.models import ReceiptTransaction
         from uber.tasks.registration import send_receipt_email
+        from decimal import Decimal
 
         try:
             response_json = response.json()
@@ -867,8 +868,8 @@ class SpinTerminalRequest(TransactionRequest):
         
         self.tracker.success = True
         
-        approval_amount = spin_rest_utils.approved_amount(response_json) * 100
-        if approval_amount != self.amount:
+        approval_amount = Decimal(str(spin_rest_utils.approved_amount(response_json))) * 100 # don't @ me
+        if approval_amount != self.amount and abs(approval_amount - self.amount) > 5:
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id, 'last_error', "Partial approval")
 
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent.id).all()
