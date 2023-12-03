@@ -1144,7 +1144,9 @@ class Session(SessionManager):
 
             settlements['completed'] = counts_base_query.filter(or_(TerminalSettlement.error != '',
                                                                     TerminalSettlement.response != {})).group_by(
-                                                                        TerminalSettlement.batch_timestamp).all()
+                                                                        TerminalSettlement.batch_timestamp).order_by(
+                                                                        TerminalSettlement.batch_timestamp
+                                                                        ).all()
 
             settlements['succeeded'] = dict(counts_base_query.filter(TerminalSettlement.error == '',
                                                                      TerminalSettlement.response != {}).group_by(
@@ -1157,9 +1159,9 @@ class Session(SessionManager):
                                                                                            TerminalSettlement.response == {}).all()
 
             settlements['errors'] = {}
-            settlements['batch_info'] = self.query(TerminalSettlement.batch_timestamp, TerminalSettlement.batch_who).distinct().all()
+            settlements['batch_info'] = dict(self.query(TerminalSettlement.batch_timestamp, TerminalSettlement.batch_who).distinct().all())
 
-            for timestamp, who in settlements['batch_info']:
+            for timestamp, who in settlements['batch_info'].items():
                 settlements['errors'][timestamp] = self.query(TerminalSettlement.workstation_num,
                                                               TerminalSettlement.terminal_id,
                                                               TerminalSettlement.error).filter(
