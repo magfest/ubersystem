@@ -123,7 +123,7 @@ class Root:
                 out.writecell(cell, format={'text_wrap': True}, last_cell=last_cell)
 
         for group in dealer_groups:
-            wares_urls = extract_urls(group.wares)
+            wares_urls = extract_urls(group.wares) or []
             full_name = group.leader.full_name if group.leader else ''
 
             row = [
