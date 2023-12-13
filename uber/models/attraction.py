@@ -71,6 +71,7 @@ class Attraction(MagModel):
     name = Column(UnicodeText, unique=True)
     slug = Column(UnicodeText, unique=True)
     description = Column(UnicodeText)
+    full_description = Column(UnicodeText)
     is_public = Column(Boolean, default=False)
     advance_notices = Column(JSON, default=[], server_default='[]')
     advance_checkin = Column(Integer, default=0)  # In seconds

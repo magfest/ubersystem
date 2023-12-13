@@ -115,7 +115,7 @@ class PersonalInfo(AddressForm, MagForm):
             optional_list.append('cellphone')
         if self.copy_address.data:
             optional_list.extend(['address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country'])
-        if self.no_onsite_contact.data:
+        if self.no_onsite_contact.data or attendee.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             optional_list.append('onsite_contact')
 
         return optional_list

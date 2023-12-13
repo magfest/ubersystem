@@ -677,7 +677,7 @@
 </h1>
 
 <div class="attraction-info info-block">
-  <p>{{ attraction.description|linebreaksbr }}</p>
+  <p>{{ attraction.full_description|linebreaksbr }}</p>
 
   {% if attraction.restriction != attraction._NONE -%}
     <p>{{ attraction._RESTRICTIONS[attraction.restriction].split('–')|last|trim }}.</p>
