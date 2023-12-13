@@ -17,8 +17,9 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import format_currency
-from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, credit_card, \
-    csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, requires_account, site_mappable, public
+from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderable, attendee_view, check_for_encrypted_badge_num, \
+    credit_card, csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, requires_account, site_mappable, \
+    public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
@@ -184,6 +185,7 @@ class Root:
         }  # noqa: E711
     
     @ajax
+    @any_admin_access
     def validate_attendee(self, session, form_list=[], **params):
         if params.get('id') in [None, '', 'None']:
             attendee = Attendee()

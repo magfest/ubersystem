@@ -8,7 +8,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, site_mappable
+from uber.decorators import ajax, any_admin_access, all_renderable, csrf_protected, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import attendee as attendee_forms, group as group_forms, load_forms
 from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking, SignedDocument
@@ -209,6 +209,7 @@ class Root:
         }
     
     @ajax
+    @any_admin_access
     def validate_group(self, session, form_list=[], new_dealer='', **params):
         if params.get('id') in [None, '', 'None']:
             group = Group()
