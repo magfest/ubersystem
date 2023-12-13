@@ -23,6 +23,9 @@ def convert_dealer_badge(session, attendee, admin_note=''):
     
     receipt = session.get_receipt_by_model(attendee)
     receipt_items = []
+    attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
+    attendee.badge_cost = None # Triggers re-calculating the base badge price on save
+    session.add(attendee)
 
     if attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY]:
         receipt_item = ReceiptManager.process_receipt_credit_change(attendee, 'paid', c.NOT_PAID, receipt)
@@ -32,12 +35,8 @@ def convert_dealer_badge(session, attendee, admin_note=''):
         session.add(attendee)
         session.commit()
 
-    receipt_item = ReceiptManager.process_receipt_credit_change(attendee, 'ribbon', remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON), receipt)
-    receipt_items += [receipt_item] if receipt_item else []
-    attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
     if admin_note:
         attendee.append_admin_note(admin_note)
-    attendee.badge_cost = None # Triggers re-calculating the base badge price on save
 
     if receipt and receipt.item_total != int(attendee.calc_default_cost() * 100):
         session.add_all(receipt_items)
@@ -99,6 +98,7 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
             badges_converted += 1
         elif not delete_group:
             attendee.badge_status = c.INVALID_GROUP_STATUS
+            attendee.paid = c.NOT_PAID
 
         if delete_group:
             attendee.group = None
