@@ -133,6 +133,7 @@ def check_unassigned_volunteers():
                 Attendee.is_valid == True,
                 Attendee.staffing == True,
                 Attendee.badge_status != c.REFUNDED_STATUS,
+                Attendee.is_unassigned == False,
                 not_(Attendee.dept_memberships.any())).order_by(Attendee.full_name).all()  # noqa: E712
             subject = c.EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
             if unassigned and session.no_email(subject):
