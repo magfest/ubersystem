@@ -38,7 +38,7 @@ class Root:
     def attendee_receipt_discrepancies(self, session, include_pending=False):
         filters = [Attendee.default_cost_cents != ModelReceipt.item_total]
         if include_pending:
-            filters.append(or_(Attendee.badge_status == c.PENDING_STATUS, Attendee.is_valid == True))
+            filters.append(or_(Attendee.badge_status.in_[c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS], Attendee.is_valid == True))
         else:
             filters.append(Attendee.is_valid == True)
         
@@ -49,17 +49,11 @@ class Root:
     
     @log_pageview
     def attendees_nonzero_balance(self, session, include_no_receipts=False):
-        if include_no_receipts:
-            attendees = session.query(Attendee).outerjoin(Attendee.active_receipt).filter(
-                or_(and_(ModelReceipt.id == None, Attendee.default_cost > 0),
-                    and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))
-        else:
-            attendees = session.query(Attendee).join(Attendee.active_receipt).filter(Attendee.default_cost_cents == ModelReceipt.item_total,
-                                                                                     ModelReceipt.current_receipt_amount != 0)
+        attendees = session.query(Attendee, ModelReceipt).join(Attendee.active_receipt).filter(Attendee.default_cost_cents == ModelReceipt.item_total,
+                                                                                                   ModelReceipt.current_receipt_amount != 0)
 
         return {
-            'attendees': attendees.filter(Attendee.is_valid == True),
-            'include_no_receipts': include_no_receipts,
+            'attendees': attendees.filter(Attendee.is_valid == True)
         }
 
     @log_pageview

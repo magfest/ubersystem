@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
-from sqlalchemy.types import Boolean, Date
+from sqlalchemy.types import Boolean, Date, Integer
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -17,7 +17,7 @@ from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column
 
 
-__all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList']
+__all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList', 'WorkstationAssignment']
 
 
 # Many to many association table to tie Access Groups with Admin Accounts
@@ -307,6 +307,21 @@ class WatchList(MagModel):
     def _fix_birthdate(self):
         if self.birthdate == '':
             self.birthdate = None
+
+
+class WorkstationAssignment(MagModel):
+    reg_station_id = Column(Integer)
+    printer_id = Column(UnicodeText)
+    minor_printer_id = Column(UnicodeText)
+    terminal_id = Column(UnicodeText)
+
+    @property
+    def separate_printers(self):
+        return self.minor_printer_id != '' and self.printer_id != self.minor_printer_id
+    
+    @property
+    def minor_or_adult_printer_id(self):
+        return self.minor_printer_id or self.printer_id
 
 
 c.ACCESS_GROUP_WRITE_LEVEL_OPTS = AccessGroup.WRITE_LEVEL_OPTS

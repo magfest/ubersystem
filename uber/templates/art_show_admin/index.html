@@ -2,11 +2,13 @@
 {% block title %}Art Show Admin{% endblock %}
 {% block content %}
 
-<ol class="breadcrumb">
-  <li class="breadcrumb-item"><a href="../accounts/homepage">Home</a></li>
-  <li class="breadcrumb-item">Art Show</li>
-  <li class="breadcrumb-item active">Admin</li>
-</ol>
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="../accounts/homepage">Home</a></li>
+    <li class="breadcrumb-item">Art Show</li>
+    <li class="breadcrumb-item active">Admin</li>
+  </ol>
+</nav>
 
 <div class="card">
   <div class="card-header">
@@ -38,7 +40,7 @@
 </tr></thead>
 {% for app in applications %}
     <tr>
-        <td style="text-align:left" data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}"> <a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}{% if app.artist_name %} ({{ app.artist_name }}){% endif %}</a> </td>
+        <td style="text-align:left" data-order="{{ app.attendee.full_name }} ({{ app.artist_name }})" data-search="{{ app.attendee.full_name }} ({{ app.artist_name }})"> <a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}{% if app.artist_name %} ({{ app.artist_name }}){% endif %}</a> </td>
         <td>{% if app.delivery_method == c.BRINGING_IN %}Attending
             {% elif app.delivery_method == c.BY_MAIL %}Mailing In
             {% elif app.delivery_method == c.AGENT %}Agenting{% endif %}</td>

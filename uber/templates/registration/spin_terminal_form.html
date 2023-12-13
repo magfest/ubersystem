@@ -1,0 +1,106 @@
+<script type="text/javascript">
+  var loadingIcon = '<i class="fa fa-lg fa-repeat gly-spin"></i>';
+  var startPaymentButton = $('#start-spin-payment-button');
+  var confirmPaymentButton = $('#confirm-spin-payment-button');
+  let intervalId;
+  var startTerminalPayment = function(model_id='', account_id='', callback, action='../registration/start_terminal_payment') {
+    $('#payment-loading-message').removeClass('alert-danger').addClass('alert-info');
+    $('#payment-loading-message').html("Sending request... &nbsp;" + loadingIcon).show();
+    $.post(action,
+    {
+      account_id: account_id,
+      model_id: model_id,
+      amount: $('#card_amount').length ? $('#card_amount').val() : 0,
+      csrf_token: csrf_token
+    }).done( function(json) {
+      if (json && json.success) {
+        $('#payment-loading-message').html("Request sent. Waiting for customer...  &nbsp;" + loadingIcon);
+        setTimeout(pollTerminalPayment, 500, callback);
+        intervalId = setInterval(pollTerminalPayment, 5000, callback);
+      } else if (json && json.error) {
+        $('#payment-loading-message').removeClass('alert-info').addClass('alert-danger');
+        $('#payment-loading-message').html(json.error);
+      } else {
+        $('#payment-loading-message').removeClass('alert-info').addClass('alert-danger');
+        $('#payment-loading-message').html("Something went wrong!");
+        }
+    }).fail(function() {
+      $('#payment-loading-message').removeClass('alert-info').addClass('alert-danger');
+      $('#payment-loading-message').html("Couldn't contact server!");
+    });
+  }
+  let return_json = {}
+  var pollTerminalPayment = function (callback) {
+    $.post('../registration/poll_terminal_payment',
+    {csrf_token: csrf_token}, function(json) {
+      if (json && json.success) {
+        $('#payment-loading-message').html("Payment successful!");
+        clearInterval(intervalId);
+        setTimeout(function(){
+          callback(json);
+        }, 1000);
+      } else if (json && json.message) {
+        $('#payment-loading-message').html(json.message);
+        clearInterval(intervalId);
+        if (typeof callback != 'undefined' && callback.name == "recordCardPayment") {
+          return_json = json;
+          $('#payment-loading-message').html(json.message + "<br/><button type='button' class='btn btn-success' onClick='forceCallback(" + callback.name + ")'>Mark Payment as Succeeded</button>")
+        }
+      } else if (json && json.error) {
+        $('#payment-loading-message').removeClass('alert-info').addClass('alert-danger');
+        $('#payment-loading-message').html("Error: " + json.error + ".");
+        if (typeof callback != 'undefined' && callback.name == "recordCardPayment") {
+          return_json = json;
+          $('#payment-loading-message').html($('#payment-loading-message').html() + "<br/><button type='button' class='btn btn-success' onClick='forceCallback(" + callback.name + ")'>Mark Payment as Succeeded</button>")
+        }
+        clearInterval(intervalId);
+      }
+    });
+  }
+  var forceCallback = function(callback) {
+    callback(return_json);
+  }
+  $().ready(function() {$('#payment-loading-message').hide();})
+</script>
+<style type="text/css">
+    .gly-spin {
+      -webkit-animation: spin 2s infinite linear;
+      -moz-animation: spin 2s infinite linear;
+      -o-animation: spin 2s infinite linear;
+      animation: spin 2s infinite linear;
+    }
+    @-moz-keyframes spin {
+      0% {
+        -moz-transform: rotate(0deg);
+      }
+      100% {
+        -moz-transform: rotate(359deg);
+      }
+    }
+    @-webkit-keyframes spin {
+      0% {
+        -webkit-transform: rotate(0deg);
+      }
+      100% {
+        -webkit-transform: rotate(359deg);
+      }
+    }
+    @-o-keyframes spin {
+      0% {
+        -o-transform: rotate(0deg);
+      }
+      100% {
+        -o-transform: rotate(359deg);
+      }
+    }
+    @keyframes spin {
+      0% {
+        -webkit-transform: rotate(0deg);
+        transform: rotate(0deg);
+      }
+      100% {
+        -webkit-transform: rotate(359deg);
+        transform: rotate(359deg);
+      }
+    }
+</style>

@@ -3,6 +3,7 @@ from uber.decorators import all_renderable, csv_file, log_pageview
 
 from sqlalchemy import or_, and_
 
+from uber.custom_tags import format_currency
 from uber.models import ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, Attendee, ModelReceipt
 from uber.utils import localized_now
 
@@ -91,8 +92,10 @@ class Root:
         }
 
     def summary(self, session, message=''):
-        general_pieces = session.query(ArtShowPiece).filter(ArtShowPiece.gallery == c.GENERAL)
-        mature_pieces = session.query(ArtShowPiece).filter(ArtShowPiece.gallery == c.MATURE)
+        general_pieces = session.query(ArtShowPiece).join(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED,
+                                                                                     ArtShowPiece.gallery == c.GENERAL)
+        mature_pieces = session.query(ArtShowPiece).join(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED,
+                                                                                    ArtShowPiece.gallery == c.MATURE)
 
         general_auctioned = general_pieces.filter(ArtShowPiece.voice_auctioned == True)
         mature_auctioned = mature_pieces.filter(ArtShowPiece.voice_auctioned == True)
@@ -100,7 +103,8 @@ class Root:
         general_sold = general_pieces.filter(ArtShowPiece.status.in_([c.SOLD, c.PAID]))
         mature_sold = mature_pieces.filter(ArtShowPiece.status.in_([c.SOLD, c.PAID]))
 
-        artists_with_pieces = session.query(ArtShowApplication).filter(ArtShowApplication.art_show_pieces != None)
+        artists_with_pieces = session.query(ArtShowApplication).filter(ArtShowApplication.art_show_pieces != None,
+                                                                       ArtShowApplication.status == c.APPROVED)
 
         all_apps = session.query(ArtShowApplication).all()
 
@@ -167,6 +171,31 @@ class Root:
             out.writerow([app.display_name, app.locations])
 
     @csv_file
+    def approved_international_artists(self, out, session):
+        out.writerow(['Artist\'s Name',
+                      'Legal Name',
+                      'Name on Check',
+                      'Email',
+                      'Agent Name',
+                      'Agent Email',
+                      ])
+        
+        for app in session.query(ArtShowApplication).join(Attendee, ArtShowApplication.attendee_id == Attendee.id
+                                                          ).filter(
+                                                              ArtShowApplication.status == c.APPROVED
+                                                          ).filter(or_(and_(ArtShowApplication.country != '',
+                                                                            ArtShowApplication.country != 'United States'),
+                                                                       and_(Attendee.country != '',
+                                                                            Attendee.country != 'United States'))):
+              out.writerow([app.artist_name or app.attendee.full_name,
+                            app.attendee.legal_first_name + " " + app.attendee.legal_last_name,
+                            app.check_payable or (app.attendee.legal_first_name + " " + app.attendee.legal_last_name),
+                            app.email,
+                            app.agent.full_name if app.agent else '',
+                            app.agent.email if app.agent else '',
+                            ])
+
+    @csv_file
     def artist_csv(self, out, session):
         out.writerow(['Application Status',
                       'Paid?',
@@ -197,7 +226,7 @@ class Root:
                       ])
 
         for app in session.query(ArtShowApplication):
-            if app.status == c.PAID:
+            if app.amount_unpaid == 0:
                 paid = "Yes"
             elif app.status == c.APPROVED:
                 paid = "No"
@@ -268,6 +297,36 @@ class Root:
                           '$' + str(piece.quick_sale_price) if piece.valid_quick_sale else 'N/A',
                           '$' + str(piece.sale_price) if piece.status in [c.SOLD, c.PAID] else 'N/A',
                           ])
+            
+    @csv_file
+    def unpicked_up_pieces(self, out, session):
+        out.writerow(["Piece ID",
+                      "Artist Locations",
+                      "Artist Name",
+                      "Gallery",
+                      "Winning Bid",
+                      "Winning Bidder #",
+                      "Winner Badge Name",
+                      "Winner Legal Name",
+                      "Winner Phone #",
+                      "Winner Email"])
+        
+        for piece in session.query(ArtShowPiece).join(ArtShowBidder).filter(ArtShowPiece.status == c.SOLD).order_by(ArtShowBidder.bidder_num):
+            current_row = [piece.app.artist_id + "-" + str(piece.piece_id),
+                           piece.app.locations,
+                           piece.app.artist_name or piece.app.attendee.full_name,
+                           piece.gallery_label,
+                           format_currency(piece.winning_bid),
+                           piece.winning_bidder.bidder_num]
+            
+            winning_attendee = piece.winning_bidder.attendee
+            if winning_attendee:
+                current_row.extend([winning_attendee.badge_printed_name,
+                                    winning_attendee.legal_first_name + " " + winning_attendee.legal_last_name,
+                                    winning_attendee.cellphone,
+                                    winning_attendee.email])
+            out.writerow(current_row)
+            
 
     @csv_file
     def bidder_csv(self, out, session):

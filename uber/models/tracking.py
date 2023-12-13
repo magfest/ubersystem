@@ -11,14 +11,19 @@ from sqlalchemy.ext import associationproxy
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sideboard.lib import serializer
+from sqlalchemy import Sequence
+from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.ext.mutable import MutableDict
 
 from uber.config import c
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.admin import AdminAccount
 from uber.models.email import Email
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
 
-__all__ = ['PageViewTracking', 'Tracking']
+__all__ = ['PageViewTracking', 'Tracking', 'TxnRequestTracking']
 
 serializer.register(associationproxy._AssociationList, list)
 
@@ -191,4 +196,24 @@ class Tracking(MagModel):
                 _insert(session)
 
 
-Tracking.UNTRACKED = [Tracking, Email, PageViewTracking]
+class TxnRequestTracking(MagModel):
+    incr_id_seq = Sequence('txn_request_tracking_incr_id_seq')
+    incr_id = Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True)
+    workstation_num = Column(Integer, default=0)
+    terminal_id = Column(UnicodeText)
+    who = Column(UnicodeText)
+    requested = Column(UTCDateTime, server_default=utcnow())
+    resolved = Column(UTCDateTime, nullable=True)
+    success = Column(Boolean, default=False)
+    response = Column(MutableDict.as_mutable(JSONB), default={})
+    internal_error = Column(UnicodeText)
+
+    @presave_adjustment
+    def log_internal_error(self):
+        if self.internal_error and not self.orig_value_of('internal_error'):
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
+                                   'last_error',
+                                   self.internal_error)
+
+
+Tracking.UNTRACKED = [Tracking, Email, PageViewTracking, TxnRequestTracking]

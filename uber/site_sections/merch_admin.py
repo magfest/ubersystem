@@ -51,7 +51,7 @@ class Root:
             return {'error': message}
         else:
             session.add(ArbitraryCharge(
-                amount=charge.dollar_amount,
+                amount=int(charge.dollar_amount),
                 what=charge.description,
                 reg_station=cherrypy.session.get('reg_station')
             ))

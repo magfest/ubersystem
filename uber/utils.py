@@ -1608,7 +1608,7 @@ class TaskUtils:
                             new_staff.managers.append(account)
                             session.add(new_staff)
                     # If SSO is used for attendee accounts, we don't import staff at all
-                elif attendee['badge_status'] not in [c.PENDING_STATUS, c.INVALID_STATUS, 
+                elif attendee['badge_status'] not in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS, c.INVALID_STATUS, 
                                                       c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]: # Workaround for a bug in the export, we can remove this check next year
                     new_attendee = TaskUtils.basic_attendee_import(attendee)
                     new_attendee.paid = c.NOT_PAID

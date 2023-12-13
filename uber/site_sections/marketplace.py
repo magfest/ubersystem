@@ -109,7 +109,7 @@ class Root:
         charge_desc = "{}'s Marketplace Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, app.attendee.email, charge_desc)
         
-        message = charge.process_payment()
+        message = charge.prepare_payment()
 
         if message:
             return {'error': message}

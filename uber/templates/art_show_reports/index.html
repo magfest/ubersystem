@@ -1,12 +1,13 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Art Show Admin{% endblock %}
 {% block content %}
-
-<ol class="breadcrumb">
-  <li><a href="../accounts/homepage">Home</a></li>
-  <li>Art Show</li>
-  <li class="active">Admin</li>
-</ol>
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="../accounts/homepage">Home</a></li>
+    <li class="breadcrumb-item">Art Show</li>
+    <li class="breadcrumb-item active">Admin</li>
+  </ol>
+</nav>
 
 <div class="card">
   <div class="card-header">
@@ -23,9 +24,11 @@
     <a class="btn btn-primary" href="summary">Grand Summaries</a>
     <a class="btn btn-outline-secondary" href="pieces_by_status">Piece Statuses</a>
     <a class="btn btn-info" href="high_bids?admin_report=True">Pieces Won by Bidder</a>
+    <a class="btn btn-warning" href="unpicked_up_pieces">Unpicked Up Art CSV</a>
     </p><p>
     <a class="btn btn-primary" href="banner_csv">Banner Name/Location CSV</a>
     <a class="btn btn-primary" href="artist_csv">Artist Information CSV</a>
+    <a class="btn btn-primary" href="approved_international_artists">Approved International Artists CSV</a>
     <a class="btn btn-outline-secondary" href="pieces_csv">Piece Information CSV</a>
     <a class="btn btn-info" href="bidder_csv">Bidder Information CSV</a>
     </p>

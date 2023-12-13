@@ -228,16 +228,11 @@ class Group(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def is_dealer(self):
-        return bool(
-            self.tables
-            and self.tables != '0'
-            and self.tables != '0.0'
-            and (not self.registered or self.cost
-                or self.status != c.UNAPPROVED))
+        return bool(not self.guest and (self.tables or self.cost or self.status not in [c.IMPORTED, c.UNAPPROVED]))
 
     @is_dealer.expression
     def is_dealer(cls):
-        return and_(cls.tables > 0, or_(cls.cost > 0, cls.status != c.UNAPPROVED))
+        return and_(cls.guest == None, or_(cls.tables > 0, cls.cost > 0, not_(cls.status.in_([c.IMPORTED, c.UNAPPROVED]))))
 
     @hybrid_property
     def is_unpaid(self):
@@ -339,7 +334,7 @@ class Group(MagModel, TakesPaymentMixin):
             return 0
 
         if self.registered:
-            return max(0, ((self.total_cost * 100) - self.amount_paid - self.amount_pending) / 100)
+            return max(0, ((self.total_cost * 100) - self.amount_paid) / 100)
         else:
             return self.total_cost
 

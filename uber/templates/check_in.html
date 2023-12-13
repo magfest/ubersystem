@@ -1,30 +1,21 @@
-<div class="modal fade" id="checkin_modal" role="dialog">
-    <div class="modal-dialog modal-lg">
-        <!-- Modal content-->
+<div class="modal" id="checkin_modal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content"><div style='padding: 10px;'>Loading...</div></div>
     </div>
 </div>
 
 <script type="text/javascript">
 checkInModal = new bootstrap.Modal($('#checkin_modal'));
-reg_station = {{ reg_station|default(0, true) }};
-printer_default_id = "{{ printer_default_id }}";
-printer_minor_id = "{{ printer_minor_id }}";
-badge_printing_enabled = {{ c.BADGE_PRINTING_ENABLED|yesno("true,false") }};
+printer_id = "{{ workstation_assignment.printer_id if workstation_assignment else '' }}";
+minor_printer_id = "{{ workstation_assignment.minor_or_adult_printer_id if workstation_assignment else '' }}";
 
-var loadCheckInFormModal = function (attendeeID, printerID='') {
+var loadCheckInFormModal = function (attendeeID) {
     $('#checkin_modal .modal-content').load('../registration/check_in_form?id=' + attendeeID, function() {
         if ($('.check-in').length) {
-            if (printerID) {
-                $.field('printer_id').val(printerID);
-            }
-            checkInModal.find('input.date').datetextentry({
-                field_order: 'MDY',
-                show_tooltips: false
-            });
-            checkInModal.on('hidden.bs.modal', function (e) {
+            $('#checkin_modal').on('hidden.bs.modal', function (e) {
                 $('#stripeModal').remove();
             });
+            $('#payment-loading-message').hide();
         } else {
             showErrorMessage("Form loading failed.");
             checkInModal.hide();
@@ -32,20 +23,25 @@ var loadCheckInFormModal = function (attendeeID, printerID='') {
     });
 }
 
-var loadCheckInModal = function (attendeeID) {
-    checkInModal.show();
-    
-    if (badge_printing_enabled && (!reg_station || !printer_default_id || !printer_minor_id)) {
-    $('#checkin_modal .modal-content').load('../registration/printer_id_form?id=' + attendeeID, function() {
-        if ($('.printer-id').length) {
+var loadCheckInCartModal = function (accountId) {
+    $('#checkin_modal .modal-content').load('../registration/check_in_cart_form?id=' + accountId, function() {
+        if ($('.check-in').length) {
+            $('#checkin_modal').on('hidden.bs.modal', function (e) {
+                $('#stripeModal').remove();
+            });
+            $('#payment-loading-message').hide();
+            $('#checkin_modal .modal-dialog').removeClass().addClass('modal-dialog modal-xl');
+            checkInModal.show();
         } else {
             showErrorMessage("Form loading failed.");
-            checkInModal.hide();
         }
-        });
-    } else {
-        loadCheckInFormModal(attendeeID);
-    }
+    });
+}
+
+var loadCheckInModal = function (attendeeID) {
+    checkInModal.show();
+    $('#checkin_modal .modal-dialog').removeClass().addClass('modal-dialog modal-lg');
+    loadCheckInFormModal(attendeeID);
 };
 
 // Hide modal on Esc keydown

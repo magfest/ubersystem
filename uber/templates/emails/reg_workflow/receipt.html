@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+    <head><title>Receipt from {{ c.ORGANIZATION_NAME }}</title></head>
+    <body>
+        <div style="text-align:center">
+            <h1>Receipt from {{ c.ORGANIZATION_NAME }}</h1>
+            <p>Receipt #{{ receipt.reference_id }}</p>
+
+            {% block business_info %}
+            <p>
+                {{ c.ORGANIZATION_NAME }}
+            </p>
+            {% endblock %}
+        </div>
+        <div style="display: flex; justify-content: center;" width="100%">
+        <div style="text-align:left; max-width:800px;">
+            <table style="border-collapse: collapse;" width="100%">
+                <tr>
+                    <td style="border-right: solid 1px #c6c6c6; padding: 10px;">
+                        <strong>Amount Paid</strong>
+                        <br/>{{ receipt.txn_info['amount']|format_currency }}
+                    </td>
+                    <td style="border-right: solid 1px #c6c6c6; padding: 10px;">
+                        <strong>Date Paid</strong>
+                        <br/>{{ receipt.charged|datetime_local("%m/%d/%Y %I:%M %p") }}
+                    </td>
+                    <td style="padding: 10px;">
+                        <strong>Payment Method</strong>
+                        <br/>{{ receipt.card_data['CardType'] }} {{ receipt.card_data['Last4'] }}
+                    </td>
+                </tr>
+            </table>
+
+            <br/><br/><strong>Summary</strong>
+            <table style="border-collapse: separate; border-spacing: 0 15px;" width="100%">
+                <tr>
+                    <td>
+                        {{ receipt.receipt_txns[0].desc }} <span style="float:right;">{{ (receipt.receipt_txns[0].txn_total / 100)|format_currency }}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong>Total <span style="float:right;">{{ receipt.txn_info['amount']|format_currency }}</span></strong>
+                    </td>
+                </tr>
+            </table>
+            <hr/>
+            <p>Transaction Information</p>
+            <p>{{ receipt.card_data['PaymentType'] }}</p>
+            {% if 'CardType' in receipt.card_date %}
+            <p>{{ receipt.card_data['CardType'] }} <span style="float:right;">{{ receipt.card_data['EntryType'] }}</span></p>
+            {% endif %}
+            <p>**** **** **** {{ receipt.card_data['Last4'] }} <span style="float:right;">**/**</span></p>
+            <p>Reference ID <span style="float:right;">{{ receipt.reference_id }}</span></p>
+
+            <p>Response <span style="float:right;">{{ receipt.txn_info['response'] }}</span></p>
+            <p>Code <span style="float:right;">{{ receipt.txn_info['code'] }}</span></p>
+            <p>Transaction ID <span style="float:right;">{{ receipt.txn_info['txn_id'] }}</span></p>
+
+            {% if receipt.emv_data %}
+                {% if receipt.emv_data['AppName'] %}
+                <p>App Name <span style="float:right;">{{ receipt.emv_data['AppName'] }}</span></p>
+                {% endif %}
+            <p>AID <span style="float:right;">{{ receipt.emv_data['AID'] }}</span></p>
+            <p>TVR <span style="float:right;">{{ receipt.emv_data['TVR'] }}</span></p>
+            <p>IAD <span style="float:right;">{{ receipt.emv_data['IAD'] }}</span></p>
+            {% endif %}
+        </div>
+        </div>
+    </body>
+</html>

@@ -380,12 +380,19 @@ class Config(_Overridable):
     
     @property
     def FORMATTED_BADGE_TYPES(self):
-        badge_types = [{
+        badge_types = []
+        if c.AT_THE_CON and self.ONE_DAYS_ENABLED and self.ONE_DAY_BADGE_AVAILABLE:
+            badge_types.append({
+                'name': 'Single Day',
+                'desc': 'Can be upgrated to a weekend badge later.',
+                'value': c.ONE_DAY_BADGE
+            })
+        badge_types.append({
             'name': 'Attendee',
             'desc': 'Allows access to the convention for its duration.',
             'value': c.ATTENDEE_BADGE,
             'price': c.get_attendee_price()
-            }]
+            })
         for badge_type in c.BADGE_TYPE_PRICES:
             badge_types.append({
                 'name': c.BADGES[badge_type],
@@ -689,6 +696,14 @@ class Config(_Overridable):
     @property
     def QUERY_STRING(self):
         return cherrypy.request.query_string
+    
+    @property
+    def QUERY_STRING_NO_MSG(self):
+        from urllib.parse import parse_qsl, urlencode
+
+        query = parse_qsl(cherrypy.request.query_string, keep_blank_values=True)
+        query = [(key, val) for (key, val) in query if key != 'message']
+        return urlencode(query)
 
     @property
     def PAGE_PATH(self):
@@ -1212,6 +1227,8 @@ c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
 # Let admins remove door payment methods by making their label blank
 c.DOOR_PAYMENT_METHOD_OPTS = [opt for opt in c.DOOR_PAYMENT_METHOD_OPTS if opt[1]]
 c.DOOR_PAYMENT_METHODS = {key: val for key, val in c.DOOR_PAYMENT_METHODS.items() if val}
+
+c.TERMINAL_ID_TABLE = {k.lower().replace('-', ''): v for k, v in _config['secret']['terminal_ids'].items()}
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.DISCOUNTABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DISCOUNTABLE_BADGE_TYPES]

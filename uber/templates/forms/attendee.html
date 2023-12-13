@@ -839,9 +839,9 @@ $().ready(function() {
     {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation else '', post_text=macros.upgrade_button('extra-donation', text="Change" if attendee.extra_donation else "Donate")) %}
       <div class="col-sm-6">
         <div class="input-group">
-          <span class="input-group-addon">$</span>
+          <span class="input-group-text">$</span>
           <input type="text" class="form-control" name="extra_donation" value="{% if attendee.extra_donation %}{{ attendee.extra_donation }}{% endif %}" placeholder="0">
-          <span class="input-group-addon">.00</span>
+          <span class="input-group-text">.00</span>
         </div>
       </div>
     {% endcall %}
