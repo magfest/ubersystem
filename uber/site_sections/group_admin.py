@@ -8,10 +8,11 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, site_mappable
+from uber.custom_tags import format_currency
+from uber.decorators import ajax, any_admin_access, all_renderable, csrf_protected, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import attendee as attendee_forms, group as group_forms, load_forms
-from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking, SignedDocument
+from uber.models import AdminAccount, Attendee, Email, Event, Group, GuestGroup, PageViewTracking, Tracking
 from uber.utils import check, convert_to_absolute_url, validate_model, add_opt, SignNowRequest
 from uber.payments import ReceiptManager
 
@@ -86,6 +87,8 @@ class Root:
     def form(self, session, new_dealer='', message='', **params):
         from uber.site_sections.dealer_admin import decline_and_convert_dealer_group
 
+        reg_station_id = cherrypy.session.get('reg_station', '')
+
         if params.get('id') not in [None, '', 'None']:
             group = session.group(params.get('id'))
             if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
@@ -140,6 +143,7 @@ class Root:
                     signnow_request.document.last_emailed = datetime.now(UTC)
 
                 signnow_last_emailed = signnow_request.document.last_emailed
+                session.commit()
 
         group_info_form = forms.get('group_info', forms.get('table_info'))
 
@@ -175,7 +179,7 @@ class Root:
                     message = ' '.join([item for sublist in all_errors.values() for item in sublist])
                 else:
                     forms['personal_info'] = leader_forms['personal_info']
-                    forms['personal_info'].populate_obj(leader)
+                    forms['personal_info'].populate_obj(leader, is_admin=True)
 
             if not message:
                 if group.guest_group_type:
@@ -206,9 +210,11 @@ class Root:
             'signnow_last_emailed': signnow_last_emailed,
             'signnow_signed': signnow_signed,
             'new_dealer': new_dealer,
+            'payment_enabled': True if reg_station_id else False,
         }
     
     @ajax
+    @any_admin_access
     def validate_group(self, session, form_list=[], new_dealer='', **params):
         if params.get('id') in [None, '', 'None']:
             group = Group()
@@ -232,6 +238,27 @@ class Root:
             return {"error": all_errors}
 
         return {"success": True}
+    
+    def paid_with_cash(self, session, id):
+        if not cherrypy.session.get('reg_station'):
+            return {'success': False, 'message': 'You must set a workstation ID to take payments.'}
+        
+        group = session.group(id)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
+        amount_owed = receipt.current_amount_owed
+        if not amount_owed:
+            raise HTTPRedirect('form?id={}&message={}', id, "This group does not owe any money.")
+        
+        receipt_manager = ReceiptManager(receipt)
+        error = receipt_manager.create_payment_transaction(f"Marked as paid with cash by {AdminAccount.admin_name()}",
+                                                           amount=amount_owed, method=c.CASH)
+        if error:
+            session.rollback()
+            raise HTTPRedirect('form?id={}&message={}', id, f"An error occurred: {error}")
+
+        session.add_all(receipt_manager.items_to_add)
+        session.commit()
+        raise HTTPRedirect('form?id={}&message={}', id, f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
 
     def history(self, session, id):
         group = session.group(id)

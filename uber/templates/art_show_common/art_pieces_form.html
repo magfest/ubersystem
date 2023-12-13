@@ -137,7 +137,7 @@
         {% if readonly %}
           {{ app.banner_name or app.artist_name or app.attendee.full_name }}
         {% else %}
-          <input type="text" class="form-control" name="banner_name" id="banner_name" placeholder="{{ app.artist_name or app.attendee.full_name }}"/>
+          <input type="text" class="form-control" name="banner_name" id="banner_name" value="{{ app.banner_name }}" placeholder="{{ app.artist_name or app.attendee.full_name }}"/>
           {% if not admin_area %}<p class="form-text">The name displayed with your art.</p>{% endif %}
         {% endif %}
       </div>
@@ -146,7 +146,7 @@
         {% if readonly %}
           {{ app.check_payable or (app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name) }}
         {% else %}
-          <input type="text" class="form-control" name="check_payable" id="check_payable" placeholder="{{ app.attendee.legal_first_name ~ ' ' ~ app.attendee.legal_last_name }}"/>
+          <input type="text" class="form-control" name="check_payable" id="check_payable" value="{{ app.check_payable }}" placeholder="{{ app.attendee.legal_first_name ~ ' ' ~ app.attendee.legal_last_name }}"/>
           {% if not admin_area %}<p class="form-text">The name your check should be made payable to.</p>{% endif %}
         {% endif %}
       </div>

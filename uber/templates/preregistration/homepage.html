@@ -12,7 +12,16 @@
         {{ c.EVENT_NAME_AND_YEAR }} has sold out!
     {% endif %}
 {% endset %}
-{% if not account.valid_attendees %}
+{% if c.AT_THE_CON and account.at_door_attendees %}
+    <h2 class="text-center fst-italic mt-3">Pending At-Door Registrations</h2>
+    <div class="text-center">Please go to Registration to pay for and claim the badges below.</div>
+    {% for attendee in account.at_door_attendees %}
+    <div class="card card-body mb-3">
+        {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% endfor %}
+{% endif %}
+{% if not account.valid_attendees and (not c.AT_THE_CON or not account.at_door_attendees) %}
     <div class="text-center">
         <span class="h2 text-uppercase">You have no current registrations</span>
         <p>{{ prereg_message }}</p>

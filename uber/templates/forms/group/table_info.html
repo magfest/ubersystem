@@ -15,7 +15,7 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
-{% set max_badges = c.MAX_DEALERS %}
+{% set max_badges = c.MAX_DEALERS if group.is_dealer and c.MAX_DEALERS else c.MAX_GROUP_SIZE %}
 
 {% block name_desc %}
 <div class="row g-sm-3">

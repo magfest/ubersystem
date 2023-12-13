@@ -93,14 +93,17 @@
         {% endif %}
         <li>{{ (group.amount_paid / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far{% endif %}</li>
         {% if group.amount_unpaid %}
-            <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
-          </ul>
-          <p>{{ stripe_form('process_group_payment', group) }}</p>
-        {% else %}
-          </ul>
-          {% if receipt and receipt.current_amount_owed and incomplete_txn %}
+          <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
+        {% endif %}
+        </ul>
+        {% if group.amount_unpaid %}
+          {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
+            <p>Please see the help desk at Registration to complete your payment.</p>
+          {% elif incomplete_txn %}
             <p>You currently have an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.</p>
             <p>Click here to complete your payment: {{ stripe_form('finish_pending_group_payment', group, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}</p>
+          {% else %}
+            <p>{{ stripe_form('process_group_payment', group) }}</p>
           {% endif %}
         {% endif %}
     {% endif %}
@@ -219,7 +222,7 @@
   <label for="tables" class="col-sm-3 control-label">Tables</label>
   {% call macros.read_only_if(read_only, group.tables) %}
     <div class="col-sm-6">
-      <select class="form-control" name="tables">
+      <select class="form-select" name="tables">
         {{ options(c.ADMIN_TABLE_OPTS if admin_area else c.PREREG_TABLE_OPTS,group.tables) }}
       </select>
     </div>
@@ -400,9 +403,9 @@
   {% call macros.read_only_if(read_only, group.cost, pre_text='$' if group.cost, post_text=post_text) %}
     <div class="checkbox col-sm-6">
       <div class="input-group">
-        <span class="input-group-addon">$</span>
+        <span class="input-group-text">$</span>
         <input type="text" class="form-control" name="cost" value="{{ group.cost }}" />
-        <span class="input-group-addon">.00</span>
+        <span class="input-group-text">.00</span>
       </div>
       {{ post_text }}
     </div>
@@ -487,7 +490,7 @@
 {% set default_group_type = group.guest.group_type if group.guest else '' %}
   <label class="col-sm-3 control-label" for="group_type">Checklist Type</label>
   <div class="col-sm-6">
-    <select class="form-control" id="group_type" name="group_type">
+    <select class="form-select" id="group_type" name="group_type">
       <option value="">N/A</option>
       {{ options(c.GROUP_TYPE_OPTS, default_group_type or group_type) }}
     </select>

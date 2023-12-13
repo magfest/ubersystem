@@ -564,6 +564,7 @@ StopsEmailFixture(
     'shifts/created.txt',
     lambda a: a.staffing,
     when=after(c.VOLUNTEER_CHECKLIST_OPEN),
+    allow_at_the_con=True,
     ident='volunteer_checklist_completion_request')
 
 StopsEmailFixture(

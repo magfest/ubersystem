@@ -133,6 +133,20 @@ def timestamp(dt):
 
 
 @JinjaEnv.jinja_filter
+def timestamp_to_dt(timestamp):
+    from datetime import datetime
+    return '' if not timestamp else datetime.fromtimestamp(int(float(timestamp)))
+
+
+@JinjaEnv.jinja_filter
+def tpn_to_terminal_id(tpn):
+    reverse_lookup = {v: k for k, v in c.TERMINAL_ID_TABLE.items()}
+    if tpn in reverse_lookup:
+        return (reverse_lookup[tpn][:3] + "-" + reverse_lookup[tpn][3:]).upper()
+    return tpn + " (ID not found)"
+
+
+@JinjaEnv.jinja_filter
 def yesno(value, arg=None):
     """
     PORTED FROM DJANGO

@@ -32,6 +32,29 @@
       </div>
       {% endif %}
     </div>
+    {% if c.AT_THE_CON and group.amount_unpaid %}
+      <div class="alert alert-warning center" role="alert">
+        <h4>{{ group.name }} currently owes <strong>{{ group.amount_unpaid|format_currency }}</strong>.</h4>
+        {% if payment_enabled %}
+          {% if c.SPIN_TERMINAL_AUTH_KEY %}
+            <a href="paid_with_cash?id={{ group.id }}" class="btn btn-success" type="submit">Paid with Cash</a>
+            <strong>OR</strong>
+            <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ group.id }}', '', refreshPage)">Prompt Payment at Terminal</button>
+            <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
+            {% include 'registration/spin_terminal_form.html' with context %}
+          {% else %}
+            {# {{ stripe_form('manual_reg_charge', group) }} TODO: Make this work #}
+          {% endif %}
+        {% else %}
+            Please instruct them to pay at an at-door or manager station.
+        {% endif %}
+      </div>
+      <script type="text/javascript">
+        var refreshPage = function(json=null) {
+          window.location.reload();
+        }
+      </script>
+    {% endif %}
     {% endif %}
 
   {% if not group.is_new %}
@@ -152,7 +175,7 @@
               <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
             {% else %}
               <td id="cin_{{ attendee.id }}">
-                <button class="attendee-checkin btn btn-sm btn-success" data-attendee-id="{{ attendee.id }}">Check In</button>
+                <button class="attendee-checkin btn btn-sm btn-success" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>
               </td>
             {% endif %}
           {% endif %}

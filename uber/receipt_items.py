@@ -72,7 +72,7 @@ Attendee.cost_changes = {
 }
 
 Attendee.credit_changes = {
-    'paid': ('Badge Comped or Paid By Group', "calc_badge_comp_change"),
+    'paid': ('Badge Comp or Paid By Group', "calc_badge_comp_change"),
     'birthdate': ('Age Discount', "calc_age_discount_change"),
     'promo_code': ('Promo Code', "calc_promo_discount_change"),
 }

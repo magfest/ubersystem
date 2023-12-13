@@ -8,13 +8,15 @@ from decimal import Decimal
 from six import string_types
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import NoResultFound
 from io import BytesIO
 
 from uber.config import c
+from uber.custom_tags import format_currency
 from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
-from uber.models import ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
-                        Attendee, Tracking, ArbitraryCharge
+from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
+                        Attendee, Tracking, ArbitraryCharge, ReceiptItem, ReceiptTransaction, WorkstationAssignment
 from uber.utils import check, get_static_file_path, localized_now, Order
 from uber.payments import TransactionRequest, ReceiptManager
 
@@ -194,6 +196,7 @@ class Root:
                 receipt = attendee.art_show_receipt
 
             if not message:
+                piece.winning_bidder = attendee.art_show_bidder
                 piece.receipt = receipt
 
         if message:
@@ -205,7 +208,7 @@ class Root:
                                'Close-out successful for piece {}'.format(piece.artist_and_piece_id))
 
     def artist_check_in_out(self, session, checkout=False, message='', page=1, search_text='', order='first_name'):
-        filters = [ArtShowApplication.status != c.DECLINED]
+        filters = [ArtShowApplication.status == c.APPROVED]
         if checkout:
             filters.append(ArtShowApplication.checked_in != None)
         else:
@@ -501,7 +504,7 @@ class Root:
                 else:
                     filters.append(or_(Attendee.badge_num == badge_num,
                                        Attendee.badge_printed_name.ilike('%{}%'.format(search_text))))
-                attendees = session.query(Attendee).filter(*filters)
+                attendees = session.query(Attendee).filter(*filters).filter(Attendee.is_valid == True)
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_bidder)
 
@@ -648,6 +651,8 @@ class Root:
         unclaimed_pieces = []
         unpaid_pieces = []
         charge = None
+        reg_station_id = cherrypy.session.get('reg_station', '')
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first()
 
         if search_text:
             if re.match('\w+-[0-9]+', search_text):
@@ -712,6 +717,8 @@ class Root:
             'message': message,
             'must_choose': must_choose,
             'pieces': unclaimed_pieces or unpaid_pieces,
+            'reg_station_id': reg_station_id,
+            'workstation_assignment': workstation_assignment,
         }
 
     def unclaim_piece(self, session, id, piece_id, **params):
@@ -734,13 +741,14 @@ class Root:
                                'Piece {} successfully unclaimed'.format(piece.artist_and_piece_id))
 
     def record_payment(self, session, id, amount='', type=c.CASH):
-        from uber.custom_tags import format_currency
         receipt = session.art_show_receipt(id)
 
         if amount:
             amount = int(Decimal(amount) * 100)
 
-        if type == str(c.CASH):
+        is_payment = type == str(c.CASH)
+
+        if is_payment:
             amount = amount or receipt.owed
             message = 'Cash payment of {} recorded'.format(format_currency(amount / 100))
         else:
@@ -774,6 +782,25 @@ class Root:
                 session.add(piece)
 
             session.add(receipt)
+
+            # Now that we're not changing the receipt anymore, record the item total and the cash sum
+            attendee_receipt = session.get_receipt_by_model(receipt.attendee, create_if_none="BLANK")
+            total_cash = receipt.cash_total
+            if total_cash != 0:
+                session.add(ReceiptTransaction(
+                    receipt_id=attendee_receipt.id,
+                    method=c.CASH,
+                    desc="{} Art Show Receipt #{}".format("Payment for" if total_cash > 0 else "Refund for", receipt.invoice_num),
+                    amount=total_cash,
+                    who=AdminAccount.admin_name() or 'non-admin',
+                ))
+            session.add(ReceiptItem(
+                receipt_id=attendee_receipt.id,
+                desc=f"Art Show Receipt #{receipt.invoice_num}",
+                amount=receipt.total,
+                who=AdminAccount.admin_name() or 'non-admin',
+            ))
+
             session.commit()
 
         return {
@@ -794,13 +821,14 @@ class Root:
     def purchases_charge(self, session, id, amount, receipt_id):
         receipt = session.art_show_receipt(receipt_id)
         attendee = session.attendee(id)
-        charge = TransactionRequest(receipt, 
+        attendee_receipt = session.get_receipt_by_model(attendee, create_if_none="BLANK")
+        charge = TransactionRequest(attendee_receipt, 
                                     receipt_email=attendee.email,
                                     description='{}ayment for {}\'s art show purchases'.format(
                                                     'P' if int(float(amount)) == receipt.total else 'Partial p',
                                                     attendee.full_name),
                                     amount=int(float(amount)))
-        message = charge.create_stripe_intent()
+        message = charge.prepare_payment()
         if message:
             return {'error': message}
         else:
@@ -810,12 +838,92 @@ class Root:
                 type=c.STRIPE,
             )
             session.add(payment)
+            session.add_all(charge.get_receipt_items_to_add())
             session.commit()
             return {
                 'stripe_intent': charge.intent,
                 'success_url': 'pieces_bought?id={}&message={}'.format(attendee.id, 'Charge successfully processed'),
                 'cancel_url': 'cancel_payment?id={}'.format(payment.id)
             }
+        
+    @ajax
+    def start_terminal_payment(self, session, model_id='', amount=0, **params):
+        from uber.tasks.registration import process_terminal_sale
+
+        error, terminal_id = session.get_assigned_terminal_id()
+
+        if error:
+            return {'error': error}
+        
+        try:
+            receipt = session.art_show_receipt(model_id)
+        except NoResultFound:
+            try:
+                app = session.art_show_application(model_id)
+            except NoResultFound:
+                return {'error': f"Could not find sale receipt or art show app {model_id}"}
+            else:
+                description = f"Payment for {app.attendee.full_name}'s Art Show Application"
+        else:
+            if not amount:
+                amount = receipt.owed
+            else:
+                amount = int(Decimal(amount) * 100)
+
+            description = '{}ayment for Art Show Invoice #{}'.format('P' if int(float(amount)) == receipt.total else 'Partial p',
+                                                                    receipt.invoice_num)
+            model_id = receipt.attendee.id
+        
+        c.REDIS_STORE.delete(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id)
+        process_terminal_sale.delay(workstation_num=cherrypy.session.get('reg_station'),
+                                    terminal_id=terminal_id,
+                                    model_id=model_id,
+                                    description=description,
+                                    use_account_info=False,
+                                    amount=amount)
+        return {'success': True}
+    
+    @ajax
+    def record_terminal_payment(self, session, art_receipt_id='', intent_id='', **params):
+        if not intent_id:
+            return {'error': f"Could not find matching payment to record for ID '{intent_id}'"}
+        
+        txn = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).first()
+        
+        if not txn:
+            return {'error': f"Could not find matching transaction for ID '{intent_id}'"}
+        
+        receipt = session.art_show_receipt(art_receipt_id)
+        
+        session.add(ArtShowPayment(
+            receipt=receipt,
+            amount=txn.txn_total,
+            type=c.SQUARE
+        ))
+
+        session.commit()
+        return {'success': True}
+    
+    def paid_with_cash(self, session, id):
+        if not cherrypy.session.get('reg_station'):
+            return {'success': False, 'message': 'You must set a workstation ID to take payments.'}
+        
+        app = session.art_show_application(id)
+        receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
+        amount_owed = receipt.current_amount_owed
+        if not amount_owed:
+            raise HTTPRedirect('form?id={}&message={}', id, "There's no money owed for this application.")
+        
+        receipt_manager = ReceiptManager(receipt)
+        error = receipt_manager.create_payment_transaction(f"Marked as paid with cash by {AdminAccount.admin_name()}",
+                                                           amount=amount_owed, method=c.CASH)
+        if error:
+            session.rollback()
+            raise HTTPRedirect('form?id={}&message={}', id, f"An error occurred: {error}")
+
+        session.add_all(receipt_manager.items_to_add)
+        session.commit()
+        raise HTTPRedirect('form?id={}&message={}', id, f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
 
     @public
     def sales_charge_form(self, message='', amount=None, description='',
@@ -846,7 +954,7 @@ class Root:
             return {'error': message}
         else:
             session.add(ArbitraryCharge(
-                amount=charge.dollar_amount,
+                amount=int(charge.dollar_amount),
                 what=charge.description,
             ))
             return {'stripe_intent': charge.intent,

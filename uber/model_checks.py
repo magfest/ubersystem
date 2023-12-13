@@ -962,14 +962,6 @@ def reasonable_total_cost(attendee):
         return ('', 'We cannot charge {}. Please reduce extras so the total is below $9,999.'.format(
             format_currency(attendee.total_cost)))
 
-
-@prereg_validation.Attendee
-def allowed_to_register(attendee):
-    if not attendee.age_group_conf['can_register']:
-        return ('', 'Attendees {} years of age do not need to register, ' \
-            'but MUST be accompanied by a parent at all times!'.format(attendee.age_group_conf['desc'].lower()))
-
-
 @prereg_validation.Attendee
 def child_group_leaders(attendee):
     if attendee.badge_type == c.PSEUDO_GROUP_BADGE and attendee.birthdate and \
@@ -989,7 +981,7 @@ def no_more_child_badges(attendee):
 
 @prereg_validation.Attendee
 def child_badge_over_13(attendee):
-    if not attendee.is_new and not attendee.badge_status == c.PENDING_STATUS \
+    if not attendee.is_new and not attendee.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] \
         or attendee.unassigned_group_reg or attendee.valid_placeholder:
         return
 
@@ -1001,7 +993,7 @@ def child_badge_over_13(attendee):
 
 @prereg_validation.Attendee
 def attendee_badge_under_13(attendee):
-    if not attendee.is_new and not attendee.badge_status == c.PENDING_STATUS \
+    if not attendee.is_new and not attendee.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] \
         or attendee.unassigned_group_reg or attendee.valid_placeholder:
         return
 

@@ -62,7 +62,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Department</label>
     <div class="col-sm-6">
-        <select class="form-control" name="department">
+        <select class="form-select" name="department">
             <option value="">Please select an option</option>
             {{ options(c.PANEL_DEPT_OPTS, app.department) }}
         </select>
@@ -81,7 +81,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Panel Content Rating</label>
     <div class="col-sm-6">
-        <select class="form-control" name="rating">
+        <select class="form-select" name="rating">
             {{ options(c.PANEL_RATING_OPTS, app.rating) }}
         </select>
     </div>
@@ -138,7 +138,7 @@
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
         <strong>Do you want your content to be highlighted by the MAGScouts program?</strong>
-        <select class="form-control" name="magscouts_opt_in">
+        <select class="form-select" name="magscouts_opt_in">
             {{ options(c.PANEL_MAGSCOUTS_OPTS, app.magscouts_opt_in) }}
         </select>
     </div>
@@ -169,7 +169,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Expected Panel Length</label>
     <div class="col-sm-6">
-        <select class="form-control" name="length">
+        <select class="form-select" name="length">
             {{ options(c.PANEL_LENGTH_OPTS, app.length) }}
         </select>
     </div>
@@ -195,7 +195,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Panel Noise Level</label>
     <div class="col-sm-6">
-        <select class="form-control" name="noise_level">
+        <select class="form-select" name="noise_level">
             <option value="">Please select an option</option>
             {{ options(c.NOISE_LEVEL_OPTS, app.noise_level) }}
         </select>
@@ -205,7 +205,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Is it okay to record or livestream your panel? </label>
     <div class="col-sm-6">
-        <select class="form-control" name="livestream">
+        <select class="form-select" name="livestream">
             {{ options(c.LIVESTREAM_OPTS, app.livestream) }}
         </select>
     </div>

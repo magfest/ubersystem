@@ -8,6 +8,7 @@ from wtforms import (BooleanField, DateField, DateTimeField, EmailField, Form, F
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
                      StringField, TelField, validators, TextAreaField)
 from wtforms.validators import ValidationError, StopValidation
+import wtforms.widgets.core as wtforms_widgets
 
 from uber.config import c
 from uber.forms import AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup, HiddenBoolField, HiddenIntField, CustomValidation
@@ -122,7 +123,7 @@ class PersonalInfo(AddressForm, MagForm):
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = []
 
-        if attendee.is_new or attendee.badge_status == c.PENDING_STATUS:
+        if attendee.is_new or attendee.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]:
             return locked_fields
         elif not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
             return list(self._fields.keys())
@@ -439,3 +440,29 @@ class BadgeAdminNotes(MagForm):
     regdesk_info = TextAreaField('Special Regdesk Instructions')
     for_review = TextAreaField('Notes for Later Review')
     admin_notes = TextAreaField('Admin Notes')
+
+
+class CheckInForm(MagForm):
+    field_validation = CustomValidation()
+
+    full_name = HiddenField('Name')
+    legal_name = HiddenField('Name on ID')
+    email = HiddenField('Email')
+    zip_code = HiddenField('Zipcode')
+    birthdate = PersonalInfo.birthdate
+    age_group = HiddenField('Age Group')
+    badge_type = HiddenIntField('Badge Type')
+    badge_num = IntegerField('Badge Number', validators=[
+        validators.DataRequired('Badge number is required.')
+    ])
+    badge_printed_name = PersonalInfo.badge_printed_name
+    got_merch = AdminBadgeExtras.got_merch
+    got_staff_merch = AdminStaffingInfo.got_staff_merch
+
+    @field_validation.birthdate
+    def birthdate_format(form, field):
+        return PersonalInfo.birthdate_format(form, field)
+    
+    @field_validation.birthdate
+    def attendee_age_checks(form, field):
+        return PersonalInfo.attendee_age_checks(form, field)

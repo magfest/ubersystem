@@ -534,6 +534,7 @@
     </div>
   {%- if not is_readonly or model[address2_attr] -%}
     <div class="col address_details{{ suffix }}">
+      <label for="address2{{ suffix }}" class="form-text invisible">{{ label_prefix }} Street 2</label>
       <div class="mb-3">
         {%- if is_readonly -%}
           {{ model[address2_attr]|linebreaksbr }}

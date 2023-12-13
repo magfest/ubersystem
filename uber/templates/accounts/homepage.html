@@ -3,20 +3,57 @@
 {% block content %}
 {% if c.ADMIN_ACCESS_SET %}
 <div class="card-body">
-<a href="#attendee_form?id=None" class="btn btn-primary">Add new attendee</a>
-{% if c.HAS_SHIFTS_ADMIN_ACCESS %}
-<a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a>
-{% endif %}
-{% if c.HAS_REGISTRATION_ACCESS %}
-<a class="btn btn-success" href="../registration/">View all attendees</a>
-{% endif %}
+  <div class="row g-sm-2 row-cols-auto">
+    <div class="col"><a href="#attendee_form?id=None" class="btn btn-primary">Add new attendee</a></div>
+    {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
+    <div class="col"><a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a></div>
+    {% endif %}
+    {% if c.HAS_REGISTRATION_ACCESS %}
+    <div class="col"><a class="btn btn-success" href="../registration/">View all attendees</a></div>
+    {% endif %}
+    {% if c.HAS_MERCH_ADMIN_ACCESS %}
+    <div class="col"><a class="btn btn-outline-success" href="../merch_admin/">Merch Pickup</a></div>
+    {% endif %}
+    <div class="col ms-auto">
+      <form method="post" action="../registration/set_reg_station">
+        <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
+        <div class="row g-sm-2 row-cols-auto">
+          <div class="col">
+            <a href="#set-reg-station" class="btn btn-outline-secondary" data-bs-toggle="collapse">Set Workstation ID</a>
+          </div>
+          <div id="set-reg-station" class="col collapse">
+            <div class="input-group">
+              <input class="form-control" size="4" id="reg_station_id" name="reg_station_id" placeholder="###" value="{{ reg_station_id }}">
+              <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
-<strong>View attendees by type:</strong>
-<div class="btn-group" style="padding-bottom:10px;">
-<button class="btn btn-outline-secondary attendee-types" id="created" onClick="loadViewableAttendees('created')">Created By You</button>
-{% for section in site_sections %}
-<button class="btn btn-outline-secondary attendee-types" id="{{ section }}" onClick="loadViewableAttendees('{{ section }}')">{{ section[:-6]|title }}</button>
-{% endfor %}
+<div class="row pb-3">
+  <div class="col">
+    <strong>View attendees by type:</strong>
+    <div class="btn-group">
+    <button class="btn btn-outline-secondary attendee-types" id="created" onClick="loadViewableAttendees('created')">Created By You</button>
+    {% for section in site_sections %}
+    <button class="btn btn-outline-secondary attendee-types" id="{{ section }}" onClick="loadViewableAttendees('{{ section }}')">{{ section[:-6]|title }}</button>
+    {% endfor %}
+    </div>
+    <span class="pull-right me-2">Workstation #: {{ reg_station_id|default("None",true) }}
+      {% if c.BADGE_PRINTING_ENABLED %}
+        {% set printer_text = "Standard Printer" if workstation_assignment and workstation_assignment.separate_printers else "Printer" %}
+        <br/>{{ printer_text }}: {{ workstation_assignment.printer_id|default("None") if workstation_assignment else "None" }}
+        {% if workstation_assignment and workstation_assignment.separate_printers %}
+        <br/>Minor Printer: {{ workstation_assignment.minor_printer_id }}
+        {% endif %}
+      {% endif %}
+      {% if c.SPIN_TERMINAL_AUTH_KEY %}
+      <br/>Terminal ID: {{ workstation_assignment.terminal_id|default("None") if workstation_assignment else "None" }}
+      {% endif %}
+      </span>
+  </div>
 </div>
 <div id="viewable_attendees"></div>
 <script type="text/javascript">

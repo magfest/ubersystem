@@ -76,7 +76,7 @@
         type="text"
         class="form-control"
         value="{{ value.strftime('%-m/%-d/%Y %-I:%M %p') }}">
-    <span class="input-group-addon">
+    <span class="input-group-text">
       <i class="fa fa-calendar"></i>
     </span>
   </div>
@@ -105,7 +105,7 @@
             {% if min is not none %}min="{{ min }}"{% endif %}
             value="{{ 0 if is_class else timedelta_component(seconds=model[field_name], units='hours') }}"
             class="form-control {{ field_name ~ '_hours' }}">
-        <span class="input-group-addon">hours</span>
+        <span class="input-group-text">hours</span>
       </div>
     </div>
     <div class="col-xs-6" style="padding-left: 5px;">
@@ -115,7 +115,7 @@
             {% if min is not none %}min="{{ min }}"{% endif %}
             value="{{ 15 if is_class else timedelta_component(seconds=model[field_name], units='minutes') }}"
             class="form-control {{ field_name ~ '_minutes' }}">
-        <span class="input-group-addon">minutes</span>
+        <span class="input-group-text">minutes</span>
       </div>
     </div>
   </div>

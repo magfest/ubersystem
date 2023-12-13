@@ -268,6 +268,8 @@ class MagForm(Form):
                 return 'select'
             elif isinstance(widget, IntSelect):
                 return 'customselect'
+            elif isinstance(widget, wtforms_widgets.HiddenInput):
+                return 'hidden'
             else:
                 return 'text'
 
@@ -307,9 +309,10 @@ class MagForm(Form):
                     pixels = int(render_kw['rows']) * 30
                 else:
                     pixels = 90
-                if 'style' in render_kw:
-                    render_kw['style'] += "; "
-                render_kw['style'] = render_kw.get('style', '') + "height: {}px".format(pixels)
+                if 'height' not in render_kw.get('style', ''):
+                    if 'style' in render_kw:
+                        render_kw['style'] += "; "
+                    render_kw['style'] = render_kw.get('style', '') + "height: {}px".format(pixels)
             
             # Floating labels need the placeholder set in order to work, so add one if it does not exist
             if 'placeholder' not in render_kw:

@@ -29,9 +29,8 @@
 }
 </style>
 {% if c.AUTHORIZENET_LOGIN_ID %}
-{% set bootstrap5 = 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or 'art_show_applications' in c.PAGE_PATH or admin_area %}
     <button type="button"
-        class="AcceptUI {% if bootstrap5 %}d-none{% else %}hidden{% endif %}"
+        class="AcceptUI d-none"
         id="authNetPayButton"
         data-billingAddressOptions='{"show":true, "required":true}' 
         data-apiLoginID="{{ c.AUTHORIZENET_LOGIN_ID }}" 
@@ -164,14 +163,15 @@ var loadJS = function(src, callback) {
 }
 
 {% if c.AUTHORIZENET_LOGIN_ID %}
-let authnet_ref_id = '';
-let authnet_amount = 0;
-let authnet_email = '';
-let authnet_desc = '';
-let authnet_customer_id = '';
-let authnet_success_url = '';
-let authnet_cancel_url = '';
-let authnet_loaded = false;
+if (typeof authnet_ref_id == 'undefined') {
+    let authnet_ref_id = '';
+    let authnet_amount = 0;
+    let authnet_email = '';
+    let authnet_desc = '';
+    let authnet_customer_id = '';
+    let authnet_success_url = '';
+    let authnet_cancel_url = '';
+    let authnet_loaded = false;
 
 var collectAuthNetPayment = function (ref_id, email, desc, customer_id, success_url, cancel_url, amount) {
     authnet_ref_id = ref_id;
@@ -229,6 +229,7 @@ var handleAuthNetResponse = function (response) {
             });
         }
     }
+}
 {% else %}
 var collectStripePayment = function (client_secret, stripe_id, success_url, cancel_url) {
     var stripeModal = bootstrap.Modal.getOrCreateInstance($('#stripeModal'));

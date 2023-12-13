@@ -641,6 +641,21 @@ def public(func):
     func.public = True
     return func
 
+
+def any_admin_access(func):
+    func.public = True
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if cherrypy.session.get('account_id') is None:
+            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+        with uber.models.Session() as session:
+            account = session.admin_account(cherrypy.session.get('account_id'))
+            if not account.access_groups:
+                return "You do not have any admin accesses."
+        return func(*args, **kwargs)
+    return with_check
+
+
 def attendee_view(func):
     func.public = True
     @wraps(func)
