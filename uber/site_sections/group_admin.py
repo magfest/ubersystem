@@ -192,8 +192,6 @@ class Root:
                         raise HTTPRedirect(
                             'index?message={}', group.name + ' is uploaded as ' + group.status_label)
                 elif group.is_dealer:
-                    #if group.status == c.DECLINED and group.orig_value_of('status') != c.DECLINED:
-                    #    message = decline_and_convert_dealer_group(session, group)
                     if group.status == c.APPROVED and group.orig_value_of('status') != c.APPROVED:
                         for attendee in group.attendees:
                             attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
