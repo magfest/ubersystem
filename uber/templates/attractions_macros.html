@@ -148,7 +148,13 @@
       'description',
       type='textarea',
       is_required=True,
-      help="This description will be displayed to attendees when they're signing up.") }}
+      help="This description will be displayed to attendees on the attractions list.") }}
+  {{ macros.form_group(
+    attraction,
+    'full_description',
+    type='textarea',
+    is_required=True,
+    help="This description will be displayed to attendees when they're signing up. Leave blank to use the description.") }}
   <div class="form-group">
     <div class="col-sm-offset-3 col-sm-9">
       <label class="checkbox-label">
@@ -176,7 +182,7 @@
   <div class="form-group">
     <label class="col-sm-3 control-label">Belongs to Department</label>
     <div class="col-sm-6">
-      <select name="department_id" class="form-control">
+      <select name="department_id" class="form-select">
         <option value="">This attraction doesn't belong to any department</option>
         {% if not is_class
               and attraction.department_id
@@ -196,7 +202,7 @@
   <div class="form-group">
     <label class="col-sm-3 control-label">Attendance Restriction</label>
     <div class="col-sm-6">
-      <select name="restriction" class="form-control">
+      <select name="restriction" class="form-select">
         {%- set restriction = 0 if is_class else attraction.restriction -%}
         {{ options(attraction._RESTRICTION_OPTS, restriction) }}
       </select>
@@ -205,7 +211,7 @@
   <div class="form-group">
     <label class="col-sm-3 control-label">Required Checkin</label>
     <div class="col-sm-6">
-      <select name="advance_checkin" class="form-control">
+      <select name="advance_checkin" class="form-select">
         {%- set advance_checkin = 0 if is_class else attraction.advance_checkin -%}
         {{ options(attraction._ADVANCE_CHECKIN_OPTS, advance_checkin) }}
       </select>
@@ -219,7 +225,7 @@
           Attendees who have <b>not</b> checked in for an event will be notified:
         </div>
         <div class="form-inline notification">
-          <select name="advance_notices" class="form-control" style="width: auto; display: inline-block;">
+          <select name="advance_notices" class="form-select" style="width: auto; display: inline-block;">
             {{ options(attraction._ADVANCE_NOTICES_OPTS, attraction.advance_notices) }}
           </select>
           <i class="fa fa-plus-sign"></i>
