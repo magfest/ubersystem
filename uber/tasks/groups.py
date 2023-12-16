@@ -45,7 +45,7 @@ def check_document_signed():
                         session.commit()
 
 
-@celery.schedule(crontab(minute=0, hour='*/1'))
+@celery.schedule(crontab(minute=0, hour='*/12'))
 def convert_declined_groups():
     from uber.site_sections.dealer_admin import decline_and_convert_dealer_group
 
