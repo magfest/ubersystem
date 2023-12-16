@@ -58,4 +58,4 @@ class Root:
 
             for filename, file in zip(filenames, files):
                 if filename:
-                    zip_file.write(getattr(file, 'filepath', file.pic_fpath), filename)
+                    zip_file.write(getattr(file, 'filepath', getattr(file, 'pic_fpath', None)), filename)
