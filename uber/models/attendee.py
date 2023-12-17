@@ -811,7 +811,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.overridden_price
         elif self.is_dealer:
             return c.DEALER_BADGE_PRICE
-        elif self.promo_code_groups:
+        elif self.promo_code_groups or (self.group and self.group.cost):
             return c.get_group_price()
         elif self.in_promo_code_group:
             return self.promo_code.cost
@@ -850,6 +850,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def qualifies_for_discounts(self):
         return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer and self.badge_type not in c.BADGE_TYPE_PRICES
+    
+    @property
+    def in_free_group(self):
+        if self.promo_code_groups:
+            return not self.promo_code_groups[0].total_cost
+        if self.group:
+            return not self.group.cost
+        return False
 
     @property
     def new_badge_cost(self):

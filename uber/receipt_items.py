@@ -123,13 +123,6 @@ def age_discount(attendee):
         return ("Age Discount", age_discount, None)
 
 @credit_calculation.Attendee
-def group_discount(attendee):
-    if c.GROUP_DISCOUNT and attendee.qualifies_for_discounts and not attendee.age_discount and (
-                attendee.promo_code_groups or attendee.group) and attendee.paid == c.PAID_BY_GROUP:
-        return ("Group Discount", c.GROUP_DISCOUNT * 100 * -1, None)
-    
-
-@credit_calculation.Attendee
 def promo_code_discount(attendee):
     if attendee.promo_code:
         discount = attendee.calculate_badge_cost() - attendee.badge_cost_with_promo_code
