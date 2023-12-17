@@ -1647,7 +1647,7 @@ class Session(SessionManager):
             target, term = target.strip(), term.strip()
             search_term = term.replace('AND', '').replace('OR', '').strip()
 
-            if search_term[0] in ['>', '<', '!']:
+            if search_term and search_term[0] in ['>', '<', '!']:
                 if search_term[0] == '!':
                     op = operator.ne
 
