@@ -1688,8 +1688,6 @@ class Session(SessionManager):
             # with the outerjoin.  See https://docs.sqlalchemy.org/en/13/orm/query.html#sqlalchemy.orm.query.Query.join
             aliased_pcg = aliased(PromoCodeGroup)
 
-            aliased_pcg = aliased(PromoCodeGroup)
-
             attendees = self.query(Attendee).outerjoin(Attendee.group) \
                                             .outerjoin(Attendee.promo_code) \
                                             .outerjoin(aliased_pcg, PromoCode.group) \
@@ -1755,12 +1753,14 @@ class Session(SessionManager):
                 check_list = [
                     Group.name.ilike('%' + search_text + '%'),
                     aliased_pcg.name.ilike('%' + search_text + '%'),
-                    AttendeeAccount.email.ilike('%' + search_text + '%'),
                 ]
+
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    check_list.append(AttendeeAccount.email.ilike('%' + search_text + '%'))
 
                 for attr in Attendee.searchable_fields:
                     check_list.append(getattr(Attendee, attr).ilike('%' + search_text + '%'))
-                
+
                 return check_list
 
             if ':' in text:
@@ -1827,7 +1827,7 @@ class Session(SessionManager):
                         last_term = term
             else:
                 or_checks.extend(check_text_fields(text))
-            
+
             if or_checks and and_checks:
                 return attendees.filter(or_(*or_checks), and_(*and_checks)), ''
             elif or_checks:

@@ -117,7 +117,7 @@ class Root:
             elif not message:
                 message = 'No matches found.{}'.format('' if invalid else ' Try showing all badges to expand your search.')
         if not count:
-            attendees = session.index_attendees()
+            attendees = session.index_attendees().filter(*filter)
 
         attendees = attendees.order(order)
 
