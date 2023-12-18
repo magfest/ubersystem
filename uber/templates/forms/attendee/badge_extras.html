@@ -67,7 +67,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     {% if attendee.gets_staff_shirt and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
         <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.staff_shirt, required=True) }}</div>
     {% endif %}
-    {% if c.DONATIONS_ENABLED or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS) %}
+    {% if (c.DONATIONS_ENABLED and (not receipt or upgrade_modal)) or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS) %}
         <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.shirt) }}</div>
     {% endif %}
 </div>
