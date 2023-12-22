@@ -6,8 +6,12 @@
   {% if guest.merch_status %}
     You have already indicated your merchandise preferences, but you may update them using the link above.
   {% else %}
-    Use the link above to provide details on any merchandise you are bringing to 
-    sell{% if HAS_ROCK_ISLAND %} in 'Rock Island', our volunteer-run merch booth{% endif %}.
+    {% if HAS_ROCK_ISLAND %}
+      Please let us know by the above deadline whether you want to utilize our "Rock Island" merch selling service.
+      Once opted in, you will have until <strong>{{ c.ROCK_ISLAND_DEADLINE|datetime_local }}</strong> to input your inventory.
+    {% else %}
+      Use the link above to provide details on any merchandise you are bringing to sell.
+    {% endif %}
   {% endif %}
 {% endblock %}
 
