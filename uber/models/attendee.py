@@ -2330,7 +2330,7 @@ class FoodRestrictions(MagModel):
             restriction = getattr(c, name.upper())
             if restriction not in c.FOOD_RESTRICTIONS:
                 return MagModel.__getattr__(self, name)
-            elif restriction == c.PORK and c.VEGAN in self.standard_ints:
+            elif c.VEGAN in self.standard_ints:
                 return True
             else:
                 return restriction in self.standard_ints
