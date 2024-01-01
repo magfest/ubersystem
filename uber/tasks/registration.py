@@ -43,7 +43,7 @@ def check_duplicate_registrations():
                 for a in session.query(Attendee).filter(Attendee.first_name != '') \
                         .filter(Attendee.badge_status == c.COMPLETED_STATUS).options(joinedload(Attendee.group)) \
                         .order_by(Attendee.registered):
-                    if not a.group or a.group.status not in [c.WAITLISTED, c.UNAPPROVED]:
+                    if not a.group or (not a.group.is_dealer or a.group.status not in [c.WAITLISTED, c.UNAPPROVED]):
                         grouped[a.full_name, a.email.lower()].append(a)
 
                 dupes = {k: v for k, v in grouped.items() if len(v) > 1}
