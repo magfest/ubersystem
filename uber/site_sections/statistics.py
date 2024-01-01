@@ -222,7 +222,6 @@ class Root:
 
         return {
             'counts': counts,
-            'total_registrations': session.query(Attendee).count()
         }
 
     @csv_file
