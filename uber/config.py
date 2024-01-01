@@ -222,7 +222,7 @@ class Config(_Overridable):
             count = session.query(Attendee).filter(
                 Attendee.paid != c.NOT_PAID,
                 Attendee.badge_type == badge_type,
-                Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])).count()
+                Attendee.has_or_will_have_badge == True).count()
         return count
 
     def has_section_or_page_access(self, include_read_only=False, page_path=''):
@@ -286,9 +286,14 @@ class Config(_Overridable):
     @dynamic
     def ATTENDEE_BADGE_COUNT(self):
         """
-        c.ATTENDEE_BADGE_COUNT is already provided via getattr, but redefining it here lets us cache it per request.
+        Adds paid promo codes to the badge count, since these are promised badges and this propery is used for our
+        badge sales cap. Free PC groups are excluded as they often have far more badges than will ever be claimed.
         """
-        return self.get_badge_count_by_type(c.ATTENDEE_BADGE)
+        from uber.models import Session, Attendee, Group, PromoCode, PromoCodeGroup
+        base_count = self.get_badge_count_by_type(c.ATTENDEE_BADGE)
+        with Session() as session:
+            pc_code_count = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0).count()
+        return base_count + pc_code_count
 
     @request_cached_property
     @dynamic

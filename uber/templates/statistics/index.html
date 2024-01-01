@@ -6,50 +6,112 @@
     ul { margin-top:0px; }
 </style>
 
-<b>Total Registrations:</b> {{ total_registrations }} <br/>
+<h2>Registration</h2>
+<p>
 {% if c.AT_OR_POST_CON %}
     <b>Attendees checked in:</b> {{ counts.checked_in.yes }} <br/>
     <b>Attendees with free badges who didn't show up:</b> {{ counts.noshows.free }} <br/>
     <b>Attendees who paid and didn't show up:</b> {{ counts.noshows.paid }} <br/>
 {% endif %}
 <b>Number of remaining badges for sale (before event is sold out):</b> {{ c.REMAINING_BADGES }} <br/>
-{% for amount, count in counts.donation_tiers.items() %}
-  <b>Number of attendees who've donated at the {{ amount|format_currency }} level:</b> {{ count }} <br>
-{% endfor %}
+This is calculated by taking the Attendee badge type's stock and subtracting the number of Attendee badges promised so far (see "Badge Stats by Type" below)</p>
 
-<h4>Badge Types</h4>
-  The total number of badges in the system, by type.
-  <br/>
-<ul>
-    {% for desc, count in counts.badges.items() %}
-        <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-</ul>
+<h3>Badge Stats by Type</h3>
+<p>
+  This table shows stats related to our badge stocks and all <strong>valid badges that we have promised attendees</strong>,
+  i.e., badges that are not pending, invalid, unpaid, or unapproved dealers.
+  <br/>Note that unclaimed paid promo code group badges are counted as Attendee badges.
+</p>
+<table class="table table-hover table-bordered">
+  <thead>
+    <tr>
+      <th>Badge Type</th>
+      <th>Stock</th>
+      <th>Count</th>
+      <th>Remaining</th>
+      <th>Checked In</th>
+    </tr>
+    </thead>
+    <tbody>
+      {% for key in c.BADGES %}
+        {% set label = c.BADGES[key] %}
+        <tr>
+          <td>{{ c.BADGES[key] }}</td>
+          <td>{{ counts.badge_stocks[label] }}</td>
+          <td>{{ counts.badge_counts[label] }}</td>
+          <td>
+            {% if counts.badge_stocks[label]|int != 0 %}
+              {{ counts.badge_stocks[label] - counts.badge_counts[label] }}
+            {% else %}N/A{% endif %}
+          </td>
+          <td>{{ counts.checked_in_by_type[label] }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+</table>
 
-  <h4>Badge Counts by Type</h4>
-  Badges that count against badge stocks -- these represent the physical badges we have promised attendees so far.
-  <br/>
-  <ul>
-    {% for desc, count in counts.badge_counts.items() %}
-      <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-  </ul>
+<h3>Registration Stats</h3>
+<p>
+  Various stats about all our attendees, including pending attendees and unapproved dealers.
+  Invalid, refunded, and imported badges are excluded from these stats.
+</p>
 
-  <h4>Check-ins by Badge Type</h4>
-  Badges that have actually been claimed, by type.
-  <br/>
-  <ul>
-    {% for desc, count in counts.checked_in_by_type.items() %}
-      <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-  </ul>
+<div class="row">
+  <div class="col">
+    <h4>Badge Types</h4>
+    <table class="table table-bordered table-striped">
+        {% for desc, count in counts.badges.items() %}
+          <tr><td><i>{{ desc }}</i></td><td>{{ count }}</td></tr>
+        {% endfor %}
+    </table>
+  </div>
+  <div class="col">
+    <h4>Interests</h4>
+    <table class="table table-bordered table-striped">
+        {% for desc, count in counts.interests.items() %}
+          <tr><td><i>{{ desc }}</i></td><td>{{ count }}</td></tr>
+        {% endfor %}
+    </table>
+  </div>
+  <div class="col">
+    <h4>Attendee ages</h4>
+    <table class="table table-bordered table-striped">
+        {% for desc, count in counts.ages.items() %}
+          <tr><td><i>{{ desc }}</i></td><td>{{ count }}</td></tr>
+        {% endfor %}
+    </table>
+  </div>
+  <div class="col">
+    <h4>Ribbons</h4>
+    <table class="table table-bordered table-striped">
+        {% for desc, count in counts.ribbons.items() %}
+          <tr><td><i>{{ desc }}</i></td><td>{{ count }}</td></tr>
+        {% endfor %}
+    </table>
+  </div>
+  <div class="col">
+    <h4>Badge Statuses</h4>
+    <table class="table table-bordered table-striped">
+        {% for desc, count in counts.statuses.items() %}
+          <tr><td><i>{{ desc }}</i></td><td>{{ count }}</td></tr>
+        {% endfor %}
+    </table>
+  </div>
+  <div class="col">
+    <h4>Paid</h4>
+    <table class="table table-bordered table-striped">
+        {% for desc, count in counts.paid.items() %}
+          <tr><td><i>{{ desc }}</i></td><td>{{ count }}</td></tr>
+        {% endfor %}
+    </table>
+  </div>
+</div>
 
-<h4>Badge Stocks</h4>
-<ul>
-    {% for desc, count in counts.badge_stocks.items() %}
-        <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-</ul>
+<p>
+  {% for amount, count in counts.donation_tiers.items() %}
+  <b>Number of attendees who've donated at the {{ amount|format_currency }} level:</b> {{ count }} <br/>
+  {% endfor %}
+</p>
 
 <h4>Shirt Size Stocks</h4>
 <ul>
@@ -67,40 +129,6 @@
     {% endfor %}
   </ul>
 
-<h4>Interests</h4>
-<ul>
-    {% for desc, count in counts.interests.items() %}
-        <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-</ul>
-
-<h4>Attendee ages</h4>
-<ul>
-    {% for desc, count in counts.ages.items() %}
-        <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-</ul>
-
-<h4>Ribbons</h4>
-<ul>
-    {% for desc, count in counts.ribbons.items() %}
-        <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-</ul>
-
-<h4>Badge Statuses</h4>
-<ul>
-    {% for desc, count in counts.statuses.items() %}
-        <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-</ul>
-
-<h4>Paid</h4>
-<ul>
-    {% for desc, count in counts.paid.items() %}
-        <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-</ul>
 Of the "paid by group" badges,
 <br/> {{ counts.groups.paid }} were from groups that actually gave us money, and
 <br/>{{ counts.groups.free }} were from groups that we didn't charge.
