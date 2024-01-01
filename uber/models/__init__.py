@@ -1729,15 +1729,18 @@ class Session(SessionManager):
 
             elif len(terms) == 1 \
                     and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
-
-                return attendees.filter(or_(
+                
+                id_list = [
                     Attendee.id == terms[0],
                     Attendee.public_id == terms[0],
-                    AttendeeAccount.id == terms[0],
-                    AttendeeAccount.public_id == terms[0],
                     aliased_pcg.id == terms[0],
                     Group.id == terms[0],
-                    Group.public_id == terms[0])), ''
+                    Group.public_id == terms[0]]
+                
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    id_list.extend([AttendeeAccount.id == terms[0], AttendeeAccount.public_id == terms[0]])
+
+                return attendees.filter(or_(*id_list)), ''
 
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
