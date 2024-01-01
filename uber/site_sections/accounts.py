@@ -53,6 +53,9 @@ class Root:
             message = "Please select an attendee to create an admin account for."
         
         if not message:
+            if 'access_groups_ids' not in params:
+                params['access_groups_ids'] = []
+
             account = session.admin_account(params)
 
             if account.is_new and not c.SAML_SETTINGS:
