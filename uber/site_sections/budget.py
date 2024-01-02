@@ -55,7 +55,7 @@ class Root:
         
         paid_group_badges = get_grouped_costs(session, badge_cost_matters_filter + [Group.is_paid == True], [Attendee.group])
         unpaid_group_badges = get_grouped_costs(session, 
-                                                badge_cost_matters_filter + [Group.active_receipt != None, Group.is_paid == False], 
+                                                badge_cost_matters_filter + [Group.cost > 0, Group.is_paid == False], 
                                                 [Attendee.group])
 
         group_total = session.query(Attendee).filter(*group_filter).count()
@@ -82,27 +82,10 @@ class Root:
                                            Attendee.promo_code_group_name == None,
                                            Attendee.badge_cost > 0]
         paid_ind_filter = individual_filter + [Attendee.is_paid == True]
-        unpaid_ind_filter = individual_filter + [Attendee.active_receipt != None, Attendee.is_paid == False]
-
-        not_unpaid_badges = 0
+        unpaid_ind_filter = individual_filter + [Attendee.default_cost > 0, Attendee.is_paid == False]
 
         individual_badges = get_grouped_costs(session, paid_ind_filter)
         unpaid_badges = get_grouped_costs(session, unpaid_ind_filter)
-
-        receiptless_ind_filter = individual_filter + [Attendee.active_receipt == None]
-        receiptless_group_filter = badge_cost_matters_filter + [Group.active_receipt == None]
-
-        for attendee in session.query(Attendee).outerjoin(Attendee.group).filter(*receiptless_group_filter):
-            if attendee.group.amount_unpaid == 0:
-                group_counts['free_groups'] += 1
-            else:
-                unpaid_group_badges[attendee.badge_cost] += 1
-
-        for attendee in session.query(Attendee).filter(*receiptless_ind_filter):
-            if attendee.amount_unpaid == 0:
-                not_unpaid_badges += 1
-            else:
-                unpaid_badges[attendee.badge_cost] += 1
 
         comped_badges = session.query(Attendee).filter(*base_filter).filter(Attendee.promo_code_group_name == None) \
             .filter_by(paid=c.NEED_NOT_PAY).count()
@@ -129,7 +112,6 @@ class Root:
             'pc_unused_badges_sum': get_dict_sum(pc_unused_badges),
             'individual_total': individual_total,
             'comped_badges': comped_badges,
-            'not_unpaid_badges': not_unpaid_badges,
             'individual_badges': individual_badges,
             'individual_badges_total': sum(individual_badges.values()),
             'individual_badges_sum': get_dict_sum(individual_badges),
@@ -140,9 +122,8 @@ class Root:
         }
 
     def dealer_cost_summary(self, session):
-        dealers = session.query(Group).filter(Group.is_dealer==True, Group.attendees_have_badges==True)
-        
-        not_unpaid_groups = 0
+        dealers = session.query(Group).filter(Group.is_dealer==True, Group.attendees_have_badges==True, Group.cost > 0)
+
         paid_total = 0
         paid_custom = defaultdict(int)
         paid_tables = defaultdict(int)
@@ -164,8 +145,6 @@ class Root:
                 else:
                     paid_tables[group.tables] += 1
                     paid_badges[group.badges_purchased] += 1
-            elif group.amount_unpaid == 0:
-                not_unpaid_groups += 1
             else:
                 unpaid_total += 1
                 if not group.auto_recalc:
@@ -183,7 +162,6 @@ class Root:
         return {
             'total_dealers': dealers.count(),
             'paid_total': paid_total,
-            'not_unpaid_groups': not_unpaid_groups,
             'paid_custom': paid_custom,
             'paid_tables': paid_tables,
             'paid_tables_total': get_dict_sum(paid_tables),
@@ -211,7 +189,7 @@ class Root:
                                                   preordered_merch_filter + [Attendee.is_paid == True],
                                                   selector=Attendee.amount_extra)
         unpaid_preordered_merch = get_grouped_costs(session,
-                                                  preordered_merch_filter + [Attendee.active_receipt != None,
+                                                  preordered_merch_filter + [Attendee.default_cost > 0,
                                                                              Attendee.is_paid == False],
                                                   selector=Attendee.amount_extra)
         
@@ -219,26 +197,9 @@ class Root:
                                                   extra_donation_filter + [Attendee.is_paid == True],
                                                   selector=Attendee.extra_donation)
         unpaid_extra_donations = get_grouped_costs(session,
-                                                  extra_donation_filter + [Attendee.active_receipt != None,
+                                                  extra_donation_filter + [Attendee.default_cost > 0,
                                                                              Attendee.is_paid == False],
                                                   selector=Attendee.extra_donation)
-        not_unpaid_preordered_merch = 0
-        not_unpaid_extra_donations = 0
-
-        for attendee in session.query(Attendee).filter(*base_filter).filter(Attendee.active_receipt == None).filter(
-                                                                        or_(Attendee.amount_extra > 0,
-                                                                            Attendee.extra_donation > 0)):
-            if attendee.amount_unpaid == 0:
-                if attendee.amount_extra:
-                    not_unpaid_preordered_merch += 1
-                if attendee.extra_donation:
-                    not_unpaid_extra_donations += 1
-            else:
-                if attendee.amount_extra:
-                    unpaid_preordered_merch[attendee.amount_extra] += 1
-                if attendee.extra_donation:
-                    unpaid_extra_donations[attendee.extra_donation] += 1
-        
 
         return {
             'total_addons': session.query(Attendee).filter(*base_filter).filter(or_(Attendee.amount_extra > 0,
@@ -246,8 +207,6 @@ class Root:
             'total_merch': session.query(Attendee).filter(*preordered_merch_filter).count(),
             'paid_preordered_merch_total': sum(paid_preordered_merch.values()),
             'paid_preordered_merch_sum': get_dict_sum(paid_preordered_merch),
-            'not_unpaid_preordered_merch': not_unpaid_preordered_merch,
-            'not_unpaid_extra_donations': not_unpaid_extra_donations,
             'paid_preordered_merch': paid_preordered_merch,
             'unpaid_preordered_merch_total': sum(unpaid_preordered_merch.values()),
             'unpaid_preordered_merch_sum': get_dict_sum(unpaid_preordered_merch),

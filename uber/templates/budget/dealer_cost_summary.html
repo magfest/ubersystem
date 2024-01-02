@@ -3,15 +3,17 @@
 {% block title %}Dealer Cost Summary{% endblock %}
 {% block content %}
 <h3 class="text-center">Dealer Cost Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<p>Please note that 
+  {% if c.HAS_DEALER_REPORTS_ACCESS %}
+  <a href="../dealer_reports/dealer_receipt_discrepancies" target="_blank">receipt discrepancies</a> (warning: long load time!)
+  {% else %}receipt discrepancies{% endif %} may contribute to a different total intake than the amounts listed below.</p>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
-  
   <tr>
     <td><strong>Total Dealers</strong></td><td colspan="5">{{ total_dealers }}</td><td><em>Total</em></td><td><em>Grand Total</em></td>
   </tr>
   <tr>
     <td><strong>Paid Dealers</strong></td>
-    <td colspan="5">{{ paid_total }}
-      {% if not_unpaid_groups %} (plus {{ not_unpaid_groups }} groups that are neither comped nor unpaid){% endif %}</td>
+    <td colspan="5">{{ paid_total }}</td>
     <td></td>
     <td>{{ (paid_custom['sum'] + all_paid_tables_sum + (paid_badges_total * c.DEALER_BADGE_PRICE))|format_currency }}</td>
   </tr>
