@@ -82,3 +82,12 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     </div>
 {% endif %}
 {% endblock %}
+
+{% block accoutrements %}
+{% if attendee.accoutrements or attendee.staffing %}
+<div class="alert alert-info">
+    {% if attendee.accoutrements %}Please check this attendee in {{ attendee.accoutrements }}.{% endif %}{% if attendee.staffing %}
+    Instruct this attendee to go to STOPS for their schedule.{% endif %}
+</div>
+{% endif %}
+{% endblock %}
