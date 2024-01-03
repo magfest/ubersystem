@@ -195,13 +195,14 @@ class Root:
             counts['shirt_counts'][c.PREREG_SHIRTS[shirt_enum_key]] = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'shirt_counts', shirt_enum_key)
 
         for a in session.query(Attendee).options(joinedload(Attendee.group)):
+            counts['statuses'][a.badge_status_label] += 1
+            
             if a.badge_status not in [c.INVALID_GROUP_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
                 counts['paid'][a.paid_label] += 1
                 counts['ages'][a.age_group_label] += 1
                 for val in a.ribbon_ints:
                     counts['ribbons'][c.RIBBONS[val]] += 1
                 counts['badges'][a.badge_type_label] += 1
-                counts['statuses'][a.badge_status_label] += 1
                 counts['checked_in']['yes' if a.checked_in else 'no'] += 1
                 if a.checked_in:
                     counts['checked_in_by_type'][a.badge_type_label] += 1

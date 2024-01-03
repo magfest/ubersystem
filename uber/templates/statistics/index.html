@@ -14,13 +14,19 @@
     <b>Attendees who paid and didn't show up:</b> {{ counts.noshows.paid }} <br/>
 {% endif %}
 <b>Number of remaining badges for sale (before event is sold out):</b> {{ c.REMAINING_BADGES }} <br/>
-This is calculated by taking the Attendee badge type's stock and subtracting the number of Attendee badges promised so far (see "Badge Stats by Type" below)</p>
+This is calculated by taking the Attendee badge type's stock and subtracting the number of Attendee badges promised so far (see "Badge Stats by Type" below), then adding all unclaimed paid promo code group badges.</strong></p>
+
+<p>
+  {% for amount, count in counts.donation_tiers.items() %}
+  <b>Number of attendees who've donated at the {{ amount|format_currency }} level:</b> {{ count }} <br/>
+  {% endfor %}
+  The numbers above include pending badges to help prevent overselling.
+</p>
 
 <h3>Badge Stats by Type</h3>
 <p>
   This table shows stats related to our badge stocks and all <strong>valid badges that we have promised attendees</strong>,
   i.e., badges that are not pending, invalid, unpaid, or unapproved dealers.
-  <br/>Note that unclaimed paid promo code group badges are counted as Attendee badges.
 </p>
 <table class="table table-hover table-bordered">
   <thead>
@@ -53,7 +59,7 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
 <h3>Registration Stats</h3>
 <p>
   Various stats about all our attendees, including pending attendees and unapproved dealers.
-  Invalid, refunded, and imported badges are excluded from these stats.
+  Invalid, refunded, and imported badges are excluded from these stats (except for the "badge statuses" list).
 </p>
 
 <div class="row">
@@ -106,12 +112,6 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
     </table>
   </div>
 </div>
-
-<p>
-  {% for amount, count in counts.donation_tiers.items() %}
-  <b>Number of attendees who've donated at the {{ amount|format_currency }} level:</b> {{ count }} <br/>
-  {% endfor %}
-</p>
 
 <h4>Shirt Size Stocks</h4>
 <ul>
