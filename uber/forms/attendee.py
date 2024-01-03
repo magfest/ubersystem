@@ -104,7 +104,7 @@ class PersonalInfo(AddressForm, MagForm):
         
         optional_list = super().get_optional_fields(attendee, is_admin)
 
-        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
+        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE and c.AFTER_PRINTED_BADGE_DEADLINE):
             optional_list.append('badge_printed_name')
 
         if self.same_legal_name.data:
@@ -458,6 +458,14 @@ class CheckInForm(MagForm):
     badge_printed_name = PersonalInfo.badge_printed_name
     got_merch = AdminBadgeExtras.got_merch
     got_staff_merch = AdminStaffingInfo.got_staff_merch
+
+    def get_optional_fields(self, attendee, is_admin=False):
+        optional_list = super().get_optional_fields(attendee, is_admin)
+
+        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE and c.AFTER_PRINTED_BADGE_DEADLINE):
+            optional_list.append('badge_printed_name')
+        
+        return optional_list
 
     @field_validation.birthdate
     def birthdate_format(form, field):
