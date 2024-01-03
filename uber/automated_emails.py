@@ -572,6 +572,7 @@ StopsEmailFixture(
     'shifts/shifts_created.txt',
     lambda a: (
         c.AFTER_SHIFTS_CREATED
+        and a.badge_type != c.CONTRACTOR_BADGE
         and a.takes_shifts
         and a.registered_local <= c.SHIFTS_CREATED),
     when=before(c.PREREG_TAKEDOWN),
@@ -582,6 +583,7 @@ StopsEmailFixture(
     'shifts/reminder.txt',
     lambda a: (
         c.AFTER_SHIFTS_CREATED
+        and a.badge_type != c.CONTRACTOR_BADGE
         and days_after(14, max(a.registered_local, c.SHIFTS_CREATED))()
         and a.takes_shifts
         and not a.shift_minutes),
@@ -591,7 +593,8 @@ StopsEmailFixture(
 StopsEmailFixture(
     'Last chance to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
-    lambda a: c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.shift_minutes,
+    lambda a: c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE \
+        and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.shift_minutes,
     when=days_before(10, c.EPOCH),
     ident='volunteer_shift_signup_reminder_last_chance')
 
@@ -600,6 +603,7 @@ StopsEmailFixture(
     'shifts/volunteer_check.txt',
     lambda a: (
         c.VOLUNTEER_CHECKLIST_OPEN
+        and a.badge_type != c.CONTRACTOR_BADGE
         and c.VOLUNTEER_RIBBON in a.ribbon_ints
         and a.takes_shifts
         and a.weighted_hours == 0),
@@ -609,7 +613,7 @@ StopsEmailFixture(
 StopsEmailFixture(
     'Your {EVENT_NAME} ({EVENT_DATE}) shift schedule',
     'shifts/schedule.html',
-    lambda a: c.SHIFTS_CREATED and a.weighted_hours,
+    lambda a: c.SHIFTS_CREATED and a.weighted_hours and a.badge_type != c.CONTRACTOR_BADGE,
     when=days_before(1, c.FINAL_EMAIL_DEADLINE),
     ident='volunteer_shift_schedule')
 
@@ -637,7 +641,7 @@ if c.PRINTED_BADGE_DEADLINE:
     StopsEmailFixture(
         'Last chance to personalize your {EVENT_NAME} ({EVENT_DATE}) badge',
         'personalized_badges/volunteers.txt',
-        lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder,
+        lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder and a.badge_type != c.CONTRACTOR_BADGE,
         when=days_before(7, c.PRINTED_BADGE_DEADLINE),
         ident='volunteer_personalized_badge_reminder')
 
@@ -710,7 +714,8 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Want volunteer hotel room space at {EVENT_NAME}?',
         'hotel/hotel_rooms.txt',
-        lambda a: a.hotel_eligible and not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and \
+            not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(45, c.ROOM_DEADLINE, 14),
         ident='volunteer_hotel_room_inquiry')
 
@@ -718,7 +723,8 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Reminder to sign up for {EVENT_NAME} hotel room space',
         'hotel/hotel_reminder.txt',
-        lambda a: a.hotel_eligible and not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and \
+            not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(14, c.ROOM_DEADLINE, 2),
         ident='hotel_sign_up_reminder')
 
@@ -726,7 +732,8 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Last chance to sign up for {EVENT_NAME} hotel room space',
         'hotel/hotel_reminder.txt',
-        lambda a: a.hotel_eligible and not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and \
+            not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(2, c.ROOM_DEADLINE),
         ident='hotel_sign_up_reminder_last_chance')
 
@@ -734,7 +741,8 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Reminder to meet your {EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required and \
+            a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(14, c.FINAL_EMAIL_DEADLINE, 7),
         ident='hotel_requirements_reminder')
 
@@ -742,7 +750,8 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Final reminder to meet your {EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required and \
+            a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(7, c.FINAL_EMAIL_DEADLINE),
         ident='hotel_requirements_reminder_last_chance')
 
