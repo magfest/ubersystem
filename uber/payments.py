@@ -1322,7 +1322,7 @@ class ReceiptManager:
         except Exception:
             pass # It's fine if this is not a number
 
-        if col_name != 'badges' and isinstance(model.__table__.columns.get(col_name).type, Choice):
+        if col_name not in ['promo_code_code', 'badges'] and isinstance(model.__table__.columns.get(col_name).type, Choice):
             increase_term, decrease_term = "Upgrading", "Downgrading"
         else:
             increase_term, decrease_term = "Increasing", "Decreasing"
@@ -1360,12 +1360,13 @@ class ReceiptManager:
             old_val = getattr(model, col_name)
 
         if receipt:
+            revert_change = {col_name: old_val} if col_name not in ['promo_code_code', 'badges', 'birthdate'] else {}
             return ReceiptItem(receipt_id=receipt.id,
                                 desc=cost_desc,
                                 amount=cost_change,
                                 count=count,
                                 who=AdminAccount.admin_name() or 'non-admin',
-                                revert_change={col_name: old_val},
+                                revert_change=revert_change,
                             )
         else:
             return (cost_desc, cost_change, count)
@@ -1506,8 +1507,9 @@ class ReceiptManager:
                 txn.cancelled == None
 
             for item in txn.receipt_items:
-                item.closed = datetime.now()
-                session.add(item)
+                if item.amount > 0:
+                    item.closed = datetime.now()
+                    session.add(item)
 
             session.commit()
 
