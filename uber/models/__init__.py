@@ -85,6 +85,7 @@ class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
 
     required = ()
+    is_actually_old = False # Set to true to force preview models to return False for `is_new`
 
     @cached_classproperty
     def NAMESPACE(cls):
@@ -284,6 +285,8 @@ class MagModel:
         been saved to the database or if it's a new instance which has never
         been saved and thus has no corresponding row in its database table.
         """
+        if self.is_actually_old:
+            return False
         return not instance_state(self).persistent
 
     @property

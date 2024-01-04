@@ -676,7 +676,13 @@ class Root:
     @not_site_mappable
     def remove_promo_code(self, session, id=''):
         attendee = session.attendee(id)
+        receipt = session.get_receipt_by_model(attendee)
         attendee.paid = c.NOT_PAID
+        attendee.overridden_price = None
+        if receipt:
+            receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, {'promo_code_code': ''})
+            session.add_all(receipt_items)
+
         attendee.promo_code = None
         attendee.badge_status = c.NEW_STATUS
         raise HTTPRedirect('../registration/form?id={}&message={}', id, "Promo code removed.")
