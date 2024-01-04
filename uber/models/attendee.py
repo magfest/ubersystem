@@ -598,9 +598,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _use_promo_code(self):
+        log.debug("Using promo code...")
         if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and not self.overridden_price and self.is_unpaid:
-            if self.badge_cost > 0:
-                self.overridden_price = self.badge_cost
+            log.debug(self.badge_cost_with_promo_code)
+            log.debug(self.promo_code)
+            if self.badge_cost_with_promo_code > 0:
+                self.overridden_price = self.badge_cost_with_promo_code
             else:
                 self.paid = c.NEED_NOT_PAY
 
@@ -813,12 +816,11 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.DEALER_BADGE_PRICE
         elif self.promo_code_groups or (self.group and self.group.cost):
             return c.get_group_price()
-        elif self.in_promo_code_group:
-            return self.promo_code.cost
         else:
             cost = self.new_badge_cost
 
         if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and use_promo_code:
+            log.debug(self.promo_code.calculate_discounted_price(cost))
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
@@ -1037,8 +1039,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
         preview_attendee.birthdate = birthdate
-        current_discount = max(self.badge_cost * 100 * -1, self.age_discount * 100)
-        new_discount = max(self.badge_cost * 100 * -1, preview_attendee.age_discount * 100)
+        if self.badge_cost:
+            current_discount = max(self.badge_cost * 100 * -1, self.age_discount * 100)
+            new_discount = max(self.badge_cost * 100 * -1, preview_attendee.age_discount * 100)
+        else:
+            current_discount, new_discount = self.age_discount * 100, preview_attendee.age_discount * 100
 
         if not new_discount:
             return current_discount, current_discount * -1
@@ -1047,21 +1052,26 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return current_discount, new_discount - current_discount
         
-    def calc_promo_discount_change(self, promo_code):
-        badge_cost = self.calculate_badge_cost()
+    def calc_promo_discount_change(self, promo_code_code):
+        badge_cost = self.calculate_badge_cost() * 100
         if self.promo_code:
-            current_discount = badge_cost - self.badge_cost_with_promo_code()
+            log.debug(badge_cost)
+            log.debug(self.badge_cost_with_promo_code * 100)
+            if badge_cost == (self.badge_cost_with_promo_code * 100):
+                current_discount = badge_cost * -1
+            else:
+                current_discount = (badge_cost - (self.badge_cost_with_promo_code * 100)) * -1
         else:
             current_discount = 0
-        
-        if promo_code:
+        if promo_code_code:
             from uber.models import Session, PromoCode
             with Session() as session:
-                pc_obj = session.query(PromoCode).filter_by(code=promo_code).first()
-                new_discount = badge_cost - pc_obj.calculate_discounted_price(badge_cost)
+                pc_obj = session.lookup_promo_code(promo_code_code)
+                new_discount = (badge_cost - (pc_obj.calculate_discounted_price(badge_cost) * 100)) * -1
         else:
             new_discount = 0
-        
+
+        log.debug(new_discount)
         if not new_discount:
             return current_discount, current_discount * -1
         elif not current_discount:

@@ -1434,6 +1434,11 @@ class ReceiptManager:
                 coerced_val = model.coerce_column_data(column, val)
                 if coerced_val != getattr(model, key, None):
                     changed_params[key] = coerced_val
+            if key in ['promo_code_code']: # keys that map to properties instead of columns
+                log.debug(key)
+                log.debug(getattr(model, key, None))
+                if val != getattr(model, key, None):
+                    changed_params[key] = val
         
         if isinstance(model, Group):
             # "badges" is a property and not a column, so we have to include it explicitly

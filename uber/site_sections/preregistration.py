@@ -675,8 +675,13 @@ class Root:
         if cart.total_cost <= 0:
             used_codes = defaultdict(int)
             for attendee in cart.attendees:
-                attendee.paid = c.NEED_NOT_PAY
+                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, create_model=True)
+                session.add(receipt)
+                session.add_all(receipt_items)
+
                 attendee.badge_status = c.COMPLETED_STATUS
+                attendee.badge_cost = attendee.calculate_badge_cost()
+                attendee.paid = c.NEED_NOT_PAY
 
                 if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
                     old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
@@ -1165,6 +1170,7 @@ class Root:
             form.populate_obj(attendee)
 
         if cherrypy.request.method == 'POST':
+            # TODO: I don't think this works, but it probably should just be removed
             if attendee and receipt:
                 receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
                 session.add_all(receipt_items)
@@ -1563,14 +1569,18 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
-        attendee = session.attendee(params.get('id'))
+        if params.get('id') not in [None, '', 'None']:
+            attendee = session.attendee(params.get('id'))
+            receipt = session.get_receipt_by_model(attendee)
+            if cherrypy.request.method == 'POST':
+                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+                session.add_all(receipt_items)
 
         if attendee.badge_status == c.REFUNDED_STATUS:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
 
         placeholder = attendee.placeholder
 
-        receipt = session.get_receipt_by_model(attendee)
         form_list = ['PersonalInfo', 'BadgeExtras', 'BadgeFlags', 'OtherInfo', 'StaffingInfo', 'Consents']
         forms = load_forms(params, attendee, form_list)
         if not attendee.is_new and not attendee.placeholder:
@@ -1582,10 +1592,6 @@ class Root:
             form.populate_obj(attendee)
 
         if cherrypy.request.method == 'POST' and not message:
-            if params.get('id') not in [None, '', 'None']:
-                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
-                session.add_all(receipt_items)
-
             session.add(attendee)
             session.commit()
 
