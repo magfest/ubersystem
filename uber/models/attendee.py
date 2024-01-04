@@ -1055,8 +1055,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     def calc_promo_discount_change(self, promo_code_code):
         badge_cost = self.calculate_badge_cost() * 100
         if self.promo_code:
-            log.debug(badge_cost)
-            log.debug(self.badge_cost_with_promo_code * 100)
             if badge_cost == (self.badge_cost_with_promo_code * 100):
                 current_discount = badge_cost * -1
             else:
