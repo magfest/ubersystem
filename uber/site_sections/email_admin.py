@@ -15,11 +15,14 @@ from uber.utils import get_page
 
 @all_renderable()
 class Root:
-    def index(self, session, page='1', search_text=''):
+    def index(self, session, page='1', search_text='', subject=False):
         emails = session.query(Email).order_by(Email.when.desc())
         search_text = search_text.strip()
         if search_text:
-            emails = emails.icontains(Email.to, search_text)
+            if subject:
+                emails = emails.icontains(Email.subject, search_text)
+            else:
+                emails = emails.icontains(Email.to, search_text)
         return {
             'page': page,
             'emails': get_page(page, emails),

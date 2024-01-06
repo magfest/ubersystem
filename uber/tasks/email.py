@@ -140,6 +140,10 @@ def notify_admins_of_pending_emails():
                 emails_by_sender = pending_emails_by_sender
             else:
                 emails_by_sender = {sender: emails_by_ident}
+            
+            for email in emails_by_ident.values():
+                if isinstance(email[0], AutomatedEmail):
+                    email[0].reconcile(AutomatedEmail._fixtures[email[0].ident])
 
             subject = '{} Pending Emails Report for {}'.format(c.EVENT_NAME, utils.localized_now().strftime('%Y-%m-%d'))
             body = render('emails/daily_checks/pending_emails.html', {
