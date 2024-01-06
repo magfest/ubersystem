@@ -487,13 +487,14 @@ class Root:
             'return_to': return_to
         }
 
-    @cherrypy.expose(['delete_attendee'])
-    def delete(self, session, id, return_to='index?', **params):
+    def delete(self, session, id, return_to='index?', return_msg=False, **params):
         attendee = session.attendee(id, allow_invalid=True)
         if attendee.group:
             if attendee.group.leader_id == attendee.id:
                 message = 'You cannot delete the leader of a group; ' \
                     'you must make someone else the leader first, or just delete the entire group'
+                if return_msg:
+                    return False, message
             elif attendee.is_unassigned:
                 session.delete_from_group(attendee, attendee.group)
                 message = 'Unassigned badge removed.'
@@ -511,9 +512,19 @@ class Root:
         else:
             session.delete(attendee)
             message = 'Attendee deleted'
+
+        if return_msg:
+            session.commit()
+            return True, message
         
         q_or_a = '?' if '?' not in return_to else '&'
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else q_or_a) + 'message={}', message)
+    
+    @ajax
+    @attendee_view
+    def delete_attendee(self, session, id, **params):
+        success, msg = self.delete(id=id, return_msg=True, **params)
+        return {'success': success, 'message': msg}
 
     @check_for_encrypted_badge_num
     @ajax

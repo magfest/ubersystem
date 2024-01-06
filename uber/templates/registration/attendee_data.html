@@ -45,6 +45,28 @@ var updateAttendee = function(submit_button_name=''){
         }
       }, 1000);
 };
+var deleteAttendee = function(confirm_msg) {
+  event.preventDefault();
+  var formData = $("#delete_attendee").serializeArray();
+  if (confirm(confirm_msg) == true) {
+    $.ajax({
+        method: 'POST',
+        url: '../registration/delete_attendee',
+        data: formData,
+        success: function (json) {
+            if (json.success) {
+              $('#attendee_modal .btn-close').trigger('click');
+              $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+            } else {
+              showErrorMessage(json.message, 'attendee-modal-alert');
+            }
+        },
+        error: function () {
+            showErrorMessage('Unable to connect to server, please try again.', 'attendee-modal-alert');
+        }
+    });
+  }
+}
 $(window).on("runJavaScript", function () {
 if($.field('return_to')) {
     $.field('return_to').val(window.location.pathname + window.location.search);
@@ -67,10 +89,14 @@ if($.field('return_to')) {
     {% if not attendee.is_new %}
     <a class="btn btn-primary" href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">View as Attendee</a>
     {% endif %}
-    <form method="post" class="d-inline" id="delete_attendee" action="delete" onSubmit="return confirm('{% if attendee.unassigned_group_reg %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
+    <form method="post" class="d-inline" id="delete_attendee" action="../registration/delete_attendee" onSubmit="deleteAttendee('{% if attendee.unassigned_group_reg %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}')">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.id }}" />
-      {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
+      {% if return_to %}
+      <input type="hidden" name="return_to" value="{{ return_to }}" />
+      {% else %}
+      <input type="hidden" name="return_to" value="" />
+      {% endif %}
   </form>
   <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.unassigned_group_reg %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
                   {% if attendee.cannot_delete_badge_reason %} style="background-color:#BCBCBC" title="{{ attendee.cannot_delete_badge_reason }}" disabled {% endif %}/>
