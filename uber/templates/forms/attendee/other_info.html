@@ -16,7 +16,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 
 {% block promo_code %}
-{% if not badge_flags and c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) %}
+{% if not badge_flags and not old and c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) %}
     {% set promo_code_admin_text %}
         {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
         <a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove Promo Code</a>

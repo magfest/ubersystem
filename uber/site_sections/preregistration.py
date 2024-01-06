@@ -1325,21 +1325,42 @@ class Root:
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
 
-        assert old.is_transferable, 'This badge is not transferable.'
-        session.expunge(old)
-        attendee = session.attendee(params, restricted=True)
+        if not old.is_transferable:
+            raise HTTPRedirect('../landing/index?message={}', 'This badge is not transferable.')
+        if not old.is_valid:
+            raise HTTPRedirect('../landing/index?message={}', 'This badge is no longer valid. It may have already been transferred.')
 
-        if 'first_name' in params:
-            message = check(attendee, prereg=True)
+        old_attendee_dict = old.to_dict()
+        del old_attendee_dict['id']
+
+        attendee = Attendee(**old_attendee_dict)
+        receipt = session.get_receipt_by_model(old)
+        for attr in c.UNTRANSFERABLE_ATTRS:
+            setattr(attendee, attr, getattr(Attendee(), attr))
+
+        form_list = ['PersonalInfo', 'OtherInfo', 'StaffingInfo', 'Consents']
+        forms = load_forms(params, attendee, form_list)
+
+        if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+                    form['legal_name'].data = ''
+                form.populate_obj(attendee)
+
             if (old.first_name == attendee.first_name and old.last_name == attendee.last_name) \
                     or (old.legal_name and old.legal_name == attendee.legal_name):
                 message = 'You cannot transfer your badge to yourself.'
-            elif not message and (not params['first_name'] and not params['last_name']):
-                message = check(attendee, prereg=True)
-            if not message and (not params['first_name'] and not params['last_name']):
-                message = 'First and Last names are required.'
 
             if not message:
+                old.badge_status = c.INVALID_STATUS
+                old.append_admin_note(f"Automatic transfer to attendee {attendee.id}")
+                attendee.admin_notes = f"Automatic transfer from attendee {old.id}"
+                if receipt:
+                    receipt.owner_id = attendee.id
+                    session.add(receipt)
+                    amount_unpaid = receipt.current_amount_owed
+                else:
+                    amount_unpaid = attendee.amount_unpaid
                 subject = c.EVENT_NAME + ' Registration Transferred'
                 body = render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old}, encoding=None)
 
@@ -1351,21 +1372,23 @@ class Root:
                         body,
                         model=attendee.to_dict('id'))
                 except Exception:
-                    log.error('unable to send badge change email', exc_info=True)
+                    log.error('Unable to send badge change email', exc_info=True)
 
-                if attendee.amount_unpaid:
+                session.add(attendee)
+                session.commit()
+                session.refresh_receipt_and_model(attendee)
+                if amount_unpaid:
                     raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
                     raise HTTPRedirect(
                         'badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
-        else:
-            for attr in c.UNTRANSFERABLE_ATTRS:
-                setattr(attendee, attr, getattr(Attendee(), attr))
 
         return {
+            'forms': forms,
             'old':      old,
             'attendee': attendee,
             'message':  message,
+            'receipt': receipt,
         }
 
     @id_required(Attendee)

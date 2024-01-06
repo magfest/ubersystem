@@ -1,6 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
-{% import "forms/attendee.html" as attendee_fields with context %}
-{% block backlink %}{% endblock %}
+{% import 'forms/macros.html' as form_macros with context %}
+
 {% set title_text = "Transfer Your " ~ c.EVENT_NAME ~ " Registration" %}
 {% block content %}
 
@@ -14,26 +14,24 @@
       our Registration Desk; that will belong to whomever the badge is transferred.
     </p>
 
-    <form method="POST" action="transfer_badge" class="form-horizontal">
-      {{ csrf_token() }}
-      <input type="hidden" name="id" value="{{ attendee.id }}" />
+    {% if receipt and receipt.current_amount_owed %}
+    <div class="alert alert-danger" role="alert">
+      This badge currently has an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+      You will be prompted for payment after transferring the badge.
+    </div>
+    {% endif %}
 
-      {% include 'forms/prereg_intro.html' %}
-      {{ attendee_fields.name }}
-      {{ attendee_fields.staffing }}
-      {{ attendee_fields.job_interests }}
-      {{ attendee_fields.age }}
-      {{ attendee_fields.email }}
-      {{ attendee_fields.address }}
-      {{ attendee_fields.emergency_contact }}
-      {{ attendee_fields.onsite_contact }}
-      {{ attendee_fields.cellphone }}
-      {{ attendee_fields.promo_code }}
-      {{ attendee_fields.interests }}
-      {{ attendee_fields.found_how }}
-      {{ attendee_fields.comments }}
-      {{ attendee_fields.can_spam }}
-      {{ attendee_fields.pii_consent_checkbox }}
+    {{ form_macros.form_validation('transfer-badge') }}
+
+    <form method="POST" novalidate action="transfer_badge" id="transfer-badge">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ old.id }}" />
+
+      {% include "forms/attendee/personal_info.html" %}
+      {% include "forms/attendee/staffing_info.html" %}
+      {% include "forms/attendee/other_info.html" %}
+      {% include "forms/attendee/consents.html" %}
+
       {# Deprecated form included for backwards compatibility with old plugins #}
       {% include "regform.html" %}
 
