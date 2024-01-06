@@ -349,7 +349,7 @@
 <script type="text/javascript">
   var serverValidationPassed = false;
   
-  var runServerValidations_{{ form_id }} = function($form, submit_button_name) {
+  var runServerValidations_{{ form_id|replace('-,_') }} = function($form, submit_button_name) {
     var form_list = {{ form_list|safe }}.join(',')
     if (form_list != '') {
         form_list = '&form_list=' + form_list
@@ -415,9 +415,9 @@
 $("#{{ form_id }}").submit(function (event) { 
     if(!serverValidationPassed) {
       if (event.originalEvent !== undefined) {
-        runServerValidations_{{ form_id }}($(this), event.originalEvent.submitter.name);
+        runServerValidations_{{ form_id|replace('-,_') }}($(this), event.originalEvent.submitter.name);
       } else {
-        runServerValidations_{{ form_id }}($(this), '');
+        runServerValidations_{{ form_id|replace('-,_') }}($(this), '');
       }
       return false;
     }
