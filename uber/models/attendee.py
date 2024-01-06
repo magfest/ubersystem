@@ -820,7 +820,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             cost = self.new_badge_cost
 
         if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and use_promo_code:
-            log.debug(self.promo_code.calculate_discounted_price(cost))
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
@@ -891,7 +890,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         # (if it exists) is greater than half off, we use that instead.
         import math
         if self.age_now_or_at_con and self.age_now_or_at_con < 13:
-            half_off = math.ceil(c.BADGE_PRICE / 2)
+            half_off = math.ceil(self.new_badge_cost / 2)
             if not self.age_group_conf['discount'] or self.age_group_conf['discount'] < half_off:
                 return -half_off
         return -self.age_group_conf['discount']
@@ -1037,6 +1036,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         return current_cost, new_cost
 
     def calc_age_discount_change(self, birthdate):
+        if not self.qualifies_for_discounts:
+            return 0, 0
+        
         preview_attendee = Attendee(**self.to_dict())
         preview_attendee.birthdate = birthdate
         if self.badge_cost:
