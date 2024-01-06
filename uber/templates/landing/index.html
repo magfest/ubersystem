@@ -44,7 +44,7 @@
         {% endblock %}
             {% include 'preregistration/login_or_create_account.html' %}
         {% endif %}
-    {% elif c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON %}
+    {% elif (c.BEFORE_PREREG_TAKEDOWN or not c.PREREG_TAKEDOWN) or c.AT_THE_CON %}
     <div class="text-center">
     <div class="btn-group">
         <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">

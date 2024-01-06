@@ -11,9 +11,10 @@
     {% if c.HAS_REGISTRATION_ACCESS %}
     <div class="col"><a class="btn btn-success" href="../registration/">View all attendees</a></div>
     {% endif %}
-    {% if c.HAS_MERCH_ADMIN_ACCESS %}
+    {% if c.HAS_MERCH_ADMIN_ACCESS and c.AT_THE_CON %}
     <div class="col"><a class="btn btn-outline-success" href="../merch_admin/">Merch Pickup</a></div>
     {% endif %}
+    {% if c.AT_THE_CON %}
     <div class="col ms-auto">
       <form method="post" action="../registration/set_reg_station">
         <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
@@ -30,6 +31,7 @@
         </div>
       </form>
     </div>
+    {% endif %}
   </div>
 </div>
 <div class="row pb-3">
@@ -41,6 +43,7 @@
     <button class="btn btn-outline-secondary attendee-types" id="{{ section }}" onClick="loadViewableAttendees('{{ section }}')">{{ section[:-6]|title }}</button>
     {% endfor %}
     </div>
+    {% if c.AT_THE_CON or reg_station_id %}
     <span class="pull-right me-2">Workstation #: {{ reg_station_id|default("None",true) }}
       {% if c.BADGE_PRINTING_ENABLED %}
         {% set printer_text = "Standard Printer" if workstation_assignment and workstation_assignment.separate_printers else "Printer" %}
@@ -53,6 +56,7 @@
       <br/>Terminal ID: {{ workstation_assignment.terminal_id|default("None") if workstation_assignment else "None" }}
       {% endif %}
       </span>
+      {% endif %}
   </div>
 </div>
 <div id="viewable_attendees"></div>
