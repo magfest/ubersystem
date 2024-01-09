@@ -286,7 +286,7 @@ class Config(_Overridable):
     @dynamic
     def ATTENDEE_BADGE_COUNT(self):
         """
-        Adds paid promo codes to the badge count, since these are promised badges and this propery is used for our
+        Adds paid promo codes to the badge count, since these are promised badges and this property is used for our
         badge sales cap. Free PC groups are excluded as they often have far more badges than will ever be claimed.
         """
         from uber.models import Session, Attendee, Group, PromoCode, PromoCodeGroup
@@ -495,7 +495,7 @@ class Config(_Overridable):
             'price': c.BADGE_PRICE,
             }]
         
-        if c.GROUPS_ENABLED:
+        if c.GROUPS_ENABLED and (c.BEFORE_GROUP_PREREG_TAKEDOWN or not c.AT_THE_CON):
             reg_type_opts.append({
                 'name': "Group Leader",
                 'desc': Markup(f"Register a group of {c.MIN_GROUP_SIZE} people or more at ${c.GROUP_PRICE} per badge. \

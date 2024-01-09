@@ -45,7 +45,7 @@
     {% set stripe_loaded = true %}
 {% endif %}
 <button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
-<span class="display: block; min-height: 30px;">Pay with Card</span>
+<span class="display: block; min-height: 30px;">{{ text }}</span>
 </button>
 {% if not stripeModal %}
 <div id="stripeModal" class="modal" style="color:black;" tabindex="-1" role="dialog" data-bs-backdrop="static">

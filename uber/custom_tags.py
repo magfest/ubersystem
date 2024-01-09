@@ -725,8 +725,8 @@ def csrf_token():
 
 
 @JinjaEnv.jinja_export
-def stripe_form(action, model=None, **params):
-    new_params = {'params': {}}
+def stripe_form(action, model=None, text="Pay with Card", **params):
+    new_params = {'params': {}, 'text': text}
     for key, val in params.items():
         new_params['params'][key] = val
     new_params['action'] = action

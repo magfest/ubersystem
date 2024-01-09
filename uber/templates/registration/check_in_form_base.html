@@ -54,9 +54,6 @@ var toggleMarkButton = function (dropdown) {
 };
 loadCheckInForm = function (json=null) {
     if ($('#stripeModal').length) {
-        $('#stripeModal').off('hidden.bs.modal');
-        var stripeModal = bootstrap.Modal.getOrCreateInstance($('#stripeModal'))
-        stripeModal.hide();
         $('#stripeModal').remove();
     }
     
@@ -70,9 +67,8 @@ loadCheckInForm = function (json=null) {
 }
 var resumeStripeAction = callStripeAction;
 var callStripeAction = function() {
-    $('#checkin_modal').off('hidden.bs.modal');
-    checkinModal = bootstrap.Modal.getOrCreateInstance($('#checkin_modal'));
-    checkinModal.hide();
+    $('#checkin_modal .btn-close').trigger('click');
+    $('#checkin_modal .modal-content').html('');
     $('#stripeModal').on('hidden.bs.modal', function (e) {
         $('#stripeModal').remove();
     })

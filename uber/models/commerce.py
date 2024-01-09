@@ -412,7 +412,7 @@ class ReceiptTransaction(MagModel):
             log.error(e)
 
     def check_paid_from_stripe(self, intent=None):
-        if self.charge_id or c.AUTHORIZENET_LOGIN_ID or self.method != c.STRIPE:
+        if self.charge_id or c.AUTHORIZENET_LOGIN_ID or self.method not in [c.STRIPE, c.MANUAL]:
             return
 
         intent = intent or self.get_stripe_intent()

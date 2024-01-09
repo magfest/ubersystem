@@ -145,7 +145,8 @@ class Root:
             'message': message,
             'processors': {
                 c.STRIPE: "Authorize.net" if c.AUTHORIZENET_LOGIN_ID else "Stripe",
-                c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square"}
+                c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
+                c.MANUAL: "Stripe"}
         }
 
     def create_receipt(self, session, id='', blank=False):

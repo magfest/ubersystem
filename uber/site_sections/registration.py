@@ -1036,7 +1036,7 @@ class Root:
         for attendee in attendees:
             receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             if receipt.current_amount_owed:
-                if attendee.paid == c.NOT_PAID:
+                if attendee.paid in [c.NOT_PAID, c.PENDING]:
                     attendee.paid = c.HAS_PAID
                 if int(payment_method) == c.STRIPE_ERROR:
                     desc = f"Automated message: Stripe payment manually verified by {AdminAccount.admin_name()}."
