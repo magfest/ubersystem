@@ -46,6 +46,9 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
         <div class="col">
             {{ form_macros.form_input(check_in_form.badge_num, force_hidden=attendee.badge_num, hidden_field_text=attendee.badge_num) }}
         </div>
+        <script type="text/javascript">
+            $().ready(function() { $('#badge_num').focus(); });
+        </script>
     {% endif %}
     {% if c.COLLECT_EXACT_BIRTHDATE %}
         <div class="col">

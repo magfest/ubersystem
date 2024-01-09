@@ -621,7 +621,7 @@ class Root:
         }
 
     def at_door_confirmation(self, session, message='', qr_code_id='', **params):
-        # Currently this feature relies on attendee accounts
+        # Currently the cart feature relies on attendee accounts and "At Door Pending Status"
         # We will want real "carts" later so we can support group check-in for prereg attendees
 
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
@@ -629,17 +629,25 @@ class Root:
         registrations_list = []
         account = None
 
-        if not listify(PreregCart.unpaid_preregs.values()) and qr_code_id:
-            account = session.query(AttendeeAccount).filter_by(public_id=qr_code_id).first()
-            for attendee in account.at_door_attendees:
-                registrations_list.append(attendee.full_name)
-        elif c.ATTENDEE_ACCOUNTS_ENABLED:
-            account = session.current_attendee_account()
-            qr_code_id = qr_code_id or (account.public_id if account else '')
+        if not listify(PreregCart.unpaid_preregs.values()):
+            if c.ATTENDEE_ACCOUNTS_ENABLED and qr_code_id:
+                account = session.query(AttendeeAccount).filter_by(public_id=qr_code_id).first()
+                for attendee in account.at_door_attendees:
+                    registrations_list.append(attendee.full_name)
+            elif c.ATTENDEE_ACCOUNTS_ENABLED:
+                account = session.current_attendee_account()
+                qr_code_id = qr_code_id or (account.public_id if account else '')
+            
+            if not qr_code_id:
+                raise HTTPRedirect('form')
 
         for attendee in cart.attendees:
             registrations_list.append(attendee.full_name)
-            attendee.badge_status = c.AT_DOOR_PENDING_STATUS
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                attendee.badge_status = c.AT_DOOR_PENDING_STATUS    
+            # Setting this makes the badge count against our badge cap (does not work if at-door pending status is used)
+            attendee.paid = c.PENDING
+
             if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
                 old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
                 old_attendee.current_attendee = attendee
@@ -656,6 +664,8 @@ class Root:
                 raise HTTPRedirect('index?message={}', message)
             elif account:
                 session.add_attendee_to_account(attendee, account)
+            else:
+                session.add(attendee)
         for group in cart.groups:
             session.add(group)
     

@@ -12,9 +12,6 @@ minor_printer_id = "{{ workstation_assignment.minor_or_adult_printer_id if works
 var loadCheckInFormModal = function (attendeeID) {
     $('#checkin_modal .modal-content').load('../registration/check_in_form?id=' + attendeeID, function() {
         if ($('.check-in').length) {
-            $('#checkin_modal').on('hidden.bs.modal', function (e) {
-                $('#stripeModal').remove();
-            });
             $('#payment-loading-message').hide();
         } else {
             showErrorMessage("Form loading failed.");
