@@ -1,6 +1,6 @@
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
-from uber.decorators import all_renderable, ajax
+from uber.decorators import all_renderable, ajax, any_admin_access
 
 
 @all_renderable()
@@ -9,6 +9,7 @@ class Root:
         return {}
 
     @ajax
+    @any_admin_access
     def get_badge_num_from_barcode(self, session, barcode):
         badge_num = -1
         msg = "Success."
