@@ -85,8 +85,6 @@ class Root:
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
-        from uber.site_sections.dealer_admin import decline_and_convert_dealer_group
-
         reg_station_id = cherrypy.session.get('reg_station', '')
 
         if params.get('id') not in [None, '', 'None']:
