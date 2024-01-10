@@ -2,7 +2,7 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% set prereg_merch_available = c.FORMATTED_MERCH_TIERS and c.PREREG_DONATION_OPTS|length > 1 %}
 {% set badge_extras = badge_extras or forms['badge_extras'] %}
-{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
+{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form', '/preregistration/claim_badge'] -%}
 
 {# BLOCK NAMES in this form:
     badge_type

@@ -1233,7 +1233,7 @@ class Session(SessionManager):
                     return ''
                 else:
                     attendee.promo_code_id = None
-                    return 'The promo code you entered is invalid.'
+                    return f"The promo code you entered ({code}) is invalid."
             else:
                 attendee.promo_code = None
                 attendee.promo_code_id = None

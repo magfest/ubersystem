@@ -403,6 +403,71 @@ class Root:
         except Exception:
             log.error('unable to send marketplace application confirmation email', exc_info=True)
         raise HTTPRedirect('dealer_confirmation?id={}', group.id)
+    
+    def claim_badge(self, session, message='', **params):
+        if params.get('id') in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(params.get('id'), ignore_csrf=True)
+
+        form_list = ['PersonalInfo', 'BadgeExtras', 'BadgeFlags', 'OtherInfo', 'StaffingInfo', 'Consents']
+        forms = load_forms(params, attendee, form_list)
+        
+        if cherrypy.request.method == 'POST':
+            message = session.add_promo_code_to_attendee(attendee, params.get('promo_code_code', '').strip())
+
+            if not message:
+                for form in forms.values():
+                    if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+                        form['legal_name'].data = ''
+                    form.populate_obj(attendee)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, create_model=True)
+                session.add(receipt)
+                session.add_all(receipt_items)
+
+                attendee.badge_status = c.COMPLETED_STATUS
+                attendee.badge_cost = attendee.calculate_badge_cost()
+                if not attendee.badge_cost:
+                    attendee.paid = c.NEED_NOT_PAY
+                
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    session.add_attendee_to_account(attendee, session.current_attendee_account())
+                else:
+                    session.add(attendee)
+
+                raise HTTPRedirect("confirm?id={}&message={}", attendee.id,
+                                   f"You have successfully claimed a badge in the group {attendee.promo_code.group.name}!")
+        return {
+            'message': message,
+            'attendee': attendee,
+            'forms': forms,
+            'logged_in_account': session.get_attendee_account_by_attendee(attendee),
+        }
+
+    @ajax
+    def validate_badge_claim(self, session, form_list=[], is_prereg=True, **params):
+        group_code = params.get('promo_code_code', '').strip()
+        all_errors = defaultdict(list)
+        if not group_code:
+            all_errors['promo_code_code'].append("You must enter a group code to claim a badge in a group.")
+        else:
+            code = session.lookup_promo_code(group_code)
+            if not code:
+                all_errors['promo_code_code'].append(f"The promo code you entered ({group_code}) is invalid.")
+            elif not code.group:
+                all_errors['promo_code_code'].append(f"There is no group for code {group_code}.")
+
+        normal_validations = json.loads(self.validate_attendee(form_list=form_list, **params))
+
+        if 'error' in normal_validations:
+            for key, val in normal_validations['error'].items():
+                all_errors[key] = val
+
+        if bool(all_errors):
+            return {"error": all_errors}
+
+        return {"success": True}
+
 
     @cherrypy.expose('post_form')
     @redirect_if_at_con_to_kiosk
@@ -1636,10 +1701,11 @@ class Root:
 
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if not receipt:
-                new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-                if new_receipt.current_amount_owed and not new_receipt.pending_total:
-                    raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
-            raise HTTPRedirect(page + 'message=' + message)
+                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+            if not receipt.current_amount_owed or receipt.pending_total:
+                raise HTTPRedirect(page + 'message=' + message)
+            elif receipt.current_amount_owed and not receipt.pending_total: # TODO: could use some cleanup, needed because of how we handle the placeholder attr
+                raise HTTPRedirect('new_badge_payment?id={}&message={}&return_to={}', attendee.id, message, return_to)
 
         session.refresh_receipt_and_model(attendee)
 
@@ -1648,6 +1714,9 @@ class Root:
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
+
+        if receipt.current_amount_owed and not receipt.pending_total and not attendee.placeholder:
+            raise HTTPRedirect('new_badge_payment?id={}&message={}&return_to={}', attendee.id, message, return_to)
 
         return {
             'undoing_extra': undoing_extra,
