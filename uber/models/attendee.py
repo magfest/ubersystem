@@ -814,7 +814,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.overridden_price
         elif self.is_dealer:
             return c.DEALER_BADGE_PRICE
-        elif self.promo_code_groups or (self.group and self.group.cost):
+        elif self.promo_code_groups or (self.group and self.group.cost and self.paid == c.PAID_BY_GROUP):
             return c.get_group_price()
         else:
             cost = self.new_badge_cost

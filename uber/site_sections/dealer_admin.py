@@ -50,7 +50,7 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
     Cancels a dealer group and converts its assigned badges to individual badges that can be purchased for 
     the attendee price at the time they registered.
     `group` is the group to convert.
-    `status` sets the status for the group. If `delete_group` is true, this is ignored.
+    `status` sets the status for the group.
     `admin_note` defines the admin note to append to every converted attendee. If blank, a note is generated 
         based on the current logged-in admin.
     `email_leader` controls whether or not the group leader is emailed. Set to False for any calls to this function generated
@@ -59,11 +59,14 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
         for cases where the number of declined groups fed to this function is enormous and you are very sure you will never 
         need to look at them again.
     """
+    group.status = status
     if not admin_note:
-        if delete_group:
+        if status == c.WAITLISTED:
+            admin_note = f'Converted badge from {AdminAccount.admin_name() or "server admin"} closing waitlist for {c.DEALER_REG_TERM} "{group.name}".'
+        elif delete_group:
             admin_note = f'Converted badge from {AdminAccount.admin_name() or "server admin"} declining and converting {c.DEALER_REG_TERM} "{group.name}".'
         else:
-            admin_note = f'Converted badge from {AdminAccount.admin_name() or "non-admin"} setting {c.DEALER_REG_TERM} "{group.name}" to {c.DEALER_STATUS[status]}.'
+            admin_note = f'Converted badge from {AdminAccount.admin_name() or "non-admin"} setting {c.DEALER_REG_TERM} "{group.name}" to {group.status}.'
     if not group.is_unpaid:
         group.tables = 0
         for attendee in group.attendees:
@@ -71,10 +74,15 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
             attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
         return 'Group {} status removed'.format(c.DEALER_TERM)
 
+    if status == c.WAITLISTED:
+        email_subject = f"{c.EVENT_NAME} {c.DEALER_LOC_TERM.title()} Waitlist Has Been Exhausted"
+    else:
+        email_subject = f"Update About Your {c.EVENT_NAME} Registration"
     message = ['Group declined']
     emails_failed = 0
     emails_sent = 0
     badges_converted = 0
+    assigned_badges = group.badges - group.unregistered_badges
 
     for attendee in list(group.attendees):
         if not attendee.is_unassigned:
@@ -84,10 +92,11 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
                         attendee.email_to_address,
-                        'Update About Your {} Registration'.format(c.EVENT_NAME),
+                        email_subject,
                         render('emails/dealers/badge_converted.html', {
                             'attendee': attendee,
-                            'group': group}, encoding=None),
+                            'group': group,
+                            'other_badges': assigned_badges - 1}, encoding=None),
                         format='html',
                         model=attendee.to_dict('id'))
                     emails_sent += 1
@@ -110,8 +119,6 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
     if delete_group:
         group.leader = None
         session.delete(group)
-    else:
-        group.status = status
 
     for count, template in [
             (badges_converted, '{} badge{} converted'),
@@ -140,7 +147,7 @@ class Root:
             message = ''
             if decline_and_convert:
                 for group in groups:
-                    decline_and_convert_dealer_group(session, group, delete_group=True)
+                    decline_and_convert_dealer_group(session, group, status=c.WAITLISTED, delete_group=c.DELETE_DECLINED_GROUPS)
                 message = 'All waitlisted {}s have been declined and converted to regular attendee badges'\
                     .format(c.DEALER_TERM)
             raise HTTPRedirect('../group_admin/index?message={}#dealers', message)
