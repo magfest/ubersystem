@@ -1673,6 +1673,8 @@ class Root:
             if cherrypy.request.method == 'POST':
                 receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
                 session.add_all(receipt_items)
+        else:
+            receipt = None
 
         if attendee.badge_status == c.REFUNDED_STATUS:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
@@ -1715,7 +1717,7 @@ class Root:
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
-        if receipt.current_amount_owed and not receipt.pending_total and not attendee.placeholder:
+        if receipt and receipt.current_amount_owed and not receipt.pending_total and not attendee.placeholder:
             raise HTTPRedirect('new_badge_payment?id={}&message={}&return_to={}', attendee.id, message, return_to)
 
         return {
