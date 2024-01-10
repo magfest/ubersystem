@@ -92,17 +92,21 @@ class AdminAccount(MagModel):
 
     @property
     def write_access_set(self):
-        access_list = [list(group.access) for group in self.access_groups]
+        access_list = [list(group.access) for group in self.valid_access_groups]
         return set([item for sublist in access_list for item in sublist])
 
     @property
     def read_access_set(self):
-        access_list = [list(group.read_only_access) for group in self.access_groups]
+        access_list = [list(group.read_only_access) for group in self.valid_access_groups]
         return set([item for sublist in access_list for item in sublist])
 
     @property
     def read_or_write_access_set(self):
         return self.read_access_set.union(self.write_access_set)
+    
+    @property
+    def valid_access_groups(self):
+        return [group for group in self.access_groups if group.is_valid]
 
     @property
     def access_groups_labels(self):
@@ -258,6 +262,8 @@ class AccessGroup(MagModel):
     name = Column(UnicodeText)
     access = Column(MutableDict.as_mutable(JSONB), default={})
     read_only_access = Column(MutableDict.as_mutable(JSONB), default={})
+    start_time = Column(UTCDateTime, nullable=True)
+    end_time = Column(UTCDateTime, nullable=True)
 
     @presave_adjustment
     def _disable_api_access(self):
@@ -270,8 +276,19 @@ class AccessGroup(MagModel):
 
     def has_any_access(self, access_to, read_only=False):
         return self.has_access_level(access_to, self.LIMITED, read_only)
+    
+    @property
+    def is_valid(self):
+        if self.start_time and self.start_time > datetime.utcnow().replace(tzinfo=UTC):
+            return False
+        if self.end_time and self.end_time < datetime.utcnow().replace(tzinfo=UTC):
+            return False
+        return True
 
     def has_access_level(self, access_to, access_level, read_only=False, max_level=False):
+        if not self.is_valid:
+            return
+        
         import operator
         if max_level:
             compare = operator.eq
