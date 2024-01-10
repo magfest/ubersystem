@@ -152,6 +152,8 @@ class Root:
     def get_access_group(self, session, id):
         access_group = session.access_group(id)
         return {
+            'start_time': access_group.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y %-I:%M %A') if access_group.start_time else '',
+            'end_time': access_group.end_time.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y %-I:%M %A') if access_group.end_time else '',
             'access': access_group.access,
             'read_only_access': access_group.read_only_access,
         }
