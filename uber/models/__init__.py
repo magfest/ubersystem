@@ -1789,7 +1789,7 @@ class Session(SessionManager):
                         elif target == 'group':
                             attr_search_filter = Group.normalized_name.contains(search_term.strip().lower())
                         elif target == 'has_ribbon':
-                            attr_search_filter = Attendee.ribbon == Attendee.ribbon.type.convert_if_labels(search_term.title())
+                            attr_search_filter = Attendee.ribbon.contains(Attendee.ribbon.type.convert_if_labels(search_term.title()))
                         elif target in Attendee.searchable_bools:
                             t_or_f = search_term.strip().lower() not in ('f', 'false', 'n', 'no', '0', 'none')
                             attr_search_filter = getattr(Attendee,target) == t_or_f
