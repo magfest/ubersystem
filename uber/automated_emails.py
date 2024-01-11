@@ -594,7 +594,7 @@ StopsEmailFixture(
     'Last chance to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
     lambda a: c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE \
-        and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.shift_minutes,
+        and (not c.PREREG_TAKEDOWN or c.BEFORE_PREREG_TAKEDOWN) and a.takes_shifts and not a.shift_minutes,
     when=days_before(10, c.EPOCH),
     ident='volunteer_shift_signup_reminder_last_chance')
 
