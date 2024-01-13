@@ -598,7 +598,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _use_promo_code(self):
-        log.debug("Using promo code...")
         if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and not self.overridden_price and self.is_unpaid:
             log.debug(self.badge_cost_with_promo_code)
             log.debug(self.promo_code)
@@ -1036,11 +1035,19 @@ class Attendee(MagModel, TakesPaymentMixin):
         return current_cost, new_cost
 
     def calc_age_discount_change(self, birthdate):
-        if not self.qualifies_for_discounts:
+        # Get around the fact that child badges need to be set to NEED_NOT_PAY
+        if self.badge_cost and (self.age_discount * -1) >= self.badge_cost and self.paid == c.NEED_NOT_PAY:
+            self.paid = c.NOT_PAID
+            if not self.qualifies_for_discounts:
+                self.paid = c.NEED_NOT_PAY
+                return 0, 0
+            self.paid = c.NEED_NOT_PAY
+        elif not self.qualifies_for_discounts:
             return 0, 0
         
         preview_attendee = Attendee(**self.to_dict())
         preview_attendee.birthdate = birthdate
+
         if self.badge_cost:
             current_discount = max(self.badge_cost * 100 * -1, self.age_discount * 100)
             new_discount = max(self.badge_cost * 100 * -1, preview_attendee.age_discount * 100)

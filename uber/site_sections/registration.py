@@ -50,13 +50,9 @@ def load_attendee(session, params):
     else:
         attendee = session.attendee(id)
 
-    forms = load_forms({}, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
-                                          'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
-    
-    return attendee, forms
+    return attendee
 
-
-def save_attendee(session, attendee, forms, params):
+def save_attendee(session, attendee, params):
     if cherrypy.request.method == 'POST':
         receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
         session.add_all(receipt_items)
@@ -195,13 +191,13 @@ class Root:
 
     @log_pageview
     def form(self, session, message='', return_to='', **params):
-        attendee, forms = load_attendee(session, params)
+        attendee = load_attendee(session, params)
 
         reg_station_id = cherrypy.session.get('reg_station', '')
         workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first()
 
         if cherrypy.request.method == 'POST':
-            message = save_attendee(session, attendee, forms, params)
+            message = save_attendee(session, attendee, params)
 
             if not message:
                 if attendee.is_new and \
@@ -244,6 +240,8 @@ class Root:
                             message,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
         receipt = session.refresh_receipt_and_model(attendee)
+        forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
+                                              'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
 
         return {
             'message':    message,
@@ -1357,10 +1355,10 @@ class Root:
     @ajax
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):
-        attendee, forms = load_attendee(session, params)
+        attendee = load_attendee(session, params)
 
         if cherrypy.request.method == 'POST':
-            message = save_attendee(session, attendee, forms, params)
+            message = save_attendee(session, attendee, params)
 
         if not message:
             if attendee.is_new and \

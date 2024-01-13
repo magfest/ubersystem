@@ -1130,10 +1130,22 @@ class Session(SessionManager):
                     model.cost = model.calc_default_cost()
                 else:
                     model.default_cost = model.calc_default_cost()
-                self.refresh(model)
             except sqlalchemy.exc.InvalidRequestError:
                 # Non-persistent object, so nothing to refresh
                 pass
+
+            if isinstance(model, Attendee) and receipt:
+                if receipt.item_total == 0 and model.paid in [c.PENDING, c.NOT_PAID]:
+                    if model.paid == c.PENDING and model.badge_status == c.PENDING_STATUS:
+                        model.badge_status = c.NEW_STATUS
+                    model.paid = c.NEED_NOT_PAY
+                elif receipt.current_amount_owed > 0 and model.paid == c.NEED_NOT_PAY:
+                    model.paid = c.NOT_PAID
+                self.add(model)
+                self.commit()
+            
+            self.refresh(model)
+
             return receipt
 
         def get_terminal_settlements(self):
