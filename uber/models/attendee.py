@@ -671,7 +671,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def child_badge(self):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
-            if self.age_now_or_at_con and self.age_now_or_at_con < 18 and self.badge_type == c.ATTENDEE_BADGE:
+            if self.age_now_or_at_con != None and self.age_now_or_at_con < 18 and self.badge_type == c.ATTENDEE_BADGE:
                 self.badge_type = c.CHILD_BADGE
                 if self.age_now_or_at_con < 13:
                     self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
@@ -679,7 +679,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def child_ribbon_or_not(self):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
-            if self.age_now_or_at_con and self.age_now_or_at_con < 13:
+            if self.age_now_or_at_con != None and self.age_now_or_at_con < 13:
                 self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
             elif c.UNDER_13 in self.ribbon_ints and self.age_now_or_at_con and self.age_now_or_at_con >= 13:
                 self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
@@ -687,7 +687,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def child_to_attendee(self):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
-            if self.badge_type == c.CHILD_BADGE and self.age_now_or_at_con and self.age_now_or_at_con >= 18:
+            if self.badge_type == c.CHILD_BADGE and self.age_now_or_at_con != None and self.age_now_or_at_con >= 18:
                 self.badge_type = c.ATTENDEE_BADGE
                 self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
 
