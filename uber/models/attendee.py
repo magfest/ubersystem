@@ -1592,6 +1592,17 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
         return (' with ' if stuff else '') + readable_join(stuff)
+    
+    @property
+    def check_in_notes(self):
+        notes = []
+        if self.age_group_conf['consent_form']:
+            notes.append("Before checking this attendee in, please collect a signed parental consent form, which must be notarized if the guardian is not there. If the guardian is there, and they have not already completed one, have them sign one in front of you.")
+
+        if self.accoutrements:
+            notes.append(f"Please check this attendee in {self.accoutrements}.")
+
+        return "<br/><br/>".join(notes)
 
     @property
     def multiply_assigned(self):
