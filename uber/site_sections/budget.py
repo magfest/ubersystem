@@ -39,8 +39,6 @@ class Root:
         }
 
     def badge_cost_summary(self, session):
-        attendees = session.query(Attendee)
-
         base_filter = [Attendee.has_or_will_have_badge]
 
         group_filter = base_filter + [Attendee.group_id != None, Attendee.paid == c.PAID_BY_GROUP]
@@ -60,6 +58,20 @@ class Root:
 
         group_total = session.query(Attendee).filter(*group_filter).count()
 
+        yield {
+            'stream_content': True,
+            'total_badges': session.query(Attendee).filter_by(has_or_will_have_badge=True).count(),
+            'now': localized_now(),
+            'group_total': group_total,
+            'group_counts': group_counts,
+            'group_badges': paid_group_badges,
+            'group_badges_total': sum(paid_group_badges.values()),
+            'group_badges_sum': get_dict_sum(paid_group_badges),
+            'unpaid_group_badges': unpaid_group_badges,
+            'unpaid_group_badges_total': sum(unpaid_group_badges.values()),
+            'unpaid_group_sum': get_dict_sum(unpaid_group_badges)
+        }
+
         pc_group_filter = base_filter + [Attendee.promo_code_group_name != None]
         paid_pc_group_filter = pc_group_filter + [PromoCodeGroup.total_cost > 0]
 
@@ -78,6 +90,18 @@ class Root:
                 pc_unused_badges[code.cost] += 1
                 pc_group_total += 1
 
+        yield {
+            'pc_group_total': pc_group_total,
+            'pc_group_leaders': pc_group_leaders,
+            'pc_comped_badges': pc_comped_badges,
+            'pc_claimed_badges': pc_group_badges,
+            'pc_claimed_badges_total': sum(pc_group_badges.values()),
+            'pc_claimed_badges_sum': get_dict_sum(pc_group_badges),
+            'pc_unused_badges': pc_unused_badges,
+            'pc_unused_badges_total': sum(pc_unused_badges.values()),
+            'pc_unused_badges_sum': get_dict_sum(pc_unused_badges),
+        }
+
         individual_filter = base_filter + [not_(Attendee.paid.in_([c.PAID_BY_GROUP, c.NEED_NOT_PAY])),
                                            Attendee.promo_code_group_name == None,
                                            Attendee.badge_cost > 0]
@@ -91,25 +115,7 @@ class Root:
             .filter_by(paid=c.NEED_NOT_PAY).count()
         individual_total = session.query(Attendee).filter(*individual_filter).count() + comped_badges
         
-        return {
-            'total_badges': attendees.count(),
-            'group_total': group_total,
-            'group_counts': group_counts,
-            'group_badges': paid_group_badges,
-            'group_badges_total': sum(paid_group_badges.values()),
-            'group_badges_sum': get_dict_sum(paid_group_badges),
-            'unpaid_group_badges': unpaid_group_badges,
-            'unpaid_group_badges_total': sum(unpaid_group_badges.values()),
-            'unpaid_group_sum': get_dict_sum(unpaid_group_badges),
-            'pc_group_total': pc_group_total,
-            'pc_group_leaders': pc_group_leaders,
-            'pc_comped_badges': pc_comped_badges,
-            'pc_claimed_badges': pc_group_badges,
-            'pc_claimed_badges_total': sum(pc_group_badges.values()),
-            'pc_claimed_badges_sum': get_dict_sum(pc_group_badges),
-            'pc_unused_badges': pc_unused_badges,
-            'pc_unused_badges_total': sum(pc_unused_badges.values()),
-            'pc_unused_badges_sum': get_dict_sum(pc_unused_badges),
+        yield {
             'individual_total': individual_total,
             'comped_badges': comped_badges,
             'individual_badges': individual_badges,
@@ -118,8 +124,8 @@ class Root:
             'unpaid_badges': unpaid_badges,
             'unpaid_badges_total': sum(unpaid_badges.values()),
             'unpaid_badges_sum': get_dict_sum(unpaid_badges),
-            'now': localized_now(),
         }
+    badge_cost_summary._cp_config = {'response.stream': True}
 
     def dealer_cost_summary(self, session):
         dealers = session.query(Group).filter(Group.is_dealer==True, Group.attendees_have_badges==True, Group.cost > 0)
