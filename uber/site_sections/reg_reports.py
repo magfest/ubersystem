@@ -35,15 +35,25 @@ class Root:
             key=lambda s: s.lower())}
     
     @log_pageview
-    def attendee_receipt_discrepancies(self, session, include_pending=False):
+    def attendee_receipt_discrepancies(self, session, include_pending=False, page=1):
         filters = [Attendee.default_cost_cents != ModelReceipt.item_total]
         if include_pending:
-            filters.append(or_(Attendee.badge_status.in_[c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS], Attendee.is_valid == True))
+            filters.append(or_(Attendee.badge_status.in_([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]), Attendee.is_valid == True))
         else:
             filters.append(Attendee.is_valid == True)
-        
+
+        receipt_query = session.query(Attendee).join(Attendee.active_receipt).filter(*filters)
+
+        page = int(page)
+        if page <= 0:
+            offset = 0
+        else:
+            offset = (page - 1) * 100
+
         return {
-            'attendees': session.query(Attendee).join(Attendee.active_receipt).filter(*filters),
+            'current_page': page,
+            'pages': (receipt_query.count() // 100) + 1,
+            'attendees': receipt_query.limit(100).offset(offset),
             'include_pending': include_pending,
         }
     
