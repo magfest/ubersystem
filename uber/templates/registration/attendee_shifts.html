@@ -28,10 +28,12 @@
                         // non-modal pages don't have a loadForm function, so we
                         // use that to tell whether we're in a modal form
                         if (window.loadForm !== undefined) {
-                            $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+                            $("#attendee-modal-alert").addClass("alert-info").show().children('span').html(json.message);
                             window.loadForm('Shifts');
                         } else {
-                            location.search += '&message=' + json.message;
+                          const querystring = new URLSearchParams(window.location.search)
+                          querystring.set('message', json.message)
+                          window.location.search = querystring.toString()
                         }
                     } else {
                         showErrorMessage(json.message);

@@ -731,6 +731,12 @@ class Root:
                 session.add_attendee_to_account(attendee, account)
             else:
                 session.add(attendee)
+            receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, create_model=True)
+            session.add(receipt)
+            session.add_all(receipt_items)
+            total_cost = sum([(item.amount * item.count) for item in receipt_items])
+            if total_cost == 0:
+                attendee.paid = c.NEED_NOT_PAY
         for group in cart.groups:
             session.add(group)
     
@@ -871,8 +877,9 @@ class Root:
 
         for receipt in receipts:
             receipt_manager = ReceiptManager(receipt)
-            error = receipt_manager.create_payment_transaction(charge.description, charge.intent, receipt.current_amount_owed)
-            session.add_all(receipt_manager.items_to_add)
+            if receipt.current_amount_owed != 0:
+                error = receipt_manager.create_payment_transaction(charge.description, charge.intent, receipt.current_amount_owed)
+                session.add_all(receipt_manager.items_to_add)
 
         for attendee in cart.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
@@ -986,6 +993,8 @@ class Root:
                     session.refresh(prereg)
                 except Exception:
                     pass  # this badge must have subsequently been transferred or deleted
+                else:
+                    session.refresh_receipt_and_model(prereg)
             return {
                 'logged_in_account': session.current_attendee_account(),
                 'preregs': preregs,

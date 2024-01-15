@@ -27,7 +27,8 @@ class Root:
             'page': page,
             'emails': get_page(page, emails),
             'count': emails.count(),
-            'search_text': search_text
+            'search_text': search_text if not subject else '',
+            'subject_search_text': search_text if subject else ''
         }
 
     def sent(self, session, **params):

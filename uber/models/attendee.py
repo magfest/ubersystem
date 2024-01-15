@@ -2,6 +2,7 @@ import json
 import math
 import re
 from datetime import date, datetime, timedelta
+from markupsafe import Markup
 from uuid import uuid4
 
 from sqlalchemy.sql.elements import not_
@@ -598,7 +599,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _use_promo_code(self):
-        log.debug("Using promo code...")
         if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and not self.overridden_price and self.is_unpaid:
             log.debug(self.badge_cost_with_promo_code)
             log.debug(self.promo_code)
@@ -672,15 +672,16 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def child_badge(self):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
-            if self.age_now_or_at_con and self.age_now_or_at_con < 18 and self.badge_type == c.ATTENDEE_BADGE:
+            if self.age_now_or_at_con != None and self.age_now_or_at_con < 18 and self.badge_type == c.ATTENDEE_BADGE:
                 self.badge_type = c.CHILD_BADGE
+                self.session.set_badge_num_in_range(self)
                 if self.age_now_or_at_con < 13:
                     self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
 
     @presave_adjustment
     def child_ribbon_or_not(self):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
-            if self.age_now_or_at_con and self.age_now_or_at_con < 13:
+            if self.age_now_or_at_con != None and self.age_now_or_at_con < 13:
                 self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
             elif c.UNDER_13 in self.ribbon_ints and self.age_now_or_at_con and self.age_now_or_at_con >= 13:
                 self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
@@ -688,8 +689,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def child_to_attendee(self):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
-            if self.badge_type == c.CHILD_BADGE and self.age_now_or_at_con and self.age_now_or_at_con >= 18:
+            if self.badge_type == c.CHILD_BADGE and self.age_now_or_at_con != None and self.age_now_or_at_con >= 18:
                 self.badge_type = c.ATTENDEE_BADGE
+                self.session.set_badge_num_in_range(self)
                 self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
 
     @property
@@ -1036,11 +1038,19 @@ class Attendee(MagModel, TakesPaymentMixin):
         return current_cost, new_cost
 
     def calc_age_discount_change(self, birthdate):
-        if not self.qualifies_for_discounts:
+        # Get around the fact that child badges need to be set to NEED_NOT_PAY
+        if self.badge_cost and (self.age_discount * -1) >= self.badge_cost and self.paid == c.NEED_NOT_PAY:
+            self.paid = c.NOT_PAID
+            if not self.qualifies_for_discounts:
+                self.paid = c.NEED_NOT_PAY
+                return 0, 0
+            self.paid = c.NEED_NOT_PAY
+        elif not self.qualifies_for_discounts:
             return 0, 0
         
         preview_attendee = Attendee(**self.to_dict())
         preview_attendee.birthdate = birthdate
+
         if self.badge_cost:
             current_discount = max(self.badge_cost * 100 * -1, self.age_discount * 100)
             new_discount = max(self.badge_cost * 100 * -1, preview_attendee.age_discount * 100)
@@ -1585,6 +1595,17 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
         return (' with ' if stuff else '') + readable_join(stuff)
+    
+    @property
+    def check_in_notes(self):
+        notes = []
+        if self.age_group_conf['consent_form']:
+            notes.append("Before checking this attendee in, please collect a signed parental consent form, which must be notarized if the guardian is not there. If the guardian is there, and they have not already completed one, have them sign one in front of you.")
+
+        if self.accoutrements:
+            notes.append(f"Please check this attendee in {self.accoutrements}.")
+
+        return "<br/><br/>".join(notes)
 
     @property
     def multiply_assigned(self):

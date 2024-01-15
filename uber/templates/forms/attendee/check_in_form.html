@@ -86,10 +86,10 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endif %}
 {% endblock %}
 
-{% block accoutrements %}
-{% if attendee.accoutrements %}
+{% block check_in_notes %}
+{% if attendee.check_in_notes %}
 <div class="alert alert-info">
-    {% if attendee.accoutrements %}Please check this attendee in {{ attendee.accoutrements }}.{% endif %}
+    {{ attendee.check_in_notes }}
 </div>
 {% endif %}
 {% endblock %}
