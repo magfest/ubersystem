@@ -100,7 +100,6 @@
         <th>Supporter Package</th>
         <th>Assigned Hotel Space</th>
         <th>Badge Type</th>
-        <th>Badge Status</th>
       </tr>
       </thead>
       <tbody>
@@ -115,7 +114,6 @@
           <td>{{ (volunteer.amount_extra >= c.SUPPORTER_LEVEL)|yesno }}</td>
           <td>{{ 'yes' if volunteer.room_assignments else 'no' }}</td>
           <td>{{ volunteer.badge_type_label }}</td>
-          <td>{{ options(c.BADGE_STATUS_OPTS,attendee.badge_status) }}</td>
         </tr>
       {% endfor %}
       </tbody>
