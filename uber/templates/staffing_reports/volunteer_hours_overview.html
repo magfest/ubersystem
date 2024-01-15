@@ -91,6 +91,7 @@
            data-auto-width="true">
       <thead>
       <tr>
+        <th>Badge Type</th>
         <th>Last Name</th>
         <th>First Name</th>
         <th>Legal Name</th>
@@ -104,6 +105,7 @@
       <tbody>
       {% for volunteer in volunteers %}
         <tr>
+          <td>{{ volunteer.badge_type_label }}</td>
           <td>{{ volunteer.last_name }}</td>
           <td>{{ volunteer.first_name }}</td>
           <td>{{ volunteer.legal_name }}</td>
