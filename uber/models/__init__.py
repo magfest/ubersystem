@@ -1495,6 +1495,24 @@ class Session(SessionManager):
 
             return 'Badge updated'
 
+        def set_badge_num_in_range(self, attendee):
+            """
+            A simpler version of update_badge which only makes sure that the attendee's
+            current badge number is in their current badge type's range.
+            """
+            from uber.badge_funcs import get_real_badge_type, needs_badge_num
+            
+            if attendee.checked_in or (c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES):
+                return
+
+            badge_type = get_real_badge_type(attendee.badge_type)
+            lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
+            if not (lower_bound <= attendee.badge_num <= upper_bound):
+                attendee.badge_num = None
+
+                if needs_badge_num(attendee):
+                    attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
+
         def auto_badge_num(self, badge_type):
             """
             Gets the next available badge number for a badge type's range.

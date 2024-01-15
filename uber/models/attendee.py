@@ -2,6 +2,7 @@ import json
 import math
 import re
 from datetime import date, datetime, timedelta
+from markupsafe import Markup
 from uuid import uuid4
 
 from sqlalchemy.sql.elements import not_
@@ -673,6 +674,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
             if self.age_now_or_at_con != None and self.age_now_or_at_con < 18 and self.badge_type == c.ATTENDEE_BADGE:
                 self.badge_type = c.CHILD_BADGE
+                self.session.set_badge_num_in_range(self)
                 if self.age_now_or_at_con < 13:
                     self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
 
@@ -689,6 +691,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
             if self.badge_type == c.CHILD_BADGE and self.age_now_or_at_con != None and self.age_now_or_at_con >= 18:
                 self.badge_type = c.ATTENDEE_BADGE
+                self.session.set_badge_num_in_range(self)
                 self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
 
     @property
