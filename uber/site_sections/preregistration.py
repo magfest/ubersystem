@@ -95,7 +95,7 @@ def update_prereg_cart(session):
         if not existing_model:
             existing_model = session.query(Group).filter_by(id=id).first()
         if existing_model:
-            receipt = session.refresh_receipt_and_model(existing_model)
+            receipt = session.refresh_receipt_and_model(existing_model, is_prereg=True)
             if receipt and receipt.current_amount_owed:
                 PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
             elif receipt:
@@ -831,7 +831,7 @@ class Root:
                 receipts = []
                 for model in cart.models:
                     charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model, create_model=True)
-                    existing_receipt = session.refresh_receipt_and_model(model)
+                    existing_receipt = session.refresh_receipt_and_model(model, is_prereg=True)
                     if existing_receipt:
                         # Multiple attendees can have the same transaction during pre-reg,
                         # so we always cancel any incomplete transactions
