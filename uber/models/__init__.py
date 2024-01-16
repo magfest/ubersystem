@@ -1125,14 +1125,10 @@ class Session(SessionManager):
                     txn.check_paid_from_stripe()
                 self.refresh(receipt)
             
-            try:
-                if isinstance(model, Group):
-                    model.cost = model.calc_default_cost()
-                else:
-                    model.default_cost = model.calc_default_cost()
-            except sqlalchemy.exc.InvalidRequestError:
-                # Non-persistent object, so nothing to refresh
-                pass
+            if isinstance(model, Group):
+                model.cost = model.calc_default_cost()
+            else:
+                model.default_cost = model.calc_default_cost()
 
             if isinstance(model, Attendee) and receipt:
                 if receipt.item_total == 0 and model.paid in [c.PENDING, c.NOT_PAID]:
@@ -1144,7 +1140,11 @@ class Session(SessionManager):
                 self.add(model)
                 self.commit()
             
-            self.refresh(model)
+            try:
+                self.refresh(model)
+            except sqlalchemy.exc.InvalidRequestError:
+                # Non-persistent object, so nothing to refresh
+                pass
 
             return receipt
 
