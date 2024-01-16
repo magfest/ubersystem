@@ -1502,7 +1502,8 @@ class Session(SessionManager):
             """
             from uber.badge_funcs import get_real_badge_type, needs_badge_num
             
-            if attendee.checked_in or (c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES):
+            if not attendee.badge_num or attendee.checked_in or (
+                c.AFTER_PRINTED_BADGE_DEADLINE and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES):
                 return
 
             badge_type = get_real_badge_type(attendee.badge_type)
