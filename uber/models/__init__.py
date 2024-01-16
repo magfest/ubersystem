@@ -1118,7 +1118,7 @@ class Session(SessionManager):
             if cls:
                 return self.query(cls).filter_by(id=receipt.owner_id).first()
 
-        def refresh_receipt_and_model(self, model):
+        def refresh_receipt_and_model(self, model, is_prereg=False):
             receipt = self.get_receipt_by_model(model)
             if receipt:
                 for txn in receipt.pending_txns:
@@ -1137,8 +1137,9 @@ class Session(SessionManager):
                     model.paid = c.NEED_NOT_PAY
                 elif receipt.current_amount_owed > 0 and model.paid == c.NEED_NOT_PAY:
                     model.paid = c.NOT_PAID
-                self.add(model)
-                self.commit()
+                if not is_prereg:
+                    self.merge(model)
+                    self.commit()
             
             try:
                 self.refresh(model)

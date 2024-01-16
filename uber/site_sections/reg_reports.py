@@ -48,12 +48,12 @@ class Root:
         if page <= 0:
             offset = 0
         else:
-            offset = (page - 1) * 100
+            offset = (page - 1) * 50
 
         return {
             'current_page': page,
             'pages': (receipt_query.count() // 100) + 1,
-            'attendees': receipt_query.limit(100).offset(offset),
+            'attendees': receipt_query.limit(50).offset(offset),
             'include_pending': include_pending,
         }
     
