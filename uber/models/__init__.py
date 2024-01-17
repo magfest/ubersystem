@@ -1118,6 +1118,15 @@ class Session(SessionManager):
             if cls:
                 return self.query(cls).filter_by(id=receipt.owner_id).first()
 
+        def update_paid_from_receipt(self, attendee, receipt):
+            if receipt.item_total == 0 and attendee.paid in [c.PENDING, c.NOT_PAID]:
+                if attendee.paid == c.PENDING and attendee.badge_status == c.PENDING_STATUS:
+                    attendee.badge_status = c.NEW_STATUS
+                attendee.paid = c.NEED_NOT_PAY
+            elif receipt.current_amount_owed > 0 and attendee.paid == c.NEED_NOT_PAY:
+                attendee.paid = c.NOT_PAID
+            return attendee
+
         def refresh_receipt_and_model(self, model, is_prereg=False):
             receipt = self.get_receipt_by_model(model)
             if receipt:
@@ -1130,16 +1139,9 @@ class Session(SessionManager):
             else:
                 model.default_cost = model.calc_default_cost()
 
-            if isinstance(model, Attendee) and receipt:
-                if receipt.item_total == 0 and model.paid in [c.PENDING, c.NOT_PAID]:
-                    if model.paid == c.PENDING and model.badge_status == c.PENDING_STATUS:
-                        model.badge_status = c.NEW_STATUS
-                    model.paid = c.NEED_NOT_PAY
-                elif receipt.current_amount_owed > 0 and model.paid == c.NEED_NOT_PAY:
-                    model.paid = c.NOT_PAID
-                if not is_prereg:
-                    self.merge(model)
-                    self.commit()
+            if isinstance(model, Attendee) and receipt and not is_prereg:
+                self.update_paid_from_receipt(model, receipt)
+                self.merge(model)
             
             try:
                 self.refresh(model)

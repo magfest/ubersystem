@@ -240,6 +240,7 @@ class Root:
                             message,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
         receipt = session.refresh_receipt_and_model(attendee)
+        session.commit()
         forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
                                               'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
 
@@ -685,6 +686,7 @@ class Root:
     def check_in_form(self, session, id):
         attendee = session.attendee(id)
         session.refresh_receipt_and_model(attendee)
+        session.commit()
 
         if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
             valid_groups = session.query(Group).options(joinedload(Group.leader)).filter(

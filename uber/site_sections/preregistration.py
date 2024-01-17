@@ -994,7 +994,11 @@ class Root:
                 except Exception:
                     pass  # this badge must have subsequently been transferred or deleted
                 else:
-                    session.refresh_receipt_and_model(prereg)
+                    receipt = session.get_receipt_by_model(prereg)
+                    if isinstance(prereg, Attendee):
+                        session.refresh_receipt_and_model(prereg, is_prereg=True)
+                        session.update_paid_from_receipt(prereg, receipt)
+            session.commit()
             return {
                 'logged_in_account': session.current_attendee_account(),
                 'preregs': preregs,
@@ -1461,6 +1465,7 @@ class Root:
                 session.add(attendee)
                 session.commit()
                 session.refresh_receipt_and_model(attendee)
+                session.commit()
                 if amount_unpaid:
                     raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
@@ -1719,6 +1724,7 @@ class Root:
                 raise HTTPRedirect('new_badge_payment?id={}&message={}&return_to={}', attendee.id, message, return_to)
 
         session.refresh_receipt_and_model(attendee)
+        session.commit()
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
