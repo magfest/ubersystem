@@ -796,6 +796,9 @@ class Root:
     @ajax
     @credit_card
     def prereg_payment(self, session, message='', **params):
+        errors = check_if_can_reg()
+        if errors:
+            return errors
         update_prereg_cart(session)
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
@@ -1079,6 +1082,9 @@ class Root:
                 raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, message))
 
     def add_promo_codes(self, session, id, count):
+        errors = check_if_can_reg()
+        if errors:
+            return errors
         group = session.promo_code_group(id)
         count = int(count)
         if count < group.min_badges_addable and not group.is_in_grace_period:
@@ -1095,6 +1101,9 @@ class Root:
     @ajax
     @credit_card
     def pay_for_extra_codes(self, session, id, count):
+        errors = check_if_can_reg()
+        if errors:
+            return errors
         group = session.promo_code_group(id)
         receipt = session.get_receipt_by_model(group.buyer, create_if_none="DEFAULT")
         count = int(count)
@@ -1336,6 +1345,9 @@ class Root:
 
     @requires_account(Group)
     def add_group_members(self, session, id, count):
+        errors = check_if_can_reg()
+        if errors:
+            return errors
         group = session.group(id)
         if int(count) < group.min_badges_addable and not group.is_in_grace_period:
             raise HTTPRedirect(
@@ -1351,6 +1363,9 @@ class Root:
     @ajax
     @credit_card
     def pay_for_extra_members(self, session, id, count):
+        errors = check_if_can_reg()
+        if errors:
+            return errors
         group = session.group(id)
         receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         session.add(receipt)

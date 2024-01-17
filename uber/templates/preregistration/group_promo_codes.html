@@ -87,6 +87,7 @@
         </form>
       </div>
 
+      {% if c.REMAINING_BADGES > 50 %}
       <script type="text/javascript">
           $(function() {
             {% if attendee.amount_unpaid %}
@@ -101,6 +102,7 @@
             {% endif %}
           });
       </script>
+      {% endif %}
 
     {% endif %}
   </div>

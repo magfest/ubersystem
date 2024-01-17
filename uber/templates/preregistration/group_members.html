@@ -209,6 +209,7 @@
       </form>
     </div>
 
+    {% if c.REMAINING_BADGES > 50 %}
     <script type="text/javascript">
         {% if group.amount_unpaid %}
             $(function(){
@@ -225,6 +226,7 @@
             });
         {% endif %}
     </script>
+    {% endif %}
 {% endif %}
 {% endif %}
 </div>
