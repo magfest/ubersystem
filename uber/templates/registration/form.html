@@ -6,6 +6,7 @@
 {% include "registration/menu.html" %}
 
 {% include "check_in.html" %}
+{% set can_check_in = c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and (not receipt or not receipt.current_amount_owed) %}
 
 <div class="row mb-3">
     <div class="col">
@@ -134,6 +135,11 @@
     </div>
 </div>
 {% endif %}
+{% if can_check_in and attendee.check_in_notes %}
+<div class="alert alert-info">
+    {{ attendee.check_in_notes }}
+</div>
+{% endif %}
 
 {{ form_macros.form_validation('attendee-form') }}
 
@@ -198,7 +204,7 @@
     <div class="col-sm-9 col-sm-offset-3">
         <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
         <button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
-        {% if c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and (not receipt or not receipt.current_amount_owed) %}
+        {% if can_check_in %}
         <button class="btn btn-success" name="save_check_in" value="1">Save & Check In</button>
         {% endif %}
     </div>

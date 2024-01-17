@@ -158,6 +158,9 @@ def check_near_cap():
 
 @celery.schedule(timedelta(days=1))
 def email_pending_attendees():
+    if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or c.AT_THE_CON:
+        return
+
     already_emailed_accounts = []
 
     with Session() as session:
