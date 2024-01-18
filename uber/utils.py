@@ -642,7 +642,7 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
 
         # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
         for key, field in form.field_list:
-            if key == 'badge_num':
+            if key == 'badge_num' and field.data:
                 field_data = int(field.data) # Badge number box is a string to accept encrypted barcodes
             else:
                 field_data = field.data
