@@ -614,7 +614,7 @@ StopsEmailFixture(
     'Your {EVENT_NAME} ({EVENT_DATE}) shift schedule',
     'shifts/schedule.html',
     lambda a: c.SHIFTS_CREATED and a.weighted_hours and a.badge_type != c.CONTRACTOR_BADGE,
-    when=days_before(1, c.FINAL_EMAIL_DEADLINE),
+    #when=days_before(1, c.FINAL_EMAIL_DEADLINE),
     ident='volunteer_shift_schedule')
 
 StopsEmailFixture(
