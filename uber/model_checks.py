@@ -1102,7 +1102,7 @@ def not_in_range(attendee):
     
     badge_type = get_real_badge_type(attendee.badge_type)
     lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
-    if not (lower_bound <= attendee.badge_num <= upper_bound):
+    if not (lower_bound <= int(attendee.badge_num) <= upper_bound):
         return ('badge_num', 'Badge number {} is out of range for badge type {} ({} - {})'.format(attendee.badge_num, 
                                                                                     c.BADGES[attendee.badge_type],
                                                                                     lower_bound, 
