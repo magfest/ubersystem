@@ -127,7 +127,7 @@ $().ready(function() {
 {% else %}
 {% include 'registration/attendee_pending_warning.html' %}
 {{ form_macros.form_validation('check_in_form_' ~ attendee.id,
-                                page_handler='validate_attendee_checkin',
+                                page_handler='../registration/validate_attendee_checkin',
                                 form_list=['CheckInForm'],
                                 callback="printAndOrCheckIn('" ~ attendee.id ~ "', " ~ print_and_checkin|yesno('true,false') ~ ")") }}
 <form novalidate action="/" id="check_in_form_{{ attendee.id }}" role="form" class="check-in">

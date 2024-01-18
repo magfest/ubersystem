@@ -133,7 +133,7 @@
             disabled=not admin_can_change_status) }}</div>
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_type) }}</div>
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_num,
-            extra_field=form_macros.toggle_checkbox(badge_flags.no_badge_num, [badge_flags.badge_num], hide_on_checked=True, prop="disabled", checked=not attendee.badge_num)) }}</div>
+            extra_field=form_macros.toggle_checkbox(badge_flags.no_badge_num, [badge_flags.badge_num], hide_on_checked=True, prop="readonly", checked=not attendee.badge_num)) }}</div>
 </div>
 <script type="text/javascript">
     var setPaidAndRefunded = function() {
@@ -162,7 +162,7 @@
         $('#{{ badge_flags.badge_num.id }}').siblings('label').children('.required-indicator').toggle(isPreassignedBadgeType && !$('#{{ badge_flags.no_badge_num.id }}').prop('checked'));
     }
     var clearOrResetBadgeNum = function() {
-        $('#{{ badge_flags.badge_num.id }}').val($('#{{ badge_flags.no_badge_num.id }}').prop('checked') ? '' : '{{ attendee.badge_num }}')
+        $('#{{ badge_flags.badge_num.id }}').val($('#{{ badge_flags.no_badge_num.id }}').prop('checked') ? '' : '{{ attendee.badge_num|default("",true) }}')
     }
     $(function () {
         changeBadgeNumRequiredAndText();
