@@ -642,8 +642,9 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
 
         # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
         for key, field in form.field_list:
+            current_field = getattr(model, key, None)
             extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
-            if field and (model.is_new or getattr(model, key, None) != field.data):
+            if field and (model.is_new or str(current_field) != field.data):
                 extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
         valid = form.validate(extra_validators=extra_validators)
         if not valid:
