@@ -158,6 +158,7 @@ $().ready(function() {
             </div>
         </div>
     {% endif %}
+    -->
         <script>
             /**
                 * We can't just use "autofocus" because that doesn't work if there's already a focused
@@ -166,8 +167,8 @@ $().ready(function() {
                 * keypress handler on the element.
                 */
             var focusBadgeNum = function () {
-                if($('input#checkin-badge')) {
-                    var $num = $('#checkin-badge:text');
+                if($('input#checkin_badge_num')) {
+                    var $num = $('#checkin_badge_num:text');
                     if ($num.is(':visible')) {
                         $num.focus().keypress(function (event) {
                             if (event.keyCode === 13) {
@@ -181,7 +182,7 @@ $().ready(function() {
             };
             focusBadgeNum();
         </script>
-    -->
+    
     {% endblock checkin_fields %}
 </form>
 </div>

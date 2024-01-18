@@ -17,15 +17,15 @@
           detectBadgeNum: true,
           autoSubmitForm: '#search_form',
           shouldAutoFill: function() {
-            return !$('#checkin-badge').is(':visible');
+            return !$('#checkin_badge_num').is(':visible');
           },
           shouldAutoSubmit: function() {
-            return !$('#checkin-badge').is(':visible');
+            return !$('#checkin_badge_num').is(':visible');
           }
         });
 
         $('body').barcodeField({
-          targetField: '#checkin-badge',
+          targetField: '#checkin_badge_num',
           blurOnKeys: ['~', '\\'],
           detectBadgeNum: true,
           showErrorMessageWhenHidden: false

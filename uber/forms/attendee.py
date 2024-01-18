@@ -406,7 +406,7 @@ class AdminBadgeFlags(BadgeFlags):
     can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
     badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)
     badge_type = SelectField('Badge Type', coerce=int, choices=c.BADGE_OPTS)
-    badge_num = IntegerField('Badge #', validators=[validators.Optional()])
+    badge_num = StringField('Badge #', validators=[validators.Optional()])
     no_badge_num = BooleanField('Omit badge #')
     ribbon = SelectMultipleField('Ribbons', coerce=int, validators=[validators.Optional()], choices=c.RIBBON_OPTS, widget=MultiCheckbox())
     group_id = SelectField('Group')
@@ -452,8 +452,8 @@ class CheckInForm(MagForm):
     birthdate = PersonalInfo.birthdate
     age_group = HiddenField('Age Group')
     badge_type = HiddenIntField('Badge Type')
-    badge_num = IntegerField('Badge Number', validators=[
-        validators.DataRequired('Badge number is required.')
+    badge_num = StringField('Badge Number', id="checkin_badge_num", validators=[
+        validators.DataRequired('Badge number is required.'),
     ])
     badge_printed_name = PersonalInfo.badge_printed_name
     got_merch = AdminBadgeExtras.got_merch
