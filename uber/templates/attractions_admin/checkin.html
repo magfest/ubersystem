@@ -12,7 +12,6 @@
 
   #container {
     max-width: 1024px;
-    margin: 0 auto;
   }
 
   .signup-body {
@@ -71,12 +70,12 @@
     display: inline-block;
   }
 
-  .form-horizontal .has-feedback .form-control-feedback {
+  .form-control-feedback {
     color: #808080;
     right: 0;
   }
 
-  .form-horizontal .has-feedback .form-control-feedback:hover {
+  .form-control-feedback:hover {
     color: #333;
     cursor: pointer;
   }
@@ -149,9 +148,10 @@
         },
         success: function(response, status) {
           if(response && response['error']) {
-            showErrorMessage(response['error'], '', {timeOut: 3000});
-
+            showErrorMessage(response['error']);
+            setTimeout(function(){ hideMessageBox() }, 3000);
           } else if(response && response['result']) {
+            $('.form-control-feedback').show();
             updateAttendee(response['result']['attendee']);
 
             if(response['result']['signups'].length) {
@@ -204,6 +204,7 @@
       $badgeNum.val('');
       getSignups('');
       $badgeNum.focus();
+      $('.form-control-feedback').hide();
     });
 
     $signups.on('click', '.btn-success', function(event) {
@@ -212,9 +213,13 @@
           signupId = $signup.data('signupId');
       checkinSignup(signupId, function(response) {
         if(response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           $signup.addClass('checked-in').addClass('checked-in-force-visible');
+          $badgeNum.val('');
+          $badgeNum.focus();
+          $('.form-control-feedback').hide();
         }
       });
     });
@@ -225,7 +230,8 @@
           signupId = $signup.data('signupId');
       undoCheckinSignup(signupId, function(response) {
         if(response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           $signup.removeClass('checked-in').removeClass('checked-in-force-visible');
         }
@@ -248,36 +254,35 @@
 </h1>
 
 <div id="container">
-  <form class="form-horizontal badge-num-form" method="post" action="get_signups" role="form">
-    <div class="form-group">
-      <label class="col-sm-offset-2 col-sm-8">
-        <span class="badge-num-label">Badge Number</span>
-      </label>
-      <div class="col-sm-offset-2 col-sm-8">
-        <div class="badge-num-row row">
-          <div class="col-xs-6" style="padding-right: 7px;">
-            <div class="has-feedback">
-              <input class="form-control input-lg text-center"
-                  type="text"
-                  name="badge_num"
-                  placeholder="Badge #"
-                  autofocus="autofocus"
-                  min="1">
-              <i class="fa fa-remove form-control-feedback" aria-hidden="true"></i>
-            </div>
-          </div>
-          <div class="col-xs-6" style="padding-left: 8px;">
-            <button type="submit" class="btn btn-lg btn-primary" style="width: 100%">
+  <form class="badge-num-form" method="post" action="get_signups" role="form">
+    <div class="row g-sm-3">
+      <div class="col col-sm-6">
+        <label class="form-text">
+          <span class="badge-num-label">Badge Number</span>
+        </label>
+        <div class="badge-num-row">
+          <div class="input-group mb-3">
+            <input class="form-control input-lg text-center"
+                type="text"
+                name="badge_num"
+                placeholder="Badge #"
+                autofocus="autofocus"
+                min="1">
+            <button type="submit" class="btn btn-lg btn-primary">
               <i class="fa fa-user"></i> Search
             </button>
           </div>
         </div>
       </div>
+      <div class="col">
+        <div class="form-text">&nbsp;</div>
+        <i class="fa fa-remove form-control-feedback" aria-hidden="true" style="display: none;"></i>
+      </div>
     </div>
   </form>
   <div id="signup_template" style="display: none;">
-    <div class="signup row">
-      <div class="col-sm-offset-2 col-sm-8">
+    <div class="signup row g-sm-3">
+      <div class="col col-sm-6">
         <div class="signup-body">
           <button class="btn btn-success btn-lg pull-right checked-in-hidden">
             <i class="fa fa-check"></i>
@@ -295,30 +300,27 @@
       </div>
     </div>
   </div>
-  <div class="text-center">
-    <div id="attendee" class="attendee text-start">
-      <h2 class="ident">
-        <span class="name"></span>{#- strip -#}
-        <sup class="badge_num"></sup>
-      </h2>
-      <div class="email"></div>
-      <div class="cellphone"></div>
-      <div>
-        <label>Birthdate</label>
-        <span class="birthdate"></span>
-      </div>
-      <div>
-        <label>Zip Code</label>
-        <span class="zip_code"></span>
-      </div>
+  <div id="attendee" class="attendee text-start">
+    <h2 class="ident">
+      <span class="name"></span>{#- strip -#}
+      <sup class="badge_num"></sup>
+    </h2>
+    <div class="email"></div>
+    <div class="cellphone"></div>
+    <div>
+      <label>Birthdate</label>
+      <span class="birthdate"></span>
+    </div>
+    <div>
+      <label>Zip Code</label>
+      <span class="zip_code"></span>
     </div>
   </div>
-  <div class="text-center">
-    <button id="filter" class="btn btn-xs btn-xs btn-outline-secondary">
-      <i class="fa fa-filter"></i>
-      Show Already Checked In
-    </button>
-  </div>
+  <br/>
+  <button id="filter" class="btn btn-xs btn-xs btn-outline-secondary">
+    <i class="fa fa-filter"></i>
+    Show Already Checked In
+  </button>
   <div id="signups"></div>
 </div>
 

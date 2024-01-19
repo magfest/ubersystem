@@ -21,44 +21,37 @@
 
 
 {% macro badge_num_form(label='Sign up', confirm_label='Is this right?') %}
-  <form class="form-horizontal badge-num-form" method="post" action="verify_badge_num" role="form">
-    <div class="form-group">
-      <label class="col-sm-offset-2 col-sm-8">
-        <span class="badge-num-label">{{ label }}</span>
-        <span class="confirm-label" style="display: none;">{{ confirm_label }}</span>
-        <span>&nbsp;</span>
-      </label>
-      <div class="col-sm-offset-2 col-sm-8 slide-box">
-        <div class="badge-num-row row">
-          <div class="col-xs-6" style="padding-right: 7px;">
-            <input class="form-control input-lg text-center"
-                type="text"
-                name="badge_num"
-                placeholder="Badge #"
-                required="required"
-                min="1">
-          </div>
-          <div class="col-xs-6" style="padding-left: 8px;">
-            <button class="btn btn-lg btn-success" style="width: 100%">
-              <i class="fa fa-check"></i> Sign up
-            </button>
-          </div>
+  <form class="badge-num-form" method="post" action="verify_badge_num" role="form">
+    <label class="form-text">
+      <span class="badge-num-label">{{ label }}</span>
+      <span class="confirm-label">{{ confirm_label }}</span>
+    </label>
+    <div class="badge-num-row">
+      <div class="input-group mb-3">
+        <input class="form-control input-lg text-center"
+          type="text"
+          name="badge_num"
+          placeholder="Badge #"
+          required="required"
+          min="1">
+          <button class="btn btn-lg btn-success">
+            <i class="fa fa-check"></i> Sign up
+          </button>
+      </div>
+    </div>
+    <div class="confirm-row row" style="display: none;">
+      <div class="col">
+        <div class="attendee">
+          <span class="name"></span>
+          <sup class="badge-num"></sup>
         </div>
-        <div class="confirm-row row" style="display: none;">
-          <div class="col-xs-12">
-            <div class="attendee form-control-static">
-              <span class="name"></span>
-              <sup class="badge-num"></sup>
-            </div>
-            <div class="controls pull-right">
-              <button class="btn btn-lg btn-danger">
-                <i class="fa fa-remove"></i>
-              </button>
-              <button class="btn btn-lg btn-success">
-                <i class="fa fa-check"></i>
-              </button>
-            </div>
-          </div>
+        <div class="controls pull-right">
+          <button class="btn btn-lg btn-danger">
+            <i class="fa fa-remove"></i>
+          </button>
+          <button class="btn btn-lg btn-success">
+            <i class="fa fa-check"></i>
+          </button>
         </div>
       </div>
     </div>

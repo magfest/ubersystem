@@ -14,19 +14,6 @@
   .confirm-row .attendee {
     font-size: 1.5em;
   }
-
-  .slide-box {
-    position: relative;
-    height: 3.125em;
-  }
-
-  .slide-box .row {
-    position: absolute;
-    height: 2.8125em;
-    width: 100%;
-    top: 0;
-    left: 15px;
-  }
 </style>
 
 <script>
@@ -107,6 +94,7 @@
           csrf_token: csrf_token
         },
         success: function(response, status) {
+          $form.closest('.modal')
           if (response && response['first_name'] && response['badge_num']) {
             updateGreeting(response['first_name'], response['badge_num'], $form.find('.confirm-row'));
             showBadgeNumConfirm($form);
