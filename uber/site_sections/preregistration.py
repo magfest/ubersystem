@@ -1465,15 +1465,22 @@ class Root:
                 else:
                     amount_unpaid = attendee.amount_unpaid
                 subject = c.EVENT_NAME + ' Registration Transferred'
-                body = render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old}, encoding=None)
+                new_body = render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old, 'include_link': True}, encoding=None)
+                old_body = render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old, 'include_link': False}, encoding=None)
 
                 try:
                     send_email.delay(
                         c.REGDESK_EMAIL,
-                        [old.email_to_address, attendee.email_to_address, c.REGDESK_EMAIL],
+                        [attendee.email_to_address, c.REGDESK_EMAIL],
                         subject,
-                        body,
+                        new_body,
                         model=attendee.to_dict('id'))
+                    send_email.delay(
+                        c.REGDESK_EMAIL,
+                        [old.email_to_address],
+                        subject,
+                        old_body,
+                        model=old.to_dict('id'))
                 except Exception:
                     log.error('Unable to send badge change email', exc_info=True)
 
