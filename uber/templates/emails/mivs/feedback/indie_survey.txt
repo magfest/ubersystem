@@ -1,10 +1,10 @@
 Ahoy {{ game.studio.primary_contact_first_names }},
 
-Thank you for showing your game at MIVS this past year.  We'd appreciate if you take this feedback survey to help MIVS continue to improve.
+Thank you for showing your game at MIVS this year. We think this was the best showcase yet and we couldn't have done it without you! We'd appreciate if you take this quick feedback survey to help MIVS continue to improve.
 
-This survey will take about 5-10 minutes and is anonymous. Everyone on your team can take the survey and we ask that you forward it to your teammates.
+This survey will take about 10 minutes and is anonymous. However, there is an option to add your email at the end if you'd like us to reach out and discuss things further. Everyone on your team can take the survey and we ask that you forward it to your teammates.
 
-The MIVS Feedback Survey is at https://forms.gle/BnioxysqttGjevMJA
+The MIVS Feedback Survey is at https://forms.gle/9wrzYfMSQADpKBkFA
 
 Forever your fan,
 The MIVS Team
