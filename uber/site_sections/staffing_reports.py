@@ -114,7 +114,7 @@ class Root:
     @csv_file
     def volunteers_with_worked_hours(self, out, session):
         out.writerow(['Badge #', 'Full Name', 'Email Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
-        for a in session.query(Attendee).all():
+        for a in session.staffers():
             if a.worked_hours > 0:
                 out.writerow([a.badge_num, a.full_name, a.email, a.weighted_hours, a.worked_hours])
 
