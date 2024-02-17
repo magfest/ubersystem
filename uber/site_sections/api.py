@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from inspect import getargspec, getmembers, ismethod
+from inspect import signature, getmembers, ismethod
 
 import cherrypy
 import pytz
@@ -50,7 +50,7 @@ class Root:
                 if not method_name.startswith('_'):
                     method = unwrap(method)
                     doc = method.__doc__ or ''
-                    args = getargspec(method).args
+                    args = signature(method).parameters
                     if 'self' in args:
                         args.remove('self')
                     access = getattr(method, 'required_access', set())

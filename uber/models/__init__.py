@@ -2295,4 +2295,28 @@ def register_session_listeners():
     listen(Session.session_factory, 'after_flush', _track_changes)
 
 
+def _track_collection_append(target, value, initiator):
+    Tracking.track_collection_change(c.ITEM_ADDED, target, value)
+
+
+def _track_collection_remove(target, value, initiator):
+    Tracking.track_collection_change(c.ITEM_REMOVED, target, value)
+
+
+def register_attribute_listeners():
+    """
+    Many-to-many tables aren't tracked via the session listener.
+    This registers all collections that we want to track explicitly.
+    """
+    for collection in [
+        AdminAccount.access_groups,
+        AttendeeAccount.attendees,
+        DeptRole.dept_memberships,
+        Job.required_roles,
+    ]:
+        listen(collection, 'append', _track_collection_append, propagate=True)
+        listen(collection, 'remove', _track_collection_remove, propagate=True)
+
+
 register_session_listeners()
+register_attribute_listeners()

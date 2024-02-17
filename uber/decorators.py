@@ -53,7 +53,7 @@ def log_pageview(func):
             try:
                 session.admin_account(cherrypy.session.get('account_id'))
             except Exception:
-                pass  # we don't care about public pages for this version
+                pass # no tracking for non-admins yet
             else:
                 uber.models.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
@@ -259,6 +259,16 @@ def ajax(func):
     return returns_json
 
 
+def track_report(params):
+    with uber.models.Session() as session:
+        try:
+            session.admin_account(cherrypy.session.get('account_id'))
+        except Exception:
+            pass # no tracking for non-admins yet
+        else:
+            uber.models.ReportTracking.track_report(params)
+
+
 def ajax_gettable(func):
     """
     Decorator for page handlers which return JSON.  Unlike the above @ajax decorator,
@@ -274,8 +284,8 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
-    parameters = inspect.getargspec(func)
-    if len(parameters[0]) == 3:
+    signature = inspect.signature(func)
+    if len(signature.parameters) == 3:
         func.site_mappable = True
         func.site_map_download = True
 
@@ -290,6 +300,7 @@ def multifile_zipfile(func):
         cherrypy.response.headers['Content-Type'] = 'application/zip'
         cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.zip'
 
+        track_report(kwargs)
         return zipfile_writer.getvalue()
     return zipfile_out
 
@@ -304,8 +315,8 @@ def _set_response_filename(base_filename):
 
 
 def xlsx_file(func):
-    parameters = inspect.getargspec(func)
-    if len(parameters[0]) == 3:
+    signature = inspect.signature(func)
+    if len(signature.parameters) == 3:
         func.site_mappable = True
         func.site_map_download = True
 
@@ -336,13 +347,14 @@ def xlsx_file(func):
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.xlsx')
 
+        track_report(kwargs)
         return output
     return xlsx_out
 
 
 def csv_file(func):
-    parameters = inspect.getargspec(func)
-    if len(parameters[0]) == 3:
+    signature = inspect.signature(func)
+    if len(signature.parameters) == 3:
         func.site_mappable = True
         func.site_map_download = True
 
@@ -359,6 +371,7 @@ def csv_file(func):
             cherrypy.response.headers['Content-Type'] = 'application/csv'
             _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.csv')
 
+        track_report(kwargs)
         return output
     return csvout
 

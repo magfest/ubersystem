@@ -25,7 +25,7 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, AttendeeAccount, AdminAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
-    PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList, ReceiptTransaction, WorkstationAssignment
+    PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, WatchList, ReceiptTransaction, WorkstationAssignment
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, normalize_email, validate_model
@@ -1152,18 +1152,33 @@ class Root:
         attendee.checked_in = attendee.group = None
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
-    def feed(self, session, message='', page='1', who='', what='', action=''):
-        feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
+    def feed(self, session, tracking_type='action', message='', page='1', who='', what='', action=''):
+        filters = []
+        if tracking_type == 'report':
+            model = ReportTracking
+        elif tracking_type == 'pageview':
+            model = PageViewTracking
+        elif tracking_type == 'action':
+            model = Tracking
+            filters.append(Tracking.action != c.AUTO_BADGE_SHIFT)
+
+        feed = session.query(model).filter(*filters).order_by(model.when.desc())
         what = what.strip()
         if who:
             feed = feed.filter_by(who=who)
         if what:
-            like = '%' + what + '%'  # SQLAlchemy should have an icontains for this
-            feed = feed.filter(or_(Tracking.data.ilike(like), Tracking.which.ilike(like)))
+            like = '%' + what + '%' # SQLAlchemy 2.0 introduces icontains
+            or_filters = [model.page.ilike(like)]
+            if tracking_type != 'report':
+                or_filters.append(model.which.ilike(like))
+            if tracking_type == 'action':
+                or_filters.append(model.data.ilike(like))
+            feed = feed.filter(or_(*or_filters))
         if action:
             feed = feed.filter_by(action=action)
         return {
             'message': message,
+            'tracking_type': tracking_type,
             'who': who,
             'what': what,
             'page': page,
@@ -1172,7 +1187,7 @@ class Root:
             'feed': get_page(page, feed),
             'action_opts': [opt for opt in c.TRACKING_OPTS if opt[0] != c.AUTO_BADGE_SHIFT],
             'who_opts': [
-                who for [who] in session.query(Tracking).distinct().order_by(Tracking.who).values(Tracking.who)]
+                who for [who] in session.query(model).distinct().order_by(model.who).values(model.who)]
         }
 
     @csrf_protected
