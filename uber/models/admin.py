@@ -6,6 +6,7 @@ from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.event import listen
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
@@ -53,7 +54,7 @@ class AdminAccount(MagModel):
     api_jobs = relationship('ApiJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge')
 
     def __repr__(self):
-        return '<{}>'.format(self.attendee.full_name)
+        return f"<Admin full_name='{self.attendee.full_name}'>"
 
     @staticmethod
     def admin_name():
@@ -265,6 +266,9 @@ class AccessGroup(MagModel):
     start_time = Column(UTCDateTime, nullable=True)
     end_time = Column(UTCDateTime, nullable=True)
 
+    def __repr__(self):
+        return f"<AccessGroup id='{self.id}' name='{self.name}'>"
+
     @presave_adjustment
     def _disable_api_access(self):
         # orig_value_of doesn't seem to work for access and read_only_access so we always do this
@@ -343,3 +347,4 @@ class WorkstationAssignment(MagModel):
 
 c.ACCESS_GROUP_WRITE_LEVEL_OPTS = AccessGroup.WRITE_LEVEL_OPTS
 c.ACCESS_GROUP_READ_LEVEL_OPTS = AccessGroup.READ_LEVEL_OPTS
+
