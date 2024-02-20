@@ -156,15 +156,6 @@ AutomatedEmailFixture(
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
 
-AutomatedEmailFixture(
-    Attendee,
-    'Claim your Deferred Badge for {EVENT_NAME} {EVENT_YEAR}!',
-    'placeholders/deferred.html',
-    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and \
-              a.badge_type == c.ATTENDEE_BADGE and a.paid == c.NEED_NOT_PAY and not a.admin_account,
-    when=after(c.PREREG_OPEN),
-    ident='claim_deferred_badge')
-
 if c.ATTENDEE_ACCOUNTS_ENABLED:
     AutomatedEmailFixture(
         AttendeeAccount,
@@ -459,14 +450,13 @@ if c.DEALER_REG_START:
         ident='dealer_reg_payment_reminder_last_chance')
 
 
-# Placeholder badge emails; when an admin creates a "placeholder" badge, we send one of three different emails depending
-# on whether the placeholder is a regular attendee, a guest/panelist, or a volunteer/staffer.  We also send a final
-# reminder email before the placeholder deadline explaining that the badge must be explicitly accepted or we'll assume
-# the person isn't coming.
+# Placeholder badge emails; when an admin creates a "placeholder" badge, we send an email asking them to fill in the
+# rest of their information. We also send two reminder emails before the placeholder deadline explaining that the 
+# badge must be explicitly accepted or we'll assume the person isn't coming.
 #
 # We usually import a bunch of last year's staffers before preregistration goes live with placeholder badges, so there's
 # a special email for those people, which is basically the same as the normal email except it includes a special thanks
-# message.  We identify those people by checking for volunteer placeholders which were created before prereg opens.
+# message. We identify those people by checking for volunteer placeholders which were created before prereg opens.
 #
 # These emails are safe to be turned on for all events because none of them are sent unless an administrator explicitly
 # creates a "placeholder" registration.
@@ -485,30 +475,74 @@ class StopsEmailFixture(AutomatedEmailFixture):
             **kwargs)
 
 
+deferred_attendee_placeholder = lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and \
+                                        a.badge_type == c.ATTENDEE_BADGE and a.paid == c.NEED_NOT_PAY and \
+                                        "staff import".lower() not in a.admin_notes.lower() and not a.admin_account,
+panelist_placeholder = lambda a: a.placeholder and c.PANELIST_RIBBON in a.ribbon_ints
+guest_placeholder = lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE and (not a.group 
+                                                                                   or a.group.guest 
+                                                                                   and a.group.guest.group_type == c.GUEST),
+dealer_placeholder = lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED
+staff_import_placeholder = lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and "staff import".lower() in a.admin_notes.lower()
+volunteer_placeholder = lambda a: a.placeholder and a.registered_local > c.PREREG_OPEN # a.staffing provided by StopsEmailFixture
+# TODO: Add an email for MIVS judges, an email for non-Guest guest group badges, and an email for group-leader-created badges
+
+generic_placeholder = lambda a: a.placeholder and (c.AT_THE_CON or not deferred_attendee_placeholder(a)
+                                                   and not panelist_placeholder(a)
+                                                   and not guest_placeholder(a) and not dealer_placeholder(a) 
+                                                   and not staff_import_placeholder(a) and not volunteer_placeholder(a))
+
+
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} Panelist Badge Confirmation',
+    'Claim your badge for {EVENT_NAME} {EVENT_YEAR}!',
+    'placeholders/regular.txt',
+    lambda a: generic_placeholder(a) and a.paid == c.NEED_NOT_PAY,
+    sender=c.CONTACT_EMAIL,
+    needs_approval=False,
+    allow_at_the_con=True,
+    ident='generic_badge_confirmation_comped')
+
+AutomatedEmailFixture(
+    Attendee,
+    'Please complete your {EVENT_NAME} {EVENT_YEAR} registration',
+    'placeholders/regular.txt',
+    lambda a: generic_placeholder(a) and a.paid != c.NEED_NOT_PAY,
+    sender=c.CONTACT_EMAIL,
+    needs_approval=False,
+    allow_at_the_con=True,
+    ident='generic_badge_confirmation')
+
+AutomatedEmailFixture(
+    Attendee,
+    'Claim your deferred badge for {EVENT_NAME} {EVENT_YEAR}!',
+    'placeholders/deferred.html',
+    deferred_attendee_placeholder,
+    when=after(c.PREREG_OPEN),
+    ident='claim_deferred_badge')
+
+AutomatedEmailFixture(
+    Attendee,
+    'Claim your Panelist badge for {EVENT_NAME} {EVENT_YEAR}',
     'placeholders/panelist.txt',
-    lambda a: a.placeholder and c.PANELIST_RIBBON in a.ribbon_ints,
-    # query=and_(Attendee.placeholder == True, Attendee.ribbon.like('%{}%'.format(c.PANELIST_RIBBON))),
+    panelist_placeholder,
     sender=c.PANELS_EMAIL,
     ident='panelist_badge_confirmation')
 
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} Guest Badge Confirmation',
+    'Claim your Guest badge for {EVENT_NAME} {EVENT_YEAR}',
     'placeholders/guest.txt',
-    lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE and (
-        not a.group or a.group.guest and a.group.guest.group_type == c.GUEST),
+    guest_placeholder,
     # query=and_(Attendee.placeholder == True, Attendee.badge_type == c.GUEST_BADGE),
     sender=c.GUEST_EMAIL,
     ident='guest_badge_confirmation')
 
 AutomatedEmailFixture(
     Attendee,
-    '{} {} Information Required'.format(c.EVENT_NAME, c.DEALER_TERM.title()),
+    f'{c.EVENT_NAME} {c.DEALER_TERM.title()} information required',
     'placeholders/dealer.txt',
-    lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
+    dealer_placeholder,
     # query=and_(
     #     Attendee.placeholder == True,
     #     Attendee.paid == c.PAID_BY_GROUP,
@@ -519,27 +553,22 @@ AutomatedEmailFixture(
     ident='dealer_info_required')
 
 StopsEmailFixture(
-    'Claim your Staff Badge for {EVENT_NAME} {EVENT_YEAR}!',
+    'Claim your Staff badge for {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/imported_volunteer.txt',
-    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and a.badge_type == c.STAFF_BADGE,
+    staff_import_placeholder,
     ident='volunteer_again_inquiry')
 
 StopsEmailFixture(
-    '{EVENT_NAME} Volunteer Badge Confirmation',
+    'Claim your Volunteer badge for {EVENT_NAME} {EVENT_YEAR}',
     'placeholders/volunteer.txt',
-    lambda a: a.placeholder and a.registered_local > c.PREREG_OPEN,
-    ident='volunteer_badge_confirmation')
+    lambda a: volunteer_placeholder(a) and a.paid == c.NEED_NOT_PAY,
+    ident='volunteer_badge_confirmation_comped')
 
-AutomatedEmailFixture(
-    Attendee,
-    '{EVENT_NAME} Badge Confirmation',
-    'placeholders/regular.txt',
-    lambda a: a.placeholder and (
-      c.AT_THE_CON
-      or a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
-      and not set([c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON]).intersection(a.ribbon_ints)),
-    allow_at_the_con=True,
-    ident='regular_badge_confirmation')
+StopsEmailFixture(
+    'Claim your Volunteer badge for {EVENT_NAME} {EVENT_YEAR}',
+    'placeholders/volunteer.txt',
+    lambda a: volunteer_placeholder(a) and a.paid != c.NEED_NOT_PAY,
+    ident='volunteer_badge_confirmation')
 
 AutomatedEmailFixture(
     Attendee,
