@@ -9,7 +9,7 @@ from uber.config import c
 from uber.models import Attendee, Group
 from uber.utils import add_opt, convert_to_absolute_url, get_age_from_birthday, localized_now, \
     remove_opt, normalize_newlines
-from uber.payments import Charge
+from uber.payments import PreregCart
 
 
 @pytest.fixture
@@ -91,31 +91,31 @@ class TestAddRemoveOpts:
             Attendee(ribbon=','.join([str(c.VOLUNTEER_RIBBON), str(c.DEALER_RIBBON)])).ribbon_ints, c.VOLUNTEER_RIBBON)
 
 
-class TestCharge:
+class TestPreregCart:
     def test_charge_one_email(self):
         attendee = Attendee(email='test@example.com')
-        charge = Charge(targets=[attendee])
+        charge = PreregCart(targets=[attendee])
         assert charge.receipt_email == attendee.email
 
     def test_charge_group_leader_email(self):
         attendee = Attendee(email='test@example.com')
         group = Group(attendees=[attendee])
-        charge = Charge(targets=[group])
+        charge = PreregCart(targets=[group])
         assert charge.receipt_email == attendee.email
 
     def test_charge_first_email(self):
         attendee = Attendee(email='test@example.com')
-        charge = Charge(targets=[attendee, Attendee(email='test2@example.com'), Attendee(email='test3@example.com')])
+        charge = PreregCart(targets=[attendee, Attendee(email='test2@example.com'), Attendee(email='test3@example.com')])
         assert charge.receipt_email == attendee.email
 
     def test_charge_no_email(self):
-        charge = Charge(targets=[Group()])
+        charge = PreregCart(targets=[Group()])
         assert charge.receipt_email is None
 
     def test_charge_log_transaction(self, monkeypatch):
         attendee = Attendee()
         monkeypatch.setattr(Attendee, 'amount_unpaid', 10)
-        charge = Charge(targets=[attendee], amount=1000, description="Test charge")
+        charge = PreregCart(targets=[attendee], amount=1000, description="Test charge")
         charge.response = stripe.Charge(id=10)
         result = charge.stripe_transaction_from_charge()
         assert result.stripe_id == 10
@@ -127,7 +127,7 @@ class TestCharge:
     def test_charge_log_transaction_attendee(self, monkeypatch):
         attendee = Attendee()
         monkeypatch.setattr(Attendee, 'amount_unpaid', 10)
-        charge = Charge(targets=[attendee],
+        charge = PreregCart(targets=[attendee],
                         description="Test charge")
         charge.response = stripe.Charge(id=10)
         txn = charge.stripe_transaction_from_charge()
@@ -139,7 +139,7 @@ class TestCharge:
     def test_charge_log_transaction_group(self, monkeypatch):
         group = Group()
         monkeypatch.setattr(Group, 'amount_unpaid', 10)
-        charge = Charge(targets=[group],
+        charge = PreregCart(targets=[group],
                         description="Test charge")
         charge.response = stripe.Charge(id=10)
         txn = charge.stripe_transaction_from_charge()
@@ -151,7 +151,7 @@ class TestCharge:
     def test_charge_log_transaction_no_unpaid(self, monkeypatch):
         group = Group()
         monkeypatch.setattr(Group, 'amount_unpaid', 0)
-        charge = Charge(targets=[group], amount=1000,
+        charge = PreregCart(targets=[group], amount=1000,
                         description="Test charge")
         charge.response = stripe.Charge(id=10)
         txn = charge.stripe_transaction_from_charge()
@@ -162,10 +162,10 @@ class TestCharge:
 
     def test_charge_log_transaction_no_model(self):
         stripe.Charge.create = Mock(return_value=1)
-        Charge.stripe_transaction_from_charge = Mock()
-        charge = Charge(amount=1000, description="Test charge")
-        Charge.charge_cc(charge, Mock(), 1)
-        assert not Charge.stripe_transaction_from_charge.called
+        PreregCart.stripe_transaction_from_charge = Mock()
+        charge = PreregCart(amount=1000, description="Test charge")
+        PreregCart.charge_cc(charge, Mock(), 1)
+        assert not PreregCart.stripe_transaction_from_charge.called
 
 
 class TestAgeCalculations:
