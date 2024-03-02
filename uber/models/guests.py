@@ -65,30 +65,30 @@ class GuestGroup(MagModel):
             return self.status(name.rsplit('_', 1)[0])
         else:
             return super(GuestGroup, self).__getattr__(name)
-        
+
     @presave_adjustment
     def empty_strings_to_zero(self):
         if not self.payment:
             self.payment = 0
-        
+
         if not self.vehicles:
             self.vehicles = 0
-        
+
         if not self.num_hotel_rooms:
             self.num_hotel_rooms = 0
 
     def deadline_from_model(self, model):
         name = str(self.group_type_label).upper().replace(' ', '_') + "_" + str(model).upper() + "_DEADLINE"
         return getattr(c, name, None)
-    
+
     @property
     def sorted_checklist_items(self):
         checklist_items = []
         for item in c.GUEST_CHECKLIST_ITEMS:
             if self.deadline_from_model(item['name']):
                 checklist_items.append(item)
-                
-        return sorted(checklist_items, key= lambda i: self.deadline_from_model(i['name']))
+
+        return sorted(checklist_items, key=lambda i: self.deadline_from_model(i['name']))
 
     @property
     def uses_detailed_travel_plans(self):
@@ -130,7 +130,7 @@ class GuestGroup(MagModel):
     @property
     def taxes_status(self):
         return "Not Needed" if not self.payment else self.status('taxes')
-    
+
     @property
     def merch_status(self):
         if self.merch and self.merch.selling_merch == c.ROCK_ISLAND and not self.merch.poc_address1:
@@ -626,7 +626,7 @@ class GuestAutograph(MagModel):
     num = Column(Integer, default=0)
     length = Column(Integer, default=60)  # session length in minutes
     rock_island_autographs = Column(Boolean, nullable=True)
-    rock_island_length = Column(Integer, default=60) # session length in minutes
+    rock_island_length = Column(Integer, default=60)  # session length in minutes
 
     @presave_adjustment
     def no_length_if_zero_autographs(self):
@@ -666,7 +666,8 @@ class GuestHospitality(MagModel):
 class GuestDetailedTravelPlan(MagModel):
     travel_plans_id = Column(UUID, ForeignKey('guest_travel_plans.id'), nullable=True)
     travel_plans = relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
-                           backref=backref('detailed_travel_plans'), cascade='save-update,merge,refresh-expire,expunge')
+                                backref=backref('detailed_travel_plans'),
+                                cascade='save-update,merge,refresh-expire,expunge')
     mode = Column(Choice(c.GUEST_TRAVEL_OPTS))
     mode_text = Column(UnicodeText)
     traveller = Column(UnicodeText)

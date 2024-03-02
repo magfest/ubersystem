@@ -130,7 +130,7 @@ class IndieStudio(MagModel):
     @property
     def discussion_emails_list(self):
         return list(filter(None, self.discussion_emails.split(',')))
-    
+
     @property
     def discussion_emails_last_updated(self):
         studio_updates = self.get_tracking_by_instance(self, action=c.UPDATED, last_only=False)
@@ -166,7 +166,7 @@ class IndieStudio(MagModel):
         if self.needs_hotel_space is not None:
             return "Requested hotel space for {} with email {}".format(self.name_for_hotel, self.email_for_hotel)\
                 if self.needs_hotel_space else "Opted out"
-                
+
     @property
     def show_info_status(self):
         return self.show_info_updated
@@ -217,7 +217,7 @@ class IndieStudio(MagModel):
     @property
     def submitted_games(self):
         return [g for g in self.games if g.submitted]
-    
+
     @property
     def confirmed_games(self):
         return [g for g in self.games if g.confirmed]

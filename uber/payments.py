@@ -13,12 +13,10 @@ import stripe
 from authorizenet import apicontractsv1, apicontrollers
 from pockets import cached_property, classproperty, is_listy, listify
 from pockets.autolog import log
-from sqlalchemy import func, Integer
 
 import uber
 from uber.config import c
 from uber.custom_tags import format_currency, email_only
-from uber.errors import CSRFException, HTTPRedirect
 from uber.utils import report_critical_exception
 
 
@@ -27,9 +25,9 @@ class MockStripeIntent(dict):
     Stripe and Authorize.net use radically different workflows: Stripe has you request a payment intent
     before it collects CC details, and Authorize.net requires CC details (or a token) before it will
     do anything.
-    
+
     We prefer Stripe's method as this creates a record in our system before payment is attempted in
-    case anything goes wrong. This class lets us use Stripe's workflow in our page handlers with 
+    case anything goes wrong. This class lets us use Stripe's workflow in our page handlers with
     minimal disruptions.
     """
     def __init__(self, amount, description, receipt_email='', customer_id='', intent_id=''):
@@ -42,7 +40,7 @@ class MockStripeIntent(dict):
 
         # And now for the serializable info!
         dict.__init__(self, id=self.id, amount=amount, description=description, receipt_email=receipt_email,
-                      customer_id = customer_id, charges=self.charges)
+                      customer_id=customer_id, charges=self.charges)
 
 
 class PreregCart:
@@ -56,7 +54,8 @@ class PreregCart:
 
     @classproperty
     def session_keys(cls):
-        return ['paid_preregs', 'unpaid_preregs', 'pending_preregs', 'pending_dealers', 'payment_intent_id', 'universal_promo_codes']
+        return ['paid_preregs', 'unpaid_preregs', 'pending_preregs', 'pending_dealers',
+                'payment_intent_id', 'universal_promo_codes']
 
     @classproperty
     def paid_preregs(cls):
@@ -69,15 +68,15 @@ class PreregCart:
     @classproperty
     def pending_preregs(cls):
         return cherrypy.session.setdefault('pending_preregs', OrderedDict())
-    
+
     @classproperty
     def pending_dealers(cls):
         return cherrypy.session.setdefault('pending_dealers', OrderedDict())
-    
+
     @classproperty
     def payment_intent_id(cls):
         return cherrypy.session.get('payment_intent_id', '')
-    
+
     @classproperty
     def universal_promo_codes(cls):
         return cherrypy.session.setdefault('universal_promo_codes', {})
@@ -201,7 +200,7 @@ class PreregCart:
     @cached_property
     def receipt_email(self):
         email = self.models[0].email if self.models and self.models[0].email else ''
-        return email[0] if isinstance(email, list) else email 
+        return email[0] if isinstance(email, list) else email
 
     @cached_property
     def targets(self):
@@ -218,7 +217,7 @@ class PreregCart:
     @cached_property
     def groups(self):
         return [m for m in self.models if isinstance(m, uber.models.Group)]
-    
+
     def set_total_cost(self):
         preview_receipt_groups = self.prereg_receipt_preview()
         for group in preview_receipt_groups:
@@ -231,12 +230,12 @@ class PreregCart:
     @cached_property
     def dollar_amount(self):
         return self.total_cost // 100
-    
+
     def prereg_receipt_preview(self):
         """
         Returns a list of tuples where tuple[0] is the name of a group of items,
         and tuple[1] is a list of cost item tuples from create_new_receipt
-        
+
         This lets us show the attendee a nice display of what they're buying
         ... whenever we get around to actually using it that way
         """
@@ -245,15 +244,16 @@ class PreregCart:
         items_preview = []
         for model in self.models:
             if getattr(model, 'badges', None) and getattr(model, 'name') and isinstance(model, uber.models.Attendee):
-                items_group = ("{} plus {} badges ({})".format(getattr(model, 'full_name', None), int(model.badges) - 1, model.name), [])
+                items_group = (f"{getattr(model, 'full_name', None)} plus "
+                               f"{int(model.badges) - 1} badges ({model.name})", [])
                 x, receipt_items = ReceiptManager.create_new_receipt(PromoCodeGroup())
             else:
                 group_name = getattr(model, 'name', None)
                 items_group = (group_name or getattr(model, 'full_name', None), [])
-            
+
             x, receipt_items = ReceiptManager.create_new_receipt(model)
             items_group[1].extend(receipt_items)
-            
+
             items_preview.append(items_group)
 
         return items_preview
@@ -261,20 +261,23 @@ class PreregCart:
 
 class TransactionRequest:
     # TODO: Split out Stripe and AuthNet logic into their own subclasses, like SpinTerminalRequest
-    def __init__(self, receipt=None, receipt_email='', description='', amount=0, method=c.STRIPE, customer_id=None, create_receipt_item=False):
+    def __init__(self, receipt=None, receipt_email='', description='', amount=0,
+                 method=c.STRIPE, customer_id=None, create_receipt_item=False):
         self.amount = int(amount)
         self.receipt_email = receipt_email[0] if isinstance(receipt_email, list) else receipt_email
         self.description = description
         self.customer_id = customer_id
-        self.refund_str = "refunded" # Set to "voided" when applicable to better inform admins
+        self.refund_str = "refunded"  # Set to "voided" when applicable to better inform admins
         self.intent, self.response, self.receipt_manager = None, None, None
         self.method = method
         self.tracking_id = str(uuid4())
 
-        log.debug(f"Transaction {self.tracking_id} started with {amount} amount, {receipt_email} receipt email, {description} description, and {customer_id} customer ID.")
+        log.debug(f"Transaction {self.tracking_id} started with {amount} amount, {receipt_email} "
+                  f"receipt email, {description} description, and {customer_id} customer ID.")
 
         if receipt:
-            log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, which has {receipt.current_amount_owed} balance due.")
+            log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, "
+                      f"which has {receipt.current_amount_owed} balance due.")
             self.receipt_manager = ReceiptManager(receipt)
             if not self.amount:
                 self.amount = receipt.current_amount_owed
@@ -295,12 +298,12 @@ class TransactionRequest:
             return self.response.transId
         else:
             return self.response.id
-        
+
     @cached_property
     def dollar_amount(self):
         from decimal import Decimal
         return Decimal(int(self.amount)) / Decimal(100)
-        
+
     def get_receipt_items_to_add(self):
         if not self.receipt_manager:
             return
@@ -320,14 +323,15 @@ class TransactionRequest:
             return "There was an error calculating the amount. Please refresh the page or contact the system admin."
 
         if self.amount > 999999:
-            return "We cannot charge {}. Please make sure your total is below $9,999.".format(format_currency(self.amount / 100))
+            return (f"We cannot charge {format_currency(self.amount / 100)}. "
+                    "Please make sure your total is below $9,999.")
         try:
             self.intent = self.stripe_or_mock_intent(intent_id)
         except Exception as e:
             error_txt = 'Got an error while creating a Stripe intent for transaction {self.tracking_id}'
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
-        
+
     def stripe_or_mock_intent(self, intent_id=''):
         if not self.customer_id:
             self.get_or_create_customer()
@@ -352,7 +356,7 @@ class TransactionRequest:
                 receipt_email=self.receipt_email,
                 customer=self.customer_id,
             )
-        
+
     def stripe_or_authnet_refund(self, txn, amount):
         if c.AUTHORIZENET_LOGIN_ID:
             error = self.get_authorizenet_txn(txn.charge_id)
@@ -366,9 +370,11 @@ class TransactionRequest:
                 self.refund_str = "voided"
                 error = self.send_authorizenet_txn(txn_type=c.VOID, txn_id=txn.charge_id)
             elif self.response.transactionStatus != "settledSuccessfully":
-                return "This transaction cannot be refunded because of an invalid status: {}.".format(self.response.transactionStatus)
+                return ("This transaction cannot be refunded because of an invalid status: "
+                        f"{self.response.transactionStatus}.")
             else:
-                if parse(str(self.response.submitTimeUTC)).replace(tzinfo=pytz.UTC) < datetime.now(pytz.UTC) - timedelta(days=180):
+                if parse(str(self.response.submitTimeUTC)).replace(tzinfo=pytz.UTC) \
+                        < datetime.now(pytz.UTC) - timedelta(days=180):
                     return "This transaction is more than 180 days old and cannot be refunded automatically."
 
                 if self.response.settleAmount * 100 < self.amount:
@@ -377,7 +383,8 @@ class TransactionRequest:
                         format_currency(self.amount / 100))
                 cc_num = str(self.response.payment.creditCard.cardNumber)[-4:]
                 zip = str(self.response.billTo.zip)
-                error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num, zip=zip, txn_id=txn.charge_id)
+                error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num,
+                                                   zip=zip, txn_id=txn.charge_id)
             if error:
                 return 'An unexpected problem occurred: ' + str(error)
         else:
@@ -392,7 +399,7 @@ class TransactionRequest:
                     msg=error_txt,
                     subject='ERROR: MAGFest Stripe invalid request error')
                 return 'An unexpected problem occurred: ' + str(e)
-            
+
     def refund_or_cancel(self, txn):
         if not self.amount:
             return "You must enter an amount to refund."
@@ -403,7 +410,7 @@ class TransactionRequest:
 
         if error:
             return error
-        
+
     def refund_or_skip(self, txn):
         if not self.amount:
             return "You must enter an amount to refund."
@@ -411,23 +418,22 @@ class TransactionRequest:
         error = self._pre_process_refund(txn)
         if error:
             return
-        
+
         error = self._process_refund(txn)
 
         if error:
             return error
-        
+
     def _pre_process_refund(self, txn):
         """
         Performs error checks and updates transactions to prepare them for _process_refund.
         This is split out from _process_refund because sometimes we want to skip transactions
         that can't be refunded and other times we want to cancel if we find an issue.
         """
-        from uber.custom_tags import format_currency
 
         if not txn.intent_id:
             return "Can't refund a transaction that is not a Stripe payment."
-        
+
         error = txn.check_stripe_id()
         if error:
             return "Error issuing refund: " + str(error)
@@ -443,7 +449,7 @@ class TransactionRequest:
 
         refund_amount = int(self.amount or (txn.amount - already_refunded))
         if txn.amount - already_refunded < refund_amount:
-            return "There is not enough left on this transaction to refund {}.".format(format_currency(refund_amount / 100))
+            return "There is not enough left on this transaction to refund {format_currency(refund_amount / 100)}."
 
     def _process_refund(self, txn):
         """
@@ -451,18 +457,19 @@ class TransactionRequest:
         Returns an error message or sets the object's response property if the refund was successful.
         """
         if not self.receipt_manager:
-            log.error("ERROR: _process_refund was called using an object without a receipt; we can't save anything that way!")
+            log.error("ERROR: _process_refund was called using an object without a receipt; "
+                      "we can't save anything that way!")
             return "There was an issue recording your refund. Please contact the developer."
 
         refund_amount = self.amount or txn.amount_left
 
         log.debug('REFUND: attempting to refund card transaction with ID {} {} cents for {}',
-                    txn.stripe_id, refund_amount, txn.desc)
+                  txn.stripe_id, refund_amount, txn.desc)
 
         message = self.stripe_or_authnet_refund(txn, int(refund_amount))
         if message:
             return message
-        
+
         self.receipt_manager.create_refund_transaction(txn.receipt,
                                                        "Automatic refund of transaction " + txn.stripe_id,
                                                        str(self.response_id),
@@ -473,26 +480,29 @@ class TransactionRequest:
     def prepare_payment(self, intent_id='', payment_method=c.STRIPE):
         """
         Creates the stripe intent and receipt transaction for a given payment processor object.
-        Most methods should call this instead of calling create_stripe_intent and 
+        Most methods should call this instead of calling create_stripe_intent and
         create_payment_transaction directly.
         """
         if not self.receipt_manager:
-            log.error("ERROR: prepare_payment was called using an object without a receipt; we can't save anything that way!")
+            log.error("ERROR: prepare_payment was called using an object without a receipt; "
+                      "we can't save anything that way!")
             return "There was an issue recording your payment. Please contact the developer."
-        
+
         message = self.create_stripe_intent(intent_id)
         if not message:
-            message = self.receipt_manager.create_payment_transaction(self.description, self.intent, method=payment_method)
-        
+            message = self.receipt_manager.create_payment_transaction(self.description, self.intent,
+                                                                      method=payment_method)
+
         if message:
             return message
-        
+
     def get_or_create_customer(self, customer_id=''):
         if not self.receipt_email:
             return
-        
+
         if c.AUTHORIZENET_LOGIN_ID:
-            log.debug(f"Transaction {self.tracking_id} getting or creating a customer with ID {customer_id} and email {self.receipt_email}")
+            log.debug(f"Transaction {self.tracking_id} getting or creating a customer with ID "
+                      f"{customer_id} and email {self.receipt_email}")
             getCustomerRequest = apicontractsv1.getCustomerProfileRequest()
             getCustomerRequest.merchantAuthentication = self.merchant_auth
             if customer_id:
@@ -502,15 +512,17 @@ class TransactionRequest:
             getCustomerRequestController = apicontrollers.getCustomerProfileController(getCustomerRequest)
             getCustomerRequestController.setenvironment(c.AUTHORIZENET_ENDPOINT)
             getCustomerRequestController.execute()
-        
+
             response = getCustomerRequestController.getresponse()
             if response is not None:
-                if response.messages.resultCode == "Ok" and hasattr(response, 'profile') == True:
+                if response.messages.resultCode == "Ok" and hasattr(response, 'profile') is True:
                     self.customer_id = str(response.profile.customerProfileId)
                     log.debug(f"Transaction {self.tracking_id} retrieved customer {self.customer_id}")
-                    if hasattr(response.profile, 'paymentProfiles') == True:
+                    if hasattr(response.profile, 'paymentProfiles') is True:
                         for paymentProfile in response.profile.paymentProfiles:
-                            log.debug(f"Transaction {self.tracking_id} deleting payment profile ID {str(paymentProfile.customerPaymentProfileId)} from customer {self.customer_id}")
+                            log.debug(f"Transaction {self.tracking_id} deleting payment profile ID "
+                                      f"{str(paymentProfile.customerPaymentProfileId)} from customer "
+                                      f"{self.customer_id}")
                             self.delete_authorizenet_payment_profile(str(paymentProfile.customerPaymentProfileId))
                 elif response.messages.message.code == 'E00040':
                     log.debug(f"Transaction {self.tracking_id} did not find customer, creating a new one...")
@@ -518,24 +530,29 @@ class TransactionRequest:
                     createCustomerRequest.merchantAuthentication = self.merchant_auth
                     createCustomerRequest.profile = apicontractsv1.customerProfileType(email=self.receipt_email)
 
-                    createCustomerRequestController = apicontrollers.createCustomerProfileController(createCustomerRequest)
+                    createCustomerRequestController = apicontrollers.createCustomerProfileController(
+                        createCustomerRequest)
                     createCustomerRequestController.setenvironment(c.AUTHORIZENET_ENDPOINT)
                     createCustomerRequestController.execute()
 
                     response = createCustomerRequestController.getresponse()
 
-                    if response and (response.messages.resultCode=="Ok"):
+                    if response and (response.messages.resultCode == "Ok"):
                         self.customer_id = str(response.customerProfileId)
                     elif not response:
-                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. No response received.")
+                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. "
+                                  "No response received.")
                     else:
-                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
+                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. "
+                                  f"{str(response.messages.message[0]['code'].text)}: "
+                                  f"{str(response.messages.message[0]['text'].text)}")
                 else:
-                    log.error(f"Transaction {self.tracking_id} failed to retrieve customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
+                    log.error(f"Transaction {self.tracking_id} failed to retrieve customer profile. "
+                              f"{str(response.messages.message[0]['code'].text)}: "
+                              f"{str(response.messages.message[0]['text'].text)}")
             else:
-                log.error(f"Failed to retrieve customer profile for AuthNet: no response received.")
+                log.error("Failed to retrieve customer profile for AuthNet: no response received.")
             return
-        
 
         if self.receipt_email:
             customer_list = stripe.Customer.list(
@@ -574,23 +591,26 @@ class TransactionRequest:
         createCustomerPaymentRequest.paymentProfile = profile
         createCustomerPaymentRequest.customerProfileId = self.customer_id
 
-        createCustomerPaymentController = apicontrollers.createCustomerPaymentProfileController(createCustomerPaymentRequest)
+        createCustomerPaymentController = apicontrollers.createCustomerPaymentProfileController(
+            createCustomerPaymentRequest)
         createCustomerPaymentController.setenvironment(c.AUTHORIZENET_ENDPOINT)
         createCustomerPaymentController.execute()
 
         response = createCustomerPaymentController.getresponse()
-        if (response.messages.resultCode=="Ok"):
+        if (response.messages.resultCode == "Ok"):
             profileToCharge = apicontractsv1.customerProfilePaymentType()
             profileToCharge.customerProfileId = self.customer_id
             profileToCharge.paymentProfile = apicontractsv1.paymentProfile()
             profileToCharge.paymentProfile.paymentProfileId = str(response.customerPaymentProfileId)
 
-            log.debug(f"Transaction {self.tracking_id} successfully created a payment profile (ID {str(response.customerPaymentProfileId)}) for customer {self.customer_id}")
+            log.debug(f"Transaction {self.tracking_id} successfully created a payment profile (ID "
+                      f"{str(response.customerPaymentProfileId)}) for customer {self.customer_id}")
 
             return profileToCharge
         else:
-            log.error(f"Transaction {self.tracking_id} failed to create customer payment profile: {response.messages.message[0]['text'].text}")
-    
+            log.error(f"Transaction {self.tracking_id} failed to create customer payment profile: "
+                      f"{response.messages.message[0]['text'].text}")
+
     def delete_authorizenet_payment_profile(self, payment_profile_id):
         if not self.customer_id:
             return
@@ -606,10 +626,9 @@ class TransactionRequest:
 
         response = controller.getresponse()
 
-        if (response.messages.resultCode!="Ok"):
+        if (response.messages.resultCode != "Ok"):
             log.error(f"Failed to delete customer payment profile with customer profile id \
                       {deleteCustomerPaymentProfile.customerProfileId}: {response.messages.message[0]['text'].text}")
-
 
     def get_authorizenet_txn(self, txn_id):
         transaction = apicontractsv1.getTransactionDetailsRequest()
@@ -627,12 +646,13 @@ class TransactionRequest:
                 log.debug(f"Transaction {self.tracking_id} requested and received {txn_id} from AuthNet.")
                 return
             elif response.messages is not None:
-                log.error(f"Transaction {self.tracking_id} requested {txn_id} from AuthNet but received an error: \
-                          {response.messages.message[0]['code'].text}: {response.messages.message[0]['text'].text}")
-                return 'Failed to get transaction details from AuthNet. {}: {}'.format(response.messages.message[0]['code'].text,response.messages.message[0]['text'].text)
+                log.error(f"Transaction {self.tracking_id} requested {txn_id} from AuthNet but received an error: "
+                          f"{response.messages.message[0]['code'].text}: {response.messages.message[0]['text'].text}")
+                return ('Failed to get transaction details from AuthNet. '
+                        f'{response.messages.message[0]["code"].text}: {response.messages.message[0]["text"].text}')
 
         return response
-    
+
     def send_authorizenet_txn(self, txn_type=c.AUTHCAPTURE, **params):
         # TODO: We should probably split this out quite a bit, it's a mess
 
@@ -640,8 +660,9 @@ class TransactionRequest:
         order = None
 
         params_str = [f"{name}: {params[name]}" for name in params]
-        log.debug(f"Transaction {self.tracking_id} building an AuthNet transaction request, request type '{c.AUTHNET_TXN_TYPES[txn_type]}'. Params: {params_str}")
-        
+        log.debug(f"Transaction {self.tracking_id} building an AuthNet transaction request, request type "
+                  f"'{c.AUTHNET_TXN_TYPES[txn_type]}'. Params: {params_str}")
+
         transaction = apicontractsv1.transactionRequestType()
 
         if 'token_desc' in params or 'cc_num' in params:
@@ -675,7 +696,7 @@ class TransactionRequest:
                 billTo = apicontractsv1.customerAddressType()
                 billTo.zip = params.get("zip")
                 transaction.billTo = billTo
-            
+
             if payment_profile:
                 transaction.profile = payment_profile
             else:
@@ -698,7 +719,7 @@ class TransactionRequest:
         transactionRequest = apicontractsv1.createTransactionRequest()
         transactionRequest.merchantAuthentication = self.merchant_auth
         transactionRequest.transactionRequest = transaction
-        
+
         transactionController = apicontrollers.createTransactionController(transactionRequest)
         transactionController.setenvironment(c.AUTHORIZENET_ENDPOINT)
         transactionController.execute()
@@ -707,30 +728,32 @@ class TransactionRequest:
 
         if response is not None:
             if response.messages.resultCode == "Ok":
-                if hasattr(response.transactionResponse, 'messages') == True:
+                if hasattr(response.transactionResponse, 'messages') is True:
                     self.response = response.transactionResponse
                     auth_txn_id = str(self.response.transId)
 
                     log.debug(f"Transaction {self.tracking_id} request successful. Transaction ID: {auth_txn_id}")
-                    
+
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
                         ReceiptManager.mark_paid_from_ids(params.get('intent_id'), auth_txn_id)
                 else:
                     error_code = str(response.transactionResponse.errors.error[0].errorCode)
                     error_msg = str(response.transactionResponse.errors.error[0].errorText)
-                    log.debug(f"Transaction {self.tracking_id} request did not receive a transaction response! {error_code}: {error_msg}")
+                    log.debug(f"Transaction {self.tracking_id} request did not receive a transaction response! "
+                              f"{error_code}: {error_msg}")
 
                     return str(response.transactionResponse.errors.error[0].errorText)
             else:
-                if hasattr(response, 'transactionResponse') == True and hasattr(response.transactionResponse, 'errors') == True:
+                if hasattr(response, 'transactionResponse') is True \
+                        and hasattr(response.transactionResponse, 'errors') is True:
                     error_code = response.transactionResponse.errors.error[0].errorCode
                     error_msg = response.transactionResponse.errors.error[0].errorText
                 else:
                     error_code = response.messages.message[0]['code'].text
                     error_msg = response.messages.message[0]['text'].text
-                    
+
                 log.debug(f"Transaction {self.tracking_id} request failed! {error_code}: {error_msg}")
-                    
+
                 return str(error_msg)
         else:
             log.error(f"Transaction {self.tracking_id} request to AuthNet failed: no response received.")
@@ -743,7 +766,7 @@ class SpinTerminalRequest(TransactionRequest):
         self.auth_key = c.SPIN_TERMINAL_AUTH_KEY
         self.timeout_retries = 0
         self.error_message = ""
-        self.ref_id = "" # This is the same as a transaction's intent ID.
+        self.ref_id = ""  # This is the same as a transaction's intent ID.
         # TODO: integrate ref_id a bit better instead of swapping between intent.id and ref_id
         self.use_account_info = use_account_info
 
@@ -771,11 +794,11 @@ class SpinTerminalRequest(TransactionRequest):
         return dict(spin_rest_utils.sale_request_dict(self.dollar_amount,
                                                       self.payment_type,
                                                       self.ref_id or (self.intent.id if self.intent else ''),
-                                                      self.capture_signature),
-                                                      **self.base_request)
+                                                      self.capture_signature), **self.base_request)
 
     def handle_api_call(f):
         from functools import wraps
+
         @wraps(f)
         def api_call(self, *args, **kwargs):
             try:
@@ -783,7 +806,7 @@ class SpinTerminalRequest(TransactionRequest):
             except requests.exceptions.ConnectionError as e:
                 log.error(f"Transaction {self.tracking_id} could not connect to SPIn Proxy: {str(e)}")
                 self.error_message = "Could not connect to SPIn Proxy."
-            except requests.exceptions.Timeout:
+            except requests.exceptions.Timeout as e:
                 if self.timeout_retries > 10:
                     log.error(f"Transaction {self.tracking_id} timed out while connecting to SPIn Terminal: {str(e)}")
                     self.error_message = "The request timed out."
@@ -794,7 +817,7 @@ class SpinTerminalRequest(TransactionRequest):
                 self.error_message = "Unexpected error."
 
         return api_call
-    
+
     def retry_if_busy(self, func, *args, **kwargs):
         from time import sleep
 
@@ -803,23 +826,24 @@ class SpinTerminalRequest(TransactionRequest):
             response = func(*args, **kwargs)
             sleep(1)
         return response
-    
+
     def error_message_from_response(self, response_json):
         return spin_rest_utils.error_message_from_response(response_json)
-    
+
     def api_response_successful(self, response_json):
         return spin_rest_utils.api_response_successful(response_json)
-    
+
     def log_api_response(self, response_json):
         import json
 
         if self.api_response_successful(response_json):
-            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id, 'last_response', json.dumps(response_json))
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
+                               'last_response', json.dumps(response_json))
         else:
             error_message = self.error_message_from_response(response_json)
             log.error(f"Error while processing terminal sale for transaction {self.tracking_id}: {error_message}")
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id, 'last_error', error_message)
-    
+
     def process_sale_response(self, session, response):
         from uber.models import ReceiptTransaction
         from uber.tasks.registration import send_receipt_email
@@ -855,7 +879,7 @@ class SpinTerminalRequest(TransactionRequest):
             if self.tracker:
                 self.tracker.response = void_response_json
                 self.tracker.resolved = datetime.utcnow()
-        
+
             self.log_api_response(void_response_json)
             if self.api_response_successful(void_response_json):
                 matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent.id)
@@ -865,12 +889,13 @@ class SpinTerminalRequest(TransactionRequest):
                     session.add(txn)
                     txn.receipt_info = self.receipt_info_from_txn(session, txn, model_receipt_info, void_response_json)
             return
-        
+
         self.tracker.success = True
-        
-        approval_amount = Decimal(str(spin_rest_utils.approved_amount(response_json))) * 100 # don't @ me
+
+        approval_amount = Decimal(str(spin_rest_utils.approved_amount(response_json))) * 100  # don't @ me
         if approval_amount != self.amount and abs(approval_amount - self.amount) > 5:
-            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id, 'last_error', "Partial approval")
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
+                               'last_error', "Partial approval")
 
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent.id).all()
         if not matching_txns:
@@ -878,13 +903,13 @@ class SpinTerminalRequest(TransactionRequest):
             log.error(f"Error while processing terminal sale for transaction {self.tracking_id}: {error_message}")
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id, 'last_error', error_message)
             return
-        
+
         running_total = approval_amount
         model_receipt_info = {}
-        
+
         for txn in matching_txns:
             if txn.txn_total != approval_amount:
-                if txn.amount == txn.txn_total: # Single transaction, nothing complicated to do here
+                if txn.amount == txn.txn_total:  # Single transaction, nothing complicated to do here
                     txn.amount = approval_amount
                 else:
                     if running_total < txn.amount:
@@ -932,18 +957,18 @@ class SpinTerminalRequest(TransactionRequest):
         ref_id, card_data, emv_data, receipt_html = spin_rest_utils.processed_response_info(response_json)
 
         return ReceiptInfo(
-            fk_email_model = model_name,
-            fk_email_id = model_id,
-            terminal_id = self.terminal_id,
-            reference_id = ref_id or self.ref_id or self.intent.id,
-            card_data = card_data,
-            charged = datetime.now(),
-            txn_info = txn_info,
-            emv_data = emv_data,
-            signature = spin_rest_utils.signature_from_response(response_json),
-            receipt_html = receipt_html
+            fk_email_model=model_name,
+            fk_email_id=model_id,
+            terminal_id=self.terminal_id,
+            reference_id=ref_id or self.ref_id or self.intent.id,
+            card_data=card_data,
+            charged=datetime.now(),
+            txn_info=txn_info,
+            emv_data=emv_data,
+            signature=spin_rest_utils.signature_from_response(response_json),
+            receipt_html=receipt_html
             )
-    
+
     @handle_api_call
     def check_retry_sale(self, session, response_json):
         from uber.models import ReceiptTransaction, TxnRequestTracking
@@ -971,7 +996,7 @@ class SpinTerminalRequest(TransactionRequest):
     @handle_api_call
     def send_sale_txn(self):
         return requests.post(spin_rest_utils.get_call_url(self.api_url, 'sale'), data=self.sale_request_dict)
-    
+
     @handle_api_call
     def send_return_txn(self):
         return requests.post(spin_rest_utils.get_call_url(self.api_url, 'return'), data=self.sale_request_dict)
@@ -987,15 +1012,16 @@ class SpinTerminalRequest(TransactionRequest):
     def close_out_terminal(self):
         response = requests.post(spin_rest_utils.get_call_url(self.api_url, 'settle'), data=self.base_request)
         return response
-    
+
     def _process_refund(self, txn):
         from uber.models import TxnRequestTracking, AdminAccount, Session
         from uber.tasks.registration import process_terminal_sale
 
         if not self.receipt_manager:
-            log.error("ERROR: _process_refund was called using an object without a receipt; we can't save anything that way!")
+            log.error("ERROR: _process_refund was called using an object without a receipt; "
+                      "we can't save anything that way!")
             return "There was an issue recording your refund. Please contact the developer."
-        
+
         if not txn.receipt_info:
             return f"Transaction {txn.id} has no SPIn receipt information."
 
@@ -1003,22 +1029,23 @@ class SpinTerminalRequest(TransactionRequest):
         refund_error = ""
 
         if refund_amount != txn.txn_total and not cherrypy.session.get('reg_station'):
-            return "This is a partial refund, which requires a connected SPIn payment terminal. Please set your workstation number and try again."
+            return ("This is a partial refund, which requires a connected SPIn payment terminal. "
+                    "Please set your workstation number and try again.")
 
         log.debug('REFUND: attempting to refund card transaction with ID {} {} cents for {}',
-                    txn.stripe_id, refund_amount, txn.desc)
-        
+                  txn.stripe_id, refund_amount, txn.desc)
+
         self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'),
                                           terminal_id=self.terminal_id, who=AdminAccount.admin_name())
-        
+
         self.receipt_manager.items_to_add.append(self.tracker)
-        
+
         refund_txn = self.receipt_manager.create_refund_transaction(txn.receipt,
                                                                     "Automatic refund of transaction " + txn.stripe_id,
                                                                     self.intent_id_from_txn_tracker(self.tracker),
                                                                     refund_amount,
                                                                     method=self.method)
-        
+
         with Session() as session:
             model = session.get_model_by_receipt(txn.receipt)
             model_id = model.id
@@ -1048,7 +1075,7 @@ class SpinTerminalRequest(TransactionRequest):
                                                                    txn.receipt_info.fk_email_id,
                                                                    void_response_json)
                 refund_txn.amount = txn.txn_total * -1
-                
+
                 self.receipt_manager.items_to_add.append(refund_txn.receipt_info)
                 self.receipt_manager.update_transaction_refund(txn, self.amount)
 
@@ -1071,12 +1098,14 @@ class SpinTerminalRequest(TransactionRequest):
                                               model_id,
                                               description=f"Payment for partial refund of transaction {txn.charge_id}",
                                               amount=txn.txn_total - refund_amount)
-                        
-                        payment_error = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'last_error')
+
+                        payment_error = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id,
+                                                           'last_error')
                     if payment_error:
                         refund_error = f"Void successful, but partial re-payment failed: {payment_error}"
             else:
-                refund_error = f"Error while voiding transaction: {self.error_message_from_response(void_response_json)}"
+                refund_error = ("Error while voiding transaction: "
+                                f"{self.error_message_from_response(void_response_json)}")
         elif status_error_message not in ['Not found', 'No open batch']:
             self.tracker.response = status_response_json
             refund_error = f"Error while looking up transaction: {status_error_message}"
@@ -1103,20 +1132,22 @@ class SpinTerminalRequest(TransactionRequest):
                 self.log_api_response(return_response_json)
 
                 if not self.api_response_successful(return_response_json):
-                    refund_error = f"Error while running return: {self.error_message_from_response(return_response_json)}"
+                    refund_error = ("Error while running return: "
+                                    f"{self.error_message_from_response(return_response_json)}")
                 else:
                     self.tracker.success = True
                     refund_txn.receipt_info = self.create_receipt_info(txn.receipt_info.fk_email_model,
-                                                                    txn.receipt_info.fk_email_id,
-                                                                    return_response_json)
-                    
+                                                                       txn.receipt_info.fk_email_id,
+                                                                       return_response_json)
+
                     self.receipt_manager.items_to_add.append(refund_txn.receipt_info)
                     self.receipt_manager.update_transaction_refund(txn, self.amount)
-        
+
         if refund_error:
             # Unsuccessful refund, so toss the receipt transaction object
             # Unlike in TransactionRequest, we can't wait until after a successful refund to create it for Reasons:tm:
-            self.receipt_manager.items_to_add = [item for item in self.receipt_manager.items_to_add if item.id != refund_txn.id]
+            self.receipt_manager.items_to_add = [item for item in self.receipt_manager.items_to_add
+                                                 if item.id != refund_txn.id]
             return refund_error
 
     @classmethod
@@ -1141,7 +1172,7 @@ class ReceiptManager:
                 amount = txn_total
         else:
             txn_total = txn_total or amount
-        
+
         if amount <= 0:
             return "There was an issue recording your payment."
 
@@ -1165,7 +1196,7 @@ class ReceiptManager:
                                          desc=desc,
                                          who=AdminAccount.admin_name() or 'non-admin'
                                          )
-        
+
         self.items_to_add.append(receipt_txn)
         return receipt_txn
 
@@ -1178,7 +1209,7 @@ class ReceiptManager:
                                    count=1,
                                    who=AdminAccount.admin_name() or 'non-admin'
                                    )
-        
+
         self.items_to_add.append(receipt_item)
         return receipt_item
 
@@ -1195,14 +1226,16 @@ class ReceiptManager:
                                    count=1,
                                    who=AdminAccount.admin_name() or 'non-admin'
                                    )
-        
+
         self.items_to_add.append(receipt_item)
         return receipt_item
 
     @classmethod
     def create_new_receipt(cls, model, create_model=False, items=None):
         """
-        Iterates through the cost_calculations for this model and returns a list containing all non-null cost and credit items.
+        Iterates through the cost_calculations for this model and returns a list containing
+        all non-null cost and credit items.
+
         This function is for use with new models to grab all their initial costs for creating or previewing a receipt.
         """
         from uber.models import AdminAccount, ModelReceipt, ReceiptItem
@@ -1210,7 +1243,7 @@ class ReceiptManager:
             items = [uber.receipt_items.cost_calculation.items] + [uber.receipt_items.credit_calculation.items]
         receipt_items = []
         receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__) if create_model else None
-        
+
         for i in items:
             for calculation in i[model.__class__.__name__].values():
                 item = calculation(model)
@@ -1228,12 +1261,13 @@ class ReceiptManager:
                         for price in cost:
                             if receipt:
                                 receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                                desc=desc,
-                                                                amount=price,
-                                                                count=cost[price],
-                                                                who=AdminAccount.admin_name() or 'non-admin',
-                                                                revert_change={col_name: default_val} if col_name else {}
-                                                                ))
+                                                                 desc=desc,
+                                                                 amount=price,
+                                                                 count=cost[price],
+                                                                 who=AdminAccount.admin_name() or 'non-admin',
+                                                                 revert_change={col_name: default_val
+                                                                                } if col_name else {}
+                                                                 ))
                             else:
                                 receipt_items.append((desc, price, cost[price]))
                     elif receipt:
@@ -1243,10 +1277,10 @@ class ReceiptManager:
                                                          count=count,
                                                          who=AdminAccount.admin_name() or 'non-admin',
                                                          revert_change={col_name: default_val} if col_name else {}
-                                                        ))
+                                                         ))
                     else:
                         receipt_items.append((desc, cost, count))
-        
+
         return receipt, receipt_items
 
     @classmethod
@@ -1258,12 +1292,12 @@ class ReceiptManager:
         """
         model_dict = model.to_dict()
 
-        if model_dict.get(col_name) == None:
+        if model_dict.get(col_name) is None:
             return None, None
-        
+
         if not new_val:
             new_val = 0
-        
+
         return (model_dict[col_name] * 100, (int(new_val) - model_dict[col_name]) * 100)
 
     @classmethod
@@ -1273,7 +1307,7 @@ class ReceiptManager:
         credit_change_tuple = model.credit_changes.get(col_name)
         if not credit_change_tuple:
             return
-        
+
         credit_change_name = credit_change_tuple[0]
         credit_change_func = credit_change_tuple[1]
 
@@ -1286,7 +1320,7 @@ class ReceiptManager:
         else:
             verb = "Changed"
         discount_desc = "{} {}".format(credit_change_name, verb)
-        
+
         if col_name == 'birthdate':
             old_val = datetime.strftime(getattr(model, col_name), c.TIMESTAMP_FORMAT)
         else:
@@ -1294,11 +1328,11 @@ class ReceiptManager:
 
         if receipt:
             return ReceiptItem(receipt_id=receipt.id,
-                                desc=discount_desc,
-                                amount=discount_change,
-                                who=AdminAccount.admin_name() or 'non-admin',
-                                revert_change={col_name: old_val},
-                            )
+                               desc=discount_desc,
+                               amount=discount_change,
+                               who=AdminAccount.admin_name() or 'non-admin',
+                               revert_change={col_name: old_val},
+                               )
         else:
             return (discount_desc, discount_change)
 
@@ -1312,17 +1346,18 @@ class ReceiptManager:
         This uses the cost_changes dictionary defined on each model in receipt_items.py,
         calling it with the extra keyword arguments provided. If no function is specified,
         we use calc_simple_cost_change instead.
-        
+
         If a ModelReceipt is provided, a new ReceiptItem is created and returned.
-        Otherwise, the raw values are returned so attendees can preview their receipt 
+        Otherwise, the raw values are returned so attendees can preview their receipt
         changes.
         """
         try:
             new_val = int(new_val)
         except Exception:
-            pass # It's fine if this is not a number
+            pass  # It's fine if this is not a number
 
-        if col_name not in ['promo_code_code', 'badges'] and isinstance(model.__table__.columns.get(col_name).type, Choice):
+        if col_name not in ['promo_code_code', 'badges'] and isinstance(model.__table__.columns.get(col_name).type,
+                                                                        Choice):
             increase_term, decrease_term = "Upgrading", "Downgrading"
         else:
             increase_term, decrease_term = "Increasing", "Decreasing"
@@ -1335,8 +1370,9 @@ class ReceiptManager:
             cost_change_name = cost_change_tuple[0]
             cost_change_func = cost_change_tuple[1]
             if len(cost_change_tuple) > 2:
-                cost_change_name = cost_change_name.format(*[dictionary.get(new_val, str(new_val)) for dictionary in cost_change_tuple[2:]])
-            
+                cost_change_name = cost_change_name.format(*[dictionary.get(new_val, str(new_val))
+                                                             for dictionary in cost_change_tuple[2:]])
+
             if not cost_change_func:
                 old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
             else:
@@ -1347,7 +1383,7 @@ class ReceiptManager:
 
         if not old_cost and is_removable_item:
             cost_desc = "Adding {}".format(cost_change_name)
-        elif cost_change * -1 == old_cost and is_removable_item: # We're crediting the full amount of the item
+        elif cost_change * -1 == old_cost and is_removable_item:  # We're crediting the full amount of the item
             cost_desc = "Removing {}".format(cost_change_name)
         elif cost_change > 0:
             cost_desc = "{} {}".format(increase_term, cost_change_name)
@@ -1362,18 +1398,18 @@ class ReceiptManager:
         if receipt:
             revert_change = {col_name: old_val} if col_name not in ['promo_code_code', 'badges', 'birthdate'] else {}
             return ReceiptItem(receipt_id=receipt.id,
-                                desc=cost_desc,
-                                amount=cost_change,
-                                count=count,
-                                who=AdminAccount.admin_name() or 'non-admin',
-                                revert_change=revert_change,
-                            )
+                               desc=cost_desc,
+                               amount=cost_change,
+                               count=count,
+                               who=AdminAccount.admin_name() or 'non-admin',
+                               revert_change=revert_change,
+                               )
         else:
             return (cost_desc, cost_change, count)
 
     @classmethod
     def auto_update_receipt(self, model, receipt, params):
-        from uber.models import Attendee, Group, ReceiptItem, AdminAccount
+        from uber.models import Group, ReceiptItem, AdminAccount
         if not receipt:
             return []
 
@@ -1399,18 +1435,18 @@ class ReceiptManager:
                 new_cost = model.calc_default_cost()
 
                 revert_change = {'auto_recalc': True, 'cost': model.cost}
-            
+
             if new_cost != current_cost:
                 cost_change = new_cost - current_cost
                 receipt_items += [ReceiptItem(receipt_id=receipt.id,
-                                    desc=f"Reverting to default price from custom price of ${current_cost}",
-                                    amount=cost_change * 100,
-                                    count=1,
-                                    who=AdminAccount.admin_name() or 'non-admin',
-                                    revert_change=revert_change,
-                                )]
+                                              desc=f"Reverting to default price from custom price of ${current_cost}",
+                                              amount=cost_change * 100,
+                                              count=1,
+                                              who=AdminAccount.admin_name() or 'non-admin',
+                                              revert_change=revert_change,
+                                              )]
 
-        if not params.get('no_override') and params.get('overridden_price', None) != None:
+        if not params.get('no_override') and params.get('overridden_price', None) is not None:
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
             return [receipt_item] if receipt_item else []
         elif params.get('no_override'):
@@ -1421,8 +1457,9 @@ class ReceiptManager:
             return [receipt_item] if receipt_item else []
         else:
             params.pop('cost', None)
-        
-        if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
+
+        if params.get('power_fee', None) is not None and c.POWER_PRICES.get(int(params.get('power'), 0),
+                                                                            None) is None:
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', params)
             receipt_items += [receipt_item] if receipt_item else []
             params.pop('power')
@@ -1435,26 +1472,27 @@ class ReceiptManager:
                 coerced_val = model.coerce_column_data(column, val)
                 if coerced_val != getattr(model, key, None):
                     changed_params[key] = coerced_val
-            if key in ['promo_code_code']: # keys that map to properties instead of columns
+            if key in ['promo_code_code']:  # keys that map to properties instead of columns
                 if val != getattr(model, key, None):
                     changed_params[key] = val
-        
+
         if isinstance(model, Group):
             # "badges" is a property and not a column, so we have to include it explicitly
             maybe_badges_update = params.get('badges', None)
-            if maybe_badges_update != None and maybe_badges_update != model.badges:
+            if maybe_badges_update is not None and maybe_badges_update != model.badges:
                 changed_params['badges'] = maybe_badges_update
-        
+
         cost_changes = getattr(model.__class__, 'cost_changes', [])
         credit_changes = getattr(model.__class__, 'credit_changes', [])
         for param in changed_params:
             if param in credit_changes:
-                receipt_item = self.add_receipt_item_from_param(model, receipt, param, changed_params, 'process_receipt_credit_change')
+                receipt_item = self.add_receipt_item_from_param(model, receipt, param,
+                                                                changed_params, 'process_receipt_credit_change')
                 receipt_items += [receipt_item] if receipt_item else []
             elif param in cost_changes:
                 receipt_item = self.add_receipt_item_from_param(model, receipt, param, changed_params)
                 receipt_items += [receipt_item] if receipt_item else []
-        
+
         return receipt_items
 
     @classmethod
@@ -1470,15 +1508,17 @@ class ReceiptManager:
     @staticmethod
     def mark_paid_from_stripe_intent(payment_intent):
         if not payment_intent.charges.data:
-            log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid but that intent doesn't have a charge!")
+            log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid "
+                      "but that intent doesn't have a charge!")
             return []
 
         if payment_intent.status != "succeeded":
-            log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid but the charge on this intent wasn't successful!")
+            log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid "
+                      "but the charge on this intent wasn't successful!")
             return []
-        
+
         return ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.charges.data[0].id)
-        
+
     @staticmethod
     def mark_paid_from_ids(intent_id, charge_id):
         from uber.models import Attendee, ArtShowApplication, MarketplaceApplication, Group, ReceiptTransaction, Session
@@ -1488,11 +1528,11 @@ class ReceiptManager:
         session = Session().session
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).filter(
             ReceiptTransaction.charge_id == '').all()
-        
+
         if not matching_txns:
             log.debug(f"Tried to mark payments with intent ID {intent_id} as paid but we couldn't find any!")
             return []
-        
+
         for txn in matching_txns:
             if not c.AUTHORIZENET_LOGIN_ID:
                 txn.processing_fee = txn.calc_processing_fee()
@@ -1501,8 +1541,8 @@ class ReceiptManager:
             session.add(txn)
             txn_receipt = txn.receipt
 
-            if txn.cancelled != None:
-                txn.cancelled == None
+            if txn.cancelled is not None:
+                txn.cancelled = None
 
             for item in txn.receipt_items:
                 if item.amount > 0:
@@ -1539,8 +1579,7 @@ class ReceiptManager:
                         c.ART_SHOW_EMAIL,
                         c.ART_SHOW_NOTIFICATIONS_EMAIL,
                         'Art Show Payment Received',
-                        render('emails/art_show/payment_notification.txt',
-                            {'app': model}, encoding=None),
+                        render('emails/art_show/payment_notification.txt', {'app': model}, encoding=None),
                         model=model.to_dict('id'))
                 except Exception:
                     log.error('Unable to send Art Show payment confirmation email', exc_info=True)
@@ -1549,15 +1588,13 @@ class ReceiptManager:
                     c.MARKETPLACE_APP_EMAIL,
                     c.MARKETPLACE_APP_EMAIL,
                     'Marketplace Payment Received',
-                    render('emails/marketplace/payment_notification.txt',
-                        {'app': model}, encoding=None),
+                    render('emails/marketplace/payment_notification.txt', {'app': model}, encoding=None),
                     model=model.to_dict('id'))
                 send_email.delay(
                     c.MARKETPLACE_APP_EMAIL,
                     model.email_to_address,
                     'Marketplace Payment Received',
-                    render('emails/marketplace/payment_confirmation.txt',
-                        {'app': model}, encoding=None),
+                    render('emails/marketplace/payment_confirmation.txt', {'app': model}, encoding=None),
                     model=model.to_dict('id'))
 
         session.close()

@@ -80,14 +80,14 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     active_before = Column(UTCDateTime, nullable=True, default=None)
 
     emails = relationship('Email', backref='automated_email', order_by='Email.id')
-    
+
     @presave_adjustment
     def date_adjustments(self):
         if self.active_after == '':
             self.active_after = None
         elif isinstance(self.active_after, str):
             self.active_after = datetime.strptime(self.active_after, c.DATE_FORMAT)
-        
+
         if self.active_before == '':
             self.active_before = None
         elif isinstance(self.active_before, str):
@@ -105,22 +105,18 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     def filters_for_active(cls):
         now = utils.localized_now()
         return cls.filters_for_allowed + [
-            or_(cls.active_after == None, cls.active_after <= now),
+            or_(cls.active_after == None, cls.active_after <= now),  # noqa: E711
             or_(cls.active_before == None, cls.active_before >= now)]  # noqa: E711
 
     @classproperty
     def filters_for_approvable(cls):
-        return [
-            cls.approved == False,
-            cls.needs_approval == True,
-            or_(cls.active_before == None, cls.active_before >= utils.localized_now())]  # noqa: E711,E712
+        return [cls.approved == False, cls.needs_approval == True,  # noqa: E712
+                or_(cls.active_before == None, cls.active_before >= utils.localized_now())]  # noqa: E711, E712
 
     @classproperty
     def filters_for_pending(cls):
         return cls.filters_for_active + [
-            cls.approved == False,
-            cls.needs_approval == True,
-            cls.unapproved_count > 0]  # noqa: E712
+            cls.approved == False, cls.needs_approval == True, cls.unapproved_count > 0]  # noqa: E712
 
     @staticmethod
     def reconcile_fixtures():
@@ -273,7 +269,8 @@ class Email(MagModel, BaseEmailMixin):
 
     @cached_property
     def fk(self):
-        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() if self.session and self.fk_id else None
+        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() \
+            if self.session and self.fk_id else None
 
     @property
     def fk_email(self):

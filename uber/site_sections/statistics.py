@@ -2,9 +2,8 @@ from collections import Counter, defaultdict, OrderedDict
 
 from geopy.distance import VincentyDistance
 from pockets.autolog import log
-from pytz import UTC
 import six
-from sqlalchemy import and_, func
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import literal
 
@@ -73,7 +72,7 @@ class RegistrationDataOneYear:
             .outerjoin(Attendee.group) \
             .filter(
                 (
-                    (Attendee.group_id != None) &
+                    (Attendee.group_id != None) &  # noqa: E711
                     (Attendee.paid == c.PAID_BY_GROUP) &  # if they're paid by group
                     (Group.tables == 0) &                 # make sure they aren't dealers
                     (Group.amount_paid > 0)               # make sure they've paid something
@@ -84,15 +83,13 @@ class RegistrationDataOneYear:
             .group_by(date_trunc_day(Attendee.registered)) \
             .order_by(date_trunc_day(Attendee.registered)) \
             .all()  # noqa: E711
-        
+
         group_reg_per_day = session.query(
             date_trunc_day(PromoCode.group_registered),
             func.count(date_trunc_day(PromoCode.group_registered))
-            ) \
-        .filter(PromoCode.cost > 0) \
-        .group_by(date_trunc_day(PromoCode.group_registered)) \
-        .order_by(date_trunc_day(PromoCode.group_registered)) \
-        .all()
+            ).filter(PromoCode.cost > 0) \
+             .group_by(date_trunc_day(PromoCode.group_registered)) \
+             .order_by(date_trunc_day(PromoCode.group_registered)).all()
 
         # now, convert the query's data into the format we need.
         # SQL will skip days without registrations
@@ -192,11 +189,12 @@ class Root:
         shirt_stocks = c.SHIRT_SIZE_STOCKS
         for shirt_enum_key in c.PREREG_SHIRTS.keys():
             counts['shirt_stocks'][c.PREREG_SHIRTS[shirt_enum_key]] = shirt_stocks.get(shirt_enum_key, 'no limit set')
-            counts['shirt_counts'][c.PREREG_SHIRTS[shirt_enum_key]] = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'shirt_counts', shirt_enum_key)
+            counts['shirt_counts'][c.PREREG_SHIRTS[shirt_enum_key]] = \
+                c.REDIS_STORE.hget(c.REDIS_PREFIX + 'shirt_counts', shirt_enum_key)
 
         for a in session.query(Attendee).options(joinedload(Attendee.group)):
             counts['statuses'][a.badge_status_label] += 1
-            
+
             if a.badge_status not in [c.INVALID_GROUP_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
                 counts['paid'][a.paid_label] += 1
                 counts['ages'][a.age_group_label] += 1
@@ -249,7 +247,7 @@ class Root:
         return {
             'current_registrations': graph_data_current_year.dump_data(),
         }
-    
+
     @csv_file
     def checkins_by_admin_by_hour(self, out, session):
         header = ["Time", "Total Checked In"]
@@ -259,8 +257,8 @@ class Root:
                                                     ).group_by(Tracking.who).order_by(Tracking.who).distinct().all()
         for admin in admins:
             if not isinstance(admin, six.string_types):
-                admin = admin[0] # SQLAlchemy quirk
-            
+                admin = admin[0]  # SQLAlchemy quirk
+
             header.append(f"{admin} # Checked In")
 
         out.writerow(header)
@@ -273,14 +271,14 @@ class Root:
             .group_by(date_trunc_hour(Attendee.checked_in)) \
             .order_by(date_trunc_hour(Attendee.checked_in)) \
             .all()
-        
+
         for result in query_result:
             hour = localize_datetime(result[0])
             count = result[1]
             row = [hour, count]
             for admin in admins:
                 if not isinstance(admin, six.string_types):
-                    admin = admin[0] # SQLAlchemy quirk
+                    admin = admin[0]  # SQLAlchemy quirk
                 admin_count = session.query(Tracking.which).filter(
                     date_trunc_hour(Tracking.when) == result[0],
                     Tracking.who == admin,
@@ -290,13 +288,13 @@ class Root:
                 row.append(admin_count)
             out.writerow(row)
 
-
     if c.MAPS_ENABLED:
         from uszipcode import SearchEngine
+
         zips_counter = Counter()
         zips = {}
         try:
-            center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)
+            center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)  # noqa: F821
         except Exception as e:
             log.error("Error calling SearchEngine: " + e)
 
@@ -309,6 +307,8 @@ class Root:
 
         @ajax
         def refresh(self, session, **params):
+            from uszipcode import SearchEngine
+
             zips = {}
             self.zips_counter = Counter()
             attendees = session.query(Attendee).all()
@@ -331,6 +331,8 @@ class Root:
         @csv_file
         @not_site_mappable
         def radial_zip_data(self, out, session, **params):
+            from uszipcode import SearchEngine
+
             if params.get('radius'):
                 try:
                     res = SearchEngine(db_file_dir="/srv/reggie/data").by_coordinates(
@@ -338,7 +340,8 @@ class Root:
                 except Exception as e:
                     log.error("Error calling SearchEngine: " + e)
                 else:
-                    out.writerow(['# of Attendees', 'City', 'State', 'Zipcode', 'Miles from Event', '% of Total Attendees'])
+                    out.writerow(['# of Attendees', 'City', 'State', 'Zipcode',
+                                  'Miles from Event', '% of Total Attendees'])
                     if len(res) > 0:
                         keys = self.zips.keys()
                         center_coord = (self.center.lat, self.center.lng)
@@ -346,11 +349,13 @@ class Root:
                         for x in res:
                             if x.zipcode in keys:
                                 out.writerow([self.zips_counter[x.zipcode], x.city, x.state, x.zipcode,
-                                            VincentyDistance((x.lat, x.lng), center_coord).miles,
-                                            "%.2f" % float(self.zips_counter[x.zipcode] / total_count * 100)])
+                                              VincentyDistance((x.lat, x.lng), center_coord).miles,
+                                              "%.2f" % float(self.zips_counter[x.zipcode] / total_count * 100)])
 
         @ajax
         def set_center(self, session, **params):
+            from uszipcode import SearchEngine
+
             if params.get("zip"):
                 try:
                     self.center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(params["zip"]))
@@ -362,19 +367,25 @@ class Root:
 
         @csv_file
         def attendees_by_state(self, out, session):
-            # Result of set(map(lambda x: x.state, SearchEngine(db_file_dir="/srv/reggie/data").ses.query(SimpleZipcode))) -- literally all the states uszipcode knows about
-            states = ['SD', 'IL', 'WY', 'NV', 'NJ', 'NM', 'UT', 'OR', 'TX', 'NE', 'MS', 'FL', 'VA', 'HI', 'KY', 'MO', 'NY', 'WV', 'DC', 'AR', 'MT', 'MD', 'SC', 'NC', 'KS', 'OH', 'PR', 'CO', 'IN', 'VT', 'LA', 'ND', 'AZ', 'AK', 'AL', 'CT', 'TN', 'PA', 'IA', 'WA', 'ME', 'NH', 'MA', 'ID', 'OK', 'WI', 'GA', 'CA', 'DE', 'MN', 'MI', 'RI']
+            from uszipcode import SearchEngine
+
+            # set(map(lambda x: x.state, SearchEngine(db_file_dir="/srv/reggie/data").ses.query(SimpleZipcode)))
+            states = ['SD', 'IL', 'WY', 'NV', 'NJ', 'NM', 'UT', 'OR', 'TX', 'NE', 'MS', 'FL', 'VA', 'HI',
+                      'KY', 'MO', 'NY', 'WV', 'DC', 'AR', 'MT', 'MD', 'SC', 'NC', 'KS', 'OH', 'PR', 'CO',
+                      'IN', 'VT', 'LA', 'ND', 'AZ', 'AK', 'AL', 'CT', 'TN', 'PA', 'IA', 'WA', 'ME', 'NH',
+                      'MA', 'ID', 'OK', 'WI', 'GA', 'CA', 'DE', 'MN', 'MI', 'RI']
             total_count = session.attendees_with_badges().count()
 
             out.writerow(['# of Attendees', 'State', '% of Total Attendees'])
 
             for state in states:
                 try:
-                    zip_codes = list(map(lambda x: x.zipcode, SearchEngine(db_file_dir="/srv/reggie/data").by_state(state, returns=None)))
+                    zip_codes = list(map(lambda x: x.zipcode,
+                                         SearchEngine(db_file_dir="/srv/reggie/data").by_state(state,
+                                                                                               returns=None)))
                 except Exception as e:
                     log.error("Error calling SearchEngine: " + e)
                 else:
                     current_count = session.attendees_with_badges().filter(Attendee.zip_code.in_(zip_codes)).count()
                     if current_count:
                         out.writerow([current_count, state, "%.2f" % float(current_count / total_count * 100)])
-

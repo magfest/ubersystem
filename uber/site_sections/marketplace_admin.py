@@ -1,19 +1,13 @@
 import cherrypy
-import treepoem
-import os
-import re
-import math
 
-from decimal import Decimal
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import backref, joinedload
-from io import BytesIO
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, credit_card
+from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Tracking, ArbitraryCharge, MarketplaceApplication
-from uber.utils import check, localized_now, Order, remove_opt
+from uber.models import Attendee, Tracking, MarketplaceApplication
+from uber.utils import check, remove_opt
 
 
 @all_renderable()
@@ -32,7 +26,8 @@ class Root:
         attendee = None
 
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.is_valid == True, Attendee.badge_status != c.WATCHED_STATUS)
+            .filter(Attendee.first_name != '', Attendee.is_valid == True,  # noqa: E712
+                    Attendee.badge_status != c.WATCHED_STATUS)
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -79,9 +74,7 @@ class Root:
         return {
             'app': app,
             'changes': session.query(Tracking).filter(
-                or_(Tracking.links.like('%marketplace_application({})%'
-                                        .format(id)),
-                and_(Tracking.model == 'MarketplaceApplication',
-                     Tracking.fk_id == id)))
-                .order_by(Tracking.when).all()
+                or_(Tracking.links.like('%marketplace_application({})%'.format(id)),
+                    and_(Tracking.model == 'MarketplaceApplication',
+                         Tracking.fk_id == id))).order_by(Tracking.when).all()
         }

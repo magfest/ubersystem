@@ -23,8 +23,8 @@ class TestExceptionHandler:
         monkeypatch.setattr(cherrypy.request, 'params', {
             'id': '32',
             'action': 'reload',
-            'thing': 3,                 # use a non-string
-            'attachment': MockPart(),   # add fake attachment based on cherrypy's Part() class, make sure we handle OK
+            'thing': 3,  # use a non-string
+            'attachment': MockPart(),  # add fake attachment based on cherrypy's Part() class, make sure we handle OK
         })
         monkeypatch.setattr(cherrypy, 'session', {'session_id': '762876'})
         headers = [

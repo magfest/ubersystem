@@ -1,26 +1,11 @@
-import json
-import sys
-from datetime import datetime
-from threading import current_thread
-from urllib.parse import parse_qsl
-
-import cherrypy
-from pytz import UTC
-from sqlalchemy.ext import associationproxy
-
-from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sideboard.lib import serializer
 
-from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.admin import AdminAccount
-from uber.models.email import Email
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import SignNowRequest
+from uber.models.types import DefaultColumn as Column
 
 __all__ = ['SignedDocument']
+
 
 class SignedDocument(MagModel):
     fk_id = Column(UUID, index=True)

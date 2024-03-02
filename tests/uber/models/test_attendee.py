@@ -244,6 +244,7 @@ def test_is_not_transferable_trusted(monkeypatch, dept, trusted_role):
         session.flush()
         assert not attendee.is_transferable
 
+
 """
 Disabling these as they test implementation details that have radically changed
 @pytest.mark.parametrize('open,expected', [
@@ -313,6 +314,7 @@ def test_self_service_refunds_group_leader(monkeypatch):
         StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
     assert not attendee.can_self_service_refund_badge
 """
+
 
 def test_has_role_somewhere(dept, trusted_role):
     with Session() as session:
@@ -844,4 +846,3 @@ class TestPhoneNumberValidations:
     ])
     def test_invalid_number(selfself, number):
         assert invalid_phone_number(number)
-

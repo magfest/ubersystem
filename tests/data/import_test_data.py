@@ -57,6 +57,7 @@ def all_dept_ids_from_existing_locations(locations):
                 dept_ids.append(department_id)
     return dept_ids
 
+
 job_locations = getattr(c, 'JOB_LOCATIONS', {})
 job_interests = getattr(c, 'JOB_INTERESTS', {})
 job_location_to_department_id = {i: _dept_id_from_location(i) for i in job_locations.keys()}

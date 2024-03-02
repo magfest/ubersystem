@@ -57,7 +57,7 @@ class MenuItem:
         Returns: dict of menu items which are allowed to be seen by the logged in user's access levels
         """
         out = {}
-        
+
         page_path = self.access_override or self.href
 
         if self.href and not c.has_section_or_page_access(page_path=page_path.strip('.'), include_read_only=True):
@@ -137,7 +137,8 @@ c.MENU = MenuItem(name='Root', submenu=[
 
 
 if c.ATTENDEE_ACCOUNTS_ENABLED:
-    c.MENU['People'].append_menu_item(MenuItem(name='Attendee Accounts', href='../reg_admin/attendee_accounts'), position=1)
+    c.MENU['People'].append_menu_item(MenuItem(name='Attendee Accounts',
+                                               href='../reg_admin/attendee_accounts'), position=1)
 
 
 if c.ATTRACTIONS_ENABLED:

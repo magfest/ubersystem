@@ -1,5 +1,4 @@
 from uber.barcode import get_badge_num_from_barcode
-from uber.config import c
 from uber.decorators import all_renderable, ajax, any_admin_access
 
 

@@ -10,24 +10,26 @@ from uber.utils import extract_urls
 class Root:
     @log_pageview
     def dealer_receipt_discrepancies(self, session):
-        filters = [Group.cost_cents != ModelReceipt.item_total, Group.is_dealer == True, Group.status == c.APPROVED]
-        
+        filters = [Group.cost_cents != ModelReceipt.item_total, Group.is_dealer == True,  # noqa: E712
+                   Group.status == c.APPROVED]
+
         return {
             'groups': session.query(Group).join(Group.active_receipt).filter(*filters),
         }
-    
+
     @log_pageview
     def dealers_nonzero_balance(self, session, include_no_receipts=False):
         if include_no_receipts:
             groups = session.query(Group).outerjoin(Group.active_receipt).filter(
-                or_(and_(ModelReceipt.id == None, Group.cost > 0),
-                    and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))
+                or_(and_(ModelReceipt.id == None, Group.cost > 0),  # noqa: E711
+                    and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))  # noqa: E711
         else:
-            groups = session.query(Group).join(Group.active_receipt).filter(Group.cost_cents == ModelReceipt.item_total,
-                                                                            ModelReceipt.current_receipt_amount != 0)
+            groups = session.query(Group).join(Group.active_receipt).filter(
+                Group.cost_cents == ModelReceipt.item_total,
+                ModelReceipt.current_receipt_amount != 0)
 
         return {
-            'groups': groups.filter(Group.is_dealer == True, Group.status == c.APPROVED),
+            'groups': groups.filter(Group.is_dealer == True, Group.status == c.APPROVED),  # noqa: E712
             'include_no_receipts': include_no_receipts,
         }
 
@@ -51,7 +53,7 @@ class Root:
                 group.website,
                 group.wares
             ])
-    
+
     @csv_file
     def approved_seller_table_info(self, out, session):
         out.writerow([
@@ -73,7 +75,7 @@ class Root:
             'Cost',
             'Badges'
         ])
-        dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()
+        dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()  # noqa: E712
         for group in dealer_groups:
             if group.status == c.APPROVED:
                 full_name = group.leader.full_name if group.leader else ''
@@ -113,8 +115,8 @@ class Root:
             'Special Requests',
             ])
 
-        dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()
-        
+        dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()  # noqa: E712
+
         def write_url_or_text(cell, is_url=False, last_cell=False):
             if is_url:
                 url = cell if cell.startswith('http') else 'http://' + cell
@@ -142,7 +144,7 @@ class Root:
 
             for cell in row[:-1]:
                 write_url_or_text(cell, cell == group.website or cell in wares_urls)
-            
+
             final_cell = row[-1:][0]
             write_url_or_text(final_cell, final_cell == group.website or final_cell in wares_urls, last_cell=True)
 
@@ -197,7 +199,6 @@ class Root:
             out.writecell(group.name)
             out.writecell(group.registered.replace(tzinfo=None), format={'num_format': 'dd/mm/yy hh:mm'})
             out.writecell(group.name, url="{}/group_admin/form?id={}".format(c.URL_BASE, group.id), last_cell=True)
-            
 
     @xlsx_file
     def waitlisted_group_info(self, out, session):
@@ -219,7 +220,7 @@ class Root:
             'Website',
             ]
         out.writerows(header_row, rows)
-        
+
     @xlsx_file
     def seller_tax_info(self, out, session):
         approved_groups = session.query(Group).filter(Group.status == c.APPROVED).all()

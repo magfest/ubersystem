@@ -105,7 +105,8 @@ class TestPreregCart:
 
     def test_charge_first_email(self):
         attendee = Attendee(email='test@example.com')
-        charge = PreregCart(targets=[attendee, Attendee(email='test2@example.com'), Attendee(email='test3@example.com')])
+        charge = PreregCart(targets=[attendee, Attendee(email='test2@example.com'),
+                                     Attendee(email='test3@example.com')])
         assert charge.receipt_email == attendee.email
 
     def test_charge_no_email(self):
@@ -128,7 +129,7 @@ class TestPreregCart:
         attendee = Attendee()
         monkeypatch.setattr(Attendee, 'amount_unpaid', 10)
         charge = PreregCart(targets=[attendee],
-                        description="Test charge")
+                            description="Test charge")
         charge.response = stripe.Charge(id=10)
         txn = charge.stripe_transaction_from_charge()
         result = charge.stripe_transaction_for_model(attendee, txn)
@@ -140,7 +141,7 @@ class TestPreregCart:
         group = Group()
         monkeypatch.setattr(Group, 'amount_unpaid', 10)
         charge = PreregCart(targets=[group],
-                        description="Test charge")
+                            description="Test charge")
         charge.response = stripe.Charge(id=10)
         txn = charge.stripe_transaction_from_charge()
         result = charge.stripe_transaction_for_model(group, txn)
@@ -152,7 +153,7 @@ class TestPreregCart:
         group = Group()
         monkeypatch.setattr(Group, 'amount_unpaid', 0)
         charge = PreregCart(targets=[group], amount=1000,
-                        description="Test charge")
+                            description="Test charge")
         charge.response = stripe.Charge(id=10)
         txn = charge.stripe_transaction_from_charge()
         result = charge.stripe_transaction_for_model(group, txn)
@@ -172,33 +173,33 @@ class TestAgeCalculations:
 
     @pytest.mark.parametrize('birthdate,today,expected', [
         # general
-        (date(2000, 1,  1), date(2010, 1,  1), 10),
-        (date(2000, 1,  1), date(2010, 6,  1), 10),
-        (date(2000, 1,  1), date(2009, 6,  1),  9),
-        (date(2000, 7, 31), date(2010, 7, 30),  9),
+        (date(2000, 1, 1), date(2010, 1, 1), 10),
+        (date(2000, 1, 1), date(2010, 6, 1), 10),
+        (date(2000, 1, 1), date(2009, 6, 1), 9),
+        (date(2000, 7, 31), date(2010, 7, 30), 9),
         (date(2000, 7, 31), date(2010, 7, 31), 10),
-        (date(2000, 7, 31), date(2010, 8,  1), 10),
+        (date(2000, 7, 31), date(2010, 8, 1), 10),
         (date(2000, 10, 4), date(2017, 10, 3), 16),
         (date(2000, 10, 4), date(2017, 10, 4), 17),
         # feb 29 birthday
-        (date(2000, 2, 29), date(2010, 2, 28),  9),
-        (date(2000, 2, 29), date(2010, 3,  1), 10),
+        (date(2000, 2, 29), date(2010, 2, 28), 9),
+        (date(2000, 2, 29), date(2010, 3, 1), 10),
         # feb 29 birthday + feb 29 today
-        (date(2000, 2, 29), date(2008, 2, 28),  7),
-        (date(2000, 2, 29), date(2008, 2, 29),  8),
-        (date(2000, 2, 29), date(2008, 3,  1),  8),
+        (date(2000, 2, 29), date(2008, 2, 28), 7),
+        (date(2000, 2, 29), date(2008, 2, 29), 8),
+        (date(2000, 2, 29), date(2008, 3, 1), 8),
         # feb 29 today
-        (date(2000, 3,  1), date(2008, 2, 28),  7),
-        (date(2000, 3,  1), date(2008, 2, 29),  7),
-        (date(2000, 3,  1), date(2008, 3,  1),  8),
+        (date(2000, 3, 1), date(2008, 2, 28), 7),
+        (date(2000, 3, 1), date(2008, 2, 29), 7),
+        (date(2000, 3, 1), date(2008, 3, 1), 8),
         # turning 18
-        (date(2000, 1,  4), date(2018, 1,  3), 17),
-        (date(2000, 1,  4), date(2018, 1,  4), 18),
-        (date(2000, 1,  5), date(2018, 1,  4), 17),
+        (date(2000, 1, 4), date(2018, 1, 3), 17),
+        (date(2000, 1, 4), date(2018, 1, 4), 18),
+        (date(2000, 1, 5), date(2018, 1, 4), 17),
         # turning 21
-        (date(1997, 1,  4), date(2018, 1,  3), 20),
-        (date(1997, 1,  4), date(2018, 1,  4), 21),
-        (date(1997, 1,  5), date(2018, 1,  4), 20)
+        (date(1997, 1, 4), date(2018, 1, 3), 20),
+        (date(1997, 1, 4), date(2018, 1, 4), 21),
+        (date(1997, 1, 5), date(2018, 1, 4), 20)
 
     ])
     def test_age_calculation(self, birthdate, today, expected):

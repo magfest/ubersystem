@@ -41,7 +41,8 @@ class ReportTracking(MagModel):
         with Session() as session:
             session.add(ReportTracking(who=AdminAccount.admin_name(),
                                        page=c.PAGE_PATH,
-                                       params={key: val for key, val in params.items() if key not in ['self', 'out', 'session']}))
+                                       params={key: val for key, val in params.items()
+                                               if key not in ['self', 'out', 'session']}))
             session.commit()
 
 
@@ -160,7 +161,7 @@ class Tracking(MagModel):
 
                 diff[attr] = "'{} -> {}'".format(old_val_repr, new_val_repr)
         return diff
-    
+
     @classmethod
     def track_collection_change(cls, action, target, instance):
         from uber.models import Session
@@ -194,8 +195,8 @@ class Tracking(MagModel):
             data = cls.format(diff)
             if len(diff) == 1 and 'badge_num' in diff and c.SHIFT_CUSTOM_BADGES:
                 action = c.AUTO_BADGE_SHIFT
-            if isinstance(instance, AutomatedEmail) and not diff.keys().isdisjoint(("currently_sending", 
-                                                                                    "last_send_time", 
+            if isinstance(instance, AutomatedEmail) and not diff.keys().isdisjoint(("currently_sending",
+                                                                                    "last_send_time",
                                                                                     "unapproved_count")):
                 return
             elif not data:
@@ -206,14 +207,14 @@ class Tracking(MagModel):
         links = ', '.join(
             '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
             for name, column in instance.__table__.columns.items() if column.foreign_keys
-                                                                   and 'creator' not in str(column)
-                                                                   and getattr(instance, name))
+            and 'creator' not in str(column)
+            and getattr(instance, name))
 
         if sys.argv == ['']:
             who = 'server admin'
         else:
             who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
-            
+
         try:
             snapshot = json.dumps(instance.to_dict(), cls=serializer)
         except TypeError as e:
@@ -255,8 +256,8 @@ class TxnRequestTracking(MagModel):
     def log_internal_error(self):
         if self.internal_error and not self.orig_value_of('internal_error'):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
-                                   'last_error',
-                                   self.internal_error)
+                               'last_error',
+                               self.internal_error)
 
 
 Tracking.UNTRACKED = [Tracking, Email, PageViewTracking, ReportTracking, TxnRequestTracking]

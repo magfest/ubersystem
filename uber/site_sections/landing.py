@@ -1,8 +1,7 @@
 import cherrypy
 
-from uber.decorators import all_renderable, requires_account
-from uber.errors import HTTPRedirect
-from uber.forms import attendee as attendee_forms, load_forms
+from uber.decorators import all_renderable
+from uber.forms import load_forms
 from uber.models import Attendee
 from uber.payments import PreregCart
 

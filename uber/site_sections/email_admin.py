@@ -81,7 +81,7 @@ class Root:
             'examples': examples,
             'message': message,
         }
-    
+
     def update_dates(self, session, ident, **params):
         email = session.query(AutomatedEmail).filter_by(ident=ident).first()
         email.apply(params, restricted=False)
@@ -151,7 +151,7 @@ class Root:
             automated_email.approved = True
             raise HTTPRedirect(
                 'pending?message={}',
-                '"{}" approved and will be sent out {}'.format(automated_email.subject, 
+                '"{}" approved and will be sent out {}'.format(automated_email.subject,
                                                                "shortly" if not automated_email.active_when_label
                                                                else automated_email.active_when_label))
         raise HTTPRedirect('pending?message={}{}', 'Unknown automated email: ', ident)

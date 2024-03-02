@@ -3,7 +3,6 @@ import shutil
 
 import cherrypy
 from cherrypy.lib.static import serve_file
-from pockets.autolog import log
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -207,11 +206,10 @@ class Root:
                     if c.GUEST_INFO_DEADLINE and not guest.info and not guest_merch.tax_phone:
                         message = 'You must provide a phone number for tax purposes.'
                     elif c.GUEST_INFO_DEADLINE and not (params.get('country')
-                              and params.get('region')
-                              and params.get('zip_code')
-                              and params.get('address1')
-                              and params.get('city')):
-
+                                                        and params.get('region')
+                                                        and params.get('zip_code')
+                                                        and params.get('address1')
+                                                        and params.get('city')):
                         message = 'You must provide an address for tax purposes.'
                     else:
                         guest.group.apply(group_params, restricted=True)
@@ -227,7 +225,8 @@ class Root:
             'guest_merch': guest_merch,
             'group': group_params or guest.group,
             'message': message,
-            'agreed_to_ri_faq': guest.group_type == c.BAND and guest_merch and guest_merch.orig_value_of('selling_merch') != c.NO_MERCH and guest_merch.poc_address1,
+            'agreed_to_ri_faq': guest.group_type == c.BAND and guest_merch and
+            guest_merch.orig_value_of('selling_merch') != c.NO_MERCH and guest_merch.poc_address1,
         }
 
     @ajax
@@ -277,7 +276,8 @@ class Root:
             else:
                 guest.charity = guest_charity
                 session.add(guest_charity)
-                if guest_charity.donating == c.DONATING or guest_charity.orig_value_of('donating') != guest_charity.donating:
+                if guest_charity.donating == c.DONATING or \
+                        guest_charity.orig_value_of('donating') != guest_charity.donating:
                     send_email.delay(
                             c.CHARITY_EMAIL,
                             c.CHARITY_EMAIL,
@@ -298,17 +298,19 @@ class Root:
         if cherrypy.request.method == 'POST':
             guest.autograph = guest_autograph
             session.add(guest_autograph)
-            guest_autograph.length = 60 * int(params.get('length'), 0)  # Convert hours to minutes
-            guest_autograph.rock_island_length = 60 * int(params.get('rock_island_length', 0))  # Convert hours to minutes
+
+            # Convert hours to minutes
+            guest_autograph.length = 60 * int(params.get('length'), 0)
+            guest_autograph.rock_island_length = 60 * int(params.get('rock_island_length', 0))
 
             if guest_autograph.rock_island_autographs or \
-                guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
+                    guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
                 send_email.delay(
                     c.ROCK_ISLAND_EMAIL,
                     c.ROCK_ISLAND_EMAIL,
                     '{} Meet & Greet Notification'.format(guest.group.name),
                     render('emails/guests/meetgreet_notification.txt', {'guest': guest}, encoding=None),
-                            model=guest.to_dict('id'))
+                    model=guest.to_dict('id'))
             raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your autograph sessions have been saved')
 
         return {
@@ -339,7 +341,8 @@ class Root:
 
         if guest.uses_detailed_travel_plans:
             guest_travel_plans = guest.travel_plans or GuestTravelPlans(guest_id=guest_id)
-            detailed_travel_plans = compile_travel_plans_from_params(session, **params) or guest_travel_plans.detailed_travel_plans
+            detailed_travel_plans = compile_travel_plans_from_params(session, **params) or \
+                guest_travel_plans.detailed_travel_plans
         else:
             guest_travel_plans = session.guest_travel_plans(params, checkgroups=['modes'])
 
@@ -382,7 +385,7 @@ class Root:
             'min_departure_time': GuestDetailedTravelPlan.min_departure_time,
             'max_departure_time': GuestDetailedTravelPlan.max_departure_time,
         }
-    
+
     def hospitality(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_hospitality = session.guest_hospitality(params, restricted=True)
@@ -514,7 +517,7 @@ class Root:
             'guest': guest,
             'message': message,
         }
-        
+
     def mivs_show_info(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':

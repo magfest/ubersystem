@@ -1,4 +1,3 @@
-import bcrypt
 import json
 import pytz
 import math
@@ -7,28 +6,26 @@ from datetime import datetime, timedelta
 from functools import wraps
 from io import BytesIO
 
-from pockets.autolog import log
-
 import cherrypy
 from aztec_code_generator import AztecCode
 from pytz import UTC
-from six import string_types
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import format_currency, readable_join
-from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderable, attendee_view, check_for_encrypted_badge_num, \
-    credit_card, csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, requires_account, site_mappable, \
-    public
+from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderable, attendee_view, \
+    check_for_encrypted_badge_num, credit_card, csrf_protected, log_pageview, not_site_mappable, render, \
+    requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, AttendeeAccount, AdminAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
-    PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, WatchList, ReceiptTransaction, WorkstationAssignment
+from uber.models import Attendee, AttendeeAccount, AdminAccount, Email, Group, Job, PageViewTracking, PrintJob, \
+    PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction, \
+    WorkstationAssignment
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
-    localized_now, Order, normalize_email, validate_model
+    localized_now, Order, validate_model
 from uber.payments import TransactionRequest, ReceiptManager, SpinTerminalRequest
 
 
@@ -51,6 +48,7 @@ def load_attendee(session, params):
         attendee = session.attendee(id)
 
     return attendee
+
 
 def save_attendee(session, attendee, params):
     if cherrypy.request.method == 'POST':
@@ -94,8 +92,9 @@ class Root:
             page = 1
 
         reg_station_id = cherrypy.session.get('reg_station', '')
-        workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first()
-        
+        workstation_assignment = session.query(WorkstationAssignment
+                                               ).filter_by(reg_station_id=reg_station_id or -1).first()
+
         status_list = [c.NEW_STATUS, c.COMPLETED_STATUS, c.WATCHED_STATUS, c.UNAPPROVED_DEALER_STATUS]
         if c.AT_THE_CON:
             status_list.append(c.AT_DOOR_PENDING_STATUS)
@@ -111,7 +110,8 @@ class Root:
                 if count == total_count:
                     message = 'Every{} attendee matched this search.'.format('' if invalid else ' valid')
             elif not message:
-                message = 'No matches found.{}'.format('' if invalid else ' Try showing all badges to expand your search.')
+                message = 'No matches found.{}'.format(
+                    '' if invalid else ' Try showing all badges to expand your search.')
         if not count:
             attendees = session.index_attendees().filter(*filter)
 
@@ -122,7 +122,8 @@ class Root:
             page = page or 1
             if count == 1 and not c.AT_THE_CON:
                 raise HTTPRedirect(
-                    'form?id={}&message={}', attendees.one().id, 'This attendee was the only{} search result'.format('' if invalid else ' valid'))
+                    'form?id={}&message={}', attendees.one().id,
+                    'This attendee was the only{} search result'.format('' if invalid else ' valid'))
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
         attendees = attendees[-100 + 100*page: 100*page] if page else []
@@ -138,12 +139,12 @@ class Root:
             'order':          Order(order),
             'search_count':   count,
             'attendee_count': total_count,
-            'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
+            'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),  # noqa: E711
             'attendee':       session.attendee(uploaded_id, allow_invalid=True) if uploaded_id else None,
             'reg_station_id':    reg_station_id,
             'workstation_assignment': workstation_assignment,
         }  # noqa: E711
-    
+
     @ajax
     @any_admin_access
     def validate_attendee(self, session, form_list=[], **params):
@@ -164,29 +165,35 @@ class Root:
             return {"error": all_errors}
 
         return {"success": True}
-    
+
     @ajax
     def validate_attendee_checkin(self, session, form_list, **params):
         if params.get('id') in [None, '', 'None']:
             attendee = Attendee()
         else:
             attendee = session.attendee(params.get('id'))
-        
+
         normal_validations = json.loads(self.validate_attendee(form_list=form_list, **params))
         if 'error' in normal_validations:
             return {"error": normal_validations['error']}
-        
+
         if attendee.checked_in:
             # We skip this failure for badge printing since we still want the badge to get printed
             if not c.BADGE_PRINTING_ENABLED or attendee.times_printed > 0:
                 return {"error": {'': [attendee.full_name + ' was already checked in!']}}
 
         if attendee.group and attendee.paid == c.PAID_BY_GROUP and attendee.group.amount_unpaid:
-            return {"error": {'': ['This attendee\'s group has an outstanding balance of ${}.'.format(format_currency(attendee.group.amount_unpaid))]}}
+            return {
+                "error": {'': ['This attendee\'s group has an outstanding balance of ${}.'.format(
+                    format_currency(attendee.group.amount_unpaid))]}
+                    }
 
         if attendee.amount_unpaid_if_valid:
-            return {"error": {'': ['This attendee has an outstanding balance of ${}.'.format(format_currency(attendee.amount_unpaid_if_valid))]}}
-        
+            return {
+                "error": {'': ['This attendee has an outstanding balance of ${}.'.format(
+                    format_currency(attendee.amount_unpaid_if_valid))]}
+                    }
+
         return {"success": True}
 
     @log_pageview
@@ -194,7 +201,8 @@ class Root:
         attendee = load_attendee(session, params)
 
         reg_station_id = cherrypy.session.get('reg_station', '')
-        workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first()
+        workstation_assignment = session.query(WorkstationAssignment
+                                               ).filter_by(reg_station_id=reg_station_id or -1).first()
 
         if cherrypy.request.method == 'POST':
             message = save_attendee(session, attendee, params)
@@ -209,7 +217,7 @@ class Root:
                     raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
 
                 message = '{} has been saved.'.format(attendee.full_name)
-                stay_on_form = params.get('save_return_to_search', False) == False
+                stay_on_form = params.get('save_return_to_search', False) is False
                 session.add(attendee)
                 session.commit()
                 if params.get('save_check_in', False):
@@ -227,7 +235,7 @@ class Root:
                         message = '{} saved and checked in as {}{}.'.format(
                             attendee.full_name, attendee.badge, attendee.accoutrements)
                         stay_on_form = False
-                        
+
                 if stay_on_form:
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
                 else:
@@ -254,13 +262,14 @@ class Root:
             'unassigned': {
                 group_id: unassigned
                 for group_id, unassigned in session.query(Attendee.group_id, func.count('*')).filter(
-                    Attendee.group_id != None, Attendee.first_name == '').group_by(Attendee.group_id).all()},
+                    Attendee.group_id != None,  # noqa: E711
+                    Attendee.first_name == '').group_by(Attendee.group_id).all()},
             'payment_enabled': True if reg_station_id else False,
             'reg_station_id': reg_station_id,
             'workstation_assignment': workstation_assignment,
             'receipt': receipt,
         }  # noqa: E711
-    
+
     @ajax
     def start_terminal_payment(self, session, model_id='', account_id='', **params):
         from uber.tasks.registration import process_terminal_sale
@@ -287,7 +296,7 @@ class Root:
                                     account_id=account_id,
                                     description=description)
         return {'success': True}
-    
+
     def check_txn_status(self, session, intent_id='', **params):
         error, terminal_id = session.get_assigned_terminal_id()
 
@@ -307,7 +316,7 @@ class Root:
             message = f"Error checking status of {intent_id}: {req.error_message}"
 
         raise HTTPRedirect('../reg_admin/manage_workstations?message={}', message)
-    
+
     @ajax
     def poll_terminal_payment(self, session, **params):
         from spin_rest_utils import utils as spin_rest_utils
@@ -320,7 +329,7 @@ class Root:
         error_message = terminal_status.get('last_error', '')
         intent_id = terminal_status.get('intent_id', '')
         response = json.loads(terminal_status.get('last_response')) if terminal_status.get('last_response') else {}
-        
+
         if error_message:
             if intent_id and not response:
                 matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id)
@@ -335,12 +344,16 @@ class Root:
             return {'error': error_message, 'intent_id': intent_id}
         elif response:
             if not intent_id:
-                return {'error': "We could not find which payment this transaction was for. You may need a manager to log it manually."}
+                return {
+                    'error': "We could not find which payment this transaction was for. "
+                    "You may need a manager to log it manually."
+                    }
             return {'success': True, 'intent_id': intent_id}
         else:
             # TODO: Finish and test this
             past_timeout = datetime.now(pytz.UTC) - timedelta(seconds=150)
-            if terminal_status.get('request_timestamp') and terminal_status.get('request_timestamp') < past_timeout.timestamp():
+            if terminal_status.get('request_timestamp') and \
+                    terminal_status.get('request_timestamp') < past_timeout.timestamp():
                 status_request = SpinTerminalRequest(terminal_id)
                 response = status_request.check_txn_status(intent_id)
                 if response:
@@ -352,20 +365,17 @@ class Root:
         groups = session.query(PromoCodeGroup).order_by(PromoCodeGroup.name).all()
         used_counts = {
             group_id: count for group_id, count in
-                session.query(PromoCode.group_id, func.count(PromoCode.id))
-                    .filter(Attendee.promo_code_id == PromoCode.id,
-                            PromoCode.group_id == PromoCodeGroup.id)
-                    .group_by(PromoCode.group_id)
+            session.query(PromoCode.group_id, func.count(PromoCode.id))
+            .filter(Attendee.promo_code_id == PromoCode.id,
+                    PromoCode.group_id == PromoCodeGroup.id).group_by(PromoCode.group_id)
         }
         total_costs = {
             group_id: total for group_id, total in
-                session.query(PromoCode.group_id, func.sum(PromoCode.cost))
-                        .group_by(PromoCode.group_id)
+            session.query(PromoCode.group_id, func.sum(PromoCode.cost)).group_by(PromoCode.group_id)
         }
         total_counts = {
             group_id: count for group_id, count in
-                session.query(PromoCode.group_id, func.count('*'))
-                        .group_by(PromoCode.group_id)
+            session.query(PromoCode.group_id, func.count('*')).group_by(PromoCode.group_id)
         }
         return {
             'groups': groups,
@@ -434,7 +444,7 @@ class Root:
         session.delete(code)
         session.commit()
 
-        return { 'removed': id }
+        return {'removed': id}
 
     @public
     def qrcode_generator(self, data):
@@ -515,10 +525,10 @@ class Root:
         if return_msg:
             session.commit()
             return True, message
-        
+
         q_or_a = '?' if '?' not in return_to else '&'
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else q_or_a) + 'message={}', message)
-    
+
     @ajax
     @attendee_view
     def delete_attendee(self, session, id, **params):
@@ -543,33 +553,37 @@ class Root:
 
         if not printer_id:
             return {'success': False, 'message': 'You must set a printer ID.'}
-        
+
         reg_station_id = cherrypy.session.get('reg_station', '')
-        workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first()
-        
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(
+            reg_station_id=reg_station_id or -1).first()
+
         if attendee.age_now_or_at_con < 18 and not workstation_assignment:
-            return {'success': False, 'message': 'Your workstation has no printers assigned, so we can\'t tell how to handle this minor\'s badge.'}
-        
+            return {'success': False,
+                    'message': "Your workstation has no printers assigned, "
+                    "so we can't tell how to handle this minor's badge."}
+
         success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
         if not success:
             return {'success': False, 'message': message}
-        
+
         session.commit()
         if attendee.age_now_or_at_con < 18 and printer_id == workstation_assignment.printer_id:
             if session.query(PrintJob).filter(PrintJob.printer_id == printer_id,
-                                              PrintJob.printed == None,
+                                              PrintJob.printed == None,  # noqa: E711
                                               PrintJob.errors == '').all():
                 return {'success': False,
-                        'message': "This is a minor badge and there are still standard badges waiting to print on this printer. \
-                                    Please try again soon or set a different printer ID."}
+                        'message': "This is a minor badge and there are still standard badges waiting to "
+                        "print on this printer. Please try again soon or set a different printer ID."}
             else:
                 return {'success': True, 'minor_check': True}
         else:
-            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), params.get('fee_amount'))
+            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'),
+                                       params.get('fee_amount'))
             session.commit()
             return {'success': True, 'message': message + f" {attendee.full_name} successfully checked in."}
-        
+
     @ajax
     def print_and_check_in_badges(self, session, message='', printer_id='', minor_printer_id='', **params):
         from uber.site_sections.badge_printing import pre_print_check
@@ -582,31 +596,33 @@ class Root:
 
         if not printer_id and not minor_printer_id:
             return {'success': False, 'message': 'You must set a printer ID.'}
-        
+
         if len(account.at_door_under_18s) != len(account.at_door_attendees) and not printer_id:
-            return {'success': False, 'message': 'You must set a printer ID for the adult badges that are being checked in.'}
-        
+            return {'success': False,
+                    'message': 'You must set a printer ID for the adult badges that are being checked in.'}
+
         minor_check_badges = False
         attendee_names_list = []
         checked_in = {}
         printer_messages = []
         cherrypy.session['cart_success_list'] = []
         cherrypy.session['cart_printer_error_list'] = []
-        
+
         for attendee in account.at_door_attendees:
             success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
             if not success:
                 printer_messages.append(f"There was a problem with printing {attendee.full_name}'s badge: {message}")
-            
+
             session.commit()
 
             if success and attendee.age_now_or_at_con < 18 and (not minor_printer_id or printer_id == minor_printer_id):
                 minor_check_badges = True
             elif success:
                 attendee_names_list.append(attendee.full_name)
-                session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), params.get('fee_amount'))
-            
+                session.add_to_print_queue(attendee, printer_id,
+                                           cherrypy.session.get('reg_station'), params.get('fee_amount'))
+
                 if attendee.badge_status == c.AT_DOOR_PENDING_STATUS:
                     attendee.badge_status = c.NEW_STATUS
                 attendee.checked_in = localized_now()
@@ -619,15 +635,21 @@ class Root:
                 session.commit()
 
         if attendee_names_list:
-            success_message = "{} successfully checked in.{}".format(readable_join(attendee_names_list),
-                                                                     (" " + " ".join(printer_messages)) if printer_messages else "")
+            success_message = "{} successfully checked in.{}".format(
+                readable_join(attendee_names_list),
+                (" " + " ".join(printer_messages)) if printer_messages else "")
         else:
             success_message = " ".join(printer_messages)
-        
+
         if minor_check_badges:
             cherrypy.session['cart_success_list'] = attendee_names_list
             cherrypy.session['cart_printer_error_list'] = printer_messages
-            return {'success': True, 'minor_check': True, 'num_adults': len(attendee_names_list), 'checked_in': checked_in}
+            return {
+                'success': True,
+                'minor_check': True,
+                'num_adults': len(attendee_names_list),
+                'checked_in': checked_in
+                }
         return {'success': True, 'message': success_message, 'checked_in': checked_in}
 
     def minor_check_form(self, session, printer_id, attendee_id='', account_id='', reprint_fee=0, num_adults=0):
@@ -661,11 +683,13 @@ class Root:
         checked_in = {}
 
         for attendee in attendees:
-            print_id, errors = session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), reprint_fee)
+            _, errors = session.add_to_print_queue(attendee, printer_id,
+                                                   cherrypy.session.get('reg_station'), reprint_fee)
             if errors and not account_id:
                 return {'success': False, 'message': "<br>".join(errors)}
             elif errors:
-                printer_messages.append(f"There was a problem with printing {attendee.full_name}'s badge: {' '.join(errors)}")
+                printer_messages.append(f"There was a problem with printing {attendee.full_name}'s "
+                                        f"badge: {' '.join(errors)}")
             else:
                 if attendee.badge_status == c.AT_DOOR_PENDING_STATUS:
                     attendee.badge_status = c.NEW_STATUS
@@ -678,9 +702,10 @@ class Root:
                 }
                 session.commit()
                 attendee_names_list.append(attendee.full_name)
-            
+
         message = "{} successfully checked in.{}".format(readable_join(attendee_names_list),
-                                                            (" " + " ".join(printer_messages)) if printer_messages else "")
+                                                         (" " + " ".join(printer_messages))
+                                                         if printer_messages else "")
         return {'success': True, 'message': message, 'checked_in': checked_in}
 
     def check_in_form(self, session, id):
@@ -693,13 +718,13 @@ class Root:
                 Group.status != c.WAITLISTED,
                 Group.id.in_(
                     session.query(Attendee.group_id)
-                    .filter(Attendee.group_id != None, Attendee.first_name == '')
+                    .filter(Attendee.group_id != None, Attendee.first_name == '')  # noqa: E711
                     .distinct().subquery()
                 )).order_by(Group.name)  # noqa: E711
 
             groups = [(
                 group.id,
-                (group.name if len(group.name) < 30 else '{}...'.format(group.name[:27], '...'))
+                (group.name if len(group.name) < 30 else '{}...'.format(group.name[:27]))
                 + (' ({})'.format(group.leader.full_name) if group.leader else ''))
                 for group in valid_groups]
         else:
@@ -712,11 +737,12 @@ class Root:
             'groups': groups,
             'forms': forms,
         }
-    
+
     def check_in_cart_form(self, session, id):
         account = session.attendee_account(id)
         reg_station_id = cherrypy.session.get('reg_station', '')
-        workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first()
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(
+            reg_station_id=reg_station_id or -1).first()
         total_cost = 0
         for attendee in account.at_door_attendees:
             receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
@@ -734,11 +760,11 @@ class Root:
 
         if id in [None, '', 'None']:
             return {'error': "No ID provided."}
-        
+
         attendee = session.attendee(id)
         if attendee.badge_status != c.AT_DOOR_PENDING_STATUS:
             return {'error': f"This attendee's badge status is actually {attendee.badge_status_label}. Please refresh."}
-        
+
         attendee.badge_status = c.NEW_STATUS
         session.commit()
 
@@ -759,7 +785,7 @@ class Root:
             form.populate_obj(attendee, is_admin=True)
 
         session.commit()
-        
+
         return {'success': True}
 
     @check_for_encrypted_badge_num
@@ -842,14 +868,13 @@ class Root:
         in_kiosk_mode = cherrypy.session.get('kiosk_mode')
         if in_kiosk_mode:
             cherrypy.session['attendee_account_id'] = None
-        
+
         if c.ATTENDEE_ACCOUNTS_ENABLED:
-            account_email, account_password = params.get('account_email'), params.get('account_password')
-            login_email, login_password = params.get('login_email'), params.get('login_password')
+            login_email = params.get('login_email')
 
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
         error_message = error_message or check_pii_consent(params, attendee)
-        if not error_message and 'first_name' in params:            
+        if not error_message and 'first_name' in params:
             if not payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
                 error_message = 'Please select a payment type'
             elif payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
@@ -868,7 +893,7 @@ class Root:
                         cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
                 session.add(attendee)
-                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                 session.commit()
                 if c.AFTER_BADGE_PRICE_WAIVED:
                     message = c.AT_DOOR_WAIVED_MSG
@@ -896,7 +921,7 @@ class Root:
             'kiosk_mode': in_kiosk_mode,
             'logging_in': bool(login_email),
         }
-    
+
     @public
     @check_atd
     def at_door_complete(self, session, id, message=''):
@@ -931,10 +956,10 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
         message = charge.prepare_payment()
-        
+
         if message:
             return {'error': message}
-        
+
         session.add_all(charge.get_receipt_items_to_add())
         session.commit()
         if cherrypy.session.get('kiosk_mode'):
@@ -955,7 +980,7 @@ class Root:
             raise HTTPRedirect('index?message={}', 'You must set your reg station number')
 
         if show_all:
-            restrict_to = [Attendee.paid == c.NOT_PAID, Attendee.placeholder == False]  # noqa: E711
+            restrict_to = [Attendee.paid == c.NOT_PAID, Attendee.placeholder == False]  # noqa: E712
         else:
             restrict_to = [
                 Attendee.paid != c.NEED_NOT_PAY, Attendee.registered > datetime.now(UTC) - timedelta(minutes=90)]
@@ -964,12 +989,10 @@ class Root:
             'message':    message,
             'show_all':   show_all,
             'checked_in': checked_in,
-            'recent':     session.query(Attendee)
-                                 .filter(Attendee.checked_in == None,
-                                         Attendee.first_name != '',
-                                         Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                                         *restrict_to)
-                                 .order_by(Attendee.registered.desc()).all(),
+            'recent':     session.query(Attendee).filter(Attendee.checked_in == None,  # noqa: E711
+                                                         Attendee.first_name != '',
+                                                         Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                                                         *restrict_to).order_by(Attendee.registered.desc()).all(),
         }  # noqa: E711
 
     @not_site_mappable
@@ -977,8 +1000,9 @@ class Root:
         from urllib.parse import unquote
         if not reg_station_id:
             message = "Please enter a number for this reg station"
-            
-        if not message and (not reg_station_id.isdigit() or (reg_station_id.isdigit() and not (0 <= int(reg_station_id) < 1000))):
+
+        if not message and (not reg_station_id.isdigit() or
+                            (reg_station_id.isdigit() and not (0 <= int(reg_station_id) < 1000))):
             message = "Reg station must be a positive integer between 0 and 1000"
 
         if not message:
@@ -990,16 +1014,16 @@ class Root:
         return_to = unquote(return_to)
         if '?' in return_to:
             connect_char = '&'
-            
+
         raise HTTPRedirect(f'{return_to}{connect_char}message={message}')
-    
+
     def update_printers(self, session, reg_station_id='', **params):
         if not reg_station_id:
             reg_station_id = cherrypy.session.get('reg_station')
 
         if not reg_station_id:
             raise HTTPRedirect("index?message={}", "No reg station ID set!")
-        
+
         reg_station_id = int(reg_station_id)
         cherrypy.session['reg_station'] = reg_station_id
 
@@ -1013,7 +1037,7 @@ class Root:
             session.add(workstation_assignment)
 
         workstation_assignment.printer_id = params.get('printer_id', '')
-        workstation_assignment.minor_printer_id = params.get('minor_printer_id', '')        
+        workstation_assignment.minor_printer_id = params.get('minor_printer_id', '')
 
         raise HTTPRedirect("index?message=Printer IDs set!")
 
@@ -1021,9 +1045,9 @@ class Root:
     def mark_as_paid(self, session, id, payment_method):
         if not cherrypy.session.get('reg_station'):
             return {'success': False, 'message': 'You must set a workstation ID to take payments.'}
-        
+
         account = None
-        
+
         try:
             attendee = session.attendee(id)
             attendees = [attendee]
@@ -1044,15 +1068,20 @@ class Root:
                     desc = f"At-door marked as paid by {AdminAccount.admin_name()}"
 
                 receipt_manager = ReceiptManager(receipt)
-                error = receipt_manager.create_payment_transaction(desc, amount=receipt.current_amount_owed, method=payment_method)
+                error = receipt_manager.create_payment_transaction(desc, amount=receipt.current_amount_owed,
+                                                                   method=payment_method)
                 if error:
                     session.rollback()
                     return {'success': False, 'message': error}
                 session.add_all(receipt_manager.items_to_add)
-            
+
                 attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
-        return {'success': True, 'message': 'Attendee{} marked as paid.'.format('s' if account else ''), 'id': attendee.id}
+        return {
+            'success': True,
+            'message': 'Attendee{} marked as paid.'.format('s' if account else ''),
+            'id': attendee.id
+            }
 
     @ajax
     @credit_card
@@ -1065,7 +1094,7 @@ class Root:
         message = charge.prepare_payment(payment_method=c.MANUAL)
         if message:
             return {'error': message}
-        
+
         session.add_all(charge.get_receipt_items_to_add())
         session.commit()
         return {'stripe_intent': charge.intent, 'success_url': ''}
@@ -1167,7 +1196,7 @@ class Root:
         if who:
             feed = feed.filter_by(who=who)
         if what:
-            like = '%' + what + '%' # SQLAlchemy 2.0 introduces icontains
+            like = '%' + what + '%'  # SQLAlchemy 2.0 introduces icontains
             or_filters = [model.page.ilike(like)]
             if tracking_type != 'report':
                 or_filters.append(model.which.ilike(like))
@@ -1285,7 +1314,7 @@ class Root:
         return json.dumps({
             'badges_price': c.BADGE_PRICE
         })
-    
+
     @log_pageview
     @attendee_view
     @cherrypy.expose(['attendee_data'])
@@ -1310,17 +1339,17 @@ class Root:
             'tab_view': tab_view,
             'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
         }
-        
+
         if 'attendee_data' in cherrypy.url():
             return render('registration/attendee_data.html', return_dict)
         else:
             return return_dict
-    
+
     @log_pageview
     @attendee_view
     def attendee_history(self, session, id, **params):
         attendee = session.attendee(id, allow_invalid=True)
-        
+
         return {
             'attendee': attendee,
             'emails': session.query(Email).filter(
@@ -1380,34 +1409,33 @@ class Root:
         if not message:
             if attendee.is_new and \
                     session.attendees_with_badges().filter_by(first_name=attendee.first_name,
-                                                                last_name=attendee.last_name,
-                                                                email=attendee.email).count():
+                                                              last_name=attendee.last_name,
+                                                              email=attendee.email).count():
                 message = 'An attendee with this name and email address already exists.'
 
         if not message:
             success = True
             message = '{} has been saved'.format(attendee.full_name)
-            
-            if (attendee.is_new 
-                or attendee.badge_type != attendee.orig_value_of('badge_type') 
-                or attendee.group_id != attendee.orig_value_of('group_id')
-                ) and not session.admin_can_create_attendee(attendee):
+
+            if (attendee.is_new or attendee.badge_type != attendee.orig_value_of('badge_type')
+                    or attendee.group_id != attendee.orig_value_of('group_id'))\
+                    and not session.admin_can_create_attendee(attendee):
                 attendee.badge_status = c.PENDING_STATUS
                 message += ' as a pending badge'
 
             session.add(attendee)
             session.commit()
-  
+
         return {
             'success': success,
             'message': message,
             'id': attendee.id,
         }
-    
+
     def pending_badges(self, session, message=''):
         return {
-            'pending_badges': session.query(Attendee)\
-                .filter_by(badge_status=c.PENDING_STATUS).filter(Attendee.paid != c.PENDING),
+            'pending_badges': session.query(Attendee)
+            .filter_by(badge_status=c.PENDING_STATUS).filter(Attendee.paid != c.PENDING),
             'message': message,
         }
 
