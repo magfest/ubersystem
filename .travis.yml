@@ -4,18 +4,18 @@ matrix:
     - python: "3.4"
       env: TOX_ENV=flake8
     - python: "3.4"
-      env: TOX_ENV=py34
+      env: TOX_ENV=py36
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y build-essential libcap-dev
 install:
   - pip install tox
-  - if [[ $TOX_ENV == py34 ]]; then
+  - if [[ $TOX_ENV == py36 ]]; then
       pip install coveralls;
     fi
 script:
   - tox -e $TOX_ENV
 after_success:
-  - if [[ $TOX_ENV == py34 ]]; then
+  - if [[ $TOX_ENV == py36 ]]; then
       coveralls;
     fi
