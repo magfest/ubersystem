@@ -3,15 +3,12 @@ import six
 import cherrypy
 
 from collections import defaultdict, OrderedDict
-from importlib import import_module
-from markupsafe import Markup
 from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, validators
 import wtforms.widgets.core as wtforms_widgets
-from wtforms.validators import Optional, ValidationError, StopValidation
-from wtforms.utils import unset_value
+from wtforms.validators import ValidationError
 from pockets.autolog import log
 from uber.config import c
-from uber.forms.widgets import *
+from uber.forms.widgets import CountrySelect, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput
 from uber.model_checks import invalid_zip_code
 
 
@@ -19,12 +16,13 @@ def get_override_attr(form, field_name, suffix, *args):
     return getattr(form, field_name + suffix, lambda *args: '')(*args)
 
 
-def load_forms(params, model, form_list, prefix_dict={}, get_optional=True, truncate_prefix='admin', checkboxes_present=True):
+def load_forms(params, model, form_list, prefix_dict={}, get_optional=True,
+               truncate_prefix='admin', checkboxes_present=True):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
     Also adds aliases for common fields, e.g., mapping the `region` column to `region_us` and `region_canada`.
-    Aliases are currently only designed to work with text fields and select fields with a [(val, label)] list of choices.
+    Aliases are currently only designed to work with text fields and select fields.
 
     After loading a form, each field's built-in validators are altered -- this allows us to alter what validations get
     rendered on the page. We use get_optional_fields to mark fields as optional as dictated by their model, and
@@ -33,12 +31,14 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True, trun
     `params` should be a dictionary from a form submission, usually passed straight from the page handler.
     `model` is the object itself, e.g., the attendee we're loading the form for.
     `form_list` is a list of strings of which form classes to load, e.g., ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
-    `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms with
-        conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all GroupInfo fields.
-    `get_optional` is a flag that controls whether or not the forms' get_optional_fields() function is called. Set this to false
-        when loading forms for validation, as the validate_model function in utils.py handles optional fields.
+    `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms
+        with conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all
+        GroupInfo fields.
+    `get_optional` is a flag that controls whether or not the forms' get_optional_fields() function is called.
+        Set this to false when loading forms for validation, as the validate_model function in utils.py handles
+        optional fields.
     `truncate_prefix` allows you to remove a single word from the form, so e.g. a truncate_prefix of "admin" will save
-        "AdminTableInfo" as "table_info." This allows loading admin and prereg versions of forms while using the 
+        "AdminTableInfo" as "table_info." This allows loading admin and prereg versions of forms while using the
         same form template.
 
     Returns a dictionary of form objects with the snake-case version of the form as the ID, e.g.,
@@ -55,14 +55,15 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True, trun
             log.error(str(e))
             continue
 
-        # Configure and populate fields in "aliased_fields", which are used to store different display logics for a single column
+        # Configure and populate fields in "aliased_fields", which store different display logics for a single column
         for model_field_name, aliases in form_cls.field_aliases.items():
             alias_val = params.get(model_field_name, getattr(model, model_field_name))
             for aliased_field in aliases:
                 aliased_field_args = getattr(form_cls, aliased_field).kwargs
                 choices = aliased_field_args.get('choices')
                 if choices:
-                    alias_dict[aliased_field] = alias_val if alias_val in [val for val, label in choices] else aliased_field_args.get('default')
+                    alias_dict[aliased_field] = alias_val if alias_val in [val for val, label in choices
+                                                                           ] else aliased_field_args.get('default')
                 else:
                     alias_dict[aliased_field] = alias_val
 
@@ -71,14 +72,16 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True, trun
 
         for name, field in loaded_form._fields.items():
             if name in optional_fields:
-                field.validators = [validators.Optional()] + [validator for validator in field.validators if not isinstance(validator, (validators.DataRequired, validators.InputRequired))]
+                field.validators = [validators.Optional()] + [
+                    validator for validator in field.validators
+                    if not isinstance(validator, (validators.DataRequired, validators.InputRequired))]
                 field.flags.required = False
             else:
                 override_validators = get_override_attr(loaded_form, name, '_validators', field)
                 if override_validators:
                     field.validators = override_validators
 
-            # Refresh any choices for fields in "dynamic_choices_fields" so we can have up-to-date choices for select fields
+            # Refresh any choices for fields in "dynamic_choices_fields"
             if name in loaded_form.dynamic_choices_fields.keys():
                 field.choices = loaded_form.dynamic_choices_fields[name]()
 
@@ -104,12 +107,12 @@ class CustomValidation:
         if field_name == '_formfield':
             # Stop WTForms from trying to process these objects as fields
             raise AttributeError("No, we don't have that.")
-        
+
         def wrapper(func):
             self.validations[field_name][func.__name__] = func
             return func
         return wrapper
-    
+
     def get_validations_by_field(self, field_name):
         field_validations = self.validations.get(field_name)
         return list(field_validations.values()) if field_validations else []
@@ -154,7 +157,8 @@ class MagForm(Form):
         if match_count == 0:
             raise ValueError('Could not find a form with the name {}'.format(form_name))
         elif match_count > 1:
-            raise ValueError('There is more than one form with the name {}. Please specify which model this form is for.'.format(form_name))
+            raise ValueError(f'There is more than one form with the name {form_name}. '
+                             'Please specify which model this form is for.')
         return real_target
 
     @classmethod
@@ -175,7 +179,7 @@ class MagForm(Form):
 
     def process(self, formdata=None, obj=None, data=None, extra_filters=None, checkboxes_present=True, **kwargs):
         formdata = self.meta.wrap_formdata(self, formdata)
-        
+
         # Special form data preprocessing!
         #
         # Checkboxes aren't submitted in HTML forms if they're unchecked; additionally, there is a bug in WTForms
@@ -196,7 +200,8 @@ class MagForm(Form):
                     # for a BooleanField's hidden input value and then not process that as falsey
                     formdata[name] = formdata[name].strip().lower() not in ('f', 'false', 'n', 'no', '0') \
                         if isinstance(formdata[name], six.string_types) else formdata[name]
-            elif (isinstance(field, SelectMultipleField) or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
+            elif (isinstance(field, SelectMultipleField)
+                  or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
                   ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
                     formdata[name] = []
@@ -210,11 +215,11 @@ class MagForm(Form):
     @property
     def field_list(self):
         return list(self._fields.items())
-    
+
     @property
     def bool_list(self):
         return [(key, field) for key, field in self._fields.items() if field.type == 'BooleanField']
-    
+
     def populate_obj(self, obj, is_admin=False):
         """
         Adds alias processing, field locking, and data coercion to populate_obj.
@@ -235,7 +240,7 @@ class MagForm(Form):
                 try:
                     setattr(obj, name, field.data)
                 except AttributeError:
-                    pass # Probably just a collision between a property name and a form field name, e.g., 'badges' for GroupInfo
+                    pass  # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
 
         for model_field_name, aliases in self.field_aliases.items():
             if model_field_name in locked_fields:
@@ -247,7 +252,6 @@ class MagForm(Form):
                 # Right now we prefer that but we may want to change it later
                 if field_obj and field_obj.data:
                     field_obj.populate_obj(obj, model_field_name)
-
 
     class Meta:
         def get_field_type(self, field):
@@ -294,8 +298,10 @@ class MagForm(Form):
 
             if hasattr(form, field_name + '_desc'):
                 unbound_field.kwargs['description'] = get_override_attr(form, field_name, '_desc')
-            
-            unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field, unbound_field.kwargs.get('render_kw', {}), field_name)
+
+            unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field,
+                                                                          unbound_field.kwargs.get('render_kw', {}),
+                                                                          field_name)
 
             return unbound_field.bind(form=form, **options)
 
@@ -313,7 +319,7 @@ class MagForm(Form):
                     if 'style' in render_kw:
                         render_kw['style'] += "; "
                     render_kw['style'] = render_kw.get('style', '') + "height: {}px".format(pixels)
-            
+
             # Floating labels need the placeholder set in order to work, so add one if it does not exist
             if 'placeholder' not in render_kw:
                 render_kw['placeholder'] = " "
@@ -351,8 +357,8 @@ class AddressForm():
         validators.DataRequired("Please enter a state, province, or region.")
         ])
     zip_code = StringField('Zip/Postal Code', default='', validators=[
-        validators.DataRequired("Please enter a zip code." if c.COLLECT_FULL_ADDRESS else 
-                                 "Please enter a valid 5 or 9-digit zip code.")
+        validators.DataRequired("Please enter a zip code." if c.COLLECT_FULL_ADDRESS else
+                                "Please enter a valid 5 or 9-digit zip code.")
         ])
     country = SelectField('Country', default='', validators=[
         validators.DataRequired("Please enter a country.")
@@ -376,7 +382,7 @@ class AddressForm():
                 optional_list.extend(['region_us', 'region_canada'])
 
         return optional_list
-    
+
     def validate_zip_code(form, field):
         if not c.COLLECT_FULL_ADDRESS:
             if getattr(form, 'international', None):
@@ -409,7 +415,7 @@ class SelectAvailableField(SelectField):
     If an option is in the list, `sold_out_text` is displayed alongside it.
     To avoid type errors, the values in `sold_out_list` are coerced to the `coerce` value passed on init.
     """
-    
+
     def __init__(self, label=None, validators=None, coerce=str, choices=None, validate_choice=True,
                  sold_out_list_func=[], sold_out_text="(SOLD OUT!)", **kwargs):
         super().__init__(label, validators, coerce, choices, validate_choice, **kwargs)
@@ -418,7 +424,7 @@ class SelectAvailableField(SelectField):
 
     def get_sold_out_list(self):
         return [self.coerce(val) for val in self.sold_out_list_func()]
-    
+
     def _choices_generator(self, choices):
         sold_out_list = self.get_sold_out_list()
         if not choices:

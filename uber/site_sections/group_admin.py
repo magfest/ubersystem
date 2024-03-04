@@ -1,6 +1,6 @@
 import cherrypy
 
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from pockets import readable_join
 from pockets.autolog import log
 from pytz import UTC
@@ -9,11 +9,11 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import format_currency
-from uber.decorators import ajax, any_admin_access, all_renderable, csrf_protected, log_pageview, site_mappable
+from uber.decorators import ajax, any_admin_access, all_renderable, csrf_protected, log_pageview
 from uber.errors import HTTPRedirect
-from uber.forms import attendee as attendee_forms, group as group_forms, load_forms
+from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Email, Event, Group, GuestGroup, PageViewTracking, Tracking
-from uber.utils import check, convert_to_absolute_url, validate_model, add_opt, SignNowRequest
+from uber.utils import check, validate_model, add_opt, SignNowRequest
 from uber.payments import ReceiptManager
 
 
@@ -30,7 +30,7 @@ class Root:
 
     def index(self, session, message='', show_all=None):
         groups = session.viewable_groups()
-        dealer_groups = groups.filter(Group.is_dealer == True)
+        dealer_groups = groups.filter(Group.is_dealer == True)  # noqa: E712
         guest_groups = groups.join(Group.guest)
 
         if not show_all:
@@ -38,12 +38,14 @@ class Root:
 
         return {
             'message': message,
-            'groups': groups.options(joinedload(Group.attendees), joinedload(Group.leader), joinedload(Group.active_receipt)),
+            'groups': groups.options(joinedload(Group.attendees), joinedload(Group.leader),
+                                     joinedload(Group.active_receipt)),
             'guest_groups': guest_groups.options(joinedload(Group.attendees), joinedload(Group.leader)),
             'guest_checklist_items': GuestGroup(group_type=c.GUEST).sorted_checklist_items,
             'band_checklist_items': GuestGroup(group_type=c.BAND).sorted_checklist_items,
             'num_dealer_groups': dealer_groups.count(),
-            'dealer_groups':      dealer_groups.options(joinedload(Group.attendees), joinedload(Group.leader), joinedload(Group.active_receipt)),
+            'dealer_groups':      dealer_groups.options(joinedload(Group.attendees),
+                                                        joinedload(Group.leader), joinedload(Group.active_receipt)),
             'dealer_badges':      sum(g.badges for g in dealer_groups),
             'tables':            sum(g.tables for g in dealer_groups),
             'show_all': show_all,
@@ -64,20 +66,21 @@ class Root:
         attendee.group = group
         group.leader = attendee
         session.add(group)
-        
+
         raise HTTPRedirect('form?id={}&message={}', group.id, "Group successfully created.")
-    
+
     def resend_signnow_link(self, session, id):
         group = session.group(id)
 
         signnow_request = SignNowRequest(session=session, group=group)
         if not signnow_request.document:
             raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
-        
+
         signnow_request.send_dealer_signing_invite()
         if signnow_request.error_message:
             log.error(signnow_request.error_message)
-            raise HTTPRedirect("form?id={}&message={}", id, f"Error sending SignNow link: {signnow_request.error_message}")
+            raise HTTPRedirect("form?id={}&message={}", id,
+                               f"Error sending SignNow link: {signnow_request.error_message}")
         else:
             signnow_request.document.last_emailed = datetime.now(UTC)
             session.add(signnow_request.document)
@@ -118,7 +121,8 @@ class Root:
         signnow_signed = False
         if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED:
             if cherrypy.request.method == 'POST':
-                signnow_request = SignNowRequest(session=session, group=group, ident="terms_and_conditions", create_if_none=True)
+                signnow_request = SignNowRequest(session=session, group=group,
+                                                 ident="terms_and_conditions", create_if_none=True)
             else:
                 signnow_request = SignNowRequest(session=session, group=group)
 
@@ -152,8 +156,10 @@ class Root:
                 group.auto_recalc = False
 
             if group.is_new or group.badges != group_info_form.badges.data:
-                test_permissions = Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbons, paid=c.PAID_BY_GROUP)
-                new_badge_status = c.PENDING_STATUS if not session.admin_can_create_attendee(test_permissions) else c.NEW_STATUS
+                test_permissions = Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbons,
+                                            paid=c.PAID_BY_GROUP)
+                new_badge_status = c.PENDING_STATUS if not session.admin_can_create_attendee(test_permissions)\
+                    else c.NEW_STATUS
                 message = session.assign_badges(
                     group,
                     group_info_form.badges.data or int(bool(group.leader_first_name)),
@@ -183,7 +189,7 @@ class Root:
                 if group.guest_group_type:
                     group.guest = group.guest or GuestGroup()
                     group.guest.group_type = group.guest_group_type
-                
+
                 if group.is_new and group.is_dealer:
                     if group.status == c.APPROVED and group.amount_unpaid:
                         raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
@@ -198,7 +204,7 @@ class Root:
                         for attendee in group.attendees:
                             attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
                             session.add(attendee)
-                    
+
                 raise HTTPRedirect('form?id={}&message={}', group.id, message or (group.name + " has been saved"))
 
         return {
@@ -210,7 +216,7 @@ class Root:
             'new_dealer': new_dealer,
             'payment_enabled': True if reg_station_id else False,
         }
-    
+
     @ajax
     @any_admin_access
     def validate_group(self, session, form_list=[], new_dealer='', **params):
@@ -236,17 +242,17 @@ class Root:
             return {"error": all_errors}
 
         return {"success": True}
-    
+
     def paid_with_cash(self, session, id):
         if not cherrypy.session.get('reg_station'):
             return {'success': False, 'message': 'You must set a workstation ID to take payments.'}
-        
+
         group = session.group(id)
         receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         amount_owed = receipt.current_amount_owed
         if not amount_owed:
             raise HTTPRedirect('form?id={}&message={}', id, "This group does not owe any money.")
-        
+
         receipt_manager = ReceiptManager(receipt)
         error = receipt_manager.create_payment_transaction(f"Marked as paid with cash by {AdminAccount.admin_name()}",
                                                            amount=amount_owed, method=c.CASH)
@@ -256,7 +262,8 @@ class Root:
 
         session.add_all(receipt_manager.items_to_add)
         session.commit()
-        raise HTTPRedirect('form?id={}&message={}', id, f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
+        raise HTTPRedirect('form?id={}&message={}', id,
+                           f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
 
     def history(self, session, id):
         group = session.group(id)
@@ -275,7 +282,7 @@ class Root:
                 and_(Tracking.model == 'Group', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Group id={}".format(id))
         }
-        
+
     @csrf_protected
     def delete(self, session, id, confirmed=None):
         group = session.group(id)
@@ -299,12 +306,12 @@ class Root:
         else:
             group.leader_id = attendee_id
             raise HTTPRedirect('form?id={}&message={}', group_id, 'Group leader set')
-        
+
     def checklist_info(self, session, message='', event_id=None, **params):
         guest = session.guest_group(params)
         if not session.admin_can_see_guest_group(guest):
             raise HTTPRedirect('index?message={}', 'You cannot view {} groups'.format(guest.group_type_label.lower()))
-        
+
         if cherrypy.request.method == 'POST':
             if event_id:
                 guest.event_id = event_id

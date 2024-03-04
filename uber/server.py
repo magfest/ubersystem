@@ -34,17 +34,24 @@ if c.SENTRY['enabled']:
         traces_sample_rate=c.SENTRY['sample_rate'] / 100
     )
 
+
 def sentry_start_transaction():
     cherrypy.request.sentry_transaction = sentry_sdk.start_transaction(
         name=f"{cherrypy.request.method} {cherrypy.request.path_info}",
         op=f"{cherrypy.request.method} {cherrypy.request.path_info}",
     )
     cherrypy.request.sentry_transaction.__enter__()
+
+
 cherrypy.tools.sentry_start_transaction = cherrypy.Tool('on_start_resource', sentry_start_transaction)
+
 
 def sentry_end_transaction():
     cherrypy.request.sentry_transaction.__exit__(None, None, None)
+
+
 cherrypy.tools.sentry_end_transaction = cherrypy.Tool('on_end_request', sentry_end_transaction)
+
 
 @cherrypy.tools.register('before_finalize', priority=60)
 def secureheaders():
@@ -60,6 +67,7 @@ def secureheaders():
         else:
             hsts_header += '; preload'
     headers['Strict-Transport-Security'] = hsts_header
+
 
 def _add_email():
     [body] = cherrypy.response.body

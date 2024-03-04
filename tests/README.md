@@ -32,23 +32,23 @@ the plugin. E.g.:
 
     2. To run the tests only, without flake8:
         ```
-        tox -e py34
+        tox -e py36
         ```
 
     3. To run only the tests in a specific file:
         ```
-        tox -e py34 -- -k test_templates.py
+        tox -e py36 -- -k test_templates.py
         ```
 
     4. To run only the tests matching a given substring, like "jinja" for example:
         ```
-        tox -e py34 -- -k jinja
+        tox -e py36 -- -k jinja
         ```
 
 4. In general, everything after the `--` is passed as arguments to pytest. For
 example, to run the tests with verbose output and without capturing stdout:
     ```
-    tox -e py34 -- --verbose --capture=no
+    tox -e py36 -- --verbose --capture=no
     ```
 
 

@@ -1,13 +1,11 @@
 import cherrypy
 
 from datetime import datetime
-from pockets.autolog import log
 
 from uber.config import c
-from uber.decorators import all_renderable, render
+from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
 from uber.models import PanelApplicant, PanelApplication
-from uber.tasks.email import send_email
 from uber.utils import add_opt, check
 
 

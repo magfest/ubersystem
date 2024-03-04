@@ -140,7 +140,7 @@ def notify_admins_of_pending_emails():
                 emails_by_sender = pending_emails_by_sender
             else:
                 emails_by_sender = {sender: emails_by_ident}
-            
+
             for email in emails_by_ident.values():
                 if isinstance(email[0], AutomatedEmail):
                     email[0].reconcile(AutomatedEmail._fixtures[email[0].ident])
@@ -153,6 +153,7 @@ def notify_admins_of_pending_emails():
             send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
 
         return groupify(pending_emails, 'sender', 'ident')
+
 
 @celery.schedule(timedelta(minutes=5 if c.DEV_BOX else 15))
 def send_automated_emails():
@@ -193,7 +194,7 @@ def send_automated_emails():
                     session.add(automated_email)
                     session.commit()
                     unapproved_count = 0
-                    
+
                     log.debug("Loading instances for " + automated_email.ident)
                     model_instances = query_func(session)
                     log.trace("Finished loading instances")
@@ -217,10 +218,10 @@ def send_automated_emails():
                     automated_email.currently_sending = False
                     session.add(automated_email)
                     session.commit()
-            
+
             log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
             return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
-    except:
+    except Exception:
         traceback.print_exc()
 
         # TODO: Once we finish converting each AutomatedEmailFixture.filter

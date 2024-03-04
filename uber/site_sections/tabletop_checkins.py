@@ -2,7 +2,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy.sql import label
 
-from uber.config import c
 from uber.decorators import ajax, ajax_gettable, all_renderable, csv_file
 from uber.models import Attendee, TabletopCheckout, TabletopGame
 from uber.utils import localized_now
@@ -110,10 +109,10 @@ def _attendee(a):
     }
 
 
-def _checked_out(c):
-    return c and {
-        'checked_out': c.checked_out,
-        'attendee': _attendee(c.attendee)
+def _checked_out(co):
+    return co and {
+        'checked_out': co.checked_out,
+        'attendee': _attendee(co.attendee)
     }
 
 

@@ -267,7 +267,7 @@ class Root:
             game.studio.name = params.get('studio_name', '')
             if not params.get('contact_phone', ''):
                 message = "Please enter a phone number for MIVS staff to contact your studio."
-            else: 
+            else:
                 game.studio.contact_phone = params.get('contact_phone', '')
             if promo_image:
                 image = session.indie_game_image(params)
@@ -283,7 +283,7 @@ class Root:
             if not message:
                 session.add(game)
                 if game.studio.group.guest:
-                    raise HTTPRedirect('../guests/mivs_show_info?guest_id={}&message={}', 
+                    raise HTTPRedirect('../guests/mivs_show_info?guest_id={}&message={}',
                                        game.studio.group.guest.id, 'Game information uploaded')
                 raise HTTPRedirect('index?message={}', 'Game information uploaded')
 

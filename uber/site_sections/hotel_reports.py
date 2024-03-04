@@ -3,7 +3,7 @@ from datetime import timedelta
 import random
 
 from pockets.autolog import log
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -300,7 +300,7 @@ class Root:
 
         assigned = {
             ra.attendee for ra in session.query(RoomAssignment).options(
-            joinedload(RoomAssignment.attendee), joinedload(RoomAssignment.room)).all()}
+                joinedload(RoomAssignment.attendee), joinedload(RoomAssignment.room)).all()}
 
         unassigned = {hr.attendee for hr in reqs if hr.attendee not in assigned}
 
@@ -412,7 +412,7 @@ class Root:
             except Exception as e:
                 log.error("Error calling SearchEngine: " + e)
 
-        for attendee in session.valid_attendees().filter(Attendee.is_unassigned == False):
+        for attendee in session.valid_attendees().filter(Attendee.is_unassigned == False):  # noqa: E712
             city = ''
             state = ''
             if engine and attendee.zip_code and not attendee.international:
@@ -428,7 +428,7 @@ class Root:
                 attendee.zip_code,
                 "Yes" if attendee.international else "No",
             ])
-    
+
     @csv_file
     def mark_center(self, out, session):
         """spreadsheet in the format requested by the Hilton Mark Center"""
@@ -528,20 +528,21 @@ class Root:
 
     @csv_file
     def attendee_hotel_pins(self, out, session):
-        hotel_query = session.query(Attendee).filter(Attendee.email != '', Attendee.is_valid == True,
+        hotel_query = session.query(Attendee).filter(Attendee.email != '', Attendee.is_valid == True,  # noqa: E712
                                                      ~Attendee.badge_status.in_([c.REFUNDED_STATUS,
                                                                                  c.NOT_ATTENDING,
                                                                                  c.DEFERRED_STATUS]),
-                                                     or_(Attendee.badge_type != c.STAFF_BADGE, Attendee.hotel_eligible == True))
+                                                     or_(Attendee.badge_type != c.STAFF_BADGE,
+                                                         Attendee.hotel_eligible == True))  # noqa: E712
 
         attendees_without_hotel_pin = hotel_query.filter(or_(
-            Attendee.hotel_pin == None,
+            Attendee.hotel_pin == None,  # noqa: E711
             Attendee.hotel_pin == '',
         )).all()  # noqa: E711
 
         if attendees_without_hotel_pin:
             hotel_pin_rows = session.query(Attendee.hotel_pin).filter(
-                Attendee.hotel_pin != None,
+                Attendee.hotel_pin != None,  # noqa: E711
                 Attendee.hotel_pin != '',
             ).all()  # noqa: E711
 

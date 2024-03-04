@@ -4,10 +4,9 @@ Load tests using locust.io.
 
 import urllib3
 
-import json
 import faker
 import random
-from locust import HttpUser, TaskSet, task
+from locust import HttpUser, task
 
 
 urllib3.disable_warnings()
@@ -27,7 +26,6 @@ class DealerReg(HttpUser):
             string = line.decode('utf-8')
             if "csrf_token" in string:
                 return string.split("'")[1]
-
 
     def get_static_assets(self):
         self.client.get('/uber/static/deps/combined.min.css', verify=self.verify)
@@ -103,7 +101,7 @@ class DealerReg(HttpUser):
         other_category = "224685583"
         selected_categories = random.sample(categories, random.randrange(len(categories))+1)
 
-        data={
+        data = {
             "csrf_token": csrf_token,
             "name": fake.company(),
             "description": fake.catch_phrase(),
@@ -134,7 +132,7 @@ class DealerReg(HttpUser):
         )
         assert response.status_code == 200
         assert response.json()['success']
-        
+
         response = self.client.post(
             "/uber/preregistration/post_dealer",
             name="/uber/preregistration/post_dealer",
@@ -143,12 +141,12 @@ class DealerReg(HttpUser):
             allow_redirects=False
         )
         assert response.status_code == 303
-    
+
         dealer_id = response.headers['Location'].split('dealer_id=')[1]
 
         response = self.client.get(
-            f"/uber/preregistration/form",
-            name=f"/uber/preregistration/form",
+            "/uber/preregistration/form",
+            name="/uber/preregistration/form",
             params={"dealer_id": dealer_id},
             verify=self.verify
         )
@@ -158,7 +156,7 @@ class DealerReg(HttpUser):
         first_name = fake.first_name()
         last_name = fake.last_name()
         is_legal_name = "1" if random.randrange(2) else ""
-        data={
+        data = {
             "group_id": dealer_id,
             "csrf_token": csrf_token,
             "badge_type": "2",
@@ -176,7 +174,6 @@ class DealerReg(HttpUser):
         }
         if not is_legal_name:
             data["legal_name"] = fake.name()
-
 
         response = self.client.post(
             "/uber/preregistration/validate_attendee",

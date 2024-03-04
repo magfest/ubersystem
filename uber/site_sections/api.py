@@ -6,7 +6,6 @@ import cherrypy
 import pytz
 import stripe
 from pockets import unwrap
-from pockets.autolog import log
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
@@ -100,10 +99,10 @@ class Root:
 
     def api_jobs(self, session, message=''):
         return {
-            'jobs': session.query(ApiJob).filter(ApiJob.cancelled == None).limit(5000).all(),
+            'jobs': session.query(ApiJob).filter(ApiJob.cancelled == None).limit(5000).all(),  # noqa: E711
             'message': message,
         }
-    
+
     def delete_api_job(self, session, id, message='', **params):
         api_job = session.api_job(id)
         if not api_job:
@@ -135,9 +134,9 @@ class Root:
         raise HTTPRedirect('api_jobs?message={}', message)
 
     def requeue_incomplete_jobs(self, session, message='', **params):
-        to_requeue = session.query(ApiJob).filter(ApiJob.cancelled == None,
-                                                  ApiJob.completed == None,
-                                                  ApiJob.queued != None)
+        to_requeue = session.query(ApiJob).filter(ApiJob.cancelled == None,  # noqa: E711
+                                                  ApiJob.completed == None,  # noqa: E711
+                                                  ApiJob.queued != None)  # noqa: E711
         for job in to_requeue:
             job.queued = None
             job.errors = ''
@@ -160,10 +159,10 @@ class Root:
             event = stripe.Webhook.construct_event(
                 payload, sig_header, c.STRIPE_ENDPOINT_SECRET
             )
-        except ValueError as e:
+        except ValueError:
             cherrypy.response.status = 400
             return "Invalid payload: " + payload
-        except stripe.error.SignatureVerificationError as e:
+        except stripe.error.SignatureVerificationError:
             cherrypy.response.status = 400
             return "Invalid signature: " + sig_header
 

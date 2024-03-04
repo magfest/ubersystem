@@ -1,6 +1,4 @@
-from datetime import datetime, timedelta
-
-from pockets.autolog import log
+from datetime import timedelta
 
 from uber.config import c
 from uber.decorators import render
@@ -27,6 +25,7 @@ def panels_waitlist_unaccepted_panels():
                     'app': app,
                 }, encoding=None)
                 send_email.delay(c.PANELS_EMAIL, app.email,
-                           "Your {EVENT_NAME} Panel Application Has Been Automatically Waitlisted: {{ app.name }}",
-                           body, ident="panel_waitlisted"
-                           )
+                                 "Your {EVENT_NAME} Panel Application Has Been Automatically Waitlisted: "
+                                 "{{ app.name }}",
+                                 body, ident="panel_waitlisted"
+                                 )

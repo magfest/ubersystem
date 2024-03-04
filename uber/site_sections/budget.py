@@ -1,7 +1,7 @@
 from collections import defaultdict
 
-from sqlalchemy.orm import joinedload, aliased
-from sqlalchemy import and_, or_, func, not_
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_, func, not_
 
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview
@@ -27,8 +27,8 @@ class Root:
     @log_pageview
     def index(self, session):
         receipt_items = session.query(ReceiptItem)
-        receipt_total = sum([item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()]) \
-                        - sum([item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()])
+        receipt_total = sum([item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()]
+                            ) - sum([item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()])
         sales_total = sum([sale.cash * 100 for sale in session.query(Sale).all()])
         arbitrary_charge_total = sum([charge.amount * 100 for charge in session.query(ArbitraryCharge).all()])
         return {
@@ -43,31 +43,34 @@ class Root:
 
         base_filter = [Attendee.has_or_will_have_badge]
 
-        group_filter = base_filter + [Attendee.group_id != None, Attendee.paid == c.PAID_BY_GROUP]
-        badge_cost_matters_filter = group_filter + [Group.cost > 0, Group.auto_recalc == True]
+        group_filter = base_filter + [Attendee.group_id != None, Attendee.paid == c.PAID_BY_GROUP]  # noqa: E711
+        badge_cost_matters_filter = group_filter + [Group.cost > 0, Group.auto_recalc == True]  # noqa: E712
 
         group_counts = {}
-        
+
         group_counts['free_groups'] = session.query(Attendee).outerjoin(Attendee.group, aliased=True).filter(
             *group_filter).filter(Group.cost <= 0).count()
         group_counts['custom_price'] = session.query(Attendee).outerjoin(Attendee.group, aliased=True).filter(
-            *group_filter).filter(Group.cost > 0, Group.auto_recalc == False).count()
-        
-        paid_group_badges = get_grouped_costs(session, badge_cost_matters_filter + [Group.is_paid == True], [Attendee.group])
-        unpaid_group_badges = get_grouped_costs(session, 
-                                                badge_cost_matters_filter + [Group.cost > 0, Group.is_paid == False], 
+            *group_filter).filter(Group.cost > 0, Group.auto_recalc == False).count()  # noqa: E712
+
+        paid_group_badges = get_grouped_costs(session,
+                                              badge_cost_matters_filter + [Group.is_paid == True],  # noqa: E712
+                                              [Attendee.group])
+        unpaid_group_badges = get_grouped_costs(session,
+                                                badge_cost_matters_filter + [Group.cost > 0,
+                                                                             Group.is_paid == False],  # noqa: E712
                                                 [Attendee.group])
 
         group_total = session.query(Attendee).filter(*group_filter).count()
 
-        pc_group_filter = base_filter + [Attendee.promo_code_group_name != None]
+        pc_group_filter = base_filter + [Attendee.promo_code_group_name != None]  # noqa: E711
         paid_pc_group_filter = pc_group_filter + [PromoCodeGroup.total_cost > 0]
 
         pc_comped_badges = 0
         pc_unused_badges = defaultdict(int)
         pc_group_total = session.query(Attendee).filter(*pc_group_filter).count()
 
-        pc_group_leaders = session.query(Attendee).filter(Attendee.promo_code_groups != None).count()
+        pc_group_leaders = session.query(Attendee).filter(Attendee.promo_code_groups != None).count()  # noqa: E711
         pc_group_badges = get_grouped_costs(session, paid_pc_group_filter, [Attendee.promo_code, PromoCode.group])
 
         for group in session.query(PromoCodeGroup).filter(PromoCodeGroup.total_cost <= 0):
@@ -79,18 +82,19 @@ class Root:
                 pc_group_total += 1
 
         individual_filter = base_filter + [not_(Attendee.paid.in_([c.PAID_BY_GROUP, c.NEED_NOT_PAY])),
-                                           Attendee.promo_code_group_name == None,
+                                           Attendee.promo_code_group_name == None,  # noqa: E711
                                            Attendee.badge_cost > 0]
-        paid_ind_filter = individual_filter + [Attendee.is_paid == True]
-        unpaid_ind_filter = individual_filter + [Attendee.default_cost > 0, Attendee.is_paid == False]
+        paid_ind_filter = individual_filter + [Attendee.is_paid == True]  # noqa: E712
+        unpaid_ind_filter = individual_filter + [Attendee.default_cost > 0, Attendee.is_paid == False]  # noqa: E712
 
         individual_badges = get_grouped_costs(session, paid_ind_filter)
         unpaid_badges = get_grouped_costs(session, unpaid_ind_filter)
 
-        comped_badges = session.query(Attendee).filter(*base_filter).filter(Attendee.promo_code_group_name == None) \
-            .filter_by(paid=c.NEED_NOT_PAY).count()
+        comped_badges = session.query(Attendee).filter(*base_filter,
+                                                       Attendee.promo_code_group_name == None,  # noqa: E711
+                                                       Attendee.paid == c.NEED_NOT_PAY).count()
         individual_total = session.query(Attendee).filter(*individual_filter).count() + comped_badges
-        
+
         return {
             'total_badges': attendees.count(),
             'group_total': group_total,
@@ -122,7 +126,8 @@ class Root:
         }
 
     def dealer_cost_summary(self, session):
-        dealers = session.query(Group).filter(Group.is_dealer==True, Group.attendees_have_badges==True, Group.cost > 0)
+        dealers = session.query(Group).filter(Group.is_dealer == True,  # noqa: E712
+                                              Group.attendees_have_badges == True, Group.cost > 0)  # noqa: E712
 
         paid_total = 0
         paid_custom = defaultdict(int)
@@ -186,20 +191,21 @@ class Root:
         extra_donation_filter = base_filter + [Attendee.extra_donation > 0]
 
         paid_preordered_merch = get_grouped_costs(session,
-                                                  preordered_merch_filter + [Attendee.is_paid == True],
+                                                  preordered_merch_filter + [Attendee.is_paid == True],  # noqa: E712
                                                   selector=Attendee.amount_extra)
         unpaid_preordered_merch = get_grouped_costs(session,
-                                                  preordered_merch_filter + [Attendee.default_cost > 0,
-                                                                             Attendee.is_paid == False],
-                                                  selector=Attendee.amount_extra)
-        
+                                                    preordered_merch_filter + [
+                                                        Attendee.default_cost > 0,
+                                                        Attendee.is_paid == False],  # noqa: E712
+                                                    selector=Attendee.amount_extra)
+
         paid_extra_donations = get_grouped_costs(session,
-                                                  extra_donation_filter + [Attendee.is_paid == True],
-                                                  selector=Attendee.extra_donation)
+                                                 extra_donation_filter + [Attendee.is_paid == True],  # noqa: E712
+                                                 selector=Attendee.extra_donation)
         unpaid_extra_donations = get_grouped_costs(session,
-                                                  extra_donation_filter + [Attendee.default_cost > 0,
-                                                                             Attendee.is_paid == False],
-                                                  selector=Attendee.extra_donation)
+                                                   extra_donation_filter + [Attendee.default_cost > 0,
+                                                                            Attendee.is_paid == False],  # noqa: E712
+                                                   selector=Attendee.extra_donation)
 
         return {
             'total_addons': session.query(Attendee).filter(*base_filter).filter(or_(Attendee.amount_extra > 0,

@@ -92,7 +92,7 @@ Please select a department above to view its hotel requests.
                     approved
                 {% else %}
                     <button onClick="setApproved('approved', '{{ request.id }}', this)">Approve</button>
-                    <button onClick="setApproved('n/a',      '{{ request.id }}', this)">Reject</button>
+                    <button onClick="setApproved('n/a', '{{ request.id }}', this)">Reject</button>
                 {% endif %}
             {% endif %}
         </td>

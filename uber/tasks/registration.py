@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import stripe
 import time
 import pytz
-import json
 from celery.schedules import crontab
 from pockets.autolog import log
 from sqlalchemy import not_, or_
@@ -59,7 +58,8 @@ def check_duplicate_registrations():
                         a.badge_status = c.NEW_STATUS
 
                 if dupes and session.no_email(subject):
-                    body = render('emails/daily_checks/duplicates.html', {'dupes': sorted(dupes.items())}, encoding=None)
+                    body = render('emails/daily_checks/duplicates.html',
+                                  {'dupes': sorted(dupes.items())}, encoding=None)
                     send_email.delay(c.REPORTS_EMAIL, c.REGDESK_EMAIL, subject, body, format='html', model='n/a')
 
 
@@ -69,22 +69,22 @@ def check_placeholder_registrations():
         emails = [[
             'Staff',
             c.STAFF_EMAIL,
-            Attendee.staffing == True,
-            Attendee.is_valid == True
+            Attendee.staffing == True,  # noqa: E712
+            Attendee.is_valid == True  # noqa: E712
         ], [
             'Panelist',
             c.PANELS_EMAIL,
             or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON)),
-            Attendee.is_valid == True
+            Attendee.is_valid == True  # noqa: E712
         ], [
             'Attendee',
             c.REGDESK_EMAIL,
             not_(or_(
-                Attendee.staffing == True,
+                Attendee.staffing == True,  # noqa: E712
                 Attendee.badge_type == c.GUEST_BADGE,
                 Attendee.ribbon.contains(c.PANELIST_RIBBON))),
-            Attendee.is_valid == True
-        ]]  # noqa: E712
+            Attendee.is_valid == True  # noqa: E712
+        ]]
 
         with Session() as session:
             for badge_type, to, per_email_filter in emails:
@@ -94,14 +94,15 @@ def check_placeholder_registrations():
 
                 if session.no_email(subject):
                     placeholders = (session.query(Attendee)
-                                           .filter(Attendee.placeholder == True,
+                                           .filter(Attendee.placeholder == True,  # noqa: E712
                                                    Attendee.registered < localized_now() - timedelta(days=3),
                                                    Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                                    per_email_filter)
                                            .options(joinedload(Attendee.group))
-                                           .order_by(Attendee.registered, Attendee.full_name).all())  # noqa: E712
+                                           .order_by(Attendee.registered, Attendee.full_name).all())
                     if placeholders:
-                        body = render('emails/daily_checks/placeholders.html', {'placeholders': placeholders}, encoding=None)
+                        body = render('emails/daily_checks/placeholders.html',
+                                      {'placeholders': placeholders}, encoding=None)
                         send_email.delay(c.REPORTS_EMAIL, to, subject, body, format='html', model='n/a')
 
 
@@ -122,11 +123,14 @@ def check_pending_badges():
         subject = c.EVENT_NAME + ' Pending {} Badge Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
             for badge_type, to, per_email_filter, site_section in emails:
-                pending = session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS).filter(Attendee.paid != c.PENDING,
-                                                                                                  per_email_filter).all()
+                pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
+                                                         Attendee.paid != c.PENDING,
+                                                         per_email_filter).all()
                 if pending and session.no_email(subject.format(badge_type)):
-                    body = render('emails/daily_checks/pending.html', {'pending': pending, 'site_section': site_section}, encoding=None)
-                    send_email.delay(c.REPORTS_EMAIL, to, subject.format(badge_type), body, format='html', model='n/a')
+                    body = render('emails/daily_checks/pending.html',
+                                  {'pending': pending, 'site_section': site_section}, encoding=None)
+                    send_email.delay(c.REPORTS_EMAIL, to, subject.format(badge_type), body,
+                                     format='html', model='n/a')
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -134,10 +138,10 @@ def check_unassigned_volunteers():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
         with Session() as session:
             unassigned = session.query(Attendee).filter(
-                Attendee.is_valid == True,
-                Attendee.staffing == True,
+                Attendee.is_valid == True,  # noqa: E712
+                Attendee.staffing == True,  # noqa: E712
                 Attendee.badge_status != c.REFUNDED_STATUS,
-                Attendee.is_unassigned == False,
+                Attendee.is_unassigned == False,  # noqa: E712
                 not_(Attendee.dept_memberships.any())).order_by(Attendee.full_name).all()  # noqa: E712
             subject = c.EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
             if unassigned and session.no_email(subject):
@@ -165,9 +169,9 @@ def email_pending_attendees():
 
     with Session() as session:
         four_days_old = datetime.now(pytz.UTC) - timedelta(hours=96)
-        pending_badges = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
-                                                        Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)
-                                                        ).order_by(Attendee.registered)
+        pending_badges = session.query(Attendee).filter(
+            Attendee.badge_status == c.PENDING_STATUS,
+            Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)).order_by(Attendee.registered)
         for badge in pending_badges:
             # Update `compare_date` to prevent early deletion of badges registered before a certain date
             # Implemented for MFF 2023 but let's be honest, we'll probably need it again
@@ -203,7 +207,7 @@ def email_pending_attendees():
                     model=badge.managers[0].to_dict() if c.ATTENDEE_ACCOUNTS_ENABLED else badge.to_dict(),
                     ident=email_ident
                 )
-                
+
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     already_emailed_accounts.append(email_to)
 
@@ -213,17 +217,20 @@ def send_receipt_email(receipt_id):
     with Session() as session:
         receipt = session.query(ReceiptInfo).filter_by(id=receipt_id).first()
         if not receipt:
-            log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} {receipt.fk_email_id}: receipt info not found!")
+            log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} {receipt.fk_email_id}: "
+                      "receipt info not found!")
             return
 
         if not receipt.receipt_txns:
-            log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} {receipt.fk_email_id}: receipt transactions not found!")
+            log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} {receipt.fk_email_id}: "
+                      "receipt transactions not found!")
             return
 
         model = Session.resolve_model(receipt.fk_email_model)
         email_to = session.query(model).filter_by(id=receipt.fk_email_id).first()
         if not email_to:
-            log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} {receipt.fk_email_id}: model not found!")
+            log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} "
+                      f"{receipt.fk_email_id}: model not found!")
             return
 
         to = getattr(email_to, 'email', getattr(email_to, 'email_address', ''))
@@ -269,13 +276,15 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
     from uber.models import TxnRequestTracking, AdminAccount
 
     message = ''
-    c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'last_request_timestamp', datetime.now().timestamp())
+    c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'last_request_timestamp',
+                       datetime.now().timestamp())
 
     with Session() as session:
-        txn_tracker = TxnRequestTracking(workstation_num=workstation_num, terminal_id=terminal_id, who=AdminAccount.admin_name())
+        txn_tracker = TxnRequestTracking(workstation_num=workstation_num, terminal_id=terminal_id,
+                                         who=AdminAccount.admin_name())
         session.add(txn_tracker)
         session.commit()
-        
+
         c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'tracking_id', txn_tracker.id)
         intent_id = SpinTerminalRequest.intent_id_from_txn_tracker(txn_tracker)
 
@@ -286,7 +295,7 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
                 txn_tracker.internal_error = f"Account {account_id} not found!"
                 session.commit()
                 return
-            
+
             txn_total = 0
             attendee_names_list = []
             receipts = []
@@ -305,19 +314,21 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
                     if receipt.current_amount_owed:
                         receipts.append(receipt)
                         txn_total += receipt.current_amount_owed
-                        attendee_names_list.append(attendee.full_name + 
-                                                (f" ({attendee.badge_printed_name})" if attendee.badge_printed_name else ""))
+                        attendee_names_list.append(attendee.full_name +
+                                                   (f" ({attendee.badge_printed_name})"
+                                                    if attendee.badge_printed_name else ""))
             except Exception as e:
                 txn_tracker.internal_error = f"Exception while building at-door group payment: {str(e)}"
                 session.commit()
                 return
-            
+
             # Accounts get a custom payment description defined here, so get rid of whatever was passed in
             kwargs.pop("description", None)
 
             payment_request = SpinTerminalRequest(terminal_id=terminal_id,
                                                   receipt_email=account.email,
-                                                  description=f"At-door registration for {readable_join(attendee_names_list)}",
+                                                  description="At-door registration for "
+                                                  f"{readable_join(attendee_names_list)}",
                                                   amount=txn_total,
                                                   tracker=txn_tracker,
                                                   **kwargs)
@@ -362,13 +373,14 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
                 session.commit()
                 return
         c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'intent_id', payment_request.intent.id)
-        
+
         response = payment_request.send_sale_txn()
-        
+
         if response:
             payment_request.process_sale_response(session, response)
         else:
-            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'last_error', payment_request.error_message)
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id,
+                               'last_error', payment_request.error_message)
             txn_tracker.internal_error = payment_request.error_message
 
 
@@ -407,7 +419,8 @@ def process_api_queue():
 
     with Session() as session:
         for job_name in known_job_names:
-            jobs_to_run = session.query(ApiJob).filter(ApiJob.job_name == job_name, ApiJob.queued == None).limit(safety_limit)
+            jobs_to_run = session.query(ApiJob).filter(ApiJob.job_name == job_name,
+                                                       ApiJob.queued == None).limit(safety_limit)  # noqa: E711
             completed_jobs[job_name] = 0
 
             for job in jobs_to_run:

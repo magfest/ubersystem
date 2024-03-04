@@ -5,8 +5,8 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.custom_tags import humanize_timedelta
 from uber.decorators import all_renderable, csv_file, multifile_zipfile, xlsx_file
-from uber.models import Attendee, Group, IndieGame, IndieJudge, IndieStudio
-from uber.utils import check, localized_now
+from uber.models import Group, IndieGame, IndieJudge, IndieStudio
+from uber.utils import localized_now
 
 
 @all_renderable()
@@ -155,8 +155,8 @@ class Root:
             'Staff Notes']
 
         for judge in session.query(IndieJudge).options(joinedload(IndieJudge.admin_account)):
-          attendee = judge.admin_account.attendee
-          rows.append([
+            attendee = judge.admin_account.attendee
+            rows.append([
                 attendee.first_name, attendee.last_name,
                 attendee.email, judge.status_label, "No" if judge.no_game_submission else "Yes",
                 " / ".join(judge.genres_labels), " / ".join(judge.platforms_labels), judge.platforms_text,
