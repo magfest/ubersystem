@@ -1465,6 +1465,8 @@ class ReceiptManager:
             params.pop('power')
             params.pop('power_fee')
 
+        params = model.auto_update_receipt(params)
+
         changed_params = {}
         for key, val in params.items():
             column = model.__table__.columns.get(key)
