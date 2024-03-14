@@ -2068,13 +2068,13 @@ class Root:
     @requires_account(Attendee)
     def reset_receipt(self, session, id, return_to):
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee)
-        receipt.closed = datetime.now()
-        session.add(receipt)
-        session.commit()
-
         message = attendee.undo_extras()
+
         if not message:
+            receipt = session.get_receipt_by_model(attendee)
+            receipt.closed = datetime.now()
+            session.add(receipt)
+
             new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if new_receipt.current_amount_owed:
