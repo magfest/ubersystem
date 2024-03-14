@@ -15,6 +15,7 @@ celery.conf.update(config_dict['celery'])
 
 broker_url = config_dict['secret']['broker_url']
 
+celery.conf.broker_transport_options = {'global_keyprefix': config_dict['secret']['broker_prefix']}
 celery.conf.update(result_backend_transport_options={
     'global_prefix': config_dict['secret']['broker_prefix']
 })
