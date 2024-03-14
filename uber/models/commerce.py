@@ -147,13 +147,12 @@ class ModelReceipt(MagModel):
 
     @payment_total.expression
     def payment_total(cls):
-        return select([func.sum(ReceiptTransaction.amount)]
-                      ).where(ReceiptTransaction.receipt_id == cls.id,
-                              ReceiptTransaction.cancelled == None,  # noqa: E711
-                              ReceiptTransaction.amount > 0,
-                              or_(ReceiptTransaction.charge_id != None,  # noqa: E711
-                                  ReceiptTransaction.intent_id == ''
-                                  )).label('payment_total')
+        return select([func.sum(ReceiptTransaction.amount)]).where(
+            and_(ReceiptTransaction.receipt_id == cls.id,
+                 ReceiptTransaction.cancelled == None,  # noqa: E711
+                 ReceiptTransaction.amount > 0)).where(
+                     or_(ReceiptTransaction.charge_id != None,  # noqa: E711
+                         ReceiptTransaction.intent_id == '')).label('payment_total')
 
     @hybrid_property
     def refund_total(self):

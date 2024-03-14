@@ -955,8 +955,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models import ModelReceipt, Group
 
         return case([(cls.paid == c.PAID_BY_GROUP,
-                      exists().select_from(Group).where(cls.group_id == Group.id
-                                                        ).where(Group.is_paid == True))],  # noqa: E712
+                      exists().select_from(Group).where(
+                          and_(cls.group_id == Group.id,
+                               Group.is_paid == True)))],  # noqa: E712
                     else_=(exists().select_from(ModelReceipt).where(
                             and_(ModelReceipt.owner_id == cls.id,
                                  ModelReceipt.owner_model == "Attendee",
@@ -971,10 +972,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_paid(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.payment_total]
-                      ).where(and_(ModelReceipt.owner_id == cls.id,
-                                   ModelReceipt.owner_model == "Attendee",
-                                   ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
+        return select([ModelReceipt.payment_total]).where(
+            and_(ModelReceipt.owner_id == cls.id,
+                 ModelReceipt.owner_model == "Attendee",
+                 ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
 
     @hybrid_property
     def amount_refunded(self):
@@ -984,9 +985,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_refunded(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.refund_total]
-                      ).where(and_(ModelReceipt.owner_id == cls.id,
-                                   ModelReceipt.owner_model == "Attendee")).label('amount_refunded')
+        return select([ModelReceipt.refund_total]).where(
+            and_(ModelReceipt.owner_id == cls.id,
+                 ModelReceipt.owner_model == "Attendee")).label('amount_refunded')
 
     @property
     def amount_unpaid(self):
@@ -1169,8 +1170,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             cls.ribbon.like('%{}%'.format(c.DEALER_RIBBON)),
             and_(
                 cls.paid == c.PAID_BY_GROUP,
-                exists().select_from(Group).where(cls.group_id == Group.id
-                                                  ).where(Group.is_dealer == True)))  # noqa: E712
+                exists().select_from(Group).where(
+                    and_(cls.group_id == Group.id,
+                         Group.is_dealer == True))))  # noqa: E712
 
     @property
     def is_checklist_admin(self):
