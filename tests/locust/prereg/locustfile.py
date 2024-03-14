@@ -5,7 +5,7 @@ Load tests using locust.io.
 import urllib3
 
 import faker
-from locust import HttpUser, TaskSet, task
+from locust import HttpUser, task
 
 
 urllib3.disable_warnings()
@@ -25,7 +25,6 @@ class Preregister(HttpUser):
             string = line.decode('utf-8')
             if "csrf_token" in string:
                 return string.split("'")[1]
-
 
     def get_static_assets(self):
         self.client.get('/uber/static/deps/combined.min.css', verify=self.verify)
@@ -55,7 +54,7 @@ class Preregister(HttpUser):
         first_name = fake.first_name()
         last_name = fake.last_name()
         zip_code = fake.zipcode()
-        data={
+        data = {
             "csrf_token": csrf_token,
             "badge_type": "51352218",
             "amount_extra": "0",
@@ -79,7 +78,7 @@ class Preregister(HttpUser):
             data=data
         )
         assert response.status_code == 200
-        
+
         response = self.client.post(
             "/uber/preregistration/post_form",
             verify=self.verify,
@@ -87,7 +86,7 @@ class Preregister(HttpUser):
             allow_redirects=False
         )
         if response.status_code == 303:
-        
+
             print(response.headers)
             attendee_id = response.headers['Location'].decode('utf-8').split('attendee_id=')[1]
 
@@ -113,7 +112,7 @@ class Preregister(HttpUser):
                 data=attendee
             )
             assert response.status_code == 200
-            
+
             del attendee['form_list']
             response = self.client.post(
                 "/uber/preregistration/additional_info",
@@ -128,9 +127,9 @@ class Preregister(HttpUser):
             verify=self.verify
         )
         assert response.status_code == 200
-        
+
         csrf_token = self.get_csrf_token(response)
-        
+
         if paid:
             payment_info = {
                 "id": "None",
@@ -145,12 +144,12 @@ class Preregister(HttpUser):
                 allow_redirects=False
             )
             assert response.status_code == 303
-            
+
         else:
 
             response = self.client.get('/uber/preregistration/process_free_prereg', verify=self.verify)
             assert response.status_code == 200
 
-        response = self.client.get('/uber/preregistration/paid_preregistrations?total_cost=125&message=success', verify=self.verify)
+        response = self.client.get('/uber/preregistration/paid_preregistrations?total_cost=125&message=success',
+                                   verify=self.verify)
         assert response.status_code == 200
-

@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber.custom_tags import linebreaksbr
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, render, xlsx_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptChecklistItem, HotelRequests, RoomAssignment, Shift
 from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept
@@ -238,8 +238,8 @@ class Root:
         if department_id != '':
             dept_filter = [] if not department_id else [Attendee.dept_memberships.any(department_id=department_id)]
             placeholders = session.query(Attendee).filter(
-                Attendee.placeholder == True,
-                Attendee.staffing == True,
+                Attendee.placeholder == True,  # noqa: E712
+                Attendee.staffing == True,  # noqa: E712
                 Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                 *dept_filter).order_by(Attendee.full_name).all()  # noqa: E712
 
@@ -254,7 +254,7 @@ class Root:
             'checklist': checklist,
             'placeholders': placeholders
         }
-    
+
     @department_id_adapter
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
         # We actually submit from this page to `form`, this just lets us render a custom page
@@ -269,7 +269,7 @@ class Root:
     def allotments(self, session, department_id=None, submitted=None, csrf_token=None, **params):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'allotments',
                                       'Treasury checklist data uploaded')
-    
+
     @department_id_adapter
     def guidebook_schedule(self, session, department_id=None, submitted=None, csrf_token=None):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'guidebook_schedule',
@@ -287,7 +287,7 @@ class Root:
         attendees = []
 
         if department_id != '':
-            attendees = session.query(Attendee).filter(Attendee.hotel_eligible == True,
+            attendees = session.query(Attendee).filter(Attendee.hotel_eligible == True,  # noqa: E712
                                                        Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                                        Attendee.dept_memberships.any(department_id=department_id)
                                                        ).order_by(Attendee.full_name).all()
@@ -315,8 +315,8 @@ class Root:
 
         requests = []
 
-        dept_filter = [] if not department_id \
-                else [Attendee.dept_memberships.any(department_id=department_id)]
+        dept_filter = [] if not department_id else [
+            Attendee.dept_memberships.any(department_id=department_id)]
 
         if department_id != '':
             requests = session.query(HotelRequests) \
@@ -326,7 +326,7 @@ class Root:
                 Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                 *dept_filter) \
                 .order_by(Attendee.full_name).all()
-        
+
         attendee = session.admin_attendee()
 
         try:
@@ -352,7 +352,8 @@ class Root:
             .options(joinedload(Attendee.hotel_requests), subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
             .order_by(Attendee.full_name).all()  # noqa: E712
 
-        return {'staffers': [s for s in staffers if s.hotel_shifts_required and s.weighted_hours < c.HOURS_FOR_HOTEL_SPACE]}
+        return {'staffers': [s for s in staffers if s.hotel_shifts_required
+                             and s.weighted_hours < c.HOURS_FOR_HOTEL_SPACE]}
 
     def no_shows(self, session):
         room_assignments = session.query(RoomAssignment).options(

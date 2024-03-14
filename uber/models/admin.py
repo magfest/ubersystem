@@ -2,11 +2,9 @@ from datetime import datetime, timedelta
 
 import cherrypy
 from pockets import classproperty, listify
-from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.event import listen
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
@@ -50,7 +48,8 @@ class AdminAccount(MagModel):
                     'ApiToken.revoked_time == None)')
 
     judge = relationship('IndieJudge', uselist=False, backref='admin_account')
-    print_requests = relationship('PrintJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge')
+    print_requests = relationship('PrintJob', backref='admin_account',
+                                  cascade='save-update,merge,refresh-expire,expunge')
     api_jobs = relationship('ApiJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge')
 
     def __repr__(self):
@@ -104,7 +103,7 @@ class AdminAccount(MagModel):
     @property
     def read_or_write_access_set(self):
         return self.read_access_set.union(self.write_access_set)
-    
+
     @property
     def valid_access_groups(self):
         return [group for group in self.access_groups if group.is_valid]
@@ -136,11 +135,12 @@ class AdminAccount(MagModel):
     def allowed_api_access_opts(self):
         no_access_set = self.invalid_api_accesses()
         return [(access, label) for access, label in c.API_ACCESS_OPTS if access not in no_access_set]
-    
+
     @property
     def viewable_guest_group_types(self):
         if 'guest_admin' in self.read_or_write_access_set:
-            return [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin" in self.read_or_write_access_set or opt.lower() + "_admin" not in c.ADMIN_PAGES]
+            return [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin"
+                    in self.read_or_write_access_set or opt.lower() + "_admin" not in c.ADMIN_PAGES]
         return [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin" in self.read_or_write_access_set]
 
     @property
@@ -238,6 +238,7 @@ class PasswordReset(MagModel):
     def is_expired(self):
         return self.generated < datetime.now(UTC) - timedelta(hours=c.PASSWORD_RESET_HOURS)
 
+
 class AccessGroup(MagModel):
     """
     Sets of accesses to grant to admin accounts.
@@ -280,7 +281,7 @@ class AccessGroup(MagModel):
 
     def has_any_access(self, access_to, read_only=False):
         return self.has_access_level(access_to, self.LIMITED, read_only)
-    
+
     @property
     def is_valid(self):
         if self.start_time and self.start_time > datetime.utcnow().replace(tzinfo=UTC):
@@ -292,7 +293,7 @@ class AccessGroup(MagModel):
     def has_access_level(self, access_to, access_level, read_only=False, max_level=False):
         if not self.is_valid:
             return
-        
+
         import operator
         if max_level:
             compare = operator.eq
@@ -339,7 +340,7 @@ class WorkstationAssignment(MagModel):
     @property
     def separate_printers(self):
         return self.minor_printer_id != '' and self.printer_id != self.minor_printer_id
-    
+
     @property
     def minor_or_adult_printer_id(self):
         return self.minor_printer_id or self.printer_id
@@ -347,4 +348,3 @@ class WorkstationAssignment(MagModel):
 
 c.ACCESS_GROUP_WRITE_LEVEL_OPTS = AccessGroup.WRITE_LEVEL_OPTS
 c.ACCESS_GROUP_READ_LEVEL_OPTS = AccessGroup.READ_LEVEL_OPTS
-

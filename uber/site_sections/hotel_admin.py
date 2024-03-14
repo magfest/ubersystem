@@ -166,7 +166,7 @@ def _get_confirmed(session):
             subqueryload(Attendee.room_assignments),
             subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
         .filter(
-            Attendee.hotel_requests != None,
+            Attendee.hotel_requests != None,  # noqa: E711
             Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
         .order_by(Attendee.full_name, Attendee.id)  # noqa: E711
     return attendee_query
@@ -180,8 +180,8 @@ def _get_unconfirmed(session):
             subqueryload(Attendee.room_assignments),
             subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
         .filter(
-            Attendee.hotel_eligible == True,
-            Attendee.hotel_requests == None,
+            Attendee.hotel_eligible == True,  # noqa: E712
+            Attendee.hotel_requests == None,  # noqa: E711
             Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
         .order_by(Attendee.full_name, Attendee.id)  # noqa: E712
     return attendee_query

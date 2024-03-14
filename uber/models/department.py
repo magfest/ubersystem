@@ -1,4 +1,3 @@
-import uuid
 from datetime import timedelta
 
 import six
@@ -273,7 +272,7 @@ class Department(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Department.id',
         single_parent=True)
-    
+
     @presave_adjustment
     def force_approval_exempt(self):
         # We used to have a system where departments would approve staffers for

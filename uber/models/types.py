@@ -1,6 +1,5 @@
 from collections import Mapping, OrderedDict
 from datetime import datetime, time, timedelta
-from dateutil.parser import parse
 import re
 
 import pytz
@@ -262,7 +261,7 @@ class MultiChoice(TypeDecorator):
             label_lookup = {val: key for key, val in self.choices}
             label_lookup['Unknown'] = -1
             try:
-                vals = [label_lookup[label] for label in re.split('; |, |\*|\n| / ',value)]
+                vals = [label_lookup[label] for label in re.split('; |, |\*|\n| / ', value)]  # noqa: W605
             except KeyError:
                 # It's probably just a string list of the int values
                 return value

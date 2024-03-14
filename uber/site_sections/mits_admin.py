@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import cherrypy
 from pockets.autolog import log
 

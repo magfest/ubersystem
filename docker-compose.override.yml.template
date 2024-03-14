@@ -35,6 +35,17 @@ services:
     command: ['/app/env/bin/python3']
     profiles: ["dev"]
     stop_grace_period: 1s
+  flower:
+    container_name: ${COMPOSE_PROJECT_NAME}-flower
+    image: mher/flower:2.0
+    environment:
+      - CELERY_BROKER_URL=amqp://celery:celery@rabbitmq:5672/uber
+      - FLOWER_PORT=5555
+    ports:
+      - 5555:5555
+    depends_on:
+      - rabbitmq
+    profiles: ["dev"]
   web:
     extends:
       file: docker-compose.yml

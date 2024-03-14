@@ -18,14 +18,14 @@ from uber.utils import check, localized_now
 class Root:
     def index(self, session, message='', **params):
         team = session.mits_team(params, restricted=True)
-        
+
         if cherrypy.request.method == 'POST':
             message = check(team)
-        
+
             if not message:
                 session.add(team)
                 raise HTTPRedirect('index?message={}', 'Team updated')
-        
+
         return {
             'message': message,
             'team': session.logged_in_mits_team()
@@ -208,12 +208,12 @@ class Root:
                     with open(new_doc.filepath, 'wb') as f:
                         shutil.copyfileobj(doc.file, f)
                     session.add(new_doc)
-                
+
                 pictures = params.get('upload_pictures', [])
                 pictures = pictures if isinstance(pictures, list) else [pictures]
                 for pic in [p for p in pictures if p.filename]:
-                    new_pic = MITSPicture(game_id=game.id, 
-                                          filename=pic.filename, 
+                    new_pic = MITSPicture(game_id=game.id,
+                                          filename=pic.filename,
                                           content_type=pic.content_type.value,
                                           extension=pic.filename.split('.')[-1].lower())
                     with open(new_pic.filepath, 'wb') as f:

@@ -10,7 +10,6 @@ from sqlalchemy.orm import subqueryload
 from uber.config import c
 from uber.decorators import timed
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Group, Session
-from uber.utils import check
 
 
 @entry_point

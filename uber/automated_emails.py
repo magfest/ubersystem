@@ -23,9 +23,9 @@ from sqlalchemy.orm import joinedload, subqueryload
 from uber.config import c
 from uber import decorators
 from uber.jinja import JinjaEnv
-from uber.models import AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department, Group, \
-    GuestGroup, IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, \
-    PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
+from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department,
+                         Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam,
+                         MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift)
 from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 
@@ -131,7 +131,8 @@ class AutomatedEmailFixture:
         try:
             template_path = pathlib.Path(env.get_or_select_template(os.path.join('emails', self.template)).filename)
             self.template_plugin_name = template_path.parts[3]
-            self.template_url = f"https://github.com/magfest/{self.template_plugin_name}/tree/main/{self.template_plugin_name}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
+            self.template_url = (f"https://github.com/magfest/{self.template_plugin_name}/tree/main/"
+                                 f"{self.template_plugin_name}/{pathlib.Path(*template_path.parts[5:]).as_posix()}")
         except jinja2.exceptions.TemplateNotFound:
             self.template_plugin_name = "ERROR: TEMPLATE NOT FOUND"
             self.template_url = ""
@@ -149,7 +150,7 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
-    lambda a: (a.paid == c.HAS_PAID and not a.promo_code_groups) or 
+    lambda a: (a.paid == c.HAS_PAID and not a.promo_code_groups) or
               (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id)),
     # query=Attendee.paid == c.HAS_PAID,
     needs_approval=False,
@@ -256,8 +257,7 @@ AutomatedEmailFixture(
 # =============================
 AutomatedEmailFixture.queries.update({
     ArtShowApplication:
-        lambda session: session.query(ArtShowApplication)
-            .options(subqueryload(ArtShowApplication.attendee))
+        lambda session: session.query(ArtShowApplication).options(subqueryload(ArtShowApplication.attendee))
 })
 
 
@@ -268,6 +268,7 @@ class ArtShowAppEmailFixture(AutomatedEmailFixture):
                                        lambda app: True and filter(app),
                                        ident,
                                        sender=c.ART_SHOW_EMAIL, **kwargs)
+
 
 if c.ART_SHOW_ENABLED:
     ArtShowAppEmailFixture(
@@ -335,8 +336,7 @@ if c.ART_SHOW_ENABLED:
 # =============================
 AutomatedEmailFixture.queries.update({
     MarketplaceApplication:
-        lambda session: session.query(MarketplaceApplication)
-            .options(subqueryload(MarketplaceApplication.attendee))
+        lambda session: session.query(MarketplaceApplication).options(subqueryload(MarketplaceApplication.attendee))
 })
 
 
@@ -347,6 +347,7 @@ class MarketplaceAppEmailFixture(AutomatedEmailFixture):
                                        lambda app: True and filter(app),
                                        ident,
                                        sender=c.MARKETPLACE_APP_EMAIL, **kwargs)
+
 
 if c.MARKETPLACE_REG_START:
     MarketplaceAppEmailFixture(
@@ -451,7 +452,7 @@ if c.DEALER_REG_START:
 
 
 # Placeholder badge emails; when an admin creates a "placeholder" badge, we send an email asking them to fill in the
-# rest of their information. We also send two reminder emails before the placeholder deadline explaining that the 
+# rest of their information. We also send two reminder emails before the placeholder deadline explaining that the
 # badge must be explicitly accepted or we'll assume the person isn't coming.
 #
 # We usually import a bunch of last year's staffers before preregistration goes live with placeholder badges, so there's
@@ -475,22 +476,41 @@ class StopsEmailFixture(AutomatedEmailFixture):
             **kwargs)
 
 
-deferred_attendee_placeholder = lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and \
-                                        a.badge_type == c.ATTENDEE_BADGE and a.paid == c.NEED_NOT_PAY and \
-                                        "staff import".lower() not in a.admin_notes.lower() and not a.admin_account,
-panelist_placeholder = lambda a: a.placeholder and c.PANELIST_RIBBON in a.ribbon_ints
-guest_placeholder = lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE and (not a.group 
-                                                                                   or a.group.guest 
-                                                                                   and a.group.guest.group_type == c.GUEST),
-dealer_placeholder = lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED
-staff_import_placeholder = lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and "staff import".lower() in a.admin_notes.lower()
-volunteer_placeholder = lambda a: a.placeholder and a.registered_local > c.PREREG_OPEN # a.staffing provided by StopsEmailFixture
-# TODO: Add an email for MIVS judges, an email for non-Guest guest group badges, and an email for group-leader-created badges
+# TODO: Refactor all this into something less lazy
+def deferred_attendee_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
+                                                                and a.badge_type == c.ATTENDEE_BADGE
+                                                                and a.paid == c.NEED_NOT_PAY
+                                                                and "staff import".lower() not in a.admin_notes.lower()
+                                                                and not a.admin_account)
 
-generic_placeholder = lambda a: a.placeholder and (c.AT_THE_CON or not deferred_attendee_placeholder(a)
-                                                   and not panelist_placeholder(a)
-                                                   and not guest_placeholder(a) and not dealer_placeholder(a) 
-                                                   and not staff_import_placeholder(a) and not volunteer_placeholder(a))
+
+def panelist_placeholder(a): return a.placeholder and c.PANELIST_RIBBON in a.ribbon_ints
+
+
+def guest_placeholder(a): return a.placeholder and a.badge_type == c.GUEST_BADGE and (
+            not a.group
+            or a.group.guest
+            and a.group.guest.group_type == c.GUEST)
+
+
+def dealer_placeholder(a): return a.placeholder and a.is_dealer and a.group.status == c.APPROVED
+
+
+def staff_import_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
+                                                           and "staff import".lower() in a.admin_notes.lower())
+
+
+def volunteer_placeholder(a): return a.placeholder and a.registered_local > c.PREREG_OPEN
+# a.staffing provided by StopsEmailFixture
+
+
+# TODO: Add an email for MIVS judges, an email for non-Guest guest group badges,
+# and an email for group-leader-created badges
+def generic_placeholder(a): return a.placeholder and (c.AT_THE_CON or not deferred_attendee_placeholder(a)
+                                                      and not panelist_placeholder(a)
+                                                      and not guest_placeholder(a) and not dealer_placeholder(a)
+                                                      and not staff_import_placeholder(a)
+                                                      and not volunteer_placeholder(a))
 
 
 AutomatedEmailFixture(
@@ -622,8 +642,8 @@ StopsEmailFixture(
 StopsEmailFixture(
     'Last chance to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
-    lambda a: c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE \
-        and (not c.PREREG_TAKEDOWN or c.BEFORE_PREREG_TAKEDOWN) and a.takes_shifts and not a.shift_minutes,
+    lambda a: (c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE
+               and (not c.PREREG_TAKEDOWN or c.BEFORE_PREREG_TAKEDOWN) and a.takes_shifts and not a.shift_minutes),
     when=days_before(10, c.EPOCH),
     ident='volunteer_shift_signup_reminder_last_chance')
 
@@ -644,7 +664,7 @@ StopsEmailFixture(
     'shifts/schedule.html',
     lambda a: c.SHIFTS_CREATED and a.weighted_hours and a.badge_type != c.CONTRACTOR_BADGE,
     allow_at_the_con=True,
-    #when=days_before(1, c.FINAL_EMAIL_DEADLINE),
+    when=days_before(1, c.FINAL_EMAIL_DEADLINE),
     ident='volunteer_shift_schedule')
 
 StopsEmailFixture(
@@ -671,11 +691,13 @@ if c.PRINTED_BADGE_DEADLINE:
     StopsEmailFixture(
         'Last chance to personalize your {EVENT_NAME} ({EVENT_DATE}) badge',
         'personalized_badges/volunteers.txt',
-        lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder and a.badge_type != c.CONTRACTOR_BADGE,
+        lambda a: (a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder
+                   and a.badge_type != c.CONTRACTOR_BADGE),
         when=days_before(7, c.PRINTED_BADGE_DEADLINE),
         ident='volunteer_personalized_badge_reminder')
 
-    if [badge_type for badge_type in c.PREASSIGNED_BADGE_TYPES if badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]]:
+    if [badge_type for badge_type in c.PREASSIGNED_BADGE_TYPES if badge_type not in [c.STAFF_BADGE,
+                                                                                     c.CONTRACTOR_BADGE]]:
         AutomatedEmailFixture(
             Attendee,
             'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
@@ -744,8 +766,9 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Want volunteer hotel room space at {EVENT_NAME}?',
         'hotel/hotel_rooms.txt',
-        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and \
-            not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible
+                   and not a.hotel_requests and a.takes_shifts),
+        sender=c.ROOM_EMAIL_SENDER,
         when=days_before(45, c.ROOM_DEADLINE, 14),
         ident='volunteer_hotel_room_inquiry')
 
@@ -753,8 +776,9 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Reminder to sign up for {EVENT_NAME} hotel room space',
         'hotel/hotel_reminder.txt',
-        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and \
-            not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible
+                   and not a.hotel_requests and a.takes_shifts),
+        sender=c.ROOM_EMAIL_SENDER,
         when=days_before(14, c.ROOM_DEADLINE, 2),
         ident='hotel_sign_up_reminder')
 
@@ -762,8 +786,9 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Last chance to sign up for {EVENT_NAME} hotel room space',
         'hotel/hotel_reminder.txt',
-        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and \
-            not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible
+                   and not a.hotel_requests and a.takes_shifts),
+        sender=c.ROOM_EMAIL_SENDER,
         when=days_before(2, c.ROOM_DEADLINE),
         ident='hotel_sign_up_reminder_last_chance')
 
@@ -771,8 +796,9 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Reminder to meet your {EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required and \
-            a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required
+                   and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE),
+        sender=c.ROOM_EMAIL_SENDER,
         when=days_before(14, c.FINAL_EMAIL_DEADLINE, 7),
         ident='hotel_requirements_reminder')
 
@@ -780,8 +806,9 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Final reminder to meet your {EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required and \
-            a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required
+                   and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE),
+        sender=c.ROOM_EMAIL_SENDER,
         when=days_before(7, c.FINAL_EMAIL_DEADLINE),
         ident='hotel_requirements_reminder_last_chance')
 
@@ -922,7 +949,7 @@ if c.MIVS_ENABLED:
         'Welcome as a MIVS Judge!',
         'mivs/judging/judge_welcome.txt',
         ident='mivs_judge_welcome')
-    
+
     MIVSEmailFixture(
         IndieJudge,
         'Reminder to update your MIVS Judge status',
@@ -966,7 +993,7 @@ if c.MIVS_ENABLED:
         'mivs/judge_badge_info.txt',
         lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_badge_info')
-	
+
     MIVSEmailFixture(
         IndieGame,
         'MIVS: Tournaments and Leaderboard Challenges',
@@ -988,14 +1015,14 @@ if c.MIVS_ENABLED:
         lambda mg: True,
         ident='mivs_checklist_update_studio_information'
     )
-    
+
     MIVSGuestEmailFixture(
         'New {EVENT_NAME} MIVS Checklist Item: MIVS Indie Handbook',
         'mivs/checklist/new_update_indiehandbook_information.txt',
         lambda mg: True,
         ident='mivs_checklist_update_indiehandbook_information'
     )
-	
+
     MIVSGuestEmailFixture(
         'New {EVENT_NAME} MIVS Checklist Item: Selling Information',
         'mivs/checklist/new_update_selling_information.txt',
@@ -1025,7 +1052,7 @@ if c.MIVS_ENABLED:
         lambda game: game.confirmed,
         ident='mivs_LoadIn.txt'
     )
-	
+
     MIVSEmailFixture(
         IndieGame,
         '{EVENT_NAME} MIVS {EVENT_YEAR}: Thursday, Day 1',
@@ -1034,8 +1061,7 @@ if c.MIVS_ENABLED:
         ident='mivs_Day1.txt'
     )
 
-
-    # start year specific MIVS Emails    
+    # start year specific MIVS Emails
     MIVSEmailFixture(
         IndieGame,
         'MIVS December Update',
@@ -1043,8 +1069,8 @@ if c.MIVS_ENABLED:
         lambda game: game.confirmed,
         ident='mivs_december_update.txt'
     )
-	
-    #post con emails
+
+    # post con emails
     MIVSEmailFixture(
         IndieGame,
         '{EVENT_NAME} MIVS {EVENT_YEAR}: Request for Feedback',
@@ -1054,10 +1080,10 @@ if c.MIVS_ENABLED:
         allow_post_con=True,
     )
 
+
 # =============================
 # mits
 # =============================
-
 class MITSEmailFixture(AutomatedEmailFixture):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('sender', c.MITS_EMAIL)

@@ -25,7 +25,7 @@ class Event(MagModel):
     description = Column(UnicodeText)
 
     assigned_panelists = relationship('AssignedPanelist', backref='event')
-    applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"), 
+    applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"),
                                 cascade="save-update,merge")
     panel_feedback = relationship('EventFeedback', backref='event')
     tournaments = relationship('TabletopTournament', backref='event', uselist=False)
@@ -79,7 +79,7 @@ class Event(MagModel):
     @property
     def guidebook_location(self):
         return self.location_label
-    
+
     @property
     def guidebook_track(self):
         return self.applications[0].track if self.applications else ''
@@ -165,7 +165,7 @@ class PanelApplication(MagModel):
     @property
     def unmatched_applicants(self):
         return [a for a in self.applicants if not a.attendee_id]
-    
+
     @property
     def confirm_deadline(self):
         if c.PANELS_CONFIRM_DEADLINE and self.has_been_accepted and not self.confirmed and not self.poc_id:

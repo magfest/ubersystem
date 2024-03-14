@@ -40,7 +40,7 @@ class Root:
                 and a.weighted_hours >= 12)
         }
         return render('other_reports/food_eligible.xml', {'attendees': eligible})
-    
+
     def guest_donations(self, session):
         return {
             'donation_offers': session.query(GuestCharity).filter(GuestCharity.desc != '')

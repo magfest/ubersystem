@@ -2,15 +2,14 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import cherrypy
-import re
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, \
-    check_can_edit_dept, log_pageview, requires_shifts_admin
+    check_can_edit_dept, requires_shifts_admin
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, Email, Job, PageViewTracking, Shift, Tracking
+from uber.models import Attendee, Department, Job
 from uber.utils import check, localized_now, redirect_to_allowed_dept
 
 
@@ -49,6 +48,7 @@ def update_counts(job, counts):
     else:
         counts['regular_total'] += job.total_hours
         counts['regular_signups'] += job.weighted_hours * len(job.shifts)
+
 
 @all_renderable()
 class Root:
@@ -150,14 +150,14 @@ class Root:
     @requires_shifts_admin
     def unfilled_shifts(self, session, department_id=None, message='', toggle_filter=''):
         """
-        This page is very similar to the signups view, but this is for STOPS to assign on-call 
+        This page is very similar to the signups view, but this is for STOPS to assign on-call
         volunteers to shifts onsite, so all the default values need to be the exact opposite.
 
         We also don't want the filters to interfere with the signups view so we store them separately.
         """
         if not toggle_filter:
             redirect_to_allowed_dept(session, department_id, 'unfilled_shifts')
-        
+
         if department_id == 'None':
             department_id = ''
         elif department_id == 'All':
@@ -214,8 +214,8 @@ class Root:
                 department_id = ''
 
         if department_id != '':
-            dept_filter = [] if department_id == None \
-                else [Attendee.dept_memberships.any(department_id=department_id)]
+            dept_filter = [] if department_id == None else [  # noqa: E711
+                Attendee.dept_memberships.any(department_id=department_id)]
             attendees = session.staffers(pending=True).filter(*dept_filter).all()
             for attendee in attendees:
                 if session.admin_has_staffer_access(attendee) or department_id:
@@ -254,7 +254,7 @@ class Root:
         attendee = session.attendee(id, allow_invalid=True)
         attendee.nonshift_minutes = int(float(nonshift_hours or 0) * 60)
         session.commit()
-        return { 'success': True, 'message': 'Non-shift hours updated' }
+        return {'success': True, 'message': 'Non-shift hours updated'}
 
     @ajax
     def update_notes(self, session, id, admin_notes, for_review=None):
@@ -263,23 +263,23 @@ class Root:
         if for_review is not None:
             attendee.for_review = for_review
         session.commit()
-        return { 'success': True, 'message': 'Notes updated' }
+        return {'success': True, 'message': 'Notes updated'}
 
     @ajax
     def assign_shift(self, session, staffer_id, job_id):
         message = session.assign(staffer_id, job_id)
         if message:
-            return { 'success': False, 'message': message }
+            return {'success': False, 'message': message}
         else:
             session.commit()
-            return { 'success': True, 'message': 'Shift added' }
+            return {'success': True, 'message': 'Shift added'}
 
     @ajax
     def unassign_shift(self, session, shift_id):
         shift = session.shift(shift_id)
         session.delete(shift)
         session.commit()
-        return { 'success': True, 'message': 'Staffer unassigned from shift' }
+        return {'success': True, 'message': 'Staffer unassigned from shift'}
 
     @requires_shifts_admin
     def form(self, session, message='', **params):
@@ -301,7 +301,7 @@ class Root:
                 hours = int(hours)
             except ValueError:
                 hours = 0
-            
+
             try:
                 minutes = int(minutes)
             except ValueError:
@@ -361,7 +361,7 @@ class Root:
 
         message = check_can_edit_dept(session, job.department, override_access='full_shifts_admin')
         if message:
-            raise HTTPRedirect('index?department_id={}&time={}&message={}', 
+            raise HTTPRedirect('index?department_id={}&time={}&message={}',
                                job.department_id, job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z"),
                                message)
 
@@ -369,7 +369,7 @@ class Root:
             session.delete(shift)
         session.delete(job)
         raise HTTPRedirect('index?department_id={}&time={}',
-                           job.department_id, 
+                           job.department_id,
                            job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z"))
 
     @csrf_protected

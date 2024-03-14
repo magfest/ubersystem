@@ -114,7 +114,7 @@ def attractions_send_notifications():
                 # receive the welcome email (even if they've chosen SMS or None
                 # for their notification prefs). If they've chosen to receive SMS
                 # notifications, they'll also get a text message.
-                is_first_signup = not(attendee.attraction_notifications)
+                is_first_signup = not (attendee.attraction_notifications)
 
                 if not is_first_signup and attendee.notification_pref == Attendee._NOTIFICATION_NONE:
                     continue
@@ -171,7 +171,8 @@ def attractions_send_notifications():
                             'checkin': checkin,
                             'c': c}, encoding=None)
                         sid = ident
-                        send_email.delay(from_, to_, subject=subject, body=body, format='html', model=attendee.to_dict(), ident=ident)
+                        send_email.delay(from_, to_, subject=subject, body=body, format='html',
+                                         model=attendee.to_dict(), ident=ident)
                 except Exception:
                     log.error(
                         'Error sending notification\n'

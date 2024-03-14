@@ -11,7 +11,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, schedule_view, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, AssignedPanelist, Attendee, Event, PanelApplication
+from uber.models import AssignedPanelist, Attendee, Event, PanelApplication
 from uber.utils import check, localized_now, normalize_newlines
 
 

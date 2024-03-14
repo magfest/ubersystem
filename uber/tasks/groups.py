@@ -1,22 +1,12 @@
-from collections import defaultdict
-from datetime import datetime, timedelta
-
-import stripe
-import time
-import pytz
+from datetime import datetime
 from celery.schedules import crontab
 from pockets.autolog import log
-from sqlalchemy import not_, or_
-from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.decorators import render
-from uber.models import ApiJob, Attendee, Email, Group, Session, ReceiptTransaction
-from uber.tasks.email import send_email
+from uber.models import Group, Session
 from uber.tasks import celery
-from uber.utils import localized_now, TaskUtils, SignNowRequest
-from uber.payments import ReceiptManager
+from uber.utils import SignNowRequest
 
 
 __all__ = ['check_document_signed', 'convert_declined_groups']

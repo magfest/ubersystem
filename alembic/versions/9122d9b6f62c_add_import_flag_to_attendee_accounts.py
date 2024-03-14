@@ -9,9 +9,7 @@ Create Date: 2023-09-05 06:35:31.397510
 
 # revision identifiers, used by Alembic.
 revision = '9122d9b6f62c'
-# Uncomment the line below next year to reorder this branched revision.
-# down_revision = '1fcbcf875d8e'
-down_revision = 'c31a2e5b6fbd'
+down_revision = '1fcbcf875d8e'
 branch_labels = None
 depends_on = None
 

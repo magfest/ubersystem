@@ -173,13 +173,13 @@ class PromoCodeGroup(MagModel):
     @hybrid_property
     def total_cost(self):
         return sum(code.cost for code in self.paid_codes if code.cost)
-    
+
     @total_cost.expression
     def total_cost(cls):
         return select([func.sum(PromoCode.cost)]
-                     ).where(PromoCode.group_id == cls.id).where(PromoCode.refunded == False
-                     ).label('total_cost')
-    
+                      ).where(PromoCode.group_id == cls.id).where(PromoCode.refunded == False  # noqa: E712
+                                                                  ).label('total_cost')
+
     @property
     def paid_codes(self):
         return [code for code in self.promo_codes if not code.refunded]
@@ -187,13 +187,13 @@ class PromoCodeGroup(MagModel):
     @property
     def valid_codes(self):
         return [code for code in self.promo_codes if code.is_valid]
-    
+
     @property
     def unused_codes(self):
         # Bypasses codes' expiration date; only use this to count
         # how many codes in a group went unused
         return [code for code in self.promo_codes if code.uses_count == 0]
-    
+
     @property
     def used_promo_codes(self):
         return [code for code in self.promo_codes if code.valid_used_by]
@@ -201,7 +201,8 @@ class PromoCodeGroup(MagModel):
     @property
     def sorted_promo_codes(self):
         return list(sorted(self.promo_codes, key=lambda pc: (not pc.valid_used_by,
-                                                             pc.valid_used_by[0].full_name if pc.valid_used_by else pc.code)))
+                                                             pc.valid_used_by[0].full_name
+                                                             if pc.valid_used_by else pc.code)))
 
     @property
     def hours_since_registered(self):
@@ -385,7 +386,7 @@ class PromoCode(MagModel):
     def group_registered(self):
         if self.group_id:
             return self.group.registered
-        
+
     @group_registered.expression
     def group_registered(cls):
         return select([PromoCodeGroup.registered]).where(PromoCodeGroup.id == cls.group_id).label('group_registered')
@@ -441,7 +442,8 @@ class PromoCode(MagModel):
     def uses_count(cls):
         from uber.models.attendee import Attendee
         return select([func.count(Attendee.id)]).where(Attendee.promo_code_id == cls.id
-                                               ).where(Attendee.is_valid == True).label('uses_count')
+                                                       ).where(Attendee.is_valid == True  # noqa: E712
+                                                               ).label('uses_count')
 
     @property
     def uses_count_str(self):
@@ -460,16 +462,16 @@ class PromoCode(MagModel):
     def uses_remaining_str(self):
         uses = self.uses_remaining
         return 'Unlimited uses' if uses is None else '{} use{} remaining'.format(uses, '' if uses == 1 else 's')
-    
+
     @hybrid_property
     def refunded(self):
         return self.used_by and self.used_by[0].badge_status == c.REFUNDED_STATUS
-    
+
     @refunded.expression
     def refunded(cls):
         from uber.models import Attendee
         return exists().select_from(Attendee).where(cls.id == Attendee.promo_code_id
-                                            ).where(Attendee.badge_status == c.REFUNDED_STATUS)
+                                                    ).where(Attendee.badge_status == c.REFUNDED_STATUS)
 
     @presave_adjustment
     def _attribute_adjustments(self):

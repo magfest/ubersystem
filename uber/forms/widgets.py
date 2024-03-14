@@ -2,6 +2,7 @@ from markupsafe import escape, Markup
 from wtforms.widgets import NumberInput, html_params, CheckboxInput, Select
 from uber.config import c
 
+
 class MultiCheckbox():
     """
     Renders a MultiSelect field as a set of checkboxes, e.g., "What interests you?"
@@ -10,10 +11,10 @@ class MultiCheckbox():
         kwargs.setdefault('type', 'checkbox')
         field_id = kwargs.pop('id', field.id)
         html = ['<div {}>'.format(html_params(class_=div_class))]
-        html.append('<fieldset {}>'.format(html_params(id=field_id)))
-        html.append('<legend class="form-text mt-0"><span class="form-label">{}</span>{}</legend>'.format(field.label.text,
-                                                                          Markup(' <span class="required-indicator text-danger">*</span>')
-                                                                          if field.flags.required else ''))
+        html.append(f'<fieldset {html_params(id=field_id)}>')
+        html.append(f'<legend class="form-text mt-0"><span class="form-label">{field.label.text}</span>'
+                    '{}</legend>'.format(Markup(' <span class="required-indicator text-danger">*</span>')
+                                         if field.flags.required else ''))
         for value, label, checked in field.iter_choices():
             choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
