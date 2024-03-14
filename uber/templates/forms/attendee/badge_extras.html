@@ -55,7 +55,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     <div class="row g-sm-3">
         <div class="col-12 col-sm-6">
             <div class="form-text">{{ badge_extras.amount_extra.label.text }}</div>
-            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra') }}{% endif %}</div>
+            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
         </div>
     </div>
 {% endif %}
@@ -77,7 +77,12 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block donation %}
 {% if c.COLLECT_EXTRA_DONATION %}
 <div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.extra_donation, id=id_upgrade_prepend ~ "extra_donation") }}</div>
+    <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(badge_extras.extra_donation, id=id_upgrade_prepend ~ "extra_donation") }}
+        {% if receipt and not upgrade_modal and not admin_area %}
+        {{ macros.upgrade_button('extra-donation', extra_classes="") }}
+        {% endif %}
+    </div>
 
     <div class="col-12 col-sm-6">
         <div class="alert alert-warning" role="alert">
@@ -86,11 +91,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
         Your employer may also have a charitable donation matching program. Contact us at {{ c.CONTACT_URL }} for details.
         </div>
     </div>
-
-    {% if receipt and not upgrade_modal and not admin_area %}
-        <div class="form-text">&nbsp;</div>
-        <div class="col-12 col-sm-6">{{ macros.upgrade_button('extra-donation', extra_classes="") }}</div>
-    {% endif %}
 
     {% if c.EXTRA_DONATION_URL %}
     <div class="col-12 col-sm-6">If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXTRA_DONATION %} also{% endif %} do so at any time of year at <a href="{{ c.EXTRA_DONATION_URL }}" target="_blank">{{ c.EXTRA_DONATION_URL }}</a>!</div>
