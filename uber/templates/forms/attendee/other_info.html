@@ -10,6 +10,7 @@
     staffing (ONLY for during prereg, use staffing_info.html otherwise)
     interests
     accessibility
+    prereg_extras
 
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
@@ -71,4 +72,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     <div class="col-12">{{ form_macros.form_input(other_info.requested_accessibility_services) }}</div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block prereg_extras %}
 {% endblock %}

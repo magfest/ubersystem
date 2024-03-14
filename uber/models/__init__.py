@@ -168,6 +168,14 @@ class MagModel:
     def multichoice_columns(cls):
         return [c for c in cls.__table__.columns if isinstance(c.type, MultiChoice)]
 
+    def auto_update_receipt(self, params):
+        """
+        Allows event plugins to preprocess a set of params before a model's receipt is updated.
+        If we keep the receipt auto-updater around long enough, we should move some of the 
+        ReceiptManager class's auto_update_receipt to this function.
+        """
+        return params
+
     def calc_default_cost(self):
         """
         Returns the sum of all cost and credit receipt items for this model instance.

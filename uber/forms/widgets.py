@@ -12,7 +12,7 @@ class MultiCheckbox():
         field_id = kwargs.pop('id', field.id)
         html = ['<div {}>'.format(html_params(class_=div_class))]
         html.append(f'<fieldset {html_params(id=field_id)}>')
-        html.append(f'<legend class="form-text mt-0"><span class="form-label">{field.label.text,}</span>'
+        html.append(f'<legend class="form-text mt-0"><span class="form-label">{field.label.text}</span>'
                     '{}</legend>'.format(Markup(' <span class="required-indicator text-danger">*</span>')
                                          if field.flags.required else ''))
         for value, label, checked in field.iter_choices():

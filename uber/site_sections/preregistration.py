@@ -339,6 +339,7 @@ class Root:
             params['badges'] = params.get('badges', getattr(group, 'badge_count', 0))
 
         badges = params.get('badges', 0)
+        attendee = group.attendees[0] if group.attendees else None
 
         forms = load_forms(params, group, ['ContactInfo', 'TableInfo'])
         for form in forms.values():
@@ -348,6 +349,9 @@ class Root:
             message = check(group, prereg=True)
             if not message:
                 track_type = c.UNPAID_PREREG
+
+                if attendee:
+                    group.attendees = [attendee]
                 PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group,
                                                                                  badge_count=badges)
                 Tracking.track(track_type, group)
@@ -569,7 +573,6 @@ class Root:
                 track_type = c.UNPAID_PREREG
 
                 if 'group_id' in params and attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    group = self._get_unsaved(params['group_id'], PreregCart.pending_dealers)
                     attendee.group_id = params['group_id']
 
                     if params.get('copy_email'):
@@ -987,6 +990,32 @@ class Root:
             if not txn.charge_id:
                 txn.cancelled = datetime.now()
                 session.add(txn)
+
+        session.commit()
+
+        return {'message': 'Payment cancelled.'}
+    
+    @ajax
+    def cancel_payment_and_revert(self, session, stripe_id):
+        last_receipt = None
+        model = None
+        for txn in session.query(ReceiptTransaction).filter_by(intent_id=stripe_id).all():
+            receipt = txn.receipt
+            if receipt != last_receipt:
+                model = session.get_model_by_receipt(receipt)
+
+            if model and not txn.charge_id:
+                for item in txn.receipt_items:
+                    for col_name in item.revert_change:
+                        receipt_item = ReceiptManager.process_receipt_upgrade_item(
+                            model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
+                        session.add(receipt_item)
+                        model.apply(item.revert_change, restricted=False)
+            if not txn.charge_id:
+                txn.cancelled = datetime.now()
+                session.add(txn)
+
+            last_receipt = receipt
 
         session.commit()
 
@@ -2025,7 +2054,7 @@ class Root:
 
         return {'stripe_intent': charge.intent,
                 'success_url': '{}message={}'.format(success_url_base, 'Payment accepted!'),
-                'cancel_url': 'cancel_payment'}
+                'cancel_url': params.get('cancel_url', 'cancel_payment')}
 
     @id_required(Attendee)
     @requires_account(Attendee)
@@ -2042,13 +2071,13 @@ class Root:
     @requires_account(Attendee)
     def reset_receipt(self, session, id, return_to):
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee)
-        receipt.closed = datetime.now()
-        session.add(receipt)
-        session.commit()
-
         message = attendee.undo_extras()
+
         if not message:
+            receipt = session.get_receipt_by_model(attendee)
+            receipt.closed = datetime.now()
+            session.add(receipt)
+
             new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if new_receipt.current_amount_owed:

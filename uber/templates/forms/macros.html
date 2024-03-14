@@ -115,7 +115,7 @@
 {{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop, closest_hide_selector=closest_hide_selector) }}
 {%- endmacro %}
 
-{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id='', target_call_func='') %}
+{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id='', target_call_func='', target_field_prepend='') %}
 {% set source_id = source_field_id or source_field.id %}
 {% set suffix = "_" ~ source_id %}
 <script type="text/javascript">
@@ -146,19 +146,19 @@
 
         {% for target_field in target_fields %}
           {%- if prop == 'visibility' %}
-              $('#{{ target_field.id }}').toggle(toggleOn);
+              $('#{{ target_field_prepend ~ target_field.id }}').toggle(toggleOn);
               {%- if closest_hide_selector %}
-                  $('#{{ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
+                  $('#{{ target_field_prepend ~ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
               {%- endif %}
           {%- elif prop %}
-              $('#{{ target_field.id }}').prop('{{ prop }}', {{ "!" if prop != 'required' and prop != 'checked' else '' }}toggleOn);
+              $('#{{ target_field_prepend ~ target_field.id }}').prop('{{ prop }}', {{ "!" if prop != 'required' and prop != 'checked' else '' }}toggleOn);
           {%- endif %}
           {%- if toggle_required %}
-            $('#{{ target_field.id }}').prop('required', toggleOn);
-            $('#{{ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
+            $('#{{ target_field_prepend ~ target_field.id }}').prop('required', toggleOn);
+            $('#{{ target_field_prepend ~ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
           {%- endif %}
           {% if not target_call_func %}
-            $('#{{ target_field.id }}').trigger('change');
+            $('#{{ target_field_prepend ~ target_field.id }}').trigger('change');
           {% endif %}
         {% endfor %}
     }
@@ -168,7 +168,7 @@
         $('#{{ source_id }}').change(toggleField{{ suffix }});
         {% for target_field in target_fields %}
           {% if target_call_func %}
-            $('#{{ target_field.id }}').change({{ target_call_func }});
+            $('#{{ target_field_prepend ~ target_fields[0].id }}').change({{ target_call_func }});
           {% endif %}
         {% endfor %}
     });

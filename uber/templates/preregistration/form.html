@@ -26,10 +26,13 @@
 <input type="hidden" name="is_prereg" value="True" />
 {{ csrf_token() }}
 
-{% include "forms/prereg_fields.html" %}
+{% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
+{# Dealers shouldn't be able to select other badge types. #}
+  {% include "forms/prereg_fields.html" %}
 
 {% if forms and 'group_info' in forms %}
   {% include "forms/group/group_info.html" %}
+{% endif %}
 {% endif %}
 
 {% if attendee.badge_type == c.PSEUDO_DEALER_BADGE %}

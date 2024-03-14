@@ -153,14 +153,10 @@
 {% endif %}
   {{ form_macros.address_fields(attendee, personal_info) }}
 {% else %}
-<div class="row g-sm-3">
+{# We need a better solution, but avoiding a row here allows event plugins to put a field next to the zip code #}
   <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.zip_code, extra_field=form_macros.toggle_checkbox(personal_info.international, [personal_info.zip_code], hide_on_checked=True, toggle_required=True, prop='')) }}
   </div>
-
-  <div class="col-12 col-sm-6">
-  </div>
-</div>
 {% endif %}
 {% endblock %}
 
