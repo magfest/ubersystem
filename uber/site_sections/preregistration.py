@@ -991,6 +991,32 @@ class Root:
         session.commit()
 
         return {'message': 'Payment cancelled.'}
+    
+    @ajax
+    def cancel_payment_and_revert(self, session, stripe_id):
+        last_receipt = None
+        model = None
+        for txn in session.query(ReceiptTransaction).filter_by(intent_id=stripe_id).all():
+            receipt = txn.receipt
+            if receipt != last_receipt:
+                model = session.get_model_by_receipt(receipt)
+
+            if model and not txn.charge_id:
+                for item in txn.receipt_items:
+                    for col_name in item.revert_change:
+                        receipt_item = ReceiptManager.process_receipt_upgrade_item(
+                            model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
+                        session.add(receipt_item)
+                        model.apply(item.revert_change, restricted=False)
+            if not txn.charge_id:
+                txn.cancelled = datetime.now()
+                session.add(txn)
+
+            last_receipt = receipt
+
+        session.commit()
+
+        return {'message': 'Payment cancelled.'}
 
     @ajax
     def cancel_promo_code_payment(self, session, stripe_id, **params):
@@ -2025,7 +2051,7 @@ class Root:
 
         return {'stripe_intent': charge.intent,
                 'success_url': '{}message={}'.format(success_url_base, 'Payment accepted!'),
-                'cancel_url': 'cancel_payment'}
+                'cancel_url': params.get('cancel_url', 'cancel_payment')}
 
     @id_required(Attendee)
     @requires_account(Attendee)
