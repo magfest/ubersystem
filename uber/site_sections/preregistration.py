@@ -339,6 +339,7 @@ class Root:
             params['badges'] = params.get('badges', getattr(group, 'badge_count', 0))
 
         badges = params.get('badges', 0)
+        attendee = group.attendees[0] if group.attendees else None
 
         forms = load_forms(params, group, ['ContactInfo', 'TableInfo'])
         for form in forms.values():
@@ -348,6 +349,9 @@ class Root:
             message = check(group, prereg=True)
             if not message:
                 track_type = c.UNPAID_PREREG
+
+                if attendee:
+                    group.attendees = [attendee]
                 PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group,
                                                                                  badge_count=badges)
                 Tracking.track(track_type, group)
@@ -569,7 +573,6 @@ class Root:
                 track_type = c.UNPAID_PREREG
 
                 if 'group_id' in params and attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    group = self._get_unsaved(params['group_id'], PreregCart.pending_dealers)
                     attendee.group_id = params['group_id']
 
                     if params.get('copy_email'):
