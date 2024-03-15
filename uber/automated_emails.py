@@ -126,6 +126,9 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
 
+        self.template_plugin_name = ""
+        self.template_url = ""
+
     def update_template_plugin_info(self):
         env = JinjaEnv.env()
         try:
@@ -137,6 +140,14 @@ class AutomatedEmailFixture:
             self.template_plugin_name = "ERROR: TEMPLATE NOT FOUND"
             self.template_url = ""
         return self.template_plugin_name, self.template_url
+
+    def update_subject_line(self, subject):
+        self.subject = subject \
+            .replace('{EVENT_NAME}', c.EVENT_NAME) \
+            .replace('{EVENT_YEAR}', c.EVENT_YEAR) \
+            .replace('{EVENT_DATE}', c.EPOCH.strftime('%b %Y'))
+
+        AutomatedEmail._fixtures[self.ident] = self
 
     @property
     def body(self):

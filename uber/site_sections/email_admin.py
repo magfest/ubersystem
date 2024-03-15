@@ -35,7 +35,7 @@ class Root:
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
 
     def pending(self, session, message=''):
-        AutomatedEmail.reconcile_fixtures()
+        AutomatedEmail.reconcile_fixtures(cleanup=False)
         emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
             AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
         emails = []
@@ -83,10 +83,7 @@ class Root:
         }
 
     def update_dates(self, session, ident, **params):
-        email = session.query(AutomatedEmail).filter_by(ident=ident).first()
-        email.apply(params, restricted=False)
-        session.add(email)
-        session.commit()
+        AutomatedEmail.update_fixture(session, ident, **params)
         raise HTTPRedirect('pending_examples?ident={}&message={}', ident, 'Email send dates updated')
 
     def test_email(self, session, subject=None, body=None, from_address=None, to_address=None, **params):
