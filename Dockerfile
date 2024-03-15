@@ -1,6 +1,6 @@
 # syntax = docker/dockerfile:1.4.0
 
-FROM ghcr.io/magfest/sideboard:main
+FROM ghcr.io/magfest/sideboard:main as build
 ARG PLUGINS="[]"
 MAINTAINER RAMS Project "code@magfest.org"
 LABEL version.rams-core ="0.1"
