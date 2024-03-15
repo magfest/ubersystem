@@ -4,7 +4,7 @@ from datetime import datetime
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.dialects.postgresql.json import JSON
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 
 from uber.config import c

@@ -4,7 +4,7 @@ import cherrypy
 from pockets import classproperty, listify
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy.dialects.postgresql.json import JSON
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
@@ -45,8 +45,7 @@ class AdminAccount(MagModel):
         'ApiToken',
         primaryjoin='and_('
                     'AdminAccount.id == ApiToken.admin_account_id, '
-                    'ApiToken.revoked_time == None)',
-        viewonly=True)
+                    'ApiToken.revoked_time == None)')
 
     judge = relationship('IndieJudge', uselist=False, backref='admin_account')
     print_requests = relationship('PrintJob', backref='admin_account',
