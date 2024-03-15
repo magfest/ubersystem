@@ -37,9 +37,7 @@ def teardown_range_check(request):
 
 
 def check_ranges(session):
-    if not c.NUMBERED_BADGES:
-        return True
-    for badge_type in c.PREASSIGNED_BADGE_TYPES:
+    for badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
         actual = [a.badge_num for a in session.query(Attendee)
                                               .filter_by(badge_type=badge_type)
                                               .order_by(Attendee.badge_num).all()
@@ -123,16 +121,16 @@ class TestGetNextBadgeNum:
         assert 8 == session.get_next_badge_num(c.STAFF_BADGE)
 
     def test_preassigned_with_dirty(self, session):
-        session.staff_five.badge_type, session.staff_five.badge_num = c.STAFF_BADGE, 6
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 6
         assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
-        session.expunge(session.staff_five)
+        session.expunge(session.supporter_five)
 
     def test_preassigned_two_dirty(self, session):
-        session.staff_five.badge_type, session.staff_five.badge_num = c.STAFF_BADGE, 6
-        session.staff_four.badge_type, session.staff_four.badge_num = c.STAFF_BADGE, 7
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 6
+        session.supporter_four.badge_type, session.supporter_four.badge_num = c.STAFF_BADGE, 7
         assert 8 == session.get_next_badge_num(c.STAFF_BADGE)
-        session.expunge(session.staff_four)
-        session.expunge(session.staff_five)
+        session.expunge(session.supporter_four)
+        session.expunge(session.supporter_five)
 
     def test_non_preassigned(self, session):
         assert 3001 == session.get_next_badge_num(c.ATTENDEE_BADGE)
@@ -147,25 +145,25 @@ class TestGetNextBadgeNum:
         assert 3003 == session.get_next_badge_num(c.ATTENDEE_BADGE)
 
     def test_non_preassigned_with_dirty(self, session):
-        session.staff_five.badge_type, session.staff_five.badge_num = c.ATTENDEE_BADGE, 3001
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.ATTENDEE_BADGE, 3001
         assert 3002 == session.get_next_badge_num(c.ATTENDEE_BADGE)
-        session.expunge(session.staff_five)
+        session.expunge(session.supporter_five)
 
     def test_non_preassigned_two_dirty(self, session):
-        session.staff_five.badge_type, session.staff_five.badge_num = c.ATTENDEE_BADGE, 3001
-        session.staff_four.badge_type, session.staff_five.badge_num = c.ATTENDEE_BADGE, 3002
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.ATTENDEE_BADGE, 3001
+        session.supporter_four.badge_type, session.supporter_five.badge_num = c.ATTENDEE_BADGE, 3002
         assert 3003 == session.get_next_badge_num(c.ATTENDEE_BADGE)
-        session.expunge(session.staff_four)
-        session.expunge(session.staff_five)
+        session.expunge(session.supporter_four)
+        session.expunge(session.supporter_five)
 
     def test_diff_type_new(self, session):
         session.add(Attendee(badge_type=c.ATTENDEE_BADGE, checked_in=datetime.now(UTC), badge_num=6))
         assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
 
     def test_diff_type_dirty(self, session):
-        session.staff_five.badge_type, session.staff_five.badge_num = c.ATTENDEE_BADGE, 6
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.ATTENDEE_BADGE, 6
         assert 7 == session.get_next_badge_num(c.STAFF_BADGE)
-        session.expunge(session.staff_five)
+        session.expunge(session.supporter_five)
 
     def test_ignore_too_high(self, session):
         over_max = c.BADGE_RANGES[c.STAFF_BADGE][1] + 10
@@ -189,15 +187,15 @@ class TestAutoBadgeNum:
         assert 6 == session.auto_badge_num(c.STAFF_BADGE)
 
     def test_preassigned_with_gap(self, session):
-        session.staff_five.badge_type, session.staff_five.badge_num = c.STAFF_BADGE, 12
-        session.staff_four.badge_type, session.staff_four.badge_num = c.STAFF_BADGE, 6
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 12
+        session.supporter_four.badge_type, session.supporter_four.badge_num = c.STAFF_BADGE, 6
         session.commit()
         assert 7 == session.auto_badge_num(c.STAFF_BADGE)
 
     def test_preassigned_with_two_gaps(self, session):
-        session.staff_five.badge_type, session.staff_five.badge_num = c.STAFF_BADGE, 12
-        session.staff_four.badge_type, session.staff_four.badge_num = c.STAFF_BADGE, 6
-        session.staff_three.badge_type, session.staff_three.badge_num = c.STAFF_BADGE, 8
+        session.supporter_five.badge_type, session.supporter_five.badge_num = c.STAFF_BADGE, 12
+        session.supporter_four.badge_type, session.supporter_four.badge_num = c.STAFF_BADGE, 6
+        session.supporter_three.badge_type, session.supporter_three.badge_num = c.STAFF_BADGE, 8
         session.commit()
         assert 7 == session.auto_badge_num(c.STAFF_BADGE)
 
@@ -317,31 +315,31 @@ class TestShiftBadges:
 
 class TestBadgeTypeChange:
     def test_end_to_next(self, session):
-        change_badge(session, session.staff_five, c.STAFF_BADGE, expected_num=6)
+        change_badge(session, session.supporter_five, c.STAFF_BADGE, expected_num=6)
 
     def test_end_to_end(self, session):
-        change_badge(session, session.staff_five, c.STAFF_BADGE, new_num=6)
+        change_badge(session, session.supporter_five, c.STAFF_BADGE, new_num=6)
 
     def test_end_to_boundary(self, session):
-        change_badge(session, session.staff_five, c.STAFF_BADGE, new_num=5)
+        change_badge(session, session.supporter_five, c.STAFF_BADGE, new_num=5)
 
     def test_end_to_middle(self, session):
-        change_badge(session, session.staff_five, c.STAFF_BADGE, new_num=3)
+        change_badge(session, session.supporter_five, c.STAFF_BADGE, new_num=3)
 
     def test_end_to_beginning(self, session):
-        change_badge(session, session.staff_five, c.STAFF_BADGE, new_num=1)
+        change_badge(session, session.supporter_five, c.STAFF_BADGE, new_num=1)
 
     def test_end_to_over(self, session):
-        change_badge(session, session.staff_five, c.STAFF_BADGE, new_num=7)
+        change_badge(session, session.supporter_five, c.STAFF_BADGE, new_num=7)
 
     def test_middle_to_next(self, session):
-        change_badge(session, session.staff_three, c.STAFF_BADGE, expected_num=6)
+        change_badge(session, session.supporter_three, c.STAFF_BADGE, expected_num=6)
 
     def test_beginning_to_next(self, session):
-        change_badge(session, session.staff_one, c.STAFF_BADGE, expected_num=6)
+        change_badge(session, session.supporter_one, c.STAFF_BADGE, expected_num=6)
 
     def test_to_non_preassigned(self, session):
-        change_badge(session, session.staff_five, c.ATTENDEE_BADGE)
+        change_badge(session, session.supporter_five, c.ATTENDEE_BADGE)
 
     def test_from_non_preassigned(self, session):
         change_badge(session, session.regular_attendee, c.STAFF_BADGE, expected_num=6)
@@ -447,7 +445,7 @@ class TestShiftOnChange:
         session.staff_one.badge_num = 503
         assert 'Badge updated' == session.update_badge(session.staff_one, c.STAFF_BADGE, 1)
         assert session.staff_two.badge_num == 1
-        assert session.staff_three.badge_num == 502
+        assert session.supporter_three.badge_num == 502
         assert [1, 2, 3, 4, 503] == self.staff_badges(session)
 
     def test_shift_on_remove(self, session):
@@ -484,13 +482,12 @@ class TestBadgeValidations:
         monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', False)
         session.staff_two.badge_num = session.staff_two.badge_num
         session.staff_two.badge_num = 1
-        assert 'ERROR: That badge number already belongs to {!r}'.format(session.staff_one.full_name) \
+        assert 'That badge number already belongs to {!r}'.format(session.staff_one.full_name) \
             == check(session.staff_two)
 
     def test_invalid_badge_num(self, session):
         session.staff_one.badge_num = 'Junk Badge Number'
-        with pytest.raises(TypeError) as message:
-            assert not check(session.staff_one) is None
+        assert '{!r} is not a valid badge number'.format(session.staff_one.badge_num) == check(session.staff_one)
 
     def test_no_more_custom_badges(self, admin_attendee, session, monkeypatch, after_printed_badge_deadline):
         session.regular_attendee.badge_type = session.regular_attendee.badge_type

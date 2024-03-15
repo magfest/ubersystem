@@ -29,26 +29,24 @@ def create_events():
         for event in events:
             session.delete(event)
 
-@pytest.mark.skip
+
 def test_csv(create_events, admin_attendee):
     response = schedule.Root().csv()
     if isinstance(response, bytes):
         response = response.decode('utf-8')
 
-    print(response)
     lines = response.split('\n')
     assert len(lines) == 41
     assert lines[0].strip() == 'Session Title,Date,Time Start,Time End,Room/Location,Schedule Track (Optional),' \
         'Description (Optional),Allow Checkin (Optional),Checkin Begin (Optional),Limit Spaces? (Optional),' \
         'Allow Waitlist (Optional)'
 
-@pytest.mark.skip
+
 def test_schedule_tsv(create_events):
     response = schedule.Root().schedule_tsv()
     if isinstance(response, bytes):
         response = response.decode('utf-8')
 
-    print(response)
     lines = response.split('\n')
     assert len(lines) == 41
     assert lines[0].strip() == 'Session Title\tDate\tTime Start\tTime End\tRoom/Location\t' \

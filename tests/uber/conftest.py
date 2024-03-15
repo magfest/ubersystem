@@ -260,18 +260,3 @@ def after_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_B
 
 @pytest.fixture
 def custom_badges_ordered(monkeypatch): monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', False)
-
-collect_ignore = [
-    "models/test_attendee.py",
-    "models/test_apply.py",
-    "models/test_badge_funcs.py",
-    "models/test_config.py",
-    "models/test_getattr_fields.py",
-    "models/test_group.py",
-    "models/test_hotel.py",
-    "models/test_job.py",
-    "models/test_merch.py",
-    "models/test_promo_code.py",
-    "models/test_watchlist.py",
-    "site_sections/test_budget.py"
-]

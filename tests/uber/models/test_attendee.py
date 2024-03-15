@@ -245,8 +245,6 @@ def test_is_not_transferable_trusted(monkeypatch, dept, trusted_role):
         assert not attendee.is_transferable
 
 
-<<<<<<< HEAD
-=======
 """
 Disabling these as they test implementation details that have radically changed
 @pytest.mark.parametrize('open,expected', [
@@ -298,7 +296,6 @@ def test_self_service_refunds_misc(monkeypatch, amount_paid, checked_in, expecte
     assert attendee.can_self_service_refund_badge == expected
 
 
->>>>>>> main
 def test_self_service_refunds_no_stripe(monkeypatch):
     monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
                         property(lambda s: True))
@@ -307,8 +304,6 @@ def test_self_service_refunds_no_stripe(monkeypatch):
     assert not attendee.can_self_service_refund_badge
 
 
-<<<<<<< HEAD
-=======
 def test_self_service_refunds_group_leader(monkeypatch):
     monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
                         property(lambda s: True))
@@ -321,7 +316,6 @@ def test_self_service_refunds_group_leader(monkeypatch):
 """
 
 
->>>>>>> main
 def test_has_role_somewhere(dept, trusted_role):
     with Session() as session:
         attendee = Attendee(paid=c.HAS_PAID)
@@ -430,6 +424,46 @@ def test_takes_shifts(dept, shiftless_dept):
     assert Attendee(staffing=True, assigned_depts=[dept, shiftless_dept]).takes_shifts
 
 
+class TestAttendeeFoodRestrictionsFilledOut:
+    @pytest.fixture
+    def staff_get_food_true(self, monkeypatch):
+        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: True))
+        assert c.STAFF_GET_FOOD
+
+    @pytest.fixture
+    def staff_get_food_false(self, monkeypatch):
+        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: False))
+        assert not c.STAFF_GET_FOOD
+
+    def test_food_restrictions_filled_out(self, staff_get_food_true):
+        assert Attendee(food_restrictions=FoodRestrictions()).food_restrictions_filled_out
+
+    def test_food_restrictions_not_filled_out(self, staff_get_food_true):
+        assert not Attendee().food_restrictions_filled_out
+
+    def test_food_restrictions_not_needed(self, staff_get_food_false):
+        assert Attendee().food_restrictions_filled_out
+
+    def test_shift_prereqs_complete(self, staff_get_food_true):
+        assert Attendee(placeholder=False, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+    def test_shift_prereqs_placeholder(self, staff_get_food_true):
+        assert not Attendee(placeholder=True, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+    def test_shift_prereqs_no_shirt(self, staff_get_food_true):
+        assert not Attendee(
+            placeholder=False, shirt=c.NO_SHIRT, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+        assert not Attendee(
+            placeholder=False, shirt=c.SIZE_UNKNOWN, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+
+    def test_shift_prereqs_no_food(self, staff_get_food_true):
+        assert not Attendee(placeholder=False, shirt=1).shift_prereqs_complete
+
+    def test_shift_prereqs_food_not_needed(self, staff_get_food_false):
+        assert Attendee(placeholder=False, shirt=1).shift_prereqs_complete
+
+
 class TestUnsetVolunteer:
     def test_basic(self, dept, trusted_role):
         a = Attendee(
@@ -524,7 +558,7 @@ class TestStaffingAdjustments:
 
     @pytest.fixture(autouse=True)
     def prevent_presave_adjustments(self, monkeypatch):
-        """ Prevent some tests from crashing on exit by not invoking presave_adjustments() """
+        """ Prevent some tests from crashing on exit by not invoking presave_adjustements() """
         monkeypatch.setattr(Attendee, 'presave_adjustments', Mock())
         return Attendee.presave_adjustments
 
@@ -539,7 +573,7 @@ class TestStaffingAdjustments:
 
     def test_staffing_still_trusted_assigned(self, dept, shiftless_dept):
         """
-        After applying staffing adjustments:
+        After applying staffing adjustements:
         Any depts you are both trusted and assigned to should remain unchanged
         """
         a = Attendee(staffing=True)
@@ -788,7 +822,7 @@ class TestPhoneNumberValidations:
         '+49 033933-88213'
     ])
     def test_valid_number(self, number):
-        assert not _invalid_phone_number(number)
+        assert not invalid_phone_number(number)
 
     @pytest.mark.parametrize('number', [
         # invalid US numbers
@@ -811,9 +845,4 @@ class TestPhoneNumberValidations:
         '+44,4930222'
     ])
     def test_invalid_number(selfself, number):
-<<<<<<< HEAD
-        assert _invalid_phone_number(number)
-
-=======
         assert invalid_phone_number(number)
->>>>>>> main

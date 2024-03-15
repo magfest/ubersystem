@@ -57,7 +57,7 @@ class TestAutomatedEmail(object):
         with Session() as session:
             assert session.query(AutomatedEmail).count() == 8
             for automated_email in session.query(AutomatedEmail):
-                assert automated_email.subject == 'MAGFest 2016 Jan 2016 {{ attendee.full_name }}'
+                assert automated_email.subject == 'CoolCon9000 2016 Jan 2016 {{ attendee.full_name }}'
                 assert automated_email.active_when_label == ACTIVE_WHEN_LABELS[automated_email.ordinal]
 
     @pytest.mark.parametrize('at_the_con,post_con,expected', [
@@ -182,8 +182,8 @@ class TestAutomatedEmail(object):
     def test_render(self, automated_email_fixture):
         with Session() as session:
             email = session.query(AutomatedEmail).one()
-            assert email.render_body(Attendee(first_name='A', last_name='Z')) == 'A Z\nMAGFest\nEXTRA DATA'
-            assert email.render_subject(Attendee(first_name='A', last_name='Z')) == 'MAGFest 2016 Jan 2016 A Z'
+            assert email.render_body(Attendee(first_name='A', last_name='Z')) == 'A Z\nCoolCon9000\nEXTRA DATA'
+            assert email.render_subject(Attendee(first_name='A', last_name='Z')) == 'CoolCon9000 2016 Jan 2016 A Z'
 
     def test_would_send_if_approved(self, automated_email_fixture):
         with Session() as session:

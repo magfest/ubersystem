@@ -2,19 +2,13 @@ from datetime import datetime
 
 import cherrypy
 import pytest
-import bcrypt
 import pytz
 from cherrypy import HTTPError
 
 from tests.uber.conftest import csrf_token
 from uber.api import auth_by_token, auth_by_session, api_auth, all_api_auth
 from uber.config import c
-<<<<<<< HEAD
-from uber.models import AdminAccount, Attendee, ApiToken, Session, AccessGroup
-from uber.utils import check
-=======
 from uber.models import AdminAccount, Attendee, ApiToken, Session
->>>>>>> main
 
 
 assert csrf_token
@@ -31,66 +25,15 @@ def session():
 
 @pytest.fixture()
 def admin_account(monkeypatch, session):
-    attendee = Attendee(
-        placeholder=True,
-        first_name='Test',
-        last_name='Developer',
-        email='magfest@example.com',
-        badge_type=c.ATTENDEE_BADGE,
-    )
-    session.add(attendee)
-
-    test_developer_account = AdminAccount(
-        attendee=attendee,
-        hashed=bcrypt.hashpw('magfest'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    )
-
-    session.add(test_developer_account)
+    admin_account = AdminAccount(attendee=Attendee())
+    session.add(admin_account)
     session.commit()
-    session.refresh(test_developer_account)
-    monkeypatch.setitem(cherrypy.session, 'account_id', test_developer_account.id)
-    yield test_developer_account
+    session.refresh(admin_account)
+    monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
+    yield admin_account
     cherrypy.session['account_id'] = None
-    session.delete(test_developer_account)
-    session.delete(attendee)
+    session.delete(admin_account)
 
-@pytest.fixture()
-def api_access_groups(session):
-    api_read_group = AccessGroup(
-        name="API Read",
-        read_only_access={"api": "5"}
-    )
-    api_update_group = AccessGroup(
-        name="API Update",
-        access={"api": "1"}
-    )
-    api_create_group = AccessGroup(
-        name="API Create",
-        access={"api": "2"}
-    )
-    api_delete_group = AccessGroup(
-        name="API Delete",
-        access={"api": "5"}
-    )
-    session.add(api_read_group)
-    session.add(api_update_group)
-    session.add(api_create_group)
-    session.add(api_delete_group)
-    session.commit()
-    session.refresh(api_read_group)
-    session.refresh(api_update_group)
-    session.refresh(api_create_group)
-    session.refresh(api_delete_group)
-    yield {
-        c.API_READ: api_read_group,
-        c.API_UPDATE: api_update_group,
-        c.API_CREATE: api_create_group,
-        c.API_DELETE: api_delete_group
-    }
-    session.delete(api_read_group)
-    session.delete(api_update_group)
-    session.delete(api_create_group)
-    session.delete(api_delete_group)
 
 @pytest.fixture()
 def api_token(session, admin_account):
@@ -103,10 +46,7 @@ def api_token(session, admin_account):
     yield api_token
     session.delete(api_token)
 
-<<<<<<< HEAD
-=======
 
->>>>>>> main
 class TestAuthByToken(object):
     ACCESS_ERR = 'Insufficient access for auth token: {}'.format(VALID_API_TOKEN)
 
@@ -133,12 +73,12 @@ class TestAuthByToken(object):
 
     @pytest.mark.parametrize('token_access,required_access,expected', [
         ([], [], None),
-        ([], ['api_read'], (403, ACCESS_ERR)),
-        ([], ['api_read', 'api_update'], (403, ACCESS_ERR)),
+        ([], [c.API_READ], (403, ACCESS_ERR)),
+        ([], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
         ([c.API_READ], [], None),
-        ([c.API_READ], ['api_read'], None),
-        ([c.API_READ], ['api_read', 'api_update'], (403, ACCESS_ERR)),
-        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], None),
+        ([c.API_READ], [c.API_READ], None),
+        ([c.API_READ], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
+        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], None),
     ])
     def test_insufficient_access(self, monkeypatch, session, api_token, token_access, required_access, expected):
         api_token.access = ','.join(map(str, token_access))
@@ -179,15 +119,15 @@ class TestAuthBySession(object):
 
     @pytest.mark.parametrize('admin_access,required_access,expected', [
         ([], [], None),
-        ([], ['api_read'], (403, ACCESS_ERR)),
-        ([], ['api_read', 'api_update'], (403, ACCESS_ERR)),
+        ([], [c.API_READ], (403, ACCESS_ERR)),
+        ([], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
         ([c.API_READ], [], None),
-        ([c.API_READ], ['api_read'], None),
-        ([c.API_READ], ['api_read', 'api_update'], (403, ACCESS_ERR)),
-        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], None),
+        ([c.API_READ], [c.API_READ], None),
+        ([c.API_READ], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
+        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], None),
     ])
-    def test_insufficient_access(self, monkeypatch, session, admin_account, api_access_groups, admin_access, required_access, expected):
-        admin_account.access_groups = [api_access_groups[x] for x in admin_access]
+    def test_insufficient_access(self, monkeypatch, session, admin_account, admin_access, required_access, expected):
+        admin_account.access = ','.join(map(str, admin_access))
         session.commit()
         session.refresh(admin_account)
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
@@ -202,22 +142,22 @@ class TestApiAuth(object):
 
     TEST_REQUIRED_ACCESS = [
         ([], [], False),
-        ([], ['api_read'], True),
-        ([], ['api_read', 'api_update'], True),
+        ([], [c.API_READ], True),
+        ([], [c.API_READ, c.API_UPDATE], True),
         ([c.API_READ], [], False),
-        ([c.API_READ], ['api_read'], False),
-        ([c.API_READ], ['api_read', 'api_update'], True),
-        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], False),
+        ([c.API_READ], [c.API_READ], False),
+        ([c.API_READ], [c.API_READ, c.API_UPDATE], True),
+        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], False),
     ]
 
     @pytest.mark.parametrize('admin_access,required_access,expected', TEST_REQUIRED_ACCESS)
-    def test_api_auth_by_session(self, monkeypatch, session, admin_account, api_access_groups, admin_access, required_access, expected):
+    def test_api_auth_by_session(self, monkeypatch, session, admin_account, admin_access, required_access, expected):
 
         @api_auth(*required_access)
         def _func():
             return 'SUCCESS'
 
-        admin_account.access_groups = [api_access_groups[x] for x in admin_access]
+        admin_account.access = ','.join(map(str, admin_access))
         session.commit()
         session.refresh(admin_account)
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
@@ -259,17 +199,17 @@ class TestAllApiAuth(object):
 
     TEST_REQUIRED_ACCESS = [
         ([], [], False),
-        ([], ['api_read'], True),
-        ([], ['api_read', 'api_update'], True),
+        ([], [c.API_READ], True),
+        ([], [c.API_READ, c.API_UPDATE], True),
         ([c.API_READ], [], False),
-        ([c.API_READ], ['api_read'], False),
-        ([c.API_READ], ['api_read', 'api_update'], True),
-        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], False),
+        ([c.API_READ], [c.API_READ], False),
+        ([c.API_READ], [c.API_READ, c.API_UPDATE], True),
+        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], False),
     ]
 
     @pytest.mark.parametrize('admin_access,required_access,expected', TEST_REQUIRED_ACCESS)
     def test_all_api_auth_by_session(
-            self, monkeypatch, session, admin_account, api_access_groups, admin_access, required_access, expected):
+            self, monkeypatch, session, admin_account, admin_access, required_access, expected):
 
         @all_api_auth(*required_access)
         class Service(object):
@@ -281,7 +221,7 @@ class TestAllApiAuth(object):
 
         service = Service()
 
-        admin_account.access_groups = [api_access_groups[x] for x in admin_access]
+        admin_account.access = ','.join(map(str, admin_access))
         session.commit()
         session.refresh(admin_account)
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)

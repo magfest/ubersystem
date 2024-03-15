@@ -91,8 +91,6 @@ class TestAddRemoveOpts:
             Attendee(ribbon=','.join([str(c.VOLUNTEER_RIBBON), str(c.DEALER_RIBBON)])).ribbon_ints, c.VOLUNTEER_RIBBON)
 
 
-<<<<<<< HEAD
-=======
 class TestPreregCart:
     def test_charge_one_email(self):
         attendee = Attendee(email='test@example.com')
@@ -171,7 +169,6 @@ class TestPreregCart:
         assert not PreregCart.stripe_transaction_from_charge.called
 
 
->>>>>>> main
 class TestAgeCalculations:
 
     @pytest.mark.parametrize('birthdate,today,expected', [
