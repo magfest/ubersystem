@@ -886,5 +886,5 @@ def check_id_for_model(model, **params):
                 message = "The ID provided was not found in our database."
 
     if message:
-        log.error("check_id {} error: {}: id={}", model.__name__, message, model_id)
+        log.error("check_id {} error: {}: id={}".format(model.__name__, message, model_id))
         raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, message)

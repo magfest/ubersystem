@@ -8,7 +8,7 @@ from sqlalchemy import and_, exists, or_, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.sql.elements import not_
+from sqlalchemy.sql.expression import not_
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c

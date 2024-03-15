@@ -21,7 +21,7 @@ def valid_password(password, account):
         pr = None
 
     all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
-    return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
+    return any(bcrypt.hashpw(password.encode('utf-8'), hashed.encode('utf-8')) == hashed.encode('utf-8') for hashed in all_hashed)
 
 
 @all_renderable()
@@ -66,7 +66,7 @@ class Root:
                     password = genpasswd()
 
                 if not message:
-                    account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                    account.hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
             message = message or check(account)
         if not message:
@@ -265,7 +265,7 @@ class Root:
                 if account.password_reset:
                     session.delete(account.password_reset)
                     session.commit()
-                session.add(PasswordReset(admin_account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt())))
+                session.add(PasswordReset(admin_account=account, hashed=bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')))
                 body = render('emails/accounts/password_reset.txt', {
                     'name': account.attendee.full_name,
                     'password':  password}, encoding=None)
@@ -305,7 +305,7 @@ class Root:
             else:
                 check_csrf(csrf_token)
                 account = session.admin_account(id)
-                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                account.hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 raise HTTPRedirect('index?message={}', 'Account Password Updated')
 
         return {
@@ -337,7 +337,7 @@ class Root:
                 message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
-                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                account.hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 raise HTTPRedirect('homepage?message={}', 'Your password has been updated')
 
         return {'message': message}
@@ -387,7 +387,7 @@ class Root:
                     if account.is_new:
                         if not c.SAML_SETTINGS:
                             password = genpasswd()
-                            account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                            account.hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                         account.attendee = match
                         session.add(account)
                         body = render('emails/accounts/new_account.txt', {

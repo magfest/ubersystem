@@ -1,6 +1,6 @@
 from collections import Counter, defaultdict, OrderedDict
 
-from geopy.distance import VincentyDistance
+from geopy.distance import geodesic
 from pockets.autolog import log
 import six
 from sqlalchemy import func
@@ -349,8 +349,8 @@ class Root:
                         for x in res:
                             if x.zipcode in keys:
                                 out.writerow([self.zips_counter[x.zipcode], x.city, x.state, x.zipcode,
-                                              VincentyDistance((x.lat, x.lng), center_coord).miles,
-                                              "%.2f" % float(self.zips_counter[x.zipcode] / total_count * 100)])
+                                            geodesic((x.lat, x.lng), center_coord).miles,
+                                            "%.2f" % float(self.zips_counter[x.zipcode] / total_count * 100)])
 
         @ajax
         def set_center(self, session, **params):
