@@ -1,4 +1,4 @@
-{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, stripe_button_id="upgrade-stripe-btn") }}
+{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, cancel_url='cancel_payment_and_revert', stripe_button_id="upgrade-stripe-btn") }}
 <div class="modal fade" id="upgradeModal" tabindex="-1" role="dialog" aria-labelledby="upgradeTitle">
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
@@ -7,13 +7,13 @@
           <span class="h4 modal-title" id="upgradeTitle">Add Upgrades</span>
         </div>
         <div class="modal-body">
+            <div class="alert alert-dismissible" role="alert" id="upgrade-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('upgrade-message-alert')" aria-label="Close"></button></div>
             <form method="post" action="purchase_upgrades" id="purchase-upgrades" class="form-horizontal">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
-                <input type="hidden" id="upgrade_badge_type" name="badge_type" value="{{ attendee.badge_type }}" />
                 <input type="hidden" name="receipt_id" value="{{ receipt.id }}" />
                 {% set upgrade_modal = true %}
-                {% include "forms/badge_extras.html" %}
+                {% include "forms/attendee/badge_extras.html" %}
                 {% set upgrade_modal = false %}
             </form>
             <table class="table table-striped" id="upgrade-preview">
@@ -54,7 +54,7 @@
         },
         function(result) {
           if (result.error) {
-            showErrorMessage(result.error);
+            showErrorMessage(result.error, 'upgrade-message-alert');
           } else {
             change_str = result.change > 0 ? "$" + result.change / 100 : "-$" + result.change * -1 / 100;
             costChangeDict[colName] = result.change;
@@ -86,6 +86,7 @@
         });
     };
     $().ready(function() {
+        hideMessageBox("upgrade-message-alert");
         $('#upgrade-purchase').prop('disabled', true);
         $("form[action='purchase_upgrades']").submit(function(event){
         var $form = $(this);
@@ -95,7 +96,8 @@
         $.post('purchase_upgrades', $form.serialize(), function(result) {
             $btn.prop('disabled', false);
             if (result.error) {
-                showErrorMessage(result.error);
+                showErrorMessage(result.error, 'upgrade-message-alert');
+                window.scrollTo(0,0);
             } else if (result.success) {
                 upgradeModal.hide();
                 callStripeAction(autoTrigger=true);

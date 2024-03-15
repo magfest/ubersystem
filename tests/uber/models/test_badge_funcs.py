@@ -498,3 +498,27 @@ class TestBadgeValidations:
         session.regular_attendee.badge_num = None
         assert 'Custom badges have already been ordered so you cannot use this badge type' \
             == check(session.regular_attendee)
+
+    """
+    TODO: Rewrite this for the current permissions system
+    @pytest.mark.parametrize('department,expected', [
+        (c.STOPS, None),
+        (c.REGDESK, None),
+        (c.CONSOLE, 'Custom badges have already been ordered so you cannot use this badge type'),
+    ])
+    def test_more_custom_badges_for_dept_head(
+            self, admin_attendee, session, monkeypatch, after_printed_badge_deadline, department, expected):
+
+        monkeypatch.setattr(Attendee, 'is_dept_head_of', lambda s, d: d == department)
+        session.regular_attendee.badge_type = session.regular_attendee.badge_type
+        session.regular_attendee.badge_type = c.STAFF_BADGE
+        session.regular_attendee.badge_num = None
+        assert expected == check(session.regular_attendee)
+    """
+
+    def test_out_of_badge_type(self, session, monkeypatch, before_printed_badge_deadline):
+        monkeypatch.setitem(c.BADGE_RANGES, c.STAFF_BADGE, [1, 5])
+        session.regular_attendee.badge_type = session.regular_attendee.badge_type
+        session.regular_attendee.badge_type = c.STAFF_BADGE
+        session.regular_attendee.badge_num = None
+        assert 'There are no more badges available for that type' == check(session.regular_attendee)

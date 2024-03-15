@@ -147,7 +147,7 @@ var deleteAllPromoCodeWords = function(partOfSpeechIndex) {
 var onDiscountTypeChanged = function() {
     var $discountType = $('#discount-group select'),
         value = $discountType.val(),
-        $addon = $('#discount-group .input-group-addon'),
+        $addon = $('#discount-group .input-group-text'),
         $help = $('#discount-group .discount-type-desc');
 
     if (value == 2) {
@@ -319,7 +319,7 @@ $(document).ready(function() {
 
     <div id="discount-group" class="form-group">
       <label class="col-sm-3 control-label">
-        <select class="form-control width-auto" name="discount_type" onchange="onDiscountTypeChanged()">
+        <select class="form-select width-auto" name="discount_type" onchange="onDiscountTypeChanged()">
           {{ options(c.PROMO_CODE_DISCOUNT_TYPE_OPTS, discount_type) }}
         </select>
         <div class="help-block discount-type-desc">
@@ -328,7 +328,7 @@ $(document).ready(function() {
       </label>
       <div class="col-sm-8">
         <div class="input-group">
-          <span class="input-group-addon">$</span>
+          <span class="input-group-text">$</span>
           <input type="text" class="form-control" name="discount" value="{{ discount }}" placeholder="Free badge"/>
         </div>
       </div>

@@ -1,0 +1,54 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Registration Step 4 of 4: Check-in Barcode" %}
+{% block content %}
+
+<div class="card">
+  <div class="card-body">
+    {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
+
+    <h2>Registration{{ completed_registrations|length|pluralize }} Saved!</h2>
+    <p>
+        Thank you for completing your at-door registration{{ completed_registrations|length|pluralize }}!
+        Your badge{{ completed_registrations|length|pluralize }} for {{ completed_registrations|readable_join }} 
+        ha{{ 's' if completed_registrations|length == 1 else 've' }} been {% if account %}registered under your account
+        {{ account.email }}. You can <a href="../preregistration/homepage" target="_blank">log into your account</a> to view all 
+        your badges at any time{% else %} reserved for you to pay for and pick up at the Registration desk{% endif %}.
+    </p>
+
+    <p> 
+        {% if account and account.at_door_attendees|length > completed_registrations|length %}
+            It looks like your account already has at least one prior at-door registration.
+        {% endif %}
+        If you think you may have made a mistake, like registering the same badge twice, there's no need to worry -- you can
+        request any adjustments you need at the registration desk before paying.
+    </p>
+
+    <h2>Next Steps</h2>
+    {% block next_steps %}
+    <p>
+        Please join the line for at-door payments when you're ready to pay for and pick up your badge. Once you get near 
+        the front of the line, keep an eye out for stations marked "Cash" or "Card" and make sure to go to a "Cash" station if you
+        want to pay with cash.
+        {% if qr_code_id %}You can show the check-in barcode below to the volunteer at the registration desk to quickly look up your pending 
+        registration{{ completed_registrations|length|pluralize }}. In addition to this barcode,
+        <strong>p{% else %}<strong>P{% endif %}lease have your photo ID{{ completed_registrations|length|pluralize }} and payment ready when you get to the front
+        of the line!</strong> This is a huge help for making badge pick-up faster for everyone. Thanks again!
+    </p>
+    {% endblock %}
+    {% if qr_code_id %}<p class="text-center">
+        <img src="../registration/qrcode_generator?data={{ account.public_id }}" />
+    </p>{% endif %}
+  </div>
+
+  <div class="card-body">
+    {% include "preregistration/disclaimers.html" %}
+  </div>
+</div>
+<script type="text/javascript">
+  $().ready(function() {
+    const querystring = new URLSearchParams(window.location.search);
+    querystring.set('qr_code_id', "{{ qr_code_id }}");
+    history.replaceState( {} , '', "{{ c.PAGE }}" + '?' + querystring.toString() );
+  })
+</script>
+{% endblock %}

@@ -1,15 +1,17 @@
 {% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
-<div class="card-body">
-<form class="print-badge form-horizontal" method="post">
+<div class="row g-sm-3">
+<form class="print-badge d-inline" action="../badge_printing/add_job_to_queue" method="post">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}">
-    <div class="form-group">
-        <label for="printer_id" class="col-sm-3 control-label">Printer ID and Reg Station #</label>
-        <div class="col-sm-4">
-            <input type="text" name="printer_id" class="form-control" value="{{ printer_id }}" placeholder="Printer ID" />
+    <div class="col">
+        <label for="printer_id" class="form-text">Printer ID and Reg Station #</label>
+        <div class="row g-sm-3">
+        <div class="col-3 mb-3">
+            <input type="text" name="printer_id" class="form-control" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" placeholder="Printer ID" />
         </div>
-        <div class="col-sm-2">
-            <input type="number" name="reg_station" class="form-control" value="{{ reg_station }}" placeholder="Station #" />
+        <div class="col-3 mb-3">
+            <input type="number" name="reg_station" class="form-control" value="{{ reg_station_id }}" placeholder="Station #" />
+        </div>
         </div>
     </div>
 
@@ -19,7 +21,7 @@
             {% if c.BADGE_REPRINT_FEE %}
             <div class="col-sm-2">
                 <div class="input-group">
-                    <span class="input-group-addon">$</span>
+                    <span class="input-group-text">$</span>
                     <input type="number" class="form-control" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
                 </div>
             </div>
@@ -30,8 +32,8 @@
         </div>
     {% endif %}
 
-    <div class="form-group">
-        <div class="col-sm-9 col-sm-offset-3">
+    <div class="col-4">
+        <div class="mb-3">
             <button type="submit" class="btn btn-success">Queue for Printing</button>
         </div>
     </div>
@@ -40,11 +42,10 @@
 
 <script type="text/javascript">
 age = {{ attendee.age_now_or_at_con|default(0, true) }};
-
-if (age < 18) {
-    $.field('printer_id').val(printer_minor_id);
-} else if (age >= 18) {
-    $.field('printer_id').val(printer_default_id);
+if (age < 18 && $.field('printer_id')) {
+    $.field('printer_id').val(minor_printer_id);
+} else if (age >= 18 && $.field('printer_id')) {
+    $.field('printer_id').val(printer_id);
 }
 
 printBadge = function ($form) {
@@ -55,7 +56,9 @@ printBadge = function ($form) {
         success: function (json) {
             if (json.success) {
                 if (json.message.includes('fee')) { 
-                    window.location = window.location + '&message=' + json.message
+                    const querystring = new URLSearchParams(window.location.search)
+                    querystring.set('message', json.message)
+                    window.location.search = querystring.toString()
                 } else {
                     $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
                 }
@@ -73,7 +76,7 @@ $('.print-badge').on('submit', function (event) {
     var $form = $(this);
     event.preventDefault();
     hideMessageBox();
-    if($.val('printer_id') == printer_default_id && age < 18) {
+    if($.val('printer_id') == printer_id && age < 18) {
         bootbox.confirm({
             backdrop: true,
             title: 'Please Load Minor Badge Stock',

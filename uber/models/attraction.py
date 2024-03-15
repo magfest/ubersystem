@@ -71,6 +71,7 @@ class Attraction(MagModel):
     name = Column(UnicodeText, unique=True)
     slug = Column(UnicodeText, unique=True)
     description = Column(UnicodeText)
+    full_description = Column(UnicodeText)
     is_public = Column(Boolean, default=False)
     advance_notices = Column(JSON, default=[], server_default='[]')
     advance_checkin = Column(Integer, default=0)  # In seconds
@@ -139,12 +140,12 @@ class Attraction(MagModel):
     def used_location_opts(self):
         locs = set(e.location for e in self.events)
         sorted_locs = sorted(locs, key=lambda l: c.EVENT_LOCATIONS[l])
-        return [(l, c.EVENT_LOCATIONS[l]) for l in sorted_locs]
+        return [(loc, c.EVENT_LOCATIONS[loc]) for loc in sorted_locs]
 
     @property
     def unused_location_opts(self):
         locs = set(e.location for e in self.events)
-        return [(l, s) for l, s in c.EVENT_LOCATION_OPTS if l not in locs]
+        return [(loc, s) for loc, s in c.EVENT_LOCATION_OPTS if loc not in locs]
 
     @property
     def advance_checkin_label(self):
@@ -160,7 +161,7 @@ class Attraction(MagModel):
     @property
     def location_opts(self):
         locations = map(lambda e: (e.location, c.EVENT_LOCATIONS[e.location]), self.events)
-        return [(l, s) for l, s in sorted(locations, key=lambda l: l[1])]
+        return [(loc, s) for loc, s in sorted(locations, key=lambda l: l[1])]
 
     @property
     def locations(self):
@@ -237,7 +238,7 @@ class AttractionFeature(MagModel):
     @property
     def location_opts(self):
         locations = map(lambda e: (e.location, c.EVENT_LOCATIONS[e.location]), self.events)
-        return [(l, s) for l, s in sorted(locations, key=lambda l: l[1])]
+        return [(loc, s) for loc, s in sorted(locations, key=lambda l: l[1])]
 
     @property
     def locations(self):

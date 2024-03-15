@@ -1,6 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
 {% set title_text = "Registration Step 3 of 4: Review & Pay" %}
-{% block backlink %}{% endblock %}
 {% block content %}
 
 <script type="text/javascript">
@@ -37,8 +36,7 @@
 
       {% if cart.attendees or cart.groups %}
         {% include 'preregistration/index_payment_form.html' %}
-  </div>
-
+  <br/>
   <table class="charge table table-striped">
     <caption class="visually-hidden">A table listing the preregistrations currently in your cart. 
       Column one shows the name associated with the preregistration along with a list of purchased items and discounts,
@@ -46,10 +44,10 @@
       and column three gives options to modify or delete the preregistration.</caption>
     <thead>
       <tr>
-        <th>Preregistration</th>
-        <th data-hide="phone" data-sort-ignore="true">Details</th>
-        <th data-type="numeric">Price</th>
-        <th data-sort-ignore="true"></th>
+        <th scope="col">Preregistration</th>
+        <th scope="col" data-hide="phone" data-sort-ignore="true">Details</th>
+        <th scope="col" data-type="numeric">Price</th>
+        <th scope="col" data-sort-ignore="true"></th>
       </tr>
     </thead>
     <tbody>
@@ -71,7 +69,7 @@
               {% if attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_discount|abs > attendee.default_badge_cost and not attendee.promo_code_id %}
                 <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
               {% elif attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_group_conf.discount != 0 %}
-                <li>{{ attendee.age_group_conf.discount|format_currency }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
+                <li>{{ attendee.age_discount|abs|format_currency }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
               {% endif %}
               {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                 <li>{{ swag }}</li>
@@ -86,9 +84,9 @@
             </ul>
           </td>
           <td>
-              {{ attendee.default_cost|format_currency }}
+              {{ attendee.calc_default_cost()|format_currency }}
           </td>
-          <td>
+          <td class="text-nowrap">
             <span id="edit-{{ attendee.first_name }}-{{ attendee.last_name }}">
               <a href="form?edit_id={{ attendee.id }}" aria-describedby="edit-{{ attendee.first_name }}-{{ attendee.last_name }}">Edit</a>
             </span> / 
@@ -110,7 +108,7 @@
               {% endfor %}
             </ul>
           </td>
-          <td>{{ group.default_cost|format_currency }}</td>
+          <td>{{ group.calc_default_cost()|format_currency }}</td>
           <td>
             <span id="edit-{{ group.name }}">
               <a href="form?edit_id={{ group.id }}" aria-describedby="edit-{{ group.name }}">Edit</a>
@@ -139,4 +137,6 @@
     {% include "preregistration/disclaimers.html" %}
   </div>
 </div>
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
+{{ "js/warn-before-logout.js"|serve_static_content }}
 {% endblock %}

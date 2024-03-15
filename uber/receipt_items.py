@@ -1,8 +1,8 @@
 """
-When an attendee or group preregisters or changes their registration, we want a way to determine the potential costs and
-credits to add to their receipt. These items are defined here. Each cost/credit should return None if there is no applicable 
-charge for that model or a tuple of the cost description, the cost price, and (optionally) the number of items. If the cost 
-price is 0, the item is printed as "Free" on the receipt. All cost prices should be in cents.
+When an attendee or group preregisters or changes their registration, we want a way to determine the potential costs
+and credits to add to their receipt. These items are defined here. Each cost/credit should return None if there is no
+applicable charge for that model or a tuple of the cost description, the cost price, and (optionally) the number of
+items. If the cost price is 0, the item is printed as "Free" on the receipt. All cost prices should be in cents.
 """
 from collections import defaultdict
 
@@ -25,26 +25,44 @@ ArtShowApplication.cost_changes = {
     'tables_ad': ('Mature Tables', "calc_app_price_change"),
 }
 
+
 @cost_calculation.ArtShowApplication
 def overridden_app_cost(app):
-    if app.status == c.APPROVED and app.overridden_price != None:
+    if app.overridden_price is not None:
         return ("Art Show Application (Custom Price)", app.overridden_price * 100, 'overridden_price')
+
 
 @cost_calculation.ArtShowApplication
 def panel_cost(app):
-    return ("General Panel", c.COST_PER_PANEL * 100, app.panels, None) if app.panels else None
+    if app.overridden_price is not None:
+        return
+
+    return ("General Panel", c.COST_PER_PANEL * 100, 'panels', app.panels) if app.panels else None
+
 
 @cost_calculation.ArtShowApplication
 def table_cost(app):
-    return ("General Table", c.COST_PER_TABLE * 100, app.tables, None) if app.tables else None
+    if app.overridden_price is not None:
+        return
+
+    return ("General Table", c.COST_PER_TABLE * 100, 'tables', app.tables) if app.tables else None
+
 
 @cost_calculation.ArtShowApplication
 def mature_panel_cost(app):
-    return ("Mature Panel", c.COST_PER_PANEL * 100, app.panels_ad, None) if app.panels_ad else None
+    if app.overridden_price is not None:
+        return
+
+    return ("Mature Panel", c.COST_PER_PANEL * 100, 'panels_ad', app.panels_ad) if app.panels_ad else None
+
 
 @cost_calculation.ArtShowApplication
 def mature_table_cost(app):
-    return ("Mature Table", c.COST_PER_TABLE * 100, app.tables_ad, None) if app.tables_ad else None
+    if app.overridden_price is not None:
+        return
+
+    return ("Mature Table", c.COST_PER_TABLE * 100, 'tables_ad', app.tables_ad) if app.tables_ad else None
+
 
 @cost_calculation.ArtShowApplication
 def mailing_fee_cost(app):
@@ -54,15 +72,18 @@ def mailing_fee_cost(app):
 Attendee.cost_changes = {
     'overridden_price': ('Custom Badge Price', "calc_badge_cost_change"),
     'badge_type': ('Badge ({})', "calc_badge_cost_change", c.BADGES),
-    'amount_extra': ('Kickin ({})', None, c.DONATION_TIERS),
+    'ribbon': ('Ribbon ({})', "calc_badge_cost_change", c.RIBBONS),
+    'amount_extra': ('Preordered Merch ({})', None, c.DONATION_TIERS),
     'extra_donation': ('Extra Donation', None),
 }
 
+
 Attendee.credit_changes = {
-    'paid': ('Badge Comp', "calc_badge_comp_change"),
+    'paid': ('Badge Comp or Paid By Group', "calc_badge_comp_change"),
     'birthdate': ('Age Discount', "calc_age_discount_change"),
-    'promo_code': ('Promo Code', "calc_promo_discount_change"),
+    'promo_code_code': ('Promo Code', "calc_promo_discount_change"),
 }
+
 
 @cost_calculation.Attendee
 def badge_cost(attendee):
@@ -79,25 +100,30 @@ def badge_cost(attendee):
 
         return (label, cost, None)
 
+
 @cost_calculation.Attendee
 def badge_upgrade_cost(attendee):
     if attendee.badge_type in c.BADGE_TYPE_PRICES:
         return ("{} badge upgrade for {}".format(attendee.badge_type_label, attendee.full_name),
                 attendee.calculate_badge_prices_cost() * 100, 'badge_type')
 
+
 @cost_calculation.Attendee
 def shipping_fee_cost(attendee):
     if attendee.badge_status == c.DEFERRED_STATUS and attendee.amount_extra:
         return ("Merch Shipping Fee", attendee.calculate_shipping_fee_cost() * 100, None)
 
+
 @cost_calculation.Attendee
 def donation_cost(attendee):
     return ("Extra Donation", attendee.extra_donation * 100, 'extra_donation') if attendee.extra_donation else None
 
+
 @cost_calculation.Attendee
 def kickin_cost(attendee):
-    return ("Kickin ({})".format(attendee.amount_extra_label),
+    return ("Preordered Merch ({})".format(attendee.amount_extra_label),
             attendee.amount_extra * 100, 'amount_extra') if attendee.amount_extra else None
+
 
 @credit_calculation.Attendee
 def age_discount(attendee):
@@ -109,12 +135,6 @@ def age_discount(attendee):
 
         return ("Age Discount", age_discount, None)
 
-@credit_calculation.Attendee
-def group_discount(attendee):
-    if c.GROUP_DISCOUNT and attendee.qualifies_for_discounts and not attendee.age_discount and (
-                attendee.promo_code_groups or attendee.group):
-        return ("Group Discount", c.GROUP_DISCOUNT * 100 * -1, None)
-    
 
 @credit_calculation.Attendee
 def promo_code_discount(attendee):
@@ -129,13 +149,15 @@ Group.cost_changes = {
     'badges': ('Badges', "calc_group_price_change"),
 }
 
-@cost_calculation.Group
+
+@cost_calculation.Group  # noqa: F811
 def table_cost(group):
     table_count = int(float(group.tables))
     if table_count and group.auto_recalc:
         return ("{} Tables".format(table_count), c.get_table_price(table_count) * 100, None)
 
-@cost_calculation.Group
+
+@cost_calculation.Group  # noqa: F811
 def badge_cost(group):
     cost_table = defaultdict(int)
 
@@ -148,10 +170,11 @@ def badge_cost(group):
 
     return ("Group badge ({})".format(group.name), cost_table, None)
 
+
 @cost_calculation.Group
 def set_cost(group):
     if not group.auto_recalc:
-        return ("Custom fee for group {}".format(group.name), group.cost * 100, None)
+        return ("Custom fee for group {}".format(group.name), group.cost * 100, 'cost')
 
 
 @cost_calculation.Attendee

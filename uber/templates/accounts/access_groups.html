@@ -38,6 +38,8 @@
                   updateAccesses(json.access, '_access');
                   updateAccesses(json.read_only_access, '_read_only_access');
                   updateAllColors();
+                  $('#start_time').val(json.start_time);
+                  $('#end_time').val(json.end_time);
               },
               error: function () {
                   showErrorMessage('Unable to connect to server, please try again.');
@@ -123,22 +125,56 @@
     <div class="card-body">
       <form method="post" action="access_groups" class="form-horizontal">
         {{ csrf_token() }}
-        <div class="form-group">
-          <label class="col-sm-1 control-label">Access Group</label>
-          <div class="col-sm-6">
-            <select name="id" class="form-control">
-              <option value="None">Add new access group</option>
-              {{ options(c.ACCESS_GROUP_OPTS) }}
-            </select>
+        <div class="row">
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-text">Access Group</label>
+            <div class="mb-3">
+              <select name="id" class="form-select">
+                <option value="None">Add new access group</option>
+                {{ options(c.ACCESS_GROUP_OPTS) }}
+              </select>
+            </div>
           </div>
-        </div>
 
-        <div class="form-group"> {{ restricted }}
-          <label class="col-sm-1 control-label">Access Group Name</label>
-          <div class="col-sm-6">
-            <input type="text" class="form-control" name="name" value="{{ access_group.name }}" />
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-text">Access Group Name</label>
+            <div class="mb-3">
+              <input type="text" class="form-control" name="name" value="{{ access_group.name }}" />
+            </div>
+          </div>
+
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-text">Start Date</label>
+            <div class="mb-3">
+              <input type="text" class="form-control" name="start_time" id="start_time" placeholder="N/A" />
+            </div>
+          </div>
+
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-text">End Date</label>
+            <div class="mb-3">
+              <input type="text" class="form-control" name="end_time" id="end_time" placeholder="N/A" />
+            </div>
           </div>
         </div>
+        <script type="text/javascript">
+          var default_start = new Date('{{ c.EPOCH.isoformat()[:-6] }}');
+          var default_end = new Date('{{ c.ESCHATON.isoformat()[:-6] }}');
+          default_start.setHours(0,0,0);
+          default_end.setHours(0,0,0);
+          $('#start_time').datetimepicker({
+            sideBySide: true,
+            defaultDate: default_start,
+            format: 'M/D/Y h:mm A'
+          });
+          $('#end_time').datetimepicker({
+            sideBySide: true,
+            defaultDate: default_end,
+            format: 'M/D/Y h:mm A'
+          });
+          $('#start_time').val('');
+          $('#end_time').val('');
+        </script>
 
         <p><em>Access to a site section grants access to all pages and file exports in that section, plus any pages or exports that get added later.</em></p>
 
@@ -162,10 +198,10 @@
               </td>
               <td>{{ section|replace('_', ' ')|title }}</td>
               <td>
-                <select class="form-control select_access" id="{{ section }}_access" name="{{ section }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
+                <select class="form-select select_access" id="{{ section }}_access" name="{{ section }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
               </td>
               <td>
-                <select class="form-control select_read_only_access" id="{{ section }}_read_only_access" name="{{ section }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
+                <select class="form-select select_read_only_access" id="{{ section }}_read_only_access" name="{{ section }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
               </td>
             </tr>
             {% for page in c.ADMIN_PAGES[section] %}
@@ -173,10 +209,10 @@
                 <td></td>
                 <td><span class="col-sm-offset-1">{{ page }}</span></td>
                 <td>
-                  <select class="form-control select_access" id="{{ section }}_{{ page }}_access" name="{{ section }}_{{ page }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
+                  <select class="form-select select_access" id="{{ section }}_{{ page }}_access" name="{{ section }}_{{ page }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
                 </td>
                 <td>
-                  <select class="form-control select_read_only_access" id="{{ section }}_{{ page }}_read_only_access" name="{{ section }}_{{ page }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
+                  <select class="form-select select_read_only_access" id="{{ section }}_{{ page }}_read_only_access" name="{{ section }}_{{ page }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
                 </td>
               </tr>
             {% endfor %}

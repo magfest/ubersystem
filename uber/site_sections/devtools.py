@@ -4,7 +4,6 @@ import shlex
 import time
 import subprocess
 import csv
-import urllib
 import random
 import six
 import cherrypy
@@ -18,8 +17,7 @@ from sqlalchemy.types import Date, Boolean, Integer
 from sqlalchemy import text
 
 from uber.badge_funcs import badge_consistency_check
-from uber.config import c, _config
-from uber.decorators import all_renderable, csv_file, public, set_csv_filename, site_mappable
+from uber.decorators import all_renderable, csv_file, public, site_mappable
 from uber.models import Choice, MultiChoice, Session, UTCDateTime
 from uber.tasks.health import ping
 
@@ -73,6 +71,7 @@ def prepare_model_export(model, filtered_models=None):
                 row.append(getattr(model, col.name))
         rows.append(row)
     return rows
+
 
 @all_renderable()
 class Root:
@@ -238,6 +237,7 @@ class Root:
             'task_payload': payload,
             'task_response': response,
         })
+
 
 @register_diagnostics_status_function
 def database_pool_information():

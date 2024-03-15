@@ -30,10 +30,6 @@
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
 
-    {% if c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
-      {% include 'art_show_common/art_show_agent.html' %}
-    {% endif %}
-
       {% if not attendee.is_valid %}
       <div class="alert alert-danger" role="alert">
         Your registration is currently marked as <strong>{{ attendee.badge_status_label }}</strong>
@@ -45,12 +41,14 @@
             <div class="alert alert-warning" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
               with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+              Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
               <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', attendee, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
             </div>
             {% else %}
             <div class="alert alert-danger" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
-              Please <a href="" data-bs-toggle="modal" data-bs-target="#receiptModal">check your receipt here</a> to pay.
+              Please <a href="" data-bs-toggle="modal" data-bs-target="#receiptModal">check your receipt here</a> to pay or 
+              contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
             </div>
             {% endif %}
         {% elif attendee.badge_status == c.PENDING_STATUS %}
@@ -93,6 +91,10 @@
         {% endif %}
       {% endif %}
 
+    {% if c.ART_SHOW_ENABLED and c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
+      {% include 'art_show_common/art_show_agent.html' %}
+    {% endif %}
+
       {% if receipt %}
         {% include 'forms/receipt_modal.html' %}
         {% if not incomplete_txn %}
@@ -108,10 +110,12 @@
         <input type="hidden" name="return_to" value="{{ return_to }}" />
         <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
 
-      {% include "forms/badge_extras.html" %}
-      {% include "forms/personal_info.html" %}
-      {% include "forms/other_info.html" %}
-      {% include "forms/consents.html" %}
+      {% include "forms/attendee/badge_flags.html" %}
+      {% include "forms/attendee/badge_extras.html" %}
+      {% include "forms/attendee/personal_info.html" %}
+      {% include "forms/attendee/staffing_info.html" %}
+      {% include "forms/attendee/other_info.html" %}
+      {% include "forms/attendee/consents.html" %}
 
       {# Deprecated form included for backwards compatibility with old plugins #}
       {% include "regform.html" %}

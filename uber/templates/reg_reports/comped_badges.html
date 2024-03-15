@@ -72,5 +72,5 @@
 <div role="tabpanel" class="tab-pane" id="staff" aria-labelledby="staff-tab">{% include '/reg_reports/comped_badges_staff.html' %}</div>
 <div role="tabpanel" class="tab-pane" id="other" aria-labelledby="other-tab">{% include '/reg_reports/comped_badges_other.html' %}</div>
 </div>
-<script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
+{{ "js/window-hash-tabload.js"|serve_static_content }}
 {% endblock %}

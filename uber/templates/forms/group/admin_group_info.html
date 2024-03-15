@@ -1,0 +1,47 @@
+{% extends 'forms/group/group_info.html' %}
+
+{% block badges_tables %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.tables, choices=c.ADMIN_TABLE_OPTS) }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.badges,
+                                        choices=int_choices(1, c.MAX_GROUP_SIZE),
+                                        extra_field=form_macros.form_input(group_info.can_add),
+                                        admin_text="[" ~ group.badges_purchased ~ " badge" ~ group.badges_purchased|pluralize ~ " purchased]" if not group.is_new else "",
+                                        required=True) }}
+    </div>
+</div>
+<div class="row g-sm-3 bg-light">
+    <div class="col-12 form-text">New Badges Settings</div>
+    <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(group_info.new_badge_type) }}
+    </div>
+    <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(group_info.new_ribbons) }}
+    </div>
+    {{ form_macros.toggle_fields_js(group_info.badges, [group_info.new_badge_type, group_info.new_ribbons], off_values=range(group_info.badges.data + 1)|list, closest_hide_selector='.row') }}
+</div>
+{% endblock %}
+
+{% block cost %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(group_info.cost, extra_field=form_macros.form_input(group_info.auto_recalc), no_margin=True) }}
+    </div>
+    {% if group.cost %}
+    <div class="col-12 col-sm-3">
+        {{ form_macros.form_input(group_info.amount_paid_repr) }}
+    </div>
+    <div class="col-12 col-sm-3">
+        {{ form_macros.form_input(group_info.amount_refunded_repr) }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block admin_info %}
+{% if not group.is_dealer %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.admin_notes) }}</div> {# The dealer admin form includes this field in a different location #}
+</div>
+{% endif %}
+{% endblock %}

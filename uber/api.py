@@ -3,8 +3,6 @@ import uuid
 from datetime import datetime
 from functools import wraps
 
-from sqlalchemy.sql import base
-
 import cherrypy
 import pytz
 import six
@@ -22,8 +20,9 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership, DeptMembershipRequest, \
-    Event, IndieStudio, Job, Session, Shift, Group, GuestGroup, Room, HotelRequests, RoomAssignment
+from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership,
+                         DeptMembershipRequest, Event, IndieStudio, Job, Session, Shift, Group, GuestGroup, Room,
+                         HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.server import register_jsonrpc
 from uber.utils import check, check_csrf, normalize_email, normalize_newlines
@@ -53,7 +52,7 @@ def _format_opts(opts):
 
 def _attendee_fields_and_query(full, query, only_valid=True):
     if only_valid:
-        query = query.filter(Attendee.is_valid == True)
+        query = query.filter(Attendee.is_valid == True)  # noqa: E712
 
     if full:
         fields = AttendeeLookup.fields_full
@@ -68,7 +67,8 @@ def _attendee_fields_and_query(full, query, only_valid=True):
     return (fields, query)
 
 
-def _prepare_attendees_export(attendees, include_account_ids=False, include_apps=False, include_depts=False, is_group_attendee=False):
+def _prepare_attendees_export(attendees, include_account_ids=False, include_apps=False,
+                              include_depts=False, is_group_attendee=False):
     # If we add API classes for these models later, please move the field lists accordingly
     art_show_import_fields = [
         'artist_name',
@@ -87,7 +87,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         'special_needs',
         'admin_notes',
     ]
-    
+
     marketplace_import_fields = [
         'business_name',
         'categories',
@@ -98,7 +98,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
     ]
 
     fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
-            
+
     if include_depts or include_apps:
         fields.extend(['shirt'])
 
@@ -117,7 +117,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
                 d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
             if a.marketplace_applications:
                 d['marketplace_app'] = a.marketplace_applications[0].to_dict(marketplace_import_fields)
-        
+
         if include_depts:
             assigned_depts = {}
             checklist_admin_depts = {}
@@ -142,7 +142,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
                     (m.department.name if m.department_id else 'Anywhere')
                     for m in a.dept_membership_requests},
             })
-        
+
         attendee_list.append(d)
     return attendee_list
 
@@ -414,7 +414,6 @@ class AttendeeLookup:
         'is_dept_head': True,
         'ribbon_labels': True,
         'public_id': True,
-        'covid_ready': True,
     }
 
     fields_full = dict(fields, **{
@@ -510,40 +509,17 @@ class AttendeeLookup:
                 raise HTTPError(400, error)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
-        
-    @api_auth('api_update')
-    def update(self, **kwargs):
-        """
-        Updates an existing attendee record. "id" parameter is required and
-        sets the attendee to be updated. All other fields are taken as changes
-        to the attendee.
-        
-        Returns the updated attendee.
-        """
-        if not 'id' in kwargs:
-            return HTTPError(400, 'You must provide the id of the attendee.')
-        with Session() as session:
-            attendee = session.query(Attendee).filter(Attendee.id == kwargs['id']).one()
-            if not attendee:
-                return HTTPError(404, 'Attendee {} not found.'.format(kwargs['id']))
-            for key, val in kwargs.items():
-                if not hasattr(Attendee, key):
-                    return HTTPError(400, 'Attendee has no field {}'.format(key))
-                setattr(attendee, key, val)
-            session.add(attendee)
-            session.commit()
-            return attendee.to_dict(self.fields)
 
     def login(self, first_name, last_name, email, zip_code):
         """
         Does a lookup similar to the volunteer checklist pages login screen.
         """
-        #this code largely copied from above with different fields
+        # this code largely copied from above with different fields
         with Session() as session:
             attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike(first_name),
-                                                               Attendee.last_name.ilike(last_name),
-                                                               Attendee.email.ilike(email),
-                                                               Attendee.zip_code.ilike(zip_code))
+                                                            Attendee.last_name.ilike(last_name),
+                                                            Attendee.email.ilike(email),
+                                                            Attendee.zip_code.ilike(zip_code))
             fields, attendee_query = _attendee_fields_and_query(False, attendee_query)
             try:
                 attendee = attendee_query.one()
@@ -699,7 +675,7 @@ class AttendeeLookup:
 
             if not attendee:
                 raise HTTPError(404, 'No attendee found with this ID')
-            
+
             if not params:
                 raise HTTPError(400, 'Please provide parameters to update')
 
@@ -707,7 +683,11 @@ class AttendeeLookup:
                 params[key] = _parse_if_datetime(key, val)
                 params[key] = _parse_if_boolean(key, val)
 
-            attendee.apply(params, restricted=False)
+            for key, val in params.items():
+                if not hasattr(Attendee, key):
+                    return HTTPError(400, 'Attendee has no field {}'.format(key))
+                setattr(attendee, key, val)
+
             message = check(attendee)
             if message:
                 session.rollback()
@@ -718,7 +698,7 @@ class AttendeeLookup:
                     and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints and 'paid' not in params:
                 attendee.paid = c.NEED_NOT_PAY
 
-            return attendee.id
+        return attendee.id
 
 
 @all_api_auth('api_read')
@@ -728,7 +708,7 @@ class AttendeeAccountLookup:
         Exports attendees by their attendee account ID.
 
         `id` is the UUID of the account.
-        
+
         `full` includes the attendee's individual applications, such as art show.
 
         `include_group` exports attendees in groups. This should be done rarely, as
@@ -744,7 +724,8 @@ class AttendeeAccountLookup:
             if not account:
                 raise HTTPError(404, 'No attendee account found with this ID')
 
-            attendees_to_export = account.valid_attendees if include_group else [a for a in account.attendees if not a.group]
+            attendees_to_export = account.valid_attendees if include_group \
+                else [a for a in account.valid_attendees if not a.group]
 
             attendees = _prepare_attendees_export(attendees_to_export, include_apps=full)
             return {
@@ -773,16 +754,20 @@ class AttendeeAccountLookup:
             else:
                 email_accounts = []
                 if emails:
-                    email_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.email.in_(list(emails.keys()))) \
-                        .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
+                    email_accounts = session.query(AttendeeAccount).filter(
+                        AttendeeAccount.email.in_(list(emails.keys()))
+                        ).options(subqueryload(AttendeeAccount.attendees)
+                                  ).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
 
                 known_emails = set(a.normalized_email for a in email_accounts)
                 unknown_emails = sorted([raw for normalized, raw in emails.items() if normalized not in known_emails])
 
                 id_accounts = []
                 if ids:
-                    id_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.id.in_(ids)) \
-                        .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
+                    id_accounts = session.query(AttendeeAccount).filter(
+                        AttendeeAccount.id.in_(ids)).options(subqueryload(AttendeeAccount.attendees)
+                                                             ).order_by(AttendeeAccount.email,
+                                                                        AttendeeAccount.id).all()
 
                 known_ids = set(str(a.id) for a in id_accounts)
                 unknown_ids = sorted([i for i in ids if i not in known_ids])
@@ -799,7 +784,7 @@ class AttendeeAccountLookup:
                 attendees = {}
                 for attendee in a.attendees:
                     attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
-                    
+
                 d.update({
                     'attendees': attendees,
                 })
@@ -810,6 +795,7 @@ class AttendeeAccountLookup:
                 'unknown_emails': unknown_emails,
                 'accounts': accounts,
             }
+
 
 @all_api_auth('api_update')
 class JobLookup:
@@ -999,39 +985,40 @@ class GroupLookup:
 
         """
         with Session() as session:
-            filters = [Group.is_dealer == True]
+            filters = [Group.is_dealer == True]  # noqa: E712
             if status and status.upper() in c.DEALER_STATUS_VARS:
                 filters += [Group.status == getattr(c, status.upper())]
             query = session.query(Group).filter(*filters)
             groups = []
 
             for g in query.all():
-                d = g.to_dict(['id'] + GroupLookup.group_import_fields + Group.import_fields + GroupLookup.dealer_import_fields)
+                d = g.to_dict(['id'] + GroupLookup.group_import_fields + Group.import_fields
+                              + GroupLookup.dealer_import_fields)
 
                 attendees = {}
                 for attendee in g.attendees:
                     if not attendee.is_unassigned:
                         attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
-                    
+
                 d.update({
                     'assigned_attendees': attendees,
                 })
                 groups.append(d)
 
-            return { 'groups': groups, }
+            return {'groups': groups}
 
     def export_attendees(self, id, full=False):
         """
         Exports attendees by their group ID. Excludes unassigned attendees.
 
         `id` is the UUID of the group.
-        
+
         `full` includes the attendee's individual applications, such as art show.
 
         Results are returned in the format expected by
         <a href="../reg_admin/import_attendees">the attendee importer</a>.
-        
-        Attendee account IDs are also included so that group members can be imported 
+
+        Attendee account IDs are also included so that group members can be imported
         with their accounts.
         """
 
@@ -1042,7 +1029,8 @@ class GroupLookup:
                 raise HTTPError(404, 'No group found with this ID')
 
             attendees_to_export = [a for a in group.attendees if not a.is_unassigned and a.is_valid]
-            attendees = _prepare_attendees_export(attendees_to_export, include_account_ids=True, include_apps=full, is_group_attendee=True)
+            attendees = _prepare_attendees_export(attendees_to_export, include_account_ids=True,
+                                                  include_apps=full, is_group_attendee=True)
 
             if group.unassigned:
                 unassigned_badge_type = group.unassigned[0].badge_type
@@ -1107,7 +1095,7 @@ class GroupLookup:
                 for attendee in g.attendees:
                     if not attendee.is_unassigned:
                         attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
-                    
+
                 d.update({
                     'assigned_attendees': attendees,
                 })
@@ -1120,6 +1108,7 @@ class GroupLookup:
                 'groups': groups,
             }
 
+
 @all_api_auth('api_read')
 class DepartmentLookup:
     def list(self):
@@ -1127,13 +1116,13 @@ class DepartmentLookup:
         Returns a list of department ids and names.
         """
         return c.DEPARTMENTS
-    
+
     @department_id_adapter
     @api_auth('api_read')
     def members(self, department_id, full=False):
         """
         Returns an object with all members of this department broken down by their roles.
-        
+
         Takes the department id and 'full' to return attendees' full list of fields.
         """
         with Session() as session:
@@ -1244,6 +1233,7 @@ class ConfigLookup:
         else:
             raise HTTPError(404, 'Config field not found: {}'.format(field))
 
+
 @all_api_auth('api_read')
 class HotelLookup:
     def eligible_attendees(self):
@@ -1251,9 +1241,9 @@ class HotelLookup:
         Returns a list of hotel eligible attendees
         """
         with Session() as session:
-            attendees = session.query(Attendee.id).filter(Attendee.hotel_eligible == True).all()
+            attendees = session.query(Attendee.id).filter(Attendee.hotel_eligible == True).all()  # noqa: E712
             return [x.id for x in attendees]
-    
+
     @api_auth('api_update')
     def update_room(self, id=None, **kwargs):
         """
@@ -1293,7 +1283,8 @@ class HotelLookup:
                     return HTTPError(404, "Could not locate request {}".format(id))
             else:
                 hotel_request = HotelRequests()
-            for attr in ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs', 'approved']:
+            for attr in ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates',
+                         'special_needs', 'approved']:
                 if attr in kwargs:
                     setattr(hotel_request, attr, kwargs[attr])
             session.add(hotel_request)
@@ -1335,7 +1326,8 @@ class HotelLookup:
             "order": c.NIGHT_DISPLAY_ORDER,
             "names": c.NIGHT_NAMES
         }
-    
+
+
 @all_api_auth('api_read')
 class ScheduleLookup:
     def schedule(self):
@@ -1357,6 +1349,7 @@ class ScheduleLookup:
                 }
                 for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])
             ]
+
 
 @all_api_auth('api_read')
 class BarcodeLookup:
@@ -1400,6 +1393,7 @@ class BarcodeLookup:
         except Exception as e:
             raise HTTPError(500, "Couldn't look up barcode value: " + str(e))
 
+
 class PrintJobLookup:
     def _build_job_json_data(self, job):
         result_json = job.json_data
@@ -1429,12 +1423,12 @@ class PrintJobLookup:
         """
 
         with Session() as session:
-            filters = [PrintJob.printed == None, PrintJob.errors == '']
+            filters = [PrintJob.printed == None, PrintJob.errors == '']  # noqa: E711
             if printer_ids:
                 printer_ids = [id.strip() for id in printer_ids.split(',')]
                 filters += [PrintJob.printer_id.in_(printer_ids)]
             if not restart:
-                filters += [PrintJob.queued == None]
+                filters += [PrintJob.queued == None]  # noqa: E711
             print_jobs = session.query(PrintJob).filter(*filters).all()
 
             results = {}
@@ -1458,10 +1452,10 @@ class PrintJobLookup:
     def create(self, attendee_id, printer_id, reg_station, print_fee=None):
         """
         Create a new print job for a specified badge.
-        
+
         Takes the attendee ID as the first parameter, the printer ID as the second parameter,
         and the reg station number as the third parameter.
-        
+
         Takes a print_fee as an optional fourth parameter. If this is not specified, an error
         is returned unless this is the first time this attendee's badge is being printed.
 
@@ -1476,11 +1470,11 @@ class PrintJobLookup:
             attendee = session.query(Attendee).filter_by(id=attendee_id).first()
             if not attendee:
                 raise HTTPError(404, "Attendee not found.")
-            
+
             print_id, errors = session.add_to_print_queue(attendee, printer_id, reg_station, print_fee)
             if errors:
                 raise HTTPError(424, "Attendee not ready to print. Error(s): {}".format("; ".join(errors)))
-            
+
             return {print_id: self._build_job_json_data(session.print_job(print_id))}
 
     @api_auth('api_update')
@@ -1565,14 +1559,14 @@ class PrintJobLookup:
         Returns a dictionary of changed jobs' `json_data` plus job metadata, keyed by job ID.
         """
         with Session() as session:
-            filters = [PrintJob.printed == None, PrintJob.errors == '']
+            filters = [PrintJob.printed == None, PrintJob.errors == '']  # noqa: E711
 
             if printer_ids:
                 printer_ids = [id.strip() for id in printer_ids.split(',')]
                 filters += [PrintJob.printer_id.in_(printer_ids)]
             elif not all:
                 raise HTTPError(400, "You must provide at least one printer ID or set all to true.")
-            
+
             jobs = session.query(PrintJob).filter(*filters).all()
 
             if invalidate and not error:

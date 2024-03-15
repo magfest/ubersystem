@@ -2,8 +2,6 @@
 
 {% endif %}Hey all! We’re so excited to see you at {{ c.EVENT_NAME }}! You're eligible for a complimentary badge for the next event, which will be {{ c.EPOCH|datetime_local }}. You can accept your badge by visiting {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 
-All attendees at {{ c.EVENT_NAME }} (including minors, volunteers, staff, guests, contractors, and vendors) are required to be fully vaccinated against COVID-19. When you register, you will be asked to acknowledge that you will abide by the event’s COVID-19 precautions. You can find more information at {{ c.COVID_POLICIES_URL }}.
-
 At this stage, you can apply to volunteer again this year. By default, the checkbox labeled "Yes, I want to staff {{ c.EVENT_NAME }}." is toggled ON, which means that you'll automatically be enrolled. If you are not interested in applying to volunteer again, you can uncheck that box (toggle it OFF), and your badge will be set to a complimentary Attendee Badge (instead of Volunteer Badge).
 
 If accepted, you'll be emailed when your Volunteer Checklist launches. The Checklist will need to be completed before the event starts, and will have a link to our volunteering guidelines and agreement. 

@@ -1,5 +1,4 @@
 {% extends "./preregistration/preregbase.html" %}
-{% import "forms/group.html" as group_fields with context %}
 {% import "forms/account.html" as account_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set title_text = "Dealer Registration Step 1 of 4: Table Info" %}
@@ -17,30 +16,25 @@
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
 {{ csrf_token() }}
+<input type="hidden" name="is_prereg" value="True" />
 
 <h2 class="h3 text-center mt-3">{{ c.DEALER_APP_TERM|title }} Info</h2>
 
-  {% include "forms/table_info.html" %}
+  {% include "forms/group/table_info.html" %}
 
 <h2 class="h3 text-center">{{ c.DEALER_TERM|title }} Contact Info</h2>
   {% include "forms/dealer_contact_intro.html" %}
-  {% include "forms/contact_info.html" %}
+  {% include "forms/group/contact_info.html" %}
 
   {# Deprecated forms included for backwards compatibility with old plugins #}
   {% include "groupform.html" %}
 
-<div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
-        {% if edit_id %}
-            <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update</button>
-        {% endif %}
-        <button type="submit" class="btn btn-{% if edit_id %}outline-{% endif %}primary" value="Next">Next</button>
-    </div>
-</div>
-
+  {% if edit_id %}
+      <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update</button>
+  {% endif %}
+  <button type="submit" class="btn btn-{% if edit_id %}outline-{% endif %}primary" value="Next">Next</button>
 </form>
-
 </div>
 </div>
-
+{{ "js/warn-before-logout-dealer.js"|serve_static_content }}
 {% endblock %}

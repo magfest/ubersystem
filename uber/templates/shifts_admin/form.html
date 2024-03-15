@@ -119,7 +119,7 @@
         type="text"
         class="form-control"
         value="{{ job.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if job.start_time else '' }}">
-        <span class="input-group-addon">
+        <span class="input-group-text">
           <i class="fa fa-calendar"></i>
         </span>
       </div>

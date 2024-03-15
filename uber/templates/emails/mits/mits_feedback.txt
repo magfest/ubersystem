@@ -10,7 +10,7 @@ If you have the time, we would love to hear your feedback about how MITS this ye
 
 3. If you were selling your game, did you meet or exceed your goal in terms of copies of games sold?
 
-4. Did you think the location worked well for you and/or for MITS? If you are a returning team, do you prefer the National Harbor rooms or the RiverView Ballroom building?
+4. Did you think the location worked well for you and/or for MITS? If you are a returning team from previous years, do you prefer presenting in the National Harbor rooms or the Riverview Ballroom building?
 
 5. Overall, do you think the MITS experience was a good match for your team? Why or why not?
 
@@ -18,7 +18,7 @@ If you have the time, we would love to hear your feedback about how MITS this ye
 
 7. Do you have any suggestions for what could be changed, added, or removed from the space or the process to improve the department for next year?
 
-8. Do you have any comments you would like to make about how this year went for you that hasn't been covered above?
+8. Do you have any comments you would like to make about how this year went for you that haven't been covered above?
 
 Thanks for your time!
 {{ c.MITS_EMAIL_SIGNATURE }}

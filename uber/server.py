@@ -12,7 +12,6 @@ from pockets import is_listy
 from pockets.autolog import log
 from sideboard.jsonrpc import json_handler, ERR_INVALID_RPC, ERR_MISSING_FUNC, ERR_INVALID_PARAMS, \
     ERR_FUNC_EXCEPTION, ERR_INVALID_JSON
-from sideboard.server import jsonrpc_reset
 from sideboard.websockets import trigger_delayed_notifications
 
 from uber.config import c, Config
@@ -35,17 +34,39 @@ if c.SENTRY['enabled']:
         traces_sample_rate=c.SENTRY['sample_rate'] / 100
     )
 
+
 def sentry_start_transaction():
     cherrypy.request.sentry_transaction = sentry_sdk.start_transaction(
         name=f"{cherrypy.request.method} {cherrypy.request.path_info}",
         op=f"{cherrypy.request.method} {cherrypy.request.path_info}",
     )
     cherrypy.request.sentry_transaction.__enter__()
+
+
 cherrypy.tools.sentry_start_transaction = cherrypy.Tool('on_start_resource', sentry_start_transaction)
+
 
 def sentry_end_transaction():
     cherrypy.request.sentry_transaction.__exit__(None, None, None)
+
+
 cherrypy.tools.sentry_end_transaction = cherrypy.Tool('on_end_request', sentry_end_transaction)
+
+
+@cherrypy.tools.register('before_finalize', priority=60)
+def secureheaders():
+    headers = cherrypy.response.headers
+    hsts_header = 'max-age=' + str(c.HSTS['max_age'])
+    if c.HSTS['include_subdomains']:
+        hsts_header += '; includeSubDomains'
+    if c.HSTS['preload']:
+        if c.HSTS['max_age'] < 31536000:
+            log.error('HSTS only supports preloading if max-age > 31536000')
+        elif not c.HSTS['include_subdomains']:
+            log.error('HSTS only supports preloading if subdomains are included')
+        else:
+            hsts_header += '; preload'
+    headers['Strict-Transport-Security'] = hsts_header
 
 
 def _add_email():
@@ -326,5 +347,5 @@ def register_jsonrpc(service, name=None):
     jsonrpc_services[name] = service
 
 
-jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
-cherrypy.tree.mount(jsonrpc_app, os.path.join(c.CHERRYPY_MOUNT_PATH, 'jsonrpc'), c.APPCONF)
+jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services)
+cherrypy.tree.mount(jsonrpc_app, c.CHERRYPY_MOUNT_PATH + '/jsonrpc', c.APPCONF)

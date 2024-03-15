@@ -1,24 +1,42 @@
 {% import 'macros.html' as macros %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set print_and_checkin = c.BADGE_PRINTING_ENABLED and attendee.times_printed <= 0 %}
 <div class="modal-header">
-  <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
   <h4 class="modal-title">Attendee Check-In{% if attendee.first_name %} - {{ attendee.full_name }}{% endif %}</h4>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 <div class="modal-body">
-{% if attendee.amount_unpaid %}
+{% if attendee.amount_unpaid or attendee.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] and attendee.amount_unpaid_if_valid %}
 <div class="center text-center check-in">
-<h4>{{ attendee.full_name }} currently owes <strong>{{ attendee.amount_unpaid|format_currency }}</strong>.</h4>
-<form method="post" action="mark_as_paid">
-{{ csrf_token() }}
-<input type="hidden" name="id" value="{{ attendee.id }}" />
-<select name="payment_method" onChange="toggleMarkButton(this)">
-    <option value="">Payment Method</option>
-    {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,payment_method) }}
-</select>
-    <button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button>
-</form>
+<h4>{{ attendee.full_name }} currently owes <strong>{{ attendee.amount_unpaid_if_valid|format_currency }}</strong>.</h4>
+{% if c.SPIN_TERMINAL_AUTH_KEY %}
+    <form method="post" action="mark_as_paid">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        <input type="hidden" name="payment_method" value="{{ c.CASH }}" />
+        <div class="center"><button class="btn btn-success" type="submit">Paid with Cash</button></div>
+    </form>
+    <strong>OR</strong> <br/>
+    <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ attendee.id }}', '', loadCheckInForm)">Prompt Payment at Terminal</button>
+    <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
+{% else %}
+    <form method="post" action="mark_as_paid">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        <div class="row g-sm-3 row-cols-auto justify-content-center">
+            <div class="col">
+                <select name="payment_method" class="form-select" onChange="toggleMarkButton(this)">
+                    <option value="">Payment Method</option>
+                    {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,payment_method) }}
+                </select>
+            </div>
+            <div class="col"><button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button></div>
+        </div>
+    </form>
 
     <strong>OR</strong> <br/>
-{{ stripe_form('manual_reg_charge', attendee) }}
+    {{ stripe_form('manual_reg_charge', attendee) }}
+{% endif %}
 </div>
 <iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
 </div>
@@ -27,18 +45,18 @@
   <div class="pull-right">
 <script type="text/javascript">
 var toggleMarkButton = function (dropdown) {
-    var $button = $(dropdown).parent().find(':submit');
+    var $button = $(dropdown).parent().parent().find(':submit');
     if ($(dropdown).val()) {
         $button.removeAttr('disabled');
     } else {
         $button.attr('disabled', 'disabled');
     }
 };
-loadCheckInForm = function () {
-    $('#stripeModal').off('hidden.bs.modal');
-    var stripeModal = bootstrap.Modal.getOrCreateInstance($('#stripeModal'))
-    stripeModal.hide();
-    $('#stripeModal').remove();
+loadCheckInForm = function (json=null) {
+    if ($('#stripeModal').length) {
+        $('#stripeModal').remove();
+    }
+    
     $('#checkin_modal').modal('show');
     $('#checkin_modal .modal-content').load('check_in_form?id={{ attendee.id }}', function () {
         createDateTextEntries();
@@ -49,9 +67,8 @@ loadCheckInForm = function () {
 }
 var resumeStripeAction = callStripeAction;
 var callStripeAction = function() {
-    $('#checkin_modal').off('hidden.bs.modal');
-    checkinModal = bootstrap.Modal.getOrCreateInstance($('#checkin_modal'));
-    checkinModal.hide();
+    $('#checkin_modal .btn-close').trigger('click');
+    $('#checkin_modal .modal-content').html('');
     $('#stripeModal').on('hidden.bs.modal', function (e) {
         $('#stripeModal').remove();
     })
@@ -72,8 +89,10 @@ $("form[action='mark_as_paid']").submit(function (e) {
             hideMessageBox();
             var message = json.message;
             if (json.success) {
-                $("#message-alert").addClass("alert-success").show().children('span').html(message);
-                loadCheckInForm();
+                $("#payment-loading-message").addClass("alert-success").show().html(message);
+                setTimeout(function(){
+                    loadCheckInForm();
+                }, 1000);
             } else {
                 showErrorMessage(message);
             }
@@ -107,72 +126,24 @@ $().ready(function() {
 </script>
 {% else %}
 {% include 'registration/attendee_pending_warning.html' %}
-<form action="/" id="check_in_form_{{ attendee.id }}" role="form" class="form-horizontal check-in">
+{{ form_macros.form_validation('check_in_form_' ~ attendee.id,
+                                page_handler='../registration/validate_attendee_checkin',
+                                form_list=['CheckInForm'],
+                                callback="printAndOrCheckIn('" ~ attendee.id ~ "', " ~ print_and_checkin|yesno('true,false') ~ ")") }}
+<form novalidate action="/" id="check_in_form_{{ attendee.id }}" role="form" class="check-in">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}" />
-    {% block checkin_fields %}
-    <div class="form-group">
-    <label for="name" class="col-sm-3 control-label">Name</label>
-    <div class="col-sm-6 form-control-static">
-        {{ attendee|form_link }}
-    </div>
-    </div>
     {% if attendee.regdesk_info %}
-        <div class="form-group btn-danger">
-            <label for="special_instructions" class="col-sm-3 control-label">Special Instructions</label>
-            <div class="col-sm-6">
-                <div class="form-control-static"><strong>{{ attendee.regdesk_info }}</strong></div>
-            </div>
-        </div>
-    {% endif %}
-    {% if c.COLLECT_EXACT_BIRTHDATE %}
-        <div class="form-group">
-            <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
-            <div class="col-sm-6">
-                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|datetime("%Y-%m-%d") }}" />
-            </div>
-        </div>
-         {% if attendee.birthdate %}
-            <div class="form-group">
-                <label for="age_group" class="col-sm-3 control-label">Age Group</label>
-                <div class="col-sm-6">
-                <div class="form-control-static">{{ attendee.age_group_conf.desc }}</div>
-                </div>
-            </div>
-        {% endif %}
-    {% else %}
-        <div class="form-group">
-            <label for="age_group" class="col-sm-3 control-label">Age Group</label>
-            <div class="col-sm-6">
-                <select id="checkin-age">
-                    {{ options(c.AGE_GROUP_OPTS,attendee.age_group) }}
-                </select>
-            </div>
-        </div>
-    {% endif %}
-    {% if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id %}
-        <div class="form-group">
-            <label for="group" class="col-sm-3 control-label">Group</label>
-            <div class="col-sm-6">
-                <select id="checkin-group" name="group_id">
-                    <option value="">No Group</option>
-                    {{ options(groups,attendee.group_id) }}
-                </select>
-            </div>
-        </div>
-    {% endif %}
-    <div class="form-group">
-        <label for="email" class="col-sm-3 control-label">Email</label>
-        <div class="col-sm-6">
-            <div class="form-control-static">{{ attendee.email }}</div>
+    <div class="alert alert-info">
+        <div class="form-text">Special Instructions</div>
+        <div class="mb-3">
+            <strong>{{ attendee.regdesk_info }}</strong>
         </div>
     </div>
-    <div class="form-group">
-        <label for="zip_code" class="col-sm-3 control-label">Zipcode</label>
-        <div class="col-sm-6">
-        <div class="form-control-static">{{ attendee.zip_code }}</div>
-        </div>
-    </div>
+    {% endif %}
+    {% block checkin_fields %}
+    {% include "forms/attendee/check_in_form.html" with context %}
+    <!--
     {% if c.VOLUNTEER_AGREEMENT_ENABLED and (attendee.staffing or c.VOLUNTEER in attendee.ribbon_ints) %}
         <div class="form-group">
             <label for="volunteer_agreement" class="col-sm-3 control-label">Volunteer Agreement</label>
@@ -187,106 +158,43 @@ $().ready(function() {
             </div>
         </div>
     {% endif %}
-    <div class="form-group">
-        <label for="badge_type" class="col-sm-3 control-label">Badge Type</label>
-        <div class="col-sm-6">
-            <div class="form-control-static">{{ attendee.badge_type_label }}
-            {% if attendee.ribbon %}
-                ({{ attendee.ribbon_labels|join(", ") }})
-            {% endif %}
-            </div>
-        </div>
-    </div>
-    {% if attendee.badge_printed_name %}
-        <div class="form-group">
-            <label for="badge_printed_name" class="col-sm-3 control-label">Badge Printed Name</label>
-            <div class="col-sm-6"><input type="text" class="form-control" value="{{ attendee.badge_printed_name }}" name="badge_printed_name" /></div>
-        </div>
-    {% endif %}
-    {% if c.NUMBERED_BADGES %}
-        <div class="form-group">
-            <label for="badge_num" class="col-sm-3 control-label">Badge Number</label>
-                {% if attendee.badge_num %}
-                <div class="col-sm-6">
-                    <div class="form-control-static">
-                    {{ attendee.badge_num }}
-                    <input type="hidden" id="checkin-badge" name="badge_num" value="{{ attendee.badge_num }}" />
-                    </div>
-                </div>
-                {% else %}
-                <div class="col-sm-3">
-                    <div class="input-group">
-                        <span class="input-group-addon">#</span>
-                        <input class="num form-control" id="checkin-badge" name="badge_num" type="text" size="10" />
-                    </div>
-                </div>
-                <script>
-                    /**
-                     * We can't just use "autofocus" because that doesn't work if there's already a focused
-                     * element on the page.  Calling $.focus() won't work until the element is visible, so
-                     * we need to keep trying until that happens.  We also use this opportunity to set a
-                     * keypress handler on the element.
-                     */
-                    var focusBadgeNum = function () {
-                        if($('input#checkin-badge')) {
-                            var $num = $('#checkin-badge:text');
-                            if ($num.is(':visible')) {
-                                $num.focus().keypress(function (event) {
-                                    if (event.keyCode === 13) {
-                                        checkIn('{{ attendee.id }}');
-                                    }
-                                });
-                            } else {
-                                setTimeout(focusBadgeNum, 100);
+    -->
+        <script>
+            /**
+                * We can't just use "autofocus" because that doesn't work if there's already a focused
+                * element on the page.  Calling $.focus() won't work until the element is visible, so
+                * we need to keep trying until that happens.  We also use this opportunity to set a
+                * keypress handler on the element.
+                */
+            var focusBadgeNum = function () {
+                if($('input#checkin_badge_num')) {
+                    var $num = $('#checkin_badge_num:text');
+                    if ($num.is(':visible')) {
+                        $num.focus().keypress(function (event) {
+                            if (event.keyCode === 13) {
+                                checkIn('{{ attendee.id }}');
                             }
-                        }
-                    };
-                    focusBadgeNum();
-                </script>
-                {% endif %}
-        </div>
-    {% endif %}
-    {% if attendee.amount_extra and c.MERCH_AT_CHECKIN %}
-      <div class="form-group">
-        <label for="merch" class="col-sm-3 control-label"><strong>Picked Up Merch?</strong></label>
-        <div class="col-sm-6"><label style="font-weight:normal;"><input type="checkbox" name="got_merch" value="1" /> Yes, this attendee has received their merch</label></div>
-      </div>
-    {% endif %}
-    {% if c.BADGE_PRINTING_ENABLED %}
-      <div class="form-group">
-        <label for="printer_id" class="col-sm-3 control-label"><strong>Printer ID</strong></label>
-        <div class="col-sm-6"><input type="text" class="form-control" name="printer_id" /></div>
-      </div>
-      {% if attendee.times_printed > 0 %}
-      <div class="form-group">
-        <label for="fee_amount" class="col-sm-3 control-label">Reprint {% if c.BADGE_REPRINT_FEE %}Fee and {% endif %}Reason</label>
-        {% if c.BADGE_REPRINT_FEE %}
-        <div class="col-sm-2">
-            <div class="input-group">
-                <span class="input-group-addon">$</span>
-                <input type="number" class="form-control" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
-            </div>
-        </div>
-        {% endif %}
-        <div class="col-sm-{% if c.BADGE_REPRINT_FEE %}4{% else %}6{% endif %}">
-            <input type="text" class="form-control" name="reprint_reason" placeholder="Reason for reprinting." />
-        </div>
-    </div>
-      {% endif %}
-    {% endif %}
+                        });
+                    } else {
+                        setTimeout(focusBadgeNum, 100);
+                    }
+                }
+            };
+            focusBadgeNum();
+        </script>
+    
     {% endblock checkin_fields %}
 </form>
 </div>
 <div class="modal-footer">
-    <button class='btn btn-outline-secondary btn-sm pull-left' onClick="refreshModal('{{ attendee.id }}')">
+    <button class='btn btn-outline-secondary btn-sm pull-left' onClick="loadCheckInFormModal('{{ attendee.id }}')">
         <i class="fa fa-refresh"></i>
-      </button>
+    </button>
   <div class="form-group">
   <div class="pull-right">
-        {% if c.BADGE_PRINTING_ENABLED %}
-        <button type="button" onClick="printBadge('{{ attendee.id }}')" class="btn btn-success">Save & Print Badge</button>
-        {% endif %}
-      <button type="button" onClick="checkIn('{{ attendee.id }}')" class="btn btn-primary">Save & Check In</button>
+      <button type="submit" id="printAndOrCheckIn" form="check_in_form_{{ attendee.id }}" class="btn btn-primary">
+        {% if print_and_checkin %}Print Badge{% else %}Save{% endif %} & Check In
+      </button>
 {% endif %}
    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
@@ -294,11 +202,24 @@ $().ready(function() {
   </div>
  
 </div>
-{% if c.BADGE_PRINTING_ENABLED %}
 <script type="text/javascript">
-    refreshModal = function (attendeeID) {
-        loadCheckInFormModal(attendeeID);
+    var changeButtonLabel = function () {
+        if ($('#printer_id').val() != printer_id) {
+            $('#printAndOrCheckIn')[0].innerHTML = "Print to " + $.val('printer_id') + " & Check In";
+            $('#printAndOrCheckIn').removeClass('btn-success');
+            $('#printAndOrCheckIn').addClass('btn-warning');
+        } else {
+            $('#printAndOrCheckIn').removeClass('btn-warning');
+            {% if print_and_checkin %}
+            $('#printAndOrCheckIn')[0].innerHTML = "Print Badge & Check In";
+            $('#printAndOrCheckIn').addClass('btn-success');
+            {% else %}
+            $('#printAndOrCheckIn')[0].innerHTML = "Save & Check In";
+            $('#printAndOrCheckIn').addClass('btn-primary');
+            {% endif %}
+        }
     }
+    $('#printer_id').on('keyup', changeButtonLabel);
     loadMinorCheckForm = function (attendeeID, printerID, reprintFee) {
         $('#checkin_modal .modal-content').load(
             '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee, function() {
@@ -309,41 +230,40 @@ $().ready(function() {
         }
         });
     }
-    var printBadge = function (attendeeID) {
-        $.ajax({
-            method: 'POST',
-            url: '../registration/print_badge',
-            dataType: 'json',
-            data: $("#check_in_form_" + attendeeID).serialize(),
-            success: function (json) {
-                hideMessageBox();
-                var message = json.message;
-                if (json.success) {
-                    if (json.minor_check) {
-                        if ($.field('fee_amount')) {
-                            loadMinorCheckForm(attendeeID, $.val('printer_id'), $.val('fee_amount'));
-                        } else {
+    var printAndOrCheckIn = function (attendeeID, print=false) {
+        if(print == false) {
+            checkIn(attendeeID);
+        } else {
+            $.ajax({
+                method: 'POST',
+                url: '../registration/print_badge',
+                dataType: 'json',
+                data: $("#check_in_form_" + attendeeID).serialize(),
+                success: function (json) {
+                    hideMessageBox('form-validations-check_in_form_' + attendeeID);
+                    if (json.success) {
+                        if (json.minor_check) {
                             loadMinorCheckForm(attendeeID, $.val('printer_id'), 0);
+                        } else {
+                            checkIn(attendeeID);
                         }
                     } else {
-                        $("#message-alert").addClass("alert-success").show().children('span').html(message);
-                        loadCheckInFormModal(attendeeID);
+                        showErrorMessage(json.message, 'form-validations-check_in_form_' + attendeeID);
                     }
-                } else {
-                    showErrorMessage(message);
+                },
+                error: function () {
+                    showErrorMessage('Unable to connect to server, please try again.', 'form-validations-check_in_form_' + attendeeID);
                 }
-            },
-            error: function () {
-                showErrorMessage('Unable to connect to server, please try again.');
-            }
-        });
-    };
+            });
+        }
+    }
 
     age = {{ attendee.age_now_or_at_con|default(0, true) }};
     if (age < 18 && $.field('printer_id')) {
-        $.field('printer_id').val(printer_minor_id);
+        $.field('printer_id').val(minor_printer_id);
+        if($('#printAndOrCheckIn').length) { changeButtonLabel(); }
     } else if (age >= 18 && $.field('printer_id')) {
-        $.field('printer_id').val(printer_default_id);
+        $.field('printer_id').val(printer_id);
+        if($('#printAndOrCheckIn').length) { changeButtonLabel(); }
     }
 </script>
-{% endif %}

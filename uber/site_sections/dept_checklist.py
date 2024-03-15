@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber.custom_tags import linebreaksbr
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, render, xlsx_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptChecklistItem, HotelRequests, RoomAssignment, Shift
 from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept
@@ -228,15 +228,20 @@ class Root:
     def placeholders(self, session, department_id=None):
         redirect_to_allowed_dept(session, department_id, 'placeholders')
 
-        if department_id == 'All':
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
             department_id = None
 
-        dept_filter = [] if not department_id else [Attendee.dept_memberships.any(department_id=department_id)]
-        placeholders = session.query(Attendee).filter(
-            Attendee.placeholder == True,
-            Attendee.staffing == True,
-            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-            *dept_filter).order_by(Attendee.full_name).all()  # noqa: E712
+        placeholders = []
+
+        if department_id != '':
+            dept_filter = [] if not department_id else [Attendee.dept_memberships.any(department_id=department_id)]
+            placeholders = session.query(Attendee).filter(
+                Attendee.placeholder == True,  # noqa: E712
+                Attendee.staffing == True,  # noqa: E712
+                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                *dept_filter).order_by(Attendee.full_name).all()  # noqa: E712
 
         try:
             checklist = session.checklist_status('placeholders', department_id)
@@ -244,12 +249,12 @@ class Root:
             checklist = {'conf': None, 'relevant': False, 'completed': None}
 
         return {
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'dept_name': session.query(Department).get(department_id).name if department_id else 'All',
             'checklist': checklist,
             'placeholders': placeholders
         }
-    
+
     @department_id_adapter
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
         # We actually submit from this page to `form`, this just lets us render a custom page
@@ -264,7 +269,7 @@ class Root:
     def allotments(self, session, department_id=None, submitted=None, csrf_token=None, **params):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'allotments',
                                       'Treasury checklist data uploaded')
-    
+
     @department_id_adapter
     def guidebook_schedule(self, session, department_id=None, submitted=None, csrf_token=None):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'guidebook_schedule',
@@ -274,8 +279,18 @@ class Root:
     def hotel_eligible(self, session, department_id=None):
         redirect_to_allowed_dept(session, department_id, 'hotel_eligible')
 
-        if department_id == 'All':
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
             department_id = None
+
+        attendees = []
+
+        if department_id != '':
+            attendees = session.query(Attendee).filter(Attendee.hotel_eligible == True,  # noqa: E712
+                                                       Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                                                       Attendee.dept_memberships.any(department_id=department_id)
+                                                       ).order_by(Attendee.full_name).all()
 
         try:
             checklist = session.checklist_status('hotel_eligible', department_id)
@@ -283,34 +298,35 @@ class Root:
             checklist = {'conf': None, 'relevant': False, 'completed': None}
 
         return {
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'department_name': c.DEPARTMENTS.get(department_id, 'All'),
             'checklist': checklist,
-            'attendees': session.query(Attendee).filter(
-                Attendee.hotel_eligible == True,
-                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                Attendee.dept_memberships.any(department_id=department_id)
-            ).order_by(Attendee.full_name).all()
+            'attendees': attendees
         }  # noqa: E712
 
     @department_id_adapter
     def hotel_requests(self, session, department_id=None):
         redirect_to_allowed_dept(session, department_id, 'hotel_requests')
 
-        if department_id == 'All':
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
             department_id = None
 
-        dept_filter = [] if not department_id \
-            else [Attendee.dept_memberships.any(department_id=department_id)]
+        requests = []
 
-        requests = session.query(HotelRequests) \
-            .join(HotelRequests.attendee) \
-            .options(joinedload(HotelRequests.attendee)) \
-            .filter(
-            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-            *dept_filter) \
-            .order_by(Attendee.full_name).all()
-        
+        dept_filter = [] if not department_id else [
+            Attendee.dept_memberships.any(department_id=department_id)]
+
+        if department_id != '':
+            requests = session.query(HotelRequests) \
+                .join(HotelRequests.attendee) \
+                .options(joinedload(HotelRequests.attendee)) \
+                .filter(
+                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                *dept_filter) \
+                .order_by(Attendee.full_name).all()
+
         attendee = session.admin_attendee()
 
         try:
@@ -322,7 +338,7 @@ class Root:
             'admin_has_room_access': c.HAS_HOTEL_ADMIN_ACCESS,
             'attendee': attendee,
             'requests': requests,
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'department_name': c.DEPARTMENTS.get(department_id, 'All'),
             'declined_count': len([r for r in requests if r.nights == '']),
             'checklist': checklist,
@@ -336,7 +352,8 @@ class Root:
             .options(joinedload(Attendee.hotel_requests), subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
             .order_by(Attendee.full_name).all()  # noqa: E712
 
-        return {'staffers': [s for s in staffers if s.hotel_shifts_required and s.weighted_hours < c.HOURS_FOR_HOTEL_SPACE]}
+        return {'staffers': [s for s in staffers if s.hotel_shifts_required
+                             and s.weighted_hours < c.HOURS_FOR_HOTEL_SPACE]}
 
     def no_shows(self, session):
         room_assignments = session.query(RoomAssignment).options(

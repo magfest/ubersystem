@@ -18,69 +18,91 @@
         <h4 class="modal-title" id="piece_title_{{ real_piece.id or 'new' }}">{{ "Add" if not real_piece.id else "Edit" }} Art Show Piece</h4>
       </div>
 
-      <form target="upload_frame" method="post" action="../art_show_applications/save_art_show_piece" role="form" class="form-horizontal">
+      <div class="alert alert-dismissible" role="alert" id="art-show-piece-alert-{{ real_piece.id or 'new' }}"><span></span>{% if bootstrap5 %}<button type="button" class="btn-close" onClick="hideMessageBox('art-show-piece-alert-{{ real_piece.id or 'new' }}')" aria-label="Close"></button>{% else %}<button type="button" class="close" onClick="hideMessageBox('art-show-piece-alert-{{ real_piece.id or 'new' }}')" aria-label="Close"><span aria-hidden="true">&times;</span></button>{% endif %}</div>
+
+      <form method="post" action="../art_show_applications/save_art_show_piece" role="form">
         <div class="modal-body">
           <input type="hidden" name="id" value="{{ real_piece.id or 'None' }}" />
           <input type="hidden" name="app_id" value="{{ app.id }}" />
           <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
           {{ csrf_token() }}
-          {{ macros.form_group(piece, 'name', label="Piece Name", length=c.PIECE_NAME_LENGTH, placeholder="The title of this piece", is_required=True) }}
-
-          <div class="form-group">
-            <label class="col-sm-3 control-label">Is This Piece For Sale?</label>
-            {% set is_for_sale = not is_class and piece.valid_for_sale %}
-            {% set not_for_sale = not is_class and not piece.valid_for_sale %}
-            <div class="btn-group btn-group-toggle col-sm-6" data-bs-toggle="buttons">
-              <label class="btn btn-outline-secondary{% if is_for_sale %} active{% endif %}">
-                <input type="radio" name="for_sale" value="1" {% if is_for_sale %}checked="checked"{% endif %} autocomplete="off" required="required"> Yes
-              </label>
-              <label class="btn btn-outline-secondary{% if not_for_sale %} active{% endif %}">
-                <input type="radio" name="for_sale" value="0" {% if not_for_sale %}checked{% endif %} autocomplete="off"> No
-              </label>
+          <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">
+              <label for="name-{{ real_piece.id or 'new' }}" class="form-text">Piece Name</label>
+              <input type="text" name="name" id="name-{{ real_piece.id or 'new' }}" value="{{ real_piece.name or '' }}" class="form-control" placeholder="The title of this piece" required maxlength="{{ c.PIECE_NAME_LENGTH }}">
             </div>
-          </div>
-
-          {{ macros.form_group(piece, 'gallery', type='radio_buttons', label="Gallery", is_required=True) }}
-          {{ macros.form_group(piece, 'type', type='radio_buttons', label="Piece Type", is_required=True) }}
-
-          <div class="media">
-            {{ macros.form_group(piece, 'media', label="Original Media", length=15, placeholder="A short description of the exact media for this piece", is_required=True) }}
-          </div>
-
-          <div class="print">
-            <div class="form-group">
-              <div class="form-row">
-                <label class="col-sm-3 control-label">
-                  Print Number
+            <div class="col-12 col-sm-6">
+              {% set is_for_sale = not is_class and piece.valid_for_sale %}
+              {% set not_for_sale = not is_class and not piece.valid_for_sale %}
+              <label class="form-text">Is This Piece For Sale?</label>
+              <br/>
+              <div class="btn-group btn-group-toggle" data-bs-toggle="buttons">
+                <label class="btn btn-outline-success">
+                  <input type="radio" class="visually-hidden" name="for_sale" value="1" {% if is_for_sale %}checked{% endif %} autocomplete="off" required> Yes
                 </label>
-                <div class="col-sm-2"><input class="form-control" type="number" step="1" min="1" value="{{ piece.print_run_num or '' }}" name="print_run_num" placeholder="X" /></div>
-                <div class="col-sm-1"><p class="form-control-static text-center">OF</p></div>
-                <div class="col-sm-3"><input class="form-control" type="number" step="1" min="1" value="{{ piece.print_run_total or '' }}" name="print_run_total" placeholder="Y" /></div>
+                <label class="btn btn-outline-danger">
+                  <input type="radio" class="visually-hidden" name="for_sale" value="0" {% if not_for_sale %}checked{% endif %} autocomplete="off" required> No
+                </label>
               </div>
             </div>
           </div>
 
           <div class="for_sale">
-            <div class="form-group">
-              <label class="col-sm-3 control-label">Opening Bid</label>
-              <div class="col-sm-6">
+            <div class="row g-sm-3">
+              <div class="col-12 col-sm-6">
+                <label class="form-text" for="opening_bid-{{ real_piece.id or 'new' }}">Opening Bid</label>
                 <div class="input-group">
-                  <span class="input-group-addon">$</span>
-                  <input type="number" step="1" min="1" class="form-control" name="opening_bid" value="{{ piece.opening_bid or '' }}" autocomplete="off" />
+                  <span class="input-group-text">$</span>
+                  <input type="number" step="1" min="1" class="form-control" name="opening_bid" id="opening_bid-{{ real_piece.id or 'new' }}" value="{{ real_piece.opening_bid or '' }}" required autocomplete="off" />
                 </div>
               </div>
-            </div>
-
-            <div class="form-group">
-              <label class="col-sm-3 control-label">Quick Sale Price</label>
-              <div class="col-sm-6">
+              <div class="col-12 col-sm-6">
+                <label class="form-text" for="quick_sale_price-{{ real_piece.id or 'new' }}">Quick Sale Price</label>
                 <div class="input-group">
-                  <span class="input-group-addon">$</span>
-                  <input type="number" step="1" min="0" class="form-control" name="quick_sale_price" value="{{ piece.quick_sale_price or '' }}" autocomplete="off" />
+                  <span class="input-group-text">$</span>
+                  <input type="number" step="1" min="0" class="form-control" name="quick_sale_price" id="quick_sale_price-{{ real_piece.id or 'new' }}" value="{{ real_piece.quick_sale_price or '' }}" required autocomplete="off" />
                 </div>
-                <label class="optional-field checkbox-label">
-                  <input type="checkbox" name="no_quick_sale" value="1"{% if real_piece.no_quick_sale %} checked{% endif %} />
-                  I don't want my piece to be for sale after bidding ends.</label>
+                <label for="no_quick_sale-{{ real_piece.id or 'new' }}" class="form-check-label">
+                  <input type="checkbox" class="form-check-input" name="no_quick_sale" id="no_quick_sale-{{ real_piece.id or 'new' }}" value="1"{% if real_piece.no_quick_sale %} checked{% endif %} />
+                  I don't want my piece to be for sale after bidding ends.
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">
+              <label class="form-text">Gallery</label>
+              <br/>
+              <div class="btn-group" role="group">
+                {% for val, label in c.ART_PIECE_GALLERY_OPTS %}
+                <input type="radio" value="{{ val }}" class="btn-check" name="gallery" id="gallery-{{ val }}-{{ real_piece.id or 'new' }}"{% if real_piece.gallery == val %} checked{% endif %}>
+                <label class="btn btn-outline-secondary" for="gallery-{{ val }}-{{ real_piece.id or 'new' }}">{{ label }}</label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-text">Piece Type</label>
+              <br/>
+              <div class="btn-group" role="group">
+                {% for val, label in c.ART_PIECE_TYPE_OPTS %}
+                <input type="radio" value="{{ val }}" class="btn-check" name="type" id="type-{{ val }}-{{ real_piece.id or 'new' }}"{% if real_piece.type == val %} checked{% endif %}>
+                <label class="btn btn-outline-secondary" for="type-{{ val }}-{{ real_piece.id or 'new' }}">{{ label }}</label>
+                {% endfor %}
+              </div>
+              <div class="media mt-2">
+                <label class="form-text" for="media-{{ real_piece.id or 'new' }}">Original Media</label>
+                <input type="text" class="form-control" name="media" value="{{ real_piece.media or '' }}" id="media-{{ real_piece.id or 'new' }}" length="15", placeholder="The exact media for this piece in a few words" required>
+              </div>
+              <div class="print mt-2">
+                <label class="form-text">
+                  Print Number
+                </label>
+                <div class="input-group">
+                  <input class="form-control" type="number" step="1" min="1" value="{{ real_piece.print_run_num or '' }}" name="print_run_num" placeholder="X" />
+                  <span class="input-group-text">OF</span>
+                  <input class="form-control" type="number" step="1" min="1" value="{{ real_piece.print_run_total or '' }}" name="print_run_total" placeholder="Y" />
+                </div>
               </div>
             </div>
           </div>
@@ -95,8 +117,6 @@
 </div>
 {%- endmacro -%}
 
-<iframe id="upload_frame" name="upload_frame" style="display:none"></iframe>
-
 <div id="piece_modals">
   {{ piece_modal() }}
   {% if app.art_show_pieces -%}
@@ -106,79 +126,106 @@
   {%- endif %}
 </div>
 
-<div class="card">
-  <div class="card-header">
-    <h3 class="card-title">Art Show Information</h3>
-  </div>
-  <div class="card-body">
-    <form method="post" action="../art_show_applications/edit" role="form" class="form-horizontal">
-      <input type="hidden" name="id" value="{{ app.id }}" />
-      <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
-      {{ csrf_token() }}
-      {{ macros.form_group(app, 'banner_name', label="Banner Name", help="The name displayed with your art.", placeholder=app.artist_name or app.attendee.full_name, is_readonly=readonly) }}
-      {{ macros.form_group(app, 'check_payable', label="Name on Check", help="The name your check should be made payable to.", placeholder=app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name, is_readonly=readonly) }}
-      {{ macros.form_group(app, 'hotel_name', label="Hotel Staying At", is_readonly=readonly) }}
-      {{ macros.form_group(app, 'hotel_room_num', label="Room Number", is_readonly=readonly) }}
+  <h3 class="card-title">Art Show Information</h3>
+  <form method="post" action="../art_show_applications/edit" role="form">
+    <input type="hidden" name="id" value="{{ app.id }}" />
+    <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
+    {{ csrf_token() }}
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        <label for="banner_name" class="form-text">Banner Name</label>
+        {% if readonly %}
+          {{ app.banner_name or app.artist_name or app.attendee.full_name }}
+        {% else %}
+          <input type="text" class="form-control" name="banner_name" id="banner_name" value="{{ app.banner_name }}" placeholder="{{ app.artist_name or app.attendee.full_name }}"/>
+          {% if not admin_area %}<p class="form-text">The name displayed with your art.</p>{% endif %}
+        {% endif %}
+      </div>
+      <div class="col-12 col-sm-6">
+        <label for="check_payable" class="form-text">Name on Check</label>
+        {% if readonly %}
+          {{ app.check_payable or (app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name) }}
+        {% else %}
+          <input type="text" class="form-control" name="check_payable" id="check_payable" value="{{ app.check_payable }}" placeholder="{{ app.attendee.legal_first_name ~ ' ' ~ app.attendee.legal_last_name }}"/>
+          {% if not admin_area %}<p class="form-text">The name your check should be made payable to.</p>{% endif %}
+        {% endif %}
+      </div>
+    </div>
 
-      {% if app.delivery_method == c.BY_MAIL %}
+    <div class="row g-sm-3 mb-3">
+      <div class="col-12 col-sm-6">
+        <label for="hotel_name" class="form-text">Hotel Staying At</label>
+        {% if readonly %}
+          {{ app.hotel_name|default("N/A") }}
+        {% else %}
+          <input type="text" class="form-control" name="hotel_name" id="hotel_name" value="{{ app.hotel_name }}"/>
+        {% endif %}
+      </div>
+      <div class="col-12 col-sm-6">
+        <label for="hotel_name" class="form-text">Room Number</label>
+        {% if readonly %}
+          {{ app.hotel_room_num|default("N/A") }}
+        {% else %}
+          <input type="text" class="form-control" name="hotel_room_num" id="hotel_room_num" value="{{ app.hotel_room_num }}"/>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if app.delivery_method == c.BY_MAIL %}
       {% if c.BY_MAIL_US_ONLY and not admin_area %}
       <input type="hidden" name="us_only" value="{{ app.us_only|yesno("1,0") }}" />
       {% endif %}
       {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name, is_readonly=readonly) }}
       {{ macros.address_form(app, label_prefix="Mailing", is_readonly=readonly) }}
-      {% endif %}
+    {% endif %}
 
-      {% if not readonly %}
-      <div class="form-group">
-        <div class="col-sm-6 col-sm-offset-3">
-          <div class="input-group">
-            <button type="submit" class="btn btn-primary">Update Info</button>
-          </div>
-        </div>
+    {% if not readonly %}
+    <div class="row g-sm-3 mb-3">
+      <div class="col-12 col-sm-6">
+          <button type="submit" class="btn btn-primary">Update Info</button>
       </div>
-      {% endif %}
-    </form>
-  </div>
-  <div class="card-header">
-    <h3 class="card-title">Art Show Pieces</h3>
-  </div>
-  <div class="card-body">
-    <div class="row text-center">
-      {% if not readonly %}
-      <div class="col-sm-4">
-        <button class="btn btn-primary" id="add_piece_modal">Add {% if app.art_show_pieces %}Another {% endif %}Piece</button>
-      </div>
-      <div class="col-sm-4">
-        <form method="post" action="../art_show_applications/confirm_pieces" class="form-inline">
-          <input type="hidden" name="id" value="{{ app.id }}" />
-          <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
-          {{ csrf_token() }}
-          <button type="submit" class="btn btn-outline-secondary" id="confirm_pieces">Confirm Current Pieces</button>
-        </form>
-      </div>
-      {% endif %}
-      <form role="form" target="_blank" method="post" id="print_form" action="../art_show_admin/print_check_in_out_form">
-      <input type="hidden" name="id" value="{{ app.id }}" />
-      <button class="btn btn-success">Print Check-In Form</button>
-      {{ csrf_token() }}
-      </form>
     </div>
-    {% if admin_area %}
-    <div class="row text-center">
-      <br/>
-      <form method="post" action="../art_show_admin/bid_sheet_pdf" class="form-inline">
-        <label class="control-label">Piece IDs:</label>
+    {% endif %}
+  </form>
+  <h3 class="card-title">Art Show Pieces</h3>
+  <div class="row g-sm-3 text-center">
+    {% if not readonly %}
+    <div class="col-4">
+      <button class="btn btn-primary" id="add_piece_modal">Add {% if app.art_show_pieces %}Another {% endif %}Piece</button>
+    </div>
+    <div class="col-4">
+      <form method="post" action="../art_show_applications/confirm_pieces" class="form-inline">
         <input type="hidden" name="id" value="{{ app.id }}" />
+        <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
         {{ csrf_token() }}
-        <input type="text" class="form-control" name="piece_ids" size="7" placeholder="1-2, 5, 7" />
-        <button type="submit" class="btn btn-outline-secondary">Print Bid Sheets</button>
-        <p class="help-block">
-        Leave piece IDs blank to print all bid sheets for this artist.
-        </p>
+        <button type="submit" class="btn btn-outline-secondary" id="confirm_pieces">Confirm Current Pieces</button>
       </form>
     </div>
     {% endif %}
+    <div class="col-4">
+      <form role="form" target="_blank" method="post" id="print_form" action="../art_show_admin/print_check_in_out_form">
+      <input type="hidden" name="id" value="{{ app.id }}" />
+      <button class="btn btn-success">Print Check-In Form</button>
+    </form>
+    {{ csrf_token() }}
+    </form>
   </div>
+  {% if admin_area %}
+  <div class="row text-center">
+    <br/>
+    <form method="post" action="../art_show_admin/bid_sheet_pdf" class="form-inline">
+      <label class="control-label">Piece IDs:</label>
+      <input type="hidden" name="id" value="{{ app.id }}" />
+      {{ csrf_token() }}
+      <input type="text" class="form-control" name="piece_ids" size="7" placeholder="1-2, 5, 7" />
+      <button type="submit" class="btn btn-outline-secondary">Print Bid Sheets</button>
+      <p class="help-block">
+      Leave piece IDs blank to print all bid sheets for this artist.
+      </p>
+    </form>
+  </div>
+  {% endif %}
+  
   <div class="table-responsive">
     <table class="table table-striped datatable">
       <thead>
@@ -199,17 +246,19 @@
         <td> {{ piece.artist_and_piece_id }} </td>
         <td>
           {% if admin_area %}
-          <form method="post" action="../art_show_applications/save_art_show_piece" target="upload_frame" role="form" class="form-horizontal">
+          <form method="post" action="../art_show_applications/save_art_show_piece" role="form">
             <input type="hidden" name="app_id" value="{{ app.id }}" />
             <input type="hidden" name="id" value="{{ piece.id }}" />
             <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
             {% if piece.for_sale %}<input type="hidden" name="for_sale" value=1 />{% endif %}
             {% if piece.no_quick_sale %}<input type="hidden" name="no_quick_sale" value=1 />{% endif %}
             {{ csrf_token() }}
-          <select name="status" class="form-control">
-            {{ options(c.ART_PIECE_STATUS_OPTS, piece.status) }}
-          </select>
-            <button type="submit" class="btn btn-primary status_button"><i class="fa fa-ok"></i></button>
+            <div class="input-group">
+              <select name="status" class="form-select">
+                {{ options(c.ART_PIECE_STATUS_OPTS, piece.status) }}
+              </select>
+              <button type="submit" class="btn btn-primary status_button"><i class="fa fa-check"></i></button>
+            </div>
             <br/><label class="checkbox-label optional-field">
               <input type="checkbox" name="voice_auctioned" value="1"{% if piece.voice_auctioned %} checked{% endif %} />
               This piece went to voice auction.
@@ -289,18 +338,13 @@
 
     var showOrHidePrint = function() {
         var type_checked = $(this).closest("input[type=radio][name=type]:checked");
-        var form_group = $(this).parents('form');
+        var form_group = $(this).parents('form').first();
 
-        setVisible(form_group.find('.print'), type_checked.val() == {{ c.PRINT }});
-        setVisible(form_group.find('.media'), type_checked.val());
+        setVisible(form_group.find('.print').first(), type_checked && type_checked.val() == {{ c.PRINT }});
+        setVisible(form_group.find('.media').first(), type_checked && type_checked.val() == {{ c.ORIGINAL }});
         form_group.find('input[name=print_run_num]').prop("required", type_checked.val() == {{ c.PRINT }});
         form_group.find('input[name=print_run_total]').prop("required", type_checked.val() == {{ c.PRINT }});
-
-        if (type_checked.val() == {{ c.PRINT }}) {
-            form_group.find('input[name=media]').parents('.form-group').find('label').text("Print Media");
-        } else {
-            form_group.find('input[name=media]').parents('.form-group').find('label').text("Original Media");
-        }
+        form_group.find('input[name=media]').prop("required", type_checked.val() == {{ c.ORIGINAL }});
     };
 
     var disableOrEnablePrices = function() {
@@ -313,7 +357,12 @@
         togglePriceBox(sale_checked.val() == 1, no_sale_or_unselected, form_group, 'quick_sale_price');
 
         if(sale_checked.val() == 1) {
+            sale_checked.parent().removeClass('btn-outline-success').addClass('btn-success');
+            sale_checked.parent().siblings().first().removeClass('btn-danger').addClass('btn-outline-danger');
             togglePriceBox(!no_qs_checked, no_qs_checked, form_group, 'quick_sale_price');
+        } else { 
+          sale_checked.parent().removeClass('btn-outline-danger').addClass('btn-danger');
+          sale_checked.parent().siblings().first().removeClass('btn-success').addClass('btn-outline-success');
         }
 
         form_group.find('input[name=no_quick_sale]').prop('disabled', no_sale_or_unselected);
@@ -352,6 +401,20 @@
         modal.show();
     };
 
+    var saveArtShowPiece = function(e, $form, alertId) {
+      e.preventDefault();
+      $.post($form.prop('action'), $form.serialize(), function(result) {
+        hideMessageBox(alertId);
+        if (result.error) {
+          showErrorMessage(result.error.substring(7), alertId, false);
+        } else if (result.success) {
+          window.location = '?id={{ app.id }}&message=' + result.success;
+        }
+        $('#piece_modals').find('.save_piece').prop('disabled', false);
+      });
+      return false;
+    };
+
     $(document).ready(function() {
         $('input[type=radio][name=type]').on('change', showOrHidePrint);
         $('input[type=radio][name=for_sale]').on('change', disableOrEnablePrices);
@@ -360,6 +423,10 @@
             toggleQuickSale.call($(this).find('input[type=checkbox][name=no_quick_sale]'));
             showOrHidePrint.call($(this).find('input[type=radio][name=type]'));
             disableOrEnablePrices.call($(this).find('input[type=radio][name=for_sale]'));
+
+            var alertId = $(this).siblings('.alert-dismissible').first().prop('id');
+            hideMessageBox(alertId);
+            $(this).on('submit', function(e) { saveArtShowPiece(e, $(this), alertId) });
         });
 
         $('#add_piece_modal').on('click', addPieceModal);
@@ -368,30 +435,6 @@
         $('#piece_modals').find('form').submit(function(e) {
             $(this).find('.save_piece').prop('disabled', true);
             return true;
-        });
-
-        $('#upload_frame').load(function() {
-            try {
-                var responseText = $(this.contentDocument.body).text().trim();
-                this.contentDocument.body.innerHTML = '';
-                if (responseText) {
-                    try {
-                        var response = $.parseJSON(responseText);
-                        if (!response['error']) {
-                            var $modals = $('#piece_modals').find('.modal');
-                            var modal = bootstrap.Modal.getOrCreateInstance($modals);
-                            modal.hide();
-                            location.href = '?id={{ app.id }}&message='+response['success'];
-                        } else {
-                            showErrorMessage('', response['error'], {timeOut: 5000});
-                        }
-                    } catch(ex) {
-                        showErrorMessage('', 'There was an error saving the piece: ' + responseText.substring(0, 1024), {timeOut: 5000});
-                    }
-                }
-            } finally {
-                $('#piece_modals').find('.save_piece').prop('disabled', false);
-            }
         });
 
         $('.remove_piece').on('click', function (event) {

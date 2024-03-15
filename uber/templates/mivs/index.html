@@ -182,6 +182,11 @@
                   <td><ul><li></li></ul></td>
                   <td>{{ code.type_label }}</td>
                   <td>{{ code.code }}</td>
+                  {% if c.HAS_MIVS_ADMIN_ACCESS and not code.unlimited_use %}
+                    <td>
+                      {% if code.judge %} Assigned to {{ code.judge.full_name }}{% else %}Unassigned{% endif %}
+                    </td>
+                  {% endif %}
                   <td>
                     <form method="post" action="delete_code">
                       {{ csrf_token() }}

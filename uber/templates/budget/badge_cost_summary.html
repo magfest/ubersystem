@@ -3,8 +3,11 @@
 {% block title %}Badge Cost Summary{% endblock %}
 {% block content %}
 <h3 class="text-center">Badge Cost Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<p>Please note that 
+  {% if c.HAS_REG_REPORTS_ACCESS %}
+  <a href="../reg_reports/attendee_receipt_discrepancies" target="_blank">receipt discrepancies</a> (warning: long load time!)
+  {% else %}receipt discrepancies{% endif %} may contribute to a different total intake than the amounts listed below.</p>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
-  
   <tr>
     <td><strong>Total Badges</strong></td><td colspan="5">{{ total_badges }}</td><td><em>Total</em></td>
   </tr>
@@ -113,9 +116,8 @@
   </tr>
   <tr>
     <td></td><td></td>
-    <td colspan="4">{{ comped_badges + not_unpaid_badges }} comped badges
-      {% if not_unpaid_badges %} ({{ not_unpaid_badges }} attendees who are neither comped nor unpaid){% endif %}
-    </td><td></td>
+    <td colspan="4">{{ comped_badges }} comped badges</td>
+    <td></td>
   </tr>
   <tr>
     <td></td><td></td>

@@ -1,11 +1,10 @@
 alembic==1.11.2
-Authlib==1.2.1
 authorizenet==1.1.4
 bcrypt==4.0.1
 boto3==1.28.20
 celery==5.3.1
+checkdigit==0.3.1
 cherrypy==18.8.0
-cherrys==2023.2.0
 email_validator==2.0.0.post2
 fpdf==1.7.2
 geopy==2.3.0
@@ -24,6 +23,7 @@ redis==4.6.0
 requests==2.31.0
 residue @ git+https://github.com/magfest/residue.git@3935b8cce36f85f9c8a7837c52a88ee096f24d3d
 sentry-sdk==1.9.0
+spin_rest_utils>=0.0.1
 signnow_python_sdk==2.0.1
 SQLAlchemy==1.4.49
 stripe==5.5.0

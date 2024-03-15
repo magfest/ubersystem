@@ -1,7 +1,7 @@
 {% import "forms/account.html" as account_fields with context %}
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
 <div class="row justify-content-center">
-  <div class="col-6">
+  <div class="col-10 col-sm-9 col-md-6">
     <form id="account-form">
       {{ csrf_token() }}
       <div class="mb-3">

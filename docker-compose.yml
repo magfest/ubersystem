@@ -5,6 +5,10 @@ x-uber: &uber
     - &uber-db-connect DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
   volumes:
     - $PWD:/app/plugins/uber
+  links:
+      - db
+      - redis
+      - rabbitmq
 
 services: 
   web:

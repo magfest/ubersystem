@@ -107,7 +107,7 @@
     <input class="btn btn-primary" name="dealers" type="submit" value="Import All Dealers" />
     </div>
     <div class="col-sm-6">
-    <select name="dealer_status" class="form-control" onChange="showOrHideAllButtons();">
+    <select name="dealer_status" class="form-control">
       <option value="" selected="selected">Any Status</option>
       {{ options(c.DEALER_STATUS_OPTS) }}
     </select>

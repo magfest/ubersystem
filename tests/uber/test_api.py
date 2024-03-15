@@ -9,8 +9,12 @@ from cherrypy import HTTPError
 from tests.uber.conftest import csrf_token
 from uber.api import auth_by_token, auth_by_session, api_auth, all_api_auth
 from uber.config import c
+<<<<<<< HEAD
 from uber.models import AdminAccount, Attendee, ApiToken, Session, AccessGroup
 from uber.utils import check
+=======
+from uber.models import AdminAccount, Attendee, ApiToken, Session
+>>>>>>> main
 
 
 assert csrf_token
@@ -99,6 +103,10 @@ def api_token(session, admin_account):
     yield api_token
     session.delete(api_token)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
 class TestAuthByToken(object):
     ACCESS_ERR = 'Insufficient access for auth token: {}'.format(VALID_API_TOKEN)
 

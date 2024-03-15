@@ -2,7 +2,7 @@
 {% block title %}Badge Printing{% endblock %}
 {% block content %}
 
-<script src="../static/lib/utils/servertimecheck.js" type="text/javascript"></script>
+{{ "js/servertimecheck.js"|serve_static_content }}
 
 <h2> Printed Badges {% if pending %}Queue{% endif %}</h2>
 

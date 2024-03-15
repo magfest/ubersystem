@@ -1,54 +1,32 @@
-import bcrypt
 import json
+import pytz
 import math
 import re
 from datetime import datetime, timedelta
 from functools import wraps
 from io import BytesIO
 
-from pockets.autolog import log
-
 import cherrypy
-import treepoem
+from aztec_code_generator import AztecCode
 from pytz import UTC
-from six import string_types
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.custom_tags import format_currency
-from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, credit_card, \
-    csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, requires_account, site_mappable, public
+from uber.custom_tags import format_currency, readable_join
+from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderable, attendee_view, \
+    check_for_encrypted_badge_num, credit_card, csrf_protected, log_pageview, not_site_mappable, render, \
+    requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
-    PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList
+from uber.forms import load_forms
+from uber.models import Attendee, AttendeeAccount, AdminAccount, Email, Group, Job, PageViewTracking, PrintJob, \
+    PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction, \
+    WorkstationAssignment
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
-    localized_now, Order, normalize_email
-from uber.payments import TransactionRequest, ReceiptManager
-
-
-def pre_checkin_check(attendee, group):
-    if c.NUMBERED_BADGES:
-        if not attendee.badge_num:
-            return 'Badge number is required'
-
-    if c.COLLECT_EXACT_BIRTHDATE:
-        if not attendee.birthdate:
-            return 'Invalid date of birth'
-    elif not attendee.age_group or attendee.age_group == c.AGE_UNKNOWN:
-        return 'Invalid age group'
-
-    if attendee.checked_in:
-        return attendee.full_name + ' was already checked in!'
-
-    if group and attendee.paid == c.PAID_BY_GROUP and group.amount_unpaid:
-        return 'This attendee\'s group has an outstanding balance of ${}'.format(format_currency(group.amount_unpaid))
-
-    if attendee.paid == c.NOT_PAID:
-        return 'This attendee has not paid.'
-
-    return check(attendee)
+    localized_now, Order, validate_model
+from uber.payments import TransactionRequest, ReceiptManager, SpinTerminalRequest
 
 
 def check_atd(func):
@@ -61,9 +39,50 @@ def check_atd(func):
     return checking_at_the_door
 
 
+def load_attendee(session, params):
+    id = params.get('id', None)
+
+    if id in [None, '', 'None']:
+        attendee = Attendee()
+    else:
+        attendee = session.attendee(id)
+
+    return attendee
+
+
+def save_attendee(session, attendee, params):
+    if cherrypy.request.method == 'POST':
+        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+        session.add_all(receipt_items)
+
+    forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
+                                          'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
+
+    for form in forms.values():
+        if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+            form['legal_name'].data = ''
+        form.populate_obj(attendee, is_admin=True)
+
+    message = ''
+
+    if c.NUMBERED_BADGES and (params.get('no_badge_num') or not attendee.badge_num):
+        if params.get('save_check_in', False) and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
+            message = "Please enter a badge number to check this attendee in."
+        else:
+            attendee.badge_num = None
+
+    if 'no_override' in params:
+        attendee.overridden_price = None
+
+    if c.BADGE_PROMO_CODES_ENABLED and 'promo_code_code' in params:
+        message = session.add_promo_code_to_attendee(attendee, params.get('promo_code_code'))
+
+    return message
+
+
 @all_renderable()
 class Root:
-    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid='', reset_printers=False):
+    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
         # DEVELOPMENT ONLY: it's an extremely convenient shortcut to show the first page
         # of search results when doing testing. it's too slow in production to do this by
         # default due to the possibility of large amounts of reg stations accessing this
@@ -72,40 +91,42 @@ class Root:
         if c.DEV_BOX and not int(page):
             page = 1
 
-        filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS, c.WATCHED_STATUS]) if not invalid else None
-        attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
-        total_count = attendees.count()
+        reg_station_id = cherrypy.session.get('reg_station', '')
+        workstation_assignment = session.query(WorkstationAssignment
+                                               ).filter_by(reg_station_id=reg_station_id or -1).first()
+
+        status_list = [c.NEW_STATUS, c.COMPLETED_STATUS, c.WATCHED_STATUS, c.UNAPPROVED_DEALER_STATUS]
+        if c.AT_THE_CON:
+            status_list.append(c.AT_DOOR_PENDING_STATUS)
+        filter = [Attendee.badge_status.in_(status_list)] if not invalid else []
+        total_count = session.query(Attendee.id).filter(*filter).count()
         count = 0
         search_text = search_text.strip()
         if search_text:
-            search_results, message = session.search(search_text) if invalid else session.search(search_text, filter)
-            if search_results:
+            search_results, message = session.search(search_text, *filter)
+            if search_results and search_results.count():
                 attendees = search_results
-            count = attendees.count()
-            if count == total_count:
-                message = 'Every{} attendee matched this search.'.format('' if invalid else ' valid')
+                count = attendees.count()
+                if count == total_count:
+                    message = 'Every{} attendee matched this search.'.format('' if invalid else ' valid')
+            elif not message:
+                message = 'No matches found.{}'.format(
+                    '' if invalid else ' Try showing all badges to expand your search.')
         if not count:
-            attendees = attendees.options(joinedload(Attendee.group))
-            count = total_count
+            attendees = session.index_attendees().filter(*filter)
 
         attendees = attendees.order(order)
 
         page = int(page)
         if search_text:
             page = page or 1
-            if search_text and count == total_count and not message:
-                message = 'No matches found.{}'.format('' if invalid else ' Try showing all badges to expand your search.')
-            elif search_text and count == 1 and not c.AT_THE_CON:
+            if count == 1 and not c.AT_THE_CON:
                 raise HTTPRedirect(
-                    'form?id={}&message={}', attendees.one().id, 'This attendee was the only{} search result'.format('' if invalid else ' valid'))
+                    'form?id={}&message={}', attendees.one().id,
+                    'This attendee was the only{} search result'.format('' if invalid else ' valid'))
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
         attendees = attendees[-100 + 100*page: 100*page] if page else []
-
-        if reset_printers:
-            cherrypy.session['printer_default_id'] = ''
-            cherrypy.session['printer_minor_id'] = ''
-            message = "Default Printer IDs reset."
 
         return {
             'message':        message if isinstance(message, str) else message[-1],
@@ -118,41 +139,73 @@ class Root:
             'order':          Order(order),
             'search_count':   count,
             'attendee_count': total_count,
-            'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
+            'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),  # noqa: E711
             'attendee':       session.attendee(uploaded_id, allow_invalid=True) if uploaded_id else None,
-            'reg_station':    cherrypy.session.get('reg_station', ''),
-            'printer_default_id': cherrypy.session.get('printer_default_id', ''),
-            'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
+            'reg_station_id':    reg_station_id,
+            'workstation_assignment': workstation_assignment,
         }  # noqa: E711
+
+    @ajax
+    @any_admin_access
+    def validate_attendee(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(params.get('id'))
+
+        if not form_list:
+            form_list = ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'AdminBadgeFlags',
+                         'BadgeAdminNotes', 'OtherInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        forms = load_forms(params, attendee, form_list, get_optional=False)
+
+        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()), is_admin=True)
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
+
+    @ajax
+    def validate_attendee_checkin(self, session, form_list, **params):
+        if params.get('id') in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(params.get('id'))
+
+        normal_validations = json.loads(self.validate_attendee(form_list=form_list, **params))
+        if 'error' in normal_validations:
+            return {"error": normal_validations['error']}
+
+        if attendee.checked_in:
+            # We skip this failure for badge printing since we still want the badge to get printed
+            if not c.BADGE_PRINTING_ENABLED or attendee.times_printed > 0:
+                return {"error": {'': [attendee.full_name + ' was already checked in!']}}
+
+        if attendee.group and attendee.paid == c.PAID_BY_GROUP and attendee.group.amount_unpaid:
+            return {
+                "error": {'': ['This attendee\'s group has an outstanding balance of ${}.'.format(
+                    format_currency(attendee.group.amount_unpaid))]}
+                    }
+
+        if attendee.amount_unpaid_if_valid:
+            return {
+                "error": {'': ['This attendee has an outstanding balance of ${}.'.format(
+                    format_currency(attendee.amount_unpaid_if_valid))]}
+                    }
+
+        return {"success": True}
 
     @log_pageview
     def form(self, session, message='', return_to='', **params):
-        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            attendee = session.attendee(params.get('id'))
-            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
-            session.add_all(receipt_items)
+        attendee = load_attendee(session, params)
 
-        attendee = session.attendee(
-            params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
+        reg_station_id = cherrypy.session.get('reg_station', '')
+        workstation_assignment = session.query(WorkstationAssignment
+                                               ).filter_by(reg_station_id=reg_station_id or -1).first()
 
-        if 'first_name' in params:
-            message = ''
-            
-            attendee.group_id = params['group_opt'] or None
-            if c.NUMBERED_BADGES and (params.get('no_badge_num') or not attendee.badge_num):
-                if params.get('save') == 'save_check_in' and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
-                    message = "Please enter a badge number to check this attendee in"
-                else:
-                    attendee.badge_num = None
-
-            if 'no_override' in params:
-                attendee.overridden_price = None
-
-            if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
-                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
-
-            if not message:
-                message = check(attendee)
+        if cherrypy.request.method == 'POST':
+            message = save_attendee(session, attendee, params)
 
             if not message:
                 if attendee.is_new and \
@@ -163,37 +216,31 @@ class Root:
                     session.commit()
                     raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
 
-                message = '{} has been saved'.format(attendee.full_name)
-                stay_on_form = params.get('save') != 'save_return_to_search'
+                message = '{} has been saved.'.format(attendee.full_name)
+                stay_on_form = params.get('save_return_to_search', False) is False
                 session.add(attendee)
                 session.commit()
-                if params.get('save') == 'save_check_in':
+                if params.get('save_check_in', False):
                     if attendee.is_not_ready_to_checkin:
                         message = "Attendee saved, but they cannot check in now. Reason: {}".format(
                             attendee.is_not_ready_to_checkin)
                         stay_on_form = True
-                    elif attendee.amount_unpaid:
+                    elif attendee.amount_unpaid_if_valid:
                         message = "Attendee saved, but they must pay ${} before they can check in.".format(
-                            attendee.amount_unpaid)
+                            attendee.amount_unpaid_if_valid)
                         stay_on_form = True
                     else:
                         attendee.checked_in = localized_now()
-                        message = check(attendee)
-                        if message:
-                            message = "Attendee saved, but they cannot check in. Reason: {}".format(message)
-                            attendee.checked_in = None
-                            stay_on_form = True
-                        else:
-                            session.commit()
-                            message = '{} saved and checked in as {}{}'.format(
-                                attendee.full_name, attendee.badge, attendee.accoutrements)
-                            stay_on_form = False
-                        
+                        session.commit()
+                        message = '{} saved and checked in as {}{}.'.format(
+                            attendee.full_name, attendee.badge, attendee.accoutrements)
+                        stay_on_form = False
+
                 if stay_on_form:
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
                 else:
                     if return_to:
-                        raise HTTPRedirect(return_to + '&message={}', 'Attendee data saved')
+                        raise HTTPRedirect(return_to + '&message={}', 'Attendee updated.')
                     else:
                         raise HTTPRedirect(
                             'index?uploaded_id={}&message={}&search_text={}',
@@ -201,42 +248,134 @@ class Root:
                             message,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
         receipt = session.refresh_receipt_and_model(attendee)
+        session.commit()
+        forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
+                                              'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
 
         return {
             'message':    message,
             'attendee':   attendee,
+            'forms': forms,
             'return_to':  return_to,
             'no_badge_num': params.get('no_badge_num'),
             'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
             'unassigned': {
                 group_id: unassigned
                 for group_id, unassigned in session.query(Attendee.group_id, func.count('*')).filter(
-                    Attendee.group_id != None, Attendee.first_name == '').group_by(Attendee.group_id).all()},
-            'payment_enabled': True if cherrypy.session.get('reg_station') else False,
-            'reg_station': cherrypy.session.get('reg_station', ''),
-            'printer_default_id': cherrypy.session.get('printer_default_id', ''),
-            'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
+                    Attendee.group_id != None,  # noqa: E711
+                    Attendee.first_name == '').group_by(Attendee.group_id).all()},
+            'payment_enabled': True if reg_station_id else False,
+            'reg_station_id': reg_station_id,
+            'workstation_assignment': workstation_assignment,
             'receipt': receipt,
         }  # noqa: E711
+
+    @ajax
+    def start_terminal_payment(self, session, model_id='', account_id='', **params):
+        from uber.tasks.registration import process_terminal_sale
+
+        error, terminal_id = session.get_assigned_terminal_id()
+
+        if error:
+            return {'error': error}
+
+        description = ""
+
+        if model_id:
+            try:
+                attendee = session.attendee(model_id)
+                description = f"At-door badge payment for {attendee.full_name}"
+            except NoResultFound:
+                group = session.group(model_id)
+                description = f"At-door payment for {group.name}"
+
+        c.REDIS_STORE.delete(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id)
+        process_terminal_sale.delay(workstation_num=cherrypy.session.get('reg_station'),
+                                    terminal_id=terminal_id,
+                                    model_id=model_id,
+                                    account_id=account_id,
+                                    description=description)
+        return {'success': True}
+
+    def check_txn_status(self, session, intent_id='', **params):
+        error, terminal_id = session.get_assigned_terminal_id()
+
+        if error:
+            return {'error': error}
+
+        req = SpinTerminalRequest(terminal_id)
+        response = req.check_txn_status(intent_id)
+        if response:
+            response_json = response.json()
+            if req.api_response_successful(response_json):
+                message = str(response_json)
+            else:
+                error_message = req.error_message_from_response(response_json)
+                message = f"Error checking status of {intent_id}: {error_message}"
+        else:
+            message = f"Error checking status of {intent_id}: {req.error_message}"
+
+        raise HTTPRedirect('../reg_admin/manage_workstations?message={}', message)
+
+    @ajax
+    def poll_terminal_payment(self, session, **params):
+        from spin_rest_utils import utils as spin_rest_utils
+        error, terminal_id = session.get_assigned_terminal_id()
+
+        if error:
+            return {'error': error}
+
+        terminal_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id)
+        error_message = terminal_status.get('last_error', '')
+        intent_id = terminal_status.get('intent_id', '')
+        response = json.loads(terminal_status.get('last_response')) if terminal_status.get('last_response') else {}
+
+        if error_message:
+            if intent_id and not response:
+                matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id)
+                for txn in matching_txns:
+                    txn.cancelled = datetime.now()
+                    session.add(txn)
+                session.commit()
+            custom_error = spin_rest_utils.better_error_message(error_message, response, terminal_id, format_currency)
+            if custom_error:
+                custom_error['intent_id'] = intent_id
+                return custom_error
+            return {'error': error_message, 'intent_id': intent_id}
+        elif response:
+            if not intent_id:
+                return {
+                    'error': "We could not find which payment this transaction was for. "
+                    "You may need a manager to log it manually."
+                    }
+            return {'success': True, 'intent_id': intent_id}
+        else:
+            # TODO: Finish and test this
+            past_timeout = datetime.now(pytz.UTC) - timedelta(seconds=150)
+            if terminal_status.get('request_timestamp') and \
+                    terminal_status.get('request_timestamp') < past_timeout.timestamp():
+                status_request = SpinTerminalRequest(terminal_id)
+                response = status_request.check_txn_status(intent_id)
+                if response:
+                    status_request.process_sale_response(response)
+                else:
+                    return {'error': status_request.error_message}
 
     def promo_code_groups(self, session, message=''):
         groups = session.query(PromoCodeGroup).order_by(PromoCodeGroup.name).all()
         used_counts = {
             group_id: count for group_id, count in
-                session.query(PromoCode.group_id, func.count(PromoCode.id))
-                    .filter(Attendee.promo_code_id == PromoCode.id,
-                            PromoCode.group_id == PromoCodeGroup.id)
-                    .group_by(PromoCode.group_id)
+            session.query(PromoCode.group_id, func.count(PromoCode.id))
+            .filter(Attendee.promo_code_id == PromoCode.id,
+                    PromoCode.group_id == PromoCodeGroup.id).group_by(PromoCode.group_id)
         }
         total_costs = {
             group_id: total for group_id, total in
-                session.query(PromoCode.group_id, func.sum(PromoCode.cost))
-                        .group_by(PromoCode.group_id)
+            session.query(PromoCode.group_id, func.sum(PromoCode.cost)).group_by(PromoCode.group_id)
         }
         total_counts = {
             group_id: count for group_id, count in
-                session.query(PromoCode.group_id, func.count('*'))
-                        .group_by(PromoCode.group_id)
+            session.query(PromoCode.group_id, func.count('*')).group_by(PromoCode.group_id)
         }
         return {
             'groups': groups,
@@ -305,7 +444,7 @@ class Root:
         session.delete(code)
         session.commit()
 
-        return { 'removed': id }
+        return {'removed': id}
 
     @public
     def qrcode_generator(self, data):
@@ -324,11 +463,7 @@ class Root:
         this function.  Or, offload image generation to a dedicated microservice that replicates this functionality.
 
         """
-        checkin_barcode = treepoem.generate_barcode(
-            barcode_type='azteccode',
-            data=c.EVENT_QR_ID + str(data),
-            options={},
-        )
+        checkin_barcode = AztecCode(c.EVENT_QR_ID+str(data), size=(27, True)).image(module_size=4, border=1)
         buffer = BytesIO()
         checkin_barcode.save(buffer, "PNG")
         buffer.seek(0)
@@ -361,13 +496,14 @@ class Root:
             'return_to': return_to
         }
 
-    @cherrypy.expose(['delete_attendee'])
-    def delete(self, session, id, return_to='index?', **params):
+    def delete(self, session, id, return_to='index?', return_msg=False, **params):
         attendee = session.attendee(id, allow_invalid=True)
         if attendee.group:
             if attendee.group.leader_id == attendee.id:
                 message = 'You cannot delete the leader of a group; ' \
                     'you must make someone else the leader first, or just delete the entire group'
+                if return_msg:
+                    return False, message
             elif attendee.is_unassigned:
                 session.delete_from_group(attendee, attendee.group)
                 message = 'Unassigned badge removed.'
@@ -385,148 +521,298 @@ class Root:
         else:
             session.delete(attendee)
             message = 'Attendee deleted'
-        
+
+        if return_msg:
+            session.commit()
+            return True, message
+
         q_or_a = '?' if '?' not in return_to else '&'
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else q_or_a) + 'message={}', message)
 
-    def printer_id_form(self, session, id):
-        return {
-            'reg_station':    cherrypy.session.get('reg_station', ''),
-            'printer_default_id': cherrypy.session.get('printer_default_id', ''),
-            'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
-            'attendee_id': id,
-        }
-
     @ajax
-    def set_printer_ids(self, session, **params):
-        if not params.get('reg_station') or not params.get('printer_default_id') or not params.get('printer_minor_id'):
-            return {'success': False, 'message': "Please set reg station number, default printer ID, and default minor printer ID."}
-        
-        try:
-            cherrypy.session['reg_station'] = int(params.get('reg_station'))
-        except Exception:
-            return {'success': False, 'message': "Reg station must be a number."}
-
-        if cherrypy.session['reg_station'] == 0:
-            return {'success': False, 'message': "Reg station cannot be 0."}
-        
-        cherrypy.session['printer_default_id'] = params.get('printer_default_id')
-        cherrypy.session['printer_minor_id'] = params.get('printer_minor_id')
-        return {
-            'success': True,
-            'message': "Printer IDs set!",
-            'reg_station':    cherrypy.session.get('reg_station', ''),
-            'printer_default_id': cherrypy.session.get('printer_default_id', ''),
-            'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
-        }
+    @attendee_view
+    def delete_attendee(self, session, id, **params):
+        success, msg = self.delete(id=id, return_msg=True, **params)
+        return {'success': success, 'message': msg}
 
     @check_for_encrypted_badge_num
     @ajax
-    def print_badge(self, session, message='', group_id='', printer_id='', **params):
+    def print_badge(self, session, message='', printer_id='', **params):
         from uber.site_sections.badge_printing import pre_print_check
+        id = params.get('id', None)
 
-        bools = ['got_merch'] if c.MERCH_AT_CHECKIN else []
-        attendee = session.attendee(params, allow_invalid=True, bools=bools)
-        group = attendee.group or (session.group(group_id) if group_id else None)
+        if id in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(id)
 
-        message = pre_checkin_check(attendee, group)
-        if not message and group_id:
-            message = session.match_to_group(attendee, group)
+        forms = load_forms(params, attendee, ['CheckInForm'])
 
-        if not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
-            message = 'You must select a group for this attendee.'
+        for form in forms.values():
+            form.populate_obj(attendee, is_admin=True)
 
-        if not message and not printer_id:
-            message = 'You must set a printer ID.'
+        if not printer_id:
+            return {'success': False, 'message': 'You must set a printer ID.'}
 
-        if message:
-            return {'success': False, 'message': message}
-        
+        reg_station_id = cherrypy.session.get('reg_station', '')
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(
+            reg_station_id=reg_station_id or -1).first()
+
+        if attendee.age_now_or_at_con < 18 and not workstation_assignment:
+            return {'success': False,
+                    'message': "Your workstation has no printers assigned, "
+                    "so we can't tell how to handle this minor's badge."}
+
         success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
         if not success:
             return {'success': False, 'message': message}
-        
+
         session.commit()
-        if attendee.age_now_or_at_con < 18 and printer_id == cherrypy.session.get('printer_default_id'):
+        if attendee.age_now_or_at_con < 18 and printer_id == workstation_assignment.printer_id:
             if session.query(PrintJob).filter(PrintJob.printer_id == printer_id,
-                                              PrintJob.printed == None,
+                                              PrintJob.printed == None,  # noqa: E711
                                               PrintJob.errors == '').all():
                 return {'success': False,
-                        'message': "This is a minor badge and there are still standard badges waiting to print on this printer. \
-                                    Please try again soon or set a different printer ID."}
+                        'message': "This is a minor badge and there are still standard badges waiting to "
+                        "print on this printer. Please try again soon or set a different printer ID."}
             else:
                 return {'success': True, 'minor_check': True}
         else:
-            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), params.get('fee_amount'))
-            return {'success': True, 'message': message}
+            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'),
+                                       params.get('fee_amount'))
+            session.commit()
+            return {'success': True, 'message': message + f" {attendee.full_name} successfully checked in."}
 
-    def minor_check_form(self, session, attendee_id, printer_id, reprint_fee):
+    @ajax
+    def print_and_check_in_badges(self, session, message='', printer_id='', minor_printer_id='', **params):
+        from uber.site_sections.badge_printing import pre_print_check
+        id = params.get('id', None)
+
+        if id in [None, '', 'None']:
+            account = AttendeeAccount()
+        else:
+            account = session.attendee_account(id)
+
+        if not printer_id and not minor_printer_id:
+            return {'success': False, 'message': 'You must set a printer ID.'}
+
+        if len(account.at_door_under_18s) != len(account.at_door_attendees) and not printer_id:
+            return {'success': False,
+                    'message': 'You must set a printer ID for the adult badges that are being checked in.'}
+
+        minor_check_badges = False
+        attendee_names_list = []
+        checked_in = {}
+        printer_messages = []
+        cherrypy.session['cart_success_list'] = []
+        cherrypy.session['cart_printer_error_list'] = []
+
+        for attendee in account.at_door_attendees:
+            success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
+
+            if not success:
+                printer_messages.append(f"There was a problem with printing {attendee.full_name}'s badge: {message}")
+
+            session.commit()
+
+            if success and attendee.age_now_or_at_con < 18 and (not minor_printer_id or printer_id == minor_printer_id):
+                minor_check_badges = True
+            elif success:
+                attendee_names_list.append(attendee.full_name)
+                session.add_to_print_queue(attendee, printer_id,
+                                           cherrypy.session.get('reg_station'), params.get('fee_amount'))
+
+                if attendee.badge_status == c.AT_DOOR_PENDING_STATUS:
+                    attendee.badge_status = c.NEW_STATUS
+                attendee.checked_in = localized_now()
+                checked_in[attendee.id] = {
+                    'badge':      attendee.badge,
+                    'paid':       attendee.paid_label,
+                    'age_group':  attendee.age_group_conf['desc'],
+                    'checked_in': attendee.checked_in and hour_day_format(attendee.checked_in),
+                }
+                session.commit()
+
+        if attendee_names_list:
+            success_message = "{} successfully checked in.{}".format(
+                readable_join(attendee_names_list),
+                (" " + " ".join(printer_messages)) if printer_messages else "")
+        else:
+            success_message = " ".join(printer_messages)
+
+        if minor_check_badges:
+            cherrypy.session['cart_success_list'] = attendee_names_list
+            cherrypy.session['cart_printer_error_list'] = printer_messages
+            return {
+                'success': True,
+                'minor_check': True,
+                'num_adults': len(attendee_names_list),
+                'checked_in': checked_in
+                }
+        return {'success': True, 'message': success_message, 'checked_in': checked_in}
+
+    def minor_check_form(self, session, printer_id, attendee_id='', account_id='', reprint_fee=0, num_adults=0):
+        if account_id:
+            account = session.attendee_account(account_id)
+            attendees = account.at_door_under_18s
+        elif attendee_id:
+            attendee = session.attendee(attendee_id)
+            attendees = [attendee]
+
         return {
+            'attendees': attendees,
+            'account_id': account_id,
             'attendee_id': attendee_id,
             'printer_id': printer_id,
             'reprint_fee': reprint_fee,
+            'num_adults': num_adults,
         }
 
     @ajax_gettable
-    def complete_minor_check(self, session, attendee_id, printer_id, reprint_fee):
-        attendee = session.attendee(attendee_id)
-        print_id, errors = session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), reprint_fee)
-        if errors:
-            return {'success': False, 'message': "<br>".join(errors)}
-        return {'success': True, 'message': 'Print job created!', 'printer_id': printer_id}
+    def complete_minor_check(self, session, printer_id, attendee_id='', account_id='', reprint_fee=0):
+        if account_id:
+            account = session.attendee_account(account_id)
+            attendees = account.at_door_under_18s
+        elif attendee_id:
+            attendee = session.attendee(attendee_id)
+            attendees = [attendee]
+
+        attendee_names_list = cherrypy.session.get('cart_success_list', [])
+        printer_messages = cherrypy.session.get('cart_printer_error_list', [])
+        checked_in = {}
+
+        for attendee in attendees:
+            _, errors = session.add_to_print_queue(attendee, printer_id,
+                                                   cherrypy.session.get('reg_station'), reprint_fee)
+            if errors and not account_id:
+                return {'success': False, 'message': "<br>".join(errors)}
+            elif errors:
+                printer_messages.append(f"There was a problem with printing {attendee.full_name}'s "
+                                        f"badge: {' '.join(errors)}")
+            else:
+                if attendee.badge_status == c.AT_DOOR_PENDING_STATUS:
+                    attendee.badge_status = c.NEW_STATUS
+                attendee.checked_in = localized_now()
+                checked_in[attendee.id] = {
+                    'badge':      attendee.badge,
+                    'paid':       attendee.paid_label,
+                    'age_group':  attendee.age_group_conf['desc'],
+                    'checked_in': attendee.checked_in and hour_day_format(attendee.checked_in),
+                }
+                session.commit()
+                attendee_names_list.append(attendee.full_name)
+
+        message = "{} successfully checked in.{}".format(readable_join(attendee_names_list),
+                                                         (" " + " ".join(printer_messages))
+                                                         if printer_messages else "")
+        return {'success': True, 'message': message, 'checked_in': checked_in}
 
     def check_in_form(self, session, id):
         attendee = session.attendee(id)
         session.refresh_receipt_and_model(attendee)
+        session.commit()
 
         if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
             valid_groups = session.query(Group).options(joinedload(Group.leader)).filter(
                 Group.status != c.WAITLISTED,
                 Group.id.in_(
                     session.query(Attendee.group_id)
-                    .filter(Attendee.group_id != None, Attendee.first_name == '')
+                    .filter(Attendee.group_id != None, Attendee.first_name == '')  # noqa: E711
                     .distinct().subquery()
                 )).order_by(Group.name)  # noqa: E711
 
             groups = [(
                 group.id,
-                (group.name if len(group.name) < 30 else '{}...'.format(group.name[:27], '...'))
+                (group.name if len(group.name) < 30 else '{}...'.format(group.name[:27]))
                 + (' ({})'.format(group.leader.full_name) if group.leader else ''))
                 for group in valid_groups]
         else:
             groups = []
 
+        forms = load_forms({}, attendee, ['CheckInForm'])
+
         return {
             'attendee': attendee,
             'groups': groups,
+            'forms': forms,
         }
+
+    def check_in_cart_form(self, session, id):
+        account = session.attendee_account(id)
+        reg_station_id = cherrypy.session.get('reg_station', '')
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(
+            reg_station_id=reg_station_id or -1).first()
+        total_cost = 0
+        for attendee in account.at_door_attendees:
+            receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+            total_cost += receipt.current_amount_owed
+
+        return {
+            'account': account,
+            'total_cost': total_cost,
+            'workstation_assignment': workstation_assignment,
+        }
+
+    @ajax
+    def remove_attendee_from_cart(self, session, **params):
+        id = params.get('id', None)
+
+        if id in [None, '', 'None']:
+            return {'error': "No ID provided."}
+
+        attendee = session.attendee(id)
+        if attendee.badge_status != c.AT_DOOR_PENDING_STATUS:
+            return {'error': f"This attendee's badge status is actually {attendee.badge_status_label}. Please refresh."}
+
+        attendee.badge_status = c.NEW_STATUS
+        session.commit()
+
+        return {'success': True}
 
     @check_for_encrypted_badge_num
     @ajax
-    def check_in(self, session, message='', group_id='', **params):
-        bools = Attendee.checkin_bools
-        attendee = session.attendee(params, allow_invalid=True, bools=bools)
-        group = attendee.group or (session.group(group_id) if group_id else None)
+    def save_no_check_in(self, session, **params):
+        id = params.get('id', None)
+
+        if id in [None, '', 'None']:
+            return {'error': "No ID provided."}
+        attendee = session.attendee(id)
+
+        forms = load_forms(params, attendee, ['CheckInForm'])
+
+        for form in forms.values():
+            form.populate_obj(attendee, is_admin=True)
+
+        session.commit()
+
+        return {'success': True}
+
+    @check_for_encrypted_badge_num
+    @ajax
+    def check_in(self, session, message='', **params):
+        id = params.get('id', None)
+
+        if id in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(id)
+
+        forms = load_forms(params, attendee, ['CheckInForm'])
+
+        for form in forms.values():
+            form.populate_obj(attendee, is_admin=True)
 
         pre_badge = attendee.badge_num
         success, increment = False, False
 
-        message = pre_checkin_check(attendee, group)
-        if not message and group_id:
-            message = session.match_to_group(attendee, group)
-
-        if not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
-            message = 'You must select a group for this attendee.'
-
-        if not message:
-            attendee.checked_in = localized_now()
-            message = check(attendee)
-            if not message:
-                success = True
-                session.commit()
-                increment = True
-                message = '{} checked in as {}{}'.format(attendee.full_name, attendee.badge, attendee.accoutrements)
+        attendee.checked_in = localized_now()
+        if attendee.badge_status == c.AT_DOOR_PENDING_STATUS:
+            attendee.badge_status = c.NEW_STATUS
+        success = True
+        session.commit()
+        increment = True
+        message = '{} checked in as {}{}'.format(attendee.full_name, attendee.badge, attendee.accoutrements)
 
         return {
             'success':    success,
@@ -566,7 +852,9 @@ class Root:
     @check_atd
     @requires_account()
     def register(self, session, message='', error_message='', **params):
-        check_if_can_reg()
+        errors = check_if_can_reg()
+        if errors:
+            return errors
 
         params['id'] = 'None'
         login_email = None
@@ -580,14 +868,13 @@ class Root:
         in_kiosk_mode = cherrypy.session.get('kiosk_mode')
         if in_kiosk_mode:
             cherrypy.session['attendee_account_id'] = None
-        
+
         if c.ATTENDEE_ACCOUNTS_ENABLED:
-            account_email, account_password = params.get('account_email'), params.get('account_password')
-            login_email, login_password = params.get('login_email'), params.get('login_password')
+            login_email = params.get('login_email')
 
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
         error_message = error_message or check_pii_consent(params, attendee)
-        if not error_message and 'first_name' in params:            
+        if not error_message and 'first_name' in params:
             if not payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
                 error_message = 'Please select a payment type'
             elif payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
@@ -606,7 +893,7 @@ class Root:
                         cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
                 session.add(attendee)
-                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                 session.commit()
                 if c.AFTER_BADGE_PRICE_WAIVED:
                     message = c.AT_DOOR_WAIVED_MSG
@@ -634,7 +921,7 @@ class Root:
             'kiosk_mode': in_kiosk_mode,
             'logging_in': bool(login_email),
         }
-    
+
     @public
     @check_atd
     def at_door_complete(self, session, id, message=''):
@@ -668,11 +955,11 @@ class Root:
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
-        message = charge.process_payment()
-        
+        message = charge.prepare_payment()
+
         if message:
             return {'error': message}
-        
+
         session.add_all(charge.get_receipt_items_to_add())
         session.commit()
         if cherrypy.session.get('kiosk_mode'):
@@ -693,7 +980,7 @@ class Root:
             raise HTTPRedirect('index?message={}', 'You must set your reg station number')
 
         if show_all:
-            restrict_to = [Attendee.paid == c.NOT_PAID, Attendee.placeholder == False]  # noqa: E711
+            restrict_to = [Attendee.paid == c.NOT_PAID, Attendee.placeholder == False]  # noqa: E712
         else:
             restrict_to = [
                 Attendee.paid != c.NEED_NOT_PAY, Attendee.registered > datetime.now(UTC) - timedelta(minutes=90)]
@@ -702,50 +989,99 @@ class Root:
             'message':    message,
             'show_all':   show_all,
             'checked_in': checked_in,
-            'recent':     session.query(Attendee)
-                                 .filter(Attendee.checked_in == None,
-                                         Attendee.first_name != '',
-                                         Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                                         *restrict_to)
-                                 .order_by(Attendee.registered.desc()).all(),
+            'recent':     session.query(Attendee).filter(Attendee.checked_in == None,  # noqa: E711
+                                                         Attendee.first_name != '',
+                                                         Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                                                         *restrict_to).order_by(Attendee.registered.desc()).all(),
         }  # noqa: E711
 
     @not_site_mappable
-    def set_reg_station(self, reg_station='', message=''):
-        if not reg_station:
+    def set_reg_station(self, reg_station_id='', message='', return_to='../registration/index'):
+        from urllib.parse import unquote
+        if not reg_station_id:
             message = "Please enter a number for this reg station"
-            
-        if not message and not reg_station.isdigit() or not (0 <= int(reg_station) < 100):
-            message = "Reg station must be a positive integer between 0 and 100"
+
+        if not message and (not reg_station_id.isdigit() or
+                            (reg_station_id.isdigit() and not (0 <= int(reg_station_id) < 1000))):
+            message = "Reg station must be a positive integer between 0 and 1000"
 
         if not message:
-            cherrypy.session['reg_station'] = int(reg_station)
+            cherrypy.session['reg_station'] = int(reg_station_id)
             message = "Reg station number recorded"
-            
-        raise HTTPRedirect('index?message={}', message)
+
+        connect_char = '?'
+
+        return_to = unquote(return_to)
+        if '?' in return_to:
+            connect_char = '&'
+
+        raise HTTPRedirect(f'{return_to}{connect_char}message={message}')
+
+    def update_printers(self, session, reg_station_id='', **params):
+        if not reg_station_id:
+            reg_station_id = cherrypy.session.get('reg_station')
+
+        if not reg_station_id:
+            raise HTTPRedirect("index?message={}", "No reg station ID set!")
+
+        reg_station_id = int(reg_station_id)
+        cherrypy.session['reg_station'] = reg_station_id
+
+        if not params.get('printer_id'):
+            raise HTTPRedirect("index?message={}", "Please include a printer ID.")
+
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id).first()
+
+        if not workstation_assignment:
+            workstation_assignment = WorkstationAssignment(reg_station_id=reg_station_id)
+            session.add(workstation_assignment)
+
+        workstation_assignment.printer_id = params.get('printer_id', '')
+        workstation_assignment.minor_printer_id = params.get('minor_printer_id', '')
+
+        raise HTTPRedirect("index?message=Printer IDs set!")
 
     @ajax
     def mark_as_paid(self, session, id, payment_method):
         if not cherrypy.session.get('reg_station'):
-            return {'success': False, 'message': 'Payments can only be taken by at-door stations.'}
-        
-        attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-        attendee.paid = c.HAS_PAID
-        if int(payment_method) == c.STRIPE_ERROR:
-            desc = "Automated message: Stripe payment manually verified by admin."
-        else:
-            desc = "At-door marked as paid"
+            return {'success': False, 'message': 'You must set a workstation ID to take payments.'}
 
-        receipt_manager = ReceiptManager(receipt)
-        error = receipt_manager.create_payment_transaction(desc, amount=receipt.current_amount_owed, method=payment_method)
-        if error:
-            return {'success': False, 'message': error}
-        session.add_all(receipt_manager.items_to_add)
-        
-        attendee.reg_station = cherrypy.session.get('reg_station')
+        account = None
+
+        try:
+            attendee = session.attendee(id)
+            attendees = [attendee]
+        except NoResultFound:
+            account = session.attendee_account(id)
+
+        if account:
+            attendees = account.at_door_attendees
+
+        for attendee in attendees:
+            receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+            if receipt.current_amount_owed:
+                if attendee.paid in [c.NOT_PAID, c.PENDING]:
+                    attendee.paid = c.HAS_PAID
+                if int(payment_method) == c.STRIPE_ERROR:
+                    desc = f"Automated message: Stripe payment manually verified by {AdminAccount.admin_name()}."
+                else:
+                    desc = f"At-door marked as paid by {AdminAccount.admin_name()}"
+
+                receipt_manager = ReceiptManager(receipt)
+                error = receipt_manager.create_payment_transaction(desc, amount=receipt.current_amount_owed,
+                                                                   method=payment_method)
+                if error:
+                    session.rollback()
+                    return {'success': False, 'message': error}
+                session.add_all(receipt_manager.items_to_add)
+
+                attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
-        return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
+        return {
+            'success': True,
+            'message': 'Attendee{} marked as paid.'.format('s' if account else ''),
+            'id': attendee.id
+            }
 
     @ajax
     @credit_card
@@ -755,10 +1091,10 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
 
-        message = charge.process_payment(payment_method=c.MANUAL)
+        message = charge.prepare_payment(payment_method=c.MANUAL)
         if message:
             return {'error': message}
-        
+
         session.add_all(charge.get_receipt_items_to_add())
         session.commit()
         return {'stripe_intent': charge.intent, 'success_url': ''}
@@ -766,25 +1102,27 @@ class Root:
     @check_for_encrypted_badge_num
     @csrf_protected
     def new_checkin(self, session, message='', **params):
-        attendee = session.attendee(params, allow_invalid=True)
-        group = session.group(attendee.group_id) if attendee.group_id else None
+        id = params.get('id', None)
+
+        if id in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(id)
+
+        forms = load_forms(params, attendee, ['CheckInForm'])
+
+        for form in forms.values():
+            form.populate_obj(attendee, is_admin=True)
 
         checked_in = ''
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('index?message={}', 'You must set your reg station number')
 
-        message = pre_checkin_check(attendee, group)
-
-        if message:
-            session.rollback()
-        else:
-            if group:
-                session.match_to_group(attendee, group)
-            attendee.checked_in = localized_now()
-            attendee.reg_station = cherrypy.session.get('reg_station')
-            message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
-            checked_in = attendee.id
-            session.commit()
+        attendee.checked_in = localized_now()
+        attendee.reg_station = cherrypy.session.get('reg_station')
+        message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
+        checked_in = attendee.id
+        session.commit()
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
@@ -843,18 +1181,33 @@ class Root:
         attendee.checked_in = attendee.group = None
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
-    def feed(self, session, message='', page='1', who='', what='', action=''):
-        feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
+    def feed(self, session, tracking_type='action', message='', page='1', who='', what='', action=''):
+        filters = []
+        if tracking_type == 'report':
+            model = ReportTracking
+        elif tracking_type == 'pageview':
+            model = PageViewTracking
+        elif tracking_type == 'action':
+            model = Tracking
+            filters.append(Tracking.action != c.AUTO_BADGE_SHIFT)
+
+        feed = session.query(model).filter(*filters).order_by(model.when.desc())
         what = what.strip()
         if who:
             feed = feed.filter_by(who=who)
         if what:
-            like = '%' + what + '%'  # SQLAlchemy should have an icontains for this
-            feed = feed.filter(or_(Tracking.data.ilike(like), Tracking.which.ilike(like)))
+            like = '%' + what + '%'  # SQLAlchemy 2.0 introduces icontains
+            or_filters = [model.page.ilike(like)]
+            if tracking_type != 'report':
+                or_filters.append(model.which.ilike(like))
+            if tracking_type == 'action':
+                or_filters.append(model.data.ilike(like))
+            feed = feed.filter(or_(*or_filters))
         if action:
             feed = feed.filter_by(action=action)
         return {
             'message': message,
+            'tracking_type': tracking_type,
             'who': who,
             'what': what,
             'page': page,
@@ -863,7 +1216,7 @@ class Root:
             'feed': get_page(page, feed),
             'action_opts': [opt for opt in c.TRACKING_OPTS if opt[0] != c.AUTO_BADGE_SHIFT],
             'who_opts': [
-                who for [who] in session.query(Tracking).distinct().order_by(Tracking.who).values(Tracking.who)]
+                who for [who] in session.query(model).distinct().order_by(model.who).values(model.who)]
         }
 
     @csrf_protected
@@ -961,30 +1314,42 @@ class Root:
         return json.dumps({
             'badges_price': c.BADGE_PRICE
         })
-    
+
     @log_pageview
     @attendee_view
     @cherrypy.expose(['attendee_data'])
     def attendee_form(self, session, message='', tab_view=None, **params):
-        attendee = session.attendee(params, allow_invalid=True)
+        id = params.get('id', None)
+
+        if id in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(id)
+
+        forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
+                                              'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
+
+        for form in forms.values():
+            form.populate_obj(attendee, is_admin=True)
 
         return_dict = {
             'message': message,
             'attendee': attendee,
+            'forms': forms,
             'tab_view': tab_view,
             'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
         }
-        
+
         if 'attendee_data' in cherrypy.url():
             return render('registration/attendee_data.html', return_dict)
         else:
             return return_dict
-    
+
     @log_pageview
     @attendee_view
     def attendee_history(self, session, id, **params):
         attendee = session.attendee(id, allow_invalid=True)
-        
+
         return {
             'attendee': attendee,
             'emails': session.query(Email).filter(
@@ -1036,70 +1401,41 @@ class Root:
     @ajax
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):
-        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            attendee = session.attendee(params.get('id'))
-            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
-            session.add_all(receipt_items)
+        attendee = load_attendee(session, params)
 
-        for key in params:
-            if params[key] == "false":
-                params[key] = False
-            if params[key] == "true":
-                params[key] = True
-            if params[key] == "null":
-                params[key] = ""
+        if cherrypy.request.method == 'POST':
+            message = save_attendee(session, attendee, params)
 
-        attendee = session.attendee(params, allow_invalid=True)
-
-        if attendee.is_new and (not attendee.first_name or not attendee.last_name):
-            message = 'Please enter a name for this attendee'
-        
-        if not message and attendee.is_new and \
+        if not message:
+            if attendee.is_new and \
                     session.attendees_with_badges().filter_by(first_name=attendee.first_name,
-                                                                last_name=attendee.last_name,
-                                                                email=attendee.email).count():
+                                                              last_name=attendee.last_name,
+                                                              email=attendee.email).count():
                 message = 'An attendee with this name and email address already exists.'
-
-        if not message:
-            if 'group_opt' in params:
-                attendee.group_id = params.get('group_opt') or None
-            
-            if params.get('no_badge_num') or not attendee.badge_num:
-                attendee.badge_num = None
-                
-            if params.get('no_override'):
-                attendee.overridden_price = None
-
-            if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
-                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
-
-        if not message:
-            message = check(attendee)
 
         if not message:
             success = True
             message = '{} has been saved'.format(attendee.full_name)
-            
-            if (attendee.is_new 
-                or attendee.badge_type != attendee.orig_value_of('badge_type') 
-                or attendee.group_id != attendee.orig_value_of('group_id')
-                ) and not session.admin_can_create_attendee(attendee):
+
+            if (attendee.is_new or attendee.badge_type != attendee.orig_value_of('badge_type')
+                    or attendee.group_id != attendee.orig_value_of('group_id'))\
+                    and not session.admin_can_create_attendee(attendee):
                 attendee.badge_status = c.PENDING_STATUS
                 message += ' as a pending badge'
 
             session.add(attendee)
             session.commit()
-  
+
         return {
             'success': success,
             'message': message,
             'id': attendee.id,
         }
-    
+
     def pending_badges(self, session, message=''):
         return {
-            'pending_badges': session.query(Attendee)\
-                .filter_by(badge_status=c.PENDING_STATUS).filter(Attendee.paid != c.PENDING),
+            'pending_badges': session.query(Attendee)
+            .filter_by(badge_status=c.PENDING_STATUS).filter(Attendee.paid != c.PENDING),
             'message': message,
         }
 

@@ -6,6 +6,7 @@ from mock import Mock
 
 from uber.models import Attendee, Group, PromoCode, Session
 from uber.config import c
+from uber.payments import PreregCart
 from uber.utils import check
 
 
@@ -236,6 +237,10 @@ class TestAttendeePromoCodeModelChecks:
             placeholder=True,
             first_name='First',
             last_name='Last')
+<<<<<<< HEAD
+=======
+        PreregCart.unpaid_preregs[sess.id] = PreregCart.to_sessionized(sess)
+>>>>>>> main
         sess.promo_code = None
         sess.promo_code_id = None
         assert len(promo_code.valid_used_by) == 0

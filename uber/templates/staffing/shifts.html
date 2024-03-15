@@ -32,7 +32,7 @@
 .text-public {
   color: #40c000;
 }
-</style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {{ csrf_token() }} </div>
+</style> {% endblock %} {% block main_content %} <div class="d-none csrf_token"> {{ csrf_token() }} </div>
 
 
 <div class="row">
@@ -84,7 +84,7 @@
         <span class="nonpublic-state-text is_public-state-text">
           to <b>show</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
         </span>
-        <span class="public-state-text hidden is_public-state-text">
+        <span class="public-state-text d-none is_public-state-text">
           to <b>hide</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
         </span>
         <br/>
@@ -105,18 +105,19 @@
       {% endif %}
       <a href="#" class="toggle-cal" state="all">Click Here</a>
       <span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
-      <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
+      <span class="shift-state-text d-none state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
       <br>
     {% else %}
     Shifts will be available starting {{ c.SHIFTS_CREATED.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}.
     <br/><br/>
     {% endif %}
-    <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
+    <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.<br/>
+    <a href="shifts_ical">Click Here</a> to download your shifts in ical format
   </div>
 </div>
 {% if c.AFTER_SHIFTS_CREATED %}
-<div class="row">
-  <div class="col-md-10 col-md-offset-1 col-xs-12">
+<div class="row justify-content-center">
+  <div class="col-12 col-md-10">
     <div id="shift_cal"></div>
   </div>
 </div>
@@ -124,12 +125,12 @@
 {% endblock %}
 {% block page_script %}
 {% if c.AFTER_SHIFTS_CREATED %}
-<script src="../static/deps/combined.min.js"></script>
+{{ "deps/combined.min.js"|serve_static_content }}
 <script src="../angular/magfest.js"></script>
 
-<script type="text/javascript" src="../static/js/moment.js"></script>
+{{ "js/moment.js"|serve_static_content }}
 
-<script type="text/javascript" src="../static/fullcalendar-5.3.2/lib/main.min.js"></script>
+{{ "fullcalendar-5.3.2/lib/main.min.js"|serve_static_content }}
 
 <script type="text/javascript">
   var eventList = new Array();
@@ -187,7 +188,7 @@
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'agendaDay,agendaConWeek,listConDuration'
+                right: 'agendaDay,agendaConWeek,agendaConDays,listConDuration'
             },
             views: {
                 agendaDay: {
@@ -196,14 +197,22 @@
                   eventMaxStack: true, // allow "more" link when too many events
                 },
                 agendaConWeek: {
-                    type: 'timeGridWeek',
-                    duration: { days: {{ cal_length }} },
+                    type: 'timeGrid',
+                    visibleRange: { start: '{{ start }}', end: '{{ end }}'},
                     buttonText: 'Calendar',
                     eventMaxStack: true, // allow "more" link when too many events
                 },
+                {% if start != c.EPOCH or end != c.ESCHATON %}
+                agendaConDays: {
+                    type: 'timeGrid',
+                    visibleRange: { start: '{{ c.EPOCH }}', end: '{{ c.ESCHATON }}'},
+                    buttonText: 'Event Calendar',
+                    eventMaxStack: true, // allow "more" link when too many events
+                },
+                {% endif %}
                 listConDuration: {
                     type: 'list',
-                    duration: { days: {{ cal_length }} },
+                    visibleRange: { start: '{{ start }}', end: '{{ end }}'},
                     buttonText: 'List',
                     listDaySideFormat: { weekday: 'long' }
                 }
@@ -216,7 +225,6 @@
             events: eventList,
             eventDidMount: function(arg) {
                 var event = arg.event;
-                console.log(event.extendedProps);
                 var element = $(arg.el);
                 var view = arg.view;
                 var eventDesc = "";
@@ -226,7 +234,7 @@
                 if (event.extendedProps.extra15) {
                     eventDesc += " + 15 minute end-time."
                 }
-                var buttonTag = '<a class="btn shift_button pull-right ';
+                var buttonTag = '<div class="text-end"><a class="btn shift_button ';
                 if (view.type !== 'listConDuration') {
                     buttonTag += 'btn-xs ';
                 }
@@ -245,7 +253,7 @@
                 } else {
                     buttonTag += 'Sign up';
                 }
-                buttonTag += '</a>';
+                buttonTag += '</a></div>';
 
                 {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
                 if (event.extendedProps.taken) {
@@ -281,7 +289,7 @@
           $(this).attr('state', 'all');
         }
         shiftCal.refetchEvents();
-        $(".state-text").toggleClass('hidden');
+        $(".state-text").toggleClass('d-none');
       });
 
       $(".toggle-is_public").click(function() {
@@ -295,7 +303,7 @@
           $(this).attr('state', 'public');
         }
         shiftCal.refetchEvents();
-        $(".is_public-state-text").toggleClass('hidden');
+        $(".is_public-state-text").toggleClass('d-none');
       });
       shiftCal.render();
     });

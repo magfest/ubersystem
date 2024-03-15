@@ -1,0 +1,29 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set leader_info = leader_info or forms['leader_info']|default(None) %}
+{% set group_info = group_info or forms['group_info']|default(None) %}
+
+{# BLOCK NAMES in this form:
+    name
+    email
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block name %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(leader_info.leader_first_name) }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(leader_info.leader_last_name) }}</div>
+</div>
+{% endblock %}
+
+{% block email %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(leader_info.leader_email) }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(leader_info.leader_cellphone) }}</div>
+
+    {% if group and not group.is_dealer and group_info %}
+    {{ form_macros.toggle_fields_js(group_info.guest_group_type, [leader_info.leader_first_name, leader_info.leader_last_name, leader_info.leader_email], off_values=["0"], prop='', toggle_required=True) }}
+    {% endif %}
+</div>
+{% endblock %}

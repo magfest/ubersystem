@@ -28,119 +28,48 @@
   background-color: #fefde5 !important;
 }
 </style>
-{% if not stripe_loaded %}
 {% if c.AUTHORIZENET_LOGIN_ID %}
-<script type="text/javascript"
-    src="https://js{{ 'test' if 'test' in c.AUTHORIZENET_ENDPOINT else '' }}.authorize.net/v1/Accept.js"
-    charset="utf-8">
-</script>
-{% else %}
-<script src="https://js.stripe.com/v3/" async></script>
-{% endif %}
-{% set stripe_loaded = true %}
+    <button type="button"
+        class="AcceptUI d-none"
+        id="authNetPayButton"
+        data-billingAddressOptions='{"show":true, "required":true}' 
+        data-apiLoginID="{{ c.AUTHORIZENET_LOGIN_ID }}" 
+        data-clientKey="{{ c.AUTHORIZENET_PUBLIC_KEY }}"
+        data-acceptUIFormBtnTxt="Pay" 
+        data-acceptUIFormHeaderTxt="Payment to {{ c.ORGANIZATION_NAME }}"
+        data-paymentOptions='{"showCreditCard": true}' 
+        data-responseHandler="handleAuthNetResponse">Pay
+    </button>
+{% elif not stripe_loaded %}
+    <script src="https://js.stripe.com/v3/" async></script>
+    {% set stripe_loaded = true %}
 {% endif %}
 <button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
-<span class="display: block; min-height: 30px;">Pay with Card</span>
+<span class="display: block; min-height: 30px;">{{ text }}</span>
 </button>
 {% if not stripeModal %}
 <div id="stripeModal" class="modal" style="color:black;" tabindex="-1" role="dialog" data-bs-backdrop="static">
+    {% if not c.AUTHORIZENET_LOGIN_ID %}
   <div class="modal-dialog" role="document">
     <div class="modal-content">
         <div class="modal-body text-start jumbotron">
         <div class="alert alert-dismissible" role="alert" id="cc-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('cc-message-alert')" aria-label="Close"></button></div>
         <div class="modal-title h4 text-muted">Payment to {{ c.ORGANIZATION_NAME }}</div>
-        <div class="row g-3">
+        <div class="row g-sm-3">
             <div class="col-12">
                 <div class="form-text">Payment amount</div><div class="h4" id="paymentAmount"></div>
             </div>
         </div>
-        <div class="row g-3">
+        <div class="row g-sm-3">
             <div class="col-12">
                 <div class="form-text">Payment description</div><div class="h5" id="chargeDesc"></div>
             </div>
         </div>
-        {% if c.AUTHORIZENET_LOGIN_ID %}
-            <form id="payment-form" class="d-none"
-                method="POST"
-                action="index">
-                <div class="row g-3">
-                    <div class="col-12">
-                        <label for="fullName" class="form-text">Name on card</label>
-                        <input type="text" class="form-control" name="fullName" id="fullName"
-                        autocomplete="name" autocorrect="off" value="{{ cc_full_name }}" />
-                    </div>
-                </div>
-                
-                <div class="row g-3">
-                    <div class="col-12">
-                        <label for="cardNumber" class="form-text">Card number</label>
-                        <input type="text" class="form-control" name="cardNumber" id="cardNumber"
-                        inputmode="numeric" autocomplete="cc-number" autocorrect="off" />
-                    </div>
-                </div>
-                <div class="row g-3">
-                    <div class="col-6">
-                        <span class="form-text">Expires</span>
-                        <div class="input-group">
-                            <input type="text" maxlength="2" class="form-control" name="expMonth" id="expMonth" placeholder="MM"
-                            inputmode="numeric" autocomplete="cc-exp-month" autocorrect="off" />
-                            <label for="expMonth" class="visually-hidden">Two-digit credit or debit card expiration month</label>
-                            <span class="input-group-text">/</span>
-                            <label for="expYear" class="visually-hidden">Two-digit credit or debit card expiration year</label>
-                            <input type="text" maxlength="2" class="form-control" name="expYear" id="expYear" placeholder="YY"
-                            inputmode="numeric" autocomplete="cc-exp-year" autocorrect="off" />
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <label for="cardCode" class="form-text">Security code</label>
-                        <input type="text" class="form-control" name="cardCode" id="cardCode" placeholder="CVC"
-                        inputmode="numeric" autocomplete="cc-csc" autocorrect="off" />
-                    </div>
-                </div>
-                <div class="row g-3">
-                    <div class="col-12">
-                        <label for="zip" class="form-text">Zip Code</label>
-                        <input type="text" class="form-control" name="zip" id="zip"
-                        inputmode="numeric" autocomplete="cc-number" autocorrect="off" value="{{ cc_zip_code }}" />
-                    </div>
-                </div>
-                <div class="row g-3 mt-2">
-                    <div class="col-12">
-                        <button class="btn btn-success">Submit Payment</button>
-                        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    </div>
-                </div>
-            </form>
-            <script type="text/javascript">
-                var forceNumbers = function() {
-                    if (this.value) {
-                        numberVal = this.value.replace(/\D/g,'');
-                        this.value = numberVal;
-                    }
-                }
-                $("#cardNumber").on("input", forceNumbers);
-                $("#expMonth").on("input", function() {
-                    if (this.value.length >= 2) {
-                        $("#expYear").focus()
-                    } else {
-                        forceNumbers();
-                    }
-                });
-                $("#expYear").on("input", function() {
-                    if (this.value.length >= 2) {
-                        $("#cardCode").focus()
-                    } else {
-                        forceNumbers();
-                    }
-                });
-                $("#cardCode").on("input", forceNumbers);
-                $("#zip").on("input", forceNumbers);
-            </script>
-        {% else %}
+        
         <div class="charge_desc" style="margin-bottom:10px;"></div>
         <form action="/charge" method="post" id="payment-form" class="d-none">
         <div class="form-row">
-            <label for="card-element">
+            <label for="card-element" class="form-text">
             Credit or debit card
             </label>
             <div id="card-element">
@@ -151,12 +80,12 @@
             <div id="card-errors" role="alert"></div>
         </div>
         <div style="margin-top:10px;"><button class="btn btn-success">Submit Payment</button>
-        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
         </form>
-        {% endif %}
         </div>
     </div>
   </div>
+  {% endif %}
 </div>
 <script type="text/javascript">
 $('#stripeModal').detach().appendTo("body");
@@ -185,7 +114,9 @@ var callStripeAction = function (autoTrigger=false) {
             $('#stripeModal').find('#paymentAmount').text(dollars);
             $('#stripeModal').find('#chargeDesc').text(result.stripe_intent.description);
             {% if c.AUTHORIZENET_LOGIN_ID %}
-                collectAuthNetPayment(result.stripe_intent.id, result.stripe_intent.receipt_email, result.stripe_intent.description, result.success_url, cancel_url, result.stripe_intent.amount)
+                collectAuthNetPayment(result.stripe_intent.id, result.stripe_intent.receipt_email,
+                                      result.stripe_intent.description, result.stripe_intent.customer_id,
+                                      result.success_url, cancel_url, result.stripe_intent.amount)
             {% else %}
                 collectStripePayment(result.stripe_intent.client_secret, result.stripe_intent.id, result.success_url, cancel_url);
             {% endif %}
@@ -219,21 +150,51 @@ var processCancelUrl = function(result, form, card=null) {
     }
 }
 
-{% if c.AUTHORIZENET_LOGIN_ID %}
-var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_url, amount) {
-    var form = $('#payment-form');
-    form.removeClass('d-none');
-    var authData = {
-        clientKey: "{{ c.AUTHORIZENET_PUBLIC_KEY }}",
-        apiLoginID: "{{ c.AUTHORIZENET_LOGIN_ID }}"
+var loadJS = function(src, callback) {
+    $('script[src="' + src + '"]').remove();
+
+    var script = document.createElement( "script" )
+    script.type = "text/javascript";
+    script.src = src;
+    script.onload = function() {
+      callback();
     };
+    document.getElementsByTagName( "head" )[0].appendChild( script );
+}
 
-    stripeModal = new bootstrap.Modal($('#stripeModal'))
+{% if c.AUTHORIZENET_LOGIN_ID %}
+if (typeof authnet_ref_id == 'undefined') {
+    let authnet_ref_id = '';
+    let authnet_amount = 0;
+    let authnet_email = '';
+    let authnet_desc = '';
+    let authnet_customer_id = '';
+    let authnet_success_url = '';
+    let authnet_cancel_url = '';
+    let authnet_loaded = false;
 
-    stripeModal.show();
-    hideMessageBox("cc-message-alert");
+var collectAuthNetPayment = function (ref_id, email, desc, customer_id, success_url, cancel_url, amount) {
+    authnet_ref_id = ref_id;
+    authnet_amount = amount;
+    authnet_email = email;
+    authnet_desc = desc;
+    authnet_customer_id = customer_id;
+    authnet_success_url = success_url;
+    authnet_cancel_url = cancel_url;
 
-    var handleAuthNetResponse = function (response) {
+    $('#authNetPayButton').attr("data-acceptUIFormBtnTxt", "Pay $" + (amount / 100).toFixed(2));
+
+    if(authnet_loaded == false) {
+        loadJS("https://js{{ 'test' if 'test' in c.AUTHORIZENET_ENDPOINT else '' }}.authorize.net/v3/AcceptUI.js", function() {
+            $('#authNetPayButton').trigger("click");
+        });
+        authnet_loaded = true;
+    } else {
+        $('#authNetPayButton').trigger("click");
+    }
+}
+
+var handleAuthNetResponse = function (response) {
         if (response.messages.resultCode === "Error") {
             showErrorMessage(response.messages.message[0].text, "cc-message-alert")
 
@@ -247,43 +208,27 @@ var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_u
             }
         } else {
             $.post("../preregistration/submit_authnet_charge", {
-                ref_id: ref_id,
-                amount: amount,
-                email: email,
-                desc: desc,
+                ref_id: authnet_ref_id,
+                amount: authnet_amount,
+                email: authnet_email,
+                desc: authnet_desc,
+                customer_id: authnet_customer_id,
                 token_desc: response.opaqueData.dataDescriptor,
                 token_val: response.opaqueData.dataValue,
+                first_name: response.customerInformation.firstName,
+                last_name: response.customerInformation.lastName,
                 csrf_token: csrf_token
             },
             function(result) {
                 if (result.error) {
-                    showErrorMessage(result.error, "cc-message-alert");
+                    showErrorMessage(result.error);
                 } else {
                     // The payment has been processed!
-                    processSuccessUrl(success_url);
+                    processSuccessUrl(authnet_success_url);
                 };
             });
         }
     }
-    
-    form.on('submit', function(event) {
-        event.preventDefault();
-        var cardData = {
-            fullName: $("#fullName").val(),
-            cardNumber: $("#cardNumber").val(),
-            month: $("#expMonth").val(),
-            year: $("#expYear").val(),
-            cardCode: $("#cardCode").val(),
-            zip: $("#zip").val()
-        };
-
-        var secureData = {
-            authData: authData,
-            cardData: cardData
-        };
-
-        Accept.dispatchData(secureData, handleAuthNetResponse);
-    });
 }
 {% else %}
 var collectStripePayment = function (client_secret, stripe_id, success_url, cancel_url) {
