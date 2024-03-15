@@ -52,15 +52,14 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    with op.batch_alter_table("indie_game_review") as batch_op:
-        batch_op.add_column(sa.Column('design_score', sa.Integer(), server_default='0', nullable=False))
-        batch_op.add_column(sa.Column('enjoyment_score', sa.Integer(), server_default='0', nullable=False))
-        batch_op.add_column(sa.Column('readiness_score', sa.Integer(), server_default='0', nullable=False))
-        batch_op.drop_column('game_score')
+    op.add_column('indie_game_review', sa.Column('design_score', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('indie_game_review', sa.Column('enjoyment_score', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('indie_game_review', sa.Column('readiness_score', sa.Integer(), server_default='0', nullable=False))
+    op.drop_column('indie_game_review', 'game_score')
+
 
 def downgrade():
-    with op.batch_alter_table("indie_game_review") as batch_op:
-        batch_op.add_column(sa.Column('game_score', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
-        batch_op.drop_column('readiness_score')
-        batch_op.drop_column('enjoyment_score')
-        batch_op.drop_column('design_score')
+    op.add_column('indie_game_review', sa.Column('game_score', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
+    op.drop_column('indie_game_review', 'readiness_score')
+    op.drop_column('indie_game_review', 'enjoyment_score')
+    op.drop_column('indie_game_review', 'design_score')

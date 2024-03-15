@@ -56,13 +56,12 @@ def upgrade():
     op.create_table('access_group',
     sa.Column('id', residue.UUID(), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('access', postgresql.JSON(astext_type=sa.Text()), nullable=False),
-    sa.Column('read_only_access', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+    sa.Column('access', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.Column('read_only_access', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_access_group'))
     )
-    with op.batch_alter_table("admin_account") as batch_op:
-        batch_op.add_column(sa.Column('access_group_id', residue.UUID(), nullable=True))
-        batch_op.create_foreign_key(op.f('fk_admin_account_access_group_id_access_group'), 'access_group', ['access_group_id'], ['id'], ondelete='SET NULL')
+    op.add_column('admin_account', sa.Column('access_group_id', residue.UUID(), nullable=True))
+    op.create_foreign_key(op.f('fk_admin_account_access_group_id_access_group'), 'admin_account', 'access_group', ['access_group_id'], ['id'], ondelete='SET NULL')
 
 
 def downgrade():

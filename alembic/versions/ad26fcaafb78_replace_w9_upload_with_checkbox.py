@@ -52,10 +52,9 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    with op.batch_alter_table("guest_taxes") as batch_op:
-        batch_op.add_column(sa.Column('w9_sent', sa.Boolean(), server_default='False', nullable=False))
-        batch_op.drop_column('w9_content_type')
-        batch_op.drop_column('w9_filename')
+    op.add_column('guest_taxes', sa.Column('w9_sent', sa.Boolean(), server_default='False', nullable=False))
+    op.drop_column('guest_taxes', 'w9_content_type')
+    op.drop_column('guest_taxes', 'w9_filename')
 
 
 def downgrade():

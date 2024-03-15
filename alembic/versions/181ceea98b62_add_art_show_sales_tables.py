@@ -69,10 +69,9 @@ def upgrade():
     sa.ForeignKeyConstraint(['receipt_id'], ['art_show_receipt.id'], name=op.f('fk_art_show_payment_receipt_id_art_show_receipt'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_art_show_payment'))
     )
-    with op.batch_alter_table("art_show_piece") as batch_op:
-        batch_op.add_column(sa.Column('receipt_id', residue.UUID(), nullable=True))
-        batch_op.add_column(sa.Column('winning_bid', sa.Integer(), server_default='0', nullable=True))
-        batch_op.create_foreign_key(op.f('fk_art_show_piece_receipt_id_art_show_receipt'), 'art_show_receipt', ['receipt_id'], ['id'], ondelete='SET NULL')
+    op.add_column('art_show_piece', sa.Column('receipt_id', residue.UUID(), nullable=True))
+    op.add_column('art_show_piece', sa.Column('winning_bid', sa.Integer(), server_default='0', nullable=True))
+    op.create_foreign_key(op.f('fk_art_show_piece_receipt_id_art_show_receipt'), 'art_show_piece', 'art_show_receipt', ['receipt_id'], ['id'], ondelete='SET NULL')
 
 
 def downgrade():

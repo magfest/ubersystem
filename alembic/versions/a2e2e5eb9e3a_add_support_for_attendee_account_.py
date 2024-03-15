@@ -53,16 +53,15 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    with op.batch_alter_table("password_reset") as batch_op:
-        batch_op.add_column(sa.Column('admin_id', residue.UUID(), nullable=True))
-        batch_op.add_column(sa.Column('attendee_id', residue.UUID(), nullable=True))
-        batch_op.create_unique_constraint(op.f('uq_password_reset_admin_id'), ['admin_id'])
-        batch_op.create_unique_constraint(op.f('uq_password_reset_attendee_id'), ['attendee_id'])
-        batch_op.drop_constraint('uq_password_reset_account_id', type_='unique')
-        batch_op.drop_constraint('fk_password_reset_account_id_admin_account', type_='foreignkey')
-        batch_op.create_foreign_key(op.f('fk_password_reset_admin_id_admin_account'), 'admin_account', ['admin_id'], ['id'])
-        batch_op.create_foreign_key(op.f('fk_password_reset_attendee_id_attendee_account'), 'attendee_account', ['attendee_id'], ['id'])
-        batch_op.drop_column('account_id')
+    op.add_column('password_reset', sa.Column('admin_id', residue.UUID(), nullable=True))
+    op.add_column('password_reset', sa.Column('attendee_id', residue.UUID(), nullable=True))
+    op.create_unique_constraint(op.f('uq_password_reset_admin_id'), 'password_reset', ['admin_id'])
+    op.create_unique_constraint(op.f('uq_password_reset_attendee_id'), 'password_reset', ['attendee_id'])
+    op.drop_constraint('uq_password_reset_account_id', 'password_reset', type_='unique')
+    op.drop_constraint('fk_password_reset_account_id_admin_account', 'password_reset', type_='foreignkey')
+    op.create_foreign_key(op.f('fk_password_reset_admin_id_admin_account'), 'password_reset', 'admin_account', ['admin_id'], ['id'])
+    op.create_foreign_key(op.f('fk_password_reset_attendee_id_attendee_account'), 'password_reset', 'attendee_account', ['attendee_id'], ['id'])
+    op.drop_column('password_reset', 'account_id')
 
 
 def downgrade():

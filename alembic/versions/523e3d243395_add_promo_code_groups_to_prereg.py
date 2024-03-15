@@ -60,9 +60,8 @@ def upgrade():
     sa.ForeignKeyConstraint(['buyer_id'], ['attendee.id'], name=op.f('fk_promo_code_group_buyer_id_attendee'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_promo_code_group'))
     )
-    with op.batch_alter_table("promo_code") as batch_op:
-        batch_op.add_column(sa.Column('group_id', residue.UUID(), nullable=True))
-        batch_op.create_foreign_key(op.f('fk_promo_code_group_id_promo_code_group'), 'promo_code_group', ['group_id'], ['id'], ondelete='SET NULL')
+    op.add_column('promo_code', sa.Column('group_id', residue.UUID(), nullable=True))
+    op.create_foreign_key(op.f('fk_promo_code_group_id_promo_code_group'), 'promo_code', 'promo_code_group', ['group_id'], ['id'], ondelete='SET NULL')
 
 
 def downgrade():

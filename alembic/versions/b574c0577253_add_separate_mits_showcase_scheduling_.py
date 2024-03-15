@@ -52,12 +52,10 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    with op.batch_alter_table("mits_times") as batch_op:
-        batch_op.add_column(sa.Column('showcase_availability', sa.Unicode(), server_default='', nullable=False))
-        batch_op.drop_column('multiple_tables')
+    op.add_column('mits_times', sa.Column('showcase_availability', sa.Unicode(), server_default='', nullable=False))
+    op.drop_column('mits_times', 'multiple_tables')
 
 
 def downgrade():
-    with op.batch_alter_table("mits_times") as batch_op:
-        batch_op.drop_column('showcase_availability')
-        batch_op.add_column(sa.Column('multiple_tables', sa.Unicode(), server_default='', nullable=False))
+    op.drop_column('mits_times', 'showcase_availability')
+    op.add_column('mits_times', sa.Column('multiple_tables', sa.Unicode(), server_default='', nullable=False))

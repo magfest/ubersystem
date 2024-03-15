@@ -64,7 +64,7 @@ def upgrade():
     sa.Column('printed', residue.UTCDateTime(), nullable=True),
     sa.Column('errors', sa.Unicode(), server_default='', nullable=False),
     sa.Column('is_minor', sa.Boolean(), nullable=False),
-    sa.Column('json_data', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+    sa.Column('json_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.ForeignKeyConstraint(['admin_id'], ['admin_account.id'], name=op.f('fk_print_queue_admin_id_admin_account')),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_print_queue_attendee_id_attendee')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_print_queue'))

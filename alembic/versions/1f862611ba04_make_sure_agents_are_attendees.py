@@ -52,11 +52,10 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    with op.batch_alter_table("art_show_application") as batch_op:
-        batch_op.add_column(sa.Column('agent_code', sa.Unicode(), server_default='', nullable=False))
-        batch_op.add_column(sa.Column('agent_id', residue.UUID(), nullable=True))
-        batch_op.create_foreign_key(op.f('fk_art_show_application_agent_id_attendee'), 'attendee', ['agent_id'], ['id'], ondelete='SET NULL')
-        batch_op.drop_column('agent_name')
+    op.add_column('art_show_application', sa.Column('agent_code', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('agent_id', residue.UUID(), nullable=True))
+    op.create_foreign_key(op.f('fk_art_show_application_agent_id_attendee'), 'art_show_application', 'attendee', ['agent_id'], ['id'], ondelete='SET NULL')
+    op.drop_column('art_show_application', 'agent_name')
 
 
 def downgrade():

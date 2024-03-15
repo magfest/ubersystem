@@ -53,17 +53,14 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    with op.batch_alter_table("attendee") as batch_op:
-        batch_op.add_column(sa.Column('refunded_items', postgresql.JSON(astext_type=sa.Text()), server_default='{}', nullable=False))
-    with op.batch_alter_table("group") as batch_op:
-        batch_op.add_column(sa.Column('purchased_items', postgresql.JSON(astext_type=sa.Text()), server_default='{}', nullable=False))
-        batch_op.add_column(sa.Column('refunded_items', postgresql.JSON(astext_type=sa.Text()), server_default='{}', nullable=False))
-    with op.batch_alter_table("receipt_item") as batch_op:
-        batch_op.add_column(sa.Column('cost_snapshot', residue.types.JSON(), server_default='{}', nullable=False))
-        batch_op.add_column(sa.Column('refund_snapshot', residue.types.JSON(), server_default='{}', nullable=False))
-        batch_op.drop_column('item_type')
-        batch_op.drop_column('fk_id')
-        batch_op.drop_column('model')
+    op.add_column('attendee', sa.Column('refunded_items', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False))
+    op.add_column('group', sa.Column('purchased_items', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False))
+    op.add_column('group', sa.Column('refunded_items', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False))
+    op.add_column('receipt_item', sa.Column('cost_snapshot', residue.types.JSON(), server_default='{}', nullable=False))
+    op.add_column('receipt_item', sa.Column('refund_snapshot', residue.types.JSON(), server_default='{}', nullable=False))
+    op.drop_column('receipt_item', 'item_type')
+    op.drop_column('receipt_item', 'fk_id')
+    op.drop_column('receipt_item', 'model')
 
 
 def downgrade():

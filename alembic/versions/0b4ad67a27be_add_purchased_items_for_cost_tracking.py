@@ -52,7 +52,7 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('purchased_items', postgresql.JSON(astext_type=sa.Text()), server_default='{}', nullable=False))
+    op.add_column('attendee', sa.Column('purchased_items', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False))
 
 
 def downgrade():

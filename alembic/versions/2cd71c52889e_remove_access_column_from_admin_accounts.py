@@ -63,8 +63,8 @@ access_group = table(
     'access_group',
     sa.Column('id', residue.UUID()),
     sa.Column('name', sa.Unicode()),
-    sa.Column('access', sa.dialects.postgresql.json.JSON()),
-    sa.Column('read_only_access', sa.dialects.postgresql.json.JSON()),
+    sa.Column('access', sa.dialects.postgresql.json.JSONB()),
+    sa.Column('read_only_access', sa.dialects.postgresql.json.JSONB()),
 )
 
 def upgrade():
@@ -78,8 +78,7 @@ def upgrade():
             .values({'access_group_id': access_group_id})
     )
 
-    with op.batch_alter_table("admin_account") as batch_op:
-        batch_op.drop_column('access')
+    op.drop_column('admin_account', 'access')
 
 
 def downgrade():

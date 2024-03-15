@@ -62,13 +62,11 @@ def upgrade():
     sa.ForeignKeyConstraint(['team_id'], ['mits_team.id'], name=op.f('fk_mits_panel_application_team_id_mits_team')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_mits_panel_application'))
     )
-    with op.batch_alter_table("mits_team") as batch_op:
-        batch_op.add_column(sa.Column('showcase_interest', sa.Boolean(), nullable=True))
-        batch_op.alter_column('panel_interest', server_default=None, nullable=True)
+    op.add_column('mits_team', sa.Column('showcase_interest', sa.Boolean(), nullable=True))
+    op.alter_column('mits_team', 'panel_interest', server_default=None, nullable=True)
 
 
 def downgrade():
     op.drop_table('mits_panel_application')
-    with op.batch_alter_table("mits_team") as batch_op:
-        batch_op.drop_column('mits_team', 'showcase_interest')
-        batch_op.alter_column('mits_team', 'panel_interest', server_default=False, nullable=False)
+    op.drop_column('mits_team', 'showcase_interest')
+    op.alter_column('mits_team', 'panel_interest', server_default=False, nullable=False)

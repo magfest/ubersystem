@@ -52,9 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    with op.batch_alter_table("attendee") as batch_op:
-        batch_op.add_column(sa.Column('creator_id', residue.UUID(), nullable=True))
-        batch_op.create_foreign_key(op.f('fk_attendee_creator_id_attendee'), 'attendee', ['creator_id'], ['id'])
+    op.add_column('attendee', sa.Column('creator_id', residue.UUID(), nullable=True))
+    op.create_foreign_key(op.f('fk_attendee_creator_id_attendee'), 'attendee', 'attendee', ['creator_id'], ['id'])
 
 
 def downgrade():

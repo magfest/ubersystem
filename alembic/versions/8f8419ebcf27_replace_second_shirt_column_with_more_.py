@@ -52,9 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    with op.batch_alter_table("attendee") as batch_op:
-        batch_op.add_column(sa.Column('num_event_shirts', sa.Integer(), server_default='0', nullable=False))
-        batch_op.drop_column('second_shirt')
+    op.add_column('attendee', sa.Column('num_event_shirts', sa.Integer(), server_default='0', nullable=False))
+    op.drop_column('attendee', 'second_shirt')
 
 
 def downgrade():

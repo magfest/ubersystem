@@ -57,7 +57,7 @@ def upgrade():
     sa.Column('attendee_id', residue.UUID(), nullable=True),
     sa.Column('business_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('status', sa.Integer(), server_default='172070601', nullable=False),
-    sa.Column('registered', residue.UTCDateTime(), server_default=sa.text(utcnow_server_default), nullable=False),
+    sa.Column('registered', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('approved', residue.UTCDateTime(), nullable=True),
     sa.Column('categories', sa.Unicode(), server_default='', nullable=False),
     sa.Column('categories_text', sa.Unicode(), server_default='', nullable=False),

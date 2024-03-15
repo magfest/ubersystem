@@ -68,10 +68,9 @@ def upgrade():
     )
     op.create_index('ix_attendee_attendee_account_attendee_account_id', 'attendee_attendee_account', ['attendee_account_id'], unique=False)
     op.create_index('ix_attendee_attendee_account_attendee_id', 'attendee_attendee_account', ['attendee_id'], unique=False)
-    with op.batch_alter_table("mits_team") as batch_op:
-        batch_op.alter_column('concurrent_attendees',
-                existing_type=sa.INTEGER(),
-                nullable=False)
+    op.alter_column('mits_team', 'concurrent_attendees',
+               existing_type=sa.INTEGER(),
+               nullable=False)
     # ### end Alembic commands ###
 
 

@@ -65,7 +65,7 @@ def upgrade():
     sa.Column('query', sa.Unicode(), server_default='', nullable=False),
     sa.Column('api_token', sa.Unicode(), server_default='', nullable=False),
     sa.Column('errors', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('json_data', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+    sa.Column('json_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.ForeignKeyConstraint(['admin_id'], ['admin_account.id'], name=op.f('fk_api_job_admin_id_admin_account')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_api_job'))
     )
