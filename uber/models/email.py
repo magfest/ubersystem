@@ -142,7 +142,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 setattr(fixture, key, val)
 
         updated_email = automated_email.reconcile(fixture)
-        session.add(updated_email)
+        session.merge(updated_email)
         session.commit()
 
         # Check to see if any properties got changed back to their original value
@@ -151,7 +151,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
             if getattr(updated_email, key) == updated_email.revert_changes[key] or (
                     not getattr(updated_email, key) and not updated_email.revert_changes[key]):
                 updated_email.revert_changes.pop(key)
-        session.add(updated_email)
+        session.merge(updated_email)
     
     @staticmethod
     def reset_fixture_attr(session, ident, key):
