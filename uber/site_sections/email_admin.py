@@ -86,6 +86,11 @@ class Root:
         AutomatedEmail.update_fixture(session, ident, **params)
         raise HTTPRedirect('pending_examples?ident={}&message={}', ident, 'Email send dates updated')
 
+    def reset_fixture_attr(self, session, ident, key):
+        AutomatedEmail.reset_fixture_attr(session, ident, key)
+        raise HTTPRedirect('pending_examples?ident={}&message={}',
+                           ident, f'{key} has been reset to its original value')
+
     def test_email(self, session, subject=None, body=None, from_address=None, to_address=None, **params):
         """
         Testing only: send a test email as a system user
