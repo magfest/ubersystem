@@ -1519,8 +1519,34 @@ class Root:
                 form.populate_obj(attendee)
 
             if (old.first_name == attendee.first_name and old.last_name == attendee.last_name) \
-                    or (old.legal_name and old.legal_name == attendee.legal_name):
+                    and (not old.legal_name or old.legal_name == attendee.legal_name):
                 message = 'You cannot transfer your badge to yourself.'
+
+            if attendee.banned and not params.get('ban_bypass', None):
+                return {
+                    'forms': forms,
+                    'old': old,
+                    'attendee': attendee,
+                    'message':  message,
+                    'receipt': receipt,
+                    'ban_bypass': True,
+                }
+            
+            if not params.get('duplicate_bypass', None):
+                duplicate = session.attendees_with_badges().filter_by(first_name=attendee.first_name,
+                                                                      last_name=attendee.last_name,
+                                                                      email=attendee.email).first()
+                if duplicate:
+                    return {
+                        'forms': forms,
+                        'old': old,
+                        'attendee': attendee,
+                        'duplicate': duplicate,
+                        'message':  message,
+                        'receipt': receipt,
+                        'ban_bypass': params.get('ban_bypass', None),
+                        'duplicate_bypass': True,
+                    }
 
             if not message:
                 old.badge_status = c.INVALID_STATUS
@@ -1568,7 +1594,7 @@ class Root:
 
         return {
             'forms': forms,
-            'old':      old,
+            'old': old,
             'attendee': attendee,
             'message':  message,
             'receipt': receipt,
