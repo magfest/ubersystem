@@ -1,21 +1,27 @@
 {% set admin_area=True %}
 <script type="text/javascript">
-var updateWatchlist = function () {
-  $(this).submit(function (event) {
+$(function () {
+  $("form[action*='/security_admin/']").submit(function (event) {
     event.preventDefault();
     var old_hash = window.location.hash;
+    console.log($(this).serializeArray())
     $.post($(this).attr('action'), $(this).serializeArray())
     .success(function (json) {
-        $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
-        loadForm("Watchlist");
+        if(window.loadForm !== undefined) {
+          $("#attendee-modal-alert").addClass("alert-info").show().children('span').html(json.message);
+          loadForm("Watchlist");
+        } else {
+          $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+        }
         window.location.hash = old_hash;
     })
     .fail(function(message) {
-        showErrorMessage(message);
+        if(window.loadForm !== undefined) {
+          showErrorMessage(message, 'attendee-modal-alert');
+        } else { showErrorMessage(message); }
         window.location.hash = old_hash;
     });
   })
-  }
 $("form[name='confirm_entry']").submit(function (event) {
   var formToSubmit = this;
   event.preventDefault();
@@ -41,21 +47,25 @@ $("form[name='confirm_entry']").submit(function (event) {
       }
   });
 });
+});
   </script>
 
   <h2>{% if not attendee.watchlist_id %}Possible Watchlist Entries{% else %}Watchlist Entry{% endif %}
-    for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+    for {{ attendee.full_name }} ({{ attendee.badge }})</h2>
   {% if attendee.badge_status == c.WATCHED_STATUS %}
-    <div class="form-group">
-      <form class="form-inline" role="form" method="post" onSubmit="updateWatchlist()" action="../security_admin/update_watchlist_entry">
+    <div class="row">
+      <form role="form" method="post" action="../security_admin/update_watchlist_entry">
         {{ csrf_token() }}
         <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
-        <button class="btn btn-success" type="submit" name="ignore">
+        <input type="hidden" name="ignore" value="true"/>
+        <button class="btn btn-success" type="submit">
           Ignore Watchlist Entries
         </button>
-        Set attendee to "Completed" status, allowing them to check in without altering any watchlist entries.
+        <div class="form-text">Sets attendee to "Completed" status, allowing them to check in without altering any watchlist entries.</div>
       </form>
     </div>
+  {% else %}
+  <p>{{ attendee.full_name }} currently has a badge status of {{ attendee.badge_status_label }} and is{% if attendee.is_not_ready_to_checkin %} NOT{% endif %} ready to check in.</p>
   {% endif %}
 
   {% if attendee.watchlist_id %}
@@ -76,6 +86,7 @@ $("form[name='confirm_entry']").submit(function (event) {
   {% else %}
     {% for list in active_entries, inactive_entries %}
       {% set active = loop.cycle(True, False) %}
+      <br/>
       <div class="card">
       <div class="card-header"><h3 class="card-title">{{ loop.cycle('Active', 'Inactive') }} Entries</h3></div>
       <div class="card-body">
@@ -86,10 +97,7 @@ $("form[name='confirm_entry']").submit(function (event) {
           is put 'on hold' and prevented from checking in until an admin intervenes.
         {% else %}Inactive watchlist entries do not attempt to match any new attendees.
           Generally, entries should only be inactive if they have expired or are otherwise
-          no longer meant to affect check-in.{% endif %}</div>
-
-      <table class="table">
-      <div>
+          no longer meant to affect check-in.{% endif %}
         <table class="table">
           <tr>
             <th>Watchlist First Names</th>
@@ -133,8 +141,8 @@ $("form[name='confirm_entry']").submit(function (event) {
             </td>
           {% endfor %}
         </table>
+        </div>
       </div>
     {% endfor %}
-  </div>
   {% endif %}
   

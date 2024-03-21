@@ -490,7 +490,7 @@ class StopsEmailFixture(AutomatedEmailFixture):
 
 
 # TODO: Refactor all this into something less lazy
-def deferred_attendee_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
+def deferred_attendee_placeholder(a): return a.placeholder and (a.registered_local <= min(c.PREREG_OPEN, c.DEALER_REG_START)
                                                                 and a.badge_type == c.ATTENDEE_BADGE
                                                                 and a.paid == c.NEED_NOT_PAY
                                                                 and "staff import".lower() not in a.admin_notes.lower()
