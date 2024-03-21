@@ -1525,13 +1525,9 @@ class Root:
             if not message:
                 old.badge_status = c.INVALID_STATUS
                 old.append_admin_note(f"Automatic transfer to attendee {attendee.id}")
+                attendee.badge_status = c.NEW_STATUS
                 attendee.admin_notes = f"Automatic transfer from attendee {old.id}"
-                if receipt:
-                    receipt.owner_id = attendee.id
-                    session.add(receipt)
-                    amount_unpaid = receipt.current_amount_owed
-                else:
-                    amount_unpaid = attendee.amount_unpaid
+
                 subject = c.EVENT_NAME + ' Registration Transferred'
                 new_body = render('emails/reg_workflow/badge_transfer.txt',
                                   {'new': attendee, 'old': old, 'include_link': True}, encoding=None)
@@ -1556,8 +1552,14 @@ class Root:
 
                 session.add(attendee)
                 session.commit()
+                if receipt:
+                    session.add(receipt)
+                    receipt.owner_id = attendee.id
+                    amount_unpaid = receipt.current_amount_owed
+                    session.commit()
+                else:
+                    amount_unpaid = attendee.amount_unpaid
                 session.refresh_receipt_and_model(attendee)
-                session.commit()
                 if amount_unpaid:
                     raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
