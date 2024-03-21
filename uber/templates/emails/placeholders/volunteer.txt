@@ -1,6 +1,6 @@
 {% if attendee.first_name %}{{ attendee.first_name }},
 
-{% endif %}Thanks for volunteering to help run {{ c.EVENT_NAME }}!  You've been added to our registration database, but we don't have all of your personal information.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to {{ c.EVENT_NAME }}.
+{% endif %}Thanks for volunteering to help run {{ c.EVENT_NAME }}! You've been added to our registration database, but we don't have all of your personal information. To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to {{ c.EVENT_NAME }}.
 
 After entering the rest of your information, we'll assign you to the appropriate department and you'll be able to sign up for shifts.
 

@@ -594,13 +594,7 @@ StopsEmailFixture(
 StopsEmailFixture(
     'Claim your Volunteer badge for {EVENT_NAME} {EVENT_YEAR}',
     'placeholders/volunteer.txt',
-    lambda a: volunteer_placeholder(a) and a.paid == c.NEED_NOT_PAY,
-    ident='volunteer_badge_confirmation_comped')
-
-StopsEmailFixture(
-    'Claim your Volunteer badge for {EVENT_NAME} {EVENT_YEAR}',
-    'placeholders/volunteer.txt',
-    lambda a: volunteer_placeholder(a) and a.paid != c.NEED_NOT_PAY,
+    lambda a: volunteer_placeholder(a),
     ident='volunteer_badge_confirmation')
 
 AutomatedEmailFixture(
