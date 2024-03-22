@@ -157,7 +157,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     creator = relationship(
         'Attendee',
         foreign_keys='Attendee.creator_id',
-        backref=backref('created_badges', order_by='Attendee.full_name', cascade='all,delete-orphan'),
+        backref=backref('created_badges', order_by='Attendee.full_name'),
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Attendee.id',
         single_parent=True)
