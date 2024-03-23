@@ -347,7 +347,7 @@
 <div class="alert" role="alert" id="form-validations-{{ form_id }}"><span></span></div>
 
 <script type="text/javascript">
-  var serverValidationPassed = false;
+  serverValidationPassed = false;
   
   var runServerValidations_{{ form_id|replace('-','_') }} = function($form, submit_button_name) {
     var form_list = {{ form_list|safe }}.join(',')
@@ -361,31 +361,46 @@
         $(this).removeClass('is-invalid');
         $("#" + field_id + "-validation").hide();
       });
-      if (response.error) {
-        $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(
-          "Please correct the following errors:" +
-          "<ul></ul>"
+      if (response.warning) {
+        let buttonText = response.button_text ? response.button_text : 'I understand, please continue!';
+        $("#form-validations-{{ form_id }}").addClass("alert-warning").children('span').html(
+          response.warning +
+          "<button form='{{ form_id }}' class='btn btn-primary' name='"+ submit_button_name +"'>" +
+            buttonText +
+          "</button>"
           );
-        $.each(response.error, function(key, val) {
-          val = val.join(" ");
-          if ($("#" + key).length != 0 && $("#" + key).attr('type') != 'checkbox') {
-            var field_label = $("label[for='" + key + "'] .form-label").text();
-            if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
-            if (field_label == '') {
-              $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
-            } else {
-              $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label + ": " + val + "</li>");
-              $("#" + key).addClass("is-invalid");
-            }
+        $("#form-validations-{{ form_id }}").show();
+        $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
+        serverValidationPassed = true;
+      } else if (response.error) {
+          if (typeof response.error === "string") {
+            $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(response.error);
           } else {
-            $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
-          }
+            $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(
+              "Please correct the following errors:" +
+              "<ul></ul>"
+            );
+            $.each(response.error, function(key, val) {
+              val = val.join(" ");
+              if ($("#" + key).length != 0 && $("#" + key).attr('type') != 'checkbox') {
+                var field_label = $("label[for='" + key + "'] .form-label").text();
+                if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
+                if (field_label == '') {
+                  $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
+                } else {
+                  $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+                  $("#" + key).addClass("is-invalid");
+                }
+              } else {
+                $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
+              }
 
-          if ($("#" + key + "-validation").length != 0)
-          {
-            $("#" + key + "-validation").html(val).show();
+              if ($("#" + key + "-validation").length != 0)
+              {
+                $("#" + key + "-validation").html(val).show();
+              }
+            });
           }
-        });
         $("#form-validations-{{ form_id }}").show();
         $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
       } else {
@@ -412,24 +427,28 @@
 {%- endmacro %}
 
 {% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false, callback='') %}
-$("#{{ form_id }}").submit(function (event) { 
-    if(!serverValidationPassed) {
-      if (event.originalEvent !== undefined) {
-        runServerValidations_{{ form_id|replace('-','_') }}($(this), event.originalEvent.submitter.name);
-      } else {
-        runServerValidations_{{ form_id|replace('-','_') }}($(this), '');
-      }
+$("#{{ form_id }}").submit(function (event) {
+  let submit_button_name = '';
+  if (event.originalEvent !== undefined) {
+    submit_button_name = event.originalEvent.submitter.name;
+  }
+
+  if(!serverValidationPassed) {
+    event.preventDefault();
+    runServerValidations_{{ form_id|replace('-','_') }}($(this), submit_button_name);
+    return false;
+  }
+  {% if include_disclaimers_modal %}
+    if(!disclaimersConfirmed) {
+      event.preventDefault();
+      openDisclaimersModal();
       return false;
     }
-    {% if include_disclaimers_modal %}
-      if(!disclaimersConfirmed) {
-          openDisclaimersModal();
-          return false;
-      }
-    {% endif %}
-    {% if callback %}
-      {{ callback|safe }};
-      return false;
-    {% endif %}
+  {% endif %}
+  {% if callback %}
+    event.preventDefault();
+    {{ callback|safe }};
+    return false;
+  {% endif %}
 });
 {%- endmacro %}
