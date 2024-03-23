@@ -13,7 +13,7 @@ table form {
     <span class="card-title">New Account</span>
   </div>
   <div class="card-body">
-    <form id="new_admin" method="post" action="update" onsubmit="return check_passwords()" role="form">
+    <form id="new_admin" method="post" action="update" {% if c.AT_OR_POST_CON %}onsubmit="return check_passwords()" {% endif %}role="form">
       <input type="hidden" name="id" value="None" />
       {{ csrf_token() }}
       <div class="row mb-sm-2">
@@ -111,6 +111,7 @@ table form {
 </div>
 
 <script>
+{% if c.AT_OR_POST_CON %}
 function check_passwords() {
     if (document.getElementById("password").value != document.getElementById("check-password").value) {
         alert("Passwords must match");
@@ -118,6 +119,7 @@ function check_passwords() {
     }
     return true;
 }
+{% endif %}
 
 $(document).ready(function() {
     $('table').on('click', '.delete-button', function (event) {

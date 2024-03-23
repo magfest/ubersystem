@@ -1,0 +1,26 @@
+
+<p class="text-center h4">This attendee may been banned from {{ c.EVENT_NAME }}!</p>
+
+<p>
+    {{ attendee.full_name }}'s' information matches at least one entry on our watchlist{% if c.HAS_SECURITY_ADMIN_ACCESS %}:
+    <ul>
+    {% for entry in session.guess_attendee_watchentry(attendee) %}
+        <li>
+            <a href="../security_admin/watchlist_form?id={{ entry.id }}" target="_blank">{{ entry.full_name }}</a>
+            {% if entry.email or entry.birthdate %}
+            ({{ entry.email }}{{' ' if entry.email and entry.birthdate else ''}}{{ entry.birthdate|default('', true) }})
+            {% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+    {% else %}.{% endif %}
+</p>
+
+<p>
+    Please only proceed if you are sure this person has not been banned from the event. If you proceed,
+    Registration and Safety/Security will receive an email and will check and confirm whether or not 
+    this is the same person as the one on the watchlist. If this attendee is cleared, they will then 
+    receive any relevant emails to claim their badge.
+</p>
+
+<p>If you are at all not sure what to do, contact your Safety/Security department at {{ c.SECURITY_EMAIL|email_only|email_to_link }}.</p>
