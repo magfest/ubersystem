@@ -10,7 +10,6 @@ from sqlalchemy.orm import subqueryload
 from uber.config import c
 from uber.decorators import timed
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Group, Session
-from uber.utils import check
 
 
 @entry_point
@@ -180,7 +179,7 @@ def reset_uber_db():
 
 @entry_point
 def decline_and_convert_dealer_groups():
-    from uber.site_sections.groups import _decline_and_convert_dealer_group
+    from uber.site_sections.groups import decline_and_convert_dealer_group
     Session.initialize_db(initialize=True)
     with Session() as session:
         groups = session.query(Group) \
@@ -193,7 +192,7 @@ def decline_and_convert_dealer_groups():
         for group in groups:
             print('{}: {}'.format(
                 group.name,
-                _decline_and_convert_dealer_group(session, group)))
+                decline_and_convert_dealer_group(session, group)))
 
 
 @entry_point

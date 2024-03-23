@@ -1,17 +1,16 @@
-from markupsafe import Markup
-from pockets.autolog import log
-from wtforms import (BooleanField, DecimalField, EmailField, Form, FormField,
-                     HiddenField, SelectField, SelectMultipleField, IntegerField,
+from wtforms import (BooleanField, DecimalField, EmailField,
+                     SelectField, SelectMultipleField, IntegerField,
                      StringField, TelField, validators, TextAreaField)
-from wtforms.validators import ValidationError, StopValidation
+from wtforms.validators import ValidationError
 
 from uber.config import c
-from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, SwitchInput, NumberInputGroup, HiddenIntField
+from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, NumberInputGroup
 from uber.forms.attendee import valid_cellphone
-from uber.custom_tags import popup_link, format_currency, pluralize, table_prices
+from uber.custom_tags import format_currency, pluralize
 from uber.model_checks import invalid_phone_number
 
 __all__ = ['GroupInfo', 'ContactInfo', 'TableInfo', 'AdminGroupInfo', 'AdminTableInfo']
+
 
 class GroupInfo(MagForm):
     name = StringField('Group Name', validators=[
@@ -23,12 +22,13 @@ class GroupInfo(MagForm):
 
     def badges_label(self):
         return "Badges (" + format_currency(c.GROUP_PRICE) + " each)"
-    
+
     def badges_desc(self):
         if c.GROUP_UPDATE_GRACE_PERIOD > 0:
-            return """You have {} hour{} after paying to add badges to your group without quantity restrictions.
-            You may continue to add badges to your group after that, but you'll have to add at least {} badges at a time.
-            """.format(c.GROUP_UPDATE_GRACE_PERIOD, pluralize(c.GROUP_UPDATE_GRACE_PERIOD), c.MIN_GROUP_ADDITION)
+            return f"You have {c.GROUP_UPDATE_GRACE_PERIOD} hour{pluralize(c.GROUP_UPDATE_GRACE_PERIOD)} "\
+                   "after paying to add badges to your group without quantity restrictions. You may continue to add "\
+                   "badges to your group after that, but you'll have to add at least "\
+                   f"{c.MIN_GROUP_ADDITION} badges at a time."
         else:
             return "You may add badges to your group later, but you must add at least {} badges at a time.".format(
                 c.MIN_GROUP_ADDITION)
@@ -59,16 +59,19 @@ class ContactInfo(AddressForm, MagForm):
         validators.DataRequired("Please enter your business' phone number."),
         ],
         render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
-    
+
     def get_optional_fields(self, group, is_admin=False):
         optional_list = super().get_optional_fields(group, is_admin)
-        
+
+        if not group.is_dealer:
+            optional_list.extend(['address1', 'city', 'region', 'zip_code', 'country'])
+
         return optional_list
-    
+
     def validate_phone(form, field):
         if field.data and invalid_phone_number(field.data):
-            raise ValidationError('Your phone number was not a valid 10-digit US phone number. ' \
-                                    'Please include a country code (e.g. +44) for international numbers.')
+            raise ValidationError('Your phone number was not a valid 10-digit US phone number. '
+                                  'Please include a country code (e.g. +44) for international numbers.')
 
 
 class TableInfo(GroupInfo):
@@ -81,10 +84,13 @@ class TableInfo(GroupInfo):
         ], description="Please keep to one sentence.")
     website = StringField('Website', validators=[
         validators.DataRequired("Please enter your business' website address.")
-        ], description="The one you want us to link on our website, or where we can view your work to judge your application.")
+        ], description="The one you want us to link on our website, or where we can view your work "
+        "to judge your application.")
     wares = TextAreaField('What do you sell?', validators=[
-        validators.DataRequired("You must provide a detailed explanation of what you sell for us to evaluate your submission.")
-        ], description="Please be detailed; include a link to view your wares. You must include links to what you sell or a portfolio otherwise you will be automatically waitlisted.")
+        validators.DataRequired("You must provide a detailed explanation of what you sell "
+                                "for us to evaluate your submission.")
+        ], description="Please be detailed; include a link to view your wares. "
+        "You must include links to what you sell or a portfolio otherwise you will be automatically waitlisted.")
     categories = SelectMultipleField('Categories', validators=[
         validators.DataRequired("Please select at least one category your wares fall under.")
         ], choices=c.DEALER_WARES_OPTS, coerce=int, widget=MultiCheckbox())
@@ -94,26 +100,27 @@ class TableInfo(GroupInfo):
     def get_optional_fields(self, group, is_admin=False):
         optional_list = super().get_optional_fields(group, is_admin)
         if not group.is_dealer:
-            optional_list.extend(
-                ['description', 'website', 'wares', 'categories',
-                 'address1', 'city', 'region', 'zip_code', 'country'])
+            optional_list.extend(['description', 'website', 'wares', 'categories'])
         return optional_list
 
     def get_non_admin_locked_fields(self, group):
-        if group.is_new or group.status in c.DEALER_EDITABLE_STATUSES:
+        if group.is_new:
             return []
-        
+        elif group.status in c.DEALER_EDITABLE_STATUSES:
+            return ['tables']
+
         return list(self._fields.keys())
 
     def badges_label(self):
         return "Badges (" + format_currency(c.DEALER_BADGE_PRICE) + " each)"
-    
+
     def badges_desc(self):
         return "The number of people working your table, including yourself."
-    
+
     def validate_categories(form, field):
         if field.data and c.OTHER in field.data and not form.categories_text.data:
             raise ValidationError("Please describe what 'other' categories your wares fall under.")
+
 
 class AdminTableInfo(TableInfo, AdminGroupInfo):
     status = SelectField('Status', choices=c.DEALER_STATUS_OPTS, coerce=int)
@@ -123,7 +130,8 @@ class AdminTableInfo(TableInfo, AdminGroupInfo):
             return "This {} can add up to {} badges.".format(c.DEALER_TERM, c.MAX_DEALERS)
         else:
             return "This {} can add badges up to their personal maximum.".format(c.DEALER_TERM)
-        
+
+
 class LeaderInfo(MagForm):
     field_validation = CustomValidation()
 
@@ -142,7 +150,7 @@ class LeaderInfo(MagForm):
     leader_cellphone = TelField('Phone Number', validators=[
         valid_cellphone
         ])
-    
+
     def get_optional_fields(self, group, is_admin=False):
         optional_list = super().get_optional_fields(group, is_admin)
 

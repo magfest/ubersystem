@@ -19,8 +19,8 @@ class Root:
     def index(self, session, message='', show='admin'):
         which = {
             'all': [],
-            'admin': [PromoCode.group_id == None],
-            'group': [PromoCode.group_id != None],
+            'admin': [PromoCode.group_id == None],  # noqa: E711
+            'group': [PromoCode.group_id != None],  # noqa: E711
             'overused': [PromoCode.uses_remaining < 0]
         }[show]
 

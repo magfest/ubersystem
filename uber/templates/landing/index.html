@@ -5,12 +5,12 @@
 {% block masthead %}{% endblock %}
 {% block title %}{{ c.EVENT_NAME }} Registration{% endblock %}
 {% block content %}
-<img src="../static/images/landing-logo.png" width="100%">
+<div class="text-center"><img src="../static/images/landing-logo.png" class="img-fluid"></div>
 <h1 class="text-center">{{ c.EVENT_NAME_AND_YEAR }} Registration</h1>
 {% block landing_info_box %}
-{% if c.BADGE_TYPE_PRICES %}
-<div class="row g-sm-3 justify-content-center">
-    <div class="col-8 col-sm-10 text-center">{{ form_macros.card_select(badge_extras.badge_type, attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES, ) }}</div>
+{% if c.BADGE_TYPE_PRICES and (c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON) %}
+<div class="row g-sm-3 row-cols-auto justify-content-center">
+    <div class="col {% if c.FORMATTED_BADGE_TYPES|length > 2 %}col-sm-10 {% endif %}justify-content-center text-center">{{ form_macros.card_select(badge_extras.badge_type, attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES, ) }}</div>
 </div>
 {% endif %}
 {% endblock %}
@@ -21,9 +21,9 @@
     {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
         {% if logged_in_account %}
         <div class="text-center">
-            {% if logged_in_account.attendees %}
+            {% if logged_in_account.attendees and (c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON) %}
             <a class="btn btn-info btn-lg" href="../preregistration/homepage" role="button">Continue to Homepage</a>
-            {% else %}
+            {% elif c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON %}
             <div class="btn-group">
                 <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
                     Register for {{ c.EVENT_NAME_AND_YEAR }}
@@ -44,7 +44,7 @@
         {% endblock %}
             {% include 'preregistration/login_or_create_account.html' %}
         {% endif %}
-    {% else %}
+    {% elif (c.BEFORE_PREREG_TAKEDOWN or not c.PREREG_TAKEDOWN) or c.AT_THE_CON %}
     <div class="text-center">
     <div class="btn-group">
         <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
@@ -65,7 +65,7 @@
         Exit Kiosk Mode
     </a>
 </p>
-{% elif c.AT_THE_CON and c.ATTENDEE_ACCOUNTS_ENABLED %}
+{% elif c.AT_THE_CON and c.ATTENDEE_ACCOUNTS_ENABLED and not c.SPIN_TERMINAL_AUTH_KEY %}
 <p class="text-end">
     <a class="btn btn-link btn-lg" href="../registration/register?kiosk_mode=True" role="button">
         Enter Kiosk Mode

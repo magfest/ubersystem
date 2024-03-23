@@ -1,5 +1,4 @@
 import cherrypy
-from six import string_types
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
@@ -103,20 +102,20 @@ class Root:
     @credit_card
     def process_marketplace_payment(self, session, id):
         app = session.marketplace_application(id)
-        
+
         receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
-        
+
         charge_desc = "{}'s Marketplace Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, app.attendee.email, charge_desc)
-        
-        message = charge.process_payment()
+
+        message = charge.prepare_payment()
 
         if message:
             return {'error': message}
-        
+
         session.add_all(charge.get_receipt_items_to_add())
         session.commit()
-        
+
         return {'stripe_intent': charge.intent,
                 'success_url': 'edit?id={}&message={}'.format(app.id,
                                                               'Your payment has been accepted'),

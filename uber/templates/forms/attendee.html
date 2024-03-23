@@ -839,9 +839,9 @@ $().ready(function() {
     {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation else '', post_text=macros.upgrade_button('extra-donation', text="Change" if attendee.extra_donation else "Donate")) %}
       <div class="col-sm-6">
         <div class="input-group">
-          <span class="input-group-addon">$</span>
+          <span class="input-group-text">$</span>
           <input type="text" class="form-control" name="extra_donation" value="{% if attendee.extra_donation %}{{ attendee.extra_donation }}{% endif %}" placeholder="0">
-          <span class="input-group-addon">.00</span>
+          <span class="input-group-text">.00</span>
         </div>
       </div>
     {% endcall %}
@@ -940,7 +940,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 {% set job_interests %}
 {% set read_only = job_interests_ro or page_ro %}
-{% if c.JOB_INTEREST_OPTS or c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
+{% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
   <div class="form-group staffing" id="departments">
     <label for="requested_depts_ids" class="col-sm-3 control-label">Where do you want to help?</label>
     {% call macros.read_only_if(read_only, attendee.requested_depts_labels) %}
@@ -986,13 +986,6 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 {% set setup_teardown %}
 {% set read_only = setup_teardown_ro or page_ro %}
-<div class="form-group staffing staffing-checked">
-  <label class="col-sm-3 control-label">Approved for Setup/Teardown</label>
-  <div class="checkbox col-sm-9">
-    {{ macros.checkbox(attendee, 'can_work_setup', label='Approved for setup', is_readonly=read_only, clientside_bool=clientside_bool) }} <br/>
-    {{ macros.checkbox(attendee, 'can_work_teardown', label='Approved for teardown', is_readonly=read_only, clientside_bool=clientside_bool) }}
-  </div>
-</div>
 {% endset %}
 
 
@@ -1400,20 +1393,6 @@ $(window).on("runJavaScript", function () {
 {% endset %}
 
 
-{% set panel_interest %}
-{% set read_only = panel_interest_ro or page_ro %}
-{% if c.BEFORE_PANELS_DEADLINE %}
-<div class="form-group">
-  <label for="panel_interest" class="col-sm-3 control-label optional-field">Panel Interest</label>
-  <div class="checkbox col-sm-9">
-    {{ macros.checkbox(attendee, 'panel_interest', label='I plan to apply for a panel this year.', is_readonly=read_only, clientside_bool=clientside_bool) }}<br/>
-    {% if not admin_area and c.AFTER_PANELS_START %}<a href="../panels/" target="_blank">Apply for a panel here</a>!{% endif %}
-  </div>
-</div>
-{% endif %}
-{% endset %}
-
-
 {% set pii_consent_checkbox %}
 {% set read_only = pii_consent_ro or page_ro %}
 <div class="form-group">
@@ -1573,11 +1552,7 @@ $(window).on("runJavaScript", function(){
     {% if attendee.is_inherently_transferable %}
     This attendee can currently transfer their badge.
     {% elif attendee.cannot_transfer_reason %}
-    This attendee cannot transfer their badge under any circumstances because
-    {% for reason in attendee.cannot_transfer_reason %}
-    {% if loop.last and attendee.cannot_transfer_reason|length > 1 %} and {% endif %}
-    {{ reason }}{% if attendee.cannot_transfer_reason|length > 2 %}, {% endif %}
-    {% endfor %}.
+    This attendee cannot transfer their badge under any circumstances because {{ attendee.cannot_transfer_reason|readable_join }}.
     {% else %}
     <label for='can_transfer' class="checkbox-label">
       {{ macros.checkbox(attendee, 'can_transfer', is_readonly=read_only, clientside_bool=clientside_bool) }} Make this attendee's badge always transferable
@@ -1710,7 +1685,7 @@ $(window).on("runJavaScript", function(){
 
 {% set panel_app_link %}
 {# Always read-only #}
-{% if attendee.panel_applicants -%}
+{% if attendee.panel_applicants and c.HAS_PANELS_ADMIN_ACCESS -%}
   <div class="form-group">
     <label class="col-sm-3 control-label">Panels</label>
     <div class="col-sm-9">

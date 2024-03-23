@@ -10,7 +10,7 @@ function barcodeScanned(barcode) {
                 $.post("../barcode/get_badge_num_from_barcode", {csrf_token: csrf_token, barcode: barcode})
                     .done(function (data) {
                         if (data['badge_num'] == -1) { showErrorMessage(data['message']); }
-                        else if ($("#checkin-badge").size() && $("#checkin-badge").is(":visible")) { $("#checkin-badge").val(data['badge_num']); }
+                        else if ($("#checkin_badge_num").size() && $("#checkin_badge_num").is(":visible")) { $("#checkin_badge_num").val(data['badge_num']); }
                         else if ($("#badge_num").size()) { $("#badge_num:focus").val(data['badge_num']); }
                         else if ($("#search_bar").size()) { $("#search_bar").val(data['badge_num']); }
                         else { offerBarcodeOpts(data['badge_num'], "Badge number"); }

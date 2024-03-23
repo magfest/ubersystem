@@ -43,7 +43,6 @@
         showOrHideLengthReason();
         showOrHideModHelp();
         showOrHideLoud();
-        controlGranularRatingCheckboxes();
         $.field('presentation').on('change', showOrHideOtherPresentation);
         $.field('presentation').on('change', showOrHideModHelp);
         $.field('presentation').on('change', showOrHideLoud);
@@ -160,10 +159,10 @@
     $(function () {
         if ($.field('granular_rating')) {
             $.field('magscouts_opt_in').parents('.form-group').insertAfter($.field('granular_rating').parents('.form-group'));
+            $.field('granular_rating').on('change', showOrHideOtherMAGScouts);
+            setVisible($.field('magscouts_opt_in').parents('.form-group'),
+                        $(':checkbox[name=granular_rating][value={{ c.NONE }}]').prop('checked'))
         }
-
-        showOrHideOtherMAGScouts();
-        $.field('granular_rating').on('change', showOrHideOtherMAGScouts);
     });
 </script>
 {% endif %}

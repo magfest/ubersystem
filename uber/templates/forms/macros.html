@@ -21,7 +21,20 @@
   <div id="{{ field.id }}-validation" class="invalid-feedback" role="alert"></div>
 {% endmacro %}
 
-{% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False) %}
+{% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False, hidden_field_text='', force_hidden=False) %}
+{#
+  Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
+  field (Field): WTForms form field.
+  help_text (str): Extra text to display on non-admin pages underneath the field.
+  admin_text (str): Extra test to display on admin pages underneath the field.
+  extra_field (Field): A second field to render underneath this field. Particularly useful for a toggle checkbox that affects the 
+        field.
+  no_margin (bool): If true, removes the `mb-3` class. Useful in cases where a containing div already has a margin.
+  hidden_field_text (str): For fields with the HiddenInput widget, this is the custom display text for the field, which is 
+        useful in situations where a field is always read-only. If not set, the field is rendered without any scaffolding.
+  force_hidden (bool): If true, the field is rendered as a hidden field instead of whatever its widget is.
+
+#}
 
 {% set custom_kwargs = kwargs %}
 {% if locked_fields|default(None, true) and field.name in locked_fields and not upgrade_modal %}
@@ -30,8 +43,22 @@
 
 {% set type = field.meta.get_field_type(field) %}
 {% set label_required = kwargs['required'] if 'required' in kwargs else field.flags.required %}
-{% set disable_checkboxes = 'readonly' in kwargs or 'readonly' in field.render_kw %}
-{% if type in ['checkbox','switch'] %}
+{% set disable_checkboxes = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
+{% if type == 'hidden' or force_hidden %}
+  {% if hidden_field_text %}
+    <div class="form-text">{{ field.label.text }}</div>
+    <div{% if not no_margin %} class="mb-3"{% endif %}>
+      {% if force_hidden %}
+        <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data }}" />
+      {% else %}
+        {{ field(**custom_kwargs) }}
+      {% endif %}
+      {{ hidden_field_text }}
+    </div>
+  {% else %}
+    {{ field(**custom_kwargs) }}
+  {% endif %}
+{% elif type in ['checkbox','switch'] %}
 <div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
   {% if disable_checkboxes %}
   <input type="hidden" name="{{ field.id }}" value="{{ field.data }}" />
@@ -45,10 +72,12 @@
 </div>
 {% elif type == 'inputgroup' %}
 <div class="form-text">{{ form_label(field, required=label_required) }}</div>
-<div class="input-group{% if not no_margin %} mb-3{% endif %}">
+<div {% if not no_margin %}class="mb-3"{% endif %}>
+<div class="input-group">
 {{ field(class="form-control", **custom_kwargs) }}
 </div>
 {{ form_input_extras(field, help_text, admin_text, extra_field) }}
+</div>
 {% elif type == 'checkgroup' %}
 <div class="card card-body{% if not no_margin %} mb-3{% endif %}">
     {{ field(**custom_kwargs) }}
@@ -86,7 +115,7 @@
 {{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop, closest_hide_selector=closest_hide_selector) }}
 {%- endmacro %}
 
-{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id='') %}
+{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id='', target_call_func='', target_field_prepend='') %}
 {% set source_id = source_field_id or source_field.id %}
 {% set suffix = "_" ~ source_id %}
 <script type="text/javascript">
@@ -117,23 +146,31 @@
 
         {% for target_field in target_fields %}
           {%- if prop == 'visibility' %}
-              $('#{{ target_field.id }}').toggle(toggleOn);
+              $('#{{ target_field_prepend ~ target_field.id }}').toggle(toggleOn);
               {%- if closest_hide_selector %}
-                  $('#{{ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
+                  $('#{{ target_field_prepend ~ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
               {%- endif %}
           {%- elif prop %}
-              $('#{{ target_field.id }}').prop('{{ prop }}', {{ "!" if prop != 'required' else '' }}toggleOn);
+              $('#{{ target_field_prepend ~ target_field.id }}').prop('{{ prop }}', {{ "!" if prop != 'required' and prop != 'checked' else '' }}toggleOn);
           {%- endif %}
           {%- if toggle_required %}
-            $('#{{ target_field.id }}').prop('required', toggleOn);
-            $('#{{ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
+            $('#{{ target_field_prepend ~ target_field.id }}').prop('required', toggleOn);
+            $('#{{ target_field_prepend ~ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
           {%- endif %}
+          {% if not target_call_func %}
+            $('#{{ target_field_prepend ~ target_field.id }}').trigger('change');
+          {% endif %}
         {% endfor %}
     }
 
     $(function () {
         toggleField{{ suffix }}();
         $('#{{ source_id }}').change(toggleField{{ suffix }});
+        {% for target_field in target_fields %}
+          {% if target_call_func %}
+            $('#{{ target_field_prepend ~ target_fields[0].id }}').change({{ target_call_func }});
+          {% endif %}
+        {% endfor %}
     });
 </script>
 {%- endmacro %}
@@ -153,7 +190,7 @@
 #}
 
 {% set is_preview = 'landing' in c.PAGE_PATH %}
-{% set label_required = kwargs['required'] if 'required' in kwargs else None %}
+{% set label_required = kwargs['required'] if 'required' in kwargs else target_field.flags.required %}
 {% set field_id = target_field_id or target_field.id %}
 {% set show_desc = not admin_area and not is_preview and (help_text or target_field.description) %}
 
@@ -162,7 +199,7 @@
 {% else %}
 <fieldset>
   <legend class="mt-3 mb-0 form-text">
-    {{ target_field.label.text }}{% if target_field.flags.required %}<span class="required-indicator text-danger"> *</span>{% endif %}
+    {{ kwargs['label'] if 'label' in kwargs else target_field.label.text }}{% if label_required %}<span class="required-indicator text-danger"> *</span>{% endif %}
   </legend>
 {% endif %}
 <div class="card-group mt-0{% if not show_desc %} mb-3{% endif %}">
@@ -172,11 +209,11 @@
       <div class="card-header" style="transform: rotate(0);">
           <label for="{{ field_id }}-{{ opt.value }}" class="h5 card-title mb-0 text-nowrap">
             {% if disabled_card or is_preview %}
-            {{ opt.name }}{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
+            {{ opt.name }}{% if opt.price|int %}: {{ opt.price|format_currency }}{% endif %}
             {% else %}
               <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card_link"
                 data-value="{{ opt.value }}">
-                {{ opt.name }}</a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
+                {{ opt.name }}</a>{% if opt.price|int %}: {{ opt.price|format_currency }}{% endif %}
             {% endif %}
           </label>
       </div>
@@ -306,26 +343,26 @@
 </script>
 {%- endmacro %}
 
-{% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false) %}
-<div class="alert" role="alert" id="form-validations"></div>
+{% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false, callback='') %}
+<div class="alert" role="alert" id="form-validations-{{ form_id }}"><span></span></div>
 
 <script type="text/javascript">
   var serverValidationPassed = false;
   
-  var runServerValidations = function($form, go_to_cart) {
+  var runServerValidations_{{ form_id|replace('-','_') }} = function($form, submit_button_name) {
     var form_list = {{ form_list|safe }}.join(',')
     if (form_list != '') {
         form_list = '&form_list=' + form_list
     }
     $.post("{{ page_handler }}", $form.serialize() + form_list, function (response) {
-      $("#form-validations").hide().removeClass().addClass("alert").html("");
+      $("#form-validations-{{ form_id }}").hide().removeClass().addClass("alert").children('span').html("");
       $(".is-invalid").each(function() {
         var field_id = $(this).attr('id');
         $(this).removeClass('is-invalid');
         $("#" + field_id + "-validation").hide();
       });
       if (response.error) {
-        $("#form-validations").addClass("alert-danger").html(
+        $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(
           "Please correct the following errors:" +
           "<ul></ul>"
           );
@@ -335,13 +372,13 @@
             var field_label = $("label[for='" + key + "'] .form-label").text();
             if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
             if (field_label == '') {
-              $("#form-validations").find("ul").append("<li>" + val + "</li>");
+              $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
             } else {
-              $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+              $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label + ": " + val + "</li>");
               $("#" + key).addClass("is-invalid");
             }
           } else {
-            $("#form-validations").find("ul").append("<li>" + val + "</li>");
+            $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
           }
 
           if ($("#" + key + "-validation").length != 0)
@@ -349,38 +386,50 @@
             $("#" + key + "-validation").html(val).show();
           }
         });
-        $("#form-validations").show();
-        $('html, body').animate({scrollTop: $("#form-validations").offset().top}, 50);
+        $("#form-validations-{{ form_id }}").show();
+        $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
       } else {
         serverValidationPassed = true;
-        if (go_to_cart != '') {
-          $("#{{ form_id }}").find($("[name=go_to_cart]")).click();
+        {% if callback %}
+          {{ callback|safe }};
+        {% else %}
+        if (submit_button_name != '') {
+          $("#{{ form_id }}").find($("[name=" + submit_button_name + "]")).click();
         } else {
           $("#{{ form_id }}").submit();
         }
+        {% endif %}
       }
     }, 'json');
   };
   
 
   $(function () {
-    $("#form-validations").hide();
-    {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal) }}
+    $("#form-validations-{{ form_id }}").hide();
+    {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal, callback=callback) }}
 });
 </script>
 {%- endmacro %}
 
-{% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false) %}
+{% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false, callback='') %}
 $("#{{ form_id }}").submit(function (event) { 
     if(!serverValidationPassed) {
-      runServerValidations($(this), event.originalEvent.submitter.name);
+      if (event.originalEvent !== undefined) {
+        runServerValidations_{{ form_id|replace('-','_') }}($(this), event.originalEvent.submitter.name);
+      } else {
+        runServerValidations_{{ form_id|replace('-','_') }}($(this), '');
+      }
       return false;
     }
     {% if include_disclaimers_modal %}
-    if(!disclaimersConfirmed) {
-        openDisclaimersModal();
-        return false;
-    }
+      if(!disclaimersConfirmed) {
+          openDisclaimersModal();
+          return false;
+      }
+    {% endif %}
+    {% if callback %}
+      {{ callback|safe }};
+      return false;
     {% endif %}
 });
 {%- endmacro %}

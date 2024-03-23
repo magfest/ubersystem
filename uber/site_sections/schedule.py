@@ -11,7 +11,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, schedule_view, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, AssignedPanelist, Attendee, Event, PanelApplication
+from uber.models import AssignedPanelist, Attendee, Event, PanelApplication
 from uber.utils import check, localized_now, normalize_newlines
 
 
@@ -361,6 +361,9 @@ class Root:
 
         for panel in panel_applications:
             panels[panel.event.start_time][panel.event.location] = panel
+
+        if not panels:
+            raise HTTPRedirect('../accounts/homepage?message={}', "No panels have been scheduled yet!")
 
         curr_time, last_time = min(panels).astimezone(c.EVENT_TIMEZONE), max(panels).astimezone(c.EVENT_TIMEZONE)
         out.writerow(['Panel Starts'] + [c.EVENT_LOCATIONS[room] for room in c.PANEL_ROOMS])

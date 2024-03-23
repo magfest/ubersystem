@@ -58,9 +58,11 @@ def all_dept_ids_from_existing_locations(locations):
     return dept_ids
 
 
-job_location_to_department_id = {i: _dept_id_from_location(i) for i in c.JOB_LOCATIONS.keys()}
+job_locations = getattr(c, 'JOB_LOCATIONS', {})
+job_interests = getattr(c, 'JOB_INTERESTS', {})
+job_location_to_department_id = {i: _dept_id_from_location(i) for i in job_locations.keys()}
 job_interests_to_department_id = {
-    i: job_location_to_department_id[i] for i in c.JOB_INTERESTS.keys() if i in job_location_to_department_id}
+    i: job_location_to_department_id[i] for i in job_interests.keys() if i in job_location_to_department_id}
 
 
 TEST_DATA_FILE = join(os.path.dirname(__file__), 'test_data.json')
@@ -134,7 +136,8 @@ def import_events(session):
 
 
 def import_jobs(session):
-    job_locs, _ = zip(*c.JOB_LOCATION_OPTS)
+    job_location_opts = getattr(c, 'JOB_LOCATION_OPTS', [])
+    job_locs, _ = zip(*job_location_opts)
     depts_known = []
     for j in dump['jobs']:
         if j['location'] in job_locs:
@@ -156,11 +159,6 @@ def import_jobs(session):
 
 @entry_point
 def import_uber_test_data(test_data_file):
-    if not c.JOB_LOCATION_OPTS:
-        print("JOB_LOCATION_OPTS is empty! "
-        "Try copying the [[job_location]] section from test-defaults.ini to your development.ini.")
-        exit(1)
-
     with open(test_data_file) as f:
         global dump
         dump = json.load(f)

@@ -53,7 +53,7 @@ def log_pageview(func):
             try:
                 session.admin_account(cherrypy.session.get('account_id'))
             except Exception:
-                pass  # we don't care about public pages for this version
+                pass  # no tracking for non-admins yet
             else:
                 uber.models.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
@@ -159,6 +159,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 
 def requires_account(model=None):
     from uber.models import Attendee, AttendeeAccount, Group
+
     def model_requires_account(func):
         @wraps(func)
         def protected(*args, **kwargs):
@@ -184,16 +185,17 @@ def requires_account(model=None):
                     if model == Attendee:
                         attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
                     elif model == Group:
-                        attendee = session.query(model).filter_by(id=kwargs.get('group_id', kwargs.get('id'))).first().leader
+                        attendee = session.query(model).filter_by(id=kwargs.get('group_id',
+                                                                                kwargs.get('id'))).first().leader
                     else:
                         attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
-                    
+
                     # Admin account override
                     if session.admin_attendee_max_access(attendee):
                         return func(*args, **kwargs)
-                    
+
                     account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
-                    
+
                     if not account or account not in attendee.managers:
                         message = 'You do not have permission to view this page.'
 
@@ -251,12 +253,22 @@ def ajax(func):
         try:
             assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
             check_csrf(kwargs.pop('csrf_token', None))
-        except Exception as e:
+        except Exception:
             message = "There was an issue submitting the form. Please refresh and try again."
             return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     returns_json.ajax = True
     return returns_json
+
+
+def track_report(params):
+    with uber.models.Session() as session:
+        try:
+            session.admin_account(cherrypy.session.get('account_id'))
+        except Exception:
+            pass  # no tracking for non-admins yet
+        else:
+            uber.models.ReportTracking.track_report(params)
 
 
 def ajax_gettable(func):
@@ -274,8 +286,8 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
-    parameters = inspect.getargspec(func)
-    if len(parameters[0]) == 3:
+    signature = inspect.signature(func)
+    if len(signature.parameters) == 3:
         func.site_mappable = True
         func.site_map_download = True
 
@@ -290,6 +302,7 @@ def multifile_zipfile(func):
         cherrypy.response.headers['Content-Type'] = 'application/zip'
         cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.zip'
 
+        track_report(kwargs)
         return zipfile_writer.getvalue()
     return zipfile_out
 
@@ -304,8 +317,8 @@ def _set_response_filename(base_filename):
 
 
 def xlsx_file(func):
-    parameters = inspect.getargspec(func)
-    if len(parameters[0]) == 3:
+    signature = inspect.signature(func)
+    if len(signature.parameters) == 3:
         func.site_mappable = True
         func.site_map_download = True
 
@@ -336,13 +349,14 @@ def xlsx_file(func):
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.xlsx')
 
+        track_report(kwargs)
         return output
     return xlsx_out
 
 
 def csv_file(func):
-    parameters = inspect.getargspec(func)
-    if len(parameters[0]) == 3:
+    signature = inspect.signature(func)
+    if len(signature.parameters) == 3:
         func.site_mappable = True
         func.site_map_download = True
 
@@ -359,6 +373,7 @@ def csv_file(func):
             cherrypy.response.headers['Content-Type'] = 'application/csv'
             _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.csv')
 
+        track_report(kwargs)
         return output
     return csvout
 
@@ -641,13 +656,30 @@ def public(func):
     func.public = True
     return func
 
-def attendee_view(func):
+
+def any_admin_access(func):
     func.public = True
+
     @wraps(func)
     def with_check(*args, **kwargs):
         if cherrypy.session.get('account_id') is None:
             raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
-            
+        with uber.models.Session() as session:
+            account = session.admin_account(cherrypy.session.get('account_id'))
+            if not account.access_groups:
+                return "You do not have any admin accesses."
+        return func(*args, **kwargs)
+    return with_check
+
+
+def attendee_view(func):
+    func.public = True
+
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if cherrypy.session.get('account_id') is None:
+            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+
         if kwargs.get('id') and str(kwargs.get('id')) != "None":
             with uber.models.Session() as session:
                 attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
@@ -658,8 +690,10 @@ def attendee_view(func):
         return func(*args, **kwargs)
     return with_check
 
+
 def schedule_view(func):
     func.public = True
+
     @wraps(func)
     def with_check(*args, **kwargs):
         if c.HIDE_SCHEDULE and not c.HAS_READ_ACCESS:
@@ -667,6 +701,7 @@ def schedule_view(func):
                    "when it's closer to being finalized.".format(c.EVENT_NAME)
         return func(*args, **kwargs)
     return with_check
+
 
 def restricted(func):
     @wraps(func)
@@ -725,6 +760,7 @@ class Validation:
             return func
         return wrapper
 
+
 validation, prereg_validation = Validation(), Validation()
 
 
@@ -737,6 +773,7 @@ class ReceiptItemConfig:
             self.items[model_name][func.__name__] = func
             return func
         return wrapper
+
 
 cost_calculation, credit_calculation = ReceiptItemConfig(), ReceiptItemConfig()
 

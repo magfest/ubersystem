@@ -2,25 +2,6 @@
 {% block title %}Automated Emails Pending Approval{% endblock %}
 {% block content %}
 
-<style>
-  h2 {
-    margin-bottom: 0;
-  }
-
-  table.table > tbody > tr.danger > td {
-    border-top: 1px solid #f28e8e;
-  }
-
-  .pending .subject {
-    color: #e00000;
-  }
-
-  .pending .subject span {
-    font-weight: bold;
-  }
-</style>
-
-
 {% macro email_table(emails) %}
   <table class="table table-striped datatable"
       data-paging="false"
@@ -32,10 +13,10 @@
       <th>Template</th>
       <th>Sender</th>
       <th>Emails Sent</th>
-      <th>Emails waiting to send but need approval</th>
-      <th>Show Examples</th>
+      <th>Emails Waiting to Send</th>
+      <th>Examples</th>
       <th>Approval Status</th>
-      <th>Date emails generated</th>
+      <th>Date Restrictions</th>
     </tr>
     </thead>
     <tbody>
@@ -87,18 +68,44 @@
 </table>
 {% endmacro %}
 
-<h2>Automated Emails</h2>
-<br>
+<h2>Pending Automated Emails</h2>
+<div class="card">
+  <div class="card-body">
 {% if not automated_emails %}
   <p class="text-info">
     There are currently no automated emails. The system is probably updating,
-    and should be finished in at most 5 minutes.
+    and should be finished in at most {{ "5" if c.DEV_BOX else "15" }} minutes.
   </p>
 {% else %}
+  <p>
+    The emails below will be sent to any qualifying attendee or group as long as that email is active and approved.
+    Attendees or groups who qualify for an email before it is approved will receive the email when it is approved.
+  </p>
+  <p>
+    If there are date restrictions for an email, that email will not be sent outside of those dates.
+    Emails may be "unapproved" after approval to stop them being sent to newly qualifying attendees or groups.
+  </p>
+  <p>
+    Please note that the emails below represent most, <em>but not all</em>, of the automated emails the system sends.
+    Any emails that don't appear here are sent in response to an action (e.g., a dealer changing their application) and cannot be approved or unapproved.
+  </p>
+  <ul class="nav nav-pills">
+  {% for sender in automated_emails.keys() %}
+    <li class="nav-item">
+      <a class="nav-link border border-primary rounded" href="#{{ sender|email_only }}">{{ sender|email_only }}</a>
+    </li>&nbsp;
+  {% endfor %}
+  </ul>
+  <hr/>
   {% for sender, emails in automated_emails.items() %}
-    <h3>{{ sender }}</h3>
+  <a id="{{ sender|email_only }}"></a>
+    <h3 class="mb-0 mt-4">{{ sender }}</h3>
     {{ email_table(emails) }}
+    {% if not loop.last %}<hr/>{% endif %}
   {% endfor %}
 {% endif %}
+  </div>
+</div>
+
 
 {% endblock %}

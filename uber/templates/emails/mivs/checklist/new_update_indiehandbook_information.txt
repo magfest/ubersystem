@@ -2,7 +2,11 @@ Ahoy {{ guest.group.studio.primary_contact_first_names }},
 
 There is a new checklist item available to be completed: Indie Handbook Information
 
+If you have not already, please complete the previous checklist steps such as reviewing your game and studio information.
+
 You can get to your full checklist using this link: {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
+
+The 2024 MIVS Discord is now live! This is the best place to get immediate answers from staff and communicate with other devs. Click here to join: https://discord.gg/WK7F6Dh7ng 
 
 If you have any questions, please email {{ c.MIVS_EMAIL|email_only }}
 

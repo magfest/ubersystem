@@ -9,14 +9,14 @@
 
     <p>
       Our list of banned people includes someone named <b>{{ attendee.full_name }}</b>. Every banned attendee has
-      been told they are banned, so if this is not a mistake then you should definitely know it.  However, if you
-      just happen to have the same name as someone who has been banned, then go ahead and continue.  If we see someone
+      been told they are banned, so if this is not a mistake then you should definitely know it. However, if you
+      just happen to have the same name as someone who has been banned, then go ahead and continue. If we see someone
       on our banned list complete their registration then we'll contact you to verify that you're someone else.
     </p>
 
     <table style="width:auto" align="center">
       <tr>
-        {%- set url_string = ("?group_id=" ~ duplicate.group_id) if duplicate.badge_type == c.PSEUDO_DEALER_BADGE else ("?attendee_id=" ~ (duplicate.group.id if duplicate.group else duplicate.id)) %}
+        {%- set url_string = ("?group_id=" ~ attendee.group_id) if attendee.badge_type == c.PSEUDO_DEALER_BADGE else ("?attendee_id=" ~ (attendee.group.id if attendee.group else attendee.id)) %}
         {%- set next_page = "additional_info" ~ url_string -%}
         <td><a href="{{ next_page }}">I'm someone else, let me register!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>

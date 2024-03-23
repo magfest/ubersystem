@@ -1,13 +1,11 @@
 import cherrypy
 
 from datetime import datetime
-from pockets.autolog import log
 
 from uber.config import c
-from uber.decorators import all_renderable, render
+from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
 from uber.models import PanelApplicant, PanelApplication
-from uber.tasks.email import send_email
 from uber.utils import add_opt, check
 
 
@@ -95,7 +93,6 @@ class Root:
             'other_panelists': other_panelists,
             'coc_agreement': params.get('coc_agreement'),
             'data_agreement': params.get('data_agreement'),
-            'covid_agreement': params.get('covid_agreement'),
             'verify_tos': params.get('verify_tos'),
             'verify_poc': params.get('verify_poc'),
             'verify_waiting': params.get('verify_waiting'),

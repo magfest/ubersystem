@@ -1,19 +1,30 @@
 <html>
 <head></head>
 <body>
-
 {{ attendee.first_name }},
 
-<br/><br/>Although your group ({{ group.name}}) {{ 'cancelled their ' + c.DEALER_APP_TERM if group.status == c.CANCELLED else 'was not taken off the waitlist' }}, we think you may still want to come and enjoy all that {{ c.EVENT_NAME }} has to offer!
-Therefore, we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost < c.BADGE_PRICE %} at the price of registration when you first applied{% endif %}.
-Badges went to anyone in your group who had a valid email on the badge, and any unassigned badges were dropped.
+<br/><br/>
+{% if group.status not in [c.CANCELLED, c.DECLINED] %}
+I am sorry to inform you that only a few spaces opened up for the waitlist, and unfortunately your group ({{ group.name }}) did not make it into the {{ c.EVENT_NAME }} {{ c.DEALER_LOC_TERM }} this year, which is why your application is now being declined. Please try again next year.
+
+<br/><br/>We hope you'll still want to come to {{ c.EVENT_NAME }}!
+{% else %}
+Although your group ({{ group.name }}) {{ 'cancelled their ' + c.DEALER_APP_TERM if group.status == c.CANCELLED else 'was declined' }}, we think you may still want to come and enjoy all that {{ c.EVENT_NAME }} has to offer!
+{% endif %}
+Therefore, we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost and attendee.badge_cost < c.BADGE_PRICE %} for {{ attendee.badge_cost|format_currency }}, which was the price of registration when you first applied{% endif %}.
+{% if other_badges > 0 %}Attendee badges were also reserved for the {{ (other_badges ~ ' other people') if other_badges > 1 else 'other person' }} in your group who had a valid name and email. {% endif %}
+{% if group.unregistered_badges > 0 %}All unassigned badges were dropped.{% endif %}
 
 <br/><br/>Please note: You are choosing to accept or decline an ATTENDEE badge at the price it would have been had you bought it instead of applying for the {{ c.DEALER_LOC_TERM }}.
   <strong>You were not accepted as a {{ c.DEALER_TERM }}, and will not have space in the {{ c.DEALER_LOC_TERM }}.</strong>
 
 <br/><br/>Please go ahead and confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your registration</a>. We hope to see you this year!
 
+<br/><br/>-----
+
 {% include "emails/reg_workflow/reg_notes.html" %}
 
+<br/><br/>
+{% include "emails/reg_workflow/refund_policy.html" %}
 </body>
 </html>

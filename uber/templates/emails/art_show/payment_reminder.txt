@@ -1,10 +1,9 @@
 {{ app.attendee.first_name }},
 
-Thanks again for applying to present in the Art Show for this year's {{ c.EVENT_NAME }}.  Our records indicate that your
-Art Show application is still unpaid, and if we do not receive payment by {{ c.ART_SHOW_PAYMENT_DUE|datetime_local }} then it will be
-deleted.
+Thanks again for applying to present in the Art Show for this year's {{ c.EVENT_NAME }}. Our records indicate that your Art Show application is still unpaid, and if we do not receive payment by {{ c.ART_SHOW_PAYMENT_DUE|datetime_local }} then it will be deleted.
 
-You can use the credit card button on your application's page to {% if group.amount_pending %}finish your payment of {{ (group.amount_pending / 100)|format_currency }}{% else %}pay the {{ group.amount_unpaid|format_currency }} that you owe{% endif %}:
-{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}
+You can use the credit card button on your application's page to pay the {{ app.attendee.amount_unpaid|format_currency }} that you owe: {{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}
+
+If you are having issues with payment or need an extension please contact us at {{ c.ART_SHOW_EMAIL|email_only }}.
 
 {{ c.ART_SHOW_EMAIL_SIGNATURE }}

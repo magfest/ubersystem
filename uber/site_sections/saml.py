@@ -1,34 +1,18 @@
-import json
-from datetime import datetime, timedelta
-from functools import wraps
-from uber.models import PasswordReset
-from uber.models.marketplace import MarketplaceApplication
-from uber.models.art_show import ArtShowApplication
-
-import bcrypt
 import cherrypy
-from collections import defaultdict
-from pockets import listify
+
 from pockets.autolog import log
-from six import string_types
-from sqlalchemy import func
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.orm.exc import NoResultFound
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.utils import OneLogin_Saml2_Utils
 from urllib.parse import urlparse
 
-from uber import receipt_items
 from uber.config import c
-from uber.custom_tags import email_only
-from uber.decorators import ajax, all_renderable, not_site_mappable, credit_card, csrf_protected, id_required, log_pageview, \
-    redirect_if_at_con_to_kiosk, render, requires_account
+from uber.decorators import all_renderable, not_site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, AccessGroup, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \
-                        ReceiptTransaction, SignedDocument, Tracking
-from uber.tasks.email import send_email
+from uber.models import Attendee, AccessGroup
 from uber.utils import prepare_saml_request, normalize_email_legacy
-    
+
 
 @all_renderable(public=True)
 class Root:
@@ -39,21 +23,25 @@ class Root:
         auth.process_response()
 
         assertion_id = auth.get_last_assertion_id()
-        
-        if c.REDIS_STORE.hget('processed_saml_assertions', assertion_id):
-            log.error("Existing SAML assertion was replayed: {}. This is either an attack or a programming error.".format(assertion_id))
-            raise HTTPRedirect("../landing/index?message={}", "Authentication unsuccessful.")
 
         errors = auth.get_errors()
         if not errors:
-            c.REDIS_STORE.hset('processed_saml_assertions', assertion_id, auth.get_last_assertion_not_on_or_after())
+            if c.REDIS_STORE.hget(c.REDIS_PREFIX + 'processed_saml_assertions', assertion_id):
+                log.error("Existing SAML assertion was replayed: {}. "
+                          "This is either an attack or a programming error.".format(assertion_id))
+                raise HTTPRedirect("../landing/index?message={}", "Authentication unsuccessful.")
+
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'processed_saml_assertions', assertion_id,
+                               auth.get_last_assertion_not_on_or_after())
 
             if auth.is_authenticated():
                 account_email = auth.get_nameid()
                 admin_account = None
                 account = None
-                matching_attendee = session.query(Attendee).filter_by(is_valid=True, normalized_email=normalize_email_legacy(account_email)).first()
-                message = "We could not find any accounts from the email {}. Please contact your administrator.".format(account_email)
+                matching_attendee = session.query(Attendee).filter_by(
+                    is_valid=True, normalized_email=normalize_email_legacy(account_email)).first()
+                message = "We could not find any accounts from the email {}. "\
+                    "Please contact your administrator.".format(account_email)
 
                 try:
                     admin_account = session.get_admin_account_by_email(account_email)
@@ -72,7 +60,7 @@ class Root:
                                 access={section: '5' for section in c.ADMIN_PAGES}
                             )
                             session.add(all_access_group)
-                        
+
                         admin_account.access_groups.append(all_access_group)
                         session.commit()
                 if admin_account:
@@ -81,25 +69,26 @@ class Root:
                 try:
                     account = session.get_attendee_account_by_email(account_email)
                 except NoResultFound:
-                    all_matching_attendees = session.query(Attendee).filter_by(normalized_email=normalize_email_legacy(account_email)).all()
+                    all_matching_attendees = session.query(Attendee).filter_by(
+                        normalized_email=normalize_email_legacy(account_email)).all()
                     if all_matching_attendees:
                         account = session.create_attendee_account(account_email)
                         for attendee in all_matching_attendees:
                             session.add_attendee_to_account(attendee, account)
                     else:
                         message = "We could not find any registrations matching the email {}.".format(account_email)
-                
+
                 if account:
                     cherrypy.session['attendee_account_id'] = account.id
 
                 if not admin_account and not account:
                     raise HTTPRedirect("../landing/index?message={}", message)
-                
+
                 if admin_account:
                     attendee_to_update = admin_account.attendee
                 else:
                     attendee_to_update = matching_attendee
-                
+
                 if attendee_to_update:
                     saml_data = auth.get_attributes()
                     attendee_to_update.first_name = saml_data.get("firstName", [attendee_to_update.first_name])[0]
@@ -120,7 +109,7 @@ class Root:
                         if redirect_url and 'accounts' in redirect_url and not admin_account:
                             # Prevents a redirect loop if someone tries to log in as an admin with no admin account
                             redirect_url = None
-                
+
                 if not redirect_url:
                     if c.AT_THE_CON and admin_account:
                         redirect_url = "../accounts/homepage"

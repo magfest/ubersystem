@@ -100,9 +100,9 @@ class TestMerchAttrs:
         monkeypatch.setattr(c, 'SHIRTS_PER_STAFFER', 0)
         for marked, gets_shirt, expected in [
                 (False, False, False),
-                (False, True,  False),
-                (True,  False, True),
-                (True,  True,  True)]:
+                (False, True, False),
+                (True, False, True),
+                (True, True, True)]:
             monkeypatch.setattr(Attendee, 'shirt_size_marked', marked)
             monkeypatch.setattr(Attendee, 'gets_staff_shirt', gets_shirt)
             assert expected == Attendee(second_shirt=c.UNKNOWN).shirt_info_marked
@@ -110,14 +110,14 @@ class TestMerchAttrs:
     def test_shirt_info_marked_before_deadline(self, monkeypatch):
         monkeypatch.setattr(c, 'AFTER_SHIRT_DEADLINE', False)
         for marked, gets_shirt, second_shirt, expected in [
-                (False, False, c.UNKNOWN,          False),
+                (False, False, c.UNKNOWN, False),
                 (False, False, c.TWO_STAFF_SHIRTS, False),
-                (False, True,  c.UNKNOWN,          False),
-                (False, True,  c.TWO_STAFF_SHIRTS, False),
-                (True,  False, c.UNKNOWN,          True),
-                (True,  False, c.TWO_STAFF_SHIRTS, True),
-                (True,  True,  c.UNKNOWN,          False),
-                (True,  True,  c.TWO_STAFF_SHIRTS, True)]:
+                (False, True, c.UNKNOWN, False),
+                (False, True, c.TWO_STAFF_SHIRTS, False),
+                (True, False, c.UNKNOWN, True),
+                (True, False, c.TWO_STAFF_SHIRTS, True),
+                (True, True, c.UNKNOWN, False),
+                (True, True, c.TWO_STAFF_SHIRTS, True)]:
             monkeypatch.setattr(Attendee, 'shirt_size_marked', marked)
             monkeypatch.setattr(Attendee, 'gets_staff_shirt', gets_shirt)
             assert expected == Attendee(second_shirt=second_shirt).shirt_info_marked
@@ -125,14 +125,14 @@ class TestMerchAttrs:
     def test_shirt_info_marked_after_deadline(self, monkeypatch):
         monkeypatch.setattr(c, 'AFTER_SHIRT_DEADLINE', True)
         for marked, gets_shirt, second_shirt, expected in [
-                (False, False, c.UNKNOWN,          False),
+                (False, False, c.UNKNOWN, False),
                 (False, False, c.TWO_STAFF_SHIRTS, False),
-                (False, True,  c.UNKNOWN,          False),
-                (False, True,  c.TWO_STAFF_SHIRTS, False),
-                (True,  False, c.UNKNOWN,          True),
-                (True,  False, c.TWO_STAFF_SHIRTS, True),
-                (True,  True,  c.UNKNOWN,          True),
-                (True,  True,  c.TWO_STAFF_SHIRTS, True)]:
+                (False, True, c.UNKNOWN, False),
+                (False, True, c.TWO_STAFF_SHIRTS, False),
+                (True, False, c.UNKNOWN, True),
+                (True, False, c.TWO_STAFF_SHIRTS, True),
+                (True, True, c.UNKNOWN, True),
+                (True, True, c.TWO_STAFF_SHIRTS, True)]:
             monkeypatch.setattr(Attendee, 'shirt_size_marked', marked)
             monkeypatch.setattr(Attendee, 'gets_staff_shirt', gets_shirt)
             assert expected == Attendee(second_shirt=second_shirt).shirt_info_marked

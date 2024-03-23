@@ -5,7 +5,8 @@
   <div id="group-type-opts" style="display:none;">
     {{ options(c.GROUP_TYPE_OPTS) }}
   </div>
-<div class="card card-body">
+<div class="card">
+  <div class="card-body">
   <h1>
   <a class="btn btn-primary" href="form">Add a Group</a>
   {% if c.HAS_DEALER_ADMIN_ACCESS %}<a class="btn btn-success" href="form?id=None&new_dealer=true">Add a {{ c.DEALER_TERM|title }}</a>{% endif %}
@@ -91,6 +92,7 @@
   {% if c.HAS_DEALER_ADMIN_ACCESS %}
   <div role="tabpanel" class="tab-pane" id="dealers" aria-labelledby="dealers-tab">{% include '/group_admin/dealers.html' %}</div>
   {% endif %}
+  </div>
   </div>
   </div>
 </div>

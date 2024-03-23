@@ -1,0 +1,67 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title_text = "Attendees With Non-Zero Balances" %}
+{% block content %}
+{% include 'discrepancy_reports_header.html' with context %}
+<div class="card">
+    <div class="card-body">
+        <p>
+            This page only shows attendees whose receipt matches their default cost.
+            Please see the "Attendees with Receipt Discrepancies" page to view attendees who may owe money but whose default cost does not match their receipt.
+        </p>
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Badge Status</th>
+            <th>Attendee</th>
+            <th>Email</th>
+            <th>Badge Type</th>
+            <th>Amount Owed</th>
+            <th>Paid</th>
+            <th>Refunded</th>
+            <th>Total</th>
+            <th>Difference</th>
+            {% if c.HAS_REG_ADMIN_ACCESS %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for attendee, active_receipt in attendees %}
+        <tr id="{{ attendee.id }}">
+            <td>
+                {{ attendee.badge_status_label }}
+            </td>
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee|form_link("true") }}
+            </td>
+            <td>
+                {{ attendee.email }}
+            </td>
+            <td>
+                {{ attendee.badge_type_label }}
+            </td>
+            <td>
+                {{ (active_receipt.item_total / 100)|format_currency }}
+            </td>
+            <td>
+                {{ (active_receipt.payment_total / 100)|format_currency }}
+            </td>
+            <td>
+                {{ (active_receipt.refund_total / 100)|format_currency }}
+            </td>
+            <td>
+                {{ (active_receipt.txn_total / 100)|format_currency }}
+            </td>
+            <td>
+                {{ (active_receipt.current_receipt_amount / 100)|format_currency }}
+            </td>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+            <td>
+                <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">View Receipt Items</a>
+            </td>
+            {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

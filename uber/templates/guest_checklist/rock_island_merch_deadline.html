@@ -1,22 +1,15 @@
 {% extends "guest_checklist/merch_deadline.html" %}
 
-{% block deadline_headline %}Rock Island Inventory{% endblock %}
+{%- set HAS_ROCK_ISLAND = c.ROCK_ISLAND in c.GUEST_MERCHS and guest.group_type in c.ROCK_ISLAND_GROUPS -%}
+
+
 {% block deadline_text %}
 {% if guest.merch_status %}
     You have submitted information for Rock Island, but you can edit it using the link above.
 {% else %}
-    Fill out your information for Rock Island!
+    Please let us know by the above deadline whether you want to utilize our "Rock Island" merch selling service.
+    Once opted in, you will have until <strong>{{ c.ROCK_ISLAND_DEADLINE|datetime_local }}</strong> to input your inventory.
 {% endif %}
-{% endblock %}
-{% block deadline_extra %}{% endblock %}
-
-{% block form_header %}
-{{ super() }}
-<script type="text/javascript">
-    $(function () {
-        $.field('selling_merch').val('{{ c.ROCK_ISLAND }}').parents('.form-group').hide();
-    });
-</script>
 {% endblock %}
 
 {% block form_desc %}
@@ -26,4 +19,32 @@
       Click here for more info about our Rock Island service!
     </a>
 </p>
+{% endblock %}
+
+{% block form_extra %}
+{{ super() }}
+
+  <div class="form-group" id="confirm-ri-faq">
+    <div class="col-sm-9 col-sm-offset-3 checkbox">
+      {{ macros.toggle_checkbox(
+          '#save-merch-button',
+          'I acknowledge that I have read & understood the <a href="../static/RockIsland.pdf">Rock Island FAQ</a>, including the hours and policies.'|safe,
+          suffix='_agreed_ri_faq',
+          mode='#save-merch-button',
+          hide_on_checked=False,
+          checked=agreed_to_ri_faq) }}
+    </div>
+  </div>
+
+<script type="text/javascript">
+    var showOrRIFaq = function() {
+      setVisible('#confirm-ri-faq', $.val('selling_merch') === {{ c.ROCK_ISLAND }});
+      $('#save-merch-button').prop('disabled', $.val('selling_merch') === {{ c.ROCK_ISLAND }} && !$('#toggle_visibility_agreed_ri_faq').prop('checked'));
+    };
+    $(function () {
+      $("[name='selling_merch'] option[value='{{ c.OWN_TABLE }}']").remove();
+      showOrRIFaq();
+      $.field('selling_merch').on('change', showOrRIFaq);
+    });
+</script>
 {% endblock %}

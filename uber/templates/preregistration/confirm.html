@@ -30,10 +30,6 @@
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
 
-    {% if c.ART_SHOW_ENABLED and c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
-      {% include 'art_show_common/art_show_agent.html' %}
-    {% endif %}
-
       {% if not attendee.is_valid %}
       <div class="alert alert-danger" role="alert">
         Your registration is currently marked as <strong>{{ attendee.badge_status_label }}</strong>
@@ -95,6 +91,10 @@
         {% endif %}
       {% endif %}
 
+    {% if c.ART_SHOW_ENABLED and c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
+      {% include 'art_show_common/art_show_agent.html' %}
+    {% endif %}
+
       {% if receipt %}
         {% include 'forms/receipt_modal.html' %}
         {% if not incomplete_txn %}
@@ -110,8 +110,10 @@
         <input type="hidden" name="return_to" value="{{ return_to }}" />
         <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
 
+      {% include "forms/attendee/badge_flags.html" %}
       {% include "forms/attendee/badge_extras.html" %}
       {% include "forms/attendee/personal_info.html" %}
+      {% include "forms/attendee/staffing_info.html" %}
       {% include "forms/attendee/other_info.html" %}
       {% include "forms/attendee/consents.html" %}
 

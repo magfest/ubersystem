@@ -10,14 +10,12 @@ from jinja2.utils import open_if_exists
 from jinja2.exceptions import TemplateNotFound, TemplatesNotFound
 from sideboard.lib import request_cached_property
 
-from pockets.autolog import log
-
 from uber.config import c
 
 # This used to be in jinja2._compat, but that was removed in version 3.0.0
 string_types = (str,)
 if sys.version_info[0] == 2:
-    string_types = (str,unicode)
+    string_types = (str, unicode)  # noqa: F821
 
 
 class MultiPathEnvironment(jinja2.Environment):
@@ -70,11 +68,10 @@ class MultiPathEnvironment(jinja2.Environment):
         if self.cache is not None:
             template = self.cache.get(cache_key)
             if template and (not self.auto_reload or template.is_up_to_date):
-                
+
                 return template
 
         template = self.loader.load(self, filename, globals)
-        
 
         if self.cache is not None:
             self.cache[cache_key] = template
@@ -182,7 +179,7 @@ class JinjaEnv:
 
     @classmethod
     def clear_cache(cls):
-        if not cls._env is None:
+        if cls._env is not None:
             cls._env._get_matching_filenames.cache_clear()
 
     @classmethod

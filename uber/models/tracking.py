@@ -11,46 +11,79 @@ from sqlalchemy.ext import associationproxy
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sideboard.lib import serializer
+from sqlalchemy import Sequence
+from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.admin import AdminAccount
 from uber.models.email import Email
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
 
-__all__ = ['PageViewTracking', 'Tracking']
+__all__ = ['PageViewTracking', 'ReportTracking', 'Tracking', 'TxnRequestTracking']
 
 serializer.register(associationproxy._AssociationList, list)
+
+
+class ReportTracking(MagModel):
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    who = Column(UnicodeText)
+    page = Column(UnicodeText)
+    params = Column(MutableDict.as_mutable(JSONB), default={})
+
+    @classmethod
+    def track_report(cls, params):
+        from uber.models import Session
+        with Session() as session:
+            session.add(ReportTracking(who=AdminAccount.admin_name(),
+                                       page=c.PAGE_PATH,
+                                       params={key: val for key, val in params.items()
+                                               if key not in ['self', 'out', 'session']}))
+            session.commit()
 
 
 class PageViewTracking(MagModel):
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
     page = Column(UnicodeText)
-    what = Column(UnicodeText)
+    which = Column(UnicodeText)
 
     @classmethod
     def track_pageview(cls):
         url, query = cherrypy.request.path_info, cherrypy.request.query_string
         # Track any views of the budget pages
         if "budget" in url:
-            what = "Budget page"
+            which = "Budget page"
         else:
-            # Only log the page view if there's a valid attendee ID
+            # Only log the page view if there's a valid model ID
             params = dict(parse_qsl(query))
             if 'id' not in params or params['id'] == 'None':
                 return
 
-            # Looking at an attendee's details
-            if "registration" in url or "attendee" in url:
-                what = "Attendee id={}".format(params['id'])
-            # Looking at a group's details
-            elif "dealer_admin" in url or "group" in url:
-                what = "Group id={}".format(params['id'])
-
         from uber.models import Session
         with Session() as session:
-            session.add(PageViewTracking(who=AdminAccount.admin_name(), page=c.PAGE_PATH, what=what))
+            # Get instance repr
+            model = None
+            id = params.get('id')
+            try:
+                model = session.attendee(id)
+            except NoResultFound:
+                try:
+                    model = session.group(id)
+                except NoResultFound:
+                    try:
+                        model = session.art_show_application(id)
+                    except NoResultFound:
+                        pass
+            if model:
+                which = repr(model)
+
+            session.add(PageViewTracking(who=AdminAccount.admin_name(), page=c.PAGE_PATH, which=which))
+            session.commit()
 
 
 class Tracking(MagModel):
@@ -133,6 +166,25 @@ class Tracking(MagModel):
         return diff
 
     @classmethod
+    def track_collection_change(cls, action, target, instance):
+        from uber.models import Session
+        if sys.argv == ['']:
+            who = 'server admin'
+        else:
+            who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+
+        with Session() as session:
+            session.add(Tracking(
+                model=target.__class__.__name__,
+                fk_id=target.id,
+                which=repr(target),
+                who=who,
+                page=c.PAGE_PATH,
+                action=action,
+                data=repr(instance),
+            ))
+
+    @classmethod
     def track(cls, action, instance):
         from uber.models import AutomatedEmail
 
@@ -146,8 +198,8 @@ class Tracking(MagModel):
             data = cls.format(diff)
             if len(diff) == 1 and 'badge_num' in diff and c.SHIFT_CUSTOM_BADGES:
                 action = c.AUTO_BADGE_SHIFT
-            if isinstance(instance, AutomatedEmail) and not diff.keys().isdisjoint(("currently_sending", 
-                                                                                    "last_send_time", 
+            if isinstance(instance, AutomatedEmail) and not diff.keys().isdisjoint(("currently_sending",
+                                                                                    "last_send_time",
                                                                                     "unapproved_count")):
                 return
             elif not data:
@@ -158,14 +210,14 @@ class Tracking(MagModel):
         links = ', '.join(
             '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
             for name, column in instance.__table__.columns.items() if column.foreign_keys
-                                                                   and 'creator' not in str(column)
-                                                                   and getattr(instance, name))
+            and 'creator' not in str(column)
+            and getattr(instance, name))
 
         if sys.argv == ['']:
             who = 'server admin'
         else:
             who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
-            
+
         try:
             snapshot = json.dumps(instance.to_dict(), cls=serializer)
         except TypeError as e:
@@ -191,4 +243,24 @@ class Tracking(MagModel):
                 _insert(session)
 
 
-Tracking.UNTRACKED = [Tracking, Email, PageViewTracking]
+class TxnRequestTracking(MagModel):
+    incr_id_seq = Sequence('txn_request_tracking_incr_id_seq')
+    incr_id = Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True)
+    workstation_num = Column(Integer, default=0)
+    terminal_id = Column(UnicodeText)
+    who = Column(UnicodeText)
+    requested = Column(UTCDateTime, server_default=utcnow())
+    resolved = Column(UTCDateTime, nullable=True)
+    success = Column(Boolean, default=False)
+    response = Column(MutableDict.as_mutable(JSONB), default={})
+    internal_error = Column(UnicodeText)
+
+    @presave_adjustment
+    def log_internal_error(self):
+        if self.internal_error and not self.orig_value_of('internal_error'):
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
+                               'last_error',
+                               self.internal_error)
+
+
+Tracking.UNTRACKED = [Tracking, Email, PageViewTracking, ReportTracking, TxnRequestTracking]

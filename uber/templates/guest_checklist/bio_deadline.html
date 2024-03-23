@@ -95,6 +95,15 @@
       </div>
     </div>
 
+    {% if guest.group_type == c.BAND %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Spotify</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="spotify" value="{{ guest_bio.spotify }}" />
+      </div>
+    </div>
+    {% endif %}
+
     <div class="form-group">
       <label class="col-sm-3 control-label optional-field">Other Social Media</label>
       <div class="col-sm-6">

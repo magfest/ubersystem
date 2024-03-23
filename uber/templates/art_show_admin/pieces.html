@@ -11,5 +11,5 @@ app, c.PAGE_PATH,
 "index", "Return to App List", True
 ) }}
 <h2>Art Show Pieces{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</h2>
-{% include 'art_show_common/art_pieces_form.html' %}
+<div class="card"><div class="card-body">{% include 'art_show_common/art_pieces_form.html' %}</div></div>
 {% endblock %}

@@ -1,19 +1,15 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy.schema import ForeignKey, UniqueConstraint
+from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean
 
-from uber.config import c
-from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, DefaultColumn as Column
-from uber.utils import localized_now, normalize_phone
 
 
-__all__ = [
-    'TabletopGame', 'TabletopCheckout']
+__all__ = ['TabletopGame', 'TabletopCheckout']
 
 
 class TabletopGame(MagModel):

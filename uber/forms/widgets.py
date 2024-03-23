@@ -2,6 +2,7 @@ from markupsafe import escape, Markup
 from wtforms.widgets import NumberInput, html_params, CheckboxInput, Select
 from uber.config import c
 
+
 class MultiCheckbox():
     """
     Renders a MultiSelect field as a set of checkboxes, e.g., "What interests you?"
@@ -10,10 +11,10 @@ class MultiCheckbox():
         kwargs.setdefault('type', 'checkbox')
         field_id = kwargs.pop('id', field.id)
         html = ['<div {}>'.format(html_params(class_=div_class))]
-        html.append('<fieldset {}>'.format(html_params(id=field_id)))
-        html.append('<legend class="form-text mt-0"><span class="form-label">{}</span>{}</legend>'.format(field.label.text,
-                                                                          Markup(' <span class="required-indicator text-danger">*</span>')
-                                                                          if field.flags.required else ''))
+        html.append(f'<fieldset {html_params(id=field_id)}>')
+        html.append(f'<legend class="form-text mt-0"><span class="form-label">{field.label.text}</span>'
+                    '{}</legend>'.format(Markup(' <span class="required-indicator text-danger">*</span>')
+                                         if field.flags.required else ''))
         for value, label, checked in field.iter_choices():
             choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
@@ -32,16 +33,18 @@ class MultiCheckbox():
 class IntSelect():
     """
     Renders an Integer or Decimal field as a select dropdown, e.g., the "badges" dropdown for groups.
-    The list of choices can be provided on int or during render and should be a list of (value, label) tuples.
+    The list of choices can be provided on init or during render and should be a list of (value, label) tuples.
     Note that choices must include a null/zero option if you want one.
     """
     def __init__(self, choices=None, **kwargs):
         self.choices = choices
 
-    def __call__(self, field, choices, **kwargs):
-        choices = choices or self.choices
+    def __call__(self, field, choices=None, **kwargs):
+        choices = choices or self.choices or [('', "ERROR: No choices provided")]
         field_id = kwargs.pop('id', field.id)
         options = dict(kwargs, id=field_id, name=field.name)
+        if 'readonly' in options:
+            options['disabled'] = True
         html = ['<select class="form-select" {}>'.format(html_params(**options))]
         for value, label in choices:
             choice_id = '{}-{}'.format(field_id, value)

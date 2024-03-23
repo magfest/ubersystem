@@ -1,7 +1,6 @@
 from uber.config import c
 from uber.decorators import all_renderable, multifile_zipfile, xlsx_file, _set_response_filename
 from uber.models import Event, Session
-from uber.reports import PersonalizedBadgeReport, PrintedBadgeReport
 from uber.utils import filename_safe, localized_now
 
 
@@ -58,4 +57,4 @@ class Root:
 
             for filename, file in zip(filenames, files):
                 if filename:
-                    zip_file.write(getattr(file, 'filepath', file.pic_fpath), filename)
+                    zip_file.write(getattr(file, 'filepath', getattr(file, 'pic_fpath', None)), filename)

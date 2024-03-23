@@ -1,5 +1,4 @@
 {% extends "./preregistration/preregbase.html" %}
-{% import "forms/group.html" as group_fields with context %}
 {% import "forms/account.html" as account_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set title_text = "Dealer Registration Step 1 of 4: Table Info" %}
@@ -17,6 +16,7 @@
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
 {{ csrf_token() }}
+<input type="hidden" name="is_prereg" value="True" />
 
 <h2 class="h3 text-center mt-3">{{ c.DEALER_APP_TERM|title }} Info</h2>
 

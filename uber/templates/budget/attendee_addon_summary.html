@@ -10,9 +10,7 @@
   </tr>
   <tr>
     <td><strong>Paid Add-ons</strong></td>
-    <td colspan="5">{{ paid_preordered_merch_total + paid_extra_donations_total }}
-      {% if not_unpaid_preordered_merch %} (plus {{ not_unpaid_preordered_merch }} merch packages that are neither comped nor unpaid){% endif %}
-      {% if not_unpaid_extra_donations %} (plus {{ not_unpaid_extra_donations }} extra donations that are neither comped nor unpaid){% endif %}</td>
+    <td colspan="5">{{ paid_preordered_merch_total + paid_extra_donations_total }}</td>
     <td></td>
     <td>{{ (paid_preordered_merch_sum + paid_extra_donations_sum)|format_currency }}</td>
   </tr>

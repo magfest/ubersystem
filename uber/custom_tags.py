@@ -16,7 +16,6 @@ import re
 import sys
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
-from uuid import uuid4
 
 import cherrypy
 import jinja2
@@ -25,7 +24,6 @@ from dateutil.relativedelta import relativedelta
 from markupsafe import Markup
 from phonenumbers import PhoneNumberFormat
 from pockets import fieldify, unfieldify, listify, readable_join
-from pockets.autolog import log
 from sideboard.lib import serializer
 
 from uber.config import c
@@ -36,7 +34,8 @@ from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now,
 # This used to be available as markupsafe.text_type, but that was removed in version 1.1.0
 text_type = str
 if sys.version_info[0] == 2:
-    text_type = unicode
+    text_type = unicode  # noqa: F821
+
 
 def safe_string(text):
     if isinstance(text, Markup):
@@ -96,9 +95,11 @@ def timedelta_filter(dt, *args, **kwargs):
 def full_datetime_local(dt):
     return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
+
 @JinjaEnv.jinja_filter
 def full_date_local(dt):
     return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y')
+
 
 @JinjaEnv.jinja_export
 def now():
@@ -130,6 +131,20 @@ def hour_day_local(dt):
 def timestamp(dt):
     from time import mktime
     return '' if not dt else str(int(mktime(dt.timetuple())))
+
+
+@JinjaEnv.jinja_filter
+def timestamp_to_dt(timestamp):
+    from datetime import datetime
+    return '' if not timestamp else datetime.fromtimestamp(int(float(timestamp)))
+
+
+@JinjaEnv.jinja_filter
+def tpn_to_terminal_id(tpn):
+    reverse_lookup = {v: k for k, v in c.TERMINAL_ID_TABLE.items()}
+    if tpn in reverse_lookup:
+        return (reverse_lookup[tpn][:3] + "-" + reverse_lookup[tpn][3:]).upper()
+    return tpn + " (ID not found)"
 
 
 @JinjaEnv.jinja_filter
@@ -198,7 +213,7 @@ def icon_yesno(value, icon=None, color=None):
 def format_phone(val, country='US'):
     if not val:
         return
-        
+
     try:
         return phonenumbers.format_number(
                             phonenumbers.parse(val, country),
@@ -258,10 +273,11 @@ def email_to_link(email=None):
 
 @JinjaEnv.jinja_filter
 def popup_link(href, text='<sup>?</sup>', extra_classes=''):
-    return safe_string("<a onClick='window.open(&quot;{href}&quot;, &quot;info&quot;, " \
-        "&quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus();" \
-        "return false;' {classes}href='{href}'>{text}</a>".format(href=href, text=text,
-                                                                  classes=f'class="{extra_classes}" ' if extra_classes else ''))
+    return safe_string("<a onClick='window.open(&quot;{href}&quot;, &quot;info&quot;, "
+                       "&quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus();"
+                       "return false;' {classes}href='{href}'>{text}</a>".format(href=href, text=text,
+                                                                                 classes=f'class="{extra_classes}" '
+                                                                                 if extra_classes else ''))
 
 
 @JinjaEnv.jinja_filter
@@ -332,9 +348,9 @@ def form_link(model, new_window=False):
         return ''
 
     from uber.models import Attendee, AttendeeAccount, Attraction, Department, Group, Job, PanelApplication
-    
+
     page = 'form'
-        
+
     if c.HAS_REGISTRATION_ACCESS:
         attendee_section = '../registration/'
     else:
@@ -359,9 +375,9 @@ def form_link(model, new_window=False):
 
     if site_section or cls == Attendee and page == '#attendee_form':
         return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(
-                                                           site_section, 
-                                                           page, 
-                                                           model.id, 
+                                                           site_section,
+                                                           page,
+                                                           model.id,
                                                            ' target="_blank"' if new_window else '',
                                                            jinja2.escape(name)))
     return name
@@ -428,7 +444,7 @@ def maybe_red(amount, comp):
 
 @JinjaEnv.jinja_filter
 def maybe_last_year(day):
-    return 'last year' if day <= c.STAFFERS_IMPORTED else day
+    return 'last year' if day <= min(c.PREREG_OPEN, c.DEALER_REG_START) else day
 
 
 @JinjaEnv.jinja_filter
@@ -543,7 +559,7 @@ def options(options, default='""'):
             val = val.strftime(c.TIMESTAMP_FORMAT)
         else:
             selected = 'selected="selected"' if str(val) == str(default) else ''
-        val = html.escape(str(val), quote=False).replace('"',  '&quot;').replace('\n', '')
+        val = html.escape(str(val), quote=False).replace('"', '&quot;').replace('\n', '')
         desc = html.escape(str(desc), quote=False).replace('"', '&quot;').replace('\n', '')
         results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
     return safe_string('\n'.join(results))
@@ -711,8 +727,8 @@ def csrf_token():
 
 
 @JinjaEnv.jinja_export
-def stripe_form(action, model=None, **params):
-    new_params = {'params': {}}
+def stripe_form(action, model=None, text="Pay with Card", **params):
+    new_params = {'params': {}, 'text': text}
     for key, val in params.items():
         new_params['params'][key] = val
     new_params['action'] = action

@@ -2,9 +2,18 @@
 {% block title %}Recent Changes{% endblock %}
 {% block content %}
 
-<h2>Feed of Database Actions</h2>
+<h2>Feed of Database Actions 
+  <div class="btn-group" role="group">
+  <a href="feed?tracking_type=action" class="btn btn-{{ 'outline-' if tracking_type and tracking_type != 'action' }}primary">Actions</a>
+  <a href="feed?tracking_type=pageview" class="btn btn-{{ 'outline-' if tracking_type != 'pageview' }}primary">Page Views</a>
+  <a href="feed?tracking_type=report" class="btn btn-{{ 'outline-' if tracking_type != 'report' }}primary">Reports</a>
+</div>
+</h2>
+
+<br/>
 
 <form method="get" action="feed" style="text-align:center">
+  <input type="hidden" name="tracking_type" value="{{ tracking_type }}" />
     Search by who did it:
     <select name="who" onChange="$(this).parents('form').submit()">
         <option value="">{% if who %}Show all{% else %}Choose an admin{% endif %}</option>
@@ -15,6 +24,7 @@
     <i>and/or</i>
     &nbsp;&nbsp;&nbsp;&nbsp;
 
+    {% if tracking_type == 'action' %}
     Search by action:
     <select name="action" onChange="$(this).parents('form').submit()">
         <option value="">{% if action %}Show all{% else %}Choose an action{% endif %}</option>
@@ -24,6 +34,7 @@
     &nbsp;&nbsp;&nbsp;&nbsp;
     <i>and/or</i>
     &nbsp;&nbsp;&nbsp;&nbsp;
+    {% endif %}
 
     Search by keyword:
     <input class="focus" type="text" name="what" value="{{ what }}" />
@@ -33,22 +44,34 @@
 
 {{ pages(page,count) }}
 
-<table class="table-striped table-bordered table-condensed">
+<table class="table table-striped table-bordered table-sm">
 <thead><tr>
     <th>When</th>
     <th>Who</th>
-    <th>Table</th>
-    <th>Which</th>
+    <th>Page</th>
+    <th>{{ "Params" if tracking_type == 'report' else "Which" }}</th>
+    {% if tracking_type == 'action' %}
     <th>Action</th>
     <th>Changes</th>
+    {% endif %}
 </tr></thead>
 {% for tracked in feed %}
     <tr>
-        <td valign="top" style="white-space:nowrap; width:10%">{{ tracked.when|full_datetime_local }}</td>
-        <td valign="top" style="white-space:nowrap; width:5%">{{ tracked.who }}</td>
-        <td valign="top" style="white-space:nowrap; width:5%">{{ tracked.model }}</td>
-        <td valign="top" style="width:25%">{{ tracked.which }}</td>
-        <td valign="top" style="white-space:nowrap; width:10%">
+        <td class="text-nowrap">{{ tracked.when|full_datetime_local }}</td>
+        <td class="text-nowrap">{{ tracked.who }}</td>
+        <td>{{ tracked.page }}</td>
+        <td>
+          {% if tracking_type == 'report' %}
+            {% for key, val in tracked.params.items() %}
+            {{ key }}: {{ val }}
+            {% if not loop.first and not loop.last %}, {% endif %}
+            {% endfor %}
+          {% else %}
+            {{ tracked.which or 'N/A' }}
+          {% endif %}
+        </td>
+        {% if tracking_type == 'action' %}
+        <td style="white-space:nowrap; width:10%">
           {{ tracked.action_label }}
           {% if tracked.action == c.DELETED %}
             <form method="post" action="undo_delete" style="display: inline">
@@ -62,7 +85,8 @@
             </form>
           {% endif %}
         </td>
-        <td valign="top">{{ tracked.data }}</td>
+        <td>{{ tracked.data }}</td>
+        {% endif %}
     </tr>
 {% endfor %}
 

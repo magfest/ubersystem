@@ -3,7 +3,7 @@ import cherrypy
 from uber.config import c
 from uber.decorators import ajax, all_renderable, log_pageview
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, WatchList
+from uber.models import WatchList
 from uber.utils import check
 
 
@@ -51,17 +51,18 @@ class Root:
                         if attendee.badge_status == c.WATCHED_STATUS:
                             attendee.badge_status = c.NEW_STATUS
                             changed_attendees -= 1
+                new_status = c.BADGE_STATUS[c.WATCHED_STATUS] if changed_attendees > 0 else c.BADGE_STATUS[c.NEW_STATUS]
                 changed_message = "" if not changed_attendees else \
                                   " and {} attendee{} moved to {} status".format(abs(changed_attendees),
-                                                                                's' if changed_attendees else '',
-                                                                                c.BADGE_STATUS[c.WATCHED_STATUS] if changed_attendees > 0 else c.BADGE_STATUS[c.NEW_STATUS])
+                                                                                 's' if changed_attendees else '',
+                                                                                 new_status)
 
                 if 'id' not in params:
                     message = 'New watchlist entry added'
                 else:
                     message = 'Watchlist entry updated'
                 raise HTTPRedirect('index?message={}{}', message, changed_message)
-                
+
         return {
             'entry': entry,
             'message': message
@@ -72,16 +73,16 @@ class Root:
         attendee = session.attendee(attendee_id, allow_invalid=True)
         if 'ignore' in params:
             attendee.badge_status = c.COMPLETED_STATUS
-            message = 'Attendee can now check in'
+            message = 'Attendee can now check in.'
         elif watchlist_id:
             watchlist_entry = session.watch_list(watchlist_id)
 
             if 'active' in params:
                 watchlist_entry.active = not watchlist_entry.active
-                message = 'Watchlist entry updated'
+                message = 'Watchlist entry updated.'
             if 'confirm' in params:
                 attendee.watchlist_id = watchlist_id
-                message = 'Watchlist entry permanently matched to attendee'
+                message = 'Watchlist entry permanently matched to attendee.'
 
         session.commit()
 

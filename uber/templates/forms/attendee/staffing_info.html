@@ -1,0 +1,35 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set staffing_info = staffing_info or forms['staffing_info'] %}
+
+{# BLOCK NAMES in this form:
+    staffing
+    merch_info (admin-only, only shown if c.SEPARATE_STAFF_MERCH is true)
+    checklist_info (admin-only)
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block staffing %}
+{% set staffing_message = "" %}
+{% if not admin_area %}
+    {% if attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] %}
+    {% set staffing_message = "This checkbox is required for Contractors, Volunteers, and Staff. Please contact Staffing Operations if you wish to change your status." %}
+    {% elif attendee.shifts %}
+    {% set staffing_message = "Please " ~ 'see Staffing Operations to change your volunteer status.' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status.' %}
+    {% endif %}
+{% endif %}
+<div class="row g-sm-3">
+    <div class="col-12">{{ form_macros.toggle_checkbox(staffing_info.staffing, 
+        [staffing_info.requested_depts_ids], toggle_required=True, help_text=staffing_message) }}</div>
+</div>
+
+{% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
+<div class="row g-sm-3">
+    <div class="col-12">{{ form_macros.form_input(staffing_info.requested_depts_ids) }}</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block merch_info %}{% endblock %}
+{% block checklist_info %}{% endblock %}

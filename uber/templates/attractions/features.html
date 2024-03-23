@@ -30,7 +30,7 @@
       {% endif %}
       <h1 class="text-center">{{ attraction.name }}</h1>
       <p class="text-center">
-        {{ attraction.description|linebreaksbr }}
+        {{ attraction.full_description|default(attraction.description)|linebreaksbr }}
       </p>
       <hr>
       <div id="features">

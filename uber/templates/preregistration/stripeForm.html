@@ -45,7 +45,7 @@
     {% set stripe_loaded = true %}
 {% endif %}
 <button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
-<span class="display: block; min-height: 30px;">Pay with Card</span>
+<span class="display: block; min-height: 30px;">{{ text }}</span>
 </button>
 {% if not stripeModal %}
 <div id="stripeModal" class="modal" style="color:black;" tabindex="-1" role="dialog" data-bs-backdrop="static">
@@ -55,12 +55,12 @@
         <div class="modal-body text-start jumbotron">
         <div class="alert alert-dismissible" role="alert" id="cc-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('cc-message-alert')" aria-label="Close"></button></div>
         <div class="modal-title h4 text-muted">Payment to {{ c.ORGANIZATION_NAME }}</div>
-        <div class="row g-3">
+        <div class="row g-sm-3">
             <div class="col-12">
                 <div class="form-text">Payment amount</div><div class="h4" id="paymentAmount"></div>
             </div>
         </div>
-        <div class="row g-3">
+        <div class="row g-sm-3">
             <div class="col-12">
                 <div class="form-text">Payment description</div><div class="h5" id="chargeDesc"></div>
             </div>
@@ -80,7 +80,7 @@
             <div id="card-errors" role="alert"></div>
         </div>
         <div style="margin-top:10px;"><button class="btn btn-success">Submit Payment</button>
-        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
         </form>
         </div>
     </div>
@@ -163,13 +163,15 @@ var loadJS = function(src, callback) {
 }
 
 {% if c.AUTHORIZENET_LOGIN_ID %}
-let authnet_ref_id = '';
-let authnet_amount = 0;
-let authnet_email = '';
-let authnet_desc = '';
-let authnet_customer_id = '';
-let authnet_success_url = '';
-let authnet_cancel_url = '';
+if (typeof authnet_ref_id == 'undefined') {
+    let authnet_ref_id = '';
+    let authnet_amount = 0;
+    let authnet_email = '';
+    let authnet_desc = '';
+    let authnet_customer_id = '';
+    let authnet_success_url = '';
+    let authnet_cancel_url = '';
+    let authnet_loaded = false;
 
 var collectAuthNetPayment = function (ref_id, email, desc, customer_id, success_url, cancel_url, amount) {
     authnet_ref_id = ref_id;
@@ -182,10 +184,14 @@ var collectAuthNetPayment = function (ref_id, email, desc, customer_id, success_
 
     $('#authNetPayButton').attr("data-acceptUIFormBtnTxt", "Pay $" + (amount / 100).toFixed(2));
 
-    loadJS("https://js{{ 'test' if 'test' in c.AUTHORIZENET_ENDPOINT else '' }}.authorize.net/v3/AcceptUI.js", function() {
+    if(authnet_loaded == false) {
+        loadJS("https://js{{ 'test' if 'test' in c.AUTHORIZENET_ENDPOINT else '' }}.authorize.net/v3/AcceptUI.js", function() {
+            $('#authNetPayButton').trigger("click");
+        });
+        authnet_loaded = true;
+    } else {
         $('#authNetPayButton').trigger("click");
     }
-    );
 }
 
 var handleAuthNetResponse = function (response) {
@@ -209,6 +215,8 @@ var handleAuthNetResponse = function (response) {
                 customer_id: authnet_customer_id,
                 token_desc: response.opaqueData.dataDescriptor,
                 token_val: response.opaqueData.dataValue,
+                first_name: response.customerInformation.firstName,
+                last_name: response.customerInformation.lastName,
                 csrf_token: csrf_token
             },
             function(result) {
@@ -221,6 +229,7 @@ var handleAuthNetResponse = function (response) {
             });
         }
     }
+}
 {% else %}
 var collectStripePayment = function (client_secret, stripe_id, success_url, cancel_url) {
     var stripeModal = bootstrap.Modal.getOrCreateInstance($('#stripeModal'));

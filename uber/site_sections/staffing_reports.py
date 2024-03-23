@@ -13,9 +13,9 @@ from uber.models import Attendee, Department
 def volunteer_checklists(session):
     attendees = session.query(Attendee) \
         .filter(
-            Attendee.staffing == True,
+            Attendee.staffing == True,  # noqa: E712
             Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
-        .order_by(Attendee.full_name, Attendee.id).all()  # noqa: E712
+        .order_by(Attendee.full_name, Attendee.id).all()
 
     checklist_items = OrderedDict()
     for item_template in c.VOLUNTEER_CHECKLIST:
@@ -114,7 +114,7 @@ class Root:
     @csv_file
     def volunteers_with_worked_hours(self, out, session):
         out.writerow(['Badge #', 'Full Name', 'Email Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
-        for a in session.query(Attendee).all():
+        for a in session.staffers():
             if a.worked_hours > 0:
                 out.writerow([a.badge_num, a.full_name, a.email, a.weighted_hours, a.worked_hours])
 
@@ -166,7 +166,8 @@ class Root:
         return {
             'attendees': [(
                 'Volunteers Owed Refunds',
-                [a for a in attendees if a.paid_for_badge and not a.has_been_refunded and a.worked_hours >= c.HOURS_FOR_REFUND]
+                [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
+                 and a.worked_hours >= c.HOURS_FOR_REFUND]
             ), (
                 'Volunteers Already Refunded',
                 [a for a in attendees if a.has_been_refunded]
@@ -195,7 +196,7 @@ class Root:
 
     def volunteer_checklists(self, session):
         return volunteer_checklists(session)
-    
+
     @csv_file
     def name_in_credits(self, out, session):
         out.writerow(["Name submitted for credits"])

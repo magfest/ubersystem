@@ -2,12 +2,12 @@
 
 Thank you for your game submission ({{ game.title }}) to the MAGFest Indie Videogame Showcase (MIVS).
 
-We regret to inform you that your game did not qualify for booth space at MIVS.
+We regret to inform you that your game did not qualify for booth space at MIVS this year.
 
-If you'd still like to show your game in the MIVS area at MAGFest, you still have the opportunity with "QuickPlay"!
+However, if you'd still like to show your game in the MIVS area at MAGFest, you still have the opportunity with "QuickPlay"!
 
-QuickPlay is an area at MIVS where tables are set aside for indies to show their game for a block of time.  As an indie, you'll be able to sign up for a 2 hour block of time, with possibly more blocks depending on availability.  We will provide a table, 2 chairs, and power.  You will need to provide your own equipment.  (WIFI/Network connections will not be available.)
+QuickPlay is an area within MIVS where booth spaces are set aside for indies to show their game for a block of time.  As an indie, you'll be able to sign up for a 2 hour block of time, with possibly more blocks depending on availability.  We will provide a 6' table, 4 chairs, and access to a power drop.  You will need to provide your own equipment.  (WIFI/Network connections will not be available.)
 
-Signups for Quickplay will not happen online, they will only be available on-site at MAGFest in the MIVS area and will require you to have purchased a MAGFest badge.  Signups will be on a first come first serve basis, so we recommend visiting the MIVS area at your first convenience after picking up your MAGFest badge.
+Signups for Quickplay will not happen online. They will only be available on-site at MAGFest in the MIVS area and will require you to have purchased a MAGFest badge.  Signups will be on a first come, first serve basis, so we recommend visiting the MIVS area at your earliest convenience after picking up your MAGFest badge.
 
 {{ c.MIVS_EMAIL_SIGNATURE }}

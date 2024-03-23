@@ -2,10 +2,11 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% set prereg_merch_available = c.FORMATTED_MERCH_TIERS and c.PREREG_DONATION_OPTS|length > 1 %}
 {% set badge_extras = badge_extras or forms['badge_extras'] %}
-{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
+{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form', '/preregistration/claim_badge'] -%}
 
 {# BLOCK NAMES in this form:
     badge_type
+    merch_info (admin-only)
     add_ons
     perk_info
     donation
@@ -35,6 +36,9 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endif %}
 {% endblock %}
 
+{% block merch_info %}
+{% endblock %}
+
 {% block add_ons %}
 {{ badge_extras.amount_extra(id=id_upgrade_prepend ~ "amount_extra") }}
 
@@ -51,19 +55,19 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     <div class="row g-sm-3">
         <div class="col-12 col-sm-6">
             <div class="form-text">{{ badge_extras.amount_extra.label.text }}</div>
-            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra') }}{% endif %}</div>
+            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
         </div>
     </div>
 {% endif %}
 {% endblock %}
 
 {% block perk_info %}
-{% if c.DONATIONS_ENABLED or attendee.gets_any_kind_of_shirt %}
+{% if (c.DONATIONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt or admin_area %}
 <div class="row g-sm-3">
     {% if attendee.gets_staff_shirt and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
         <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.staff_shirt, required=True) }}</div>
     {% endif %}
-    {% if c.DONATIONS_ENABLED or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS) %}
+    {% if (c.DONATIONS_ENABLED and (not receipt or upgrade_modal)) or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS) or admin_area %}
         <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.shirt) }}</div>
     {% endif %}
 </div>
@@ -73,9 +77,13 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block donation %}
 {% if c.COLLECT_EXTRA_DONATION %}
 <div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.extra_donation, id=id_upgrade_prepend ~ "extra_donation") }}</div>
+    <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(badge_extras.extra_donation, id=id_upgrade_prepend ~ "extra_donation") }}
+        {% if receipt and not upgrade_modal and not admin_area %}
+        {{ macros.upgrade_button('extra-donation', extra_classes="") }}
+        {% endif %}
+    </div>
 
-    {% if not admin_area %}
     <div class="col-12 col-sm-6">
         <div class="alert alert-warning" role="alert">
         <strong>This donation <em>is not a kick-in</em> and does not come with merchandise.</strong><br/>
@@ -83,12 +91,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
         Your employer may also have a charitable donation matching program. Contact us at {{ c.CONTACT_URL }} for details.
         </div>
     </div>
-    {% endif %}
-
-    {% if receipt and not upgrade_modal and not admin_area %}
-        <div class="form-text">&nbsp;</div>
-        <div class="col-12 col-sm-6">{{ macros.upgrade_button('extra-donation', extra_classes="") }}</div>
-    {% endif %}
 
     {% if c.EXTRA_DONATION_URL %}
     <div class="col-12 col-sm-6">If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXTRA_DONATION %} also{% endif %} do so at any time of year at <a href="{{ c.EXTRA_DONATION_URL }}" target="_blank">{{ c.EXTRA_DONATION_URL }}</a>!</div>

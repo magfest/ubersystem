@@ -1,0 +1,257 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title_text = "Workstation Management" %}
+
+{% block content %}
+<h2>Manage Workstations and Terminals</h2>
+<div class="card">
+    <div class="card-header">Workstation Assignments</div>
+    <div class="card-body">
+        <p>Workstation number ranges:
+            <ul>
+                <li>0-99: Special</li>
+                <li>100-199: Registration</li>
+                <li>200-299: Art Show</li>
+                <li>300-399: Operations</li>
+                <li>400-499: Dealers</li>
+                <li>900-999: Testing</li>
+            </ul>
+        </p>
+        <p><button class="btn btn-outline-primary" onClick="addWorkstationRow()">Add New Workstation</button></p>
+        <form action="manage_workstations" method="post">
+        <table class="table table-hover datatable" id="workstation-assignments">
+            <thead>
+                <tr>
+                    <th>Workstation #</th>
+                    <th>Terminal ID</th>
+                    <th>Printer ID</th>
+                    <th>Minor Printer ID</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for workstation in workstation_assignments %}
+                <tr>
+                    <td data-order="{{ workstation.reg_station_id }}" data-search="{{ workstation.reg_station_id }}">
+                        <input type="text" class="form-control" id="{{ workstation.id }}_reg_station_id" name="{{ workstation.id }}_reg_station_id" value="{{ workstation.reg_station_id }}" placeholder="Any number 1-1000" />
+                    </td>
+                    <td data-order="{{ workstation.terminal_id }}" data-search="{{ workstation.terminal_id }}">
+                        <input type="text" class="form-control" id="{{ workstation.id }}_terminal_id" name="{{ workstation.id }}_terminal_id" value="{{ workstation.terminal_id }}" placeholder="E.g., QD1-001" />
+                    </td>
+                    <td data-order="{{ workstation.printer_id }}" data-search="{{ workstation.printer_id }}">
+                        <input type="text" class="form-control" id="{{ workstation.id }}_printer_id" name="{{ workstation.id }}_printer_id" value="{{ workstation.printer_id }}" placeholder="E.g., printer_01" />
+                    </td>
+                    <td data-order="{{ workstation.minor_printer_id }}" data-search="{{ workstation.minor_printer_id }}">
+                        <input type="text" class="form-control" id="{{ workstation.id }}_minor_printer_id" name="{{ workstation.id }}_minor_printer_id" value="{{ workstation.minor_printer_id }}" placeholder="Leave blank to use only one printer." />
+                    </td>
+                    <td>
+                        <a href="#" class="btn btn-sm btn-danger" onClick="deleteWorkstation('{{ workstation.id }}', '{{ workstation.reg_station_id }}')"><i class="fa fa-remove"></i></a>
+                        <a href="#" class="btn btn-sm btn-primary" onClick="updateWorkstation('{{ workstation.id }}')"><i class="fa fa-check"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p><button class="btn btn-primary">Update All</button></p>
+        </form>
+    </div>
+</div>
+<table class="d-none">
+    <tr id="template_workstation_assignment">
+        <td data-order="0" data-search="0">
+            <input type="text" class="form-control" id="new_reg_station_id" name="new_reg_station_id" value="" placeholder="Any number 1-1000" />
+        </td>
+        <td data-order="0" data-search="0">
+            <input type="text" class="form-control" id="new_terminal_id" name="new_terminal_id" value="" placeholder="E.g., QD1-001" />
+        </td>
+        <td data-order="0" data-search="0">
+            <input type="text" class="form-control" id="new_printer_id" name="new_printer_id" value="" placeholder="E.g., printer_01" />
+        </td>
+        <td data-order="0" data-search="0">
+            <input type="text" class="form-control" id="new_minor_printer_id" name="new_minor_printer_id" value="" placeholder="Leave blank to use only one printer." />
+        </td>
+        <td></td>
+    </tr>
+</table>
+<script type="text/javascript">
+    let workstationTable = $('#workstation-assignments');
+    var addWorkstationRow = function() {
+        let newRow = $('<tr></tr>');
+        newRow.prependTo(workstationTable);
+        newRow.html($('#template_workstation_assignment').children().clone())
+    };
+    var deleteWorkstation = function(workstation_id, reg_station_id) {
+        bootbox.confirm({
+            backdrop: true,
+            title: 'Delete Workstation "' + reg_station_id + '"?',
+            message: 'Are you sure you want to delete this workstation assignment? This cannot be undone.',
+            buttons: {
+                confirm: { label: 'Delete', className: 'btn-danger' },
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+            },
+            callback: function (result) {
+                if (result) {
+                    window.location = "delete_workstation?id=" + workstation_id;
+                }
+            }
+        });
+    }
+    var updateWorkstation = function(workstation_id, reg_station_id) {
+        $.post("update_workstation",
+        {
+            csrf_token: csrf_token,
+            id: workstation_id,
+            reg_station_id: $('#' + workstation_id + '_reg_station_id').val(),
+            terminal_id: $('#' + workstation_id + '_terminal_id').val(),
+            printer_id: $('#' + workstation_id + '_printer_id').val(),
+            minor_printer_id: $('#' + workstation_id + '_minor_printer_id').val(),
+        }).done(function(json){
+            if (json && json.success) {
+                window.location = "manage_workstations?message=" + json.message;
+            } else {
+                showErrorMessage(json.message)
+            }
+        }).fail(function () {
+            showErrorMessage("Couldn't contact server!")
+        })
+    }
+</script>
+
+<br/><div class="card">
+    <div class="card-header">Terminal Closeout</div>
+    <div class="card-body">
+        <p>Enter a range of workstations to close out their terminals. Once a terminal is closed out, all of its transactions are settled. Any settled transaction that requires a refund must be done on the original card in person.</p>
+
+        <p>
+            <button class="btn btn-outline-primary" onClick="setTerminalRange(100, 199)">Registration</button>
+            <button class="btn btn-outline-primary" onClick="setTerminalRange(200, 299)">Art Show</button>
+            <button class="btn btn-outline-primary" onClick="setTerminalRange(300, 399)">Operations</button>
+            <button class="btn btn-outline-primary" onClick="setTerminalRange(400, 499)">Dealers</button>
+            <button class="btn btn-outline-primary" onClick="setTerminalRange(900, 999)">Testing</button>
+        </p>
+        
+        <form action="close_out_terminals" method="post">
+            <div class="row g-sm-3 row-cols-auto">
+            <div class="col">
+                <input type="text" class="form-control" id="workstation_ids" name="workstation_ids" placeholder="100-199, 1, 2" />
+            </div>
+            <div class="col"><button class="btn btn-warning">Close Out</button></div>
+            </div>
+        </form>
+
+        <script type="text/javascript">
+            var setTerminalRange = function(start, end) {
+                $('#workstation_ids').val(start + '-' + end);
+            }
+        </script>
+
+        {% if c.HAS_DEVTOOLS_ACCESS and c.SPIN_TERMINAL_AUTH_KEY %}
+        <br/>
+        <p>Use the form below to get any transaction's current status in JSON. Debug use only, obviously.</p>
+        <form method="post" action="../registration/check_txn_status">
+            {{ csrf_token() }}
+            <div class="row g-sm-3 row-cols-auto">
+                <div class="col"><input class="form-control" id="intent_id" name="intent_id" placeholder="RS23##" /></div>
+                <div class="col"><button type="submit" class="btn btn-primary">Check Transaction Status</button></div>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<br/><div class="card">
+    <div class="card-header">Closeout Reports</div>
+    <div class="card-body">
+        {% if settlements['in_progress'] %}
+        <div class="row">
+            <div class="col-12 col-sm-6">
+                The following closeouts are still pending:
+                <table class="table table-striped">
+                    <thead>
+                        <th>Request Time</th>
+                        <th>Admin</th>
+                        <th>Workstation #</th>
+                        <th>Terminal ID</th>
+                    </thead>
+                    <tbody>
+                        {% for timestamp, admin, workstation_num, terminal_id in settlements['in_progress'] %}
+                        <tr>
+                            <td>{{ timestamp|timestamp_to_dt|datetime_local }}</td>
+                            <td>{{ admin }}</td>
+                            <td>{{ workstation_num }}</td>
+                            <td>{{ terminal_id|tpn_to_terminal_id }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        {% if settlements['completed'] %}
+        <div class="row">
+            <div class="col-6">
+                <table class="table table-striped">
+                    <thead>
+                        <th>Request Time</th>
+                        <th>Admin</th>
+                        <th># Closeouts</th>
+                        <th># Errors</th>
+                    </thead>
+                    <tbody>
+                        {% for timestamp, count in settlements['completed'] %}
+                        <tr>
+                            <td>{{ timestamp|timestamp_to_dt|datetime_local }}</td>
+                            <td>{{ settlements['batch_info'][timestamp] }}</td>
+                            <td>{{ settlements['succeeded'][timestamp]|default("0") }}</td>
+                            <td>
+                                {% if settlements['errors'][timestamp] %}
+                                {{ settlements['errors'][timestamp]|length }}
+                                <a class="btn btn-sm btn-warning" data-bs-toggle="collapse" href="#errors-{{ timestamp|float|int }}">View</a>
+                                {% else %}
+                                0
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-6">
+                <strong>Closeout Errors</strong>
+                <div class="accordion" id="closeout-errors">
+                {% for timestamp, error_info in settlements['errors'].items() %}
+                {% if error_info %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed btn-warning" type="button" data-bs-toggle="collapse" data-bs-target="#errors-{{ timestamp|float|int }}" aria-expanded="false" aria-controls="{{ timestamp}}-errors">
+                            {{ timestamp|timestamp_to_dt|datetime_local }}
+                        </button>
+                    </h2>
+                    <div id="errors-{{ timestamp|float|int }}" class="accordion-collapse collapse" data-bs-parent="#closeout-errors">
+                        <div class="accordion-body">
+                            <table class="table table-striped">
+                                <thead>
+                                    <th>Workstation #</th>
+                                    <th>Terminal ID</th>
+                                    <th>Error</th>
+                                </thead>
+                                <tbody>
+                                    {% for workstation_num, terminal_id, error in error_info %}
+                                    <tr>
+                                        <td>{{ workstation_num }}</td>
+                                        <td>{{ terminal_id|tpn_to_terminal_id }}</td>
+                                        <td>{{ error }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

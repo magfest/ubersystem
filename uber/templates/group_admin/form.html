@@ -6,23 +6,55 @@
   {% include "group_admin/nav_menu.html" %}
 
   {% include "check_in.html" %}
-  <div class="card card-body">
-
+  <div class="card">
+    <div class="card-body">
     {% if not group.is_new %} 
     <div class="row mb-3">
       <div class="col text-start">
-      <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}">View as Attendee</a>
+      <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}" target="_blank">View as Attendee</a>
       {% if group.guest %} 
       <a class="btn btn-info" href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>
       {% endif %}
       </div>
-      {% if signnow_last_emailed %}
+      {% if signnow_signed %}
+      <div class="col text-end">
+        <em>This dealer signed their SignNow document on {{ signnow_signed|datetime_local }}.</em>
+      </div>
+      {% elif signnow_last_emailed %}
       <div class="col text-end">
       <em>This dealer was last emailed their SignNow document at {{ signnow_last_emailed|datetime_local }}.</em>
       <a class="btn btn-warning" href="../group_admin/resend_signnow_link?id={{ group.id }}">Resend SignNow Link</a>
       </div>
+      {% elif c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED %}
+      <div class="col text-end">
+      <em>This dealer has not been emailed a SignNow document yet.</em>
+      <a class="btn btn-success" href="../group_admin/resend_signnow_link?id={{ group.id }}">Send SignNow Link</a>
+      </div>
       {% endif %}
     </div>
+    {% if c.AT_THE_CON and group.amount_unpaid %}
+      <div class="alert alert-warning center" role="alert">
+        <h4>{{ group.name }} currently owes <strong>{{ group.amount_unpaid|format_currency }}</strong>.</h4>
+        {% if payment_enabled %}
+          {% if c.SPIN_TERMINAL_AUTH_KEY %}
+            <a href="paid_with_cash?id={{ group.id }}" class="btn btn-success" type="submit">Paid with Cash</a>
+            <strong>OR</strong>
+            <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ group.id }}', '', refreshPage)">Prompt Payment at Terminal</button>
+            <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
+            {% include 'registration/spin_terminal_form.html' with context %}
+          {% else %}
+            {# {{ stripe_form('manual_reg_charge', group) }} TODO: Make this work #}
+          {% endif %}
+        {% else %}
+            Please instruct them to pay at an at-door or manager station.
+        {% endif %}
+      </div>
+      <script type="text/javascript">
+        var refreshPage = function(json=null) {
+          window.location.reload();
+        }
+      </script>
+    {% endif %}
     {% endif %}
 
   {% if not group.is_new %}
@@ -50,15 +82,15 @@
     <h3>New {{ c.DEALER_TERM|title if group.is_dealer else "Group" }} Info</h3>
   {% endif %}
   {{ form_macros.form_validation('group-form', 'validate_group') }}
-  <form novalidate method="post" id="group-form" action="form" class="form-horizontal">
+  <form novalidate method="post" id="group-form" action="form">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ group.db_id }}" />
     <input type="hidden" name="new_dealer" value="{{ new_dealer or '' }}" />
 
     {% if forms and 'group_info' in forms %}
-      {% include "forms/group/group_info.html" %}
+      {% include "forms/group/admin_group_info.html" %}
     {% elif forms and 'table_info' in forms %}
-      {% include "forms/group/table_info.html" %}
+      {% include "forms/group/admin_table_info.html" %}
 
       {% if not group.is_new %}
       <button type="submit" class="btn btn-primary" value="Upload">Save</button>
@@ -143,7 +175,7 @@
               <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
             {% else %}
               <td id="cin_{{ attendee.id }}">
-                <button class="attendee-checkin btn btn-sm btn-success" data-attendee-id="{{ attendee.id }}">Check In</button>
+                <button class="attendee-checkin btn btn-sm btn-success" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>
               </td>
             {% endif %}
           {% endif %}

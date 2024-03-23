@@ -12,7 +12,6 @@ To perform these validations, call the "check" method on the instance you're val
 on success and a string error message on validation failure.
 """
 import re
-from datetime import date
 from functools import wraps
 from urllib.request import urlopen
 
@@ -24,16 +23,17 @@ from uber.badge_funcs import get_real_badge_type
 from uber.config import c
 from uber.custom_tags import format_currency
 from uber.decorators import prereg_validation, validation
-from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece, \
-    AttendeeAccount, AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event, Group, \
-    GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
-    MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
-    PromoCode, PromoCodeGroup, Sale, Session, WatchList
+from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
+                         AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event,
+                         GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
+                         Job, MarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
+                         PanelApplicant, PanelApplication, PromoCode, PromoCodeGroup, Sale, Session, WatchList)
 from uber.utils import localized_now, valid_email, get_age_from_birthday
 from uber.payments import PreregCart
 
 
 AccessGroup.required = [('name', 'Name')]
+
 
 def _invalid_phone_number(s):
     try:
@@ -179,7 +179,8 @@ def slots(job):
 @validation.Job
 def time_conflicts(job):
     if not job.is_new:
-        original_minutes = Job(start_time=job.orig_value_of('start_time'), duration=job.orig_value_of('duration')).minutes
+        original_minutes = Job(start_time=job.orig_value_of('start_time'),
+                               duration=job.orig_value_of('duration')).minutes
         for shift in job.shifts:
             if job.minutes.intersection(shift.attendee.shift_minutes - original_minutes):
                 return 'You cannot change this job to this time, because {} is already working a shift then'.format(
@@ -302,10 +303,10 @@ def attendee_tournament_cellphone(app):
     if app.cellphone and invalid_phone_number(app.cellphone):
         return 'You did not enter a valid cellphone number'
 
+
 # =============================
 # marketplace
 # =============================
-
 MarketplaceApplication.required = [('description', 'Description'), ('categories', 'Categories')]
 
 
@@ -390,7 +391,8 @@ def mivs_unique_name(studio):
         if session.query(IndieStudio).filter(IndieStudio.name == studio.name, IndieStudio.id != studio.id).count():
             return "That studio name is already taken; " \
                 "are you sure you shouldn't be logged in with that studio's account?"
-                
+
+
 @validation.IndieStudio
 def mivs_studio_contact_phone(studio):
     if studio.contact_phone and invalid_phone_number(studio.contact_phone):
@@ -694,19 +696,22 @@ def at_least_one_slot(event):
 @validation.GuestGroup
 def payment_nan(guest_group):
     try:
-        payment = int(float(guest_group.payment if guest_group.payment else 0))
+        int(float(guest_group.payment if guest_group.payment else 0))
     except Exception:
         return "What you entered for Payment ({}) isn't even a number".format(guest_group.payment)
-    
+
+
 @validation.GuestGroup
 def vehicles_nan(guest_group):
     if not str(guest_group.vehicles).isdigit():
         return "Please enter a whole number of comped parking spaces for vehicles."
-    
+
+
 @validation.GuestGroup
 def hotel_rooms_nan(guest_group):
     if not str(guest_group.num_hotel_rooms).isdigit():
         return "Please enter a whole number of comped hotel rooms."
+
 
 @validation.GuestMerch
 def is_merch_checklist_complete(guest_merch):
@@ -729,20 +734,24 @@ def is_merch_checklist_complete(guest_merch):
                 and guest_merch.poc_country):
             return 'You must tell us your complete mailing address'
 
+
 @validation.GuestTravelPlans
 def has_modes(guest_travel_plans):
     if not guest_travel_plans.modes:
         return 'Please tell us how you will arrive at MAGFest.'
+
 
 @validation.GuestTravelPlans
 def has_modes_text(guest_travel_plans):
     if c.OTHER in guest_travel_plans.modes_ints and not guest_travel_plans.modes_text:
         return 'You need to tell us what "other" travel modes you are using.'
 
+
 @validation.GuestTravelPlans
 def has_details(guest_travel_plans):
     if not guest_travel_plans.details:
         return 'Please provide details of your arrival and departure plans.'
+
 
 GuestDetailedTravelPlan.required = [
     ('mode', 'Mode of Travel'),
@@ -753,6 +762,7 @@ GuestDetailedTravelPlan.required = [
     ('departure_time', 'Departure Time')
 ]
 
+
 @validation.GuestDetailedTravelPlan
 def arrival_departure_details(travel_plan):
     if travel_plan.mode not in [c.CAR, c.TAXI]:
@@ -761,31 +771,38 @@ def arrival_departure_details(travel_plan):
         if not travel_plan.departure_details:
             return 'Please provide departure details, such as the bus or train or plane identifier.'
 
+
 @validation.GuestDetailedTravelPlan
 def time_checks(travel_plan):
     if travel_plan.arrival_time < travel_plan.min_arrival_time:
-        return 'If you are arriving over a week before the event, please select the earliest date and make a note in the arrival details.'
+        return ('If you are arriving over a week before the event, please select the earliest date and make a note '
+                'in the arrival details.')
     if travel_plan.arrival_time > travel_plan.max_arrival_time:
         return 'You cannot arrive after the event is over.'
     if travel_plan.departure_time < travel_plan.min_departure_time:
         return 'You cannot leave before the event starts.'
     if travel_plan.departure_time > travel_plan.max_departure_time:
-        return 'If you are leaving over a week after the event, please select the latest date and make a note in the departure details.'
+        return ('If you are leaving over a week after the event, please select the latest date and make a note '
+                'in the departure details.')
+
 
 @validation.GuestDetailedTravelPlan
-def has_modes_text(travel_plan):
+def has_detailed_modes_text(travel_plan):
     if travel_plan.mode == c.OTHER and not travel_plan.mode_text:
         return 'You need to tell us what "other" travel mode you are using.'
+
 
 @validation.GuestDetailedTravelPlan
 def validate_email(travel_plan):
     return valid_email(travel_plan.contact_email)
+
 
 @validation.GuestDetailedTravelPlan
 def validate_phone(travel_plan):
     if invalid_phone_number(travel_plan.contact_phone):
         return 'Your phone number was not a valid 10-digit US phone number. ' \
             'Please include a country code (e.g. +44) for international numbers.'
+
 
 # =============================
 # art show
@@ -869,16 +886,15 @@ def discounted_price(app):
 
 
 ArtShowPiece.required = [('name', 'Name'),
-                         ('for_sale','If this piece is for sale'),
                          ('gallery', 'Gallery'),
-                         ('type', 'Type'),
-                         ('media', 'Media')]
+                         ('type', 'Type')]
 
 
 @validation.ArtShowPiece
 def no_duplicate_piece_names(piece):
     with Session() as session:
-        if session.query(ArtShowPiece).iexact(name=piece.name).filter(ArtShowPiece.id != piece.id).filter_by(app_id=piece.app_id).all():
+        if session.query(ArtShowPiece).iexact(name=piece.name).filter(ArtShowPiece.id != piece.id,
+                                                                      ArtShowPiece.app_id == piece.app_id).all():
             return "You already have a piece with that name."
 
 
@@ -902,7 +918,14 @@ def print_run_if_print(piece):
             if total < num:
                 return "A piece's edition number cannot be higher than the total print run"
         except Exception:
-            return "What you entered for the print edition or run total ({}/{}) isn't even a number".format(piece.print_run_num, piece.print_run_total)
+            return ("What you entered for the print edition or run total "
+                    f"({piece.print_run_num}/{piece.print_run_total}) isn't even a number")
+
+
+@validation.ArtShowPiece
+def media_if_original(piece):
+    if piece.type == c.ORIGINAL and not piece.media:
+        return "Please describe what medium your original art is on."
 
 
 @validation.ArtShowPiece
@@ -916,8 +939,7 @@ def price_checks_if_for_sale(piece):
             if price <= 0:
                 return "A piece must cost more than $0"
         except Exception:
-            return "What you entered for the opening bid ({}) isn't even a number".format(piece.opening_bid)
-
+            return f"What you entered for the opening bid ({piece.opening_bid}) isn't even a number"
 
         if not piece.no_quick_sale:
             if not piece.quick_sale_price:
@@ -928,7 +950,7 @@ def price_checks_if_for_sale(piece):
                 if price <= 0:
                     return "A piece must cost more than $0, even after bidding ends"
             except Exception:
-                return "What you entered for the quick sale price ({}) isn't even a number".format(piece.quick_sale_price)
+                return f"What you entered for the quick sale price ({piece.quick_sale_price}) isn't even a number"
 
 
 @validation.ArtShowPiece
@@ -950,20 +972,13 @@ def media_max_length(piece):
     if len(piece.media) > 15:
         return "The description of the piece's media must be 15 characters or fewer."
 
-### New validations, which return a tuple with the field name (or an empty string) and the message
 
+# New validations, which return a tuple with the field name (or an empty string) and the message
 @prereg_validation.Attendee
 def reasonable_total_cost(attendee):
     if attendee.total_cost >= 999999:
         return ('', 'We cannot charge {}. Please reduce extras so the total is below $9,999.'.format(
             format_currency(attendee.total_cost)))
-
-
-@prereg_validation.Attendee
-def allowed_to_register(attendee):
-    if not attendee.age_group_conf['can_register']:
-        return ('', 'Attendees {} years of age do not need to register, ' \
-            'but MUST be accompanied by a parent at all times!'.format(attendee.age_group_conf['desc'].lower()))
 
 
 @prereg_validation.Attendee
@@ -975,6 +990,9 @@ def child_group_leaders(attendee):
 
 @prereg_validation.Attendee
 def no_more_child_badges(attendee):
+    if not attendee.is_new and not attendee.badge_status == c.PENDING_STATUS:
+        return
+
     if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and \
             get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 18 and not c.CHILD_BADGE_AVAILABLE:
         return ('badge_type', "Unfortunately, we are sold out of badges for attendees under 18.")
@@ -982,18 +1000,27 @@ def no_more_child_badges(attendee):
 
 @prereg_validation.Attendee
 def child_badge_over_13(attendee):
+    if not attendee.is_new and attendee.badge_status not in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] \
+            or attendee.unassigned_group_reg or attendee.valid_placeholder:
+        return
+
     if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.CHILD_BADGE \
             and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) >= 13:
-        return ('badge_type', "If you will be 13 or older at the start of {}, " \
-                                "please select an Attendee badge instead of a 12 and Under badge.".format(c.EVENT_NAME))
+        return ('badge_type',
+                f"If you will be 13 or older at the start of {c.EVENT_NAME}, "
+                "please select an Attendee badge instead of a 12 and Under badge.")
 
 
 @prereg_validation.Attendee
 def attendee_badge_under_13(attendee):
-    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.ATTENDEE_BADGE \
-        and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13:
-        return ('badge_type', "If you will be 12 or younger at the start of {}, " \
-                                "please select the 12 and Under badge instead of an Attendee badge.".format(c.EVENT_NAME))
+    if not attendee.is_new and attendee.badge_status not in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] \
+            or attendee.unassigned_group_reg or attendee.valid_placeholder:
+        return
+
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.ATTENDEE_BADGE and (
+            get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13):
+        return ('badge_type', "If you will be 12 or younger at the start of {}, "
+                "please select the 12 and Under badge instead of an Attendee badge.".format(c.EVENT_NAME))
 
 
 @prereg_validation.Attendee
@@ -1013,8 +1040,10 @@ def require_staff_shirt_size(attendee):
 
 @validation.Attendee
 def volunteers_cellphone_or_checkbox(attendee):
-    if not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
-        return ('cellphone', "Volunteers and staffers must provide a cellphone number or indicate they do not have a cellphone.")
+    if not attendee.placeholder and not attendee.no_cellphone \
+            and attendee.staffing_or_will_be and not attendee.cellphone:
+        return ('cellphone',
+                "Volunteers and staffers must provide a cellphone number or indicate they do not have a cellphone.")
 
 
 @prereg_validation.Attendee
@@ -1024,7 +1053,8 @@ def promo_code_is_useful(attendee):
             if session.lookup_agent_code(attendee.promo_code.code):
                 return
             code = session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCode)
-            group = code.group if code and code.group else session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCodeGroup)
+            group = code.group if code and code.group else session.lookup_promo_or_group_code(attendee.promo_code.code,
+                                                                                              PromoCodeGroup)
             if group and group.total_cost == 0:
                 return
 
@@ -1034,13 +1064,16 @@ def promo_code_is_useful(attendee):
         elif attendee.is_dealer:
             return ('promo_code', "You can't apply a promo code to a {}.".format(c.DEALER_REG_TERM))
         elif attendee.age_discount != 0:
-            return ('promo_code', "You are already receiving an age based discount, you can't use a promo code on top of that.")
+            return ('promo_code',
+                    "You are already receiving an age based discount, you can't use a promo code on top of that.")
         elif attendee.badge_type == c.ONE_DAY_BADGE or attendee.is_presold_oneday:
             return ('promo_code', "You can't apply a promo code to a one day badge.")
         elif attendee.overridden_price:
-            return ('promo_code', "You already have a special badge price, you can't use a promo code on top of that.")
+            return ('promo_code',
+                    "You already have a special badge price, you can't use a promo code on top of that.")
         elif attendee.badge_cost_with_promo_code >= attendee.calculate_badge_cost():
-            return ('promo_code', "That promo code doesn't make your badge any cheaper. You may already have other discounts.")
+            return ('promo_code',
+                    "That promo code doesn't make your badge any cheaper. You may already have other discounts.")
 
 
 @prereg_validation.Attendee
@@ -1051,7 +1084,6 @@ def promo_code_not_is_expired(attendee):
 
 @validation.Attendee
 def promo_code_has_uses_remaining(attendee):
-    from uber.payments import PreregCart
     if attendee.is_new and attendee.promo_code and not attendee.promo_code.is_unlimited:
         unpaid_uses_count = PreregCart.get_unpaid_promo_code_uses_count(
             attendee.promo_code.id, attendee.id)
@@ -1092,14 +1124,14 @@ def agent_code_already_used(attendee):
 def not_in_range(attendee):
     if not attendee.badge_num:
         return
-    
+
     badge_type = get_real_badge_type(attendee.badge_type)
     lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
-    if not (lower_bound <= attendee.badge_num <= upper_bound):
-        return ('badge_num', 'Badge number {} is out of range for badge type {} ({} - {})'.format(attendee.badge_num, 
-                                                                                    c.BADGES[attendee.badge_type],
-                                                                                    lower_bound, 
-                                                                                    upper_bound))
+    if not (lower_bound <= int(attendee.badge_num) <= upper_bound):
+        return ('badge_num',
+                f'Badge number {attendee.badge_num} is out of range for badge type '
+                f'{c.BADGES[attendee.badge_type]} ({lower_bound} - {upper_bound})')
+
 
 @validation.Attendee
 def dealer_needs_group(attendee):
@@ -1112,7 +1144,8 @@ def group_leadership(attendee):
     if attendee.session and not attendee.group_id:
         orig_group_id = attendee.orig_value_of('group_id')
         if orig_group_id and attendee.id == attendee.session.group(orig_group_id).leader_id:
-            return ('group_id', 'You cannot remove the leader of a group from that group; make someone else the leader first')
+            return ('group_id',
+                    'You cannot remove the leader of a group from that group; make someone else the leader first')
 
 
 @prereg_validation.Group

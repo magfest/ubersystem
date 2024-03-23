@@ -1,20 +1,19 @@
 import cherrypy
 from pockets import listify
-from six import string_types
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, credit_card, public
-from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, MerchDiscount, MerchPickup, \
-    MPointsForCash, NoShirt, OldMPointExchange, Sale, Session
+    MPointsForCash, NoShirt, OldMPointExchange
 from uber.utils import check, check_csrf
 from uber.payments import TransactionRequest
-    
+
+
 @all_renderable()
 class Root:
     def index(self, message=''):
         return {'message': message}
-    
+
     @public
     def arbitrary_charge_form(self, message='', amount=None, description='', email='', sale_id=None):
         charge = False
@@ -34,13 +33,13 @@ class Root:
             'description': description,
             'sale_id': sale_id
         }
-    
+
     @public
     @ajax
     def cancel_arbitrary_charge(self, session, stripe_id):
         # Arbitrary charges have no stripe ID yet and so can't actually be cancelled
         return {'message': 'Payment cancelled.'}
-    
+
     @public
     @ajax
     @credit_card
@@ -51,7 +50,7 @@ class Root:
             return {'error': message}
         else:
             session.add(ArbitraryCharge(
-                amount=charge.dollar_amount,
+                amount=int(charge.dollar_amount),
                 what=charge.description,
                 reg_station=cherrypy.session.get('reg_station')
             ))
@@ -110,7 +109,7 @@ class Root:
                     got_merch = attendee.got_staff_merch
                 else:
                     merch, got_merch = attendee.merch, attendee.got_merch
-                
+
                 if staff_merch and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
                     shirt_size = c.STAFF_SHIRTS[attendee.staff_shirt]
                 else:
@@ -149,9 +148,9 @@ class Root:
 
                     message = '{a.full_name} ({a.badge}) has not yet received their merch.'.format(a=attendee)
                     if attendee.amount_unpaid and not staff_merch:
-                        merch_items.insert(0, 
-                                           'WARNING: Attendee is not fully paid up and may not have paid for their merch. '
-                                           'Please contact Registration.')
+                        merch_items.insert(0,
+                                           'WARNING: Attendee is not fully paid up and may not have paid for their '
+                                           'merch. Please contact Registration.')
 
         return {
             'id': id,
@@ -249,7 +248,7 @@ class Root:
         session.add(discount)
         session.commit()
         return {'success': True, 'message': 'Discount on badge #{} has been marked as redeemed.'.format(badge_num)}
-    
+
     @ajax
     def record_mpoint_cashout(self, session, badge_num, amount):
         try:
