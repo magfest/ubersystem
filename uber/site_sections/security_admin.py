@@ -37,12 +37,15 @@ class Root:
             changed_attendees = 0
 
             if not message:
+                entry_pii_updated = entry.is_new or any(
+                    [entry.orig_value_of(attr) != getattr(entry, attr) for attr in ['first_names', 'last_name',
+                                                                                    'email', 'birthdate']])
                 session.add(entry)
                 session.commit()
 
                 if entry.active:
                     for attendee in entry.attendee_guesses:
-                        if attendee.badge_status == c.NEW_STATUS:
+                        if entry_pii_updated and attendee.is_valid and attendee.badge_status != c.WATCHED_STATUS:
                             attendee.badge_status = c.WATCHED_STATUS
                             changed_attendees += 1
                             session.add(attendee)
