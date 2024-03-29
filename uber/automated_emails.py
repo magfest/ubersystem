@@ -510,7 +510,8 @@ def dealer_placeholder(a): return a.placeholder and a.is_dealer and a.group.stat
 
 
 def staff_import_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
-                                                           and "staff import".lower() in a.admin_notes.lower())
+                                                           and (a.admin_account or
+                                                                "staff import".lower() in a.admin_notes.lower()))
 
 
 def volunteer_placeholder(a): return a.placeholder and a.registered_local > c.PREREG_OPEN
