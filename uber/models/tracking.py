@@ -80,6 +80,8 @@ class PageViewTracking(MagModel):
                         pass
             if model:
                 which = repr(model)
+            else:
+                return
 
             session.add(PageViewTracking(who=AdminAccount.admin_name(), page=c.PAGE_PATH, which=which))
             session.commit()
