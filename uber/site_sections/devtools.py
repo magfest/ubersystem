@@ -222,10 +222,15 @@ class Root:
         session.execute(text('SELECT 1'))
         db_read_time += time.perf_counter()
 
-        payload = random.randrange(1024)
-        task_run_time = -time.perf_counter()
-        response = ping.delay(payload).wait(timeout=2)
-        task_run_time += time.perf_counter()
+        if os.environ.get("ENABLE_CELERY", "true").lower() == "true":
+            payload = random.randrange(1024)
+            task_run_time = -time.perf_counter()
+            response = ping.delay(payload).wait(timeout=2)
+            task_run_time += time.perf_counter()
+        else:
+            task_run_time = 0
+            payload = "Not Run, ENABLE_CELERY != true"
+            response = "Not Run, ENABLE_CELERY != true"
 
         return json.dumps({
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
