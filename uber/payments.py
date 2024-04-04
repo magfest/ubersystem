@@ -345,8 +345,8 @@ class TransactionRequest:
                 intent_id=intent_id
             )
         else:
-            log.debug('Transaction {self.tracking_id}: creating Stripe Intent to charge {} cents for {}',
-                      self.amount, self.description)
+            log.debug(f'Transaction {self.tracking_id}: creating Stripe Intent to charge '
+                      f'{self.amount} cents for {self.description}')
 
             return stripe.PaymentIntent.create(
                 payment_method_types=['card'],

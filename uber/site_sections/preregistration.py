@@ -832,7 +832,7 @@ class Root:
                     message = check_prereg_promo_code(session, attendee, used_codes)
                 if not message:
                     used_codes[attendee.promo_code_code] += 1
-                    form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
+                    form_list = ['PersonalInfo', 'BadgeExtras', 'PreregOtherInfo', 'Consents']
                     # Populate checkboxes based on the model (I need a better solution for this)
                     params = {}
                     if not attendee.legal_name:
@@ -909,7 +909,7 @@ class Root:
         for attendee in cart.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
             if pending_attendee:
-                pending_attendee.apply(attendee.to_dict(), restricted=True)
+                pending_attendee.apply(PreregCart.to_sessionized(attendee), restricted=True)
                 if attendee.badges and pending_attendee.promo_code_groups:
                     pc_group = pending_attendee.promo_code_groups[0]
                     pc_group.name = attendee.name
@@ -1041,17 +1041,22 @@ class Root:
             for key in [key for key in PreregCart.session_keys if key != 'paid_preregs']:
                 cherrypy.session.pop(key)
 
-            preregs = [session.merge(PreregCart.from_sessionized(d)) for d in PreregCart.paid_preregs]
+            # We do NOT want to merge the old data into the new attendee
+            preregs = []
+            for prereg in PreregCart.paid_preregs:
+                model = session.query(Attendee).filter_by(id=prereg['id']).first()
+                if not model:
+                    model = session.query(Group).filter_by(id=prereg['id']).first()
+
+                if model:
+                    preregs.append(model)
+
             for prereg in preregs:
-                try:
-                    session.refresh(prereg)
-                except Exception:
-                    pass  # this badge must have subsequently been transferred or deleted
-                else:
-                    receipt = session.get_receipt_by_model(prereg)
-                    if isinstance(prereg, Attendee):
-                        session.refresh_receipt_and_model(prereg, is_prereg=True)
-                        session.update_paid_from_receipt(prereg, receipt)
+                receipt = session.get_receipt_by_model(prereg)
+                if isinstance(prereg, Attendee):
+                    session.refresh_receipt_and_model(prereg, is_prereg=True)
+                    session.update_paid_from_receipt(prereg, receipt)
+
             session.commit()
             return {
                 'logged_in_account': session.current_attendee_account(),
