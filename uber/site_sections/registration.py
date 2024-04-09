@@ -421,14 +421,22 @@ class Root:
                 message = "To create a new buyer, please enter their first name, last name, and email address."
 
             if not message:
+                badges = int(badges)
                 if buyer_id == "None":
                     buyer = Attendee(first_name=first_name, last_name=last_name, email=email)
                     buyer.placeholder = True
                     session.add(buyer)
                     group.buyer = buyer
+                    session.commit()
 
                 if badges:
-                    session.add_codes_to_pc_group(group, int(badges), 0 if badges_are_free else int(cost_per_badge))
+                    session.add_codes_to_pc_group(group, badges, 0 if badges_are_free else int(cost_per_badge))
+                    receipt = session.get_receipt_by_model(group.buyer)
+                    if receipt and cost_per_badge:
+                        session.add(
+                            ReceiptManager().create_receipt_item(receipt,
+                                                                 f'Adding {badges} Badge{"s" if badges > 1 else ""}',
+                                                                 badges * int(cost_per_badge) * 100))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
 
         return {

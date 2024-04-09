@@ -1,3 +1,4 @@
+from markupsafe import Markup
 from wtforms import (BooleanField, DecimalField, EmailField,
                      SelectField, SelectMultipleField, IntegerField,
                      StringField, TelField, validators, TextAreaField)
@@ -37,6 +38,9 @@ class GroupInfo(MagForm):
 class AdminGroupInfo(GroupInfo):
     guest_group_type = SelectField('Checklist Type', default=0, choices=[(0, 'N/A')] + c.GROUP_TYPE_OPTS, coerce=int)
     can_add = BooleanField('This group may purchase additional badges.')
+    is_dealer = BooleanField(f'This group should be treated as {c.DEALER_INDEFINITE_TERM}.',
+                             description=f"{c.DEALER_TERM.title()}s are prevented from paying until they are approved,"
+                             "but may assign and purchase add-ons for badges.")
     new_badge_type = SelectField('Badge Type', choices=c.BADGE_OPTS, coerce=int)
     new_ribbons = SelectMultipleField('Badge Ribbons', choices=c.RIBBON_OPTS, coerce=int, widget=MultiCheckbox())
     cost = IntegerField('Total Group Price', validators=[
@@ -124,6 +128,7 @@ class TableInfo(GroupInfo):
 
 class AdminTableInfo(TableInfo, AdminGroupInfo):
     status = SelectField('Status', choices=c.DEALER_STATUS_OPTS, coerce=int)
+    convert_badges = BooleanField("Convert this group's badges to individual badges.")
 
     def can_add_label(self):
         if c.MAX_DEALERS:

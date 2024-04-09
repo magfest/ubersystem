@@ -1,0 +1,50 @@
+{% if table_info or ('table_info' in forms) %}
+{% set group_or_table_info = table_info or forms['table_info'] %}
+{% else %}
+{% set group_or_table_info = group_info or forms['group_info'] %}
+{% endif %}
+
+{% block badges_tables %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(group_or_table_info.tables, choices=c.ADMIN_TABLE_OPTS,
+                                    extra_field=form_macros.form_input(group_or_table_info.is_dealer,
+                                    admin_text=c.DEALER_TERM|title ~ "s are prevented from paying until they are approved, but may assign and purchase add-ons for badges.")) }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(group_or_table_info.badges,
+                                    choices=int_choices(1, c.MAX_GROUP_SIZE),
+                                    extra_field=form_macros.form_input(group_or_table_info.can_add),
+                                    admin_text="[" ~ group.badges_purchased ~ " badge" ~ group.badges_purchased|pluralize ~ " purchased]" if not group.is_new else "",
+                                    required=True) }}
+    </div>
+</div>
+<div class="row g-sm-3 bg-light">
+    <div class="col-12 form-text">New Badges Settings</div>
+    <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(group_or_table_info.new_badge_type) }}
+    </div>
+    <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(group_or_table_info.new_ribbons) }}
+    </div>
+    {{ form_macros.toggle_fields_js(group_or_table_info.badges, [group_or_table_info.new_badge_type, group_or_table_info.new_ribbons], off_values=range(group_or_table_info.badges.data + 1)|list, closest_hide_selector='.row') }}
+</div>
+{% endblock %}
+
+{% block cost %}
+{% set cost_warning %}
+{% if group.cost and receipt and (receipt.item_total / 100) != group.cost %}
+<span class="text-danger">This group's receipt has been altered. Their current receipt total is {{ (receipt.item_total / 100)|format_currency }}.</span>
+{% endif %}
+{% endset %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(group_or_table_info.cost, extra_field=form_macros.form_input(group_or_table_info.auto_recalc), admin_text=cost_warning, no_margin=True) }}
+    </div>
+    {% if group.cost %}
+    <div class="col-12 col-sm-3">
+        {{ form_macros.form_input(group_or_table_info.amount_paid_repr) }}
+    </div>
+    <div class="col-12 col-sm-3">
+        {{ form_macros.form_input(group_or_table_info.amount_refunded_repr) }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

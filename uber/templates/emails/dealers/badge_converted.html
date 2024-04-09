@@ -16,7 +16,7 @@ Therefore, we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badg
 {% if group.unregistered_badges > 0 %}All unassigned badges were dropped.{% endif %}
 
 <br/><br/>Please note: You are choosing to accept or decline an ATTENDEE badge at the price it would have been had you bought it instead of applying for the {{ c.DEALER_LOC_TERM }}.
-  <strong>You were not accepted as a {{ c.DEALER_TERM }}, and will not have space in the {{ c.DEALER_LOC_TERM }}.</strong>
+  <strong>You were not accepted as {{ c.DEALER_INDEFINITE_TERM }}, and will not have space in the {{ c.DEALER_LOC_TERM }}.</strong>
 
 <br/><br/>Please go ahead and confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your registration</a>. We hope to see you this year!
 
