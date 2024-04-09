@@ -252,6 +252,13 @@ class Config(_Overridable):
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS else self.AFTER_DEALER_REG_DEADLINE
+    
+    @property
+    def DEALER_INDEFINITE_TERM(self):
+        if c.DEALER_TERM.startswith(("a", "e", "i", "o", "u")):
+            return "an " + c.DEALER_TERM
+        else:
+            return "a " + c.DEALER_TERM
 
     @property
     def TABLE_OPTS(self):

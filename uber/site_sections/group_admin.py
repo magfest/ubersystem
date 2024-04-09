@@ -34,7 +34,7 @@ class Root:
         guest_groups = groups.join(Group.guest)
 
         if not show_all:
-            dealer_groups = dealer_groups.filter(~Group.status.in_([c.DECLINED, c.IMPORTED, c.CANCELLED]))
+            dealer_groups = dealer_groups.filter(Group.status != c.IMPORTED)
 
         return {
             'message': message,
@@ -96,7 +96,7 @@ class Root:
                 receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params)
                 session.add_all(receipt_items)
         else:
-            group = Group(tables=1) if new_dealer else Group()
+            group = Group(is_dealer=True, tables=1) if new_dealer else Group()
 
         if group.is_dealer:
             form_list = ['AdminTableInfo', 'ContactInfo']
@@ -207,9 +207,12 @@ class Root:
 
                 raise HTTPRedirect('form?id={}&message={}', group.id, message or (group.name + " has been saved"))
 
+        receipt = session.get_receipt_by_model(group) if not group.is_new else None
+
         return {
             'message': message,
             'group': group,
+            'receipt': receipt,
             'forms': forms,
             'signnow_last_emailed': signnow_last_emailed,
             'signnow_signed': signnow_signed,

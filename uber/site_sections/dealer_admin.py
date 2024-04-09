@@ -157,6 +157,37 @@ class Root:
             raise HTTPRedirect('../group_admin/index?message={}#dealers', message)
 
         return {'groups': query.all()}
+    
+    def convert_declined(self, session, **params):
+        declined_groups = session.query(Group).filter(Group.status == c.DECLINED)
+        for group in declined_groups:
+            session.add(group)
+            group.convert_badges = True
+        raise HTTPRedirect('../group_admin/index?message={}#dealers', "All declined groups marked for badge conversion.")
+    
+    def convert_example(self, session, id, **params):
+        from uber.models import Email
+
+        group = session.group(id)
+        old_status = group.status
+        group.status = c.DECLINED
+        assigned_badges = group.badges - group.unregistered_badges
+        example_attendee = group.leader if group.leader else [a for a in self.attendees if not a.is_unassigned][0]
+        body = render('emails/dealers/badge_converted.html',
+                      {'attendee': example_attendee,
+                       'group': group,
+                       'other_badges': assigned_badges - 1}, encoding=None)
+        example = Email(
+                    subject=f"Update About Your {c.EVENT_NAME} Registration",
+                    body=body,
+                    sender=c.MARKETPLACE_EMAIL,
+                    to=example_attendee.email_to_address,
+                    ident='convert_badge_email',
+                    fk_id=example_attendee.id,
+                )
+        group.status = old_status
+
+        return {'group': group, 'example_attendee': example_attendee, 'example': example}
 
     @ajax
     def unapprove(self, session, id, action, email_text, message=''):

@@ -282,7 +282,7 @@ class TransactionRequest:
             if not self.amount:
                 self.amount = receipt.current_amount_owed
             if create_receipt_item:
-                self.receipt_manager.create_custom_receipt_item(receipt, self.description, self.amount)
+                self.receipt_manager.create_receipt_item(receipt, self.description, self.amount)
 
         if c.AUTHORIZENET_LOGIN_ID:
             self.merchant_auth = apicontractsv1.merchantAuthenticationType(
@@ -1216,19 +1216,6 @@ class ReceiptManager:
     def update_transaction_refund(self, txn, refund_amount):
         txn.refunded += refund_amount
         self.items_to_add.append(txn)
-
-    def create_custom_receipt_item(self, receipt, desc, amount):
-        from uber.models import AdminAccount, ReceiptItem
-
-        receipt_item = ReceiptItem(receipt_id=receipt.id,
-                                   desc=desc,
-                                   amount=amount,
-                                   count=1,
-                                   who=AdminAccount.admin_name() or 'non-admin'
-                                   )
-
-        self.items_to_add.append(receipt_item)
-        return receipt_item
 
     @classmethod
     def create_new_receipt(cls, model, create_model=False, items=None):
