@@ -51,7 +51,7 @@ class Root:
                     doc = method.__doc__ or ''
                     args = dict(signature(method).parameters)
                     if 'self' in args:
-                        args.remove('self')
+                        del args['self']
                     access = getattr(method, 'required_access', set())
                     required_access = sorted([opt[4:].title() for opt in access])
                     methods.append({
