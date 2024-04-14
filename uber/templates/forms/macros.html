@@ -1,7 +1,7 @@
-{% macro form_label(field, required=None) %}
+{% macro form_label(field, label_text='', required=None) %}
 {% set is_required = required == True or (required == None and field.flags.required) %}
 <label for="{{ field.label.field_id }}"
-{% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}><span class="form-label">{{ field.label.text }}</span>
+{% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}><span class="form-label">{{ label_text }}</span>
   <span class="required-indicator text-danger"{% if not is_required %} style="display: none"{% endif %}> *</span></label>
 {% endmacro %}
 
@@ -21,19 +21,18 @@
   <div id="{{ field.id }}-validation" class="invalid-feedback" role="alert"></div>
 {% endmacro %}
 
-{% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False, hidden_field_text='', force_hidden=False) %}
+{% macro form_input(field, label_text='', help_text='', admin_text='', extra_field=None, no_margin=False, hidden_field_text='', force_hidden=False) %}
 {#
   Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
   field (Field): WTForms form field.
   help_text (str): Extra text to display on non-admin pages underneath the field.
-  admin_text (str): Extra test to display on admin pages underneath the field.
+  admin_text (str): Extra text to display on admin pages underneath the field.
   extra_field (Field): A second field to render underneath this field. Particularly useful for a toggle checkbox that affects the 
         field.
   no_margin (bool): If true, removes the `mb-3` class. Useful in cases where a containing div already has a margin.
   hidden_field_text (str): For fields with the HiddenInput widget, this is the custom display text for the field, which is 
         useful in situations where a field is always read-only. If not set, the field is rendered without any scaffolding.
   force_hidden (bool): If true, the field is rendered as a hidden field instead of whatever its widget is.
-
 #}
 
 {% set custom_kwargs = kwargs %}
@@ -42,11 +41,12 @@
 {% endif %}
 
 {% set type = field.meta.get_field_type(field) %}
+{% set label_text = label_text or field.label.text %}
 {% set label_required = kwargs['required'] if 'required' in kwargs else field.flags.required %}
 {% set disable_checkboxes = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
 {% if type == 'hidden' or force_hidden %}
   {% if hidden_field_text %}
-    <div class="form-text">{{ field.label.text }}</div>
+    <div class="form-text">{{ label_text }}</div>
     <div{% if not no_margin %} class="mb-3"{% endif %}>
       {% if force_hidden %}
         <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data }}" />
@@ -56,7 +56,11 @@
       {{ hidden_field_text }}
     </div>
   {% else %}
+  {% if force_hidden %}
+    <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data }}" />
+  {% else %}
     {{ field(**custom_kwargs) }}
+  {% endif %}
   {% endif %}
 {% elif type in ['checkbox','switch'] %}
 <div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
@@ -67,11 +71,11 @@
   {{ field(class="form-check-input", checked=field.data, value=1, **custom_kwargs) }}
   {% endif %}
 
-  {{ form_label(field, required=label_required, class="form-check-label") }}
+  {{ form_label(field, label_text=label_text, required=label_required, class="form-check-label") }}
   {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% elif type == 'inputgroup' %}
-<div class="form-text">{{ form_label(field, required=label_required) }}</div>
+<div class="form-text">{{ form_label(field, label_text=label_text, required=label_required) }}</div>
 <div {% if not no_margin %}class="mb-3"{% endif %}>
 <div class="input-group">
 {{ field(class="form-control", **custom_kwargs) }}
@@ -91,19 +95,19 @@
 {% elif type == 'select' %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-select", **custom_kwargs) }}
-    {{ form_label(field, required=label_required) }}
+    {{ form_label(field, label_text=label_text, required=label_required) }}
     {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% elif type == 'customselect' %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(**custom_kwargs) }}
-    {{ form_label(field, required=label_required) }}
+    {{ form_label(field, label_text=label_text, required=label_required) }}
     {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% else %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-control", **custom_kwargs) }}
-    {{ form_label(field, required=label_required) }}
+    {{ form_label(field, label_text=label_text, required=label_required) }}
     {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% endif %}
@@ -209,11 +213,11 @@
       <div class="card-header" style="transform: rotate(0);">
           <label for="{{ field_id }}-{{ opt.value }}" class="h5 card-title mb-0 text-nowrap">
             {% if disabled_card or is_preview %}
-            {{ opt.name }}{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
+            {{ opt.name }}{% if opt.price|int %}: {{ opt.price|format_currency }}{% endif %}
             {% else %}
               <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card_link"
                 data-value="{{ opt.value }}">
-                {{ opt.name }}</a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
+                {{ opt.name }}</a>{% if opt.price|int %}: {{ opt.price|format_currency }}{% endif %}
             {% endif %}
           </label>
       </div>
@@ -347,7 +351,7 @@
 <div class="alert" role="alert" id="form-validations-{{ form_id }}"><span></span></div>
 
 <script type="text/javascript">
-  var serverValidationPassed = false;
+  serverValidationPassed = false;
   
   var runServerValidations_{{ form_id|replace('-','_') }} = function($form, submit_button_name) {
     var form_list = {{ form_list|safe }}.join(',')
@@ -361,31 +365,46 @@
         $(this).removeClass('is-invalid');
         $("#" + field_id + "-validation").hide();
       });
-      if (response.error) {
-        $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(
-          "Please correct the following errors:" +
-          "<ul></ul>"
+      if (response.warning) {
+        let buttonText = response.button_text ? response.button_text : 'I understand, please continue!';
+        $("#form-validations-{{ form_id }}").addClass("alert-warning").children('span').html(
+          response.warning +
+          "<button form='{{ form_id }}' class='btn btn-primary' name='"+ submit_button_name +"'>" +
+            buttonText +
+          "</button>"
           );
-        $.each(response.error, function(key, val) {
-          val = val.join(" ");
-          if ($("#" + key).length != 0 && $("#" + key).attr('type') != 'checkbox') {
-            var field_label = $("label[for='" + key + "'] .form-label").text();
-            if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
-            if (field_label == '') {
-              $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
-            } else {
-              $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label + ": " + val + "</li>");
-              $("#" + key).addClass("is-invalid");
-            }
+        $("#form-validations-{{ form_id }}").show();
+        $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
+        serverValidationPassed = true;
+      } else if (response.error) {
+          if (typeof response.error === "string") {
+            $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(response.error);
           } else {
-            $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
-          }
+            $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(
+              "Please correct the following errors:" +
+              "<ul></ul>"
+            );
+            $.each(response.error, function(key, val) {
+              val = val.join(" ");
+              if ($("#" + key).length != 0 && $("#" + key).attr('type') != 'checkbox') {
+                var field_label = $("label[for='" + key + "'] .form-label").text();
+                if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
+                if (field_label == '') {
+                  $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
+                } else {
+                  $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+                  $("#" + key).addClass("is-invalid");
+                }
+              } else {
+                $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
+              }
 
-          if ($("#" + key + "-validation").length != 0)
-          {
-            $("#" + key + "-validation").html(val).show();
+              if ($("#" + key + "-validation").length != 0)
+              {
+                $("#" + key + "-validation").html(val).show();
+              }
+            });
           }
-        });
         $("#form-validations-{{ form_id }}").show();
         $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
       } else {
@@ -412,24 +431,28 @@
 {%- endmacro %}
 
 {% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false, callback='') %}
-$("#{{ form_id }}").submit(function (event) { 
-    if(!serverValidationPassed) {
-      if (event.originalEvent !== undefined) {
-        runServerValidations_{{ form_id|replace('-','_') }}($(this), event.originalEvent.submitter.name);
-      } else {
-        runServerValidations_{{ form_id|replace('-','_') }}($(this), '');
-      }
+$("#{{ form_id }}").submit(function (event) {
+  let submit_button_name = '';
+  if (event.originalEvent !== undefined) {
+    submit_button_name = event.originalEvent.submitter.name;
+  }
+
+  if(!serverValidationPassed) {
+    event.preventDefault();
+    runServerValidations_{{ form_id|replace('-','_') }}($(this), submit_button_name);
+    return false;
+  }
+  {% if include_disclaimers_modal %}
+    if(!disclaimersConfirmed) {
+      event.preventDefault();
+      openDisclaimersModal();
       return false;
     }
-    {% if include_disclaimers_modal %}
-      if(!disclaimersConfirmed) {
-          openDisclaimersModal();
-          return false;
-      }
-    {% endif %}
-    {% if callback %}
-      {{ callback|safe }};
-      return false;
-    {% endif %}
+  {% endif %}
+  {% if callback %}
+    event.preventDefault();
+    {{ callback|safe }};
+    return false;
+  {% endif %}
 });
 {%- endmacro %}

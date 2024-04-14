@@ -7,7 +7,9 @@ from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
@@ -79,6 +81,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
 
     active_after = Column(UTCDateTime, nullable=True, default=None)
     active_before = Column(UTCDateTime, nullable=True, default=None)
+    revert_changes = Column(MutableDict.as_mutable(JSONB), default={})
 
     emails = relationship('Email', backref='automated_email', order_by='Email.id')
 
@@ -128,14 +131,41 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         
         kwargs.pop('csrf_token', None)
 
+        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
         for key, val in kwargs.items():
             if not hasattr(fixture, key):
                 log.debug(f"We tried to update fixture ident {ident} with parameter {key}, "
                           f"but there's no attribute named {key}!")
-            else:
+            elif getattr(fixture, key) != val and (getattr(fixture, key) or val):
+                if key not in automated_email.revert_changes:
+                    automated_email.revert_changes[key] = getattr(fixture, key)
                 setattr(fixture, key, val)
 
+        updated_email = automated_email.reconcile(fixture)
+        session.merge(updated_email)
+        session.commit()
+
+        # Check to see if any properties got changed back to their original value
+        listed_changes = updated_email.revert_changes.copy()
+        for key in listed_changes:
+            if getattr(updated_email, key) == updated_email.revert_changes[key] or (
+                    not getattr(updated_email, key) and not updated_email.revert_changes[key]):
+                updated_email.revert_changes.pop(key)
+        session.merge(updated_email)
+    
+    @staticmethod
+    def reset_fixture_attr(session, ident, key):
+        fixture = AutomatedEmail._fixtures.get(ident, None)
+        if not fixture:
+            log.error(f"We tried to update fixture ident {ident}, but it wasn't in our list of email fixtures!")
+            return
+        
         automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
+        revert_val = automated_email.revert_changes.get(key, None)
+
+        setattr(fixture, key, revert_val)
+        automated_email.revert_changes.pop(key, None)
+
         session.add(automated_email.reconcile(fixture))
 
     @staticmethod
@@ -146,11 +176,9 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
 
                 if automated_email:
-                    # Load certain changes from DB to avoid blowing away dynamic updates
-                    # This should be refactored into something more robust if we need to expand it
-                    for key in ['active_after', 'active_before']:
-                        if getattr(automated_email, key, '') != getattr(fixture, key, ''):
-                            AutomatedEmail.update_fixture(session, ident, **{key: getattr(automated_email, key, '')})
+                    # Load changes from DB to avoid blowing away dynamic updates
+                    for key in automated_email.revert_changes:
+                        AutomatedEmail.update_fixture(session, ident, **{key: getattr(automated_email, key, '')})
 
                 # Load plugin overrides
                 for ident, key, val in AutomatedEmail.email_overrides:

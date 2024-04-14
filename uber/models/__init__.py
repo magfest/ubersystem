@@ -588,7 +588,6 @@ from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
 from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
-from uber.models.tabletop import TabletopEntrant, TabletopTournament  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 
 
@@ -2206,23 +2205,6 @@ class Session(SessionManager):
         def panel_applicants(self):
             return self.query(PanelApplicant).options(joinedload(PanelApplicant.application)) \
                 .order_by('first_name', 'last_name')
-
-        # =========================
-        # tabletop
-        # =========================
-
-        def entrants(self):
-            return self.query(TabletopEntrant).options(
-                joinedload(TabletopEntrant.reminder),
-                joinedload(TabletopEntrant.attendee),
-                subqueryload(TabletopEntrant.tournament).subqueryload(TabletopTournament.event))
-
-        def entrants_by_phone(self):
-            entrants = defaultdict(list)
-            for entrant in self.entrants():
-                cellphone = normalize_phone(entrant.attendee.cellphone)
-                entrants[cellphone].append(entrant)
-            return entrants
 
     @classmethod
     def model_mixin(cls, model):

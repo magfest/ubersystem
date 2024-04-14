@@ -444,7 +444,7 @@ def maybe_red(amount, comp):
 
 @JinjaEnv.jinja_filter
 def maybe_last_year(day):
-    return 'last year' if day <= c.STAFFERS_IMPORTED else day
+    return 'last year' if day <= min(c.PREREG_OPEN, c.DEALER_REG_START) else day
 
 
 @JinjaEnv.jinja_filter

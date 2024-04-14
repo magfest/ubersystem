@@ -37,12 +37,15 @@ class Root:
             changed_attendees = 0
 
             if not message:
+                entry_pii_updated = entry.is_new or any(
+                    [entry.orig_value_of(attr) != getattr(entry, attr) for attr in ['first_names', 'last_name',
+                                                                                    'email', 'birthdate']])
                 session.add(entry)
                 session.commit()
 
                 if entry.active:
                     for attendee in entry.attendee_guesses:
-                        if attendee.badge_status == c.NEW_STATUS:
+                        if entry_pii_updated and attendee.is_valid and attendee.badge_status != c.WATCHED_STATUS:
                             attendee.badge_status = c.WATCHED_STATUS
                             changed_attendees += 1
                             session.add(attendee)
@@ -73,16 +76,16 @@ class Root:
         attendee = session.attendee(attendee_id, allow_invalid=True)
         if 'ignore' in params:
             attendee.badge_status = c.COMPLETED_STATUS
-            message = 'Attendee can now check in'
+            message = 'Attendee can now check in.'
         elif watchlist_id:
             watchlist_entry = session.watch_list(watchlist_id)
 
             if 'active' in params:
                 watchlist_entry.active = not watchlist_entry.active
-                message = 'Watchlist entry updated'
+                message = 'Watchlist entry updated.'
             if 'confirm' in params:
                 attendee.watchlist_id = watchlist_id
-                message = 'Watchlist entry permanently matched to attendee'
+                message = 'Watchlist entry permanently matched to attendee.'
 
         session.commit()
 
