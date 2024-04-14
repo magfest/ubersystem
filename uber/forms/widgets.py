@@ -15,7 +15,7 @@ class MultiCheckbox():
         html.append(f'<legend class="form-text mt-0"><span class="form-label">{field.label.text}</span>'
                     '{}</legend>'.format(Markup(' <span class="required-indicator text-danger">*</span>')
                                          if field.flags.required else ''))
-        for value, label, checked in field.iter_choices():
+        for value, label, checked, _html_attribs in field.iter_choices():
             choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
             if value == c.OTHER:
