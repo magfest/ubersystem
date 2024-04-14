@@ -57,17 +57,18 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Test Docker Image
-        uses: docker/build-push-action@v2
-        with:
-          build-args: BRANCH=${{ github.ref_name }}
-          context: "."
-          push: false
-          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
-          target: test
+# TODO: Enable tests once we can run Postgres in CI
+#      - name: Build Test Docker Image
+#        uses: docker/build-push-action@v2
+#        with:
+#          build-args: BRANCH=${{ github.ref_name }}
+#          context: "."
+#          push: false
+#          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
+#          target: test
 
-      - name: Execute Tests
-        run: docker run ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
+#      - name: Execute Tests
+#        run: docker run ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v2
