@@ -47,8 +47,11 @@ def _make_getter(model):
         elif isinstance(params, str):
             return self.query(model).filter_by(id=params).one()
         else:
-            params = params.copy()
-            id = params.pop('id', 'None')
+            if params:
+                params = params.copy()
+                id = params.pop('id', 'None')
+            else:
+                id = 'None'
             if id == 'None':
                 inst = model()
             else:
