@@ -14,6 +14,9 @@ import stripe
 # authorizenet does not support python3.10+ as it moved MutableSequence into collections.abc. This monkeypatches around that.
 import collections
 collections.MutableSequence = collections.abc.MutableSequence
+import pyxb
+import six
+pyxb.utils.six.text_type = six.text_type
 from authorizenet import apicontractsv1, apicontrollers
 from pockets import cached_property, classproperty, is_listy, listify
 from pockets.autolog import log
