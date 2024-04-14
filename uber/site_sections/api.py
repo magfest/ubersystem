@@ -50,7 +50,7 @@ class Root:
                     method = unwrap(method)
                     doc = method.__doc__ or ''
                     args = signature(method).parameters
-                    if 'self' in args:
+                    if 'self' in dict(args):
                         args.remove('self')
                     access = getattr(method, 'required_access', set())
                     required_access = sorted([opt[4:].title() for opt in access])
