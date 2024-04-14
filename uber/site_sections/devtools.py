@@ -10,7 +10,7 @@ import cherrypy
 from datetime import datetime
 
 from sideboard.debugging import register_diagnostics_status_function, gather_diagnostics_status_information
-from sqlalchemy.dialects.postgresql.json import JSON
+from sqlalchemy.dialects.postgresql.json import JSONB
 from pockets.autolog import log
 from pytz import UTC
 from sqlalchemy.types import Date, Boolean, Integer
@@ -63,7 +63,7 @@ def prepare_model_export(model, filtered_models=None):
                 # Also you should fill in whatever actual format you want.
                 val = getattr(model, col.name)
                 row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
-            elif isinstance(col.type, JSON):
+            elif isinstance(col.type, JSONB):
                 row.append(json.dumps(getattr(model, col.name)))
             else:
                 # For everything else we'll just dump the value, although we might
@@ -168,7 +168,7 @@ class Root:
                     val = col.type.convert_if_labels(val)
                 elif isinstance(col.type, Integer):
                     val = int(val)
-                elif isinstance(col.type, JSON):
+                elif isinstance(col.type, JSONB):
                     val = json.loads(val)
 
                 # now that we've converted val to whatever it actually needs to be, we
