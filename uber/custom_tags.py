@@ -322,7 +322,7 @@ def remove_newlines(string):
 @JinjaEnv.jinja_filter
 def sanitize_html(text, **kw):
     if not kw:
-        kw = {'tags': ['br'] + bleach.sanitizer.ALLOWED_TAGS}
+        kw = {'tags': ['br'] + list(bleach.sanitizer.ALLOWED_TAGS)}
 
     return Markup(bleach.clean(text, **kw))
 
