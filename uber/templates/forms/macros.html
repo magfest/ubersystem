@@ -49,7 +49,7 @@
     <div class="form-text">{{ label_text }}</div>
     <div{% if not no_margin %} class="mb-3"{% endif %}>
       {% if force_hidden %}
-        <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data }}" />
+        <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data or kwargs['default']|default('') }}" />
       {% else %}
         {{ field(**custom_kwargs) }}
       {% endif %}
@@ -57,7 +57,7 @@
     </div>
   {% else %}
   {% if force_hidden %}
-    <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data }}" />
+    <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data or kwargs['default']|default('') }}" />
   {% else %}
     {{ field(**custom_kwargs) }}
   {% endif %}

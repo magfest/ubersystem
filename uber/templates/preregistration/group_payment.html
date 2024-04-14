@@ -1,0 +1,20 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Pay for Group" %}
+{% block backlink %}
+{{ super() }}
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        Registration Payment
+      </div>
+    <div class="card-body">
+        <p>In order to {{ "manage your group" if count == 0 else "finish adding your group's " ~ count ~ " new badges" }}, please pay {{ (receipt.current_amount_owed / 100)|format_currency }}.
+        <br/>{{ stripe_form('process_group_payment', group) }}</p>
+
+        <p>You can view your full receipt below:</p>
+        {% include 'preregistration/receipt_table.html' %}
+        
+    </div>
+</div>
+{% endblock %}

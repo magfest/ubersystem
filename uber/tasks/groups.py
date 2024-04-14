@@ -35,12 +35,13 @@ def check_document_signed():
                         session.commit()
 
 
-@celery.schedule(crontab(minute=0, hour='*/12'))
+@celery.schedule(crontab(minute=0, hour=0))
 def convert_declined_groups():
     from uber.site_sections.dealer_admin import decline_and_convert_dealer_group
 
     with Session() as session:
         declined_groups = session.query(Group).filter(Group.status == c.DECLINED,
+                                                      Group.convert_badges == True,
                                                       Group.badges_purchased > 0)
         for group in declined_groups:
             result = decline_and_convert_dealer_group(session, group, delete_group=c.DELETE_DECLINED_GROUPS)

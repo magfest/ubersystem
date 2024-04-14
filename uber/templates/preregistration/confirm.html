@@ -160,6 +160,7 @@
     {% if not page_ro and attendee.can_abandon_badge or attendee.can_self_service_refund_badge %}
       <form method="post" action="abandon_badge" id="abandon_badge">
         <input type="hidden" name="id" value="{{ attendee.id }}"/>
+        {{ csrf_token() }}
       </form>
     {% endif %}
   </div>

@@ -19,6 +19,13 @@
     <h2> Members of "{{ group.name }}" </h2>
     <p>You have bought {{ group.paid_codes|length }} promo codes for a total of {{ group.total_cost|format_currency }} (not including your badge).</p>
 
+    {% if receipt and receipt.current_amount_owed %}
+    <div class="alert alert-danger pb-0" role="alert">
+      <p>You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+      Please use the button below to pay in order to manage your group codes.</p>
+      <p>{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, return_to='group_promo_codes?id=' ~ group.id) }}</p>
+    </div>
+    {% else %}
     <p>{% if group.valid_codes %}Anyone can claim one of the {{ group.valid_codes|length }} remaining badges in this group using either an unclaimed promo code below or this group's universal code, <strong>{{ group.code }}</strong>.
     {% else %}All promo codes have been claimed. Please email us at {{ c.REGDESK_EMAIL|email_to_link }} if a promo code was claimed in error.{% endif %}</p>
     <strong>Below are the promo codes for your group "{{ group.name }}" and who is using them:</strong>
@@ -78,32 +85,47 @@
         </p>
         <form class="row" method="get" action="add_promo_codes">
           <input type="hidden" name="id" value="{{ group.id }}" />
+          <input type="hidden" id="estimatedCost" name="estimated_cost" value="{{ c.GROUP_PRICE|default(0, true) }}" />
           <div class="col-8 col-sm-4">
-            <select class="form-select" name="count">
+            <select class="form-select" id="newBadgeCount" name="count">
               {{ int_options(group.min_badges_addable, 10) }}
             </select>
           </div>
-          <div class="col"><input class="btn btn-primary" type="submit" value="Add Promo Codes"></div>
+          <div class="col">
+            <button class="btn btn-primary" id="newBadgeSubmit" type="submit">
+              Add Promo Code
+            </button>
+          </div>
         </form>
       </div>
 
-      {% if c.REMAINING_BADGES > 50 %}
+      {% if c.REMAINING_BADGES > 50 and (not c.AT_THE_CON or not c.SPIN_TERMINAL_AUTH_KEY)  %}
       <script type="text/javascript">
           $(function() {
             {% if attendee.amount_unpaid %}
-              $('<div class="disabled" title="Please pay for your current registration and extras before buying more codes">' +
+              $('<div class="disabled" title="Please pay for your current registration and extras before buying more codes.">' +
                   '<button disabled class="btn btn-primary">Click here to add more promo codes</button>' +
                   '</div>').insertAfter($("#add"));
             {% else %}
+            var newBadgePrice = {{ c.GROUP_PRICE|default(0, true) }};
+            var newBadgeSubmitText = 'Add Promo Code(s)';
+            var updateBadgeEstimate = function() {
+              if(newBadgePrice == 0) { return; }
+              $('#estimatedCost').val(newBadgePrice * parseInt($('#newBadgeCount').val()));
+              $('#newBadgeSubmit').text(newBadgeSubmitText + " for $" + $('#estimatedCost').val());
+            }
                 $('<button class="btn btn-primary">Click here to add more promo codes</button>').click(function(e){
                     $(e.target).hide();
                     $("#add").show();
+                    updateBadgeEstimate();
                 }).insertAfter($("#add"));
+                $('#newBadgeCount').change(function() {updateBadgeEstimate();});
             {% endif %}
           });
       </script>
       {% endif %}
 
+    {% endif %}
     {% endif %}
   </div>
   </div>
