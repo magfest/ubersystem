@@ -1,0 +1,16 @@
+apiVersion: v2
+name: ubersystem
+description: Event management software
+type: application
+version: 0.1.0
+appVersion: "2017.07"
+
+dependencies:
+  - name: postgresql-ha
+    version: "~13.0.1"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql-ha.enabled
+  - name: redis
+    version: "~18.11.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
