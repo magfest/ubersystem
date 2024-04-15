@@ -5,6 +5,14 @@
 # I.e. ./healthcheck.sh uber
 set -e
 
+RESULT_PROTOCOL=$(echo "${BROKER_PROTOCOL}" | sed 's/amqps/rpc/g;s/amqp/rpc/g')
+cat <<EOF > celeryconf.py
+# celery config used for celery cli-based health checks (Not loaded by ubersystem directly)
+broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
+result_backend = "${RESULT_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
+result_backend_transport_options = {'global_prefix': "${BROKER_PREFIX}"}
+EOF
+
 # If no arguments are passed grab the current CMD from the entrypoint
 CMD="${1:-$(cat /proc/1/cmdline | strings -1 | tail -1)}"
 

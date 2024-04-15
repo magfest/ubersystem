@@ -2036,7 +2036,7 @@ class Session(SessionManager):
             )
 
             if not c.SAML_SETTINGS:
-                test_developer_account.hashed = bcrypt.hashpw('magfest', bcrypt.gensalt())
+                test_developer_account.hashed = bcrypt.hashpw('magfest'.encode('utf-8'), bcrypt.gensalt())
 
             test_developer_account.access_groups.append(all_access_group)
 
