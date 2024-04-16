@@ -9,26 +9,26 @@ parser = argparse.ArgumentParser(
     prog='make_config',
     description='Generates ubersystem config files from compressed environment variables'
 )
-parser.add_argument("--repo", required=True, help="Optional git repo to pull config from, used for development", default=os.environ.get("CONFIG_REPO", None))
-parser.add_argument("--paths", required=True, nargs="*", help="Configuration paths to use when loading from git repo", default=os.environ.get("CONFIG_PATHS", None))
+parser.add_argument("--repo", required=True, help="Optional git repo to pull config from, used for development")
+parser.add_argument("--paths", required=True, nargs="*", help="Configuration paths to use when loading from git repo")
+parser.add_argument("--environment", required=False, help="Create an environment file that will tell uber where to find all generated configs")
 args = parser.parse_args()
 
-if args.repo:
-    repo_config = []
-    with tempfile.TemporaryDirectory() as temp:
-        print(f"Cloning config repo {args.repo} into {temp}")
-        os.system(f"git clone --depth=1 {args.repo} {temp}")
-        files = []
-        for path in args.paths:
-            print(f"Loading files from {path}")
-            parts = pathlib.PurePath(path).parts
-            for idx, part in enumerate(parts):
-                full_path = os.path.join(temp, *parts[:idx+1])
-                files.extend([os.path.join(full_path, x) for x in os.listdir(full_path) if x.endswith(".yaml")])
-        for filename in files:
-            print(f"Loading config from {filename}")
-            with open(filename, "rb") as FILE:
-                repo_config.append(yaml.safe_load(FILE))
+repo_config = []
+with tempfile.TemporaryDirectory() as temp:
+    print(f"Cloning config repo {args.repo} into {temp}")
+    os.system(f"git clone --depth=1 {args.repo} {temp}")
+    files = []
+    for path in args.paths:
+        print(f"Loading files from {path}")
+        parts = pathlib.PurePath(path).parts
+        for idx, part in enumerate(parts):
+            full_path = os.path.join(temp, *parts[:idx+1])
+            files.extend([os.path.join(full_path, x) for x in os.listdir(full_path) if x.endswith(".yaml")])
+    for filename in files:
+        print(f"Loading config from {filename}")
+        with open(filename, "rb") as FILE:
+            repo_config.append(yaml.safe_load(FILE))
 
 plugin_configs = {}
 for parsed in repo_config:    
@@ -99,3 +99,13 @@ for plugin, configs in plugin_configs.items():
 print("Use the following environment variables to load this config:")
 for plugin in plugin_configs:
     print(f"{plugin.upper()}_CONFIG_FILES={plugin}.ini")
+
+if args.environment:
+    with open(args.environment, "w") as file:
+        for plugin in plugin_configs:
+            existing = os.environ.get(f"{plugin.upper()}_CONFIG_FILES", "")
+            path = pathlib.Path(f"{plugin}.ini").resolve()
+            if existing:
+                file.write(f'export {plugin.upper()}_CONFIG_FILES="{existing};{path}"\n')
+            else:
+                file.write(f'export {plugin.upper()}_CONFIG_FILES="{path}"\n')
