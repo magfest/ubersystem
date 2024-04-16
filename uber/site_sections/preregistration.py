@@ -147,7 +147,7 @@ def set_up_new_account(session, attendee, email=None):
         session.add_attendee_to_account(attendee, account)
 
     if not account.is_sso_account:
-        session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
+        session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')))
 
         body = render('emails/accounts/new_account.html', {
                 'attendee': attendee, 'account_email': email, 'token': token}, encoding=None)
@@ -2174,7 +2174,7 @@ class Root:
 
         if not password:
             message = 'Please enter your current password to make changes to your account.'
-        elif not bcrypt.hashpw(password, account.hashed) == account.hashed:
+        elif not bcrypt.hashpw(password.encode('utf-8'), account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             message = 'Incorrect password'
 
         if not message:
@@ -2189,7 +2189,7 @@ class Root:
 
         if not message:
             if new_password:
-                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                account.hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             account.email = params.get('account_email')
             message = 'Account information updated successfully.'
         raise HTTPRedirect('homepage?message={}', message)
@@ -2221,7 +2221,7 @@ class Root:
                 raise HTTPRedirect(sso_url)
 
             token = genpasswd(short=True)
-            session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
+            session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')))
 
             body = render('emails/accounts/password_reset.html', {
                     'account': account, 'token': token}, encoding=None)
@@ -2246,7 +2246,7 @@ class Root:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
             message = 'This link has expired. Please use the "forgot password" option to get a new link.'
-        elif bcrypt.hashpw(token, account.password_reset.hashed) != account.password_reset.hashed:
+        elif bcrypt.hashpw(token.encode('utf-8'), account.password_reset.hashed.encode('utf-8')) != account.password_reset.hashed.encode('utf-8'):
             message = 'Invalid token. Did you copy the URL correctly?'
 
         if message:
@@ -2259,7 +2259,7 @@ class Root:
 
             if not message:
                 account.email = normalize_email(account_email)
-                account.hashed = bcrypt.hashpw(account_password, bcrypt.gensalt())
+                account.hashed = bcrypt.hashpw(account_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 session.delete(account.password_reset)
                 for attendee in account.attendees:
                     # Make sure only this account manages the attendee if c.ONE_MANAGER_PER_BADGE is set

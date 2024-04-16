@@ -90,7 +90,7 @@ class Attraction(MagModel):
             order_by='Attraction.name'))
     owner_attendee = relationship(
         'Attendee',
-        cascade='save-update,merge',
+        cascade='merge',
         secondary='admin_account',
         uselist=False,
         viewonly=True)
@@ -460,10 +460,9 @@ class AttractionSignup(MagModel):
 
     notifications = relationship(
         'AttractionNotification',
-        cascade='save-update, merge, refresh-expire, expunge',
         backref=backref(
             'signup',
-            cascade='save-update,merge',
+            cascade='merge',
             uselist=False,
             viewonly=True),
         primaryjoin='and_('

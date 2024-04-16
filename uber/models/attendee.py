@@ -272,7 +272,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     dept_roles = relationship(
         'DeptRole',
         backref='attendees',
-        cascade='save-update,merge,refresh-expire,expunge',
         secondaryjoin='and_('
                       'dept_membership_dept_role.c.dept_role_id == DeptRole.id, '
                       'dept_membership_dept_role.c.dept_membership_id == DeptMembership.id)',
@@ -283,14 +282,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     jobs = relationship(
         'Job',
         backref='attendees_working_shifts',
-        cascade='save-update,merge,refresh-expire,expunge',
         secondary='shift',
         order_by='Job.name',
         viewonly=True)
     jobs_in_assigned_depts = relationship(
         'Job',
         backref='attendees_in_dept',
-        cascade='save-update,merge,refresh-expire,expunge',
         secondaryjoin='DeptMembership.department_id == Job.department_id',
         secondary='dept_membership',
         order_by='Job.name',
@@ -298,7 +295,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     depts_where_working = relationship(
         'Department',
         backref='attendees_working_shifts',
-        cascade='save-update,merge,refresh-expire,expunge',
         secondary='join(Shift, Job)',
         order_by='Department.name',
         viewonly=True)
@@ -342,7 +338,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         viewonly=True)
     pocs_for_depts_where_working = relationship(
         'Attendee',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='Attendee.id == Shift.attendee_id',
         secondaryjoin='and_('
                       'DeptMembership.attendee_id == Attendee.id, '
@@ -353,7 +348,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         viewonly=True)
     dept_heads_for_depts_where_working = relationship(
         'Attendee',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='Attendee.id == Shift.attendee_id',
         secondaryjoin='and_('
                       'DeptMembership.attendee_id == Attendee.id, '

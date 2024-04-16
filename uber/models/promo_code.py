@@ -480,7 +480,7 @@ class PromoCode(MagModel):
             self.uses_allowed = None
 
         # If 'discount' is empty, then this is a full discount, free badge
-        if self.discount == '':
+        if not self.discount:
             self.discount = None
 
         self.code = self.code.strip() if self.code else ''

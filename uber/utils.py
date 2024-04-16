@@ -125,8 +125,8 @@ def normalize_email(email, split_address=False):
     from email_validator import validate_email
     response = validate_email(email, check_deliverability=False)
     if split_address:
-        return response['local'], response['domain']
-    return response['email']
+        return response.local_part, response.domain
+    return response.normalized
 
 
 def normalize_email_legacy(email):

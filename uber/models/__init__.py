@@ -21,7 +21,7 @@ from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
@@ -47,8 +47,11 @@ def _make_getter(model):
         elif isinstance(params, str):
             return self.query(model).filter_by(id=params).one()
         else:
-            params = params.copy()
-            id = params.pop('id', 'None')
+            if params:
+                params = params.copy()
+                id = params.pop('id', 'None')
+            else:
+                id = 'None'
             if id == 'None':
                 inst = model()
             else:
@@ -360,7 +363,7 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
-            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?', val, name)
+            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?'.format(val, name))
             return ''
 
         if val == -1:
@@ -368,7 +371,7 @@ class MagModel:
 
         label = self.get_field(name).type.choices.get(val)
         if not label:
-            log.debug('{} does not have a label for {}, check your enum generating code', name, val)
+            log.debug('{} does not have a label for {}, check your enum generating code'.format(name, val))
             return ''
         return label
 
@@ -713,7 +716,10 @@ class Session(SessionManager):
 
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
-                return self.admin_account(cherrypy.session.get('account_id')).attendee
+                try:
+                    return self.admin_account(cherrypy.session.get('account_id')).attendee
+                except NoResultFound:
+                    return
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):

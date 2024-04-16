@@ -21,7 +21,7 @@ import cherrypy
 import jinja2
 import phonenumbers
 from dateutil.relativedelta import relativedelta
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from phonenumbers import PhoneNumberFormat
 from pockets import fieldify, unfieldify, listify, readable_join
 from sideboard.lib import serializer
@@ -256,9 +256,9 @@ def url_to_link(url=None, text=None, target=None, is_relative=True):
         url = 'http://' + url
 
     return safe_string('<a href="{}"{}>{}</a>'.format(
-        jinja2.escape(url),
-        ' target="{}"'.format(jinja2.escape(target)) if target else '',
-        jinja2.escape(text)))
+        escape(url),
+        ' target="{}"'.format(escape(target)) if target else '',
+        escape(text)))
 
 
 @JinjaEnv.jinja_filter
@@ -268,7 +268,7 @@ def email_to_link(email=None):
     """
     if not email:
         return ''
-    return safe_string('<a href="mailto:{0}">{0}</a>'.format(jinja2.escape(email)))
+    return safe_string('<a href="mailto:{0}">{0}</a>'.format(escape(email)))
 
 
 @JinjaEnv.jinja_filter
@@ -322,7 +322,7 @@ def remove_newlines(string):
 @JinjaEnv.jinja_filter
 def sanitize_html(text, **kw):
     if not kw:
-        kw = {'tags': ['br'] + bleach.sanitizer.ALLOWED_TAGS}
+        kw = {'tags': ['br'] + list(bleach.sanitizer.ALLOWED_TAGS)}
 
     return Markup(bleach.clean(text, **kw))
 
@@ -379,7 +379,7 @@ def form_link(model, new_window=False):
                                                            page,
                                                            model.id,
                                                            ' target="_blank"' if new_window else '',
-                                                           jinja2.escape(name)))
+                                                           escape(name)))
     return name
 
 
@@ -437,7 +437,7 @@ def pluralize(number, singular='', plural='s'):
 @JinjaEnv.jinja_filter
 def maybe_red(amount, comp):
     if amount >= comp:
-        return safe_string('<span style="color:red ; font-weight:bold">{}</span>'.format(jinja2.escape(amount)))
+        return safe_string('<span style="color:red ; font-weight:bold">{}</span>'.format(escape(amount)))
     else:
         return amount
 
@@ -589,7 +589,7 @@ RE_LOCATION = re.compile(r'(\(.*?\))')
 @JinjaEnv.jinja_export
 def location_part(location, index=0):
     parts = RE_LOCATION.split(c.EVENT_LOCATIONS[location])
-    parts = [jinja2.escape(s.strip(' ()')) for s in parts if s.strip()]
+    parts = [escape(s.strip(' ()')) for s in parts if s.strip()]
     return parts[index] if parts else ''
 
 
@@ -683,7 +683,7 @@ def format_location(location, separator='<br>', spacer='above', text_class='text
 
     """
     parts = RE_LOCATION.split(c.EVENT_LOCATIONS[location])
-    parts = [jinja2.escape(s.strip()) for s in parts if s.strip()]
+    parts = [escape(s.strip()) for s in parts if s.strip()]
     if spacer and len(parts) < 2:
         parts.insert(0 if spacer == 'above' else 1, '&nbsp;')
     return safe_string(separator.join(
@@ -714,7 +714,7 @@ def linebreaksbr(text):
     is_markup = isinstance(text, Markup)
     text = normalize_newlines(text)
     if not is_markup:
-        text = text_type(jinja2.escape(text))
+        text = text_type(escape(text))
     text = text.replace('\n', '<br />')
     return safe_string(text)
 
@@ -789,7 +789,7 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
         if takedown < c.EPOCH:
             return safe_string(
                 '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(
-                    jinja2.escape(label), takedown.strftime('%Z'), takedown.strftime('%A, %b %e')))
+                    escape(label), takedown.strftime('%Z'), takedown.strftime('%A, %b %e')))
         else:
             return ''
 
