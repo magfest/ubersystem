@@ -9,6 +9,6 @@ if __name__ == '__main__':
         author='Eli Courtwright',
         author_email='eli@courtwright.org',
         description='The MAGFest Ubersystem',
-        url='https://github.com/EliAndrewC/magfest',
+        url='https://github.com/magfest/ubersystem',
         install_requires=open('requirements.txt').readlines()
     )

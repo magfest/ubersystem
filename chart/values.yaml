@@ -1,0 +1,52 @@
+web:
+  image:
+    repository: ghcr.io/magfest/ubersystem
+    tag: main
+    pullPolicy: IfNotPresent
+  replicas: 1
+  nodePort: 30000
+  port: 8282
+  host: "::"
+  url_root: http://localhost
+  virtual_host: localhost
+  storage:
+    capacity: 5Gi
+
+beats:
+  image:
+    repository: ghcr.io/magfest/ubersystem
+    tag: main
+    pullPolicy: IfNotPresent
+  replicas: 1
+
+workers:
+  image:
+    repository: ghcr.io/magfest/ubersystem
+    tag: main
+    pullPolicy: IfNotPresent
+  replicas: 1
+
+postgresql-ha:
+  enabled: true
+  fullnameOverride: postgres
+  pgpool:
+    adminPassword: pgpool
+  postgresql:
+    containerPorts:
+      postgresql: 5432
+    password: ubersystem
+    database: ubersystem
+    repmgrUsername: repmgr
+    repmgrPassword: repmgr
+    repmgrDatabase: repmgr
+
+redis:
+  enabled: true
+  architecture: standalone
+  fullnameOverride: redis
+  auth:
+    enabled: false
+
+insert_test_admin: true
+db_connection_string: "postgresql://postgres:ubersystem@postgres-pgpool:5432/ubersystem"
+redis_host: "{{ .Values.redis.fullnameOverride }}-master.{{ .Release.Namespace }}.svc.cluster.local"

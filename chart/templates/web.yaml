@@ -1,0 +1,98 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  type: NodePort
+  ports:
+    - nodePort: {{ .Values.web.nodePort }}
+      port: {{ .Values.web.port }}
+      targetPort: {{ .Values.web.port }}
+      protocol: TCP
+      name: web
+  selector:
+    app: web
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: service-reader
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["services", "endpoints"]
+  verbs: ["get", "watch", "list"]
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: init-api-access
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: init-api-access
+  apiGroup: ""
+roleRef:
+  kind: Role
+  name: service-reader
+  apiGroup: ""
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      volumes:
+      - name: web-uploads
+        persistentVolumeClaim:
+          claimName: web-uploads
+      terminationGracePeriodSeconds: 5
+      {{- template "uber.initContainers" .}}
+      containers:
+      - name: web
+        image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+        ports:
+        - containerPort: {{ .Values.web.port }}
+        env:
+        {{- template "uber.environment" . }}
+        volumeMounts:
+        - mountPath: "/app/plugins/uber/uploaded_files"
+          name: web-uploads
+
+{{ if .Values.insert_test_admin }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-admin
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    spec:
+      containers:
+      - name: create-admin
+        image: quay.io/curl/curl:latest
+        command: ["curl", "--fail-with-body", "http://web.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.web.port }}/accounts/insert_test_admin"]
+      restartPolicy: Never
+  backoffLimit: 4
+{{ end }}
