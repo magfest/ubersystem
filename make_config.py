@@ -30,6 +30,12 @@ with tempfile.TemporaryDirectory() as temp:
         with open(filename, "rb") as FILE:
             repo_config.append(yaml.safe_load(FILE))
 
+secrets = os.environ.get("UBERSYSTEM_SECRETS", None)
+if secrets:
+    repo_config.append({
+        "plugins": yaml.safe_load(secrets)
+    })
+
 plugin_configs = {}
 for parsed in repo_config:    
     sideboard_config = parsed.get("sideboard", {})
