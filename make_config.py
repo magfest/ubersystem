@@ -106,6 +106,6 @@ if args.environment:
             existing = os.environ.get(f"{plugin.upper()}_CONFIG_FILES", "")
             path = pathlib.Path(f"{plugin}.ini").resolve()
             if existing:
-                file.write(f'export {plugin.upper()}_CONFIG_FILES="{existing};{path}"\n')
+                file.write(f'export {plugin.upper()}_CONFIG_FILES="{path};{existing}"\n')
             else:
                 file.write(f'export {plugin.upper()}_CONFIG_FILES="{path}"\n')
