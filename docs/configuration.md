@@ -33,7 +33,9 @@ tools.sessions.enabled = True
 
 | Environment Variable | Value | Description |
 | sideboard_url_root | / | |
-| sideboard_cherrypy_tools.sessions.enabled | True | |
+| sideboard_cherrypy_tools_sessions_enabled | True | |
+
+Note that `.` becomes `_` and the config paths is joined by underscores.
 
 ### Environment Variables
 
