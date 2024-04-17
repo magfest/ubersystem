@@ -1,102 +1,117 @@
 #!/app/env/bin/python3
-from configobj import ConfigObj
-import tempfile
 import argparse
 import pathlib
-import base64
-import gzip
+import tempfile
 import yaml
 import os
-
-root = os.environ.get("UBERSYSTEM_ROOT", "/app")
-config = os.environ.get("UBERSYSTEM_CONFIG", "[]")
-secrets = yaml.load(os.environ.get("UBERSYSTEM_SECRETS", "{}"), Loader=yaml.Loader)
 
 parser = argparse.ArgumentParser(
     prog='make_config',
     description='Generates ubersystem config files from compressed environment variables'
 )
-parser.add_argument("--repo", required=False, help="Optional git repo to pull config from, used for development")
-parser.add_argument("--paths", nargs="*", help="Configuration paths to use when loading from git repo")
+parser.add_argument("--repo", required=True, help="Optional git repo to pull config from, used for development")
+parser.add_argument("--paths", required=True, nargs="*", help="Configuration paths to use when loading from git repo")
+parser.add_argument("--environment", required=False, help="Create an environment file that will tell uber where to find all generated configs")
 args = parser.parse_args()
 
-if args.repo:
-    repo_config = []
-    with tempfile.TemporaryDirectory() as temp:
-        print(f"Cloning config repo {args.repo} into {temp}")
-        os.system(f"git clone --depth=1 {args.repo} {temp}")
-        files = []
-        for path in args.paths:
-            print(f"Loading files from {path}")
-            parts = pathlib.PurePath(path).parts
-            for idx, part in enumerate(parts):
-                full_path = os.path.join(temp, *parts[:idx+1])
-                files.extend([os.path.join(full_path, x) for x in os.listdir(full_path) if x.endswith(".yaml")])
-        for filename in files:
-            print(f"Loading config from {filename}")
-            with open(filename, "rb") as FILE:
-                config_data = FILE.read()
-            zipped = gzip.compress(config_data)
-            encoded = base64.b64encode(zipped)
-            repo_config.append(encoded)
-    config = yaml.dump(repo_config, Dumper=yaml.Dumper, encoding="utf8")
+repo_config = []
+with tempfile.TemporaryDirectory() as temp:
+    print(f"Cloning config repo {args.repo} into {temp}")
+    os.system(f"git clone --depth=1 {args.repo} {temp}")
+    files = []
+    for path in args.paths:
+        print(f"Loading files from {path}")
+        parts = pathlib.PurePath(path).parts
+        for idx, part in enumerate(parts):
+            full_path = os.path.join(temp, *parts[:idx+1])
+            files.extend([os.path.join(full_path, x) for x in os.listdir(full_path) if x.endswith(".yaml")])
+    for filename in files:
+        print(f"Loading config from {filename}")
+        with open(filename, "rb") as FILE:
+            repo_config.append(yaml.safe_load(FILE))
 
-plugins = os.listdir(os.path.join(root, "plugins"))
-plugin_configs = {x: [] for x in plugins}
-sideboard_configs = []
+secrets = os.environ.get("UBERSYSTEM_SECRETS", None)
+if secrets:
+    repo_config.append({
+        "plugins": yaml.safe_load(secrets)
+    })
 
-for plugin in plugins:
-    default_config = os.path.join(root, "plugins/", plugin, "development.ini")
-    if os.path.isfile(default_config):
-        plugin_configs[plugin].append(ConfigObj(default_config))
-sideboard_default_config = os.path.join(root, "development.ini")
-if os.path.isfile(sideboard_default_config):
-    sideboard_configs.append(ConfigObj(sideboard_default_config))
-
-for encoded in yaml.load(config, Loader=yaml.Loader):
-    decoded = base64.b64decode(encoded)
-    unzipped = gzip.decompress(decoded)
-    parsed = yaml.load(unzipped, Loader=yaml.Loader)
-    
+plugin_configs = {}
+for parsed in repo_config:    
     sideboard_config = parsed.get("sideboard", {})
     if sideboard_config:
-        sideboard_configs.append(ConfigObj(sideboard_config))
+        if not "sideboard" in plugin_configs:
+            plugin_configs["sideboard"] = []
+        plugin_configs["sideboard"].append(sideboard_config)
 
     plugin_config = parsed.get("plugins", {})
     for key, val in plugin_config.items():
-        if key in plugin_configs:
-            plugin_configs[key].append(ConfigObj(val))
-        else:
-            print(f"Found config for unknown plugin {key}")
+        if not key in plugin_configs:
+            plugin_configs[key] = []
+        plugin_configs[key].append(val)
 
-    extra_files = parsed.get("extra_files", {})
-    for filename, contents in extra_files.items():
-        path = os.path.join(root, filename)
-        directory = os.path.dirname(path)
-        if not os.path.isdir(directory):
-            os.makedirs(directory)
-        with open(path, "w") as EXTRA:
-            EXTRA.write(contents)
+def merge_values(a, b):
+    if isinstance(a, dict) and isinstance(b, dict):
+        return {key: merge_values(a.get(key, None), b.get(key, None)) for key in set(a.keys()).union(set(b.keys()))}
+    if b is None:
+        return a
+    return b
+
+def merge_configs(configs):
+    base = {}
+    for config in configs:
+        for key, val in config.items():
+            if key in base:
+                base[key] = merge_values(base[key], val)
+            else:
+                base[key] = val
+    return base
+
+def quote_string(string):
+    string = str(string).strip()
+    if ',' in string or '\n' in string:
+        string = f"'''{string}'''"
+    return string
+
+def serialize_config(config, depth=1):
+    doc = ""
+    for key, val in sorted(config.items(), key=lambda x: x[0]):
+        key = quote_string(key)
+        if not isinstance(val, dict):
+            if val is None:
+                doc += f"{key} = \n"
+            elif isinstance(val, list):
+                doc += f"{key} = " + ", ".join([quote_string(x) for x in val])
+                if len(val) < 2:
+                    doc += ","
+                doc += "\n"
+            else:
+                doc += f"{key} = {quote_string(val)}\n"
+    for key, val in sorted(config.items(), key=lambda x: x[0]):
+        if isinstance(val, dict):
+            doc += f'\n{"["*depth}{key.strip()}{"]"*depth}\n'
+            doc += serialize_config(val, depth=depth+1)
+    return doc
+                
+            
 
 for plugin, configs in plugin_configs.items():
-    if configs:
-        config = configs[0]
-        for override in configs[1:]:
-            config.merge(override)
-        if plugin in secrets:
-            config.merge(ConfigObj(secrets[plugin]))
-        config.filename = os.path.join(root, "plugins/", plugin, "development.ini")
-        config.write()
-        with open(os.path.join(root, "plugins/", plugin, "development.ini"), "r") as CONFIG:
-            print(plugin, CONFIG.read())
+    print(f"Saving {plugin} config to {plugin}.ini")
+    config = merge_configs(configs)
+    doc = serialize_config(config)
+    with open(f"{plugin}.ini", "w") as file:
+        file.write(doc)
 
-if sideboard_configs:
-    config = sideboard_configs[0]
-    for override in sideboard_configs[1:]:
-        config.merge(override)
-    if "sideboard" in secrets:
-        config.merge(ConfigObj(secrets["sideboard"]))
-    config.filename = os.path.join(root, "development.ini")
-    config.write()
-    with open(os.path.join(root, "development.ini"), "r") as CONFIG:
-        print("sideboard", CONFIG.read())
+print("Use the following environment variables to load this config:")
+for plugin in plugin_configs:
+    print(f"{plugin.upper()}_CONFIG_FILES={plugin}.ini")
+
+if args.environment:
+    with open(args.environment, "w") as file:
+        for plugin in plugin_configs:
+            existing = os.environ.get(f"{plugin.upper()}_CONFIG_FILES", "")
+            path = pathlib.Path(f"{plugin}.ini").resolve()
+            if existing:
+                file.write(f'export {plugin.upper()}_CONFIG_FILES="{path};{existing}"\n')
+            else:
+                file.write(f'export {plugin.upper()}_CONFIG_FILES="{path}"\n')
