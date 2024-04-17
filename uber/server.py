@@ -10,15 +10,19 @@ import jinja2
 from cherrypy import HTTPError
 from pockets import is_listy
 from pockets.autolog import log
-from sideboard.jsonrpc import json_handler, ERR_INVALID_RPC, ERR_MISSING_FUNC, ERR_INVALID_PARAMS, \
-    ERR_FUNC_EXCEPTION, ERR_INVALID_JSON
-from sideboard.websockets import trigger_delayed_notifications
 
+from sideboard.lib import serializer
 from uber.config import c, Config
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.utils import mount_site_sections, static_overrides
 
+
+ERR_INVALID_RPC = -32600
+ERR_MISSING_FUNC = -32601
+ERR_INVALID_PARAMS = -32602
+ERR_FUNC_EXCEPTION = -32603
+ERR_INVALID_JSON = -32700
 
 mimetypes.init()
 
@@ -34,6 +38,9 @@ if c.SENTRY['enabled']:
         traces_sample_rate=c.SENTRY['sample_rate'] / 100
     )
 
+def json_handler(*args, **kwargs):
+    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
+    return json.dumps(value, cls=serializer).encode('utf-8')
 
 def sentry_start_transaction():
     cherrypy.request.sentry_transaction = sentry_sdk.start_transaction(
@@ -272,6 +279,21 @@ c.APPCONF['/']['error_page.404'] = error_page_404
 cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
 
+def force_json_in():
+    """A version of jsontools.json_in that forces all requests to be interpreted as JSON."""
+    request = cherrypy.serving.request
+    if not request.headers.get('Content-Length', ''):
+        raise cherrypy.HTTPError(411)
+
+    if cherrypy.request.method in ('POST', 'PUT'):
+        body = request.body.fp.read()
+        try:
+            cherrypy.serving.request.json = json.loads(body.decode('utf-8'))
+        except ValueError:
+            raise cherrypy.HTTPError(400, 'Invalid JSON document')
+
+cherrypy.tools.force_json_in = cherrypy.Tool('before_request_body', force_json_in, priority=30)
+
 
 def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
 
@@ -332,8 +354,6 @@ def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
             if debug:
                 message += '\n' + traceback.format_exc()
             return error(500, ERR_FUNC_EXCEPTION, message)
-        finally:
-            trigger_delayed_notifications()
 
     return _jsonrpc_handler
 

@@ -1,6 +1,7 @@
 # docker-compose for development of ubersystem
 x-uber: &uber
-  build: .
+#  build: .
+  image: uber
   environment: 
     - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
     - sideboard_cherrypy_server_socket_port=80

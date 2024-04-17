@@ -17,11 +17,12 @@ from itertools import count
 from threading import RLock
 
 import cherrypy
+from cherrypy.lib import profiler
 import six
 import xlsxwriter
 from pockets import argmod, unwrap
 from pockets.autolog import log
-from sideboard.lib import profile, serializer
+from sideboard.lib import serializer
 
 import uber
 from uber.barcode import get_badge_num_from_barcode
@@ -725,6 +726,20 @@ def restricted(func):
         return func(*args, **kwargs)
     return with_restrictions
 
+def profile(func):
+    if c.CHERRYPY_PROFILER_ON:
+        profiling_path = c.CHERRYPY_PROFILER_PATH
+        if c.CHERRYPY_PROFILER_AGGREGATE:
+            p = profiler.ProfileAggregator(profiling_path)
+        else:
+            p = profiler.Profiler(profiling_path)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return p.run(func, *args, **kwargs)
+        return wrapper
+    else:
+        return func
 
 def set_renderable(func, public):
     """
