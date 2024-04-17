@@ -1,7 +1,7 @@
 # docker-compose for development of ubersystem
 x-uber: &uber
   build: .
-  environment: 
+  environment:
     - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
     - sideboard_cherrypy_server_socket_port=80
     - sideboard_cherrypy_server_socket_host=0.0.0.0
@@ -12,12 +12,11 @@ x-uber: &uber
     - sideboard_loggers_cherrypy_access=DEBUG
     - uber_redis_host=redis
     - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber
+    - uber_url_root=http://localhost
+    - uber_hostname=localhost
+    - sideboard_priority_plugins=["uber"]
   volumes:
     - $PWD:/app/plugins/uber
-  depends_on:
-    - db
-    - redis
-    - rabbitmq
 
 services: 
   web:
@@ -46,3 +45,22 @@ services:
       - RABBITMQ_DEFAULT_USER=celery
       - RABBITMQ_DEFAULT_PASS=celery
       - RABBITMQ_DEFAULT_VHOST=uber
+  python-repl:
+    <<: *uber
+    stdin_open: true
+    tty: true
+    volumes:
+      - $PWD/.pythonstartup.py:/app/.pythonstartup.py
+    environment:
+      - PYTHONSTARTUP=/app/.pythonstartup.py
+    command: ['/app/env/bin/python3']
+    profiles: ["dev"]
+  flower:
+    container_name: ${COMPOSE_PROJECT_NAME}-flower
+    image: mher/flower:2.0
+    environment:
+      - CELERY_BROKER_URL=amqp://celery:celery@rabbitmq:5672/uber
+      - FLOWER_PORT=5555
+    ports:
+      - 5555:5555
+    profiles: ["dev"]
