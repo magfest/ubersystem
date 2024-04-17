@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/var/lib/apt/lists \
     --mount=type=cache,target=/var/cache/apt \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     apt-get update && \
-    apt-get install -y ghostscript libxml2-dev libxmlsec1-dev dnsutils gettext-base postgresql-client vim jq git
+    apt-get install -y ghostscript libxml2-dev libxmlsec1-dev dnsutils gettext-base postgresql-client libpq-dev vim jq git
 
 ADD requirements.txt /app/
 RUN --mount=type=cache,target=/root/.cache \
