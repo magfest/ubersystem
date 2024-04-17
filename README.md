@@ -49,9 +49,7 @@ After doing this you can log in using `magfest@example.com` as a username and `m
 Now that you have a working instance you can look at the [configuration guide](configuration.md) to start customizing your instance or 
 check out the [sample event plugin](https://github.com/magfest/sample-event) to dive deeper into making Ubersystem your own.
 
-If you're eager to jump into the code check out our [code overview](docs/code-overview.md).
-
-| :exclamation: If you didn't get a working instance check out the [troubleshooting guide](troubleshooting.md). |
+| :exclamation: If you didn't get a working instance check out the [troubleshooting guide](docs/troubleshooting.md). |
 |---------------------------------------------------------------------------------------------------------------|
 
 ## Production Instances
