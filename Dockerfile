@@ -13,9 +13,9 @@ RUN --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update && \
     apt-get install -y ghostscript libxml2-dev libxmlsec1-dev dnsutils gettext-base postgresql-client vim jq git
 
-ADD requirements.txt /app/plugins/uber/
+ADD requirements.txt /app/
 RUN --mount=type=cache,target=/root/.cache \
-    pip install -r /app/plugins/uber/requirements.txt
+    pip install -r requirements.txt
 
 ADD uber-wrapper.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/uber-wrapper.sh
