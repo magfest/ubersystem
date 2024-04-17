@@ -1,6 +1,7 @@
 # syntax = docker/dockerfile:1.4.0
 
-FROM ghcr.io/magfest/sideboard:main as build
+#FROM ghcr.io/magfest/sideboard:main as build
+FROM test as build
 ENV PYTHONPATH=${PYTHONPATH}:/app/plugins/uber
 ARG PLUGINS="[]"
 LABEL version.rams-core ="0.1"

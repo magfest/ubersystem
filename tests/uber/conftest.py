@@ -6,7 +6,10 @@ from datetime import date, timedelta
 import cherrypy
 import pytest
 from sideboard.lib import threadlocal
-from sideboard.tests import patch_session
+import sqlalchemy
+from sqlalchemy import event
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptRole, Job, PromoCode, Session, WatchList, \
@@ -23,6 +26,18 @@ except AttributeError:
 deadline_not_reached = localized_now() + timedelta(days=1)
 deadline_has_passed = localized_now() - timedelta(days=1)
 
+def patch_session(Session, request):
+    orig_engine, orig_factory = Session.engine, Session.session_factory
+    request.addfinalizer(lambda: setattr(Session, 'engine', orig_engine))
+    request.addfinalizer(lambda: setattr(Session, 'session_factory', orig_factory))
+
+    name = Session.__module__.split('.')[0]
+    db_path = '/tmp/{}.db'.format(name)
+    Session.engine = sqlalchemy.create_engine('sqlite+pysqlite:///' + db_path, poolclass=NullPool)
+    event.listen(Session.engine, 'connect', lambda conn, record: conn.execute('pragma foreign_keys=ON'))
+    Session.session_factory = sessionmaker(bind=Session.engine, autoflush=False, autocommit=False,
+                                           query_cls=Session.QuerySubclass)
+    Session.initialize_db(drop=True)
 
 def assert_unique(x):
     assert len(x) == len(set(x))
