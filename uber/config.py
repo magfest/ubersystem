@@ -180,6 +180,8 @@ class Config(_Overridable):
     For all of the datetime config options, we also define BEFORE_ and AFTER_ properties, e.g. you can
     check the booleans returned by c.BEFORE_PLACEHOLDER_DEADLINE or c.AFTER_PLACEHOLDER_DEADLINE
     """
+    def __init__(self):
+        self._PATH = cherrypy.request.path_info.replace(cherrypy.request.path_info.split('/')[-1], '').strip('/')
 
     def get_oneday_price(self, dt):
         return self.BADGE_PRICES['single_day'].get(dt.strftime('%A'), self.DEFAULT_SINGLE_DAY)
@@ -252,6 +254,13 @@ class Config(_Overridable):
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS else self.AFTER_DEALER_REG_DEADLINE
+    
+    @property
+    def DEALER_INDEFINITE_TERM(self):
+        if c.DEALER_TERM.startswith(("a", "e", "i", "o", "u")):
+            return "an " + c.DEALER_TERM
+        else:
+            return "a " + c.DEALER_TERM
 
     @property
     def TABLE_OPTS(self):
@@ -366,7 +375,7 @@ class Config(_Overridable):
     @property
     def PREREG_BADGE_TYPES(self):
         types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE]
-        if c.AGE_GROUP_CONFIGS[c.UNDER_13]['can_register']:
+        if c.UNDER_13 in c.AGE_GROUP_CONFIGS and c.AGE_GROUP_CONFIGS[c.UNDER_13]['can_register']:
             types.append(self.CHILD_BADGE)
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
@@ -725,7 +734,11 @@ class Config(_Overridable):
 
     @property
     def PATH(self):
-        return cherrypy.request.path_info.replace(cherrypy.request.path_info.split('/')[-1], '').strip('/')
+        return self._PATH
+
+    @PATH.setter
+    def PATH(self, value):
+        self._PATH = value
 
     @request_cached_property
     @dynamic

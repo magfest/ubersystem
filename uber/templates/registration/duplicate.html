@@ -1,59 +1,33 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}That attendee already has a badge{% endblock %}
-{% block content %}
-<div class="card">
-    <div class="card-body">
-    <h2>This attendee already has a badge!</h2>
+<p class="text-center h4">This attendee already has a badge!</p>
 
-      We already have a <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> with email address {{ attendee.email }} in our database with a
-    {% if attendee.paid == c.PAID_BY_GROUP and attendee.group.status == c.WAITLISTED %}
-        waitlisted
-    {% elif attendee.paid == c.HAS_PAID or attendee.paid == c.PAID_BY_GROUP %}
-        paid
-    {% elif attendee.paid == c.NEED_NOT_PAY %}
-        complementary
-    {% elif attendee.paid == c.NOT_PAID %}
-        unpaid
-    {% else %}
-        {{ attendee.paid_label }}
-    {% endif %}
-    {{ attendee.badge_type_label }}
-    {% if attendee.ribbon %}
-        ({{ attendee.ribbon_labels|join(", ") }})
-    {% endif %}
-    badge{% if attendee.group %}
-        (with the group <a href="./group/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
-    {% endif %}.
+<p>
+    We already have a <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> with email address {{ attendee.email }} in our database with a
+{% if attendee.paid == c.PAID_BY_GROUP and attendee.group.is_dealer and attendee.group.status != c.APPROVED %}
+    {{ attendee.group.status_label }}
+{% elif attendee.paid == c.HAS_PAID or attendee.paid == c.PAID_BY_GROUP %}
+    paid
+{% elif attendee.paid == c.NEED_NOT_PAY %}
+    complimentary
+{% elif attendee.paid == c.NOT_PAID %}
+    unpaid
+{% else %}
+    {{ attendee.paid_label }}
+{% endif %}
+{{ attendee.badge_type_label }}
+{% if attendee.ribbon %}
+    ({{ attendee.ribbon_labels|join(", ") }})
+{% endif %}
+badge{% if attendee.group %}
+    (with the group <a href="./group/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
+{%- endif -%}.
+</p>
 
-    <br/> <br/>
+<p>If you're <strong>absolutely</strong> sure that this is someone else, please confirm this. We highly recommend
+editing the attendee's name if at all possible, as badges with duplicate names may be picked up by the wrong
+person.
+{% if attendee.paid == c.PAID_BY_GROUP and attendee.group.status == c.WAITLISTED %}
+    Please keep in mind that {{ c.DEALER_TERM }}s have an option to buy their badge once the {{ c.DEALER_LOC_TERM }} fills up, so you
+    normally do not need to create an additional badge for them.
+{% endif %}</p>
 
-    If you're <strong>absolutely</strong> sure that this is someone else, please confirm this. We highly recommend
-    editing the attendee's name if at all possible, as badges with duplicate names may be picked up by the wrong
-    person.
-    {% if attendee.paid == c.PAID_BY_GROUP and attendee.group.status == c.WAITLISTED %}
-        Please keep in mind that {{ c.DEALER_TERM }}s have an option to buy their badge once the {{ c.DEALER_LOC_TERM }} fills up, so you
-        normally do not need to create an additional badge for them.
-    {% endif %}
-    If you are at all not sure what to do, contact your Registration department at {{ c.REGDESK_EMAIL }}.
-
-    <br/> <br/>
-
-    <table style="width:auto" align="center">
-    <tr>
-        <td><a class="btn btn-outline-secondary" href="{{ return_to }}">Yes, I'm sure this is someone else!</a></td>
-        <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-        <td><a class="btn btn-primary" href="form?id={{ attendee.id }}">Maybe, let me see the created badge again!</a></td>
-        <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-        <td>
-            <form method="post" action="delete">
-            <input type="hidden" name="id" value="{{ attendee.id }}"/>
-            {{ csrf_token() }}
-            <button class="btn btn-danger" type="submit">Whoops, delete the new badge!</button>
-            </form>
-        </td>
-    </tr>
-    </table>
-    </div>
-</div>
-
-{% endblock %}
+<p>If you are at all not sure what to do, contact your Registration department at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.</p>

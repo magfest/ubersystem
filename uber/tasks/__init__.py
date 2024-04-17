@@ -76,4 +76,3 @@ from uber.tasks import panels  # noqa: F401, E402
 from uber.tasks import redis  # noqa: F401, E402
 from uber.tasks import registration  # noqa: F401, E402
 from uber.tasks import sms  # noqa: F401, E402
-from uber.tasks import tabletop  # noqa: F401, E402

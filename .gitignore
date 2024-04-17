@@ -32,3 +32,5 @@ uber/static/fonts/free3of9.pkl
 .vscode/*
 .history
 .lh*
+config*.ini
+sideboard.ini

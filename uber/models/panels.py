@@ -28,7 +28,6 @@ class Event(MagModel):
     applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"),
                                 cascade="save-update,merge")
     panel_feedback = relationship('EventFeedback', backref='event')
-    tournaments = relationship('TabletopTournament', backref='event', uselist=False)
     guest = relationship('GuestGroup', backref=backref('event', cascade="save-update,merge"),
                          cascade='save-update,merge')
 

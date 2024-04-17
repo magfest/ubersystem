@@ -1,76 +1,66 @@
-# Usage instructions
-# 0. Stop any other containers as they all share the same port
-# 1. Download all plugins into one root directory; multiple event plugins can live side-by-side
-# 2. For each event you want to develop for, create `development-EVENTNAME.ini` in this directory
-#    where EVENTNAME matches the name of the event plugin, e.g., magprime. The new file does not need to contain anything.
-# 3. Copy this template file to docker-compose.override.yml
-# 4. (Optional) If largely working on one event, set up EVENTNAME, EVENT, and YEAR env variables (e.g., magprime, super, 2024) in your bash profile.
-# 5. Run `docker compose -p $EVENTNAME --profile dev up -d`
-# 6. Run `env CONFIG_CMD="/usr/local/bin/rebuild-config.sh git $EVENT $YEAR" bash -c 'docker compose -p $EVENTNAME exec web $CONFIG_CMD exec celery-worker $CONFIG_CMD exec celery-beat $CONFIG_CMD'`
-#    where EVENT is the config folder name (e.g., `stock` not `magstock`) and year is the config year (e.g., 2023)
-# 7. Run `docker compose -p $EVENTNAME restart`
+### Docker Compose Override Overview
+# This file allows you to customize your docker compose setup to include an extra event plugin and local config files.
+# This will give you everything you need to edit both this repo and your event plugin repo, as well as test new config.
 #
-# Repeat step 6 whenever you want to reset your config; it will pull from uber-development.ini.template, then the git repo
-# When you want into the Python REPL, run `docker compose -p $EVENTNAME restart python-repl && docker attach $EVENTNAME-python-repl`
+# In the instructions below, YOURPLUGIN refers to the name of your event plugin repo, e.g., magprime, magstock, or magwest
+
+## Setup
+# 1. Download your plugin into the same directory that this repo is in.
+# 2. Run make_config.py to pull down config for your event, e.g., `python3 make_config.py --repo https://github.com/magfest/terraform-aws-magfest.git --paths uber_config/environments/prod uber_config/events/stock/2024`
+# 4. Rename `YOURPLUGIN.ini` to `config.ini` and move it into its root plugin directory, e.g., magstock/config.ini
+# 3. Copy this template file to docker-compose.override.yml
+# 4. Edit the new docker-compose.override.yml file to rename YOURPLUGIN to your plugin repo's name. The volume name should be lowcase and the environment name should be uppercase.
+
+## Running Containers
+# 1. Run `docker compose --profile dev up -d`
+# 2. Run `docker compose restart` (or, e.g., restart web) when you need to restart one or more containers.
+# 3. Run `docker compose restart python-repl && docker attach python-repl-1` if you need a Python REPL.
 
 x-dev-volumes:
   volumes:
-    - &extra-plugin-1 $PWD/../${COMPOSE_PROJECT_NAME}/:/app/plugins/${COMPOSE_PROJECT_NAME}
-    - &config-file $PWD/development-${COMPOSE_PROJECT_NAME}.ini:/app/plugins/uber/development.ini
+    - &extra-plugin $PWD/../YOURPLUGIN/:/app/plugins/YOURPLUGIN
+  environment:
+    - &uber-config-file UBER_CONFIG_FILES=uber.ini
+    - &plugin-config-file YOURPLUGIN_CONFIG_FILES=config.ini
 
 services:
   python-repl:
-    container_name: ${COMPOSE_PROJECT_NAME}-python-repl
-    build: .
+    extends:
+      file: docker-compose.yml
+      service: python-repl
     volumes:
-      - $PWD:/app/plugins/uber
-      - *extra-plugin-1
-      - *config-file
-      - $PWD/.pythonstartup.py:/app/.pythonstartup.py
-    stdin_open: true
-    tty: true
+      - *extra-plugin
     environment:
-      - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
-      - PYTHONSTARTUP=/app/.pythonstartup.py
-    command: ['/app/env/bin/python3']
-    profiles: ["dev"]
-    stop_grace_period: 1s
+      - *uber-config-file
+      - *plugin-config-file
   flower:
-    container_name: ${COMPOSE_PROJECT_NAME}-flower
-    image: mher/flower:2.0
-    environment:
-      - CELERY_BROKER_URL=amqp://celery:celery@rabbitmq:5672/uber
-      - FLOWER_PORT=5555
-    ports:
-      - 5555:5555
-    depends_on:
-      - rabbitmq
-    profiles: ["dev"]
+    extends:
+        file: docker-compose.yml
+        service: flower
   web:
     extends:
       file: docker-compose.yml
       service: web
-    # Uncomment the environment settings below to automatically pull config from a git repo
-    # This will ALWAYS UNDO any local changes you make to development.ini
-    # Be sure to set your UBER_CONFIG_EVENT and UBER_CONFIG_YEAR env variables to match the folders in your git repo
-    #
-    #environment:
-    #  - UBERSYSTEM_GIT_CONFIG=https://github.com/magfest/terraform-aws-magfest.git
-    #  - UBERSYSTEM_GIT_CONFIG_PATHS=uber_config/environments/dev uber_config/events/${UBER_CONFIG_EVENT:-super}/${UBER_CONFIG_YEAR:-2024}
     volumes:
-      - *extra-plugin-1
-      - *config-file
+      - *extra-plugin
+    environment:
+      - *uber-config-file
+      - *plugin-config-file
   celery-beat:
     extends:
       file: docker-compose.yml
       service: celery-beat
     volumes:
-      - *extra-plugin-1
-      - *config-file
+      - *extra-plugin
+    environment:
+      - *uber-config-file
+      - *plugin-config-file
   celery-worker:
     extends:
       file: docker-compose.yml
       service: celery-worker
     volumes:
-      - *extra-plugin-1
-      - *config-file
+      - *extra-plugin
+    environment:
+      - *uber-config-file
+      - *plugin-config-file

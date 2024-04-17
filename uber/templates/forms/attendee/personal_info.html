@@ -51,7 +51,7 @@
 {% set attendee_email = attendee.masked_email if limited_read else attendee.email %}
 {% if is_prereg_dealer %}
   {% set email_extra_field = form_macros.toggle_checkbox(personal_info.copy_email, [personal_info.email], hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.email == group.email_address) %}
-  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.copy_phone, [personal_info.cellphone], hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.cellphone == group.phone) %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.copy_phone, [personal_info.cellphone], hide_on_checked=True, prop="disabled", checked=group and loaded_from_group and attendee.cellphone == group.phone) %}
 {% elif attendee.staffing or (other_info and other_info is not none) %}
   {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, prop="disabled") %}
 {% endif %}
@@ -69,7 +69,12 @@
   var checkCellphoneRequired = function() {
       true_evals = [];
       false_evals = [];
-      false_evals.push($("#{{ personal_info.no_cellphone.id }}").prop('checked') == false);
+      {% if is_prereg_dealer %}
+        true_evals.push(true);
+        false_evals.push($("#{{ personal_info.copy_phone.id }}").prop('checked') == false);
+      {% else %}
+        false_evals.push($("#{{ personal_info.no_cellphone.id }}").prop('checked') == false);
+      {% endif %}
       {% if staffing_info %}
         true_evals.push($("#{{ staffing_info.staffing.id }}").prop('checked'));
       {% endif %}

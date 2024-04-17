@@ -126,6 +126,9 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
 
+        self.template_plugin_name = ""
+        self.template_url = ""
+
     def update_template_plugin_info(self):
         env = JinjaEnv.env()
         try:
@@ -137,6 +140,14 @@ class AutomatedEmailFixture:
             self.template_plugin_name = "ERROR: TEMPLATE NOT FOUND"
             self.template_url = ""
         return self.template_plugin_name, self.template_url
+
+    def update_subject_line(self, subject):
+        self.subject = subject \
+            .replace('{EVENT_NAME}', c.EVENT_NAME) \
+            .replace('{EVENT_YEAR}', c.EVENT_YEAR) \
+            .replace('{EVENT_DATE}', c.EPOCH.strftime('%b %Y'))
+
+        AutomatedEmail._fixtures[self.ident] = self
 
     @property
     def body(self):
@@ -410,12 +421,13 @@ if c.DEALER_REG_START:
         needs_approval=True,
         ident='dealer_reg_approved')
 
-    MarketplaceEmailFixture(
-        'Please complete your {} {}!'.format(c.EVENT_NAME, c.DEALER_APP_TERM.capitalize()),
-        'dealers/signnow_request.html',
-        lambda g: g.status == c.APPROVED and c.SIGNNOW_DEALER_TEMPLATE_ID and not g.signnow_document_signed,
-        needs_approval=True,
-        ident='dealer_signnow_email')
+    if c.SIGNNOW_DEALER_TEMPLATE_ID:
+        MarketplaceEmailFixture(
+            'Please complete your {} {}!'.format(c.EVENT_NAME, c.DEALER_APP_TERM.capitalize()),
+            'dealers/signnow_request.html',
+            lambda g: g.status == c.APPROVED and c.SIGNNOW_DEALER_TEMPLATE_ID and not g.signnow_document_signed,
+            needs_approval=True,
+            ident='dealer_signnow_email')
 
     MarketplaceEmailFixture(
         'Reminder to pay for your {} {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
@@ -425,6 +437,7 @@ if c.DEALER_REG_START:
         #     Group.status == c.APPROVED,
         #     Group.approved < (func.now() - timedelta(days=30)),
         #     Group.is_unpaid == True),
+        when=days_before(60, c.DEALER_PAYMENT_DUE, 7),
         needs_approval=True,
         ident='dealer_reg_payment_reminder')
 
@@ -477,7 +490,7 @@ class StopsEmailFixture(AutomatedEmailFixture):
 
 
 # TODO: Refactor all this into something less lazy
-def deferred_attendee_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
+def deferred_attendee_placeholder(a): return a.placeholder and (a.registered_local <= min(c.PREREG_OPEN, c.DEALER_REG_START)
                                                                 and a.badge_type == c.ATTENDEE_BADGE
                                                                 and a.paid == c.NEED_NOT_PAY
                                                                 and "staff import".lower() not in a.admin_notes.lower()
@@ -497,7 +510,8 @@ def dealer_placeholder(a): return a.placeholder and a.is_dealer and a.group.stat
 
 
 def staff_import_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
-                                                           and "staff import".lower() in a.admin_notes.lower())
+                                                           and (a.admin_account or
+                                                                "staff import".lower() in a.admin_notes.lower()))
 
 
 def volunteer_placeholder(a): return a.placeholder and a.registered_local > c.PREREG_OPEN
@@ -581,13 +595,7 @@ StopsEmailFixture(
 StopsEmailFixture(
     'Claim your Volunteer badge for {EVENT_NAME} {EVENT_YEAR}',
     'placeholders/volunteer.txt',
-    lambda a: volunteer_placeholder(a) and a.paid == c.NEED_NOT_PAY,
-    ident='volunteer_badge_confirmation_comped')
-
-StopsEmailFixture(
-    'Claim your Volunteer badge for {EVENT_NAME} {EVENT_YEAR}',
-    'placeholders/volunteer.txt',
-    lambda a: volunteer_placeholder(a) and a.paid != c.NEED_NOT_PAY,
+    lambda a: volunteer_placeholder(a),
     ident='volunteer_badge_confirmation')
 
 AutomatedEmailFixture(

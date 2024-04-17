@@ -49,4 +49,4 @@
       {% endif %}
     </tbody>
 </table>
-<p>If something here does not look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.</p>
+<p>If something here does not look right, please contact us at {% if group and group.is_dealer %}{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}{% else %}{{ c.REGDESK_EMAIL|email_only|email_to_link }}{% endif %}.</p>

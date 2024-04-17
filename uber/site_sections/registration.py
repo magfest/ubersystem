@@ -164,6 +164,21 @@ class Root:
         if all_errors:
             return {"error": all_errors}
 
+        if attendee.is_new:
+            for form in forms.values():
+                form.populate_obj(attendee, is_admin=True)
+
+            if attendee.banned:
+                return {"warning": render('registration/banned.html', {'attendee': attendee,
+                                                                       'session': session}, encoding=None)}
+
+            old = session.valid_attendees().filter_by(first_name=attendee.first_name,
+                                                      last_name=attendee.last_name,
+                                                      email=attendee.email).first()
+            if old:
+                return {"warning": render('registration/duplicate.html', {'attendee': old}, encoding=None),
+                        "button_text": "Yes, I'm sure this is someone else!"}
+
         return {"success": True}
 
     @ajax
@@ -208,14 +223,6 @@ class Root:
             message = save_attendee(session, attendee, params)
 
             if not message:
-                if attendee.is_new and \
-                        session.attendees_with_badges().filter_by(first_name=attendee.first_name,
-                                                                  last_name=attendee.last_name,
-                                                                  email=attendee.email).count():
-                    session.add(attendee)
-                    session.commit()
-                    raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
-
                 message = '{} has been saved.'.format(attendee.full_name)
                 stay_on_form = params.get('save_return_to_search', False) is False
                 session.add(attendee)
@@ -414,14 +421,22 @@ class Root:
                 message = "To create a new buyer, please enter their first name, last name, and email address."
 
             if not message:
+                badges = int(badges)
                 if buyer_id == "None":
                     buyer = Attendee(first_name=first_name, last_name=last_name, email=email)
                     buyer.placeholder = True
                     session.add(buyer)
                     group.buyer = buyer
+                    session.commit()
 
                 if badges:
-                    session.add_codes_to_pc_group(group, int(badges), 0 if badges_are_free else int(cost_per_badge))
+                    session.add_codes_to_pc_group(group, badges, 0 if badges_are_free else int(cost_per_badge))
+                    receipt = session.get_receipt_by_model(group.buyer)
+                    if receipt and cost_per_badge:
+                        session.add(
+                            ReceiptManager().create_receipt_item(receipt,
+                                                                 f'Adding {badges} Badge{"s" if badges > 1 else ""}',
+                                                                 badges * int(cost_per_badge) * 100))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
 
         return {
@@ -482,18 +497,10 @@ class Root:
                                 .filter(or_(Email.to == attendee.email,
                                             and_(Email.model == 'Attendee', Email.fk_id == id)))
                                 .order_by(Email.when).all(),
-            # TODO: Remove `, Tracking.model != 'Attendee'` for next event
             'changes': session.query(Tracking).filter(
-                or_(and_(Tracking.links.like('%attendee({})%'.format(id)), Tracking.model != 'Attendee'),
+                or_(and_(Tracking.links.like('%attendee({})%'.format(id))),
                     and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
-        }
-
-    def duplicate(self, session, id, return_to='index'):
-        attendee = session.attendee(id)
-        return {
-            'attendee': attendee,
-            'return_to': return_to
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(attendee))
         }
 
     def delete(self, session, id, return_to='index?', return_msg=False, **params):
@@ -1359,7 +1366,7 @@ class Root:
             'changes': session.query(Tracking).filter(
                 or_(and_(Tracking.links.like('%attendee({})%'.format(id)), Tracking.model != 'Attendee'),
                     and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id)),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(attendee)),
         }
 
     @attendee_view
@@ -1405,13 +1412,6 @@ class Root:
 
         if cherrypy.request.method == 'POST':
             message = save_attendee(session, attendee, params)
-
-        if not message:
-            if attendee.is_new and \
-                    session.attendees_with_badges().filter_by(first_name=attendee.first_name,
-                                                              last_name=attendee.last_name,
-                                                              email=attendee.email).count():
-                message = 'An attendee with this name and email address already exists.'
 
         if not message:
             success = True

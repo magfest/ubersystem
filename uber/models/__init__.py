@@ -21,7 +21,7 @@ from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
@@ -47,8 +47,11 @@ def _make_getter(model):
         elif isinstance(params, str):
             return self.query(model).filter_by(id=params).one()
         else:
-            params = params.copy()
-            id = params.pop('id', 'None')
+            if params:
+                params = params.copy()
+                id = params.pop('id', 'None')
+            else:
+                id = 'None'
             if id == 'None':
                 inst = model()
             else:
@@ -360,7 +363,7 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
-            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?', val, name)
+            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?'.format(val, name))
             return ''
 
         if val == -1:
@@ -368,7 +371,7 @@ class MagModel:
 
         label = self.get_field(name).type.choices.get(val)
         if not label:
-            log.debug('{} does not have a label for {}, check your enum generating code', name, val)
+            log.debug('{} does not have a label for {}, check your enum generating code'.format(name, val))
             return ''
         return label
 
@@ -588,7 +591,6 @@ from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
 from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
-from uber.models.tabletop import TabletopEntrant, TabletopTournament  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 
 
@@ -714,7 +716,10 @@ class Session(SessionManager):
 
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
-                return self.admin_account(cherrypy.session.get('account_id')).attendee
+                try:
+                    return self.admin_account(cherrypy.session.get('account_id')).attendee
+                except NoResultFound:
+                    return
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
@@ -2031,7 +2036,7 @@ class Session(SessionManager):
             )
 
             if not c.SAML_SETTINGS:
-                test_developer_account.hashed = bcrypt.hashpw('magfest', bcrypt.gensalt())
+                test_developer_account.hashed = bcrypt.hashpw('magfest'.encode('utf-8'), bcrypt.gensalt())
 
             test_developer_account.access_groups.append(all_access_group)
 
@@ -2203,23 +2208,6 @@ class Session(SessionManager):
         def panel_applicants(self):
             return self.query(PanelApplicant).options(joinedload(PanelApplicant.application)) \
                 .order_by('first_name', 'last_name')
-
-        # =========================
-        # tabletop
-        # =========================
-
-        def entrants(self):
-            return self.query(TabletopEntrant).options(
-                joinedload(TabletopEntrant.reminder),
-                joinedload(TabletopEntrant.attendee),
-                subqueryload(TabletopEntrant.tournament).subqueryload(TabletopTournament.event))
-
-        def entrants_by_phone(self):
-            entrants = defaultdict(list)
-            for entrant in self.entrants():
-                cellphone = normalize_phone(entrant.attendee.cellphone)
-                entrants[cellphone].append(entrant)
-            return entrants
 
     @classmethod
     def model_mixin(cls, model):

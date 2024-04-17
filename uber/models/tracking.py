@@ -55,12 +55,12 @@ class PageViewTracking(MagModel):
     @classmethod
     def track_pageview(cls):
         url, query = cherrypy.request.path_info, cherrypy.request.query_string
+        params = dict(parse_qsl(query))
         # Track any views of the budget pages
         if "budget" in url:
             which = "Budget page"
         else:
             # Only log the page view if there's a valid model ID
-            params = dict(parse_qsl(query))
             if 'id' not in params or params['id'] == 'None':
                 return
 
@@ -75,9 +75,14 @@ class PageViewTracking(MagModel):
                 try:
                     model = session.group(id)
                 except NoResultFound:
-                    model = session.art_show_application(id)
+                    try:
+                        model = session.art_show_application(id)
+                    except NoResultFound:
+                        pass
             if model:
                 which = repr(model)
+            else:
+                return
 
             session.add(PageViewTracking(who=AdminAccount.admin_name(), page=c.PAGE_PATH, which=which))
             session.commit()

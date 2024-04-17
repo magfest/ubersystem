@@ -8,7 +8,7 @@ from sqlalchemy import and_, exists, or_, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.sql.elements import not_
+from sqlalchemy.sql.expression import not_
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c
@@ -46,6 +46,8 @@ class Group(MagModel, TakesPaymentMixin):
     auto_recalc = Column(Boolean, default=True, admin_only=True)
 
     can_add = Column(Boolean, default=False, admin_only=True)
+    is_dealer = Column(Boolean, default=False, admin_only=True)
+    convert_badges = Column(Boolean, default=False, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
@@ -226,15 +228,6 @@ class Group(MagModel, TakesPaymentMixin):
             return badge.badge_type_label
 
     @hybrid_property
-    def is_dealer(self):
-        return bool(not self.guest and (self.tables or self.status not in [c.IMPORTED, c.UNAPPROVED]))
-
-    @is_dealer.expression
-    def is_dealer(cls):
-        return and_(cls.guest == None,  # noqa: E711
-                    or_(cls.tables != 0, not_(cls.status.in_([c.IMPORTED, c.UNAPPROVED]))))
-
-    @hybrid_property
     def is_unpaid(self):
         return self.cost > 0 and self.amount_paid == 0
 
@@ -382,6 +375,8 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def dealer_badges_remaining(self):
+        if self.status != c.APPROVED:
+            return 0
         return self.dealer_max_badges - self.badges
 
     @property
@@ -404,7 +399,7 @@ class Group(MagModel, TakesPaymentMixin):
         if not c.PRE_CON:
             return 0
 
-        if self.is_dealer and (not self.dealer_badges_remaining or self.amount_unpaid):
+        if not self.auto_recalc or self.is_dealer and not self.dealer_badges_remaining:
             return 0
         elif self.is_dealer or self.can_add:
             return 1

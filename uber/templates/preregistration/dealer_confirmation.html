@@ -5,9 +5,9 @@
   <div class="card-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
-    <h2>{% if group.status == c.WAITLISTED %}You've been added to our waitlist!{% else %}Thanks for applying as a {{ c.DEALER_TERM }}!{% endif %}</h2>
+    <h2>{% if group.status == c.WAITLISTED %}You've been added to our waitlist!{% else %}Thanks for applying as {{ c.DEALER_INDEFINITE_TERM }}!{% endif %}</h2>
 
-    <p>We've received your application for {{ group.name }} to purchase a {{ c.DEALER_REG_TERM }} for {{ c.EVENT_NAME }}.</p>
+    <p>We've received your application for being {{ c.DEALER_INDEFINITE_TERM }} under the name {{ group.name }} for {{ c.EVENT_NAME }}.</p>
 
     <p>
     {% if group.status == c.WAITLISTED %}

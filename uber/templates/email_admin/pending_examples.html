@@ -3,65 +3,91 @@
 {% block content %}
 
 <div class="card">
-<h2>{{ (examples|default([(None, email)], True)|first).1.subject }}</h2>
-<div class="center">
-  <a href="pending">Return to pending email list</a>
-</div>
-<br>
-{% if not email.active_when_label %}
-{% set active_when_text = "It will be sent as soon as it's approved." if email.needs_approval else "" %}
-{% else %}
-{% set active_when_text = "It will be sent " + email.active_when_label + "." %}
-{% endif %}
-{% if not email.needs_approval %}
-    This email is pre-approved. {{ active_when_text }}<br/><br/>
-{% else %}
-    {% if not email.approved %}
-        <form method="post" action="approve">
-        {{ csrf_token() }}
-        This email is currently <b>unapproved</b>. {{ active_when_text }}
-        <input type="hidden" name="ident" value="{{ email.ident }}" />
-        <input type="submit" value="Approve" class="btn btn-sm btn-success"/>
-        </form>
-    {% else %}
-        <form method="post" action="unapprove">
-        {{ csrf_token() }}
-        This email is currently <b>approved</b>. {{ active_when_text }}
-        <input type="hidden" name="ident" value="{{ email.ident }}" />
-        <input type="submit" value="Undo Approval" class="btn btn-sm btn-warning"/>
-        </form>
-    {% endif %}<br/>
-{% endif %}
+  <div class="card-body">
+    <p><a href="pending">Return to pending email list</a></p>
 
-<form method="post" action="update_dates">
-{{ csrf_token() }}
-<input type="hidden" name="ident" value="{{ email.ident }}" />
+    <h2>{{ (examples|default([(None, email)], True)|first).1.subject }}</h2>
+  
+    <p>
+      {% if not email.active_when_label %}
+      {% set active_when_text = "It will be sent as soon as it's approved." if email.needs_approval else "" %}
+      {% else %}
+      {% set active_when_text = "It will be sent " + email.active_when_label + "." %}
+      {% endif %}
+      {% if not email.needs_approval %}
+          This email is pre-approved. {{ active_when_text }}
+      {% else %}
+          {% if not email.approved %}
+              <form method="post" action="approve">
+              {{ csrf_token() }}
+              This email is currently <b>unapproved</b>. {{ active_when_text }}
+              <input type="hidden" name="ident" value="{{ email.ident }}" />
+              <input type="submit" value="Approve" class="btn btn-sm btn-success"/>
+              </form>
+          {% else %}
+              <form method="post" action="unapprove">
+              {{ csrf_token() }}
+              This email is currently <b>approved</b>. {{ active_when_text }}
+              <input type="hidden" name="ident" value="{{ email.ident }}" />
+              <input type="submit" value="Undo Approval" class="btn btn-sm btn-warning"/>
+              </form>
+          {% endif %}
+      {% endif %}
+    </p>
 
-<label for="active_after">Send only after</label>
-<input type='text' class="expiration-date" name="active_after" value="{{ email.active_after|datetime("%Y-%m-%d") }}"/>
-and <label for="active_after">don't send after</label>
-<input type='text' class="expiration-date" name="active_before" value="{{ email.active_before|datetime("%Y-%m-%d") }}"/>
-    
-<input type="submit" value="Update Send Date(s)" class="btn btn-sm btn-warning"/>
-</form><br/>
+    <form method="post" action="update_dates">
+    {{ csrf_token() }}
+    <input type="hidden" name="ident" value="{{ email.ident }}" />
 
-{% if email.unapproved_count > 0 %}
-  There are {{ email.unapproved_count }} copies of this email that will be sent once it's approved.
-{% else %}
-  There are no unsent copies of this email waiting to be approved.
-{% endif %} (note: this is updated approximately every {{ '5' if c.DEV_BOX else '15' }} minutes)<br/><br/>
+    <label for="active_after">Send only after</label>
+    <input type='text' class="expiration-date" name="active_after" value="{{ email.active_after|datetime("%Y-%m-%d") }}"/>
+    and <label for="active_before">don't send after</label>
+    <input type='text' class="expiration-date" name="active_before" value="{{ email.active_before|datetime("%Y-%m-%d") }}"/>
+        
+    <input type="submit" value="Update Send Date(s)" class="btn btn-sm btn-warning"/>
+    </form><br/>
 
-{% if examples %}
-  The following are some examples of this email looks like when sent:
-  {% for model, example in examples %}
-    <h3>To: {{ model|form_link }} ({{ example.to|readable_join }})</h3>
-    {{ macros.preview_email(example) }}
-  {% endfor %}
-{% else %}
-  We couldn't find recipients matching the email criteria in a random sample of 1000 possible recipients.<br><br>
-  Here's what the template looks like though:<br>
-  {{ macros.preview_email(email) }}
-{% endif %}
+    {% for key, val in email.revert_changes.items() %}
+      {% if loop.first %}
+        <p>This email has had the following properties updated:
+          <table class="table table-bordered table-hover">
+            <thead>
+              <th>Property</th>
+              <th>New Value</th>
+              <th>Old Value</th>
+              <th></th>
+            </thead>
+      {% endif %}
+      <tr>
+        <td>{{ key }}</td><td>{{ email|attr(key) }}</td><td>{{ val }}</td>
+        <td><a href="reset_fixture_attr?ident={{ email.ident }}&key={{ key }}" class="btn btn-warning">Revert</a></td>
+      </tr>
+      {% if loop.last %}
+          </table>
+        </p>
+      {% endif %}
+    {% endfor %}
+
+    <p>
+      {% if email.unapproved_count > 0 %}
+        There are {{ email.unapproved_count }} copies of this email that will be sent once it's approved.
+      {% else %}
+        There are no unsent copies of this email waiting to be approved.
+      {% endif %} (note: this is updated approximately every {{ '5' if c.DEV_BOX else '15' }} minutes)
+    </p>
+
+  {% if examples %}
+    The following are some examples of this email looks like when sent:
+    {% for model, example in examples %}
+      <h3>To: {{ model|form_link }} ({{ example.to|readable_join }})</h3>
+      {{ macros.preview_email(example) }}
+    {% endfor %}
+  {% else %}
+    <p>We couldn't find recipients matching the email criteria in a random sample of 1000 possible recipients.</p>
+    <p>Here's what the template looks like though:<br>
+    {{ macros.preview_email(email) }}</p>
+  {% endif %}
+  </div>
 </div>
 
 

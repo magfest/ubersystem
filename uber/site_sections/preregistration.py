@@ -147,7 +147,7 @@ def set_up_new_account(session, attendee, email=None):
         session.add_attendee_to_account(attendee, account)
 
     if not account.is_sso_account:
-        session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
+        session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')))
 
         body = render('emails/accounts/new_account.html', {
                 'attendee': attendee, 'account_email': email, 'token': token}, encoding=None)
@@ -332,7 +332,7 @@ class Root:
                 raise HTTPRedirect("dealer_registration?message=Incorrect {} invite code.".format(c.DEALER_REG_TERM))
 
         params['id'] = 'None'   # security!
-        group = Group(tables=1)
+        group = Group(is_dealer=True)
 
         if edit_id is not None:
             group = self._get_unsaved(edit_id, PreregCart.pending_dealers)
@@ -832,7 +832,7 @@ class Root:
                     message = check_prereg_promo_code(session, attendee, used_codes)
                 if not message:
                     used_codes[attendee.promo_code_code] += 1
-                    form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
+                    form_list = ['PersonalInfo', 'BadgeExtras', 'PreregOtherInfo', 'Consents']
                     # Populate checkboxes based on the model (I need a better solution for this)
                     params = {}
                     if not attendee.legal_name:
@@ -909,7 +909,7 @@ class Root:
         for attendee in cart.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
             if pending_attendee:
-                pending_attendee.apply(attendee.to_dict(), restricted=True)
+                pending_attendee.apply(PreregCart.to_sessionized(attendee), restricted=True)
                 if attendee.badges and pending_attendee.promo_code_groups:
                     pc_group = pending_attendee.promo_code_groups[0]
                     pc_group.name = attendee.name
@@ -1041,17 +1041,22 @@ class Root:
             for key in [key for key in PreregCart.session_keys if key != 'paid_preregs']:
                 cherrypy.session.pop(key)
 
-            preregs = [session.merge(PreregCart.from_sessionized(d)) for d in PreregCart.paid_preregs]
+            # We do NOT want to merge the old data into the new attendee
+            preregs = []
+            for prereg in PreregCart.paid_preregs:
+                model = session.query(Attendee).filter_by(id=prereg['id']).first()
+                if not model:
+                    model = session.query(Group).filter_by(id=prereg['id']).first()
+
+                if model:
+                    preregs.append(model)
+
             for prereg in preregs:
-                try:
-                    session.refresh(prereg)
-                except Exception:
-                    pass  # this badge must have subsequently been transferred or deleted
-                else:
-                    receipt = session.get_receipt_by_model(prereg)
-                    if isinstance(prereg, Attendee):
-                        session.refresh_receipt_and_model(prereg, is_prereg=True)
-                        session.update_paid_from_receipt(prereg, receipt)
+                receipt = session.get_receipt_by_model(prereg)
+                if isinstance(prereg, Attendee):
+                    session.refresh_receipt_and_model(prereg, is_prereg=True)
+                    session.update_paid_from_receipt(prereg, receipt)
+
             session.commit()
             return {
                 'logged_in_account': session.current_attendee_account(),
@@ -1095,6 +1100,10 @@ class Root:
     @id_required(PromoCodeGroup)
     def group_promo_codes(self, session, id, message='', **params):
         group = session.promo_code_group(id)
+        if not group.buyer:
+            raise HTTPRedirect('../landing/index?message={}', "This group does not have an owner.")
+        receipt = session.refresh_receipt_and_model(group.buyer)
+        session.commit()
 
         sent_code_emails = session.query(Email.ident, Email.to, func.max(Email.when)).filter(
             Email.ident.contains("pc_group_invite_")).order_by(func.max(Email.when)).group_by(Email.ident,
@@ -1110,6 +1119,7 @@ class Root:
 
         return {
             'group': group,
+            'receipt': receipt,
             'message': message,
             'emailed_codes': emailed_codes,
         }
@@ -1136,54 +1146,37 @@ class Root:
             else:
                 raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, message))
 
-    def add_promo_codes(self, session, id, count):
+    def add_promo_codes(self, session, id, count, estimated_cost):
         errors = check_if_can_reg()
         if errors:
             return errors
         group = session.promo_code_group(id)
         count = int(count)
+        
+        if int(estimated_cost) != count * c.GROUP_PRICE:
+            raise HTTPRedirect(
+                'group_members?id={}&message={}',
+                group.id,
+                'Our preregistration price has gone up since you tried to add badges; please try again.')
+
         if count < group.min_badges_addable and not group.is_in_grace_period:
             raise HTTPRedirect(
                 'group_promo_codes?id={}&message={}',
                 group.id,
-                'You must add at least {} codes'.format(group.min_badges_addable))
+                'You must add at least {} codes.'.format(group.min_badges_addable))
 
-        return {
-            'count': count,
-            'group': group,
-        }
-
-    @ajax
-    @credit_card
-    def pay_for_extra_codes(self, session, id, count):
-        errors = check_if_can_reg()
-        if errors:
-            return errors
-        group = session.promo_code_group(id)
-        receipt = session.get_receipt_by_model(group.buyer, create_if_none="DEFAULT")
-        count = int(count)
-        charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
-        charge = TransactionRequest(receipt, receipt_email=group.email, description=charge_desc,
-                                    amount=c.get_group_price() * 100 * count,
-                                    create_receipt_item=receipt.current_amount_owed == 0)
-        if int(charge.dollar_amount) % c.GROUP_PRICE:
-            session.rollback()
-            return {'error': 'Our preregistration price has gone up since you tried to add more codes; \
-                    please try again!'}
-
-        message = charge.prepare_payment()
-        if message:
-            return {'error': message}
-
-        session.add_all(charge.get_receipt_items_to_add())
+        receipt = session.get_receipt_by_model(group.buyer)
+        if receipt:
+            session.add(ReceiptManager().create_receipt_item(receipt,
+                                                             f'{count} extra badge{"s" if count > 1 else ""} '
+                                                             f'for {group.name}',
+                                                             count * c.GROUP_PRICE * 100))
+        
         session.add_codes_to_pc_group(group, count)
         session.commit()
 
-        return {'stripe_intent': charge.intent,
-                'success_url': 'group_promo_codes?id={}&message={}'.format(
-                    group.id,
-                    'Your payment has been accepted and the codes have been added to your group'),
-                'cancel_url': 'cancel_promo_code_payment'}
+        raise HTTPRedirect('group_promo_codes?id={}&count={}&message={}', group.id, count,
+                            f"{count} codes have been added to your group! Please pay for them below.")
 
     @id_required(Group)
     @requires_account(Group)
@@ -1246,6 +1239,9 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
 
         receipt = session.refresh_receipt_and_model(group)
+        session.commit()
+        if receipt and receipt.current_amount_owed and not group.is_dealer:
+            raise HTTPRedirect('group_payment?id={}', group.id)
 
         return {
             'group':   group,
@@ -1408,52 +1404,64 @@ class Root:
             'Attendee unset; you may now assign their badge to someone else')
 
     @requires_account(Group)
-    def add_group_members(self, session, id, count):
+    def add_group_members(self, session, id, count, estimated_cost):
         errors = check_if_can_reg()
         if errors:
             return errors
         group = session.group(id)
-        if int(count) < group.min_badges_addable and not group.is_in_grace_period:
+        count = int(count)
+        if int(estimated_cost) != count * group.new_badge_cost:
             raise HTTPRedirect(
                 'group_members?id={}&message={}',
                 group.id,
-                'This group cannot add fewer than {} badges'.format(group.min_badges_addable))
+                'Our {} price has gone up since you tried to add badges; please try again.'.format(
+                    "dealer badge" if group.is_dealer else "preregistration"
+                ))
 
+        if count < group.min_badges_addable and not group.is_in_grace_period:
+            raise HTTPRedirect(
+                'group_members?id={}&message={}',
+                group.id,
+                'You cannot add fewer than {} badges to this group.'.format(group.min_badges_addable))
+        
+        if group.is_dealer and count > group.dealer_badges_remaining:
+            raise HTTPRedirect(
+                'group_members?id={}&message={}',
+                group.id,
+                'You cannot add more than {} badges'.format(group.dealer_badges_remaining))
+            
+        receipt = session.get_receipt_by_model(group)
+        if receipt:
+            receipt_items = ReceiptManager.auto_update_receipt(group, receipt,
+                                                               {'badges': count + group.badges,
+                                                                'auto_recalc': group.auto_recalc})
+            session.add_all(receipt_items)
+        
+        session.assign_badges(group, group.badges + count)
+        session.commit()
+        if group.auto_recalc:
+            group.cost = group.calc_default_cost()
+            session.add(group)
+
+        if group.is_dealer and not receipt:
+            raise HTTPRedirect(
+                'group_members?id={}&message={}',
+                group.id,
+                f'{count} {c.DEALER_HELPER_TERM}s added!')
+        else:
+            raise HTTPRedirect('group_payment?id={}&count={}&message={}', group.id, count,
+                               f"{count} badges have been added to your group! Please pay for them below.")
+    
+    @id_required(Group)
+    @requires_account(Group)
+    def group_payment(self, session, id, count=0, message=''):
+        group = session.group(id)
         return {
             'count': count,
             'group': group,
+            'receipt': session.get_receipt_by_model(group, create_if_none="DEFAULT"),
+            'message': message,
         }
-
-    @ajax
-    @credit_card
-    def pay_for_extra_members(self, session, id, count):
-        errors = check_if_can_reg()
-        if errors:
-            return errors
-        group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
-        session.add(receipt)
-        session.commit()
-        count = int(count)
-        charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
-        charge = TransactionRequest(receipt, group.email, charge_desc,
-                                    group.new_badge_cost * count * 100,
-                                    create_receipt_item=receipt.current_amount_owed == 0)
-        if int(charge.dollar_amount) % group.new_badge_cost:
-            session.rollback()
-            return {'error': 'Our preregistration price has gone up since you tried to add badges; please try again'}
-
-        message = charge.prepare_payment()
-        if message:
-            return {'error': message}
-
-        session.add_all(charge.get_receipt_items_to_add())
-        session.assign_badges(group, group.badges + count)
-        session.commit()
-
-        return {'stripe_intent': charge.intent,
-                'success_url': 'group_members?id={}&message={}'.format(
-                    group.id, 'Your payment has been accepted and the badges have been added to your group')}
 
     def cancel_dealer(self, session, id):
         from uber.site_sections.dealer_admin import decline_and_convert_dealer_group
@@ -1519,19 +1527,41 @@ class Root:
                 form.populate_obj(attendee)
 
             if (old.first_name == attendee.first_name and old.last_name == attendee.last_name) \
-                    or (old.legal_name and old.legal_name == attendee.legal_name):
+                    and (not old.legal_name or old.legal_name == attendee.legal_name):
                 message = 'You cannot transfer your badge to yourself.'
+
+            if attendee.banned and not params.get('ban_bypass', None):
+                return {
+                    'forms': forms,
+                    'old': old,
+                    'attendee': attendee,
+                    'message':  message,
+                    'receipt': receipt,
+                    'ban_bypass': True,
+                }
+            
+            if not params.get('duplicate_bypass', None):
+                duplicate = session.attendees_with_badges().filter_by(first_name=attendee.first_name,
+                                                                      last_name=attendee.last_name,
+                                                                      email=attendee.email).first()
+                if duplicate:
+                    return {
+                        'forms': forms,
+                        'old': old,
+                        'attendee': attendee,
+                        'duplicate': duplicate,
+                        'message':  message,
+                        'receipt': receipt,
+                        'ban_bypass': params.get('ban_bypass', None),
+                        'duplicate_bypass': True,
+                    }
 
             if not message:
                 old.badge_status = c.INVALID_STATUS
                 old.append_admin_note(f"Automatic transfer to attendee {attendee.id}")
+                attendee.badge_status = c.NEW_STATUS
                 attendee.admin_notes = f"Automatic transfer from attendee {old.id}"
-                if receipt:
-                    receipt.owner_id = attendee.id
-                    session.add(receipt)
-                    amount_unpaid = receipt.current_amount_owed
-                else:
-                    amount_unpaid = attendee.amount_unpaid
+
                 subject = c.EVENT_NAME + ' Registration Transferred'
                 new_body = render('emails/reg_workflow/badge_transfer.txt',
                                   {'new': attendee, 'old': old, 'include_link': True}, encoding=None)
@@ -1556,8 +1586,14 @@ class Root:
 
                 session.add(attendee)
                 session.commit()
+                if receipt:
+                    session.add(receipt)
+                    receipt.owner_id = attendee.id
+                    amount_unpaid = receipt.current_amount_owed
+                    session.commit()
+                else:
+                    amount_unpaid = attendee.amount_unpaid
                 session.refresh_receipt_and_model(attendee)
-                session.commit()
                 if amount_unpaid:
                     raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
@@ -1566,7 +1602,7 @@ class Root:
 
         return {
             'forms': forms,
-            'old':      old,
+            'old': old,
             'attendee': attendee,
             'message':  message,
             'receipt': receipt,
@@ -1605,10 +1641,12 @@ class Root:
     def not_found(self, id, message=''):
         return {'id': id, 'message': message}
 
+    @csrf_protected
     @requires_account(Attendee)
     def abandon_badge(self, session, id):
         from uber.custom_tags import format_currency
         attendee = session.attendee(id)
+        page_redirect = ''
         if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
                 .format(email_only(c.REGDESK_EMAIL))
@@ -1617,12 +1655,13 @@ class Root:
         else:
             success_message = "Sorry you can't make it! We hope to see you next year!"
             new_status = c.INVALID_STATUS
-            page_redirect = 'invalid_badge'
+            page_redirect = '../landing/index'
             if attendee.is_group_leader:
                 failure_message = "You cannot abandon your badge because you are the leader of a group."
             else:
                 failure_message = "You cannot abandon your badge for some reason. Please contact us at {}."\
                     .format(email_only(c.REGDESK_EMAIL))
+        page_redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else page_redirect
 
         if (not attendee.amount_paid and not attendee.can_abandon_badge)\
                 or (attendee.amount_paid and not attendee.can_self_service_refund_badge):
@@ -1658,14 +1697,14 @@ class Root:
                 paid=attendee.paid)
 
             session.delete_from_group(attendee, attendee.group)
-            raise HTTPRedirect('not_found?id={}&message={}', attendee.id, success_message)
+            raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
         # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
         else:
             attendee.badge_status = new_status
             for shift in attendee.shifts:
                 session.delete(shift)
             raise HTTPRedirect('{}?id={}&message={}',
-                               'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else page_redirect,
+                               page_redirect,
                                attendee.id, success_message)
 
     def badge_updated(self, session, id, message=''):
@@ -2050,7 +2089,8 @@ class Root:
 
         return_to = params.get('return_to')
 
-        success_url_base = 'confirm?id=' + id + '&' if not return_to or return_to == 'confirm' else return_to + '?'
+        success_url_base = 'confirm?id=' + id + '&' if not return_to or return_to == 'confirm' else return_to + (
+            '?' if '?' not in return_to else '&')
 
         return {'stripe_intent': charge.intent,
                 'success_url': '{}message={}'.format(success_url_base, 'Payment accepted!'),
@@ -2069,6 +2109,7 @@ class Root:
 
     @id_required(Attendee)
     @requires_account(Attendee)
+    @csrf_protected
     def reset_receipt(self, session, id, return_to):
         attendee = session.attendee(id)
         message = attendee.undo_extras()
@@ -2133,7 +2174,7 @@ class Root:
 
         if not password:
             message = 'Please enter your current password to make changes to your account.'
-        elif not bcrypt.hashpw(password, account.hashed) == account.hashed:
+        elif not bcrypt.hashpw(password.encode('utf-8'), account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             message = 'Incorrect password'
 
         if not message:
@@ -2148,7 +2189,7 @@ class Root:
 
         if not message:
             if new_password:
-                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                account.hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             account.email = params.get('account_email')
             message = 'Account information updated successfully.'
         raise HTTPRedirect('homepage?message={}', message)
@@ -2180,7 +2221,7 @@ class Root:
                 raise HTTPRedirect(sso_url)
 
             token = genpasswd(short=True)
-            session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
+            session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')))
 
             body = render('emails/accounts/password_reset.html', {
                     'account': account, 'token': token}, encoding=None)
@@ -2205,7 +2246,7 @@ class Root:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
             message = 'This link has expired. Please use the "forgot password" option to get a new link.'
-        elif bcrypt.hashpw(token, account.password_reset.hashed) != account.password_reset.hashed:
+        elif bcrypt.hashpw(token.encode('utf-8'), account.password_reset.hashed.encode('utf-8')) != account.password_reset.hashed.encode('utf-8'):
             message = 'Invalid token. Did you copy the URL correctly?'
 
         if message:
@@ -2218,7 +2259,7 @@ class Root:
 
             if not message:
                 account.email = normalize_email(account_email)
-                account.hashed = bcrypt.hashpw(account_password, bcrypt.gensalt())
+                account.hashed = bcrypt.hashpw(account_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 session.delete(account.password_reset)
                 for attendee in account.attendees:
                     # Make sure only this account manages the attendee if c.ONE_MANAGER_PER_BADGE is set
