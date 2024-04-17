@@ -25,8 +25,5 @@ Jinja2==2.11.3
 requests==2.27.1
 signnow_python_sdk==2.0.1
 Authlib==1.0.1
-requests==2.27.1
-signnow_python_sdk==2.0.1
-Authlib==1.0.1
 pyyaml==6.0
 librabbitmq==2.0.0

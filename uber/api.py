@@ -1225,8 +1225,13 @@ class ConfigLookup:
         """
         Returns a list of all available configuration settings.
         """
-        output = {field: getattr(c, field) for field in self.fields}
-
+        output = {}
+        for field in self.fields:
+            try:
+                output[field] = getattr(c, field)
+            except Exception:
+                pass
+        
         # This is to allow backward compatibility with pre 1.0 code
         output['YEAR'] = c.EVENT_YEAR
         output['API_VERSION'] = __version__
