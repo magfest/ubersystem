@@ -1,7 +1,10 @@
 import json
 import mimetypes
 import os
+import ctypes
+import ctypes.util
 import traceback
+import threading
 from pprint import pformat
 
 import cherrypy
@@ -11,12 +14,14 @@ from cherrypy import HTTPError
 from pockets import is_listy
 from pockets.autolog import log
 
-from sideboard.lib import serializer
+from uber.serializer import serializer
 from uber.config import c, Config
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.utils import mount_site_sections, static_overrides
+from uber.redis_session import RedisSession
 
+cherrypy.lib.sessions.RedisSession = RedisSession
 
 ERR_INVALID_RPC = -32600
 ERR_MISSING_FUNC = -32601
@@ -369,3 +374,46 @@ def register_jsonrpc(service, name=None):
 
 jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services)
 cherrypy.tree.mount(jsonrpc_app, c.CHERRYPY_MOUNT_PATH + '/jsonrpc', c.APPCONF)
+
+cherrypy_config = {}
+for setting, value in c.CHERRYPY.items():
+    if isinstance(value, str):
+        if value.isdigit():
+            value = int(value)
+        elif value.lower() in ['true', 'false']:
+            value = value.lower() == 'true'
+    cherrypy_config[setting] = value
+cherrypy.config.update(cherrypy_config)
+
+libpthread_path = ctypes.util.find_library("pthread")
+pthread_setname_np = None
+if libpthread_path:
+    libpthread = ctypes.CDLL(libpthread_path)
+    if hasattr(libpthread, "pthread_setname_np"):
+        pthread_setname_np = libpthread.pthread_setname_np
+        pthread_setname_np.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        pthread_setname_np.restype = ctypes.c_int
+
+
+def _set_current_thread_ids_from(thread):
+    # thread ID part 1: set externally visible thread name in /proc/[pid]/tasks/[tid]/comm to our internal name
+    if pthread_setname_np and thread.name:
+        # linux doesn't allow thread names > 15 chars, and we ideally want to see the end of the name.
+        # attempt to shorten the name if we need to.
+        shorter_name = thread.name if len(thread.name) < 15 else thread.name.replace('CP Server Thread', 'CPServ')
+        if thread.ident is not None:
+            pthread_setname_np(thread.ident, shorter_name.encode('ASCII'))
+
+
+# inject our own code at the start of every thread's start() method which sets the thread name via pthread().
+# Python thread names will now be shown in external system tools like 'top', '/proc', etc.
+def _thread_name_insert(self):
+    _set_current_thread_ids_from(self)
+    threading.Thread._bootstrap_inner_original(self)
+
+    threading.Thread._bootstrap_inner_original = threading.Thread._bootstrap_inner
+    threading.Thread._bootstrap_inner = _thread_name_insert
+
+# set the ID's of the main thread
+threading.current_thread().name = 'ubersystem_main'
+_set_current_thread_ids_from(threading.current_thread())

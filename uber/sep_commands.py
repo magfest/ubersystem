@@ -4,13 +4,41 @@ from json import dumps
 from os.path import join
 from pprint import pprint
 
-from sideboard.lib import entry_point
 from sqlalchemy.orm import subqueryload
 
-from uber.config import c
+from uber.config import c, plugins_dir
 from uber.decorators import timed
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Group, Session
 
+def entry_point(func):
+    """
+    Decorator used to define entry points for command-line scripts.  Sideboard
+    ships with a "sep" (Sideboard Entry Point) command line script which can be
+    used to call into any plugin-defined entry point after deleting sys.argv[0]
+    so that the entry point name will be the first argument.  For example, if a
+    plugin had this entry point:
+
+        @entry_point
+        def some_action():
+            print(sys.argv)
+
+    Then someone in a shell ran the command:
+
+        sep some_action foo bar
+
+    It would print:
+
+        ['some_action', 'foo', 'bar']
+
+    :param func: a function which takes no arguments; its name will be the name
+                 of the command, and an exception is raised if a function with
+                 the same name has already been registered as an entry point
+    """
+    assert func.__name__ not in _entry_points, 'An entry point named {} has already been implemented'.format(func.__name__)
+    _entry_points[func.__name__] = func
+    return func
+
+_entry_points = {}
 
 @entry_point
 def alembic(*args):
@@ -38,7 +66,6 @@ def alembic(*args):
     directory will be created if it does not already exist.
     """
     from alembic.config import CommandLine
-    from sideboard.config import config as sideboard_config
     from uber.migration import create_alembic_config, get_plugin_head_revision, version_locations
 
     argv = args if args else sys.argv[1:]
@@ -53,7 +80,7 @@ def alembic(*args):
 
     assert plugin_name in version_locations, (
         'Plugin "{}" does not exist in {}'.format(
-            plugin_name, sideboard_config['plugins_dir']))
+            plugin_name, plugins_dir))
 
     commandline = CommandLine(prog='sep alembic')
     if {'-h', '--help'}.intersection(argv):

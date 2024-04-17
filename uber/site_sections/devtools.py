@@ -2,14 +2,17 @@ import os
 import json
 import shlex
 import time
+import sys
 import subprocess
+import traceback
 import csv
 import random
 import six
+import psutil
 import cherrypy
+import threading
 from datetime import datetime
 
-from sideboard.debugging import register_diagnostics_status_function, gather_diagnostics_status_information
 from sqlalchemy.dialects.postgresql.json import JSONB
 from pockets.autolog import log
 from pytz import UTC
@@ -72,6 +75,46 @@ def prepare_model_export(model, filtered_models=None):
         rows.append(row)
     return rows
 
+def _get_thread_current_stacktrace(thread_stack, thread):
+    out = []
+    status = '[unknown]'
+    if psutil and thread.native_id != -1:
+        status = psutil.Process(thread.native_id).status()
+    out.append('\n--------------------------------------------------------------------------')
+    out.append('# Thread name: "%s"\n# Python thread.ident: %d\n# Linux Thread PID (TID): %d\n# Run Status: %s'
+                % (thread.name, thread.ident, thread.native_id, status))
+    for filename, lineno, name, line in traceback.extract_stack(thread_stack):
+        out.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+        if line:
+            out.append('  %s' % (line.strip()))
+    return out
+
+def threading_information():
+    out = []
+    threads_by_id = dict([(thread.ident, thread) for thread in threading.enumerate()])
+    for thread_id, thread_stack in sys._current_frames().items():
+        thread = threads_by_id.get(thread_id, '')
+        out += _get_thread_current_stacktrace(thread_stack, thread)
+    return '\n'.join(out)
+
+def general_system_info():
+    """
+    Print general system info
+    TODO:
+    - print memory nicer, convert mem to megabytes
+    - disk partitions usage,
+    - # of open file handles
+    - # free inode count
+    - # of cherrypy session files
+    - # of cherrypy session locks (should be low)
+    """
+    out = []
+    out += ['Mem: ' + repr(psutil.virtual_memory()) if psutil else '<unknown>']
+    out += ['Swap: ' + repr(psutil.swap_memory()) if psutil else '<unknown>']
+    return '\n'.join(out)
+
+def database_pool_information():
+    return Session.engine.pool.status()
 
 @all_renderable()
 class Root:
@@ -95,8 +138,11 @@ class Root:
         }
 
     def dump_diagnostics(self):
+        out = ''
+        for func in [general_system_info, threading_information, database_pool_information]:
+            out += '--------- {} ---------\n{}\n\n\n'.format(func.__name__.replace('_', ' ').upper(), func())
         return {
-            'diagnostics_data': gather_diagnostics_status_information(),
+            'diagnostics_data': out,
         }
 
     def badge_number_consistency_check(self, session, run_check=None):
@@ -242,8 +288,3 @@ class Root:
             'task_payload': payload,
             'task_response': response,
         })
-
-
-@register_diagnostics_status_function
-def database_pool_information():
-    return Session.engine.pool.status()

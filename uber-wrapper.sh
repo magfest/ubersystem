@@ -11,8 +11,8 @@ if [ "$1" = 'uber' ]; then
     echo "If this is the first time starting this server go to the following URL to create an account:"
     echo "http://localhost/accounts/insert_test_admin"
     echo "From there the default login is magfest@example.com / magfest"
-    python /app/sideboard/sep.py alembic upgrade heads
-    python /app/sideboard/run_server.py
+    python /app/sep.py alembic upgrade heads
+    python /app/run_server.py
 elif [ "$1" = 'celery-beat' ]; then
     celery -A uber.tasks beat --loglevel=DEBUG --pidfile=
 elif [ "$1" = 'celery-worker' ]; then

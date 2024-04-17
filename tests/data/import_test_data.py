@@ -6,7 +6,7 @@ import uuid
 from datetime import timedelta
 from os.path import join
 
-from sideboard.lib import entry_point
+from uber.sep_commands import entry_point
 
 from uber.config import c, create_namespace_uuid
 from uber.models import AssignedPanelist, Attendee, Department, Event, FoodRestrictions, Group, HotelRequests, Job

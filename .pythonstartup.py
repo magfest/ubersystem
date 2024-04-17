@@ -21,7 +21,6 @@ if os.path.exists(history_path):
 
 try:
     import cherrypy
-    import sideboard
     from uber.config import c
     from uber.models import AdminAccount, Attendee, initialize_db, Session
 

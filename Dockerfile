@@ -1,10 +1,10 @@
 # syntax = docker/dockerfile:1.4.0
 
-#FROM ghcr.io/magfest/sideboard:main as build
-FROM test as build
-ENV PYTHONPATH=${PYTHONPATH}:/app/plugins/uber
+FROM python:3.12.3-slim as build
+WORKDIR /app
+ENV PYTHONPATH=/app
+
 ARG PLUGINS="[]"
-LABEL version.rams-core ="0.1"
 
 # install ghostscript and gettext-base
 RUN --mount=type=cache,target=/var/lib/apt/lists \
@@ -20,18 +20,12 @@ RUN --mount=type=cache,target=/root/.cache \
 ADD uber-wrapper.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/uber-wrapper.sh
 
-RUN <<EOF cat >> PLUGINS.json
-$PLUGINS
-EOF
-
-RUN jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' PLUGINS.json > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
-
 FROM build as test
 RUN pip install -r requirements_test.txt
-CMD python -m pytest plugins/uber
-ADD . plugins/uber/
+CMD python -m pytest
+ADD . /app
 
 FROM build as release
 ENTRYPOINT ["/usr/local/bin/uber-wrapper.sh"]
 CMD ["uber"]
-ADD . plugins/uber/
+ADD . /app

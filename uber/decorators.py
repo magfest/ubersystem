@@ -22,9 +22,9 @@ import six
 import xlsxwriter
 from pockets import argmod, unwrap
 from pockets.autolog import log
-from sideboard.lib import serializer
 
 import uber
+from uber.serializer import serializer
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.errors import CSRFException, HTTPRedirect
@@ -438,12 +438,11 @@ def cached(func):
 def cached_page(func):
     innermost = unwrap(func)
     if hasattr(innermost, 'cached'):
-        from sideboard.lib import config as sideboard_config
         func.lock = RLock()
 
         @wraps(func)
         def with_caching(*args, **kwargs):
-            fpath = os.path.join(sideboard_config['root'], 'data', func.__module__ + '.' + func.__name__)
+            fpath = os.path.join("/tmp", 'data', func.__module__ + '.' + func.__name__)
             with func.lock:
                 if not os.path.exists(fpath) or datetime.now().timestamp() - os.stat(fpath).st_mtime > 60 * 15:
                     contents = func(*args, **kwargs)
