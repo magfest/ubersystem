@@ -8,9 +8,8 @@ from jinja2.environment import Template
 from jinja2.loaders import split_template_path
 from jinja2.utils import open_if_exists
 from jinja2.exceptions import TemplateNotFound, TemplatesNotFound
-from sideboard.lib import request_cached_property
 
-from uber.config import c
+from uber.config import c, request_cached_property
 
 # This used to be in jinja2._compat, but that was removed in version 3.0.0
 string_types = (str,)

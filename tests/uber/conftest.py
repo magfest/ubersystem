@@ -5,7 +5,6 @@ from datetime import date, timedelta
 
 import cherrypy
 import pytest
-from sideboard.lib import threadlocal
 import sqlalchemy
 from sqlalchemy import event
 from sqlalchemy.orm import sessionmaker
@@ -246,11 +245,6 @@ def db(request, init_db):
 @pytest.fixture(autouse=True)
 def cp_session():
     cherrypy.session = {}
-
-
-@pytest.fixture(autouse=True)
-def reset_threadlocal_cache():
-    threadlocal.clear()
 
 
 @pytest.fixture

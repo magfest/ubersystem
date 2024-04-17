@@ -9,6 +9,8 @@ import re
 import redis
 import six
 import uuid
+import threading
+import functools
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
 from hashlib import sha512
@@ -19,17 +21,117 @@ import cherrypy
 import signnow_python_sdk
 from pockets import nesteddefaultdict, unwrap
 from pockets.autolog import log
-from sideboard.lib import cached_property, parse_config, request_cached_property
+from sideboard.lib import parse_config
 from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload, subqueryload
 
 import uber
 
+def reset_threadlocal():
+    threadlocal.reset(username=cherrypy.session.get("username"))
+
+cherrypy.tools.reset_threadlocal = cherrypy.Tool('before_handler', reset_threadlocal, priority=51)
+cherrypy.config.update({"tools.reset_threadlocal.on": True})
+
+class threadlocal(object):
+    """
+    This class exposes a dict-like interface on top of the threading.local
+    utility class; the "get", "set", "setdefault", and "clear" methods work the
+    same as for a dict except that each thread gets its own keys and values.
+
+    Sideboard clears out all existing values and then initializes some specific
+    values in the following situations:
+
+    1) CherryPy page handlers have the 'username' key set to whatever value is
+        returned by cherrypy.session['username'].
+
+    2) Service methods called via JSON-RPC have the following two fields set:
+        -> username: as above
+        -> websocket_client: if the JSON-RPC request has a "websocket_client"
+            field, it's value is set here; this is used internally as the
+            "originating_client" value in notify() and plugins can ignore this
+
+    3) Service methods called via websocket have the following three fields set:
+        -> username: as above
+        -> websocket: the WebSocketDispatcher instance receiving the RPC call
+        -> message: the RPC request body; this is present on the initial call
+            but not on subscription triggers in the broadcast thread
+    """
+    _threadlocal = threading.local()
+
+    @classmethod
+    def get(cls, key, default=None):
+        return getattr(cls._threadlocal, key, default)
+
+    @classmethod
+    def set(cls, key, val):
+        return setattr(cls._threadlocal, key, val)
+
+    @classmethod
+    def setdefault(cls, key, val):
+        val = cls.get(key, val)
+        cls.set(key, val)
+        return val
+
+    @classmethod
+    def clear(cls):
+        cls._threadlocal.__dict__.clear()
+
+    @classmethod
+    def get_client(cls):
+        """
+        If called as part of an initial websocket RPC request, this returns the
+        client id if one exists, and otherwise returns None.  Plugins probably
+        shouldn't need to call this method themselves.
+        """
+        return cls.get('client') or cls.get('message', {}).get('client')
+
+    @classmethod
+    def reset(cls, **kwargs):
+        """
+        Plugins should never call this method directly without a good reason; it
+        clears out all existing values and replaces them with the key-value
+        pairs passed as keyword arguments to this function.
+        """
+        cls.clear()
+        for key, val in kwargs.items():
+            cls.set(key, val)
 
 def dynamic(func):
     setattr(func, '_dynamic', True)
     return func
 
+def cached_property(func):
+    """decorator for making readonly, memoized properties"""
+    pname = '_cached_{}'.format(func.__name__)
+
+    @property
+    @functools.wraps(func)
+    def caching(self, *args, **kwargs):
+        if not hasattr(self, pname):
+            setattr(self, pname, func(self, *args, **kwargs))
+        return getattr(self, pname)
+    return caching
+
+def request_cached_property(func):
+    """
+    Sometimes we want a property to be cached for the duration of a request,
+    with concurrent requests each having their own cached version.  This does
+    that via the threadlocal class, such that each HTTP request CherryPy serves
+    and each RPC request served via JSON-RPC will have its own
+    cached value, which is cleared and then re-generated on later requests.
+    """
+    name = func.__module__ + '.' + func.__name__
+
+    @property
+    @functools.wraps(func)
+    def with_caching(self):
+        val = threadlocal.get(name)
+        if val is None:
+            val = func(self)
+            threadlocal.set(name, val)
+        return val
+    return with_caching
 
 def create_namespace_uuid(s):
     return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])

@@ -3,6 +3,7 @@ import operator
 import os
 import re
 import uuid
+import traceback
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
@@ -17,7 +18,6 @@ from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
-from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
@@ -2233,7 +2233,6 @@ class Session(SessionManager):
         return target
 
 
-@on_startup(priority=1)
 def initialize_db(modify_tables=False):
     """
     Initialize the session on startup.
@@ -2250,24 +2249,14 @@ def initialize_db(modify_tables=False):
     drop=True or modify_tables=True or initialize=True to
     Session.initialize_db()
     """
-    num_tries_remaining = 10
-    while not stopped.is_set():
-        try:
-            Session.initialize_db(modify_tables=modify_tables, initialize=True)
-        except KeyboardInterrupt:
-            log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
-        except Exception:
-            num_tries_remaining -= 1
-            if num_tries_remaining == 0:
-                log.error("DB initialize: couldn't connect to DB, we're giving up")
-                raise
-            log.error("DB initialize: can't connect to / initialize DB, will try again in 5 seconds", exc_info=True)
-            stopped.wait(5)
-        else:
-            break
+    try:
+        Session.initialize_db(modify_tables=modify_tables, initialize=True)
+    except KeyboardInterrupt:
+        log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
+    except Exception:
+        traceback.print_exc()
+cherrypy.engine.subscribe('start', initialize_db, priority=99)
 
-
-@on_startup
 def _attendee_validity_check():
     orig_getter = Session.SessionMixin.attendee
 
@@ -2281,7 +2270,7 @@ def _attendee_validity_check():
         else:
             return attendee
     Session.SessionMixin.attendee = with_validity_check
-
+cherrypy.engine.subscribe('start', _attendee_validity_check, priority=98)
 
 def _presave_adjustments(session, context, instances='deprecated'):
     for model in chain(session.dirty, session.new):

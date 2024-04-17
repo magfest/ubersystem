@@ -1,5 +1,6 @@
 import os
 from decimal import Decimal
+import cherrypy
 
 from pockets.autolog import log
 
@@ -34,7 +35,6 @@ import sideboard  # noqa: E402
 sideboard.lib.serializer.register(Decimal, lambda n: float(n))
 
 
-@sideboard.lib.on_startup
 def create_data_dirs():
     from uber.config import c
 
@@ -42,3 +42,5 @@ def create_data_dirs():
         if not os.path.exists(directory):
             log.info('Creating directory {}'.format(directory))
             os.makedirs(directory, mode=0o744)
+
+cherrypy.engine.subscribe('start', create_data_dirs, priority=98)
