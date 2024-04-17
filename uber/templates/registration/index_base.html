@@ -120,6 +120,7 @@
           {% if workstation_assignment and workstation_assignment.printer_id %}Re-a{% else %}A{% endif %}ssign Printers
         </button>
       {% endif %}
+      {% if c.AT_THE_CON %}
       <form method="post" action="set_reg_station">
         <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
         <div class="row g-sm-2 row-cols-auto">
@@ -134,6 +135,7 @@
           </div>
         </div>
       </form>
+      {% endif %}
     </div>
 </div>
 
@@ -162,7 +164,7 @@
         <span class="ms-2">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</span>
         <span class="ms-2"><span id="checkin_count">{{ checkin_count }}</span> Checked In</span>
 
-        <span class="pull-right me-2">Workstation #: {{ reg_station_id|default("None",true) }}
+        {% if c.AT_THE_CON %}<span class="pull-right me-2">Workstation #: {{ reg_station_id|default("None",true) }}{% endif %}
         {% if c.BADGE_PRINTING_ENABLED %}
           {% set printer_text = "Standard Printer" if workstation_assignment and workstation_assignment.separate_printers else "Printer" %}
           <br/>{{ printer_text }}: {{ workstation_assignment.printer_id|default("None") if workstation_assignment else "None" }}

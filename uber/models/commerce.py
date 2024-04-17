@@ -346,11 +346,11 @@ class ReceiptTransaction(MagModel):
         if c.AUTHORIZENET_LOGIN_ID:
             return 0
 
-        intent = self.get_stripe_intent(expand=['charges.data.balance_transaction'])
-        if not intent.charges.data:
+        intent = self.get_stripe_intent(expand=['latest_charge.balance_transaction'])
+        if not intent.latest_charge.balance_transaction:
             return 0
 
-        return intent.charges.data[0].balance_transaction.fee_details[0].amount
+        return intent.latest_charge.balance_transaction.fee_details[0].amount
 
     def calc_processing_fee(self, amount=0):
         from decimal import Decimal
@@ -420,7 +420,7 @@ class ReceiptTransaction(MagModel):
 
         intent = intent or self.get_stripe_intent()
         if intent and intent.status == "succeeded":
-            new_charge_id = intent.charges.data[0].id
+            new_charge_id = intent.latest_charge
             ReceiptManager.mark_paid_from_stripe_intent(intent)
             return new_charge_id
 
