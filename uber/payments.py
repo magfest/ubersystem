@@ -1497,7 +1497,7 @@ class ReceiptManager:
 
     @staticmethod
     def mark_paid_from_stripe_intent(payment_intent):
-        if not payment_intent.charges.data:
+        if not payment_intent.latest_charge:
             log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid "
                       "but that intent doesn't have a charge!")
             return []
@@ -1507,7 +1507,7 @@ class ReceiptManager:
                       "but the charge on this intent wasn't successful!")
             return []
 
-        return ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.charges.data[0].id)
+        return ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.latest_charge)
 
     @staticmethod
     def mark_paid_from_ids(intent_id, charge_id):
