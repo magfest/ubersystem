@@ -24,6 +24,7 @@ for path in (pathlib.Path(__file__).parents[1] / "plugins").iterdir():
     versions_path = path / 'alembic' / 'versions'
     if versions_path.exists():
         version_locations[path.name] = str(versions_path)
+version_locations["uber"] = str(pathlib.Path(__file__).parents[1] / "alembic" / "versions")
 
 
 # Version locations in the format expected in "alembic.ini", cached here for

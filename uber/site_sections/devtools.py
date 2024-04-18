@@ -8,7 +8,7 @@ import traceback
 import csv
 import random
 import six
-import psutil
+import pypsutil
 import cherrypy
 import threading
 from datetime import datetime
@@ -78,8 +78,8 @@ def prepare_model_export(model, filtered_models=None):
 def _get_thread_current_stacktrace(thread_stack, thread):
     out = []
     status = '[unknown]'
-    if psutil and thread.native_id != -1:
-        status = psutil.Process(thread.native_id).status()
+    if thread.native_id != -1:
+        status = pypsutil.Process(thread.native_id).status().name
     out.append('\n--------------------------------------------------------------------------')
     out.append('# Thread name: "%s"\n# Python thread.ident: %d\n# Linux Thread PID (TID): %d\n# Run Status: %s'
                 % (thread.name, thread.ident, thread.native_id, status))
@@ -94,6 +94,10 @@ def threading_information():
     threads_by_id = dict([(thread.ident, thread) for thread in threading.enumerate()])
     for thread_id, thread_stack in sys._current_frames().items():
         thread = threads_by_id.get(thread_id, '')
+        if thread.native_id != -1:
+            proc = pypsutil.Process(thread.native_id)
+            out.append(f"Mem: {proc.memory_info().rss}")
+            out.append(f"CPU: {proc.cpu_info().user}")
         out += _get_thread_current_stacktrace(thread_stack, thread)
     return '\n'.join(out)
 
@@ -109,8 +113,8 @@ def general_system_info():
     - # of cherrypy session locks (should be low)
     """
     out = []
-    out += ['Mem: ' + repr(psutil.virtual_memory()) if psutil else '<unknown>']
-    out += ['Swap: ' + repr(psutil.swap_memory()) if psutil else '<unknown>']
+    out += ['Mem: ' + repr(pypsutil.virtual_memory().used)]
+    out += ['Swap: ' + repr(pypsutil.swap_memory().used)]
     return '\n'.join(out)
 
 def database_pool_information():

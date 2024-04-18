@@ -14,9 +14,12 @@ x-uber: &uber
     - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber
     - uber_url_root=http://localhost
     - uber_hostname=localhost
+    - uber_plugins=["magprime"]
     - sideboard_priority_plugins=["uber"]
   volumes:
-    - $PWD:/app/plugins/uber
+    - $PWD:/app/
+    - $PWD/../magprime:/app/plugins/magprime
+
 
 services: 
   web:

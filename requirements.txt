@@ -1,5 +1,5 @@
 alembic==1.13.1
-authorizenet @ git+https://github.com/magfest/sdk-python.git@386cacd6755a97d41d757e47d82723a9a23352cc
+authorizenet @ git+https://github.com/magfest/sdk-python.git@3cfb93da8b9988d6112a5c08b3c8d4d3f1e7d808
 aztec-code-generator==0.11
 bcrypt==4.1.2
 bleach==6.1.0
@@ -16,9 +16,10 @@ Jinja2==3.1.3
 phonenumbers==8.13.34
 Pillow==10.3.0
 pockets==0.9.1
-psutil==5.9.8
-psycopg2==2.9.9
+pypsutil==0.2.0
+psycopg2-binary==2.9.9
 pycountry==23.12.11
+python-barcode[images]==0.15.1
 python-dateutil==2.9.0.post0
 python3-saml==1.16.0
 pytz==2024.1
@@ -32,7 +33,6 @@ spin_rest_utils>=0.0.1
 signnow_python_sdk==2.0.1
 SQLAlchemy==1.4.52
 stripe==9.1.0
-treepoem==3.24.0
 twilio==9.0.4
 uszipcode==1.0.1
 WTForms==3.1.2

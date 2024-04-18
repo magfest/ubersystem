@@ -1,10 +1,12 @@
 import json
 import mimetypes
 import os
+import sys
 import ctypes
 import ctypes.util
 import traceback
 import threading
+import importlib
 from pprint import pformat
 
 import cherrypy
@@ -417,3 +419,9 @@ def _thread_name_insert(self):
 # set the ID's of the main thread
 threading.current_thread().name = 'ubersystem_main'
 _set_current_thread_ids_from(threading.current_thread())
+
+for plugin_name in c.PLUGINS:
+    sys.path.append(f"/app/plugins/{plugin_name}")
+    plugin = importlib.import_module(plugin_name)
+    if callable(getattr(plugin, 'on_load', None)):
+        plugin.on_load()

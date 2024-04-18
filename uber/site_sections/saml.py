@@ -2,6 +2,13 @@ import cherrypy
 
 from pockets.autolog import log
 from sqlalchemy.orm.exc import NoResultFound
+
+# xmlsec moved their constants but onelogin hasn't updated to match yet
+# This monkey patches the RSA_SHA256 constant into where onelogin looks for it
+import xmlsec
+class NS: pass
+xmlsec.Transform = NS
+xmlsec.Transform.RSA_SHA256 = xmlsec.constants.TransformRsaSha256
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.utils import OneLogin_Saml2_Utils
