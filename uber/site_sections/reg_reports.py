@@ -72,7 +72,7 @@ class Root:
 
     @log_pageview
     def self_service_refunds(self, session):
-        refunds = session.query(ReceiptTransaction).filter_by(type=c.REFUND)
+        refunds = session.query(ReceiptTransaction).filter(ReceiptTransaction.amount < 0)
 
         refund_attendees = {}
         for refund in refunds:

@@ -114,6 +114,7 @@ class Root:
                     '' if invalid else ' Try showing all badges to expand your search.')
         if not count:
             attendees = session.index_attendees().filter(*filter)
+            count = attendees.count()
 
         attendees = attendees.order(order)
 

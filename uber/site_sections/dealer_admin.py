@@ -62,14 +62,14 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
     group.status = status
     if not admin_note:
         if status == c.WAITLISTED:
-            admin_note = f'Converted badge from {AdminAccount.admin_name() or "server admin"} \
-                closing waitlist for {c.DEALER_REG_TERM} "{group.name}".'
+            admin_note = (f'Converted badge from {AdminAccount.admin_name() or "server admin"} '
+                          f'closing waitlist for {c.DEALER_REG_TERM} "{group.name}".')
         elif delete_group:
-            admin_note = f'Converted badge from {AdminAccount.admin_name() or "server admin"} \
-                declining and converting {c.DEALER_REG_TERM} "{group.name}".'
+            admin_note = (f'Converted badge from {AdminAccount.admin_name() or "server admin"} '
+                          f'declining and converting {c.DEALER_REG_TERM} "{group.name}".')
         else:
-            admin_note = f'Converted badge from {AdminAccount.admin_name() or "non-admin"} \
-                setting {c.DEALER_REG_TERM} "{group.name}" to {group.status}.'
+            admin_note = (f'Converted badge from {AdminAccount.admin_name() or "non-admin"} '
+                          f'setting {c.DEALER_REG_TERM} "{group.name}" to {group.status_label}.')
     if not group.is_unpaid:
         group.tables = 0
         for attendee in group.attendees:
