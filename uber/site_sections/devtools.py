@@ -94,11 +94,11 @@ def threading_information():
     threads_by_id = dict([(thread.ident, thread) for thread in threading.enumerate()])
     for thread_id, thread_stack in sys._current_frames().items():
         thread = threads_by_id.get(thread_id, '')
+        out += _get_thread_current_stacktrace(thread_stack, thread)
         if thread.native_id != -1:
             proc = pypsutil.Process(thread.native_id)
             out.append(f"Mem: {proc.memory_info().rss}")
-            out.append(f"CPU: {proc.cpu_info().user}")
-        out += _get_thread_current_stacktrace(thread_stack, thread)
+            out.append(f"CPU: {proc.cpu_times().user}")
     return '\n'.join(out)
 
 def general_system_info():
