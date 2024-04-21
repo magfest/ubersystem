@@ -3,6 +3,8 @@ import operator
 import os
 import re
 import uuid
+import time
+import traceback
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
@@ -17,7 +19,6 @@ from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
-from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
@@ -616,7 +617,7 @@ class Session(SessionManager):
         tables registered in our metadata which do not actually exist yet in
         the database.
 
-        This calls the underlying sideboard function, HOWEVER, in order to
+        This calls the underlying ubersystem function, HOWEVER, in order to
         actually create any tables, you must specify modify_tables=True.  The
         reason is, we need to wait for all models from all plugins to insert
         their mixin data, so we wait until one spot in order to create the
@@ -625,7 +626,7 @@ class Session(SessionManager):
         Any calls to initialize_db() that do not specify modify_tables=True or
         drop=True are ignored.
 
-        i.e. anywhere in Sideboard that calls initialize_db() will be ignored.
+        i.e. anywhere in ubersystem that calls initialize_db() will be ignored.
         i.e. ubersystem is forcing all calls that don't specify
         modify_tables=True or drop=True to be ignored.
 
@@ -2233,7 +2234,6 @@ class Session(SessionManager):
         return target
 
 
-@on_startup(priority=1)
 def initialize_db(modify_tables=False):
     """
     Initialize the session on startup.
@@ -2250,24 +2250,18 @@ def initialize_db(modify_tables=False):
     drop=True or modify_tables=True or initialize=True to
     Session.initialize_db()
     """
-    num_tries_remaining = 10
-    while not stopped.is_set():
+    for i in range(20):
         try:
             Session.initialize_db(modify_tables=modify_tables, initialize=True)
+            return
         except KeyboardInterrupt:
             log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
         except Exception:
-            num_tries_remaining -= 1
-            if num_tries_remaining == 0:
-                log.error("DB initialize: couldn't connect to DB, we're giving up")
-                raise
-            log.error("DB initialize: can't connect to / initialize DB, will try again in 5 seconds", exc_info=True)
-            stopped.wait(5)
-        else:
-            break
+            traceback.print_exc()
+        log.info(f"Database initialization failed. (Attempt {i+1} / 20)")
+        time.sleep(i**i)
+cherrypy.engine.subscribe('start', initialize_db, priority=99)
 
-
-@on_startup
 def _attendee_validity_check():
     orig_getter = Session.SessionMixin.attendee
 
@@ -2281,7 +2275,7 @@ def _attendee_validity_check():
         else:
             return attendee
     Session.SessionMixin.attendee = with_validity_check
-
+cherrypy.engine.subscribe('start', _attendee_validity_check, priority=98)
 
 def _presave_adjustments(session, context, instances='deprecated'):
     for model in chain(session.dirty, session.new):

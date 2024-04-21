@@ -34,3 +34,4 @@ uber/static/fonts/free3of9.pkl
 .lh*
 config*.ini
 sideboard.ini
+.venv/

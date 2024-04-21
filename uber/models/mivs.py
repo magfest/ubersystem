@@ -1,12 +1,12 @@
 import os
 import re
+import cherrypy
 
 from datetime import datetime, timedelta
 from functools import wraps
 
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sideboard.lib import on_startup
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer
@@ -581,7 +581,6 @@ class IndieGameReview(MagModel):
         return self.has_video_issues or self.has_game_issues
 
 
-@on_startup
 def add_applicant_restriction():
     """
     We use convenience functions for our form handling, e.g. to
@@ -633,3 +632,4 @@ def add_applicant_restriction():
         'indie_game_image']
     for name in names:
         override_getter(name)
+cherrypy.engine.subscribe('start', add_applicant_restriction, priority=98)

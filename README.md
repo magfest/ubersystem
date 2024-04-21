@@ -15,9 +15,9 @@ Ubersystem for over ten years.
 # Background
 Ubersystem is a single-tenant, single-event system. You must deploy an instance of Ubersystem for each event that you host.
 
-Ubersystem is a plugin for [sideboard](https://github.com/magfest/sideboard), and uses the sideboard plugin mechanism to
-support customization. Most events end up creating a plugin with their theming, custom business logic, and other bespoke
-needs. See [magprime](https://github.com/magfest/magprime) for a fully-fledged event plugin with many customizations.
+Ubersystem uses configuration files and a plugin mechanism to support customization. Most events end up creating a plugin
+with their theming, custom business logic, and other bespoke needs. See [magprime](https://github.com/magfest/magprime)
+for a fully-fledged event plugin with many customizations.
 
 Ubersystem has many names! You may hear reference to RAMS (Registration And Management System), Reggie, Uber, and Ubersystem.
 These names are all used to refer both to the code in this repository as well as individual events' instantiations of

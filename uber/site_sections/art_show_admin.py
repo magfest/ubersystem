@@ -1,5 +1,6 @@
 import cherrypy
-import treepoem
+from barcode import Code39
+from barcode.writer import ImageWriter
 import re
 import math
 
@@ -366,13 +367,8 @@ class Root:
 
     @public
     def bid_sheet_barcode_generator(self, data):
-        bid_sheet_barcode = treepoem.generate_barcode(
-            barcode_type='code39',
-            data=data,
-            options={},
-        )
         buffer = BytesIO()
-        bid_sheet_barcode.save(buffer, "PNG")
+        Code39(data, writer=ImageWriter()).write(buffer)
         buffer.seek(0)
         png_file_output = cherrypy.lib.file_generator(buffer)
 

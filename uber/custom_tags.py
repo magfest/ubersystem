@@ -24,7 +24,7 @@ from dateutil.relativedelta import relativedelta
 from markupsafe import Markup, escape
 from phonenumbers import PhoneNumberFormat
 from pockets import fieldify, unfieldify, listify, readable_join
-from sideboard.lib import serializer
+from uber.serializer import serializer
 
 from uber.config import c
 from uber.decorators import render

@@ -10,13 +10,13 @@ from sqlalchemy.ext import associationproxy
 
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sideboard.lib import serializer
 from sqlalchemy import Sequence
 from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.serializer import serializer
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel

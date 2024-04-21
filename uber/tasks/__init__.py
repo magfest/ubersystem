@@ -56,17 +56,6 @@ def run_startup_tasks(*args, **kwargs):
         fn.delay(*a, **kw)
 
 
-@after_setup_logger.connect
-def configure_celery_logger(loglevel, logfile, format, colorize, **kwargs):
-    if 'logger' not in kwargs:
-        return
-
-    from sideboard.internal.logging import IndentMultilinesLogFormatter
-    log_format = '%(asctime)s [%(levelname)s] (%(processName)s) %(name)s: %(message)s'
-    for handler in kwargs['logger'].handlers:
-        handler.setFormatter(IndentMultilinesLogFormatter(log_format))
-
-
 from uber.tasks import attractions  # noqa: F401, E402
 from uber.tasks import email  # noqa: F401, E402
 from uber.tasks import groups  # noqa: F401, E402

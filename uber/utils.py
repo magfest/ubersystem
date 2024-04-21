@@ -20,10 +20,9 @@ from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
 from pockets import floor_datetime, listify
 from pockets.autolog import log
-from sideboard.lib import threadlocal
 from pytz import UTC
 
-from uber.config import c, _config, signnow_sdk
+from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
 
 

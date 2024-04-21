@@ -3,21 +3,23 @@ x-uber: &uber
   build: .
   environment:
     - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
-    - sideboard_cherrypy_server_socket_port=80
-    - sideboard_cherrypy_server_socket_host=0.0.0.0
-    - sideboard_cherrypy_server_socket_timeout=1
-    - sideboard_cherrypy_tools_sessions_host=redis
-    - sideboard_cherrypy_tools_sessions_prefix=uber
-    - sideboard_cherrypy_tools_sessions_storage_type=redis
-    - sideboard_loggers_cherrypy_access=DEBUG
+    - uber_cherrypy_server_socket_port=80
+    - uber_cherrypy_server_socket_host=0.0.0.0
+    - uber_cherrypy_server_socket_timeout=1
+    - uber_cherrypy_tools_sessions_host=redis
+    - uber_cherrypy_tools_sessions_prefix=uber
+    - uber_cherrypy_tools_sessions_storage_type=redis
+    - uber_loggers_cherrypy_access=DEBUG
     - uber_redis_host=redis
     - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber
     - uber_url_root=http://localhost
     - uber_hostname=localhost
+    - uber_plugins=["magprime"]
     - uber_dev_box=True
-    - sideboard_priority_plugins=["uber"]
   volumes:
-    - $PWD:/app/plugins/uber
+    - $PWD:/app/
+    - $PWD/../magprime:/app/plugins/magprime
+
 
 services: 
   web:

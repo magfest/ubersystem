@@ -2,34 +2,11 @@ import base64
 import os
 import string
 import struct
-import sys
-
-from sideboard.lib import entry_point
 
 import uber.barcode
 import uber.barcode.skip32
 import uber.barcode.code128
 from uber.config import c
-
-
-@entry_point
-def generate_all_barcodes_csv():
-    """
-    Generate barcode CSV file
-
-    Exports a list with 2 columns: badge number, barcode. This can be used to
-    send to the badge printer so they can print the numbers on all the badges.
-
-    Arguments:
-        filename (str): Writes to the given file. Optional, if omitted writes
-            to stdout.
-    """
-    outfile = sys.stdout if not len(sys.argv) > 1 else open(sys.argv[1], 'w')
-
-    badge_types = sorted(c.BADGE_RANGES.items(), key=lambda range: range[1][0])
-    for (badge_type, (range_start, range_end)) in badge_types:
-        for line in generate_barcode_csv(range_start, range_end):
-            outfile.write(line)
 
 
 def generate_barcode_csv(range_start, range_end):

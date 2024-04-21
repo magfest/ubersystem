@@ -5,7 +5,6 @@ import sys
 from logging.config import fileConfig
 from alembic import context
 
-import sideboard
 import uber
 from residue import CoerceUTF8, UTCDateTime, UUID
 from uber.migration import version_locations_option
