@@ -3,6 +3,7 @@ import operator
 import os
 import re
 import uuid
+import time
 import traceback
 from collections import defaultdict
 from datetime import date, datetime, timedelta
@@ -2249,12 +2250,16 @@ def initialize_db(modify_tables=False):
     drop=True or modify_tables=True or initialize=True to
     Session.initialize_db()
     """
-    try:
-        Session.initialize_db(modify_tables=modify_tables, initialize=True)
-    except KeyboardInterrupt:
-        log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
-    except Exception:
-        traceback.print_exc()
+    for i in range(20):
+        try:
+            Session.initialize_db(modify_tables=modify_tables, initialize=True)
+            return
+        except KeyboardInterrupt:
+            log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
+        except Exception:
+            traceback.print_exc()
+        log.info(f"Database initialization failed. (Attempt {i+1} / 20)")
+        time.sleep(i**i)
 cherrypy.engine.subscribe('start', initialize_db, priority=99)
 
 def _attendee_validity_check():
