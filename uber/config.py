@@ -47,7 +47,7 @@ class threadlocal(object):
     utility class; the "get", "set", "setdefault", and "clear" methods work the
     same as for a dict except that each thread gets its own keys and values.
 
-    Sideboard clears out all existing values and then initializes some specific
+    Ubersystem clears out all existing values and then initializes some specific
     values in the following situations:
 
     1) CherryPy page handlers have the 'username' key set to whatever value is
@@ -1260,10 +1260,10 @@ def load_section_from_environment(path, section):
     
     Args:
         path (str): The prefix of the current config section. For example,
-            sideboard.ini:
+            uber.ini:
                 [cherrypy]
                 server.thread_pool: 10
-            would translate to sideboard_cherrypy_server.thread_pool
+            would translate to uber_cherrypy_server.thread_pool
         section (configobj.ConfigObj): The section of the configspec to search
             for the current path in.
     """

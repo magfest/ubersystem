@@ -12,11 +12,11 @@ from uber.models import AdminAccount, Attendee, AutomatedEmail, Group, Session
 
 def entry_point(func):
     """
-    Decorator used to define entry points for command-line scripts.  Sideboard
-    ships with a "sep" (Sideboard Entry Point) command line script which can be
-    used to call into any plugin-defined entry point after deleting sys.argv[0]
-    so that the entry point name will be the first argument.  For example, if a
-    plugin had this entry point:
+    Decorator used to define entry points for command-line scripts.  Ubersystem
+    ships with a "sep" (Sideboard Entry Point, for historical reasons) command
+    line script which can be used to call into any plugin-defined entry point
+    after deleting sys.argv[0] so that the entry point name will be the first
+    argument.  For example, if a plugin had this entry point:
 
         @entry_point
         def some_action():
@@ -24,7 +24,7 @@ def entry_point(func):
 
     Then someone in a shell ran the command:
 
-        sep some_action foo bar
+        python sep.py some_action foo bar
 
     It would print:
 
@@ -146,7 +146,7 @@ def resave_all_attendees_and_groups():
     doing database changes and we need to re-save everything.
 
     SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
-    any running sideboard servers before running this command.
+    any running ubersystem servers before running this command.
     """
     Session.initialize_db(modify_tables=False, drop=False, initialize=True)
     with Session() as session:
