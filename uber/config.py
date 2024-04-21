@@ -26,7 +26,7 @@ from itertools import chain
 
 import cherrypy
 import signnow_python_sdk
-from pockets import nesteddefaultdict, unwrap
+from pockets import nesteddefaultdict, unwrap, cached_property
 from pockets.autolog import log
 from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload, subqueryload
@@ -108,18 +108,6 @@ class threadlocal(object):
 def dynamic(func):
     setattr(func, '_dynamic', True)
     return func
-
-def cached_property(func):
-    """decorator for making readonly, memoized properties"""
-    pname = '_cached_{}'.format(func.__name__)
-
-    @property
-    @functools.wraps(func)
-    def caching(self, *args, **kwargs):
-        if not hasattr(self, pname):
-            setattr(self, pname, func(self, *args, **kwargs))
-        return getattr(self, pname)
-    return caching
 
 def request_cached_property(func):
     """
