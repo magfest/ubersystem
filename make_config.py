@@ -37,13 +37,7 @@ if secrets:
     })
 
 plugin_configs = {}
-for parsed in repo_config:    
-    sideboard_config = parsed.get("sideboard", {})
-    if sideboard_config:
-        if not "sideboard" in plugin_configs:
-            plugin_configs["sideboard"] = []
-        plugin_configs["sideboard"].append(sideboard_config)
-
+for parsed in repo_config:
     plugin_config = parsed.get("plugins", {})
     for key, val in plugin_config.items():
         if not key in plugin_configs:

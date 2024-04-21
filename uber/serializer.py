@@ -27,7 +27,7 @@ class serializer(json.JSONEncoder):
     def register(cls, type, preprocessor):
         """
         Associates a type with a preprocessor so that RPC handlers may
-        pass non-builtin JSON types.  For example, Sideboard already
+        pass non-builtin JSON types.  For example, Ubersystem already
         does the equivalent of
 
         >>> serializer.register(datetime, lambda dt: dt.strftime('%Y-%m-%d %H:%M:%S.%f'))

@@ -16,7 +16,6 @@ x-uber: &uber
     - uber_hostname=localhost
     - uber_plugins=["magprime"]
     - uber_dev_box=True
-    - sideboard_priority_plugins=["uber"]
   volumes:
     - $PWD:/app/
     - $PWD/../magprime:/app/plugins/magprime

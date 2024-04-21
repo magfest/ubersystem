@@ -616,7 +616,7 @@ class Session(SessionManager):
         tables registered in our metadata which do not actually exist yet in
         the database.
 
-        This calls the underlying sideboard function, HOWEVER, in order to
+        This calls the underlying ubersystem function, HOWEVER, in order to
         actually create any tables, you must specify modify_tables=True.  The
         reason is, we need to wait for all models from all plugins to insert
         their mixin data, so we wait until one spot in order to create the
@@ -625,7 +625,7 @@ class Session(SessionManager):
         Any calls to initialize_db() that do not specify modify_tables=True or
         drop=True are ignored.
 
-        i.e. anywhere in Sideboard that calls initialize_db() will be ignored.
+        i.e. anywhere in ubersystem that calls initialize_db() will be ignored.
         i.e. ubersystem is forcing all calls that don't specify
         modify_tables=True or drop=True to be ignored.
 
