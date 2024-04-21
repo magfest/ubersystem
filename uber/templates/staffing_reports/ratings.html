@@ -18,9 +18,9 @@
     </tr>
     {% for shift in attendee.shifts %}
         <tr>
-            <td><nobr>{{ shift.job.name }} ({{ shift.job.location_label }})</nobr></td>
+            <td><nobr>{{ shift.job.name }} ({{ shift.job.department_name }})</nobr></td>
             <td>{{ shift.job.timespan() }}</td>
-            <td><nobr>x{{ shift.job.weight }} ({{ shift.job.total_hours }} hours total)</nobr></td>
+            <td><nobr>x{{ shift.job.weight }} ({{ shift.job.weighted_hours }} hours total)</nobr></td>
             <td>{{ shift.worked_label }}</td>
             <td>
                 {{ shift.rating_label }}

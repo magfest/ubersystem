@@ -1994,7 +1994,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 'rating': shift.rating_label,
                 'comment': shift.comment,
                 'job': {
-                    'location': shift.job.location_label,
+                    'location': shift.job.department_name,
                     'name': shift.job.name,
                     'weight': shift.job.weight,
                     'when': (
