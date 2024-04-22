@@ -16,7 +16,6 @@ from cherrypy import HTTPError
 from pockets import is_listy
 from pockets.autolog import log
 
-from uber.serializer import serializer
 from uber.config import c, Config
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
@@ -24,12 +23,6 @@ from uber.utils import mount_site_sections, static_overrides
 from uber.redis_session import RedisSession
 
 cherrypy.lib.sessions.RedisSession = RedisSession
-
-ERR_INVALID_RPC = -32600
-ERR_MISSING_FUNC = -32601
-ERR_INVALID_PARAMS = -32602
-ERR_FUNC_EXCEPTION = -32603
-ERR_INVALID_JSON = -32700
 
 mimetypes.init()
 
@@ -44,10 +37,6 @@ if c.SENTRY['enabled']:
         # We recommend adjusting this value in production.
         traces_sample_rate=c.SENTRY['sample_rate'] / 100
     )
-
-def json_handler(*args, **kwargs):
-    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
-    return json.dumps(value, cls=serializer).encode('utf-8')
 
 def sentry_start_transaction():
     cherrypy.request.sentry_transaction = sentry_sdk.start_transaction(
@@ -285,97 +274,6 @@ c.APPCONF['/']['error_page.404'] = error_page_404
 
 cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
-
-def force_json_in():
-    """A version of jsontools.json_in that forces all requests to be interpreted as JSON."""
-    request = cherrypy.serving.request
-    if not request.headers.get('Content-Length', ''):
-        raise cherrypy.HTTPError(411)
-
-    if cherrypy.request.method in ('POST', 'PUT'):
-        body = request.body.fp.read()
-        try:
-            cherrypy.serving.request.json = json.loads(body.decode('utf-8'))
-        except ValueError:
-            raise cherrypy.HTTPError(400, 'Invalid JSON document')
-
-cherrypy.tools.force_json_in = cherrypy.Tool('before_request_body', force_json_in, priority=30)
-
-
-def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
-
-    @cherrypy.expose
-    @cherrypy.tools.force_json_in()
-    @cherrypy.tools.json_out(handler=json_handler)
-    def _jsonrpc_handler(self=None):
-        id = None
-
-        def error(status, code, message):
-            response = {'jsonrpc': '2.0', 'id': id, 'error': {'code': code, 'message': message}}
-            log.debug('Returning error message: {}', repr(response).encode('utf-8'))
-            cherrypy.response.status = status
-            return response
-
-        def success(result):
-            response = {'jsonrpc': '2.0', 'id': id, 'result': result}
-            log.debug('Returning success message: {}', {
-                'jsonrpc': '2.0', 'id': id, 'result': len(result) if is_listy(result) else str(result).encode('utf-8')})
-            cherrypy.response.status = 200
-            return response
-
-        request_body = cherrypy.request.json
-        if not isinstance(request_body, dict):
-            return error(400, ERR_INVALID_JSON, 'Invalid json input: {!r}'.format(request_body))
-
-        log.debug('jsonrpc request body: {}', repr(request_body).encode('utf-8'))
-
-        id, params = request_body.get('id'), request_body.get('params', [])
-        if 'method' not in request_body:
-            return error(400, ERR_INVALID_RPC, '"method" field required for jsonrpc request')
-
-        method = request_body['method']
-        if method.count('.') != 1:
-            return error(404, ERR_MISSING_FUNC, 'Invalid method ' + method)
-
-        module, function = method.split('.')
-        if module not in services:
-            return error(404, ERR_MISSING_FUNC, 'No module ' + module)
-
-        service = services[module]
-        if not hasattr(service, function):
-            return error(404, ERR_MISSING_FUNC, 'No function ' + method)
-
-        if not isinstance(params, (list, dict)):
-            return error(400, ERR_INVALID_PARAMS, 'Invalid parameter list: {!r}'.format(params))
-
-        args, kwargs = (params, {}) if isinstance(params, list) else ([], params)
-
-        precall(request_body)
-        try:
-            return success(getattr(service, function)(*args, **kwargs))
-        except HTTPError as http_error:
-            return error(http_error.code, ERR_FUNC_EXCEPTION, http_error._message)
-        except Exception as e:
-            log.error('Unexpected error', exc_info=True)
-            message = 'Unexpected error: {}'.format(e)
-            if debug:
-                message += '\n' + traceback.format_exc()
-            return error(500, ERR_FUNC_EXCEPTION, message)
-
-    return _jsonrpc_handler
-
-
-jsonrpc_services = {}
-
-
-def register_jsonrpc(service, name=None):
-    name = name or service.__name__
-    assert name not in jsonrpc_services, '{} has already been registered'.format(name)
-    jsonrpc_services[name] = service
-
-
-jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services)
-cherrypy.tree.mount(jsonrpc_app, c.CHERRYPY_MOUNT_PATH + '/jsonrpc', c.APPCONF)
 
 cherrypy_config = {}
 for setting, value in c.CHERRYPY.items():

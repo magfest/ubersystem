@@ -5,6 +5,7 @@ from functools import wraps
 
 import cherrypy
 import pytz
+import json
 import six
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
@@ -24,12 +25,111 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Depa
                          DeptMembershipRequest, Event, IndieStudio, Job, Session, Shift, Group, GuestGroup, Room,
                          HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
-from uber.server import register_jsonrpc
+from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email, normalize_newlines
 
 
 __version__ = '1.0'
 
+ERR_INVALID_RPC = -32600
+ERR_MISSING_FUNC = -32601
+ERR_INVALID_PARAMS = -32602
+ERR_FUNC_EXCEPTION = -32603
+ERR_INVALID_JSON = -32700
+
+def force_json_in():
+    """A version of jsontools.json_in that forces all requests to be interpreted as JSON."""
+    request = cherrypy.serving.request
+    if not request.headers.get('Content-Length', ''):
+        raise cherrypy.HTTPError(411)
+
+    if cherrypy.request.method in ('POST', 'PUT'):
+        body = request.body.fp.read()
+        try:
+            cherrypy.serving.request.json = json.loads(body.decode('utf-8'))
+        except ValueError:
+            raise cherrypy.HTTPError(400, 'Invalid JSON document')
+
+cherrypy.tools.force_json_in = cherrypy.Tool('before_request_body', force_json_in, priority=30)
+
+def json_handler(*args, **kwargs):
+    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
+    return json.dumps(value, cls=serializer).encode('utf-8')
+
+def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
+
+    @cherrypy.expose
+    @cherrypy.tools.force_json_in()
+    @cherrypy.tools.json_out(handler=json_handler)
+    def _jsonrpc_handler(self=None):
+        id = None
+
+        def error(status, code, message):
+            response = {'jsonrpc': '2.0', 'id': id, 'error': {'code': code, 'message': message}}
+            log.debug('Returning error message: {}', repr(response).encode('utf-8'))
+            cherrypy.response.status = status
+            return response
+
+        def success(result):
+            response = {'jsonrpc': '2.0', 'id': id, 'result': result}
+            log.debug('Returning success message: {}', {
+                'jsonrpc': '2.0', 'id': id, 'result': len(result) if is_listy(result) else str(result).encode('utf-8')})
+            cherrypy.response.status = 200
+            return response
+
+        request_body = cherrypy.request.json
+        if not isinstance(request_body, dict):
+            return error(400, ERR_INVALID_JSON, 'Invalid json input: {!r}'.format(request_body))
+
+        log.debug('jsonrpc request body: {}', repr(request_body).encode('utf-8'))
+
+        id, params = request_body.get('id'), request_body.get('params', [])
+        if 'method' not in request_body:
+            return error(400, ERR_INVALID_RPC, '"method" field required for jsonrpc request')
+
+        method = request_body['method']
+        if method.count('.') != 1:
+            return error(404, ERR_MISSING_FUNC, 'Invalid method ' + method)
+
+        module, function = method.split('.')
+        if module not in services:
+            return error(404, ERR_MISSING_FUNC, 'No module ' + module)
+
+        service = services[module]
+        if not hasattr(service, function):
+            return error(404, ERR_MISSING_FUNC, 'No function ' + method)
+
+        if not isinstance(params, (list, dict)):
+            return error(400, ERR_INVALID_PARAMS, 'Invalid parameter list: {!r}'.format(params))
+
+        args, kwargs = (params, {}) if isinstance(params, list) else ([], params)
+
+        precall(request_body)
+        try:
+            return success(getattr(service, function)(*args, **kwargs))
+        except HTTPError as http_error:
+            return error(http_error.code, ERR_FUNC_EXCEPTION, http_error._message)
+        except Exception as e:
+            log.error('Unexpected error', exc_info=True)
+            message = 'Unexpected error: {}'.format(e)
+            if debug:
+                message += '\n' + traceback.format_exc()
+            return error(500, ERR_FUNC_EXCEPTION, message)
+
+    return _jsonrpc_handler
+
+
+jsonrpc_services = {}
+
+
+def register_jsonrpc(service, name=None):
+    name = name or service.__name__
+    assert name not in jsonrpc_services, '{} has already been registered'.format(name)
+    jsonrpc_services[name] = service
+
+
+jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services)
+cherrypy.tree.mount(jsonrpc_app, c.CHERRYPY_MOUNT_PATH + '/jsonrpc', c.APPCONF)
 
 def docstring_format(*args, **kwargs):
     def _decorator(obj):
