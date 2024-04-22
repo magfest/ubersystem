@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from os.path import abspath, join
 import pathlib
+from pockets.autolog import log
 
 from alembic import command
 from alembic.config import Config as AlembicConfig
@@ -26,11 +27,10 @@ for path in (pathlib.Path(__file__).parents[1] / "plugins").iterdir():
         version_locations[path.name] = str(versions_path)
 version_locations["uber"] = str(pathlib.Path(__file__).parents[1] / "alembic" / "versions")
 
-
 # Version locations in the format expected in "alembic.ini", cached here for
 # convenience
 version_locations_option = ','.join(version_locations.values())
-
+log.info(f"Loading alembic versions from {version_locations_option}")
 
 def create_alembic_config(**kwargs):
     """Returns an `alembic.config.Config` object configured for uber.
