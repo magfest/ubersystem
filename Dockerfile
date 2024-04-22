@@ -33,7 +33,7 @@ $PLUGINS
 EOF
 
 RUN jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' PLUGINS.json > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
-ENV uber_plugins='$PLUGIN_NAMES'
+ENV uber_plugins=$PLUGIN_NAMES
 
 FROM build as test
 ADD requirements_test.txt /app/
