@@ -12,6 +12,7 @@ import yaml
 import json
 import uuid
 import threading
+import logging
 import functools
 import validate
 import configobj
@@ -1807,3 +1808,33 @@ if c.SAML_SP_SETTINGS["privateKey"]:
         c.SAML_SETTINGS["debug"] = True
     else:
         c.SAML_SETTINGS["strict"] = True
+
+logging.config.dictConfig({
+    'version': 1,
+    'root': {
+        'handlers': ['default'],
+        'level': "INFO",
+        'propagate': False
+    },
+    'loggers': {
+        name: {
+            'handlers': ['default'],
+            'level': level,
+            'propagate': False
+        }
+        for name, level in _config['loggers'].items() if name != 'root'
+    },
+    'handlers': {
+        'default': {
+            'level': 'INFO',
+            'formatter': 'standard',
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout'
+        }
+    },
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        }
+    }
+})
