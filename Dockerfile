@@ -2,6 +2,7 @@
 
 FROM python:3.12.3-alpine as build
 ARG PLUGINS="[]"
+ARG PLUGIN_NAMES="[]"
 WORKDIR /app
 ENV PYTHONPATH=/app
 ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.cargo/bin
