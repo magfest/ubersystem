@@ -17,7 +17,7 @@ ADD https://astral.sh/uv/install.sh /tmp/install-uv.sh
 RUN --mount=type=cache,target=/var/cache/apk \
     sed -i 's/v3.19/edge/' /etc/apk/repositories && \
     apk --update-cache upgrade && \
-    apk add git libxml2 xmlsec-dev build-base && \
+    apk add git libxml2 xmlsec-dev build-base jq && \
     sh /tmp/install-uv.sh && \
     rm /tmp/install-uv.sh
 
