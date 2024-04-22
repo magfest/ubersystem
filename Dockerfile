@@ -1,6 +1,7 @@
 # syntax = docker/dockerfile:1.4.0
 
 FROM python:3.12.3-alpine as build
+ARG PLUGINS="[]"
 WORKDIR /app
 ENV PYTHONPATH=/app
 ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.cargo/bin
@@ -27,10 +28,17 @@ RUN --mount=type=cache,target=/root/.cache \
 ADD uber-wrapper.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/uber-wrapper.sh
 
+RUN <<EOF cat >> PLUGINS.json
+$PLUGINS
+EOF
+
+RUN jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' PLUGINS.json > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
+ENV uber_plugins='$PLUGIN_NAMES'
+
 FROM build as test
 ADD requirements_test.txt /app/
-RUN --mount=type=cache,target=/root/.cache \
-    uv pip install --system -r requirements_test.txt
+#RUN --mount=type=cache,target=/root/.cache \
+RUN uv pip install --system -r requirements_test.txt
 CMD python -m pytest
 ADD . /app
 

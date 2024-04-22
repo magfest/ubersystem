@@ -35,6 +35,8 @@ jobs:
       - run: |
           echo -n "plugins=" >> $GITHUB_ENV
           echo '${{ toJSON(matrix.plugins) }}' | jq -c >> $GITHUB_ENV
+          echo -n "plugin_names=" >> $GITHUB_ENV
+          echo '${{ toJSON(matrix.plugins) }}' | jq -c "[.[].name]" >> $GITHUB_ENV
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v4
