@@ -3,7 +3,7 @@ set -e
 
 if [ -n "${CONFIG_REPO}" ]; then
     echo "Loading configuration from git repo ${CONFIG_REPO}"
-    python /app/plugins/uber/make_config.py --repo "${CONFIG_REPO}" --environment config.env --paths ${CONFIG_PATHS}
+    python /app/make_config.py --repo "${CONFIG_REPO}" --environment config.env --paths ${CONFIG_PATHS}
     source config.env
 fi
 
