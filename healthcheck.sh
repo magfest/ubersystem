@@ -5,7 +5,6 @@
 # I.e. ./healthcheck.sh uber
 set -e
 
-RESULT_PROTOCOL=$(echo "${BROKER_PROTOCOL}" | sed 's/amqps/rpc/g;s/amqp/rpc/g')
 cat <<EOF > celeryconf.py
 # celery config used for celery cli-based health checks (Not loaded by ubersystem directly)
 broker_url = "${uber_secret_broker_url}"
@@ -17,7 +16,7 @@ EOF
 CMD="${1:-$(cat /proc/1/cmdline | strings -1 | tail -1)}"
 
 if [ "$CMD" = 'uber' ]; then
-    curl --fail http://$HOST:$PORT/devtools/health
+    curl --fail http://$uber_cherrypy_server_socket_host:$uber_cherrypy_server_socket_port/devtools/health
 elif [ "$CMD" = 'celery-beat' ]; then
     # Beat seems to do a good job of dying when things go wrong.
     # If you know a good way to test its health please put it here.
