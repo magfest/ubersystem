@@ -3,13 +3,12 @@ from datetime import datetime
 from uuid import uuid4
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, exists, or_, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.sql.expression import not_
-from sqlalchemy.types import Boolean, Integer, Numeric
+from sqlalchemy.types import Boolean, Integer, Numeric, UnicodeText, DateTime, UUID
 
 from uber.config import c
 from uber.custom_tags import format_currency
@@ -50,8 +49,8 @@ class Group(MagModel, TakesPaymentMixin):
     convert_badges = Column(Boolean, default=False, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
-    approved = Column(UTCDateTime, nullable=True)
+    registered = Column(DateTime, server_default=utcnow())
+    approved = Column(DateTime, nullable=True)
     leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
     creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 

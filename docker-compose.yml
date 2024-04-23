@@ -2,7 +2,7 @@
 x-uber: &uber
   build: .
   environment:
-    - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
+    - DB_CONNECTION_STRING=postgresql+psycopg://uber_db:uber_db@db:5432/uber_db
     - uber_cherrypy_server_socket_port=80
     - uber_cherrypy_server_socket_host=0.0.0.0
     - uber_cherrypy_server_socket_timeout=1
@@ -11,11 +11,13 @@ x-uber: &uber
     - uber_cherrypy_tools_sessions_storage_type=redis
     - uber_loggers_cherrypy_access=DEBUG
     - uber_redis_host=redis
-    - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber
+    - uber_secret_broker_url=redis://redis:6379/0
+    - uber_secret_broker_prefix=
     - uber_url_root=http://localhost
     - uber_hostname=localhost
     - uber_plugins=["magprime"]
     - uber_dev_box=True
+    - SQLALCHEMY_WARN_20=1
   volumes:
     - $PWD:/app/
     - $PWD/../magprime:/app/plugins/magprime
@@ -40,30 +42,3 @@ services:
       - POSTGRES_DB=uber_db
   redis:
     image: redis
-  rabbitmq:
-    ports:
-      - "5672"
-    image: rabbitmq:alpine
-    environment:
-      - RABBITMQ_DEFAULT_USER=celery
-      - RABBITMQ_DEFAULT_PASS=celery
-      - RABBITMQ_DEFAULT_VHOST=uber
-  python-repl:
-    <<: *uber
-    stdin_open: true
-    tty: true
-    volumes:
-      - $PWD/.pythonstartup.py:/app/.pythonstartup.py
-    environment:
-      - PYTHONSTARTUP=/app/.pythonstartup.py
-    command: ['/app/env/bin/python3']
-    profiles: ["dev"]
-  flower:
-    container_name: ${COMPOSE_PROJECT_NAME}-flower
-    image: mher/flower:2.0
-    environment:
-      - CELERY_BROKER_URL=amqp://celery:celery@rabbitmq:5672/uber
-      - FLOWER_PORT=5555
-    ports:
-      - 5555:5555
-    profiles: ["dev"]

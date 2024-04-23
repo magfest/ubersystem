@@ -14,9 +14,9 @@ branch_labels = None
 depends_on = None
 
 from alembic import op
-import residue
 import sqlalchemy as sa
 from sqlalchemy.sql import table
+from sqlalchemy.types import UUID
 from uber.config import c
 import uuid
 
@@ -55,13 +55,13 @@ sqlite_reflect_kwargs = {
 
 admin_account = table(
     'admin_account',
-    sa.Column('access_group_id', residue.UUID()),
+    sa.Column('access_group_id', UUID()),
     sa.Column('access', sa.Unicode()),
 )
 
 access_group = table(
     'access_group',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', UUID()),
     sa.Column('name', sa.Unicode()),
     sa.Column('access', sa.dialects.postgresql.json.JSONB()),
     sa.Column('read_only_access', sa.dialects.postgresql.json.JSONB()),

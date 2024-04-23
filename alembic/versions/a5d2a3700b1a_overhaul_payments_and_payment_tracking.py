@@ -16,7 +16,7 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
+from sqlalchemy.types import JSON, UUID, DateTime
 
 
 try:
@@ -54,25 +54,25 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('model_receipt',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
     sa.Column('invoice_num', sa.Integer(), server_default='0', nullable=False),
-    sa.Column('owner_id', residue.UUID(), nullable=False),
+    sa.Column('owner_id', UUID(), nullable=False),
     sa.Column('owner_model', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('closed', residue.UTCDateTime(), nullable=True),
+    sa.Column('closed', DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_model_receipt'))
     )
     op.create_index(op.f('ix_model_receipt_owner_id'), 'model_receipt', ['owner_id'], unique=False)
     op.create_table('receipt_transaction',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('receipt_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('receipt_id', UUID(), nullable=True),
     sa.Column('intent_id', sa.Unicode(), server_default='', nullable=False),
     sa.Column('charge_id', sa.Unicode(), server_default='', nullable=False),
     sa.Column('refund_id', sa.Unicode(), server_default='', nullable=False),
     sa.Column('method', sa.Integer(), server_default='180350097', nullable=False),
     sa.Column('amount', sa.Integer(), nullable=False),
     sa.Column('refunded', sa.Integer(), nullable=True),
-    sa.Column('added', residue.UTCDateTime(), nullable=False),
-    sa.Column('cancelled', residue.UTCDateTime(), nullable=True),
+    sa.Column('added', DateTime(), nullable=False),
+    sa.Column('cancelled', DateTime(), nullable=True),
     sa.Column('who', sa.Unicode(), server_default='', nullable=False),
     sa.Column('desc', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['receipt_id'], ['model_receipt.id'], name=op.f('fk_receipt_transaction_receipt_id_model_receipt'), ondelete='SET NULL'),
@@ -102,15 +102,15 @@ def upgrade():
     op.drop_column('marketplace_application', 'amount_paid')
     op.drop_table('receipt_item')
     op.create_table('receipt_item',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('receipt_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('receipt_id', UUID(), nullable=True),
     sa.Column('amount', sa.Integer(), nullable=False),
     sa.Column('count', sa.Integer(), server_default='1', nullable=False),
-    sa.Column('added', residue.UTCDateTime(), nullable=False),
-    sa.Column('closed', residue.UTCDateTime(), nullable=True),
+    sa.Column('added', DateTime(), nullable=False),
+    sa.Column('closed', DateTime(), nullable=True),
     sa.Column('who', sa.Unicode(), server_default='', nullable=False),
     sa.Column('desc', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('revert_change', residue.types.JSON(), server_default='{}', nullable=False),
+    sa.Column('revert_change', JSON(), server_default='{}', nullable=False),
     sa.ForeignKeyConstraint(['receipt_id'], ['model_receipt.id'], name=op.f('fk_receipt_item_receipt_id_model_receipt'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_receipt_item'))
     )
@@ -163,16 +163,16 @@ def downgrade():
     )
     op.drop_table('receipt_item')
     op.create_table('receipt_item',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=True),
-    sa.Column('group_id', residue.UUID(), nullable=True),
-    sa.Column('txn_id', residue.UUID(), nullable=True),
-    sa.Column('fk_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('attendee_id', UUID(), nullable=True),
+    sa.Column('group_id', UUID(), nullable=True),
+    sa.Column('txn_id', UUID(), nullable=True),
+    sa.Column('fk_id', UUID(), nullable=True),
     sa.Column('model', sa.Unicode(), server_default='', nullable=False),
     sa.Column('txn_type', sa.Integer(), server_default='186441959', nullable=False),
     sa.Column('item_type', sa.Integer(), server_default='224685583', nullable=False),
     sa.Column('amount', sa.Integer(), nullable=False),
-    sa.Column('when', residue.UTCDateTime(), nullable=False),
+    sa.Column('when', DateTime(), nullable=False),
     sa.Column('who', sa.Unicode(), server_default='', nullable=False),
     sa.Column('desc', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_receipt_item_attendee_id_attendee'), ondelete='SET NULL'),

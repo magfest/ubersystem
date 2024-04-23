@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -52,7 +52,7 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('receipt_item', sa.Column('txn_id', residue.UUID(), nullable=True))
+    op.add_column('receipt_item', sa.Column('txn_id', UUID(), nullable=True))
     op.create_foreign_key(op.f('fk_receipt_item_txn_id_receipt_transaction'), 'receipt_item', 'receipt_transaction', ['txn_id'], ['id'], ondelete='SET NULL')
     op.add_column('receipt_transaction', sa.Column('txn_total', sa.Integer(), server_default='0', nullable=False))
     op.execute('UPDATE RECEIPT_TRANSACTION SET REFUNDED = 0 WHERE REFUNDED IS NULL')

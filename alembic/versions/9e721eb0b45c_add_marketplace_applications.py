@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -53,12 +53,12 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('marketplace_application',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('attendee_id', UUID(), nullable=True),
     sa.Column('business_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('status', sa.Integer(), server_default='172070601', nullable=False),
-    sa.Column('registered', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('approved', residue.UTCDateTime(), nullable=True),
+    sa.Column('registered', DateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('approved', DateTime(), nullable=True),
     sa.Column('categories', sa.Unicode(), server_default='', nullable=False),
     sa.Column('categories_text', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),

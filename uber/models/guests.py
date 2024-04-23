@@ -6,10 +6,9 @@ from collections import defaultdict
 from datetime import timedelta
 
 from pockets import uniquify, classproperty
-from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, JSON, UnicodeText, DateTime, UUID
 
 from uber.config import c
 from uber.custom_tags import yesno
@@ -675,9 +674,9 @@ class GuestDetailedTravelPlan(MagModel):
     luggage_needs = Column(UnicodeText)
     contact_email = Column(UnicodeText)
     contact_phone = Column(UnicodeText)
-    arrival_time = Column(UTCDateTime)
+    arrival_time = Column(DateTime)
     arrival_details = Column(UnicodeText)
-    departure_time = Column(UTCDateTime)
+    departure_time = Column(DateTime)
     departure_details = Column(UnicodeText)
     extra_details = Column(UnicodeText)
 

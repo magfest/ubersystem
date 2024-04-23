@@ -1,4 +1,4 @@
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy.types import UnicodeText, DateTime, UUID
 
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
@@ -11,11 +11,11 @@ class SignedDocument(MagModel):
     fk_id = Column(UUID, index=True)
     model = Column(UnicodeText)
     document_id = Column(UnicodeText)
-    last_emailed = Column(UTCDateTime, nullable=True, default=None)
+    last_emailed = Column(DateTime, nullable=True, default=None)
     link = Column(UnicodeText)
     ident = Column(UnicodeText)
-    signed = Column(UTCDateTime, nullable=True, default=None)
-    declined = Column(UTCDateTime, nullable=True, default=None)
+    signed = Column(DateTime, nullable=True, default=None)
+    declined = Column(DateTime, nullable=True, default=None)
 
     @presave_adjustment
     def null_to_strings(self):

@@ -2,12 +2,11 @@ from datetime import timedelta
 
 import six
 from pockets import cached_property, classproperty, groupify, readable_join
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
-from sqlalchemy.types import Boolean, Float, Integer
+from sqlalchemy.types import Boolean, Float, Integer, UnicodeText, DateTime, UUID
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -339,7 +338,7 @@ class Job(MagModel):
     type = Column(Choice(c.JOB_TYPE_OPTS), default=c.REGULAR)
     name = Column(UnicodeText)
     description = Column(UnicodeText)
-    start_time = Column(UTCDateTime)
+    start_time = Column(DateTime)
     duration = Column(Integer)
     weight = Column(Float, default=1)
     slots = Column(Integer)

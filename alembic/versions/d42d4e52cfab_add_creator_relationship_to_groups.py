@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -52,7 +52,7 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('group', sa.Column('creator_id', residue.UUID(), nullable=True))
+    op.add_column('group', sa.Column('creator_id', UUID(), nullable=True))
     op.create_foreign_key(op.f('fk_group_creator_id_attendee'), 'group', 'attendee', ['creator_id'], ['id'])
 
 

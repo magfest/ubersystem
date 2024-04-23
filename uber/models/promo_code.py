@@ -8,11 +8,10 @@ from datetime import datetime
 import six
 from pytz import UTC
 from dateutil import parser as dateparser
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import exists, func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import Index, ForeignKey
-from sqlalchemy.types import Integer
+from sqlalchemy.types import Integer, UnicodeText, DateTime, UUID
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -135,7 +134,7 @@ c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord._PARTS_OF_SPEECH
 class PromoCodeGroup(MagModel):
     name = Column(UnicodeText)
     code = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(DateTime, server_default=utcnow())
     buyer_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     buyer = relationship(
         'Attendee', backref='promo_code_groups',
@@ -325,7 +324,7 @@ class PromoCode(MagModel):
     code = Column(UnicodeText)
     discount = Column(Integer, nullable=True, default=None)
     discount_type = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
-    expiration_date = Column(UTCDateTime, default=c.ESCHATON)
+    expiration_date = Column(DateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
     cost = Column(Integer, nullable=True, default=None)
 

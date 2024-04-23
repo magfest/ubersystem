@@ -16,12 +16,12 @@ depends_on = None
 import uuid
 from collections import defaultdict
 
-import residue
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.sql import and_, or_, table
+from sqlalchemy.types import UUID
 
 
 try:
@@ -111,32 +111,32 @@ job_interests_to_department_id = {i: job_location_to_department_id[i] for i in j
 
 job_table = table(
     'job',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', UUID()),
     sa.Column('location', sa.Unicode()),
     sa.Column('restricted', sa.Boolean()),
-    sa.Column('department_id', residue.UUID()),
+    sa.Column('department_id', UUID()),
 )
 
 
 dept_role_table = table(
     'dept_role',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', UUID()),
     sa.Column('name', sa.UnicodeText()),
     sa.Column('description', sa.UnicodeText()),
-    sa.Column('department_id', residue.UUID()),
+    sa.Column('department_id', UUID()),
 )
 
 
 job_required_role_table = table(
     'job_required_role',
-    sa.Column('job_id', residue.UUID(), ForeignKey('job.id')),
-    sa.Column('dept_role_id', residue.UUID(), ForeignKey('dept_role.id')),
+    sa.Column('job_id', UUID(), ForeignKey('job.id')),
+    sa.Column('dept_role_id', UUID(), ForeignKey('dept_role.id')),
 )
 
 
 attendee_table = table(
     'attendee',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', UUID()),
     sa.Column('first_name', sa.Unicode()),
     sa.Column('last_name', sa.Unicode()),
     sa.Column('assigned_depts', sa.Unicode()),
@@ -149,7 +149,7 @@ attendee_table = table(
 
 department_table = table(
     'department',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', UUID()),
     sa.Column('name', sa.Unicode()),
     sa.Column('description', sa.Unicode()),
     sa.Column('solicits_volunteers', sa.Boolean()),
@@ -159,9 +159,9 @@ department_table = table(
 
 dept_checklist_item_table = table(
     'dept_checklist_item',
-    sa.Column('id', residue.UUID()),
-    sa.Column('attendee_id', residue.UUID(), ForeignKey('attendee.id')),
-    sa.Column('department_id', residue.UUID(), ForeignKey('department.id')),
+    sa.Column('id', UUID()),
+    sa.Column('attendee_id', UUID(), ForeignKey('attendee.id')),
+    sa.Column('department_id', UUID(), ForeignKey('department.id')),
     sa.Column('slug', sa.Unicode()),
     sa.Column('comments', sa.Unicode()),
 )
@@ -169,26 +169,26 @@ dept_checklist_item_table = table(
 
 dept_membership_table = table(
     'dept_membership',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', UUID()),
     sa.Column('is_dept_head', sa.Boolean()),
     sa.Column('is_poc', sa.Boolean()),
     sa.Column('is_checklist_admin', sa.Boolean()),
-    sa.Column('attendee_id', residue.UUID(), ForeignKey('attendee.id')),
-    sa.Column('department_id', residue.UUID(), ForeignKey('department.id')),
+    sa.Column('attendee_id', UUID(), ForeignKey('attendee.id')),
+    sa.Column('department_id', UUID(), ForeignKey('department.id')),
 )
 
 
 dept_membership_request_table = table(
     'dept_membership_request',
-    sa.Column('attendee_id', residue.UUID(), ForeignKey('attendee.id')),
-    sa.Column('department_id', residue.UUID(), ForeignKey('department.id')),
+    sa.Column('attendee_id', UUID(), ForeignKey('attendee.id')),
+    sa.Column('department_id', UUID(), ForeignKey('department.id')),
 )
 
 
 dept_membership_dept_role_table = table(
     'dept_membership_dept_role',
-    sa.Column('dept_membership_id', residue.UUID, ForeignKey('dept_membership.id')),
-    sa.Column('dept_role_id', residue.UUID, ForeignKey('dept_role.id')))
+    sa.Column('dept_membership_id', UUID, ForeignKey('dept_membership.id')),
+    sa.Column('dept_role_id', UUID, ForeignKey('dept_role.id')))
 
 
 def _upgrade_job_departments():
@@ -472,53 +472,53 @@ def _downgrade_attendee_departments():
 
 def upgrade():
     op.create_table('department',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False, unique=True),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
     sa.Column('solicits_volunteers', sa.Boolean(), server_default='True', nullable=False),
     sa.Column('is_shiftless', sa.Boolean(), server_default='False', nullable=False),
-    sa.Column('parent_id', residue.UUID(), nullable=True),
+    sa.Column('parent_id', UUID(), nullable=True),
     sa.ForeignKeyConstraint(['parent_id'], ['department.id'], name=op.f('fk_department_parent_id_department')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_department'))
     )
     op.create_table('dept_role',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('department_id', residue.UUID(), nullable=False),
+    sa.Column('department_id', UUID(), nullable=False),
     sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_role_department_id_department')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_dept_role')),
     sa.UniqueConstraint('name', 'department_id', name=op.f('uq_dept_role_name'))
     )
     op.create_table('dept_membership',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
     sa.Column('is_dept_head', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('is_poc', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('is_checklist_admin', sa.Boolean(), server_default='False', nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
-    sa.Column('department_id', residue.UUID(), nullable=False),
+    sa.Column('attendee_id', UUID(), nullable=False),
+    sa.Column('department_id', UUID(), nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_dept_membership_attendee_id_attendee')),
     sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_membership_department_id_department')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_dept_membership')),
     sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_dept_membership_attendee_id'))
     )
     op.create_table('dept_membership_request',
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
-    sa.Column('department_id', residue.UUID(), nullable=False),
+    sa.Column('attendee_id', UUID(), nullable=False),
+    sa.Column('department_id', UUID(), nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_dept_membership_request_attendee_id_attendee')),
     sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_dept_membership_request_department_id_department')),
     sa.UniqueConstraint('attendee_id', 'department_id', name=op.f('uq_dept_membership_request_attendee_id'))
     )
     op.create_table('job_required_role',
-    sa.Column('job_id', residue.UUID(), nullable=False),
-    sa.Column('dept_role_id', residue.UUID(), nullable=False),
+    sa.Column('job_id', UUID(), nullable=False),
+    sa.Column('dept_role_id', UUID(), nullable=False),
     sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_job_required_role_dept_role_id_dept_role')),
     sa.ForeignKeyConstraint(['job_id'], ['job.id'], name=op.f('fk_job_required_role_job_id_job')),
     sa.UniqueConstraint('dept_role_id', 'job_id', name=op.f('uq_job_required_role_dept_role_id'))
     )
     op.create_table('dept_membership_dept_role',
-    sa.Column('dept_membership_id', residue.UUID(), nullable=False),
-    sa.Column('dept_role_id', residue.UUID(), nullable=False),
+    sa.Column('dept_membership_id', UUID(), nullable=False),
+    sa.Column('dept_role_id', UUID(), nullable=False),
     sa.ForeignKeyConstraint(['dept_membership_id'], ['dept_membership.id'], name=op.f('fk_dept_membership_dept_role_dept_membership_id_dept_membership')),
     sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_dept_membership_dept_role_dept_role_id_dept_role')),
     sa.UniqueConstraint('dept_membership_id', 'dept_role_id', name=op.f('uq_dept_membership_dept_role_dept_membership_id'))
@@ -526,15 +526,15 @@ def upgrade():
 
     if is_sqlite:
         with op.batch_alter_table('job', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.add_column(sa.Column('department_id', residue.UUID()))
+            batch_op.add_column(sa.Column('department_id', UUID()))
         with op.batch_alter_table('dept_checklist_item', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.add_column(sa.Column('department_id', residue.UUID()))
+            batch_op.add_column(sa.Column('department_id', UUID()))
             batch_op.drop_constraint('_dept_checklist_item_uniq', type_='unique')
         with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.add_column(sa.Column('requested_any_dept', sa.Boolean(), default=False, server_default='False', nullable=False))
     else:
-        op.add_column('job', sa.Column('department_id', residue.UUID()))
-        op.add_column('dept_checklist_item', sa.Column('department_id', residue.UUID()))
+        op.add_column('job', sa.Column('department_id', UUID()))
+        op.add_column('dept_checklist_item', sa.Column('department_id', UUID()))
         op.drop_constraint('_dept_checklist_item_uniq', 'dept_checklist_item', type_='unique')
         op.add_column('attendee', sa.Column('requested_any_dept', sa.Boolean(), default=False, server_default='False', nullable=False))
 

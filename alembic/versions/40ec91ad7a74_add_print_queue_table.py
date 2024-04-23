@@ -16,7 +16,7 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -54,14 +54,14 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('print_job',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
-    sa.Column('admin_id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('attendee_id', UUID(), nullable=False),
+    sa.Column('admin_id', UUID(), nullable=False),
     sa.Column('admin_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('printer_id', sa.Unicode(), server_default='', nullable=False),
     sa.Column('reg_station', sa.Integer(), nullable=True),
-    sa.Column('queued', residue.UTCDateTime(), nullable=True),
-    sa.Column('printed', residue.UTCDateTime(), nullable=True),
+    sa.Column('queued', DateTime(), nullable=True),
+    sa.Column('printed', DateTime(), nullable=True),
     sa.Column('errors', sa.Unicode(), server_default='', nullable=False),
     sa.Column('is_minor', sa.Boolean(), nullable=False),
     sa.Column('json_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),

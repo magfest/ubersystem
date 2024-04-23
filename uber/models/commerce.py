@@ -3,12 +3,11 @@ import stripe
 
 from pytz import UTC
 from pockets.autolog import log
-from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, case, func, or_, select
 
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, JSON, UnicodeText, DateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
@@ -29,7 +28,7 @@ __all__ = [
 class ArbitraryCharge(MagModel):
     amount = Column(Integer)
     what = Column(UnicodeText)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime, default=lambda: datetime.now(UTC))
     reg_station = Column(Integer, nullable=True)
 
     _repr_attr_names = ['what']
@@ -57,7 +56,7 @@ class MerchPickup(MagModel):
 class MPointsForCash(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     amount = Column(Integer)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class NoShirt(MagModel):
@@ -71,7 +70,7 @@ class NoShirt(MagModel):
 class OldMPointExchange(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     amount = Column(Integer)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class Sale(MagModel):
@@ -79,7 +78,7 @@ class Sale(MagModel):
     what = Column(UnicodeText)
     cash = Column(Integer, default=0)
     mpoints = Column(Integer, default=0)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime, default=lambda: datetime.now(UTC))
     reg_station = Column(Integer, nullable=True)
     payment_method = Column(Choice(c.SALE_OPTS), default=c.MERCH)
 
@@ -98,7 +97,7 @@ class ModelReceipt(MagModel):
     invoice_num = Column(Integer, default=0)
     owner_id = Column(UUID, index=True)
     owner_model = Column(UnicodeText)
-    closed = Column(UTCDateTime, nullable=True)
+    closed = Column(DateTime, nullable=True)
 
     @property
     def all_sorted_items_and_txns(self):
@@ -170,7 +169,7 @@ class ModelReceipt(MagModel):
 
     @current_amount_owed.expression
     def current_amount_owed(cls):
-        return case([(cls.current_receipt_amount > 0, cls.current_receipt_amount)],
+        return case((cls.current_receipt_amount > 0, cls.current_receipt_amount),
                     else_=0)
 
     @hybrid_property
@@ -268,8 +267,8 @@ class ReceiptTransaction(MagModel):
     txn_total = Column(Integer, default=0)
     processing_fee = Column(Integer, default=0)
     refunded = Column(Integer, default=0)
-    added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    cancelled = Column(UTCDateTime, nullable=True)
+    added = Column(DateTime, default=lambda: datetime.now(UTC))
+    cancelled = Column(DateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
 
@@ -463,8 +462,8 @@ class ReceiptItem(MagModel):
     comped = Column(Boolean, default=False)
     reverted = Column(Boolean, default=False)
     count = Column(Integer, default=1)
-    added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    closed = Column(UTCDateTime, nullable=True)
+    added = Column(DateTime, default=lambda: datetime.now(UTC))
+    closed = Column(DateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
     revert_change = Column(JSON, default={}, server_default='{}')
@@ -515,8 +514,8 @@ class ReceiptInfo(MagModel):
     fk_email_id = Column(UnicodeText)
     terminal_id = Column(UnicodeText)
     reference_id = Column(UnicodeText)
-    charged = Column(UTCDateTime)
-    voided = Column(UTCDateTime, nullable=True)
+    charged = Column(DateTime)
+    voided = Column(DateTime, nullable=True)
     card_data = Column(MutableDict.as_mutable(JSONB), default={})
     txn_info = Column(MutableDict.as_mutable(JSONB), default={})
     emv_data = Column(MutableDict.as_mutable(JSONB), default={})
@@ -527,7 +526,7 @@ class ReceiptInfo(MagModel):
 class TerminalSettlement(MagModel):
     batch_timestamp = Column(UnicodeText)
     batch_who = Column(UnicodeText)
-    requested = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    requested = Column(DateTime, default=lambda: datetime.now(UTC))
     workstation_num = Column(Integer, default=0)
     terminal_id = Column(UnicodeText)
     response = Column(MutableDict.as_mutable(JSONB), default={})

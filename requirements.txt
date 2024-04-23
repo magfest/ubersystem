@@ -17,7 +17,7 @@ phonenumbers==8.13.34
 Pillow==10.3.0
 pockets==0.9.1
 pypsutil==0.2.0
-psycopg2-binary==2.9.9
+psycopg[binary]==3.1.18
 pycountry==23.12.11
 python-barcode[images]==0.15.1
 python-dateutil==2.9.0.post0
@@ -31,9 +31,9 @@ rpctools==0.3.1
 sentry-sdk==1.45.0
 spin_rest_utils>=0.0.1
 signnow_python_sdk==2.0.1
-SQLAlchemy==1.4.52
+SQLAlchemy==2.0.29
 stripe==9.1.0
 twilio==9.0.4
-uszipcode==1.0.1
+uszipcode @ git+https://github.com/magfest/uszipcode-project@c4ce34c2425615848f7c5912dd1beeab6602f3c9
 WTForms==3.1.2
 XlsxWriter==3.2.0

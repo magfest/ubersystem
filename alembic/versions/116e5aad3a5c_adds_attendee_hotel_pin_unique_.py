@@ -14,10 +14,10 @@ branch_labels = None
 depends_on = None
 
 from alembic import op
-import residue
 import sqlalchemy as sa
 from sqlalchemy import func
 from sqlalchemy.sql import and_, table, select
+from sqlalchemy.types import UUID
 
 
 
@@ -55,7 +55,7 @@ sqlite_reflect_kwargs = {
 
 attendee_table = table(
     'attendee',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', UUID()),
     sa.Column('hotel_pin', sa.Unicode()),
 )
 

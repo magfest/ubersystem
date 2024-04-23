@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -32,8 +32,8 @@ else:
 
 def upgrade():
     op.create_table('indie_studio',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('group_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('group_id', UUID(), nullable=True),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('address', sa.Unicode(), server_default='', nullable=False),
     sa.Column('website', sa.Unicode(), server_default='', nullable=False),
@@ -41,14 +41,14 @@ def upgrade():
     sa.Column('facebook', sa.Unicode(), server_default='', nullable=False),
     sa.Column('status', sa.Integer(), server_default='239694250', nullable=False),
     sa.Column('staff_notes', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('registered', residue.UTCDateTime(), server_default=sa.text(utcnow_server_default), nullable=False),
+    sa.Column('registered', DateTime(), server_default=sa.text(utcnow_server_default), nullable=False),
     sa.ForeignKeyConstraint(['group_id'], ['group.id'], name=op.f('fk_indie_studio_group_id_group')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_indie_studio')),
     sa.UniqueConstraint('name', name=op.f('uq_indie_studio_name'))
     )
     op.create_table('indie_developer',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('studio_id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('studio_id', UUID(), nullable=False),
     sa.Column('primary_contact', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('first_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('last_name', sa.Unicode(), server_default='', nullable=False),
@@ -58,8 +58,8 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_indie_developer'))
     )
     op.create_table('indie_game',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('studio_id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('studio_id', UUID(), nullable=False),
     sa.Column('title', sa.Unicode(), server_default='', nullable=False),
     sa.Column('brief_description', sa.Unicode(), server_default='', nullable=False),
     sa.Column('genres', sa.Unicode(), server_default='', nullable=False),
@@ -81,13 +81,13 @@ def upgrade():
     sa.Column('agreed_reminder2', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('status', sa.Integer(), server_default='239694250', nullable=False),
     sa.Column('judge_notes', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('registered', residue.UTCDateTime(), server_default=sa.text(utcnow_server_default), nullable=False),
+    sa.Column('registered', DateTime(), server_default=sa.text(utcnow_server_default), nullable=False),
     sa.ForeignKeyConstraint(['studio_id'], ['indie_studio.id'], name=op.f('fk_indie_game_studio_id_indie_studio')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_indie_game'))
     )
     op.create_table('indie_game_screenshot',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('game_id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('game_id', UUID(), nullable=False),
     sa.Column('filename', sa.Unicode(), server_default='', nullable=False),
     sa.Column('content_type', sa.Unicode(), server_default='', nullable=False),
     sa.Column('extension', sa.Unicode(), server_default='', nullable=False),
@@ -96,17 +96,17 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_indie_game_screenshot'))
     )
     op.create_table('indie_judge',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('admin_id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('admin_id', UUID(), nullable=False),
     sa.Column('genres', sa.Unicode(), server_default='', nullable=False),
     sa.Column('staff_notes', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['admin_id'], ['admin_account.id'], name=op.f('fk_indie_judge_admin_id_admin_account')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_indie_judge'))
     )
     op.create_table('indie_game_code',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('game_id', residue.UUID(), nullable=False),
-    sa.Column('judge_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('game_id', UUID(), nullable=False),
+    sa.Column('judge_id', UUID(), nullable=True),
     sa.Column('code', sa.Unicode(), server_default='', nullable=False),
     sa.Column('unlimited_use', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('judge_notes', sa.Unicode(), server_default='', nullable=False),
@@ -115,9 +115,9 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_indie_game_code'))
     )
     op.create_table('indie_game_review',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('game_id', residue.UUID(), nullable=False),
-    sa.Column('judge_id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('game_id', UUID(), nullable=False),
+    sa.Column('judge_id', UUID(), nullable=False),
     sa.Column('video_status', sa.Integer(), server_default='196944751', nullable=False),
     sa.Column('game_status', sa.Integer(), server_default='196944751', nullable=False),
     sa.Column('video_score', sa.Integer(), server_default='196944751', nullable=False),

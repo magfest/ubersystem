@@ -2,10 +2,10 @@ import uuid
 from datetime import datetime
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.types import UnicodeText, DateTime, UUID
 
 from uber.config import c
 from uber.models import MagModel
@@ -21,8 +21,8 @@ class ApiToken(MagModel):
     access = Column(MultiChoice(c.API_ACCESS_OPTS))
     name = Column(UnicodeText)
     description = Column(UnicodeText)
-    issued_time = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    revoked_time = Column(UTCDateTime, default=None, nullable=True)
+    issued_time = Column(DateTime, default=lambda: datetime.now(UTC))
+    revoked_time = Column(DateTime, default=None, nullable=True)
 
     @property
     def api_read(self):
@@ -44,9 +44,9 @@ class ApiToken(MagModel):
 class ApiJob(MagModel):
     admin_id = Column(UUID, ForeignKey('admin_account.id'), nullable=True)
     admin_name = Column(UnicodeText)  # Preserve admin's name in case their account is removed
-    queued = Column(UTCDateTime, nullable=True, default=None)
-    completed = Column(UTCDateTime, nullable=True, default=None)
-    cancelled = Column(UTCDateTime, nullable=True, default=None)
+    queued = Column(DateTime, nullable=True, default=None)
+    completed = Column(DateTime, nullable=True, default=None)
+    cancelled = Column(DateTime, nullable=True, default=None)
     job_name = Column(UnicodeText)
     target_server = Column(UnicodeText)
     query = Column(UnicodeText)

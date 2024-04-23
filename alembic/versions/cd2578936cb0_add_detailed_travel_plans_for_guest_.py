@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -53,8 +53,8 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('guest_detailed_travel_plan',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('travel_plans_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('travel_plans_id', UUID(), nullable=True),
     sa.Column('mode', sa.Integer(), nullable=False),
     sa.Column('mode_text', sa.Unicode(), server_default='', nullable=False),
     sa.Column('traveller', sa.Unicode(), server_default='', nullable=False),
@@ -62,9 +62,9 @@ def upgrade():
     sa.Column('luggage_needs', sa.Unicode(), server_default='', nullable=False),
     sa.Column('contact_email', sa.Unicode(), server_default='', nullable=False),
     sa.Column('contact_phone', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('arrival_time', residue.UTCDateTime(), nullable=False),
+    sa.Column('arrival_time', DateTime(), nullable=False),
     sa.Column('arrival_details', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('departure_time', residue.UTCDateTime(), nullable=False),
+    sa.Column('departure_time', DateTime(), nullable=False),
     sa.Column('departure_details', sa.Unicode(), server_default='', nullable=False),
     sa.Column('extra_details', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['travel_plans_id'], ['guest_travel_plans.id'], name=op.f('fk_guest_detailed_travel_plan_travel_plans_id_guest_travel_plans')),

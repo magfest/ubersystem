@@ -16,7 +16,7 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -54,12 +54,12 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('api_job',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('admin_id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('admin_id', UUID(), nullable=False),
     sa.Column('admin_name', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('queued', residue.UTCDateTime(), nullable=True),
-    sa.Column('completed', residue.UTCDateTime(), nullable=True),
-    sa.Column('cancelled', residue.UTCDateTime(), nullable=True),
+    sa.Column('queued', DateTime(), nullable=True),
+    sa.Column('completed', DateTime(), nullable=True),
+    sa.Column('cancelled', DateTime(), nullable=True),
     sa.Column('job_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('target_server', sa.Unicode(), server_default='', nullable=False),
     sa.Column('query', sa.Unicode(), server_default='', nullable=False),

@@ -18,7 +18,7 @@ import sqlalchemy
 from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
-from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
+from residue import check_constraint_naming_convention, declarative_base, SessionManager
 from sqlalchemy import and_, func, or_
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
@@ -26,7 +26,7 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
-from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
+from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric, JSON, DateTime, UUID
 from sqlalchemy.util import immutabledict
 
 import uber
@@ -49,7 +49,7 @@ def _make_getter(model):
             return self.query(model).filter_by(id=params).one()
         else:
             if params:
-                params = params.copy()
+                #params = params.copy()
                 id = params.pop('id', 'None')
             else:
                 id = 'None'
@@ -437,7 +437,7 @@ class MagModel:
             if value is None:
                 return  # Totally fine for value to be None
 
-            elif value == '' and isinstance(column.type, (UUID, Float, Numeric, Choice, Integer, UTCDateTime, Date)):
+            elif value == '' and isinstance(column.type, (UUID, Float, Numeric, Choice, Integer, DateTime, Date)):
                 return None
 
             elif isinstance(column.type, Boolean):
@@ -467,7 +467,7 @@ class MagModel:
             elif isinstance(column.type, Integer):
                 value = int(float(value))
 
-            elif isinstance(column.type, UTCDateTime):
+            elif isinstance(column.type, DateTime):
                 try:
                     value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
                 except ValueError:
@@ -1887,7 +1887,7 @@ class Session(SessionManager):
                                 return None, 'ERROR: {} is not a valid attribute'.format(target)
                             # Are we a searchable property?
                             if isinstance(getattr(Attendee, target) == search_term,
-                                          sqlalchemy.sql.elements.BinaryExpression):
+                                          sqlalchemy.sql.expression.BinaryExpression):
                                 attr_search_filter = self.get_truth(getattr(Attendee, target), op, search_term)
                             else:
                                 return None, 'ERROR: {} is not a searchable attribute'.format(target)

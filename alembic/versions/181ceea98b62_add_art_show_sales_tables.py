@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -53,23 +53,23 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('art_show_receipt',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
     sa.Column('invoice_num', sa.Integer(), server_default='0', nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=True),
-    sa.Column('closed', residue.UTCDateTime(), nullable=True),
+    sa.Column('attendee_id', UUID(), nullable=True),
+    sa.Column('closed', DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_art_show_receipt_attendee_id_attendee'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_art_show_receipt'))
     )
     op.create_table('art_show_payment',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('receipt_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('receipt_id', UUID(), nullable=True),
     sa.Column('amount', sa.Integer(), server_default='0', nullable=False),
     sa.Column('type', sa.Integer(), server_default='180350097', nullable=False),
-    sa.Column('when', residue.UTCDateTime(), nullable=False),
+    sa.Column('when', DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['receipt_id'], ['art_show_receipt.id'], name=op.f('fk_art_show_payment_receipt_id_art_show_receipt'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_art_show_payment'))
     )
-    op.add_column('art_show_piece', sa.Column('receipt_id', residue.UUID(), nullable=True))
+    op.add_column('art_show_piece', sa.Column('receipt_id', UUID(), nullable=True))
     op.add_column('art_show_piece', sa.Column('winning_bid', sa.Integer(), server_default='0', nullable=True))
     op.create_foreign_key(op.f('fk_art_show_piece_receipt_id_art_show_receipt'), 'art_show_piece', 'art_show_receipt', ['receipt_id'], ['id'], ondelete='SET NULL')
 

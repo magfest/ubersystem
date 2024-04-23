@@ -18,7 +18,8 @@ import sqlalchemy as sa
 from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql import table
-import residue
+from sqlalchemy.types import UUID
+
 
 
 try:
@@ -56,24 +57,24 @@ sqlite_reflect_kwargs = {
 
 attraction_feature_table = table(
     'attraction_feature',
-    sa.Column('id', residue.UUID()),
-    sa.Column('attraction_id', residue.UUID()),
+    sa.Column('id', UUID()),
+    sa.Column('attraction_id', UUID()),
 )
 
 
 attraction_event_table = table(
     'attraction_event',
-    sa.Column('id', residue.UUID()),
-    sa.Column('attraction_id', residue.UUID()),
-    sa.Column('attraction_feature_id', residue.UUID()),
+    sa.Column('id', UUID()),
+    sa.Column('attraction_id', UUID()),
+    sa.Column('attraction_feature_id', UUID()),
 )
 
 
 attraction_signup_table = table(
     'attraction_signup',
-    sa.Column('id', residue.UUID()),
-    sa.Column('attraction_id', residue.UUID()),
-    sa.Column('attraction_event_id', residue.UUID()),
+    sa.Column('id', UUID()),
+    sa.Column('attraction_id', UUID()),
+    sa.Column('attraction_event_id', UUID()),
     sa.Column('checkin_time', sa.DateTime()),
 )
 
@@ -85,17 +86,17 @@ def upgrade():
             batch_op.add_column(sa.Column('notification_pref', sa.Integer(), server_default='0', nullable=False))
 
         with op.batch_alter_table('attraction_event', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.add_column(sa.Column('attraction_id', residue.UUID(), nullable=True))
+            batch_op.add_column(sa.Column('attraction_id', UUID(), nullable=True))
 
         with op.batch_alter_table('attraction_signup', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.add_column(sa.Column('attraction_id', residue.UUID(), nullable=True))
+            batch_op.add_column(sa.Column('attraction_id', UUID(), nullable=True))
     else:
         op.add_column('attendee', sa.Column('attractions_opt_out', sa.Boolean(), server_default='False', nullable=False))
         op.add_column('attendee', sa.Column('notification_pref', sa.Integer(), server_default='0', nullable=False))
 
-        op.add_column('attraction_event', sa.Column('attraction_id', residue.UUID(), nullable=True))
+        op.add_column('attraction_event', sa.Column('attraction_id', UUID(), nullable=True))
 
-        op.add_column('attraction_signup', sa.Column('attraction_id', residue.UUID(), nullable=True))
+        op.add_column('attraction_signup', sa.Column('attraction_id', UUID(), nullable=True))
 
         # SQLite does not support UPDATE FROM so skip migrating data for SQLite
         connection = op.get_bind()
@@ -132,8 +133,8 @@ def upgrade():
         with op.batch_alter_table('attraction_signup', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.alter_column('attraction_id', nullable=False)
             batch_op.create_foreign_key(op.f('fk_attraction_signup_attraction_id_attraction'), 'attraction', ['attraction_id'], ['id'])
-            batch_op.alter_column('checkin_time', existing_type=residue.UTCDateTime(), nullable=False)
-            batch_op.alter_column('signup_time', existing_type=residue.UTCDateTime(), server_default=None)
+            batch_op.alter_column('checkin_time', existing_type=DateTime(), nullable=False)
+            batch_op.alter_column('signup_time', existing_type=DateTime(), server_default=None)
             batch_op.create_index(op.f('ix_attraction_signup_checkin_time'), ['checkin_time'], unique=False)
 
         with op.batch_alter_table('attraction', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
@@ -146,8 +147,8 @@ def upgrade():
 
         op.alter_column('attraction_signup', 'attraction_id', nullable=False)
         op.create_foreign_key(op.f('fk_attraction_signup_attraction_id_attraction'), 'attraction_signup', 'attraction', ['attraction_id'], ['id'])
-        op.alter_column('attraction_signup', 'checkin_time', existing_type=residue.UTCDateTime(), nullable=False)
-        op.alter_column('attraction_signup', 'signup_time', existing_type=residue.UTCDateTime(), server_default=None)
+        op.alter_column('attraction_signup', 'checkin_time', existing_type=DateTime(), nullable=False)
+        op.alter_column('attraction_signup', 'signup_time', existing_type=DateTime(), server_default=None)
         op.create_index(op.f('ix_attraction_signup_checkin_time'), 'attraction_signup', ['checkin_time'], unique=False)
 
         op.alter_column('attraction', 'required_checkin', new_column_name='advance_checkin')
@@ -155,14 +156,14 @@ def upgrade():
 
 
     op.create_table('attraction_notification',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attraction_event_id', residue.UUID(), nullable=False),
-    sa.Column('attraction_id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('attraction_event_id', UUID(), nullable=False),
+    sa.Column('attraction_id', UUID(), nullable=False),
+    sa.Column('attendee_id', UUID(), nullable=False),
     sa.Column('notification_type', sa.Integer(), nullable=False),
     sa.Column('ident', sa.Unicode(), server_default='', nullable=False),
     sa.Column('sid', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('sent_time', residue.UTCDateTime(), nullable=False),
+    sa.Column('sent_time', DateTime(), nullable=False),
     sa.Column('subject', sa.Unicode(), server_default='', nullable=False),
     sa.Column('body', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_attraction_notification_attendee_id_attendee')),
@@ -173,16 +174,16 @@ def upgrade():
     op.create_index(op.f('ix_attraction_notification_ident'), 'attraction_notification', ['ident'], unique=False)
 
     op.create_table('attraction_notification_reply',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attraction_event_id', residue.UUID(), nullable=True),
-    sa.Column('attraction_id', residue.UUID(), nullable=True),
-    sa.Column('attendee_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('attraction_event_id', UUID(), nullable=True),
+    sa.Column('attraction_id', UUID(), nullable=True),
+    sa.Column('attendee_id', UUID(), nullable=True),
     sa.Column('notification_type', sa.Integer(), nullable=False),
     sa.Column('from_phonenumber', sa.Unicode(), server_default='', nullable=False),
     sa.Column('to_phonenumber', sa.Unicode(), server_default='', nullable=False),
     sa.Column('sid', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('received_time', residue.UTCDateTime(), nullable=False),
-    sa.Column('sent_time', residue.UTCDateTime(), nullable=False),
+    sa.Column('received_time', DateTime(), nullable=False),
+    sa.Column('sent_time', DateTime(), nullable=False),
     sa.Column('body', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_attraction_notification_reply_attendee_id_attendee')),
     sa.ForeignKeyConstraint(['attraction_event_id'], ['attraction_event.id'], name=op.f('fk_attraction_notification_reply_attraction_event_id_attraction_event')),
@@ -203,8 +204,8 @@ def downgrade():
 
     op.alter_column('attraction', 'advance_checkin', new_column_name='required_checkin')
     op.alter_column('attraction', 'advance_notices', new_column_name='notifications')
-    op.alter_column('attraction_signup', 'signup_time', existing_type=residue.UTCDateTime(), server_default=text(utcnow_server_default))
-    op.alter_column('attraction_signup', 'checkin_time', existing_type=residue.UTCDateTime(), nullable=True)
+    op.alter_column('attraction_signup', 'signup_time', existing_type=DateTime(), server_default=text(utcnow_server_default))
+    op.alter_column('attraction_signup', 'checkin_time', existing_type=DateTime(), nullable=True)
 
     op.drop_constraint(op.f('fk_attraction_signup_attraction_id_attraction'), 'attraction_signup', type_='foreignkey')
     op.drop_constraint(op.f('fk_attraction_event_attraction_id_attraction'), 'attraction_event', type_='foreignkey')

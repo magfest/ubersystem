@@ -5,13 +5,12 @@ import re
 
 import pytz
 from pockets import camel, fieldify, listify
-from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.schema import Column
 from sqlalchemy.sql.expression import FunctionElement
-from sqlalchemy.types import Integer, TypeDecorator
+from sqlalchemy.types import Integer, TypeDecorator, UnicodeText, JSON, DateTime, UUID
 
 from uber.config import c, _config as config
 from uber.utils import url_domain
@@ -48,7 +47,7 @@ def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
     if isinstance(default, (int, str)):
         kwargs.setdefault('server_default', str(default))
     col = SQLAlchemy_Column(*args, **kwargs)
-    col.admin_only = admin_only or type_ in (UUID, UTCDateTime)
+    col.admin_only = admin_only or type_ in (UUID, DateTime)
     col.private = private
     return col
 
@@ -87,7 +86,7 @@ class utcmax(FunctionElement):
 
     """
     datetime = datetime(9999, 12, 31, 23, 59, 59, tzinfo=pytz.UTC)
-    type = UTCDateTime()
+    type = DateTime()
 
 
 @compiles(utcmax, 'postgresql')
@@ -125,7 +124,7 @@ class utcmin(FunctionElement):
 
     """
     datetime = datetime(1, 1, 1, 0, 0, 0, tzinfo=pytz.UTC)
-    type = UTCDateTime()
+    type = DateTime()
 
 
 @compiles(utcmin, 'postgresql')
@@ -144,7 +143,7 @@ class utcnow(FunctionElement):
     indicating when the row was first created.  Normally we could do something
     like this::
 
-        created = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+        created = Column(DateTime, default=lambda: datetime.now(UTC))
 
     Unfortunately, there are some cases where we instantiate a model and then
     don't save it until sometime later.  This happens when someone registers
@@ -153,13 +152,13 @@ class utcnow(FunctionElement):
     can set a timestamp based on when the row was inserted rather than when
     the model was instantiated::
 
-        created = Column(UTCDateTime, server_default=utcnow())
+        created = Column(DateTime, server_default=utcnow())
 
     The pg_utcnow and sqlite_utcnow functions below define the implementation
     for postgres and sqlite, and new functions will need to be written if/when
     we decided to support other databases.
     """
-    type = UTCDateTime()
+    type = DateTime()
 
 
 @compiles(utcnow, 'postgresql')

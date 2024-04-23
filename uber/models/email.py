@@ -5,14 +5,13 @@ from datetime import datetime
 from pockets import cached_property, classproperty, groupify
 from pockets.autolog import log
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, UnicodeText, DateTime, UUID
 
 from uber import utils
 from uber.config import c
@@ -74,13 +73,13 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     needs_approval = Column(Boolean, default=True)
     unapproved_count = Column(Integer, default=0)
     currently_sending = Column(Boolean, default=False)
-    last_send_time = Column(UTCDateTime, nullable=True, default=None)
+    last_send_time = Column(DateTime, nullable=True, default=None)
 
     allow_at_the_con = Column(Boolean, default=False)
     allow_post_con = Column(Boolean, default=False)
 
-    active_after = Column(UTCDateTime, nullable=True, default=None)
-    active_before = Column(UTCDateTime, nullable=True, default=None)
+    active_after = Column(DateTime, nullable=True, default=None)
+    active_before = Column(DateTime, nullable=True, default=None)
     revert_changes = Column(MutableDict.as_mutable(JSONB), default={})
 
     emails = relationship('Email', backref='automated_email', order_by='Email.id')
@@ -330,7 +329,7 @@ class Email(MagModel, BaseEmailMixin):
     fk_id = Column(UUID, nullable=True)
     ident = Column(UnicodeText)
     to = Column(UnicodeText)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime, default=lambda: datetime.now(UTC))
 
     @cached_property
     def fk(self):

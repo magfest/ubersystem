@@ -3,10 +3,9 @@ import cherrypy
 from functools import wraps
 
 from PIL import Image
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, UnicodeText, DateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
@@ -26,11 +25,11 @@ class MITSTeam(MagModel):
     showcase_interest = Column(Boolean, nullable=True, admin_only=True)
     want_to_sell = Column(Boolean, default=False)
     address = Column(UnicodeText)
-    submitted = Column(UTCDateTime, nullable=True)
+    submitted = Column(DateTime, nullable=True)
     waiver_signature = Column(UnicodeText)
-    waiver_signed = Column(UTCDateTime, nullable=True)
+    waiver_signed = Column(DateTime, nullable=True)
 
-    applied = Column(UTCDateTime, server_default=utcnow())
+    applied = Column(DateTime, server_default=utcnow())
     status = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
 
     applicants = relationship('MITSApplicant', backref='team')

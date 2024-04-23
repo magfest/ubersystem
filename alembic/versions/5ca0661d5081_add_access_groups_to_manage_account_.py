@@ -16,7 +16,7 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -54,13 +54,13 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('access_group',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('access', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('read_only_access', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_access_group'))
     )
-    op.add_column('admin_account', sa.Column('access_group_id', residue.UUID(), nullable=True))
+    op.add_column('admin_account', sa.Column('access_group_id', UUID(), nullable=True))
     op.create_foreign_key(op.f('fk_admin_account_access_group_id_access_group'), 'admin_account', 'access_group', ['access_group_id'], ['id'], ondelete='SET NULL')
 
 
