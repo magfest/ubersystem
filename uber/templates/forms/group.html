@@ -111,7 +111,7 @@
   {% elif group.status == c.CANCELLED %}
     <div class="alert alert-info pb-0" role="alert">
       <p>You have <strong>cancelled</strong> your {{ c.DEALER_APP_TERM }}. If this was a mistake, please contact us at
-      <a href="mailto:{{ c.MARKETPLACE_EMAIL }}">{{ c.MARKETPLACE_EMAIL }}</a>.</p>
+      {{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}.</p>
     </div>
   {% else %}
     <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }} pb-0" role="alert">

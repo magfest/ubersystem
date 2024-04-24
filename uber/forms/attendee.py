@@ -277,6 +277,12 @@ class OtherInfo(MagForm):
             return list(self._fields.keys())
 
         return locked_fields
+    
+    def promo_code_code_label(self):
+        if c.GROUPS_ENABLED:
+            return 'Group or Promo Code'
+        else:
+            return 'Promo Code'
 
     @new_or_changed_validation.promo_code_code
     def promo_code_valid(form, field):
