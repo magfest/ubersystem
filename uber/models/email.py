@@ -1,6 +1,7 @@
 import re
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, date
+from dateutil import parser as dateparser
 
 from pockets import cached_property, classproperty, groupify
 from pockets.autolog import log
@@ -90,12 +91,18 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         if self.active_after == '':
             self.active_after = None
         elif isinstance(self.active_after, str):
-            self.active_after = datetime.strptime(self.active_after, c.DATE_FORMAT)
+            try:
+                self.active_after = datetime.strptime(self.active_after, c.DATE_FORMAT)
+            except ValueError:
+                self.active_after = dateparser.parse(self.active_after)
 
         if self.active_before == '':
             self.active_before = None
         elif isinstance(self.active_before, str):
-            self.active_before = datetime.strptime(self.active_before, c.DATE_FORMAT)
+            try:
+                self.active_before = datetime.strptime(self.active_before, c.DATE_FORMAT)
+            except ValueError:
+                self.active_before = dateparser.parse(self.active_before)
 
     @classproperty
     def filters_for_allowed(cls):
@@ -138,7 +145,10 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                           f"but there's no attribute named {key}!")
             elif getattr(fixture, key) != val and (getattr(fixture, key) or val):
                 if key not in automated_email.revert_changes:
-                    automated_email.revert_changes[key] = getattr(fixture, key)
+                    current_val = getattr(fixture, key)
+                    if isinstance(current_val, date):
+                        current_val = current_val.isoformat()
+                    automated_email.revert_changes[key] = current_val
                 setattr(fixture, key, val)
 
         updated_email = automated_email.reconcile(fixture)

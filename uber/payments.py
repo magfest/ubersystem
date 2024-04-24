@@ -465,7 +465,7 @@ class TransactionRequest:
         refund_amount = self.amount or txn.amount_left
 
         log.debug('REFUND: attempting to refund card transaction with ID {} {} cents for {}',
-                  txn.stripe_id, refund_amount, txn.desc)
+                  txn.stripe_id, str(refund_amount), txn.desc)
 
         message = self.stripe_or_authnet_refund(txn, int(refund_amount))
         if message:
@@ -1034,7 +1034,7 @@ class SpinTerminalRequest(TransactionRequest):
                     "Please set your workstation number and try again.")
 
         log.debug('REFUND: attempting to refund card transaction with ID {} {} cents for {}',
-                  txn.stripe_id, refund_amount, txn.desc)
+                  txn.stripe_id, str(refund_amount), txn.desc)
 
         self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'),
                                           terminal_id=self.terminal_id, who=AdminAccount.admin_name())
