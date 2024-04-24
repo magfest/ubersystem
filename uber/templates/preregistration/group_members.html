@@ -129,6 +129,7 @@
                 {% if attendee.is_group_leader or c.ATTENDEE_ACCOUNTS_ENABLED and attendee in logged_in_account.attendees %}
                   <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 {% else %}{{ attendee.full_name }}{% endif %}
+                {% if attendee.placeholder %}(Incomplete){% endif %}
             </td>
             <td style="padding-right: 10px">
                 {{ attendee.email|email_to_link }}
