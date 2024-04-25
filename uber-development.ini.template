@@ -2,218 +2,345 @@ path = "${DEFAULT_URL}"
 hostname = "${HOSTNAME}"
 url_root = "http://${HOSTNAME}:${PORT}"
 
-[redis]
-host = "${REDIS_HOST}"
-port = ${REDIS_PORT}
-
-[secret]
-broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
-broker_prefix = "${BROKER_PREFIX}"
-
-food_price = 18
-
-[enums]
-
-[[cabin_type_prices]]
-private = 1400
-
-[[cabin_type_stocks]]
-half = 6
-
-[[camping_type]]
-cabin = Cabin
-car = Car
-rv = RV
-tent = Tent
-
-[[shirt_color]]
-black_shirt = Black Shirt
-no_shirt_color = No Shirt
-white_shirt = White Shirt (for tie-dyeing later)
-
+accessibility_services_enabled = False
 admin_email = MAGFest Sys Admin <sysadmin@magfest.org>
+alt_schedule_url = https://guidebook.com/guide/101720/schedule
 api_enabled = True
+app_limit = 0
 at_the_con = False
 attendee_accounts_enabled = False
-attractions_enabled = False
 badge_promo_codes_enabled = True
-band_email = MAGStock Music <music@magstock.org>
-band_email_signature = MAGStock Music Department
-blank_staff_badges = 50
+band_email = MAGFest Music Department <music@magfest.org>
+band_email_signature = - MAGFest Music Department
+blank_staff_badges = 200
 code_of_conduct_url = http://super.magfest.org/codeofconduct
 collect_exact_birthdate = True
 collect_extra_donation = True
 consent_form_url = http://super.magfest.org/parentalconsentform
 contact_url = http://super.magfest.org/contact
-covid_policies_url = 
-dealer_app_term = artist application
-dealer_helper_term = helper
-dealer_loc_term = artist alley
-dealer_reg_term = artist registration
-dealer_term = artist
+covid_policies_url = https://super.magfest.org/covid
+dealer_app_term = marketplace application
+dealer_helper_term = Marketplace Assistant
+dealer_loc_term = marketplace
+dealer_reg_term = marketplace registration
+dealer_term = seller
+delete_declined_groups = True
 dev_box = False
 developer_email = MAGFest Software <developers@magfest.org>
-emergency_procedures_deadline = May 23
+discountable_badge_types = attendee_badge, child_badge
+emergency_procedures_deadline = December 15
 emergency_procedures_enabled = True
-event_name = MAGStock
+event_name = MAGFest
+event_qr_id = sm23
 event_timezone = US/Eastern
-event_venue = Ramblewood
-event_venue_address = '''Ramblewood, 2564 Silver Rd, Darlington, MD 21034'''
+event_venue = The Gaylord National Hotel and Convention Center
+event_venue_address = '''201 Waterfront St, National Harbor, MD 20745'''
 event_year = 2024
+expected_response = December 2023
+extra_donation_url = 
 groups_enabled = True
-guest_email = MAGStock Music <music@magstock.org>
-guest_email_signature = MAGStock Music Department
+guest_email = MAGFest Guests <guests@magfest.org>
+guest_email_signature = Super MAGFest Guests & MAGMoves Team
+hotels_enabled = True
+hours_for_food = 12
+hours_for_shirt = 0
 jira_enabled = True
 kiosk_cc_enabled = True
+kiosk_redirect_url = 
 maps_dir = /tmp
 maps_enabled = False
-marketplace_email = MAGStock Artist Alley <artist-alley@magstock.org>
-marketplace_email_signature = '''MAGStock Artist Alley Team
-artist-alley@magstock.org'''
-max_dealers = 3
-max_tables = 1
-merch_at_checkin = True
-min_group_addition = 2
-min_group_size = 5
-numbered_badges = False
+marketplace_email = MAGFest Marketplace <marketplace@magfest.org>
+marketplace_email_signature = '''- Danielle Pomfrey,
+MAGFest Marketplace Coordinator'''
+max_dealer_apps = 0
+merch_email = MAGFest Merch Team <merch@magfest.org>
+merch_email_signature = - MAGFest Merch Team
+merch_shipping_fee = 15
+mits_badges_per_team = 2
+mits_email = MAGFest Indie Tabletop Showcase <mits@magfest.org>
+mits_email_signature = The MITS team
+mits_enabled = True
+mivs_confirm_deadline = 7
+mivs_enabled = True
+mivs_handbook_url = https://super.magfest.org/s/MIVS-Handbook-2024.pdf
+mivs_selling_url = https://docs.google.com/forms/d/e/1FAIpQLSf1wO40BDzl5PTDIw7USq8FkGPBh4l2DJymEk6SLhF_D0VpxQ/viewform
+mivs_start_year = 2013
+mivs_submission_grace_period = 10
+mivs_training_password = 2RugOrNot2Rug?ThatIsTheQuestion!
+mivs_training_url = https://docs.google.com/forms/d/e/1FAIpQLSeJ_ao6D891SxDVsYrJTYr8E8Ops8oDxR0N8guRoVEj2RloqQ/viewform
+music_rooms = concerts, chiptunes, pose_lounge, lobby_bar, jamspace, jam_clinic, jam_shop, rock_island
+notify_dealer_applied = True
 organization_name = MAGFest INC
-panels_email = MAGStock Panels <admin@magstock.org>
+panel_rooms = panels_1, panels_2, panels_3, panels_4, panels_5, mages_1, panels_7, the_forge, film_fest, console_stage
+panels_confirm_deadline = 14
+panels_email = MAGFest Panels <panels@magfest.org>
 panels_email_signature = - MAGFest Panels Department
+panels_enabled = True
 panels_twilio_number = +12405415595
 path = uber
-peglegs_email_signature = MAGStock Events Department
-post_con = False
+post_con = True
 preassigned_badge_types = staff_badge, contractor_badge
 prereg_faq_url = http://super.magfest.org/faq
 prereg_hotel_info_email_sender = Do Not Reply <noreply@magfest.org>
 prereg_hotel_info_email_signature = - MAGFest
 prior_covid_policies_url = 
 privacy_policy_url = https://super.magfest.org/privacy-policy
-regdesk_email = MAGStock Registration <registration@magstock.org>
-regdesk_email_signature = MAGStock Registration Department
-require_dedicated_guest_table_presence = False
-season_stock = 75
-security_email = MAGStock Security <security@magstock.org>
+regdesk_email = MAGFest Registration <regsupport@magfest.org>
+regdesk_email_signature = '''MAGFest Registration Department
+MAGFest Inc.
+http://super.magfest.org'''
+require_dedicated_guest_table_presence = True
+rock_island_groups = band, guest, rock_island
+row_load_limit = 1000
+season_stock = 715
+security_email = MAGFest Security <security@magfest.org>
+self_service_deferrals_open = False
 send_emails = True
 send_sms = True
-shirts_per_staffer = 0
+separate_staff_merch = True
+shared_kickin_stocks = False
+shirt_stock = 1250
+shirts_per_staffer = 1
 slow_load_check = False
+social_media = Social Media Info,
 sqlalchemy_max_overflow = 0
 sqlalchemy_pool_size = 5
-staff_email = MAGStock Staffing <stops@magstock.org>
-stops_email_signature = MAGStock Staffing Operations
-supporter_stock = 50
+staff_email = MAGFest Staffing <stops@magfest.org>
+staff_room_faq_url = https://www.notion.so/magfest/Staff-Room-FAQ-656edde68e324dae97891c2002439465
+stops_email_signature = '''Thank You,
+Staff Operations: MAGFest Inc.
+http://super.magfest.org'''
+supporter_stock = 957
+tabletop_locations = tabletop_indie, tabletop_tournaments, tabletop_tournaments_2, tabletop_panels, tabletop_ccg, pathfinder, pathfinder_freeplay, ddal
 tabletop_twilio_number = +15713646627
-untransferable_attrs = first_name, last_name, legal_name, email, birthdate, zip_code, international, ec_name, ec_phone, cellphone, interests, age_group, staffing, requested_depts, onsite_contact, no_onsite_contact, license_plate, waiver_consent, waiver_signature, waiver_date, acknowledged_checkin_policy, hotel_pin, regdesk_info
-url_root = https://stock2024.reg.magfest.org/
+tracking_params = fbclid, hsmi, utm_source, utm_medium, utm_campaign, utm_term, utm_content, _hsmi, _home, _hsenc
+treasury_dept_checklist_form_url = https://super2024.reg.magfest.org/static_views/treasury_form.html
+untransferable_attrs = first_name, last_name, legal_name, email, birthdate, zip_code, international, ec_name, ec_phone, cellphone, interests, age_group, staffing, requested_depts, special_merch, group_name, onsite_contact, no_onsite_contact, hotel_pin, regdesk_info
+url_base = https://super2024.reg.magfest.org
+url_root = https://super2024.reg.magfest.org/
+use_checkin_barcode = True
 volunteer_agreement_enabled = True
-volunteer_checklist_deadline = May 23
-volunteer_food_deadline = May 16
-volunteer_perks_url = https://magstock.org/volunteer
-volunteer_placeholder_deadline = April 18
+volunteer_checklist_deadline = December 15
+volunteer_food_deadline = November 17
+volunteer_perks_url = https://www.notion.so/magfest/MAGFest-Super-Perks-f001221c31484ef4957a6513c54a6fd6
+volunteer_placeholder_deadline = November 3
 
 [age_groups]
 
+[[under_12]]
+can_volunteer = False
+consent_form = True
+desc = Between 6 and 12
+max_age = 11
+min_age = 6
+
+[[under_13]]
+desc = 12
+max_age = 13
+min_age = 12
+
+[[under_6]]
+desc = Under 6
+max_age = 5
+min_age = 0
+
 [badge_prices]
-dealer_badge_price = 110
-initial_attendee = 185
+dealer_badge_price = 100
+group_discount = 10
+initial_attendee = 125
 one_days_enabled = False
 presell_one_days = False
 
 [[attendee]]
-2024-05-06 = 195
-2024-05-27 = 205
-2024-06-06 = 215
-2024-06-07 = 185
-2024-06-08 = 155
-2024-06-09 = 35
+2023-11-01 = 135
+2023-12-01 = 145
+2024-01-01 = 155
+2024-01-19 = 135
+2024-01-20 = 120
+2024-01-21 = 35
+
+[[stocks]]
+attendee_badge = 20000
+child_badge = 1080
 
 [badge_ranges]
-attendee_badge = 1, 2000
-child_badge = 1, 2000
-contractor_badge = 1, 2000
-guest_badge = 1, 2000
-one_day_badge = 30000, 39999
-staff_badge = 1, 2000
+attendee_badge = 3500, 29999
+child_badge = 50000, 50999
+contractor_badge = 1501, 2999
+guest_badge = 3000, 3499
+one_day_badge = 40000, 49999
+staff_badge = 25, 2999
 
 [dates]
-badge_price_waived = 
-band_badges_deadline = 2024-05-29
-band_bio_deadline = 2024-05-15
-band_charity_deadline = 
+auction_start = 2024-01-21 11
+badge_price_waived = 2024-01-30 12
+band_autograph_deadline = 2023-11-04
+band_badges_deadline = 2023-11-11
+band_bio_deadline = 2023-11-04
+band_charity_deadline = 2023-11-04
 band_info_deadline = 
-band_merch_deadline = 
-band_panel_deadline = 
-band_stage_plot_deadline = 2024-05-22
-band_taxes_deadline = 
-dealer_payment_due = 2024-05-25
-dealer_reg_deadline = 2024-03-24
+band_mc_deadline = 
+band_merch_deadline = 2023-12-08
+band_panel_deadline = 2023-10-28
+band_rehearsal_deadline = 2023-11-11
+band_stage_plot_deadline = 2023-10-28
+band_taxes_deadline = 2023-11-11
+band_travel_plans_deadline = 2023-11-11
+dealer_payment_due = 2023-12-06
+dealer_reg_deadline = 
 dealer_reg_public = 
-dealer_reg_shutdown = 2024-06-09
-dealer_reg_start = 2024-03-16
+dealer_reg_shutdown = 2023-08-11 21
+dealer_reg_start = 2023-08-11 20
 dealer_waitlist_closed = 
-drop_shifts_deadline = 2024-05-30
-epoch = 2024-06-06 12
-eschaton = 2024-06-09 12
+drop_shifts_deadline = 2024-01-11
+epoch = 2024-01-18 08
+eschaton = 2024-01-21 23
+group_prereg_takedown = 2024-01-01
+guest_autograph_deadline = 2023-11-12
+guest_badges_deadline = 2023-11-12
+guest_bio_deadline = 2023-10-31
+guest_charity_deadline = 2023-10-31
+guest_hospitality_deadline = 2023-12-01
+guest_info_deadline = 
+guest_interview_deadline = 
+guest_merch_deadline = 2023-12-08
+guest_panel_deadline = 2023-10-31
+guest_taxes_deadline = 2023-12-08
+guest_travel_plans_deadline = 2023-12-01
+mits_editing_deadline = 2023-11-15
+mits_submission_deadline = 2023-10-31
+mivs_deadline = 2023-09-17
+mivs_judging_deadline = 2023-10-15
+mivs_results_reveal = 2023-10-30
+mivs_start = 2023-08-15 09
+panels_deadline = 2023-10-15
+panels_start = 2023-08-18 18
 placeholder_deadline = 
-prereg_open = 2024-04-03 16
-printed_badge_deadline = 2024-05-21
+prereg_hotel_eligibility_cutoff = 2023-09-20
+prereg_open = 2023-09-15 14
+prereg_takedown = 
+printed_badge_deadline = 2023-11-24
 refund_cutoff = 
 refund_start = 
-room_deadline = 
-shifts_created = 2024-05-04
-shirt_deadline = 2024-05-24
-supporter_deadline = 2024-06-01
-volunteer_checklist_open = 2024-04-24
-volunteer_shirt_deadline = 
+rock_island_deadline = 2023-12-30
+rock_island_merch_deadline = 2023-12-08
+room_deadline = 2023-11-17
+shifts_created = 2023-11-06 15
+shirt_deadline = 2023-12-31
+supporter_deadline = 2023-12-31
+uber_takedown = 2024-01-21
+volunteer_checklist_open = 2023-10-10
+volunteer_shirt_deadline = 2023-11-03
 
 [dept_head_checklist]
 
+[[approve_setup_teardown]]
+deadline = 
+description = '''Many staffers want to work setup and teardown shifts rather than work during the event. We have more  volunteers than we need to do this, so we require DH approval of volunteers who need hotel space for  those dates.'''
+name = Approve/Decline Additional Hotel Nights
+path = /dept_checklist/hotel_requests?department_id={department_id}
+
 [[assigned_volunteers]]
-deadline = 2024-04-10
+deadline = 2023-10-20
 description = Check all of the volunteers currently assigned to your department to make sure no one is missing AND that no one is there who shouldn't be.
 name = Volunteers Assigned to Your Department
 path = /shifts_admin/staffers?department_id={department_id}
 
+[[bulk_print_jobs]]
+deadline = 2023-12-08
+description = '''Do you have any bulk print jobs (more than 50 pages) you'd like us to print in advance? STOPS has a paper  cutter and a printer for small jobs (less than 50 pages). Anything more than 50 pages should go here! For  EACH item you need printed, please include a link to the document and the number of copies.'''
+name = '''Bulk Printing Requests (large qty, 8.5x11")'''
+
 [[creating_shifts]]
-deadline = 2024-05-01
-description = '''We are able to import shifts from last year. If you want us to import last year's shifts, please email  stops@magstock.org. You will still need to approve these via the checklist after the import. If you want  any shifts to be restricted to certain staffers, please use the "roles" function when creating shifts.  Shifts with a specific role will only be visible to staff that you have assigned to that role.'''
+deadline = 2023-10-27
+description = '''We are able to import shifts from last year. If you want us to import last year's shifts, please email stops@magfest.org. You will still need to approve these via the checklist after the import. If you want any shifts to be restricted to certain staffers, please use the "roles" function when creating shifts. Shifts with a specific role will only be visible to staff that you have assigned to that role.'''
 path = /shifts_admin/index?department_id={department_id}
 
-[[function_space]]
-deadline = 2024-04-17
-description = '''What tech needs does your space have? Do you need tables, chairs, or other items? Let us know.'''
-external_form_url = https://forms.gle/hQ5s7cYU9sd29w6t9
-name = Function Space Requests
-
 [[guidebook_schedule]]
-deadline = 2024-05-22
-description = Make sure your public-facing events or open hours are on our Uber schedule so they will be correct on the printed schedules.
-name = Public Schedule
+deadline = 2023-12-01
+description = Make sure your public-facing events or open hours are on our Uber schedule so they can be exported to Guidebook.
+name = Schedule for Guidebook
 path = /dept_checklist/guidebook_schedule?department_id={department_id}
 
+[[hotel_setup]]
+deadline = 2023-11-03
+description = '''Do you need tables, chairs, trash cans, water dispensers, etc?'''
+external_form_url = https://forms.gle/CAyGTGoAKJ9nktNc7
+name = Hotel Setup Information
+
+[[logistics]]
+deadline = 2023-11-17
+description = What do you need brought from the warehouse?
+external_form_url = https://forms.gle/FNwisKXYzm1QFaN7A
+name = Logistics Needs
+
+[[magtv]]
+deadline = 2023-11-03
+description = '''Does your department want to have content on Super magTV? Super magTV is our custom channel that broadcasted to all hotel rooms in the Gaylord, as well as on our Twitch channel. There are options for pre-recorded content, as well as promo videos or slides. Fill out this form if you will have content for Super magTV. Please reach out to magtv@magfest.org or post in #magtv for more information.'''
+external_form_url = https://docs.google.com/forms/d/e/1FAIpQLSdlKO7WdcTRvLmlxnZYoGhviVZPrbTFcjwXW91JYOf62Z9OeA/viewform
+name = magTV Information
+
+[[mediatron]]
+deadline = 2023-12-01
+description = '''If you have something especially cool happening that you would like Mediatron! to capture, let us know  here so they can do their best to get your event on their schedule. For detailed or special requests,  please contact mediatron@magfest.org.'''
+external_form_url = https://docs.google.com/forms/d/e/1FAIpQLScyBsYXoiRpFkSs4D_2wW2fR2RXDWcKxzphpgWxbwlCrLIMAQ/viewform
+name = Mediatron! Shot List
+
 [[office_supplies]]
-deadline = 2024-05-15
-description = MAGStock is providing basic PPE and office supplies for departments. Please let us know what you need and  we will do our best to accommodate.
-external_form_url = https://forms.gle/oNoQidGQ2rMWC2zDA
-name = '''Supplies (Office, PPE, etc.)'''
+deadline = 
+description = '''STOPS can provide the following office supplies: pens, sharpies, paper, whiteboard, whiteboard markers,  sticky notes, scissors, painters tape, scotch tape, staplers, clipboards. List  WHICH ITEMS you need and HOW MANY you need of each item (if you request an item but don't give a quantity,  you will get 1). If you need a very specific office item, you will need to purchase it yourself using your  department's budget. Note 1: STOPS has a paper cutter and a printer for small jobs (less than 50 pages).  Anything more than 50 pages needs to go into 'Bulk Print Jobs.' Note 2: A ream of paper is 500 sheets.'''
+external_form_url = https://forms.gle/dzhTkHsfrNUE9aya7
 
 [[placeholders]]
-deadline = 2024-04-10
+deadline = 2023-10-20
 description = We create placeholder registrations for volunteers and ask them to fill out the rest of their information and also confirm that they'll be coming. We need our department heads to review the unclaimed badges for their departments to check for any essential volunteers who haven't claimed their badges.
 name = Checking Placeholder Registrations
 path = /dept_checklist/placeholders?department_id={department_id}
 
 [[postcon_hours]]
-deadline = 2024-06-26
-description = '''After the weekend is over, we'll want all department heads to ensure that their volunteers had their shifts marked and rated.'''
+deadline = 2024-02-02
+description = '''Please go through your volunteers shifts carefully. This ensures that they receive the appropriate perks,  are imported as staff next year, maintain eligibility for hotel crash space, etc.'''
 email_post_con = True
-name = (After the Event) Marking and Rating Shifts
+name = (After the Event) Marking + Rating Shifts
 path = /shifts_admin/signups?department_id={department_id}
 
+[[ppe_requests]]
+deadline = 
+description = MAGFest is providing basic PPE for departments for Super 2024. Please let us know what you need and we will do our best to accommodate.
+external_form_url = https://forms.gle/BihzhdCWXp7juwSC9
+name = Bulk PPE & Sanitizing Supplies
+
 [[printed_signs]]
-deadline = 2024-05-15
-description = '''Other than a sign for your area, what printed signs/banners/forms do you need?'''
+deadline = 2023-11-17
+description = '''Other than a sign for your area, what printed coroplast signs or banners do you need?'''
+full_description = '''Other than a sign for your area, what printed coroplast signs or banners do you need?'''
+name = Room Signage
+path = /dept_checklist/printed_signs?department_id={department_id}
+
+[[social_media]]
+deadline = 2023-11-10
+description = '''If you have a guest or event that you believe is worth promoting on social media beforehand, let us know!  For detailed or special requests, please contact socialmedia@magfest.org. You can also make requests in  #socialmedia-requests on Slack.'''
+external_form_url = https://forms.gle/mLPJFK8eCHncAgrC9
+name = Social Media Requests
+
+[[tech_requirements]]
+deadline = 2023-11-10
+description = '''What do you need in terms of laptops, projectors, cables, and internet access, as well as office supplies and PPE?'''
+external_form_url = https://forms.gle/iYFi9zZYuSCyAQpG8
+full_description = '''What do you need in terms of laptops, projectors, cables, and internet access, as well as office supplies and PPE? Note: Your department must fill out the form, even if you don't need anything. If you have any questions, please  contact TechOps on Slack ( #super-techops ) or via email ( techops@magfest.org )'''
+name = Tech and Operational Needs
+
+[[treasury]]
+deadline = 2023-10-27
+description = '''If you need cash and/or mpoints, tell us your department schedule and your specific cash needs.'''
+name = Treasury Information
+path = /dept_checklist/treasury?department_id={department_id}
+
+[[water_requests]]
+deadline = 2023-12-07
+description = '''Please let us know how much water or sports drinks you need ordered for your staff. Note: while Staff Suite  coordinates the ordering of these items, departments are responsible for picking up their own water and sports  drinks from the expo halls in a timely fashion. Water/drink orders will be adjusted at the discretion of Staff  Suite leadership if needed.'''
+external_form_url = https://docs.google.com/forms/d/e/1FAIpQLSeLoUec5d2BLwYjB17RvIP2n6H_324vPBS5cEcHMxtcjaKWJA/viewform
+name = Water and Sports Drinks Requests
 
 [donation_tier_descriptions]
 
@@ -223,25 +350,31 @@ icon =
 link = 
 name = No thanks
 
-[[season]]
-description = Everything in the Korok Tier|Themed Enamel Pin|Themed Koozie|Themed Marshmallow|MAGStock-branded Camp Chair & Camping Supplies
+[[shirt]]
+description = Event T-Shirt|Themed Lanyard|Spinner Pin
+icon = ../static/icons/shirt.png
+link = ../static_views/tshirt.html
+name = T-Shirt Tier
+
+[[super_supporter]]
+description = All Previous Tier Items|Zip Puppet Plushy|Spaceship Tech Backpack|MAGCube Bento Box|Body DeVillowcase|MAGTroid Bottle Opener|Gunship Swadge Shell|AND MORE!
 icon = ../static/icons/super.png
 link = ../static_views/super.html
-name = Hylian Tier
+name = Omega Tier
 
 [[supporter]]
-description = Themed T-Shirt|Themed Patch|Themed Sticker Sheet|MAGStock-branded Bandana|MAGStock-branded Sunglasses
+description = All T-Shirt Tier Items|Gunship Swadge|MAGTroid Squeezy Ball|Galactic Passport|Floaty Pen|Arm Cannon Mug|Ship Luggage Tag|MAG Prime Bag|Sticker Sheet|And more!
 icon = ../static/icons/supporter.png
 link = ../static_views/supporter.html
-name = Korok Tier
+name = Phazon Tier
 
 [enums]
 
 [[badge]]
 attendee_badge = Attendee
 child_badge = Minor
-contractor_badge = Contractor
 guest_badge = Guest
+one_day_badge = One Day
 staff_badge = Staff
 
 [[dealer_wares]]
@@ -258,45 +391,167 @@ tshirts = T-shirts
 vgames = Video Games
 
 [[event_location]]
-amphitheater = Amphitheater
-artistalley = Artist Alley
-campfire = Campfire
-canteen = Canteen
-concerts = Main Stage
-craftbarn = Craft Barn
-dininghall = Dining Hall
-gameroom = Game Room
-gym = Gym
-lockpick = Lockpick Village
-merch = Merch
-pool = Pool
-projectiles = Projectiles
-publicsafety = Public Safety
-registration = Registration
-tennis = Tennis Court
+MegaManathon = '''magFAST (Chesapeake 4,5,6)'''
+accessibility = Accessibility Services (Expo Hall E Reg Desk)
+arcade_tournaments_1 = Arcade (Tournaments 1)
+arcade_tournaments_2 = Arcade (Tournaments 2)
+arcade_tournaments_3 = Arcade (Tournaments 3)
+arcade_tournaments_4 = Arcade (Pinball)
+arcade_tournaments_5 = Arcade (Tournaments 4)
+attendee_services = MAG Attendee Services/Info Desk (Potomac Coat Check)
+autographs = Autographs Red (Expo Hall E)
+autographs_1 = Autographs Blue (Expo Hall E)
+charity = Charity (Expo Hall C - Front)
+chiptunes = Chipspace (Potomac Hallway)
+concerts = Main Concerts (Potomac Ballroom)
+console_attendee = Consoles (Console Tournaments 1)
+console_stage = Arena (Maryland C)
+console_tournament = Consoles (Pokemon Events)
+console_tournament_2 = Consoles (Console Tournaments 2)
+console_tournament_4 = Consoles (Fighting Tournaments)
+console_tournament_5 = Consoles (Smash Bros Tournaments)
+cosplay_repair = Cosplay Repair Table & Prop Check (Expo Hall C - Front)
+dd_freeplay = '''D&D Freeplay (National Harbor 6,7)'''
+ddal = '''D&D Adventurers League, 5th edition (National Harbor 4,5)'''
+film_fest = Jam Audio Lounge (Baltimore 3)
+jam_clinic = '''Jam Clinic (Baltimore 1,2)'''
+jam_orchestra = '''Orchestra Room (Baltimore 4,5)'''
+jam_shop = Indie Games Tournaments (Expo Hall C)
+jamspace = '''Jamspace + Community Curated Stage (Chesapeake 10,11,12)'''
+lan_1 = '''LAN Tournaments (Maryland A,B,D)'''
+lan_2 = '''LAN Events (Maryland A,B,D)'''
+lan_theater = '''LAN Theater (Maryland A,B,D)'''
+larp = '''LARP (Magnolia 1,2)'''
+laser_tag = Cosplay Photoshoots (Atrium Fountains)
+lobby_bar = Belvedere Lobby Bar
+mag_series_tournaments = MAG Series Tournaments (Expo Hall C - Central)
+mages_1 = '''Panels 6 (Chesapeake 1,2,3)'''
+merch = MAGFest Merch (Expo Hall C - Rear)
+museum_arcade = Retro Arcade Museum (Chesapeake G)
+museum_magfest = History of MAGFest (Chesapeake D Hallway)
+museum_multiplayer = '''Museum Main Room (Chesapeake D,E,F)'''
+panels_1 = Panels 1 (Cherry Blossom Ballroom)
+panels_2 = Panels 2 (Woodrow Wilson Ballroom A)
+panels_3 = Panels 3 (Woodrow Wilson Ballroom B-C)
+panels_4 = Panels 4 (Annapolis 2-4)
+panels_5 = '''Panels 5 (Chesapeake A,B,C)'''
+panels_7 = '''Panels 7 & Robotics (Chesapeake 7,8,9)'''
+pathfinder = '''Pathfinder (National Harbor 12,13)'''
+pathfinder_freeplay = '''Pathfinder Freeplay (National Harbor 14,15)'''
+pathfinder_hq = Pathfinder HQ (National Harbor 8)
+pose_lounge = POSE Lounge
+public_safety = '''Public Safety (Camellia 1,2)'''
+quiet_room = Quiet Room (Azalea 3)
+registration = Registration (Expo Hall E)
+rock_island = '''Rock Island - Performer Merch (Potomac 1,2)'''
+security = '''Security (Camellia 3,4)'''
+soapbox = Makerspace Social Space (Eastern Shore 2)
+starship_horizons = '''Simulations - Starship Horizons (National Harbor 10,11)'''
+super_magfest_show = Promo Tables (Chesapeake Pre-Function Space)
+tabletop_1 = '''Tabletop Freeplay 1 (Riverview Ballroom A,B)'''
+tabletop_2 = '''Tabletop Freeplay 2 (Riverview Ballroom A,B)'''
+tabletop_ccg = '''Tabletop CCG (National Harbor 2,3)'''
+tabletop_indie = '''Tabletop Indie Showcase (MITS) (Riverview Ballroom 4,5)'''
+tabletop_panels = Tabletop Panels/Discussions (Riverview Ballroom 1)
+tabletop_tournaments = '''Tabletop Tournaments 1 (Riverview Ballroom 2,3)'''
+tabletop_tournaments_2 = '''Tabletop Tournaments 2 (Riverview Ballroom 2,3)'''
+the_forge = Makerspace Classroom (Eastern Shore 1)
+vr_chat = VRChat (Maryland Hallway)
+vrzone = VRZone (Maryland Hallway)
+zombie_tag = Zombie Tag (Magnolia 3)
 
 [[food_restriction]]
-gluten = No gluten
-nuts = No nuts
-pork = No pork
-vegan = Vegetarian/Vegan
+dairy = No Dairy
+gluten = No Gluten
+nuts = No Nuts
+vegan = Vegan
+veggie = Vegetarian
+
+[[guest_merch]]
+no_merch = Not selling merch
+own_table = Dedicated half-table in the Marketplace
+rock_island = Rock Island
 
 [[interest]]
-activities = Activities
-chilling = Chilling
-crafting = Crafting
-grilling = Grilling
-music = Music
-pool = Pool
-video_games = Video Games
+Jams = Jam Space
+arcade = Arcade
+console = Consoles
+dealers = Marketplace
+lan = LAN
+music = Concerts
+panels = Guests/Panels
+tabletop = Tabletop games
+tournaments = Tournaments
 
 [[job_interest]]
-activities = Events
-food = Food Prep
-misc = General Support
-music = Music Pavilion
-registration = Registration
+anything = Anything
+arcade = Arcade
+challenges = Challenges Booth
+charity = Charity
+chipspace = Chipspace
+console = Consoles
+film_fest = Film Festival
+food_prep = Staff Suite
+indie_games = Indie Showcase
+jamspace = Jam Space
+lan = LAN
+loudr = Rock Island (Merch)
+museum = Museum
+other = Other
+panels = Panels
+regdesk = Registration
 security = Security
+staff_support = Staff Support
+tabletop = Tabletop
+tea_room = Staff Tea Room
+tech_ops = Tech Ops
+
+[[noise_level]]
+level_0 = Level 0 (Just talking to the audience)
+level_1 = Level 1 (Showing video clips or playing prerecorded music)
+level_2 = Level 2 (Playing live instruments or singing)
+level_3 = Level 3 (Absolute chaos)
+
+[[panel_content]]
+blood = Animated Blood
+gore = Blood and Gore
+humor = Mature/Crude Humor
+language = Mature Language
+noods = Nudity
+sex = Sexual Content/Themes
+substances = Alcohol/Drug References
+violence = Violence
+
+[[panel_dept]]
+mages = MAGES
+magmoves = MAGMoves (the Arena)
+makerspace = Makerspace
+mivs = Indie Developer Showcase
+museum = Museum
+panels = Panels
+tabletop = Tabletop
+
+[[presentation]]
+advanced_av = Podcast/Vodcast Recording
+basic = Lecture
+gameshow = Gameshow
+group_discussion = Group Discussion with Moderator
+karaoke = Karaoke/Sing a Long
+learn_to_play = Learn to Play
+movie = Movie Screening
+music = Music Performance (Jam Clinic)
+other = Other
+participation = Audience Participation
+performance = Comedy Performance
+physical_activity = Physical Activity (either group participation or performance)
+qa = Question & Answer
+workshop = Workshop
+
+[[ribbon]]
+band = RockStar
+mivs = Indie Dev
+superstar_ribbon = Superstar
+under_13 = 12 & Under
 
 [[sandwich]]
 cheese = Cheese
@@ -306,44 +561,157 @@ peanut_butter = Peanut Butter
 salad = Prefer salad instead of sandwich
 turkey = Turkey
 
+[[special_merch]]
+no_merch = Select a size
+
 [integer_enums]
-group_discount = 10
 season_level = 200
-shirt_level = 30
-supporter_level = 60
-supporter_stock = 200
+shirt_level = 35
+supporter_level = 99
 
 [[donation_tier]]
-Hylian Tier = SEASON_LEVEL
-Korok Tier = SUPPORTER_LEVEL
 No thanks = 0
+Omega Tier = SEASON_LEVEL
+Phazon Tier = SUPPORTER_LEVEL
+T-Shirt Tier = SHIRT_LEVEL
 
 [[shirt]]
 Unisex 2X = 6
 Unisex 3X = 7
 Unisex 4X = 8
 Unisex 5X = 9
+Unisex 6X = 10
 Unisex L = 4
 Unisex M = 3
 Unisex S = 2
 Unisex XL = 5
 Unisex XS = 1
+Women's 2X = 16
+Women's 3X = 17
+Women's 4X = 18
+Women's L = 14
+Women's M = 13
+Women's S = 12
+Women's XL = 15
+Women's XS = 11
 
-[[staff_event_shirt]]
-Event Shirt = 1
-Generic MAGStock Shirt = 0
+[[shirt_stock]]
+Unisex 2X = 290
+Unisex 3X = 145
+Unisex 4X = 45
+Unisex 5X = 27
+Unisex 6X = 18
+Unisex L = 740
+Unisex M = 690
+Unisex S = 190
+Unisex XL = 540
+Unisex XS = 20
+Women's 2X = 27
+Women's 3X = 13
+Women's 4X = 8
+Women's L = 70
+Women's M = 75
+Women's S = 45
+Women's XL = 45
+Women's XS = 13
+
+[[staff_shirt]]
+Unisex 2X = 5
+Unisex 3X = 6
+Unisex 4X = 7
+Unisex 5X = 8
+Unisex L = 3
+Unisex M = 2
+Unisex S = 1
+Unisex XL = 4
+
+[mivs_checklist]
+
+[[core_hours]]
+deadline = 2023-11-13
+description = '''In exchange for your space and two free badges, MIVS expects your studio to have your booth area up-and-running during core hours. You also must have at least one representative from your studio present, in your booth, during core hours.'''
+name = Accept Core Hours
+
+[[discussion]]
+deadline = 2023-11-20
+description = The primary contact for your game will be added to a MIVS Google Discussion group. You may enter emails for any team members associated with your game who you think should also be added to the group.
+editable = True
+name = MIVS Discussion Group
+
+[[handbook]]
+deadline = 2023-12-18
+description = The MIVS Indie Handbook is here to give you information about being a MIVS Participant.
+editable = True
+name = Indie Handbook
+start = 2023-11-14
+
+[[hotel_space]]
+deadline = 2023-12-04
+description = '''As a part of MIVS, you may purchase one hotel room for the Gaylord. This room is for your use and you are not allowed to transfer your reservation to someone else unless authorized by MAGFest. Dropping out of MIVS may cause your room to be canceled.'''
+editable = True
+name = Hotel Signups
+
+[[selling_at_event]]
+deadline = 2023-12-11
+description = We are allowing Indies to sell items directly related to your game or studio in MIVS. Studios will need to sign a waiver and provide some information for tax purposes.
+editable = True
+name = Selling at MAGFest
+start = 2023-11-27
+
+[[show_info]]
+deadline = 2023-11-20
+description = Please make sure your studio and game information is up to date so it can be displayed on the MAGFest website.
+editable = True
+name = Update Studio and Game Information
+
+[[training]]
+deadline = 2024-01-07
+description = MIVS Training is a google form to help you learn about being an Indie at MAGFest.
+editable = True
+name = MIVS Training
+start = 2023-12-18
+
+[redis]
+prefix = super2024
+
+[secret]
+barcode_event_id = 255
+barcode_key = TEST ONLY!
+barcode_salt = 255
 
 [sentry]
 dsn = https://0872645099aa40e67a4f3e7588ae5fe4@o4505507811295232.ingest.sentry.io/4505634233516032
 enabled = True
-environment = stock2024
+environment = super2024
 release = prod
 
+[social_media_placeholders]
+social_media_info = '''List social media sites you use and include a link to your page, or your username.'''
+
+[social_media_urls]
+social_media_info = 
+
 [table_prices]
-default_price = 20
+1 = 240
+2 = 400
+3 = 600
+4 = 1000
+default_price = 400
 
 [volunteer_checklist]
-2 = staffing/food_item.html
-3 = staffing/volunteer_agreement_item.html
-4 = staffing/emergency_procedures_item.html
+2 = staffing/shirt_item.html
+3 = staffing/hotel_item.html
+4 = staffing/food_item.html
+5 = staffing/volunteer_agreement_item.html
+6 = staffing/emergency_procedures_item.html
+7 = 
 99 = staffing/shifts_item.html
+
+
+[redis]
+host = "${REDIS_HOST}"
+port = ${REDIS_PORT}
+
+[secret]
+broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
+broker_prefix = "${BROKER_PREFIX}"
