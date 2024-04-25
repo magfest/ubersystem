@@ -261,8 +261,7 @@ class Root:
     zips_counter = Counter()
     zips = {}
     try:
-        center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)
-    except Exception as e:
+O    except Exception as e:
         log.error("Error calling SearchEngine: ", exc_info=True)
 
     def map(self):
@@ -283,7 +282,7 @@ class Root:
 
         for z in self.zips_counter.keys():
             try:
-                found = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(z))
+                found = SearchEngine(db_file_dir=c.MAPS_DIR).by_zipcode(int(z))
             except Exception as e:
                 log.error("Error calling SearchEngine: ", exc_info=True)
             else:
@@ -298,7 +297,7 @@ class Root:
     def radial_zip_data(self, out, session, **params):
         if params.get('radius'):
             try:
-                res = SearchEngine(db_file_dir="/srv/reggie/data").by_coordinates(
+                res = SearchEngine(db_file_dir=c.MAPS_DIR).by_coordinates(
                     self.center.lat, self.center.lng, radius=int(params['radius']), returns=None)
             except Exception as e:
                 log.error("Error calling SearchEngine: ", exc_info=True)
@@ -318,7 +317,7 @@ class Root:
     def set_center(self, session, **params):
         if params.get("zip"):
             try:
-                self.center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(params["zip"]))
+                self.center = SearchEngine(db_file_dir=c.MAPS_DIR).by_zipcode(int(params["zip"]))
             except Exception as e:
                 log.error("Error calling SearchEngine: ", exc_info=True)
             else:
@@ -327,7 +326,7 @@ class Root:
 
     @csv_file
     def attendees_by_state(self, out, session):
-        # Result of set(map(lambda x: x.state, SearchEngine(db_file_dir="/srv/reggie/data").ses.query(SimpleZipcode))) -- literally all the states uszipcode knows about
+        # Result of set(map(lambda x: x.state, SearchEngine(db_file_dir=c.MAPS_DIR).ses.query(SimpleZipcode))) -- literally all the states uszipcode knows about
         states = ['SD', 'IL', 'WY', 'NV', 'NJ', 'NM', 'UT', 'OR', 'TX', 'NE', 'MS', 'FL', 'VA', 'HI', 'KY', 'MO', 'NY', 'WV', 'DC', 'AR', 'MT', 'MD', 'SC', 'NC', 'KS', 'OH', 'PR', 'CO', 'IN', 'VT', 'LA', 'ND', 'AZ', 'AK', 'AL', 'CT', 'TN', 'PA', 'IA', 'WA', 'ME', 'NH', 'MA', 'ID', 'OK', 'WI', 'GA', 'CA', 'DE', 'MN', 'MI', 'RI']
         total_count = session.attendees_with_badges().count()
 
@@ -335,7 +334,7 @@ class Root:
 
         for state in states:
             try:
-                zip_codes = list(map(lambda x: x.zipcode, SearchEngine(db_file_dir="/srv/reggie/data").by_state(state, returns=None)))
+                zip_codes = list(map(lambda x: x.zipcode, SearchEngine(db_file_dir=c.MAPS_DIR).by_state(state, returns=None)))
             except Exception as e:
                 log.error("Error calling SearchEngine: ", exc_info=True)
             else:
