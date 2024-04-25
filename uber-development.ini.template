@@ -2,6 +2,434 @@ path = "${DEFAULT_URL}"
 hostname = "${HOSTNAME}"
 url_root = "http://${HOSTNAME}:${PORT}"
 
+ROOM_EMAIL_SENDER = MAGWest Staff Rooms <stops@magwest.org>
+admin_email = MAGFest Sys Admin <sysadmin@magfest.org>
+api_enabled = True
+at_the_con = False
+attendee_accounts_enabled = False
+attractions_enabled = True
+badge_promo_codes_enabled = True
+band_email = MAGWest Music Department <music@magwest.org>
+band_email_signature = - MAGWest Music Department
+blank_staff_badges = 50
+code_of_conduct_url = https://www.magwest.org/code-of-conduct
+collect_exact_birthdate = True
+collect_extra_donation = True
+consent_form_url = 
+contact_url = mailto:contact@magwest.org
+covid_policies_url = https://www.magwest.org/covid
+dev_box = False
+developer_email = MAGFest Software <developers@magfest.org>
+emergency_procedures_deadline = June 30
+emergency_procedures_enabled = True
+event_name = MAGWest
+event_timezone = US/Pacific
+event_venue = '''DoubleTree by Hilton, San Jose'''
+event_venue_address = '''2050 Gateway Pl, San Jose, CA 95110'''
+event_year = 2023
+expected_rehearsal_response = August 5th
+expected_response = May 31st
+guest_email = MAGWest Guests <guests@magwest.org>
+guest_email_signature = - MAGWest Guest Department
+hotels_enabled = True
+hours_for_shirt = 8
+jira_enabled = True
+kiosk_cc_enabled = True
+maps_dir = /tmp
+maps_enabled = False
+marketplace_email = MAGWest Marketplace <marketplace@magwest.org>
+marketplace_email_signature = - MAGWest Marketplace
+max_badge_sales = 2000
+max_dealers = 5
+min_group_addition = 3
+min_group_size = 5
+mivs_email = MAGWest Indies <indies@magwest.org>
+mivs_enabled = False
+mivs_video_response_expected = no later than September 17th
+organization_name = '''MAGFest, Inc.'''
+panels_email = MAGWest Panels <panels@magwest.org>
+panels_email_signature = - MAGFest Panels Department
+panels_enabled = True
+panels_twilio_number = +12405415595
+path = uber
+peglegs_email_signature = - MAGWest Panels Department
+post_con = True
+preassigned_badge_types = staff_badge, contractor_badge
+prereg_faq_url = https://www.magwest.org/faq/
+prereg_hotel_info_email_sender = Do Not Reply <noreply@magfest.org>
+prereg_hotel_info_email_signature = - MAGFest
+prior_covid_policies_url = https://magwest.org/covid
+privacy_policy_url = https://super.magfest.org/privacy-policy
+regdesk_email = MAGWest Registration <registration@magwest.org>
+regdesk_email_signature = - MAGWest Registration Department
+require_dedicated_guest_table_presence = False
+season_stock = 0
+security_email = MAGWest Security <security@magwest.org>
+send_emails = True
+send_sms = False
+separate_staff_merch = False
+shared_kickin_stocks = False
+shift_custom_badges = False
+shirt_stock = 40
+shirts_per_staffer = 0
+social_media = Facebook, Twitter, Instagram, LinkedIn
+sqlalchemy_max_overflow = 0
+sqlalchemy_pool_size = 5
+staff_email = MAGWest Staffing <stops@magwest.org>
+stops_email_signature = - MAGWest Staff Operations
+supporter_stock = 50
+tabletop_twilio_number = +15713646627
+techops_email = MAGWest TechOps <techops@magwest.org>
+treasury_dept_checklist_form_url = https://forms.gle/vS26HZQiFaTjvuwn8
+untransferable_attrs = first_name, last_name, legal_name, email, birthdate, zip_code, international, ec_name, ec_phone, cellphone, interests, age_group, staffing, requested_depts, onsite_contact, no_onsite_contact, agreed_to_covid_policies
+url_root = https://west2023.reg.magfest.org/
+use_checkin_barcode = True
+volunteer_agreement_enabled = True
+volunteer_checklist_deadline = June 30
+volunteer_food_deadline = May 19
+volunteer_perks_url = http://magwest.org/volunteer
+volunteer_placeholder_deadline = May 12
+
+[age_groups]
+
+[[under_13]]
+can_volunteer = False
+desc = Between 6 and 13
+max_age = 11
+min_age = 6
+
+[[under_6]]
+can_register = True
+desc = Under 6
+max_age = 5
+min_age = 0
+
+[badge_prices]
+dealer_badge_price = 60
+default_single_day = 50
+group_discount = 20
+initial_attendee = 90
+one_days_enabled = True
+presell_one_days = True
+
+[[single_day]]
+Friday = 50
+Saturday = 60
+Sunday = 30
+
+[badge_ranges]
+attendee_badge = 2000, 9999
+child_badge = 2000, 9999
+contractor_badge = 7, 999
+guest_badge = 2000, 9999
+one_day_badge = 2000, 9999
+staff_badge = 7, 999
+
+[dates]
+badge_price_waived = 2023-07-16 12
+band_autograph_deadline = 
+band_badges_deadline = 2023-07-01
+band_bio_deadline = 2023-05-26
+band_charity_deadline = 
+band_info_deadline = 
+band_mc_deadline = 2023-07-01
+band_merch_deadline = 2023-07-01
+band_panel_deadline = 2023-06-01
+band_rehearsal_deadline = 2023-07-01
+band_stage_plot_deadline = 2023-06-01
+band_taxes_deadline = 
+dealer_payment_due = 2023-06-01
+dealer_reg_deadline = 
+dealer_reg_shutdown = 2023-04-15
+dealer_reg_start = 2023-03-01
+dealer_waitlist_closed = 
+drop_shifts_deadline = 2023-07-07
+epoch = 2023-07-14 08
+eschaton = 2023-07-16 16
+group_prereg_takedown = 2023-07-13
+guest_autograph_deadline = 
+guest_badges_deadline = 2023-08-01
+guest_bio_deadline = 2023-08-01
+guest_charity_deadline = 
+guest_info_deadline = 
+guest_interview_deadline = 2023-08-01
+guest_merch_deadline = 2023-08-01
+guest_panel_deadline = 2023-08-01
+guest_taxes_deadline = 2023-08-01
+guest_travel_plans_deadline = 
+mivs_judging_deadline = 2023-08-01
+mivs_round_one_deadline = 2023-08-01
+mivs_round_two_complete = 2023-08-01
+mivs_round_two_deadline = 2023-08-01
+mivs_round_two_start = 2023-08-01
+panel_app_deadline = 2023-07-23
+panels_confirm_deadline = 
+panels_deadline = 2023-04-30
+placeholder_deadline = 2023-07-16
+prereg_open = 2023-04-13
+prereg_takedown = 2023-07-13
+printed_badge_deadline = 2023-05-15
+rock_island_deadline = 
+room_deadline = 2023-05-19
+shifts_created = 2023-05-15
+shirt_deadline = 2023-07-16
+supporter_deadline = 2023-07-16
+uber_takedown = 2023-08-18
+volunteer_checklist_open = 2023-05-01
+volunteer_shirt_deadline = 2023-05-19
+
+[dept_head_checklist]
+
+[[approve_setup_teardown]]
+deadline = 2023-05-24
+description = '''Many staffers want to work setup and teardown shifts rather than work during the event. We have  more volunteers than we need to do this, so we require DH approval of volunteers who need hotel  space for those dates.'''
+name = Approve/Decline Additional Hotel Nights
+path = /dept_checklist/hotel_requests?department_id={department_id}
+
+[[assigned_volunteers]]
+deadline = 2023-04-19
+description = Check all of the volunteers currently assigned to your department to make sure no one is missing AND that no one is there who shouldn't be.
+name = Volunteers Assigned to Your Department
+path = /shifts_admin/staffers?department_id={department_id}
+
+[[bulk_print_jobs]]
+deadline = 2023-06-22
+description = Do you have any bulk print jobs (more than 50 pages) you'd like us to print in advance?
+full_description = '''STOPS has a printer for small jobs (less than 50 pages). Anything more than 50 pages should go  here! For EACH item you need printed, please include a link to the document and the number of copies.'''
+
+[[creating_shifts]]
+deadline = 2023-05-10
+description = '''STOPS is happy to assist you in creating shifts. Please let us know if you need assistance  with this step. If you want us to import last year's shifts, please email stops@magwest.org. You will still need to approve these via the checklist after the import.'''
+path = /shifts_admin/index?department_id={department_id}
+
+[[guidebook_schedule]]
+deadline = 2023-06-15
+description = Make sure your public-facing events or open hours are on our Uber schedule so they can be exported to our attendee schedule.
+name = Public-Facing Schedule
+path = /dept_checklist/guidebook_schedule?department_id={department_id}
+
+[[hotel_eligible]]
+deadline = 
+description = Double check that everyone in your department who you know needs hotel space has requested it.
+name = Staffers Requesting Hotel Space
+path = /dept_checklist/hotel_eligible?department_id={department_id}
+
+[[hotel_setup]]
+deadline = 2023-06-08
+description = '''Do you need tables, chairs, trash cans, water dispensers, etc?'''
+external_form_url = https://docs.google.com/forms/d/e/1FAIpQLSfYQZNnvX__ykuk6t7Ul7Z_zzxGjTnpun_6RqL3gZ1lNjOhhA/viewform
+name = Hotel Set-up Requests
+
+[[logistics]]
+deadline = 
+description = What do you need brought from the warehouse?
+name = Logistics Needs
+path = /dept_checklist/logistics?department_id={department_id}
+
+[[mediatron]]
+deadline = 2023-06-01
+description = '''If you have something especially cool happening that you would like Mediatron! to capture, let  us know here!'''
+full_description = '''If you have something especially cool happening that you would like Mediatron! to capture, let us know here so  they can do their best to get your event on their schedule. For detailed or special requests, please contact  mediatron@magwest.org.'''
+name = Mediatron! Shot List
+
+[[office_supplies]]
+deadline = 
+description = '''STOPS can provide the following office supplies: pens, sharpies, paper, whiteboard, whiteboard markers,  sticky notes, scissors, painters tape, scotch tape, staplers, clipboards, flip charts/easel pads. List  WHICH ITEMS you need and HOW MANY you need of each item (if you request an item but don't give a quantity,  you will get 1). If you need a very specific office item, you will need to purchase it yourself using your  department's budget. Note 1: STOPS has a paper cutter and a printer for small jobs (less than 50 pages).  Anything more than 50 pages needs to go into 'Bulk Print Jobs.' Note 2: A ream of paper is 500 sheets.'''
+
+[[placeholders]]
+deadline = 2023-04-19
+description = We create placeholder registrations for volunteers and ask them to fill out the rest of their information and also confirm that they'll be coming. We need our department heads to review the unclaimed badges for their departments to check for any essential volunteers who haven't claimed their badges.
+name = Checking Placeholder Registrations
+path = /dept_checklist/placeholders?department_id={department_id}
+
+[[postcon_hours]]
+deadline = 2023-07-30
+description = '''Please go through your volunteers' shifts carefully. This ensures that they receive the appropriate perks,  are imported as staff next year.'''
+email_post_con = True
+name = (After the Event) Marking + Rating Shifts
+path = /shifts_admin/signups?department_id={department_id}
+
+[[ppe_requests]]
+deadline = 2023-06-08
+description = MAGFest is providing basic PPE for departments for MAGWest 2023. Please let us know what you need and we will do our best to accommodate.
+external_form_url = https://docs.google.com/forms/d/e/1FAIpQLSc-w7naGwD2fNycj26XZZMHL1x7hDd4Bb5zc8p2XY0QL8uUNQ/viewform?usp=sharing
+name = Bulk PPE & Sanitizing Supplies
+
+[[printed_signs]]
+deadline = 2023-06-01
+description = '''Other than a sign for your area, what printed signage do you need?'''
+full_description = '''<div class="text-left">All attendee-facing rooms will automatically receive a 24"x36" coroplast sign for outside of the room. Please submit requests for <strong>additional</strong> signage here. <br/><br/>We will compare all requests against our known signage inventory, so please include your complete list of needs. (If you store any signs with your department supplies, however, we will not have records of them in our signage inventory, so DON'T include those here--this helps us avoid double-ordering.) <br/><br/>Signage comes in two types: 12"x18" coroplast and 24"x36" coroplast. Be sure to specify FOR EACH SIGN: <ul><li>Number needed</li> <li>Size of sign</li> <li>Primary text of sign</li> <li>Sub text of sign (if applicable)</li> <li>Intended placement location for sign</li> <li>Link to any custom artwork that is needed</li> <li>Any additional notes</li></ul> <br/>The signage department reserves the right to reduce or decline requests according to their discretion. We will contact you if significant changes to your order are necessary. <br/><br/>Note: This checklist item is NOT for printed materials such as sign-up forms, waivers, or anything else that goes on standard office paper. STOPS has a paper cutter and a printer for small jobs (less than 50 pages). Anything more than 50 pages needs to go into the Bulk Print Jobs checklist item.'''
+name = Room Signage
+path = /dept_checklist/printed_signs?department_id={department_id}
+
+[[social_media]]
+deadline = 2023-06-29
+description = '''If you have a guest or event that you believe is worth promoting on social media beforehand,  let us know here!'''
+full_description = '''If you have a guest or event that you believe is worth promoting on social media beforehand,  # let us know! For detailed or special requests, please contact socialmedia@magfest.org/ or post  in #socialmedia-requests in Slack.'''
+name = Social Media Requests
+
+[[tech_requirements]]
+deadline = 2023-05-17
+description = '''What do you need in terms of laptops, projectors, cables, internet access, etc?'''
+external_form_url = https://forms.gle/5ouCmsF43CzRKY728
+name = Tech Requirements
+
+[[treasury]]
+deadline = 2023-06-22
+description = '''If you need cash and/or mpoints, tell us your department schedule and your specific cash needs.'''
+external_form_url = https://forms.gle/4BEHuj3gjCWdfVPq9
+name = Treasury Information
+
+[donation_tier_descriptions]
+
+[[no_thanks]]
+description = No thanks
+icon = 
+link = 
+name = No thanks
+
+[[shirt]]
+description = Event T-Shirt|Lanyard|Enamel Pin
+icon = ../static/icons/shirt.png
+link = ../static_views/merch.html|../static_views/merch.html|../static_views/merch.html
+name = T-Shirt Tier
+
+[[supporter_package]]
+description = Water Gun|Slap Bracelet|Custom Hat|Messenger Bag|Hydration Backpack
+icon = ../static/icons/supporter.png
+link = ../static_views/merch.html|../static_views/merch.html|../static_views/merch.html|../static_views/merch.html|../static_views/merch.html
+name = Splat! Tier
+
+[enums]
+
+[[badge]]
+child_badge = Minor
+
+[[dealer_wares]]
+figures = Figures
+general = General Merchandise
+handmade = General Handmade
+jewelry = Jewelry
+lanyards = Lanyards/Keychains
+perler = Perler Beads
+plushes = Plushes
+prints = Prints
+tshirts = T-shirts
+vgames = Video Games
+
+[[event_location]]
+arcade_tournaments_1 = Arcade (Tournaments 1)
+arcade_tournaments_2 = Arcade (Tournaments 2)
+chipspace = Chipspace
+concerts = Concerts
+console_attendee = Consoles (Attendee Tournaments)
+console_tournament = Consoles (Tournaments)
+indie_games = Indie Games
+jamspace = Jam Space
+lan = LAN
+mages = MAGES
+marketplace = Marketplace
+meet_greet = Meet-and-Greet
+panels_1 = Panels 1
+panels_2 = Panels 2
+pool_party = Pool Party
+tabletop_tournaments = Tabletop
+variety = Variety Stage
+
+[[food_restriction]]
+dairy = No dairy
+gluten = No gluten
+nuts = No nuts
+pork = No pork
+vegan = Vegan
+vegetarian = Vegetarian
+
+[[guest_merch]]
+own_table = Selling merch
+
+[[interest]]
+Jams = Jam Space
+arcade = Arcade
+chipspace = Chipspace
+console = Consoles
+dealers = Dealers
+indie_games = Indie Games
+lan = LAN
+music = Concerts
+panels = Guests/Panels
+tabletop = Tabletop
+tournaments = Tournaments
+
+[[noise_level]]
+level_0 = Level 0 (Just talking to the audience)
+level_1 = Level 1 (Showing video clips or playing prerecorded music)
+level_2 = Level 2 (Playing live instruments or singing)
+level_3 = Level 3 (Absolute chaos)
+
+[[panel_rating]]
+pg = G/PG - Family friendly and fun
+pg15 = '''PG-15 - Some more adult language or concepts, but still mostly okay for children'''
+r = R - Adult concepts and frequent use of adult language/cursing
+
+[[ribbon]]
+band = RockStar
+guest = Guest
+mivs = Indie Dev
+
+[integer_enums]
+season_level = 200
+shirt_level = 35
+supporter_level = 199
+
+[[donation_tier]]
+No thanks = 0
+Splat! Tier = SUPPORTER_LEVEL
+T-Shirt Tier = SHIRT_LEVEL
+
+[[shirt]]
+Unisex 2X = 6
+Unisex 3X = 7
+Unisex 4X = 8
+Unisex 5X = 9
+Unisex L = 4
+Unisex M = 3
+Unisex S = 2
+Unisex XL = 5
+Unisex XS = 1
+
+[sentry]
+dsn = https://0872645099aa40e67a4f3e7588ae5fe4@o4505507811295232.ingest.sentry.io/4505634233516032
+enabled = True
+environment = west2023
+release = prod
+
+[social_media_placeholders]
+facebook = Facebook page or username
+instagram = Instagram page or username
+linked_in = LinkedIn page or username
+twitter = Twitter profile or username
+
+[social_media_urls]
+facebook = https://www.facebook.com/{}
+instagram = https://www.instagram.com/{}
+linked_in = https://www.linkedin.com/in/{}
+twitter = https://twitter.com/{}
+
+[table_prices]
+1 = 60
+2 = 100
+3 = 200
+4 = 275
+default_price = 200
+
+[volunteer_checklist]
+2 = staffing/food_item.html
+3 = staffing/shirt_item.html
+4 = staffing/hotel_item.html
+97 = staffing/volunteer_agreement_item.html
+98 = staffing/emergency_procedures_item.html
+99 = staffing/shifts_item.html
+
 [secret]
 broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
 broker_prefix = "${BROKER_PREFIX}"
