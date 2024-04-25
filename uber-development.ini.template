@@ -9,3 +9,341 @@ port = ${REDIS_PORT}
 [secret]
 broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
 broker_prefix = "${BROKER_PREFIX}"
+
+food_price = 18
+
+[enums]
+
+[[cabin_type_prices]]
+private = 1400
+
+[[cabin_type_stocks]]
+half = 6
+
+[[camping_type]]
+cabin = Cabin
+car = Car
+rv = RV
+tent = Tent
+
+[[shirt_color]]
+black_shirt = Black Shirt
+no_shirt_color = No Shirt
+white_shirt = White Shirt (for tie-dyeing later)
+
+admin_email = MAGFest Sys Admin <sysadmin@magfest.org>
+api_enabled = True
+at_the_con = False
+attendee_accounts_enabled = False
+attractions_enabled = False
+badge_promo_codes_enabled = True
+band_email = MAGStock Music <music@magstock.org>
+band_email_signature = MAGStock Music Department
+blank_staff_badges = 50
+code_of_conduct_url = http://super.magfest.org/codeofconduct
+collect_exact_birthdate = True
+collect_extra_donation = True
+consent_form_url = http://super.magfest.org/parentalconsentform
+contact_url = http://super.magfest.org/contact
+covid_policies_url = 
+dealer_app_term = artist application
+dealer_helper_term = helper
+dealer_loc_term = artist alley
+dealer_reg_term = artist registration
+dealer_term = artist
+dev_box = False
+developer_email = MAGFest Software <developers@magfest.org>
+emergency_procedures_deadline = May 23
+emergency_procedures_enabled = True
+event_name = MAGStock
+event_timezone = US/Eastern
+event_venue = Ramblewood
+event_venue_address = '''Ramblewood, 2564 Silver Rd, Darlington, MD 21034'''
+event_year = 2024
+groups_enabled = True
+guest_email = MAGStock Music <music@magstock.org>
+guest_email_signature = MAGStock Music Department
+jira_enabled = True
+kiosk_cc_enabled = True
+maps_dir = /tmp
+maps_enabled = False
+marketplace_email = MAGStock Artist Alley <artist-alley@magstock.org>
+marketplace_email_signature = '''MAGStock Artist Alley Team
+artist-alley@magstock.org'''
+max_dealers = 3
+max_tables = 1
+merch_at_checkin = True
+min_group_addition = 2
+min_group_size = 5
+numbered_badges = False
+organization_name = MAGFest INC
+panels_email = MAGStock Panels <admin@magstock.org>
+panels_email_signature = - MAGFest Panels Department
+panels_twilio_number = +12405415595
+path = uber
+peglegs_email_signature = MAGStock Events Department
+post_con = False
+preassigned_badge_types = staff_badge, contractor_badge
+prereg_faq_url = http://super.magfest.org/faq
+prereg_hotel_info_email_sender = Do Not Reply <noreply@magfest.org>
+prereg_hotel_info_email_signature = - MAGFest
+prior_covid_policies_url = 
+privacy_policy_url = https://super.magfest.org/privacy-policy
+regdesk_email = MAGStock Registration <registration@magstock.org>
+regdesk_email_signature = MAGStock Registration Department
+require_dedicated_guest_table_presence = False
+season_stock = 75
+security_email = MAGStock Security <security@magstock.org>
+send_emails = True
+send_sms = True
+shirts_per_staffer = 0
+slow_load_check = False
+sqlalchemy_max_overflow = 0
+sqlalchemy_pool_size = 5
+staff_email = MAGStock Staffing <stops@magstock.org>
+stops_email_signature = MAGStock Staffing Operations
+supporter_stock = 50
+tabletop_twilio_number = +15713646627
+untransferable_attrs = first_name, last_name, legal_name, email, birthdate, zip_code, international, ec_name, ec_phone, cellphone, interests, age_group, staffing, requested_depts, onsite_contact, no_onsite_contact, license_plate, waiver_consent, waiver_signature, waiver_date, acknowledged_checkin_policy, hotel_pin, regdesk_info
+url_root = https://stock2024.reg.magfest.org/
+volunteer_agreement_enabled = True
+volunteer_checklist_deadline = May 23
+volunteer_food_deadline = May 16
+volunteer_perks_url = https://magstock.org/volunteer
+volunteer_placeholder_deadline = April 18
+
+[age_groups]
+
+[badge_prices]
+dealer_badge_price = 110
+initial_attendee = 185
+one_days_enabled = False
+presell_one_days = False
+
+[[attendee]]
+2024-05-06 = 195
+2024-05-27 = 205
+2024-06-06 = 215
+2024-06-07 = 185
+2024-06-08 = 155
+2024-06-09 = 35
+
+[badge_ranges]
+attendee_badge = 1, 2000
+child_badge = 1, 2000
+contractor_badge = 1, 2000
+guest_badge = 1, 2000
+one_day_badge = 30000, 39999
+staff_badge = 1, 2000
+
+[dates]
+badge_price_waived = 
+band_badges_deadline = 2024-05-29
+band_bio_deadline = 2024-05-15
+band_charity_deadline = 
+band_info_deadline = 
+band_merch_deadline = 
+band_panel_deadline = 
+band_stage_plot_deadline = 2024-05-22
+band_taxes_deadline = 
+dealer_payment_due = 2024-05-25
+dealer_reg_deadline = 2024-03-24
+dealer_reg_public = 
+dealer_reg_shutdown = 2024-06-09
+dealer_reg_start = 2024-03-16
+dealer_waitlist_closed = 
+drop_shifts_deadline = 2024-05-30
+epoch = 2024-06-06 12
+eschaton = 2024-06-09 12
+placeholder_deadline = 
+prereg_open = 2024-04-03 16
+printed_badge_deadline = 2024-05-21
+refund_cutoff = 
+refund_start = 
+room_deadline = 
+shifts_created = 2024-05-04
+shirt_deadline = 2024-05-24
+supporter_deadline = 2024-06-01
+volunteer_checklist_open = 2024-04-24
+volunteer_shirt_deadline = 
+
+[dept_head_checklist]
+
+[[assigned_volunteers]]
+deadline = 2024-04-10
+description = Check all of the volunteers currently assigned to your department to make sure no one is missing AND that no one is there who shouldn't be.
+name = Volunteers Assigned to Your Department
+path = /shifts_admin/staffers?department_id={department_id}
+
+[[creating_shifts]]
+deadline = 2024-05-01
+description = '''We are able to import shifts from last year. If you want us to import last year's shifts, please email  stops@magstock.org. You will still need to approve these via the checklist after the import. If you want  any shifts to be restricted to certain staffers, please use the "roles" function when creating shifts.  Shifts with a specific role will only be visible to staff that you have assigned to that role.'''
+path = /shifts_admin/index?department_id={department_id}
+
+[[function_space]]
+deadline = 2024-04-17
+description = '''What tech needs does your space have? Do you need tables, chairs, or other items? Let us know.'''
+external_form_url = https://forms.gle/hQ5s7cYU9sd29w6t9
+name = Function Space Requests
+
+[[guidebook_schedule]]
+deadline = 2024-05-22
+description = Make sure your public-facing events or open hours are on our Uber schedule so they will be correct on the printed schedules.
+name = Public Schedule
+path = /dept_checklist/guidebook_schedule?department_id={department_id}
+
+[[office_supplies]]
+deadline = 2024-05-15
+description = MAGStock is providing basic PPE and office supplies for departments. Please let us know what you need and  we will do our best to accommodate.
+external_form_url = https://forms.gle/oNoQidGQ2rMWC2zDA
+name = '''Supplies (Office, PPE, etc.)'''
+
+[[placeholders]]
+deadline = 2024-04-10
+description = We create placeholder registrations for volunteers and ask them to fill out the rest of their information and also confirm that they'll be coming. We need our department heads to review the unclaimed badges for their departments to check for any essential volunteers who haven't claimed their badges.
+name = Checking Placeholder Registrations
+path = /dept_checklist/placeholders?department_id={department_id}
+
+[[postcon_hours]]
+deadline = 2024-06-26
+description = '''After the weekend is over, we'll want all department heads to ensure that their volunteers had their shifts marked and rated.'''
+email_post_con = True
+name = (After the Event) Marking and Rating Shifts
+path = /shifts_admin/signups?department_id={department_id}
+
+[[printed_signs]]
+deadline = 2024-05-15
+description = '''Other than a sign for your area, what printed signs/banners/forms do you need?'''
+
+[donation_tier_descriptions]
+
+[[no_thanks]]
+description = No thanks
+icon = 
+link = 
+name = No thanks
+
+[[season]]
+description = Everything in the Korok Tier|Themed Enamel Pin|Themed Koozie|Themed Marshmallow|MAGStock-branded Camp Chair & Camping Supplies
+icon = ../static/icons/super.png
+link = ../static_views/super.html
+name = Hylian Tier
+
+[[supporter]]
+description = Themed T-Shirt|Themed Patch|Themed Sticker Sheet|MAGStock-branded Bandana|MAGStock-branded Sunglasses
+icon = ../static/icons/supporter.png
+link = ../static_views/supporter.html
+name = Korok Tier
+
+[enums]
+
+[[badge]]
+attendee_badge = Attendee
+child_badge = Minor
+contractor_badge = Contractor
+guest_badge = Guest
+staff_badge = Staff
+
+[[dealer_wares]]
+bath = Bath Products
+figures = Figures
+general = General Merchandise
+handmade = General Handmade
+jewelry = Jewelry
+lanyards = Lanyards/Keychains
+perler = Perler Beads
+plushes = Plushes
+prints = Prints
+tshirts = T-shirts
+vgames = Video Games
+
+[[event_location]]
+amphitheater = Amphitheater
+artistalley = Artist Alley
+campfire = Campfire
+canteen = Canteen
+concerts = Main Stage
+craftbarn = Craft Barn
+dininghall = Dining Hall
+gameroom = Game Room
+gym = Gym
+lockpick = Lockpick Village
+merch = Merch
+pool = Pool
+projectiles = Projectiles
+publicsafety = Public Safety
+registration = Registration
+tennis = Tennis Court
+
+[[food_restriction]]
+gluten = No gluten
+nuts = No nuts
+pork = No pork
+vegan = Vegetarian/Vegan
+
+[[interest]]
+activities = Activities
+chilling = Chilling
+crafting = Crafting
+grilling = Grilling
+music = Music
+pool = Pool
+video_games = Video Games
+
+[[job_interest]]
+activities = Events
+food = Food Prep
+misc = General Support
+music = Music Pavilion
+registration = Registration
+security = Security
+
+[[sandwich]]
+cheese = Cheese
+ham = Ham
+jelly = Jelly
+peanut_butter = Peanut Butter
+salad = Prefer salad instead of sandwich
+turkey = Turkey
+
+[integer_enums]
+group_discount = 10
+season_level = 200
+shirt_level = 30
+supporter_level = 60
+supporter_stock = 200
+
+[[donation_tier]]
+Hylian Tier = SEASON_LEVEL
+Korok Tier = SUPPORTER_LEVEL
+No thanks = 0
+
+[[shirt]]
+Unisex 2X = 6
+Unisex 3X = 7
+Unisex 4X = 8
+Unisex 5X = 9
+Unisex L = 4
+Unisex M = 3
+Unisex S = 2
+Unisex XL = 5
+Unisex XS = 1
+
+[[staff_event_shirt]]
+Event Shirt = 1
+Generic MAGStock Shirt = 0
+
+[sentry]
+dsn = https://0872645099aa40e67a4f3e7588ae5fe4@o4505507811295232.ingest.sentry.io/4505634233516032
+enabled = True
+environment = stock2024
+release = prod
+
+[table_prices]
+default_price = 20
+
+[volunteer_checklist]
+2 = staffing/food_item.html
+3 = staffing/volunteer_agreement_item.html
+4 = staffing/emergency_procedures_item.html
+99 = staffing/shifts_item.html
