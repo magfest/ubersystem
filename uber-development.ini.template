@@ -46,7 +46,7 @@ organization_name = MAGFest INC
 panels_email = MAGStock Panels <admin@magstock.org>
 panels_email_signature = "- MAGFest Panels Department"
 panels_twilio_number = "+12405415595"
-path = uber
+#path = uber
 peglegs_email_signature = MAGStock Events Department
 post_con = True
 preassigned_badge_types = staff_badge, contractor_badge
@@ -70,7 +70,7 @@ stops_email_signature = MAGStock Staffing Operations
 supporter_stock = 30
 tabletop_twilio_number = +15713646627
 untransferable_attrs = first_name, last_name, legal_name, email, birthdate, zip_code, international, ec_name, ec_phone, cellphone, interests, age_group, staffing, requested_depts, onsite_contact, no_onsite_contact, license_plate, waiver_consent, waiver_signature, waiver_date, agreed_to_covid_policies, acknowledged_checkin_policy
-url_root = https://stock2023.reg.magfest.org/
+#url_root = https://stock2023.reg.magfest.org/
 volunteer_agreement_enabled = True
 volunteer_checklist_deadline = May 26
 volunteer_food_deadline = May 19
@@ -207,6 +207,21 @@ name = Iridium Tier
 
 [enums]
 
+[[cabin_type_stocks]]
+half = 6
+
+[[camping_type]]
+cabin = Cabin
+car = Car
+rv = RV
+tent = Tent
+
+[[shirt_color]]
+black_shirt = Black Shirt
+no_shirt_color = No Shirt
+white_shirt = White Shirt (for tie-dyeing later)
+
+
 [[badge]]
 attendee_badge = Attendee
 child_badge = Minor
@@ -318,22 +333,6 @@ default_price = 20
 3 = staffing/volunteer_agreement_item.html
 4 = staffing/emergency_procedures_item.html
 99 = staffing/shifts_item.html
-
-[enums]
-
-[[cabin_type_stocks]]
-half = 6
-
-[[camping_type]]
-cabin = Cabin
-car = Car
-rv = RV
-tent = Tent
-
-[[shirt_color]]
-black_shirt = Black Shirt
-no_shirt_color = No Shirt
-white_shirt = White Shirt (for tie-dyeing later)
 
 [secret]
 broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
