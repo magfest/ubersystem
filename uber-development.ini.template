@@ -2,6 +2,339 @@ path = "${DEFAULT_URL}"
 hostname = "${HOSTNAME}"
 url_root = "http://${HOSTNAME}:${PORT}"
 
+food_price = 18
+admin_email = MAGFest Sys Admin <sysadmin@magfest.org>
+api_enabled = True
+at_the_con = False
+attendee_accounts_enabled = False
+attractions_enabled = False
+badge_promo_codes_enabled = True
+band_email = MAGStock Music <music@magstock.org>
+band_email_signature = MAGStock Music Department
+blank_staff_badges = 50
+code_of_conduct_url = http://super.magfest.org/codeofconduct
+collect_exact_birthdate = True
+collect_extra_donation = True
+consent_form_url = http://super.magfest.org/parentalconsentform
+contact_url = http://super.magfest.org/contact
+covid_policies_url = https://magstock.org/covid/
+dealer_loc_term = artist alley
+dev_box = False
+developer_email = MAGFest Software <developers@magfest.org>
+emergency_procedures_deadline = May 26
+emergency_procedures_enabled = True
+event_name = MAGStock
+event_timezone = US/Eastern
+event_venue = Ramblewood
+event_venue_address = '''Ramblewood, 2564 Silver Rd, Darlington, MD 21034'''
+event_year = 2023
+extra_checkin_docs = and proof of vaccination (https://magstock.org/covid/)
+groups_enabled = True
+guest_email = MAGStock Music <music@magstock.org>
+guest_email_signature = MAGStock Music Department
+jira_enabled = True
+kiosk_cc_enabled = True
+maps_dir = /tmp
+maps_enabled = False
+marketplace_email = MAGStock Artist Alley <artist-alley@magstock.org>
+marketplace_email_signature = MAGStock Marketplace Department
+merch_at_checkin = True
+min_group_addition = 2
+min_group_size = 5
+numbered_badges = False
+organization_name = MAGFest INC
+panels_email = MAGStock Panels <admin@magstock.org>
+panels_email_signature = - MAGFest Panels Department
+panels_twilio_number = +12405415595
+path = uber
+peglegs_email_signature = MAGStock Events Department
+post_con = True
+preassigned_badge_types = staff_badge, contractor_badge
+prereg_faq_url = http://super.magfest.org/faq
+prereg_hotel_info_email_sender = Do Not Reply <noreply@magfest.org>
+prereg_hotel_info_email_signature = - MAGFest
+privacy_policy_url = https://super.magfest.org/privacy-policy
+regdesk_email = MAGStock Registration <registration@magstock.org>
+regdesk_email_signature = MAGStock Registration Department
+require_dedicated_guest_table_presence = False
+season_stock = 40
+security_email = MAGStock Security <security@magstock.org>
+send_emails = True
+send_sms = True
+shirt_stock = 100
+shirts_per_staffer = 0
+sqlalchemy_max_overflow = 0
+sqlalchemy_pool_size = 5
+staff_email = MAGStock Staffing <stops@magstock.org>
+stops_email_signature = MAGStock Staffing Operations
+supporter_stock = 30
+tabletop_twilio_number = +15713646627
+untransferable_attrs = first_name, last_name, legal_name, email, birthdate, zip_code, international, ec_name, ec_phone, cellphone, interests, age_group, staffing, requested_depts, onsite_contact, no_onsite_contact, license_plate, waiver_consent, waiver_signature, waiver_date, agreed_to_covid_policies, acknowledged_checkin_policy
+url_root = https://stock2023.reg.magfest.org/
+volunteer_agreement_enabled = True
+volunteer_checklist_deadline = May 26
+volunteer_food_deadline = May 19
+volunteer_perks_url = https://magstock.org/volunteer
+volunteer_placeholder_deadline = April 12
+
+[age_groups]
+
+[badge_prices]
+dealer_badge_price = 110
+initial_attendee = 180
+one_days_enabled = False
+presell_one_days = False
+
+[[attendee]]
+2023-04-26 = 190
+2023-05-09 = 200
+2023-06-08 = 210
+2023-06-09 = 180
+2023-06-10 = 150
+2023-06-11 = 30
+
+[badge_ranges]
+attendee_badge = 1, 2000
+child_badge = 1, 2000
+contractor_badge = 1, 2000
+guest_badge = 1, 2000
+one_day_badge = 30000, 39999
+staff_badge = 1, 2000
+
+[dates]
+badge_price_waived = 
+band_badges_deadline = 2023-05-29
+band_bio_deadline = 2023-05-15
+band_charity_deadline = 
+band_info_deadline = 
+band_merch_deadline = 
+band_panel_deadline = 
+band_stage_plot_deadline = 2023-05-22
+band_taxes_deadline = 
+dealer_payment_due = 2023-06-01
+dealer_reg_deadline = 
+dealer_reg_shutdown = 2023-04-30
+dealer_reg_start = 2023-07-14
+dealer_waitlist_closed = 
+drop_shifts_deadline = 2023-05-31
+epoch = 2023-06-08 11
+eschaton = 2023-06-11 18
+placeholder_deadline = 
+prereg_open = 2023-04-17 15
+printed_badge_deadline = 2023-05-21
+refund_cutoff = 
+refund_start = 
+room_deadline = 
+shifts_created = 2023-05-04
+shirt_deadline = 2023-05-24
+supporter_deadline = 2023-06-01
+volunteer_checklist_open = 2023-04-24
+volunteer_shirt_deadline = 
+
+[dept_head_checklist]
+
+[[assigned_volunteers]]
+deadline = 2023-04-05
+description = Check all of the volunteers currently assigned to your department to make sure no one is missing AND that no one is there who shouldn't be.
+name = Volunteers Assigned to Your Department
+path = /shifts_admin/staffers?department_id={department_id}
+
+[[creating_shifts]]
+deadline = 2023-05-02
+description = The managment team is happy to assist you in creating shifts. Please let us know if you need assistance with this step.
+path = /shifts_admin/index?department_id={department_id}
+
+[[function_space]]
+deadline = 2023-04-21
+description = '''What tech needs does your space have? Do you need tables, chairs, or other items? Let us know.'''
+external_form_url = https://forms.gle/SBcTk7XUCWdBPtzt7
+name = Function Space Requests
+
+[[guidebook_schedule]]
+deadline = 2023-05-26
+description = Make sure your public-facing events or open hours are on our Uber schedule so they will be correct on the printed schedules.
+name = Public-Facing Schedule
+path = /dept_checklist/guidebook_schedule?department_id={department_id}
+
+[[office_supplies]]
+deadline = 2023-05-19
+description = MAGStock is providing basic PPE and office supplies for departments for MAGStock 2023. Please let us know what you need and we will do our best to accommodate.
+external_form_url = https://forms.gle/DoAUBfu93fMzTV6dA
+name = Office Supplies and PPE
+
+[[placeholders]]
+deadline = 2023-04-05
+description = We create placeholder registrations for volunteers and ask them to fill out the rest of their information and also confirm that they'll be coming. We need our department heads to review the unclaimed badges for their departments to check for any essential volunteers who haven't claimed their badges.
+name = Checking Placeholder Registrations
+path = /dept_checklist/placeholders?department_id={department_id}
+
+[[postcon_hours]]
+deadline = 2023-06-26
+description = '''After the weekend is over, we'll want all department heads to ensure that their volunteers had their shifts marked and rated.'''
+email_post_con = True
+name = (After the Event) Marking and Rating Shifts
+path = /shifts_admin/signups?department_id={department_id}
+
+[[printed_signs]]
+deadline = 2023-05-19
+description = '''Other than a sign for your area, what printed signs/banners/forms do you need?'''
+
+[donation_tier_descriptions]
+
+[[no_thanks]]
+description = No thanks
+icon = 
+link = 
+name = No thanks
+
+[[season]]
+description = Custom Print Blanket|MAGStock LED Flashlight|Full Print Nalgene|Custom Fanny Pack|A Custom Surprise!
+icon = ../static/icons/super.png
+link = ../static_views/merch.html|../static_views/merch.html|../static_views/merch.html|../static_views/merch.html|../static_views/merch.html
+name = Prairie King Tier
+
+[[shirt]]
+description = Event T-Shirt|Carabiner/Bottle Opener|Enamel Pin
+icon = ../static/icons/shirt.png
+link = ../static_views/merch.html|../static_views/merch.html|../static_views/merch.html
+name = T-Shirt Tier
+
+[[supporter]]
+description = Bandana|Koozie|Cooler Tote Bag|Fredward Plushy
+icon = ../static/icons/supporter.png
+link = ../static_views/merch.html|../static_views/merch.html|../static_views/merch.html|../static_views/merch.html
+name = Iridium Tier
+
+[enums]
+
+[[badge]]
+attendee_badge = Attendee
+child_badge = Minor
+contractor_badge = Contractor
+guest_badge = Guest
+staff_badge = Staff
+
+[[dealer_wares]]
+bath = Bath Products
+figures = Figures
+general = General Merchandise
+handmade = General Handmade
+jewelry = Jewelry
+lanyards = Lanyards/Keychains
+perler = Perler Beads
+plushes = Plushes
+prints = Prints
+tshirts = T-shirts
+vgames = Video Games
+
+[[event_location]]
+amphitheater = Amphitheater
+artistalley = Artist Alley
+bonfire = Bonfire
+concerts = Main Stage
+craftbarn = Craft Barn
+dininghall = Dining Hall
+gameroom = Game Room
+gym = Gym
+lockpick = Lockpick Village
+merch = Merch
+pool = Pool
+projectiles = Projectiles
+publicsafety = Public Safety
+registration = Registration
+saloon = Saloon
+tennis = Tennis Court
+
+[[food_restriction]]
+gluten = No gluten
+nuts = No nuts
+pork = No pork
+vegan = Vegetarian/Vegan
+
+[[interest]]
+activities = Activities
+chilling = Chilling
+crafting = Crafting
+grilling = Grilling
+music = Music
+pool = Pool
+video_games = Video Games
+
+[[job_interest]]
+activities = Events
+food = Food Prep
+misc = General Support
+music = Music Pavilion
+registration = Registration
+security = Security
+
+[[sandwich]]
+cheese = Cheese
+ham = Ham
+jelly = Jelly
+peanut_butter = Peanut Butter
+salad = Prefer salad instead of sandwich
+turkey = Turkey
+
+[integer_enums]
+group_discount = 10
+season_level = 180
+shirt_level = 30
+supporter_level = 70
+supporter_stock = 200
+
+[[donation_tier]]
+Iridium Tier = SUPPORTER_LEVEL
+No thanks = 0
+Prairie King Tier = SEASON_LEVEL
+T-Shirt Tier = SHIRT_LEVEL
+
+[[shirt]]
+Unisex 2X = 6
+Unisex 3X = 7
+Unisex 4X = 8
+Unisex 5X = 9
+Unisex L = 4
+Unisex M = 3
+Unisex S = 2
+Unisex XL = 5
+Unisex XS = 1
+
+[[staff_event_shirt]]
+Event Shirt = 1
+Generic MAGStock Shirt = 0
+
+[sentry]
+dsn = https://0872645099aa40e67a4f3e7588ae5fe4@o4505507811295232.ingest.sentry.io/4505634233516032
+enabled = True
+environment = stock2023
+release = prod
+
+[table_prices]
+default_price = 20
+
+[volunteer_checklist]
+2 = staffing/food_item.html
+3 = staffing/volunteer_agreement_item.html
+4 = staffing/emergency_procedures_item.html
+99 = staffing/shifts_item.html
+
+[enums]
+
+[[cabin_type_stocks]]
+half = 6
+
+[[camping_type]]
+cabin = Cabin
+car = Car
+rv = RV
+tent = Tent
+
+[[shirt_color]]
+black_shirt = Black Shirt
+no_shirt_color = No Shirt
+white_shirt = White Shirt (for tie-dyeing later)
+
 [secret]
 broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
 broker_prefix = "${BROKER_PREFIX}"
