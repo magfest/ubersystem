@@ -77,7 +77,7 @@ panels_email = MAGFest Panels <panels@magfest.org>
 panels_email_signature = "- MAGFest Panels Department"
 panels_enabled = True
 panels_twilio_number = "+12405415595"
-path = uber
+#path = uber
 post_con = True
 preassigned_badge_types = staff_badge, contractor_badge
 prereg_faq_url = http://super.magfest.org/faq
@@ -117,7 +117,7 @@ tracking_params = fbclid, hsmi, utm_source, utm_medium, utm_campaign, utm_term, 
 treasury_dept_checklist_form_url = https://super2024.reg.magfest.org/static_views/treasury_form.html
 untransferable_attrs = first_name, last_name, legal_name, email, birthdate, zip_code, international, ec_name, ec_phone, cellphone, interests, age_group, staffing, requested_depts, special_merch, group_name, onsite_contact, no_onsite_contact, hotel_pin, regdesk_info
 url_base = https://super2024.reg.magfest.org
-url_root = https://super2024.reg.magfest.org/
+#url_root = https://super2024.reg.magfest.org/
 use_checkin_barcode = True
 volunteer_agreement_enabled = True
 volunteer_checklist_deadline = December 15
@@ -674,10 +674,6 @@ start = 2023-12-18
 [redis]
 prefix = super2024
 
-[secret]
-barcode_event_id = 255
-barcode_key = TEST ONLY!
-barcode_salt = 255
 
 [sentry]
 dsn = https://0872645099aa40e67a4f3e7588ae5fe4@o4505507811295232.ingest.sentry.io/4505634233516032
@@ -707,10 +703,6 @@ default_price = 400
 7 = 
 99 = staffing/shifts_item.html
 
-
-[redis]
-host = "${REDIS_HOST}"
-port = ${REDIS_PORT}
 
 [secret]
 broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
