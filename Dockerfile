@@ -1,4 +1,4 @@
-FROM ghcr.io/magfest/sideboard:main
+FROM ghcr.io/magfest/sideboard:old_python
 MAINTAINER RAMS Project "code@magfest.org"
 LABEL version.rams-core ="0.1"
 
