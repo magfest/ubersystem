@@ -63,11 +63,14 @@
     });
   };
 
-  var compItem = function (itemId, processor_str) {
+  var compItem = function (itemId, refundable, processor_str) {
+    if (refundable == 'True' && processor_str != '') {
+      message_add = "Use the Refund Options button if you want to both comp and refund this item via " + processor_str + ".";
+    } else { message_add = ''; }
     bootbox.confirm({
       title: "Comp Receipt Item?",
       message: "This will mark this item as comped, adding a credit to the receipt. " +
-               "Use the Refund button if you want to both comp and refund this item via " + processor_str + " (if applicable).",
+               message_add,
       buttons: {
           confirm: {
               label: 'Comp Item',
@@ -75,7 +78,7 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
@@ -293,7 +296,7 @@
       title: "Refund Item?",
       message: "This will refund this purchase in full (" + amount + " x" + count + "). " +
       "If you need to refund an item without marking it as comped or reverting the change, " +
-      "please refund the transaction directly.",
+      "please add a custom credit item so you can refund the transaction directly.",
       buttons: bootboxBtns,
     });
   };
@@ -389,11 +392,11 @@
     });
   };
 
-  var settleUp = function(receiptId, refundAmt) {
+  var settleUp = function(txnId, refundAmt) {
     bootbox.confirm({
       title: "Refund " + refundAmt + "?",
-      message: "This will refund this {{ model_str }} " + refundAmt +
-              " on their latest refundable transaction that can cover the amount. " +
+      message: "This will refund " + refundAmt +
+              " of this transaction. " +
               " If refunding via cash, please simply record the refund. Please also " +
               "make sure we actually owe this {{ model_str }} " + refundAmt + " before proceeding.",
       buttons: {
@@ -408,7 +411,7 @@
       },
       callback: function (result) {
         if(result) {
-          window.location = 'settle_up?id=' + receiptId
+          window.location = 'settle_up?id=' + txnId
         }
       }
     });
@@ -438,35 +441,7 @@
       var $form = $(this);
       $btn = $form.find('button[type=submit]');
       event.preventDefault();
-      $btn.prop('disabled', true);
-      var submitForm = false;
-      if (parseInt($("form[action='add_receipt_txn'] input[name='amount']").val()) > 0) {
-        bootbox.confirm({
-          title: "Record Payment?",
-          message: "If you add a payment equal to what the attendee currently owes, " +
-            "all open receipt items will be closed and marked as paid. " +
-            "This cannot be undone. Are you sure?",
-          buttons: {
-              confirm: {
-                  label: 'Record Payment',
-                  className: 'btn-success'
-              },
-              cancel: {
-                  label: 'Nevermind',
-                  className: 'btn-outline-secondary'
-              }
-          },
-          callback: function (result) {
-            if(result) {
-              addPayment($form, $btn);
-            } else {
-              $btn.prop('disabled', false);
-            }
-          }
-        });
-      } else {
-        addPayment($form, $btn);
-      }
+      addPayment($form, $btn);
     });
   });
 </script>
@@ -484,26 +459,13 @@
   {% include "registration/menu.html" if attendee else "group_admin/nav_menu.html" %}
 {% endif %}
 
-<h2>Receipt{% if other_receipts %}s{% endif %} for {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% if c.AT_THE_CON and model.badge_num %} ({{ model.badge }}){% endif %}</h2>
-  <div class="card">
-    <div class="card-body">
-    {% set processors_str = processors[c.STRIPE] ~ " or " ~ processors[c.SQUARE] if c.AT_THE_CON else processors[c.STRIPE] %}
-    <p>Use this form to remove and add custom purchases and credits or payments and refunds for this {{ model_str }}.
-      You will not be able to remove purchases or credits that were created before a successful payment was made.
-      Confirmed {{ processors_str }} payments or refunds that have a {{ processors_str }} ID will also be locked.
-    </p>
-    
-    <p>
-      If a payment was made and confirmed through {{ processors_str }}, you can refund part or all of it using the "Refund Item" buttons.
-      Note that some {{ processors_str }} payments may appear on multiple receipts, for example, when someone registers multiple badges in one transaction.
-    </p>
+<h2>
+  Receipt Items for 
+  {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}
+  {% if c.AT_THE_CON and model.badge_num %} ({{ model.badge }}){% endif %}
+</h2>
 
-    <p>
-      Please always itemize purchases and credits. Items with the same price, and <em>only</em> items with the same price,
-      may be grouped into one purchase by setting the Amount as the per-item price and the Quantity field to how many items were purchased.
-    </p>
-    </div>
-  </div>
+See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> for information on how to use this page.
 
 {% macro receipt_item_form(type="purchase") %}
 <tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
@@ -647,10 +609,10 @@
               <button class="btn btn-sm btn-info text-nowrap" onClick="resendReceipt('{{ item.id }}')">Resend Receipt</button>
               {% endif %}
               {% if action == 'comp_receipt_item' %}
-              <button class="btn btn-sm btn-success text-nowrap" onClick="compItem('{{ item.id }}', '{{ receipt.id }}', '{{ processors[item.method] }}')">Comp Item</button>
+              <button class="btn btn-sm btn-success text-nowrap" onClick="compItem('{{ item.id }}', '{{ item.refundable }}', '{{ processors[item.receipt_txn.method] if item.receipt_txn else '' }}')">Comp Item</button>
               {% endif %}
               {% if action == 'undo_receipt_item' %}
-              <button class="btn btn-sm btn-danger text-nowrap" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
+              <button class="btn btn-sm btn-danger text-nowrap" onClick="undoItem('{{ item.id }}')">Undo Item</button>
               {% endif %}
               {% if action == 'remove_receipt_item' %}
               <button class="btn btn-sm btn-danger text-nowrap" onClick="deleteItem('{{ item.id }}')">
@@ -665,6 +627,9 @@
           {% endif %}
           {% if item.refunded %}
           <em>{{ (item.refunded / 100)|format_currency }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ (item.amount_left / 100)|format_currency }} left){% endif %}
+          {% endif %}
+          {% if item.refundable and item.id in refund_txn_candidates %}
+          <button class="btn btn-sm btn-success" onClick="settleUp('{{ item.id }}', '{{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}')">Refund {{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}</button>
           {% endif %}
         </td>
       </tr>
@@ -734,9 +699,6 @@
   {% if not c.AUTHORIZENET_LOGIN_ID %}
   OR
   <button class="btn btn-danger" onClick="mostlyFullRefund('{{ receipt.id }}', '{{ (receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
-  {% endif %}
-  {% if receipt.current_receipt_amount < 0 %}
-  <button class="btn btn-success" onClick="settleUp('{{ receipt.id }}', '{{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}')">Refund {{ (receipt.current_receipt_amount * -1 / 100)|format_currency }} to Card</button>
   {% endif %}
 {% else %}
   There are no active receipts for this {{ model_str }}.
