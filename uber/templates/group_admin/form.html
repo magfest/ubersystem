@@ -160,7 +160,7 @@
             {% if attendee == group.leader %}
               N/A
             {% elif not attendee.is_unassigned and not attendee.cannot_delete_badge_reason %}
-              <form method="post" action="../registration/delete_attendee" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
+              <form method="post" action="../registration/delete" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <input type="hidden" name="return_to" value="../group_admin/form?id={{ group.id }}" />

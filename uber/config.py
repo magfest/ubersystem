@@ -181,7 +181,10 @@ class _Overridable:
             if not _val:
                 _dt = None
             elif ' ' in _val:
-                _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
+                if ':' in _val:
+                    _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H:%M'))
+                else:
+                    _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
             else:
                 _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M'))
             setattr(self, _opt.upper(), _dt)
