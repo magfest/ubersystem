@@ -11,6 +11,7 @@ fpdf==1.7.2
 geopy==1.11.0
 ics==0.4
 Jinja2==2.11.3
+lxml==4.6.5
 phonenumbers==8.8.1
 Pillow==8.3.2
 pockets==0.6.2
