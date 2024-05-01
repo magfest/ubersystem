@@ -27,7 +27,7 @@ ADD . plugins/uber/
 # echo "HOST=192.168.0.10" > uberenv
 # docker run -it --env-file uberenv ghcr.io/magfest/ubersystem:main
 ENV HOST=0.0.0.0
-ENV PORT=8282
+ENV PORT=80
 ENV HOSTNAME=localhost
 ENV DEFAULT_URL=
 ENV DEBUG=false
