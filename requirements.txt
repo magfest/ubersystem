@@ -8,6 +8,7 @@ pytz==2017.2
 alembic==0.9.1
 treepoem==1.0.1
 email_validator==1.0.2
+lxml==4.6.5
 phonenumbers==8.8.1
 pockets==0.6.2
 residue==0.2.8
