@@ -98,6 +98,8 @@ class Root:
     def receipt_items(self, session, id, message=''):
         group_leader_receipt = None
         group_processing_fee = 0
+        refund_txn_candidates = []
+
         try:
             model = session.attendee(id)
             if model.in_promo_code_group and model.promo_code.group.buyer:
@@ -120,6 +122,11 @@ class Root:
                                         .format(receipt.id)),
                     and_(Tracking.model == 'ModelReceipt',
                     Tracking.fk_id == receipt.id))).order_by(Tracking.when).all()
+            if receipt.current_receipt_amount < 0:
+                refund_amount = receipt.current_receipt_amount * -1
+                for txn in receipt.refundable_txns:
+                    if txn.amount_left >= refund_amount:
+                        refund_txn_candidates.append(txn.id)
 
         other_receipts = set()
         if isinstance(model, Attendee):
@@ -144,6 +151,16 @@ class Root:
             'closed_receipts': session.query(ModelReceipt).filter(ModelReceipt.owner_id == id,
                                                                   ModelReceipt.owner_model == model.__class__.__name__,
                                                                   ModelReceipt.closed != None).all(),  # noqa: E711
+            'message': message,
+            'processors': {
+                c.STRIPE: "Authorize.net" if c.AUTHORIZENET_LOGIN_ID else "Stripe",
+                c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
+                c.MANUAL: "Stripe"},
+            'refund_txn_candidates': refund_txn_candidates,
+        }
+    
+    def receipt_items_guide(self, session, message=''):
+        return {
             'message': message,
             'processors': {
                 c.STRIPE: "Authorize.net" if c.AUTHORIZENET_LOGIN_ID else "Stripe",
@@ -315,13 +332,15 @@ class Root:
 
         if item.receipt_txn and item.receipt_txn.amount_left:
             refund_amount = min(item.amount * item.count, item.receipt_txn.amount_left)
-            if params.get('exclude_fees'):
+            if params.get('exclude_fees') and params['exclude_fees'].strip().lower() not in ('f', 'false', 'n', 'no', '0'):
                 processing_fees = item.receipt_txn.calc_processing_fee(refund_amount)
                 session.add(ReceiptItem(
                     receipt_id=item.receipt.id,
                     desc=f"Processing Fees for Refunding {item.desc}",
                     amount=processing_fees,
                     who=AdminAccount.admin_name() or 'non-admin',
+                    txn_id=item.txn_id,
+                    closed=datetime.now()
                 ))
                 refund_amount -= processing_fees
 
@@ -489,30 +508,22 @@ class Root:
 
     @not_site_mappable
     def settle_up(self, session, id=''):
-        receipt = session.model_receipt(id)
+        txn = session.receipt_transaction(id)
+        receipt = txn.receipt
         refund_amount = receipt.current_receipt_amount * -1
         if refund_amount <= 0:
             raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
                                session.get_model_by_receipt(receipt).id,
                                "We do not owe any money on this receipt!")
-
-        txn_candidates = []
-        stripe_txns = []
-        for txn in sorted(receipt.refundable_txns, key=lambda txn: txn.added):
-            if txn.amount_left >= refund_amount:
-                txn_candidates.append(txn)
-                if txn.method == c.STRIPE:
-                    stripe_txns.append(txn)
-
-        if stripe_txns:
-            txn = stripe_txns[-1]
-        elif txn_candidates:
-            txn = txn_candidates[-1]
-        else:
+        elif not txn.refundable:
             raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
                                session.get_model_by_receipt(receipt).id,
-                               "There is no transaction with enough left to refund "
-                               f"{format_currency(refund_amount / 100)}.")
+                               "This transaction cannot be refunded automatically.")
+        elif txn.amount_left < refund_amount:
+            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                               session.get_model_by_receipt(receipt).id,
+                               f"This transaction does not have {format_currency(refund_amount / 100)}"
+                               " left to refund!")
 
         if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
             refund = SpinTerminalRequest(receipt=txn.receipt, amount=refund_amount, method=txn.method)
