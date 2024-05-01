@@ -141,6 +141,11 @@ class PanelApplication(MagModel):
         if self.event:
             self.event.name = self.name
             self.event.description = self.description
+    
+    @presave_adjustment
+    def set_default_dept(self):
+        if len(c.PANEL_DEPT_OPTS) <= 1 and not self.department:
+            self.department = c.PANELS
 
     @property
     def email(self):
