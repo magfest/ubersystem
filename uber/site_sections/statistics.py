@@ -260,10 +260,6 @@ class Root:
 
     zips_counter = Counter()
     zips = {}
-    try:
-O    except Exception as e:
-        log.error("Error calling SearchEngine: ", exc_info=True)
-
     def map(self):
         return {
             'zip_counts': self.zips_counter,
