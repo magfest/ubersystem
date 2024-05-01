@@ -261,8 +261,9 @@ def error_page_404(status, message, traceback, version):
 
 c.APPCONF['/']['error_page.404'] = error_page_404
 
-cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
-static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
+if c.CHERRYPY_MOUNT_PATH not in cherrypy.tree.apps:
+    cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
+    static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
 
 
 def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
@@ -338,6 +339,6 @@ def register_jsonrpc(service, name=None):
     assert name not in jsonrpc_services, '{} has already been registered'.format(name)
     jsonrpc_services[name] = service
 
-
-jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services)
-cherrypy.tree.mount(jsonrpc_app, c.CHERRYPY_MOUNT_PATH + '/jsonrpc', c.APPCONF)
+if c.CHERRYPY_MOUNT_PATH+"/jsonrpc" not in cherrypy.tree.apps:
+    jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services)
+    cherrypy.tree.mount(jsonrpc_app, c.CHERRYPY_MOUNT_PATH + '/jsonrpc', c.APPCONF)
