@@ -1,10 +1,5 @@
 path = "${DEFAULT_URL}"
 hostname = "${HOSTNAME}"
-url_root = "http://${HOSTNAME}:${PORT}"
-
-[secret]
-broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
-broker_prefix = "${BROKER_PREFIX}"
 
 accessibility_services_enabled = True
 admin_email = MAGFest Sys Admin <sysadmin@magfest.org>
@@ -121,6 +116,10 @@ volunteer_checklist_deadline = December 16
 volunteer_food_deadline = November 18
 volunteer_perks_url = https://www.notion.so/magfest/MAGFest-Super-Perks-f001221c31484ef4957a6513c54a6fd6
 volunteer_placeholder_deadline = November 4
+
+[secret]
+broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
+broker_prefix = "${BROKER_PREFIX}"
 
 [age_groups]
 
