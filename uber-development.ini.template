@@ -1,4 +1,3 @@
-path = "${DEFAULT_URL}"
 hostname = "${HOSTNAME}"
 
 accessibility_services_enabled = True
