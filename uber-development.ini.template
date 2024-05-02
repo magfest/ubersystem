@@ -1,6 +1,5 @@
 path = "${DEFAULT_URL}"
 hostname = "${HOSTNAME}"
-url_root = "http://${HOSTNAME}:${PORT}"
 accessibility_services_enabled = True
 admin_email = MAGFest Sys Admin <sysadmin@magfest.org>
 alt_schedule_url = https://guidebook.com/guide/101720/schedule
@@ -114,7 +113,7 @@ tabletop_twilio_number = +15713646627
 techops_dept_checklist_form_url = https://forms.gle/UnVmgAihABQ71Swn8
 treasury_dept_checklist_form_url = https://super2022.dev.magevent.net/static_views/treasury_form.html
 untransferable_attrs = first_name, last_name, legal_name, email, birthdate, zip_code, international, ec_name, ec_phone, cellphone, interests, age_group, staffing, requested_depts, special_merch, group_name
-#url_root = https://super2022.reg.magfest.org/
+url_root = https://super2022.reg.magfest.org/
 volunteer_agreement_enabled = True
 volunteer_checklist_deadline = November 12
 volunteer_food_deadline = November 19
