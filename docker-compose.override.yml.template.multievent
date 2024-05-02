@@ -11,6 +11,7 @@
 # 2. Run make_config.py to pull down config for one event, e.g., `python3 make_config.py --repo https://github.com/magfest/terraform-aws-magfest.git --paths uber_config/environments/prod uber_config/events/stock/2024`
 # 3. Rename `uber.ini` to `config-EVENTNAME.ini`.
 # 4. Rename `EVENTNAME.ini` to `config.ini` and move it into its root plugin directory, e.g., magstock/config.ini
+# 4a. If there is no YOURPLUGIN.ini generated for a plugin, you may need to create a blank file instead. This can happen if there's no custom config defined in our config repo for a plugin.
 # 5. Repeat steps 2-4 for each event you're going to work on.
 # 6. Copy this template file to docker-compose.override.yml
 # 7. If needed, add or edit one of the `&plugin-config-file` settings to be your own EVENTNAME in all caps. Don't worry about the plugin config files you aren't using, they get ignored.
@@ -31,6 +32,7 @@ x-dev-volumes:
     - &plugin-config-file-1 MAGSTOCK_CONFIG_FILES=config.ini
     - &plugin-config-file-2 MAGWEST_CONFIG_FILES=config.ini
     - &plugin-config-file-3 MAGPRIME_CONFIG_FILES=config.ini
+    - &plugin-list uber_plugins=["${COMPOSE_PROJECT_NAME}"]
 
 services:
   python-repl:
@@ -45,6 +47,7 @@ services:
       - *plugin-config-file-1
       - *plugin-config-file-2
       - *plugin-config-file-3
+      - *plugin-list
   flower:
     extends:
         file: docker-compose.yml
@@ -61,6 +64,7 @@ services:
       - *plugin-config-file-1
       - *plugin-config-file-2
       - *plugin-config-file-3
+      - *plugin-list
   celery-beat:
     extends:
       file: docker-compose.yml
@@ -72,6 +76,7 @@ services:
       - *plugin-config-file-1
       - *plugin-config-file-2
       - *plugin-config-file-3
+      - *plugin-list
   celery-worker:
     extends:
       file: docker-compose.yml
@@ -83,3 +88,4 @@ services:
       - *plugin-config-file-1
       - *plugin-config-file-2
       - *plugin-config-file-3
+      - *plugin-list

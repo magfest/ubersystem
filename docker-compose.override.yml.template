@@ -7,9 +7,11 @@
 ## Setup
 # 1. Download your plugin into the same directory that this repo is in.
 # 2. Run make_config.py to pull down config for your event, e.g., `python3 make_config.py --repo https://github.com/magfest/terraform-aws-magfest.git --paths uber_config/environments/prod uber_config/events/stock/2024`
-# 4. Rename `YOURPLUGIN.ini` to `config.ini` and move it into its root plugin directory, e.g., magstock/config.ini
-# 3. Copy this template file to docker-compose.override.yml
-# 4. Edit the new docker-compose.override.yml file to rename YOURPLUGIN to your plugin repo's name. The volume name should be lowcase and the environment name should be uppercase.
+# 3. Rename `YOURPLUGIN.ini` to `config.ini` and move it into its root plugin directory, e.g., magstock/config.ini
+# 3a. If there is no YOURPLUGIN.ini generated for a plugin, you may need to create a blank file instead. This can happen if there's no custom config defined in our config repo for a plugin.
+# 4. Copy this template file to docker-compose.override.yml
+# 5. Edit the new docker-compose.override.yml file to rename YOURPLUGIN to your plugin repo's name.
+Use all lowercase except for YOURPLUGIN_CONFIG_FILES, which should use an uppercase plugin name.
 
 ## Running Containers
 # 1. Run `docker compose --profile dev up -d`
@@ -22,6 +24,7 @@ x-dev-volumes:
   environment:
     - &uber-config-file UBER_CONFIG_FILES=uber.ini
     - &plugin-config-file YOURPLUGIN_CONFIG_FILES=config.ini
+    - &plugin-list uber_plugins=["YOURPLUGIN"]
 
 services:
   python-repl:
@@ -33,6 +36,7 @@ services:
     environment:
       - *uber-config-file
       - *plugin-config-file
+      - *plugin-list
   flower:
     extends:
         file: docker-compose.yml
@@ -46,6 +50,7 @@ services:
     environment:
       - *uber-config-file
       - *plugin-config-file
+      - *plugin-list
   celery-beat:
     extends:
       file: docker-compose.yml
@@ -55,6 +60,7 @@ services:
     environment:
       - *uber-config-file
       - *plugin-config-file
+      - *plugin-list
   celery-worker:
     extends:
       file: docker-compose.yml
@@ -64,3 +70,4 @@ services:
     environment:
       - *uber-config-file
       - *plugin-config-file
+      - *plugin-list
