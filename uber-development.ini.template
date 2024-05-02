@@ -1,6 +1,5 @@
 path = "${DEFAULT_URL}"
 hostname = "${HOSTNAME}"
-url_root = "http://${HOSTNAME}:${PORT}"
 
 food_price = 18
 admin_email = MAGFest Sys Admin <sysadmin@magfest.org>
@@ -70,7 +69,7 @@ stops_email_signature = MAGStock Staffing Operations
 supporter_stock = 30
 tabletop_twilio_number = +15713646627
 untransferable_attrs = first_name, last_name, legal_name, email, birthdate, zip_code, international, ec_name, ec_phone, cellphone, interests, age_group, staffing, requested_depts, onsite_contact, no_onsite_contact, license_plate, waiver_consent, waiver_signature, waiver_date, agreed_to_covid_policies, acknowledged_checkin_policy
-#url_root = https://stock2023.reg.magfest.org/
+url_root = https://stock2023.reg.magfest.org/
 volunteer_agreement_enabled = True
 volunteer_checklist_deadline = May 26
 volunteer_food_deadline = May 19
