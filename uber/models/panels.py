@@ -159,6 +159,11 @@ class PanelApplication(MagModel):
         return None
 
     @property
+    def group(self):
+        if self.submitter and self.submitter.attendee:
+            return self.submitter.attendee.group
+
+    @property
     def other_panelists(self):
         return [a for a in self.applicants if not a.submitter]
 
