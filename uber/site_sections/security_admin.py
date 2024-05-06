@@ -3,21 +3,29 @@ import cherrypy
 from uber.config import c
 from uber.decorators import ajax, all_renderable, log_pageview
 from uber.errors import HTTPRedirect
+from uber.forms import load_forms
 from uber.models import WatchList
-from uber.utils import check
+from uber.utils import validate_model
 
 
 @all_renderable()
 class Root:
     @log_pageview
     def index(self, session, message='', **params):
-        watchlist_entries = session.query(WatchList).order_by(WatchList.last_name).all()
-        for entry in watchlist_entries:
-            if entry.active:
-                entry.attendee_guesses = session.guess_watchentry_attendees(entry)
+        active_entries = session.query(WatchList).filter(WatchList.active == True  # noqa: E712
+                                                         ).order_by(WatchList.last_name).all()
+        for entry in active_entries:
+            entry.attendees_and_guesses = entry.attendees
+            for attendee in session.guess_watchentry_attendees(entry):
+                if attendee not in entry.attendees_and_guesses:
+                    entry.attendees_and_guesses.append(attendee)
+
+        inactive_entries = session.query(WatchList).filter(WatchList.active == False  # noqa: E712
+                                                           ).order_by(WatchList.last_name).all()
 
         return {
-            'watchlist_entries': watchlist_entries,
+            'active_entries': active_entries,
+            'inactive_entries': inactive_entries,
             'message': message
         }
 
@@ -28,12 +36,22 @@ class Root:
                               last_name=attendee.last_name,
                               email=attendee.email,
                               birthdate=attendee.birthdate)
+        elif params.get('id') not in [None, '', 'None']:
+            entry = session.watch_list(params.get('id'))
         else:
-            entry = session.watch_list(params, bools=['active'])
+            entry = WatchList()
+
+        forms = load_forms(params, entry, ['WatchListEntry'])
+        for form in forms.values():
+            form.populate_obj(entry)
+
         entry.attendee_guesses = session.guess_watchentry_attendees(entry)
 
         if cherrypy.request.method == 'POST':
-            message = check(entry)
+            all_errors = validate_model(forms, entry, WatchList(**entry.to_dict()))
+            if all_errors:
+                message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+
             changed_attendees = 0
 
             if not message:
@@ -67,6 +85,7 @@ class Root:
                 raise HTTPRedirect('index?message={}{}', message, changed_message)
 
         return {
+            'forms': forms,
             'entry': entry,
             'message': message
         }

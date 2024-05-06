@@ -50,7 +50,8 @@ def get_plugin_head_revision(plugin_name):
     alembic_config = create_alembic_config()
     script = ScriptDirectory.from_config(alembic_config)
     branch_labels = script.get_revision(plugin_name).branch_labels
-    other_plugins = set(plugin_dirs.keys()).difference(branch_labels)
+    plugin_dirs = [x.name for x in (pathlib.Path(__file__).parents[1] / "plugins").iterdir() if x.is_dir()]
+    other_plugins = set(plugin_dirs).difference(branch_labels)
 
     def _recursive_get_head_revision(revision_text):
         revision = script.get_revision(revision_text)
