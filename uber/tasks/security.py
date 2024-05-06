@@ -7,7 +7,7 @@ from uber.tasks import celery
 __all__ = ['deactivate_expired_watchlist_entries']
 
 
-@celery.schedule(timedelta(hour=12))
+@celery.schedule(timedelta(hours=12))
 def deactivate_expired_watchlist_entries():
     with Session() as session:
         expired_entries = session.query(WatchList).filter(WatchList.active == True,  # noqa: E712
