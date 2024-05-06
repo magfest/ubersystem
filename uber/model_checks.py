@@ -12,6 +12,7 @@ To perform these validations, call the "check" method on the instance you're val
 on success and a string error message on validation failure.
 """
 import re
+from datetime import datetime, timedelta
 from functools import wraps
 from urllib.request import urlopen
 
@@ -137,22 +138,22 @@ def ignore_unassigned_and_placeholders(func):
     return with_skipping
 
 
-WatchList.required = [
-    ('reason', 'Reason'),
-    ('action', 'Action')
-]
-
-
 @validation.WatchList
 def include_a_name(entry):
     if not entry.first_names and not entry.last_name:
-        return 'A first or last name is required.'
+        return ('', 'A first or last name is required.')
 
 
 @validation.WatchList
 def include_other_details(entry):
     if not entry.birthdate and not entry.email:
-        return 'Email or date of birth is required.'
+        return ('', 'Email or date of birth is required.')
+
+
+@validation.WatchList
+def not_active_after_expiration(entry):
+    if entry.active and localized_now().date() > entry.expiration:
+        return ('expiration', 'An entry cannot be active with an expiration date in the past.')
 
 
 @validation.MPointsForCash

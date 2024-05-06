@@ -314,6 +314,7 @@ class WatchList(MagModel):
     birthdate = Column(Date, nullable=True, default=None)
     reason = Column(UnicodeText)
     action = Column(UnicodeText)
+    expiration = Column(Date, nullable=True, default=None)
     active = Column(Boolean, default=True)
     attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True))
 
@@ -326,7 +327,7 @@ class WatchList(MagModel):
         return [name.strip().lower() for name in self.first_names.split(',')]
 
     @presave_adjustment
-    def _fix_birthdate(self):
+    def fix_birthdate(self):
         if self.birthdate == '':
             self.birthdate = None
 
