@@ -21,7 +21,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, Pro
                         ReceiptTransaction, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
-    valid_password, SignNowRequest, validate_model
+    valid_password, SignNowRequest, validate_model, create_new_hash
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 
 
@@ -147,7 +147,7 @@ def set_up_new_account(session, attendee, email=None):
         session.add_attendee_to_account(attendee, account)
 
     if not account.is_sso_account:
-        session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')))
+        session.add(PasswordReset(attendee_account=account, hashed=create_new_hash(token)))
 
         body = render('emails/accounts/new_account.html', {
                 'attendee': attendee, 'account_email': email, 'token': token}, encoding=None)
@@ -2190,7 +2190,7 @@ class Root:
 
         if not message:
             if new_password:
-                account.hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                account.hashed = create_new_hash(new_password)
             account.email = params.get('account_email')
             message = 'Account information updated successfully.'
         raise HTTPRedirect('homepage?message={}', message)
@@ -2222,7 +2222,7 @@ class Root:
                 raise HTTPRedirect(sso_url)
 
             token = genpasswd(short=True)
-            session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')))
+            session.add(PasswordReset(attendee_account=account, hashed=create_new_hash(token)))
 
             body = render('emails/accounts/password_reset.html', {
                     'account': account, 'token': token}, encoding=None)
@@ -2260,7 +2260,7 @@ class Root:
 
             if not message:
                 account.email = normalize_email(account_email)
-                account.hashed = bcrypt.hashpw(account_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                account.hashed = create_new_hash(account_password)
                 session.delete(account.password_reset)
                 for attendee in account.attendees:
                     # Make sure only this account manages the attendee if c.ONE_MANAGER_PER_BADGE is set

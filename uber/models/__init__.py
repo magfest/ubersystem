@@ -34,7 +34,7 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, normalize_email_legacy, normalize_phone, DeptChecklistConf, \
+from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     valid_email, valid_password
 from uber.payments import ReceiptManager
 
@@ -1072,19 +1072,22 @@ class Session(SessionManager):
             if not password and generate_pwd:
                 password = genpasswd()
 
-            new_account = AdminAccount(attendee=attendee, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
+            new_account = AdminAccount(
+                attendee=attendee,
+                hashed=create_new_hash(password))
             if 'judge' in params:
                 new_account.judge = params.pop('judge')
             new_account.apply(params)
             self.add(new_account)
-            return new_account
+            return new_account, password
 
         def create_attendee_account(self, email=None, password=None):
             from uber.models import AttendeeAccount
             from uber.utils import normalize_email
 
-            new_account = AttendeeAccount(email=normalize_email(email),
-                                          hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            new_account = AttendeeAccount(
+                email=normalize_email(email),
+                hashed=create_new_hash(password) if password else '')
             self.add(new_account)
 
             return new_account
@@ -2037,7 +2040,7 @@ class Session(SessionManager):
             )
 
             if not c.SAML_SETTINGS:
-                test_developer_account.hashed = bcrypt.hashpw('magfest'.encode('utf-8'), bcrypt.gensalt())
+                test_developer_account.hashed = create_new_hash('magfest')
 
             test_developer_account.access_groups.append(all_access_group)
 

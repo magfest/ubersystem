@@ -49,8 +49,7 @@ class Root:
                                         placeholder=True, badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY)
                     session.add(attendee)
 
-                password = genpasswd()
-                attendee.admin_account = session.create_admin_account(attendee, password, judge=judge)
+                attendee.admin_account, password = session.create_admin_account(attendee, judge=judge)
                 email_body = render('emails/accounts/new_account.txt', {
                     'password': password,
                     'account': attendee.admin_account,
