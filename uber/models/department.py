@@ -216,7 +216,7 @@ class Department(MagModel):
         viewonly=True)
     members = relationship(
         'Attendee',
-        backref=backref('assigned_depts', order_by='Department.name', viewonly=True),
+        backref=backref('assigned_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         order_by='Attendee.full_name',
         secondary='dept_membership')
