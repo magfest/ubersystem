@@ -1,3 +1,4 @@
+import bcrypt
 import cherrypy
 import importlib
 import math
@@ -718,6 +719,10 @@ def genpasswd(short=False):
             return ' '.join(random.choice(words) for i in range(4))
         characters = string.ascii_letters + string.digits
         return ''.join(random.choice(characters) for i in range(8))
+
+
+def create_new_hash(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 
 # ======================================================================

@@ -11,7 +11,8 @@ from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, PasswordReset, WorkstationAssignment
 from uber.tasks.email import send_email
-from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
+from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
+                        create_new_hash)
 
 
 def valid_password(password, account):
@@ -21,7 +22,8 @@ def valid_password(password, account):
         pr = None
 
     all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
-    return any(bcrypt.hashpw(password.encode('utf-8'), hashed.encode('utf-8')) == hashed.encode('utf-8') for hashed in all_hashed)
+    return any(bcrypt.hashpw(password.encode('utf-8'),
+                             hashed.encode('utf-8')) == hashed.encode('utf-8') for hashed in all_hashed)
 
 
 @all_renderable()
@@ -66,7 +68,7 @@ class Root:
                     password = genpasswd()
 
                 if not message:
-                    account.hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    account.hashed = create_new_hash(password)
 
             message = message or check(account)
         if not message:
@@ -265,7 +267,7 @@ class Root:
                 if account.password_reset:
                     session.delete(account.password_reset)
                     session.commit()
-                session.add(PasswordReset(admin_account=account, hashed=bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')))
+                session.add(PasswordReset(admin_account=account, hashed=create_new_hash(password)))
                 body = render('emails/accounts/password_reset.txt', {
                     'name': account.attendee.full_name,
                     'password':  password}, encoding=None)
@@ -305,7 +307,7 @@ class Root:
             else:
                 check_csrf(csrf_token)
                 account = session.admin_account(id)
-                account.hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                account.hashed = create_new_hash(new_password)
                 raise HTTPRedirect('index?message={}', 'Account Password Updated')
 
         return {
@@ -337,7 +339,7 @@ class Root:
                 message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
-                account.hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                account.hashed = create_new_hash(new_password)
                 raise HTTPRedirect('homepage?message={}', 'Your password has been updated')
 
         return {'message': message}
@@ -387,7 +389,7 @@ class Root:
                     if account.is_new:
                         if not c.SAML_SETTINGS:
                             password = genpasswd()
-                            account.hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                            account.hashed = create_new_hash(password)
                         account.attendee = match
                         session.add(account)
                         body = render('emails/accounts/new_account.txt', {

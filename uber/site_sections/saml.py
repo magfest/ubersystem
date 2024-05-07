@@ -59,7 +59,7 @@ class Root:
                             session.add(matching_attendee)
                             session.commit()
 
-                        admin_account = session.create_admin_account(matching_attendee, generate_pwd=False)
+                        admin_account, pwd = session.create_admin_account(matching_attendee, generate_pwd=False)
                         all_access_group = session.query(AccessGroup).filter_by(name="All Access").first()
                         if not all_access_group:
                             all_access_group = AccessGroup(
