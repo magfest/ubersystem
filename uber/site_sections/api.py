@@ -38,7 +38,7 @@ class Root:
         }
 
     def reference(self, session):
-        from uber.server import jsonrpc_services as jsonrpc
+        from uber.api import jsonrpc_services as jsonrpc
         newlines = re.compile(r'(^|[^\n])\n([^\n]|$)')
         admin_account = session.current_admin_account()
         services = []
