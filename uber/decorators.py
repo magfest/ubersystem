@@ -707,20 +707,20 @@ def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
         if not func.public:
-            if c.PATH == 'staffing':
+            if '/staffing/' in c.PAGE_PATH:
                 if not cherrypy.session.get('staffer_id'):
                     raise HTTPRedirect('../staffing/login?message=You+are+not+logged+in', save_location=True)
 
             elif cherrypy.session.get('account_id') is None:
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
-            elif c.PATH == 'mivs_judging':
+            elif '/mivs_judging/' in c.PAGE_PATH:
                 if not uber.models.AdminAccount.is_mivs_judge_or_admin:
-                    return 'You need to be a MIVS Judge or have access for either {} or {}'.format(c.PATH, c.PAGE_PATH)
+                    return f'You need to be a MIVS Judge or have access to {c.PAGE_PATH}'
 
             else:
                 if not c.has_section_or_page_access(include_read_only=True):
-                    return 'You need access for either {} or {}.'.format(c.PATH, c.PAGE_PATH)
+                    return f'You need access to {c.PAGE_PATH}.'
 
         return func(*args, **kwargs)
     return with_restrictions
