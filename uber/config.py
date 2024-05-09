@@ -282,9 +282,6 @@ class Config(_Overridable):
     For all of the datetime config options, we also define BEFORE_ and AFTER_ properties, e.g. you can
     check the booleans returned by c.BEFORE_PLACEHOLDER_DEADLINE or c.AFTER_PLACEHOLDER_DEADLINE
     """
-    def __init__(self):
-        self._PATH = cherrypy.request.path_info.replace(cherrypy.request.path_info.split('/')[-1], '').strip('/')
-
     def get_oneday_price(self, dt):
         return self.BADGE_PRICES['single_day'].get(dt.strftime('%A'), self.DEFAULT_SINGLE_DAY)
 
@@ -837,14 +834,6 @@ class Config(_Overridable):
     @property
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
-
-    @property
-    def PATH(self):
-        return self._PATH
-
-    @PATH.setter
-    def PATH(self, value):
-        self._PATH = value
 
     @request_cached_property
     @dynamic
