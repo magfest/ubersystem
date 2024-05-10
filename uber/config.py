@@ -1555,6 +1555,10 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND]
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
 c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
+c.HOTEL_LOTTERY_HOTEL_OPTS = []
+for name, item in c.HOTEL_LOTTERY.items():
+    if isinstance(item, dict):
+        c.HOTEL_LOTTERY_HOTEL_OPTS.append((name, item))
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'

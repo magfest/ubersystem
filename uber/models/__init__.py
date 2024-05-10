@@ -588,6 +588,7 @@ from uber.models.department import Job, Shift, Department, DeptRole  # noqa: E40
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
 from uber.models.guests import GuestGroup  # noqa: E402
+from uber.models.hotel import LotteryApplication
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402

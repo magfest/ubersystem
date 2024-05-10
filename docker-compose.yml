@@ -19,8 +19,8 @@ x-uber: &uber
     - UBER_CONFIG_FILES=uber.ini
     - LOG_CONFIG=true
   volumes:
-    - $PWD:/app/
-    - $PWD/../magprime:/app/plugins/magprime
+    - .:/app/
+    - ./../magprime:/app/plugins/magprime
 
 
 services: 

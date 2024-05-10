@@ -274,6 +274,8 @@ class MagForm(Form):
                 return 'customselect'
             elif isinstance(widget, wtforms_widgets.HiddenInput):
                 return 'hidden'
+            elif isinstance(widget, Ranking):
+                return 'ranking'
             else:
                 return 'text'
 
