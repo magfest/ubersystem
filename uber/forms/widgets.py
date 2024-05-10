@@ -102,3 +102,22 @@ class CountrySelect(Select):
         return Markup(
             "<option {}>{}</option>".format(html_params(**options), escape(label))
         )
+
+class Ranking():
+    def __init__(self, choices=None, **kwargs):
+        self.choices = choices
+    
+    def __call__(self, field, choices=None, **kwargs):
+        choices = choices or self.choices or [('', "ERROR: No choices provided")]
+        selected_choices = field.data
+        html = ['<div class="form-ranking unused">']
+        for choice in choices if not choice in selected_choices:
+            html.append(f'<div class="form-ranking choice">{choice}</div>')
+        html.append('</div>')
+        
+        html.append('<div class="form-ranking used">')
+        for choice in selected_choices:
+            html.append(f'<div class="form-ranking choice">{choice}</div>')
+        html.append('</div>')
+
+        return Markup(''.join(html))

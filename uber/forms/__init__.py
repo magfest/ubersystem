@@ -8,7 +8,7 @@ import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError
 from pockets.autolog import log
 from uber.config import c
-from uber.forms.widgets import CountrySelect, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput
+from uber.forms.widgets import CountrySelect, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking
 from uber.model_checks import invalid_zip_code
 
 

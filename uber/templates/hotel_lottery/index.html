@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block backlink %}
+{% if c.ATTENDEE_ACCOUNTS_ENABLED or c.HAS_REGISTRATION_ACCESS or c.HAS_GROUP_ADMIN_ACCESS %}
+<div class="pull-right" style="padding-top:5px;">
+    {% if c.HAS_REGISTRATION_ACCESS and attendee and not attendee.is_new %}
+    <a class="btn btn-outline-secondary" href="../registration/form?id={{ attendee.id }}">Admin Form</a>
+    {% elif c.HAS_GROUP_ADMIN_ACCESS and group and not group.is_new %}
+    <a class="btn btn-outline-secondary" href="../group_admin/form?id={{ group.id }}">Admin Form</a>
+    {% elif c.HAS_ART_SHOW_ADMIN_ACCESS and app and not app.is_new %}
+    <a class="btn btn-outline-secondary" href="../art_show_admin/form?id={{ app.id }}">Admin Form</a>
+    {% elif c.CURRENT_ADMIN %}
+    <a href="../accounts/homepage" class="btn btn-outline-secondary">Admin Area</a>
+    {% endif %}
+    {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account and not account and c.PAGE_PATH != '/preregistration/homepage' %}
+    <a class="btn btn-info" href="../preregistration/homepage">Homepage</a>
+    {% endif %}
+    {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account %}
+    <a class="btn btn-danger" href="#" onClick="warnOrLogout()">Logout</a>
+    {% endif %}
+</div>
+<script type="text/javascript">
+warnOrLogout = function() {
+    if (typeof(warnBeforeLogout) !== 'undefined') {
+        warnBeforeLogout();
+        return false;
+    } else { window.location = "../preregistration/logout"; }
+}
+</script>
+{% endif %}
+{% endblock %}
+
+{% block masthead %}
+<div class="masthead"><span class='{{ "visually-hidden" if bootstrap5 else "hidden" }}'>{{ c.ORGANIZATION_NAME }}</span></div>
+{% if homepage_account %}
+<div class="text-center card-body">{% include "preregistration/update_account.html" %}</div>
+{% elif logged_in_account %}
+<div class="text-center card-body">You are currently logged in as <strong>{{ logged_in_account.email }}</strong>.</div>
+{% endif %}
+{% endblock %}
+
+{% block footer %}
+<footer class="text-muted text-center mt-auto">
+    <div class="card"><div class="card-footer">
+        {% block footer_text %}{% endblock %}
+    </div></div>
+</footer>
+{% endblock %}

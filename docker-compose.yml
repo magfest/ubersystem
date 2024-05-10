@@ -16,6 +16,8 @@ x-uber: &uber
     - uber_hostname=localhost
     - uber_plugins=["magprime"]
     - uber_dev_box=True
+    - UBER_CONFIG_FILES=uber.ini
+    - LOG_CONFIG=true
   volumes:
     - $PWD:/app/
     - $PWD/../magprime:/app/plugins/magprime
