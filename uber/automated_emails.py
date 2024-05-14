@@ -507,6 +507,12 @@ def guest_placeholder(a): return a.placeholder and a.badge_type == c.GUEST_BADGE
             and a.group.guest.group_type == c.GUEST)
 
 
+def band_placeholder(a): return a.placeholder and a.badge_type == c.GUEST_BADGE and (
+            not a.group
+            or a.group.guest
+            and a.group.guest.group_type == c.BAND)
+
+
 def dealer_placeholder(a): return a.placeholder and a.is_dealer and a.group.status == c.APPROVED
 
 
@@ -519,12 +525,15 @@ def volunteer_placeholder(a): return a.placeholder and a.registered_local > c.PR
 # a.staffing provided by StopsEmailFixture
 
 
-# TODO: Add an email for MIVS judges, an email for non-Guest guest group badges,
+# TODO: Add an email for MIVS judges, an email for non-Guest or Band guest group badges,
 # and an email for group-leader-created badges
-def generic_placeholder(a): return a.placeholder and (c.AT_THE_CON or not panelist_placeholder(a)
-                                                      and not guest_placeholder(a) and not dealer_placeholder(a)
-                                                      and a.registered_local > min(c.PREREG_OPEN, c.DEALER_REG_START)
-                                                      and not volunteer_placeholder(a))
+def generic_placeholder(a): return a.placeholder and c.AT_THE_CON or (not panelist_placeholder(a)
+                                                                      and not band_placeholder(a)
+                                                                      and not guest_placeholder(a)
+                                                                      and not dealer_placeholder(a)
+                                                                      and a.registered_local > min(c.PREREG_OPEN,
+                                                                                                   c.DEALER_REG_START)
+                                                                      and not volunteer_placeholder(a))
 
 
 AutomatedEmailFixture(
@@ -571,6 +580,14 @@ AutomatedEmailFixture(
     # query=and_(Attendee.placeholder == True, Attendee.badge_type == c.GUEST_BADGE),
     sender=c.GUEST_EMAIL,
     ident='guest_badge_confirmation')
+
+AutomatedEmailFixture(
+    Attendee,
+    'Claim your performer badge for {EVENT_NAME} {EVENT_YEAR}',
+    'placeholders/band.txt',
+    band_placeholder,
+    sender=c.BAND_EMAIL,
+    ident='band_badge_confirmation')
 
 AutomatedEmailFixture(
     Attendee,
