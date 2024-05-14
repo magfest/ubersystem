@@ -2063,7 +2063,7 @@ class Root:
         if not stripe_intent:
             return {'error': "Something went wrong. Please contact us at {}.".format(c.REGDESK_EMAIL)}
 
-        if stripe_intent.latest_charge:
+        if not c.AUTHORIZENET_LOGIN_ID and stripe_intent.status == "succeeded":
             return {'error': "This payment has already been finalized!"}
 
         return {'stripe_intent': stripe_intent,
