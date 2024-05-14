@@ -324,7 +324,7 @@ class Config(_Overridable):
             count = session.query(Attendee).filter(
                 Attendee.paid != c.NOT_PAID,
                 Attendee.badge_type == badge_type,
-                Attendee.has_or_will_have_badge == True).count()  # noqa: E712
+                Attendee.has_badge == True).count()  # noqa: E712
         return count
 
     def has_section_or_page_access(self, include_read_only=False, page_path=''):
@@ -406,7 +406,8 @@ class Config(_Overridable):
         from uber.models import Session, PromoCode, PromoCodeGroup
         base_count = self.get_badge_count_by_type(c.ATTENDEE_BADGE)
         with Session() as session:
-            pc_code_count = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0).count()
+            pc_code_count = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0,
+                                                                                 PromoCode.uses_remaining > 0).count()
         return base_count + pc_code_count
 
     @request_cached_property
@@ -787,7 +788,7 @@ class Config(_Overridable):
                         opts.append((badge, day_name + ' Badge (${})'.format(price)))
                     day += timedelta(days=1)
             elif self.ONE_DAY_BADGE_AVAILABLE:
-                opts.append((self.ONE_DAY_BADGE,  'Single Day Badge (${})'.format(self.ONEDAY_BADGE_PRICE)))
+                opts.append((self.ONE_DAY_BADGE, 'Single Day Badge (${})'.format(self.ONEDAY_BADGE_PRICE)))
         return opts
 
     @property
@@ -1512,8 +1513,8 @@ c.REGION_OPTS_CANADA = [('', 'Select a province')] + sorted(
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 
 c.JOB_PAGE_OPTS = (
-    ('index',    'Calendar View'),
-    ('signups',  'Signups View'),
+    ('index', 'Calendar View'),
+    ('signups', 'Signups View'),
     ('staffers', 'Staffer Summary'),
 )
 c.WEIGHT_OPTS = (
