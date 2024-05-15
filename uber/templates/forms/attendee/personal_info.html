@@ -60,7 +60,13 @@
   <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.email, extra_field=email_extra_field, value=attendee_email) }}
   </div>
-
+  {% if attendee.needs_pii_consent or attendee.badge_status == c.PENDING_STATUS %}
+  <div class="col-12 col-sm-6">
+    {{ form_macros.form_input(personal_info.confirm_email, value=attendee_email if edit_id or attendee.placeholder else '') }}
+  </div>
+</div>
+<div class="row g-sm-3">
+  {% endif %}
   <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.cellphone, extra_field=cellphone_extra_field, required=is_prereg_dealer or attendee.is_dealer or attendee.staffing) }}
   </div>
