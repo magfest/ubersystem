@@ -527,13 +527,13 @@ def volunteer_placeholder(a): return a.placeholder and a.registered_local > c.PR
 
 # TODO: Add an email for MIVS judges, an email for non-Guest or Band guest group badges,
 # and an email for group-leader-created badges
-def generic_placeholder(a): return a.placeholder and c.AT_THE_CON or (not panelist_placeholder(a)
-                                                                      and not band_placeholder(a)
-                                                                      and not guest_placeholder(a)
-                                                                      and not dealer_placeholder(a)
-                                                                      and a.registered_local > min(c.PREREG_OPEN,
-                                                                                                   c.DEALER_REG_START)
-                                                                      and not volunteer_placeholder(a))
+def generic_placeholder(a): return a.placeholder and (c.AT_THE_CON or not panelist_placeholder(a)
+                                                      and not band_placeholder(a)
+                                                      and not guest_placeholder(a)
+                                                      and not dealer_placeholder(a)
+                                                      and a.registered_local > min(c.PREREG_OPEN,
+                                                                                   c.DEALER_REG_START)
+                                                      and not volunteer_placeholder(a))
 
 
 AutomatedEmailFixture(
