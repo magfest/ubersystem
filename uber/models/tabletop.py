@@ -1,9 +1,8 @@
 from datetime import datetime
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean
+from sqlalchemy.types import Boolean, UnicodeText, DateTime, UUID
 
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, DefaultColumn as Column
@@ -32,5 +31,5 @@ class TabletopGame(MagModel):
 class TabletopCheckout(MagModel):
     game_id = Column(UUID, ForeignKey('tabletop_game.id'))
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    checked_out = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    returned = Column(UTCDateTime, nullable=True)
+    checked_out = Column(DateTime, default=lambda: datetime.now(UTC))
+    returned = Column(DateTime, nullable=True)

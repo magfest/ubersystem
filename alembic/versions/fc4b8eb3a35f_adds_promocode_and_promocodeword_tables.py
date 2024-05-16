@@ -15,8 +15,8 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 from sqlalchemy.sql.expression import text
+from sqlalchemy.types import UUID
 
 
 try:
@@ -33,17 +33,17 @@ else:
 
 def upgrade():
     op.create_table('promo_code',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
     sa.Column('code', sa.Unicode(), server_default='', nullable=False),
     sa.Column('discount', sa.Integer(), nullable=True),
     sa.Column('discount_type', sa.Integer(), server_default='0', nullable=False),
-    sa.Column('expiration_date', residue.UTCDateTime(), nullable=False),
+    sa.Column('expiration_date', DateTime(), nullable=False),
     sa.Column('uses_allowed', sa.Integer(), nullable=True),
     sa.CheckConstraint("trim(code) != ''", name='ck_promo_code_non_empty_code'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_promo_code'))
     )
     op.create_table('promo_code_word',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
     sa.Column('word', sa.Unicode(), server_default='', nullable=False),
     sa.Column('part_of_speech', sa.Integer(), server_default='0', nullable=False),
     sa.CheckConstraint("trim(word) != ''", name='ck_promo_code_word_non_empty_word'),
@@ -59,10 +59,10 @@ def upgrade():
         with op.batch_alter_table(
                 'attendee',
                 reflect_kwargs=dict(listeners=[('column_reflect', listen_for_reflect)])) as batch_op:
-            batch_op.add_column(sa.Column('promo_code_id', residue.UUID(), nullable=True))
+            batch_op.add_column(sa.Column('promo_code_id', UUID(), nullable=True))
             batch_op.create_foreign_key(op.f('fk_attendee_promo_code_id_promo_code'), 'promo_code', ['promo_code_id'], ['id'])
     else:
-        op.add_column('attendee', sa.Column('promo_code_id', residue.UUID(), nullable=True))
+        op.add_column('attendee', sa.Column('promo_code_id', UUID(), nullable=True))
         op.create_foreign_key(op.f('fk_attendee_promo_code_id_promo_code'), 'attendee', 'promo_code', ['promo_code_id'], ['id'])
 
     op.create_index(op.f('ix_attendee_promo_code_id'), 'attendee', ['promo_code_id'], unique=False)

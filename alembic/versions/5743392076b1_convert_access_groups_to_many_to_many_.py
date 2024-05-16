@@ -16,9 +16,9 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.sql import table
+from sqlalchemy.types import UUID
 
 
 try:
@@ -55,13 +55,13 @@ sqlite_reflect_kwargs = {
 
 admin_account = table(
     'admin_account',
-    sa.Column('id', residue.UUID()),
-    sa.Column('access_group_id', residue.UUID()),
+    sa.Column('id', UUID()),
+    sa.Column('access_group_id', UUID()),
 )
 
 access_group = table(
     'access_group',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', UUID()),
     sa.Column('name', sa.Unicode()),
     sa.Column('access', sa.dialects.postgresql.json.JSONB()),
     sa.Column('read_only_access', sa.dialects.postgresql.json.JSONB()),
@@ -69,14 +69,14 @@ access_group = table(
 
 admin_access_group = table(
     'admin_access_group',
-    sa.Column('admin_account_id', residue.UUID()),
-    sa.Column('access_group_id', residue.UUID()),
+    sa.Column('admin_account_id', UUID()),
+    sa.Column('access_group_id', UUID()),
 )
 
 def upgrade():
     op.create_table('admin_access_group',
-    sa.Column('admin_account_id', residue.UUID(), nullable=False),
-    sa.Column('access_group_id', residue.UUID(), nullable=False),
+    sa.Column('admin_account_id', UUID(), nullable=False),
+    sa.Column('access_group_id', UUID(), nullable=False),
     sa.ForeignKeyConstraint(['access_group_id'], ['access_group.id'], name=op.f('fk_admin_access_group_access_group_id_access_group')),
     sa.ForeignKeyConstraint(['admin_account_id'], ['admin_account.id'], name=op.f('fk_admin_access_group_admin_account_id_admin_account')),
     sa.UniqueConstraint('admin_account_id', 'access_group_id', name=op.f('uq_admin_access_group_admin_account_id'))

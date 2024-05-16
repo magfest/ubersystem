@@ -9,9 +9,8 @@ from pytz import UTC
 from sqlalchemy.ext import associationproxy
 
 from pockets.autolog import log
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import Sequence
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, UnicodeText, DateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm.exc import NoResultFound
@@ -30,7 +29,7 @@ serializer.register(associationproxy._AssociationList, list)
 
 
 class ReportTracking(MagModel):
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
     page = Column(UnicodeText)
     params = Column(MutableDict.as_mutable(JSONB), default={})
@@ -47,7 +46,7 @@ class ReportTracking(MagModel):
 
 
 class PageViewTracking(MagModel):
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
     page = Column(UnicodeText)
     which = Column(UnicodeText)
@@ -91,7 +90,7 @@ class PageViewTracking(MagModel):
 class Tracking(MagModel):
     fk_id = Column(UUID, index=True)
     model = Column(UnicodeText)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
     page = Column(UnicodeText)
     which = Column(UnicodeText)
@@ -251,8 +250,8 @@ class TxnRequestTracking(MagModel):
     workstation_num = Column(Integer, default=0)
     terminal_id = Column(UnicodeText)
     who = Column(UnicodeText)
-    requested = Column(UTCDateTime, server_default=utcnow())
-    resolved = Column(UTCDateTime, nullable=True)
+    requested = Column(DateTime, server_default=utcnow())
+    resolved = Column(DateTime, nullable=True)
     success = Column(Boolean, default=False)
     response = Column(MutableDict.as_mutable(JSONB), default={})
     internal_error = Column(UnicodeText)

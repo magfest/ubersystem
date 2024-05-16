@@ -9,7 +9,10 @@ cat <<EOF > celeryconf.py
 # celery config used for celery cli-based health checks (Not loaded by ubersystem directly)
 broker_url = "${uber_secret_broker_url}"
 result_backend = "${uber_secret_broker_url}"
-result_backend_transport_options = {'global_prefix': "${uber_secret_broker_prefix}"}
+result_backend_transport_options = {
+    'global_keyprefix': "${uber_secret_broker_prefix}",
+    'global_prefix': "${uber_secret_broker_prefix}"
+}
 EOF
 
 # If no arguments are passed grab the current CMD from the entrypoint

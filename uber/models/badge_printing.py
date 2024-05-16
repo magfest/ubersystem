@@ -1,8 +1,7 @@
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, UnicodeText, DateTime, UUID
 
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column
@@ -18,8 +17,8 @@ class PrintJob(MagModel):
     printer_id = Column(UnicodeText)
     reg_station = Column(Integer, nullable=True)
     print_fee = Column(Integer, default=0)
-    queued = Column(UTCDateTime, nullable=True, default=None)
-    printed = Column(UTCDateTime, nullable=True, default=None)
+    queued = Column(DateTime, nullable=True, default=None)
+    printed = Column(DateTime, nullable=True, default=None)
     errors = Column(UnicodeText)
     is_minor = Column(Boolean)
     json_data = Column(MutableDict.as_mutable(JSONB), default={})

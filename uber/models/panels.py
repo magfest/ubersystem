@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, UnicodeText, DateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
@@ -19,7 +18,7 @@ __all__ = ['AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant', 'Pane
 
 class Event(MagModel):
     location = Column(Choice(c.EVENT_LOCATION_OPTS))
-    start_time = Column(UTCDateTime)
+    start_time = Column(DateTime)
     duration = Column(Integer)  # half-hour increments
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
@@ -125,9 +124,9 @@ class PanelApplication(MagModel):
     livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
     panelist_bringing = Column(UnicodeText)
     extra_info = Column(UnicodeText)
-    applied = Column(UTCDateTime, server_default=utcnow())
-    accepted = Column(UTCDateTime, nullable=True)
-    confirmed = Column(UTCDateTime, nullable=True)
+    applied = Column(DateTime, server_default=utcnow())
+    accepted = Column(DateTime, nullable=True)
+    confirmed = Column(DateTime, nullable=True)
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
     comments = Column(UnicodeText, admin_only=True)
     track = Column(UnicodeText, admin_only=True)

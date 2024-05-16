@@ -21,7 +21,7 @@ from sqlalchemy import text
 
 from uber.badge_funcs import badge_consistency_check
 from uber.decorators import all_renderable, csv_file, public, site_mappable
-from uber.models import Choice, MultiChoice, Session, UTCDateTime
+from uber.models import Choice, MultiChoice, Session, DateTime
 from uber.tasks.health import ping
 
 
@@ -61,7 +61,7 @@ def prepare_model_export(model, filtered_models=None):
                 # automatic _labels property which is a list of string labels.
                 # So we'll get that and then separate the labels with slashes.
                 row.append(' / '.join(getattr(model, col.name + '_labels')))
-            elif isinstance(col.type, UTCDateTime):
+            elif isinstance(col.type, DateTime):
                 # Use the empty string if this is null, otherwise use strftime.
                 # Also you should fill in whatever actual format you want.
                 val = getattr(model, col.name)
@@ -203,7 +203,7 @@ class Root:
                         val = val.strip().lower() not in ('f', 'false', 'n', 'no', '0')
                     else:
                         val = bool(val)
-                elif isinstance(col.type, UTCDateTime):
+                elif isinstance(col.type, DateTime):
                     # we'll need to make sure we use whatever format string we used to
                     # export this date in the first place
                     try:

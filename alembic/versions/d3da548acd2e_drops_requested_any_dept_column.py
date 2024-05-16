@@ -16,12 +16,12 @@ depends_on = None
 
 import uuid
 
-import residue
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.sql import and_, or_, table
+from sqlalchemy.types import UUID
 
 
 try:
@@ -59,27 +59,27 @@ sqlite_reflect_kwargs = {
 
 attendee_table = table(
     'attendee',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', UUID()),
     sa.Column('requested_any_dept', sa.Boolean()),
 )
 
 
 dept_membership_request_table = table(
     'dept_membership_request',
-    sa.Column('id', residue.UUID()),
-    sa.Column('attendee_id', residue.UUID(), ForeignKey('attendee.id')),
-    sa.Column('department_id', residue.UUID(), ForeignKey('department.id')),
+    sa.Column('id', UUID()),
+    sa.Column('attendee_id', UUID(), ForeignKey('attendee.id')),
+    sa.Column('department_id', UUID(), ForeignKey('department.id')),
 )
 
 
 def upgrade():
     if is_sqlite:
         with op.batch_alter_table('dept_membership_request', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.add_column(sa.Column('id', residue.UUID(), nullable=True))
-            batch_op.alter_column('department_id', existing_type=residue.UUID(), nullable=True)
+            batch_op.add_column(sa.Column('id', UUID(), nullable=True))
+            batch_op.alter_column('department_id', existing_type=UUID(), nullable=True)
     else:
-        op.add_column('dept_membership_request', sa.Column('id', residue.UUID(), nullable=True))
-        op.alter_column('dept_membership_request', 'department_id', existing_type=residue.UUID(), nullable=True)
+        op.add_column('dept_membership_request', sa.Column('id', UUID(), nullable=True))
+        op.alter_column('dept_membership_request', 'department_id', existing_type=UUID(), nullable=True)
 
     connection = op.get_bind()
     all_requests = connection.execute(dept_membership_request_table.select())
@@ -107,12 +107,12 @@ def upgrade():
 
     if is_sqlite:
         with op.batch_alter_table('dept_membership_request', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.alter_column('id', existing_type=residue.UUID(), nullable=False)
+            batch_op.alter_column('id', existing_type=UUID(), nullable=False)
             batch_op.create_primary_key('pk_dept_membership_request', ['id', ])
         with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.drop_column('requested_any_dept')
     else:
-        op.alter_column('dept_membership_request', 'id', existing_type=residue.UUID(), nullable=False)
+        op.alter_column('dept_membership_request', 'id', existing_type=UUID(), nullable=False)
         op.create_primary_key('pk_dept_membership_request', 'dept_membership_request', ['id', ])
         op.drop_column('attendee', 'requested_any_dept')
 
@@ -143,7 +143,7 @@ def downgrade():
     if is_sqlite:
         with op.batch_alter_table('dept_membership_request', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.drop_column('id')
-            batch_op.alter_column('department_id', existing_type=residue.UUID(), nullable=False)
+            batch_op.alter_column('department_id', existing_type=UUID(), nullable=False)
     else:
         op.drop_column('dept_membership_request', 'id')
-        op.alter_column('dept_membership_request', 'department_id', existing_type=residue.UUID(), nullable=False)
+        op.alter_column('dept_membership_request', 'department_id', existing_type=UUID(), nullable=False)

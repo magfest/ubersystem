@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -53,8 +53,8 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('art_show_piece',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('app_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('app_id', UUID(), nullable=True),
     sa.Column('piece_id', sa.Integer(), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('for_sale', sa.Boolean(), server_default='False', nullable=False),

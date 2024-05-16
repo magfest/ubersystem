@@ -1529,7 +1529,7 @@ class TaskUtils:
                 attendee.managers.append(account)
 
             from sqlalchemy.exc import IntegrityError
-            from psycopg2.errors import UniqueViolation
+            from psycopg.errors import UniqueViolation
 
             try:
                 session.commit()

@@ -16,7 +16,7 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -53,11 +53,11 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('mits_document', sa.Column('game_id', residue.UUID(), nullable=False))
+    op.add_column('mits_document', sa.Column('game_id', UUID(), nullable=False))
     op.drop_constraint('fk_mits_document_team_id_mits_team', 'mits_document', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_document_game_id_mits_game'), 'mits_document', 'mits_game', ['game_id'], ['id'])
     op.drop_column('mits_document', 'team_id')
-    op.add_column('mits_picture', sa.Column('game_id', residue.UUID(), nullable=False))
+    op.add_column('mits_picture', sa.Column('game_id', UUID(), nullable=False))
     op.drop_constraint('fk_mits_picture_team_id_mits_team', 'mits_picture', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_picture_game_id_mits_game'), 'mits_picture', 'mits_game', ['game_id'], ['id'])
     op.drop_column('mits_picture', 'team_id')

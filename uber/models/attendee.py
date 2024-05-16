@@ -4,17 +4,16 @@ import re
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy.sql.elements import not_
+from sqlalchemy.sql.expression import not_
 from pockets import cached_property, classproperty, groupify, listify, is_listy, readable_join
 from pockets.autolog import log
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, subqueryload
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
-from sqlalchemy.types import Boolean, Date, Integer
+from sqlalchemy.types import Boolean, Date, Integer, UnicodeText, DateTime, UUID
 
 import uber
 from uber.config import c
@@ -239,9 +238,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     can_transfer = Column(Boolean, default=False, admin_only=True)
 
     reg_station = Column(Integer, nullable=True, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
-    confirmed = Column(UTCDateTime, nullable=True, default=None)
-    checked_in = Column(UTCDateTime, nullable=True)
+    registered = Column(DateTime, server_default=utcnow())
+    confirmed = Column(DateTime, nullable=True, default=None)
+    checked_in = Column(DateTime, nullable=True)
 
     paid = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
     badge_cost = Column(Integer, nullable=True, admin_only=True)
@@ -947,10 +946,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_paid(cls):
         from uber.models import ModelReceipt, Group
 
-        return case([(cls.paid == c.PAID_BY_GROUP,
+        return case((cls.paid == c.PAID_BY_GROUP,
                       exists().select_from(Group).where(
                           and_(cls.group_id == Group.id,
-                               Group.is_paid == True)))],  # noqa: E712
+                               Group.is_paid == True))),  # noqa: E712
                     else_=(exists().select_from(ModelReceipt).where(
                             and_(ModelReceipt.owner_id == cls.id,
                                  ModelReceipt.owner_model == "Attendee",
@@ -1296,7 +1295,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @full_name.expression
     def full_name(cls):
         return case(
-            [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz'),  # noqa: E711
             else_=func.lower(cls.first_name + ' ' + cls.last_name))
 
     @hybrid_property
@@ -1332,14 +1331,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @promo_code_group_name.expression
     def promo_code_group_name(cls):
         from uber.models.promo_code import PromoCode, PromoCodeGroup
-        return case([
+        return case(
             (cls.promo_code != None,  # noqa: E711
              select([PromoCodeGroup.name]).where(PromoCodeGroup.id == PromoCode.group_id)
              .where(PromoCode.id == cls.promo_code_id).label('promo_code_group_name')),
             (cls.promo_code_groups != None,  # noqa: E711
              select([PromoCodeGroup.name]).where(PromoCodeGroup.buyer_id == cls.id)
              .label('promo_code_group_name'))
-        ])
+        )
 
     @hybrid_property
     def last_first(self):
@@ -1348,7 +1347,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @last_first.expression
     def last_first(cls):
         return case(
-            [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz'),  # noqa: E711
             else_=func.lower(cls.last_name + ', ' + cls.first_name))
 
     @hybrid_property

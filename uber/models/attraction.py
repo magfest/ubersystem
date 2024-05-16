@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 
 import pytz
 from pockets import groupify, listify, sluggify
-from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, cast, exists, func, not_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -11,7 +10,7 @@ from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.sql import text
 from sqlalchemy.sql.expression import bindparam
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, UnicodeText, DateTime, UUID, JSON
 
 from uber.config import c
 from uber.custom_tags import humanize_timedelta, location_event_name, location_room_name
@@ -297,7 +296,7 @@ class AttractionEvent(MagModel):
     attraction_id = Column(UUID, ForeignKey('attraction.id'), index=True)
 
     location = Column(Choice(c.EVENT_LOCATION_OPTS))
-    start_time = Column(UTCDateTime, default=c.EPOCH)
+    start_time = Column(DateTime, default=c.EPOCH)
     duration = Column(Integer, default=900)  # In seconds
     slots = Column(Integer, default=1)
     signups_open = Column(Boolean, default=True)
@@ -455,8 +454,8 @@ class AttractionSignup(MagModel):
     attraction_id = Column(UUID, ForeignKey('attraction.id'))
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
 
-    signup_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
-    checkin_time = Column(UTCDateTime, default=lambda: utcmin.datetime, index=True)
+    signup_time = Column(DateTime, default=lambda: datetime.now(pytz.UTC))
+    checkin_time = Column(DateTime, default=lambda: utcmin.datetime, index=True)
 
     notifications = relationship(
         'AttractionNotification',
@@ -537,7 +536,7 @@ class AttractionNotification(MagModel):
     notification_type = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
     ident = Column(UnicodeText, index=True)
     sid = Column(UnicodeText)
-    sent_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
+    sent_time = Column(DateTime, default=lambda: datetime.now(pytz.UTC))
     subject = Column(UnicodeText)
     body = Column(UnicodeText)
 
@@ -556,8 +555,8 @@ class AttractionNotificationReply(MagModel):
     from_phonenumber = Column(UnicodeText)
     to_phonenumber = Column(UnicodeText)
     sid = Column(UnicodeText, index=True)
-    received_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
-    sent_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
+    received_time = Column(DateTime, default=lambda: datetime.now(pytz.UTC))
+    sent_time = Column(DateTime, default=lambda: datetime.now(pytz.UTC))
     body = Column(UnicodeText)
 
     @presave_adjustment

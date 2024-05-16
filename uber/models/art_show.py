@@ -10,10 +10,9 @@ from uber.models import MagModel
 from uber.decorators import presave_adjustment
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship
 
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
-from sqlalchemy.types import Integer, Boolean
+from sqlalchemy.types import Integer, Boolean, UnicodeText, DateTime, UUID
 from sqlalchemy.schema import ForeignKey
 
 
@@ -30,8 +29,8 @@ class ArtShowApplication(MagModel):
     agent = relationship('Attendee', foreign_keys=agent_id, cascade='save-update, merge',
                          backref=backref('art_agent_applications', cascade='save-update, merge'))
     agent_code = Column(UnicodeText)
-    checked_in = Column(UTCDateTime, nullable=True)
-    checked_out = Column(UTCDateTime, nullable=True)
+    checked_in = Column(DateTime, nullable=True)
+    checked_out = Column(DateTime, nullable=True)
     locations = Column(UnicodeText)
     artist_name = Column(UnicodeText)
     artist_id = Column(UnicodeText, admin_only=True)
@@ -151,7 +150,7 @@ class ArtShowApplication(MagModel):
     @true_default_cost.expression
     def true_default_cost(cls):
         return case(
-            [(cls.overridden_price == None, cls.default_cost)],  # noqa: E711
+            (cls.overridden_price == None, cls.default_cost),  # noqa: E711
             else_=cls.overridden_price)
 
     @hybrid_property
@@ -326,7 +325,7 @@ class ArtShowPayment(MagModel):
                                            cascade='save-update, merge'))
     amount = Column(Integer, default=0)
     type = Column(Choice(c.ART_SHOW_PAYMENT_OPTS), default=c.STRIPE, admin_only=True)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class ArtShowReceipt(MagModel):
@@ -336,7 +335,7 @@ class ArtShowReceipt(MagModel):
                             cascade='save-update, merge',
                             backref=backref('art_show_receipts',
                                             cascade='save-update, merge'))
-    closed = Column(UTCDateTime, nullable=True)
+    closed = Column(DateTime, nullable=True)
 
     @presave_adjustment
     def add_invoice_num(self):
@@ -396,7 +395,7 @@ class ArtShowBidder(MagModel):
     hotel_name = Column(UnicodeText)
     hotel_room_num = Column(UnicodeText)
     admin_notes = Column(UnicodeText)
-    signed_up = Column(UTCDateTime, nullable=True)
+    signed_up = Column(DateTime, nullable=True)
 
     @hybrid_property
     def bidder_num_stripped(self):

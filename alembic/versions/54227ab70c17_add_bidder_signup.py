@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -53,13 +53,13 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('art_show_bidder',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=True),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('attendee_id', UUID(), nullable=True),
     sa.Column('bidder_num', sa.Unicode(), server_default='', nullable=False),
     sa.Column('hotel_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('hotel_room_num', sa.Unicode(), server_default='', nullable=False),
     sa.Column('admin_notes', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('signed_up', residue.UTCDateTime(), nullable=True),
+    sa.Column('signed_up', DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_art_show_bidder_attendee_id_attendee'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_art_show_bidder'))
     )

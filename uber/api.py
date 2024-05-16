@@ -14,11 +14,10 @@ from cherrypy import HTTPError
 from dateutil import parser as dateparser
 from pockets import unwrap
 from time import mktime
-from residue import UTCDateTime
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
-from sqlalchemy.types import Boolean, Date
+from sqlalchemy.types import Boolean, Date, DateTime
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
@@ -298,9 +297,9 @@ def _parse_datetime(d):
 
 
 def _parse_if_datetime(key, val):
-    # This should be in the UTCDateTime and Date classes, but they're not defined in this app
+    # This should be in the DateTime and Date classes, but they're not defined in this app
     if hasattr(getattr(Attendee, key), 'type') and (
-            isinstance(getattr(Attendee, key).type, UTCDateTime) or isinstance(getattr(Attendee, key).type, Date)):
+            isinstance(getattr(Attendee, key).type, DateTime) or isinstance(getattr(Attendee, key).type, Date)):
         return _parse_datetime(val)
     return val
 

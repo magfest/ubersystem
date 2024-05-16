@@ -3,9 +3,8 @@ from uber.models import MagModel
 from uber.decorators import presave_adjustment
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship, MultiChoice, utcnow
 
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
-from sqlalchemy.types import Integer
+from sqlalchemy.types import Integer, UnicodeText, DateTime, UUID
 from sqlalchemy.schema import ForeignKey
 
 
@@ -21,8 +20,8 @@ class MarketplaceApplication(MagModel):
                             backref=backref('marketplace_applications', cascade='save-update, merge'))
     business_name = Column(UnicodeText)
     status = Column(Choice(c.MARKETPLACE_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
-    approved = Column(UTCDateTime, nullable=True)
+    registered = Column(DateTime, server_default=utcnow())
+    approved = Column(DateTime, nullable=True)
 
     categories = Column(MultiChoice(c.DEALER_WARES_OPTS))
     categories_text = Column(UnicodeText)

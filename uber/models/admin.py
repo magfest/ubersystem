@@ -3,12 +3,11 @@ from datetime import datetime, timedelta
 import cherrypy
 from pockets import classproperty, listify
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
-from sqlalchemy.types import Boolean, Date, Integer
+from sqlalchemy.types import Boolean, Date, Integer, UnicodeText, DateTime, UUID
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -231,7 +230,7 @@ class AdminAccount(MagModel):
 class PasswordReset(MagModel):
     admin_id = Column(UUID, ForeignKey('admin_account.id'), unique=True, nullable=True)
     attendee_id = Column(UUID, ForeignKey('attendee_account.id'), unique=True, nullable=True)
-    generated = Column(UTCDateTime, server_default=utcnow())
+    generated = Column(DateTime, server_default=utcnow())
     hashed = Column(UnicodeText, private=True)
 
     @property
@@ -264,8 +263,8 @@ class AccessGroup(MagModel):
     name = Column(UnicodeText)
     access = Column(MutableDict.as_mutable(JSONB), default={})
     read_only_access = Column(MutableDict.as_mutable(JSONB), default={})
-    start_time = Column(UTCDateTime, nullable=True)
-    end_time = Column(UTCDateTime, nullable=True)
+    start_time = Column(DateTime, nullable=True)
+    end_time = Column(DateTime, nullable=True)
 
     def __repr__(self):
         return f"<AccessGroup id='{self.id}' name='{self.name}'>"

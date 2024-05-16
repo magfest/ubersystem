@@ -5,9 +5,8 @@ The attendee_tournaments module is no longer used, but has been
 included for backward compatibility with legacy servers.
 """
 
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import func
-from sqlalchemy.types import Boolean
+from sqlalchemy.types import Boolean, UnicodeText
 
 from uber.config import c
 from uber.models import MagModel, Attendee

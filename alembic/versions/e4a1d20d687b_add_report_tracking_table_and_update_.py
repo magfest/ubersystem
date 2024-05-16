@@ -16,7 +16,7 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
+from sqlalchemy.types import UUID
 
 
 try:
@@ -54,8 +54,8 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('report_tracking',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('when', residue.UTCDateTime(), nullable=False),
+    sa.Column('id', UUID(), nullable=False),
+    sa.Column('when', DateTime(), nullable=False),
     sa.Column('who', sa.Unicode(), server_default='', nullable=False),
     sa.Column('page', sa.Unicode(), server_default='', nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_report_tracking')),

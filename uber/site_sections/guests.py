@@ -22,7 +22,7 @@ def compile_travel_plans_from_params(session, **params):
     for i in range(1, int(params.get('detailed_travels', 0)) + 1):
         travel_plan_params = {attr: params.get('{}_{}'.format(attr, i)) for attr in travel_plan_fields}
 
-        # We should have restricted=True here but UTCDateTime columns are always restricted and I don't know why
+        # We should have restricted=True here but DateTime columns are always restricted and I don't know why
         try:
             travel_plan = session.guest_detailed_travel_plan(travel_plan_params, ignore_csrf=True)
         except NoResultFound:

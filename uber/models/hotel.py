@@ -1,8 +1,7 @@
 from datetime import timedelta
 
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean
+from sqlalchemy.types import Boolean, UnicodeText, DateTime, UUID
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -77,7 +76,7 @@ class Room(MagModel, NightsMixin):
     message = Column(UnicodeText)
     locked_in = Column(Boolean, default=False)
     nights = Column(MultiChoice(c.NIGHT_OPTS))
-    created = Column(UTCDateTime, server_default=utcnow())
+    created = Column(DateTime, server_default=utcnow())
     assignments = relationship('RoomAssignment', backref='room')
 
     @property

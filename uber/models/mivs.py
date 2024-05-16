@@ -6,10 +6,9 @@ from datetime import datetime, timedelta
 from functools import wraps
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, UnicodeText, DateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
@@ -80,7 +79,7 @@ class IndieStudio(MagModel):
     status = Column(
         Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW, admin_only=True)
     staff_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(DateTime, server_default=utcnow())
 
     accepted_core_hours = Column(Boolean, default=False)
     discussion_emails = Column(UnicodeText)
@@ -317,9 +316,9 @@ class IndieGame(MagModel, ReviewMixin):
     status = Column(
         Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW, admin_only=True)
     judge_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
-    waitlisted = Column(UTCDateTime, nullable=True)
-    accepted = Column(UTCDateTime, nullable=True)
+    registered = Column(DateTime, server_default=utcnow())
+    waitlisted = Column(DateTime, nullable=True)
+    accepted = Column(DateTime, nullable=True)
 
     codes = relationship('IndieGameCode', backref='game')
     reviews = relationship('IndieGameReview', backref='game')
