@@ -133,9 +133,12 @@ class AutomatedEmailFixture:
         env = JinjaEnv.env()
         try:
             template_path = pathlib.Path(env.get_or_select_template(os.path.join('emails', self.template)).filename)
-            self.template_plugin_name = template_path.parts[2]
+            path_offset = 0
+            if template_path.parts[2] == 'plugins':
+                path_offset = 2
+            self.template_plugin_name = template_path.parts[2 + path_offset]
             self.template_url = (f"https://github.com/magfest/{self.template_plugin_name}/tree/main/"
-                                 f"{self.template_plugin_name}/{pathlib.Path(*template_path.parts[3:]).as_posix()}")
+                                 f"{self.template_plugin_name}/{pathlib.Path(*template_path.parts[(3 + path_offset):]).as_posix()}")
         except jinja2.exceptions.TemplateNotFound:
             self.template_plugin_name = "ERROR: TEMPLATE NOT FOUND"
             self.template_url = ""
