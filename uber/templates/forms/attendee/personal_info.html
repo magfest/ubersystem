@@ -60,7 +60,7 @@
   <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.email, extra_field=email_extra_field, value=attendee_email) }}
   </div>
-  {% if attendee.needs_pii_consent or attendee.badge_status == c.PENDING_STATUS %}
+  {% if c.PREREG_CONFIRM_EMAIL_ENABLED and (attendee.needs_pii_consent or attendee.badge_status == c.PENDING_STATUS) %}
   <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.confirm_email, value=attendee_email if edit_id or attendee.placeholder else '') }}
   </div>
