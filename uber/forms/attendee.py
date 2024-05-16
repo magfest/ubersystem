@@ -9,7 +9,7 @@ from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
 from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, CustomValidation)
+                        HiddenBoolField, HiddenIntField, CustomValidation, Ranking)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
 from uber.models import Attendee, Session, PromoCodeGroup
@@ -18,7 +18,8 @@ from uber.utils import get_age_conf_from_birthday
 
 
 __all__ = ['AdminBadgeExtras', 'AdminBadgeFlags', 'AdminConsents', 'AdminStaffingInfo', 'BadgeExtras',
-           'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo', 'Consents']
+           'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo',
+           'LotteryApplication', 'Consents']
 
 
 # TODO: turn this into a proper validation class
@@ -27,6 +28,10 @@ def valid_cellphone(form, field):
         raise ValidationError('Please provide a valid 10-digit US phone number or '
                               'include a country code (e.g. +44) for international numbers.')
 
+
+class LotteryApplication(MagForm):
+    hotel_preference = StringField('Hotel Preference', widget=Ranking(c.HOTEL_LOTTERY_HOTEL_OPTS, id="hotel_preference"),
+                                   validators=[validators.Regexp(r"^roof.*$", message="You didn't select the roof as your most preferred hotel. What, are you too good for the great outdoors?")])
 
 class PersonalInfo(AddressForm, MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()

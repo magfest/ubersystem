@@ -1,0 +1,71 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Hotel Lottery Application" %}
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set lottery_application = lottery_application or forms['lottery_application'] %}
+
+{% block content %}
+
+<script src="https://raw.githack.com/SortableJS/Sortable/master/Sortable.js"></script>
+
+<style>
+    ul {
+        list-style: none;
+        padding: 0;
+    }
+    .choice {
+        outline: auto;
+        margin: 5px;
+        padding: 2px;
+    }
+    .choice-name {
+        font-size: 20pt;
+        font-weight: bold;
+    }
+    .choice-description {
+
+    }
+    .choice-list {
+        padding: 20px;
+        min-height: 100px;
+        background: #eee;
+    }
+    .sortable-ghost {
+        opacity: 0.6;
+    }
+    .chosen {
+        opacity: 1;
+    }
+</style>
+
+<div class="card">
+  <div class="card-body">
+    {{ form_macros.form_validation('hotel-lottery-form', 'validate_hotel_lottery') }}
+    <form novalidate method="POST" id="hotel-lottery-form" action="form">
+        {{ form_macros.form_input(lottery_application.hotel_preference) }}
+        {{ csrf_token() }}
+        <button type="submit" class="btn btn-primary" value="Upload">Save</button>
+    </form>
+  </div>
+</div>
+
+<script type="text/javascript">
+    Sortable.create(deselected_hotel_preference, {
+        group: 'hotel_preference',
+        animation: 100
+    });
+
+    Sortable.create(selected_hotel_preference, {
+        group: 'hotel_preference',
+        animation: 100,
+        onChange: function(evt) {
+            el = document.getElementById("selected_hotel_preference");
+            let selected = [];
+            for (let i=0; i<el.children.length; i++) {
+                selected.push(el.children[i].getAttribute("value"));
+            }
+            document.getElementById("hotel_preference").value = selected.join(",");
+        }
+    });
+</script>
+{% endblock %}

@@ -105,3 +105,7 @@ class Room(MagModel, NightsMixin):
 class RoomAssignment(MagModel):
     room_id = Column(UUID, ForeignKey('room.id'))
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
+
+
+class LotteryApplication(MagModel):
+    hotel_preference = Column(MultiChoice(c.HOTEL_LOTTERY_HOTEL_OPTS))

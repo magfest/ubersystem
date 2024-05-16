@@ -102,3 +102,59 @@ class CountrySelect(Select):
         return Markup(
             "<option {}>{}</option>".format(html_params(**options), escape(label))
         )
+
+class Ranking():
+    def __init__(self, choices=None, id=None, **kwargs):
+        self.choices = choices
+        self.id = id
+    
+    def __call__(self, field, choices=None, id=None, **kwargs):
+        choices = choices or self.choices or [('', {"name": "Error", "description": "No choices are configured"})]
+        id = id or self.id or "ranking"
+        selected_choices = field.data.split(",")
+
+        deselected_html = []
+        selected_html = []
+        choice_dict = {key: val for key, val in choices}
+        for choice_id in selected_choices:
+            try:
+                choice_item = choice_dict[choice_id]
+                el = f"""
+    <li class="choice" value="{choice_id}">
+        <div class="choice-name">
+            {choice_item["name"]}
+        </div>
+        <div class="choice-description">
+            {choice_item["description"]}
+        </div>
+    </li>"""
+                selected_html.append(el)
+            except KeyError:
+                continue
+        for choice_id, choice_item in choices:
+            if not choice_id in selected_choices:
+                el = f"""
+<li class="choice" value="{choice_id}">
+    <div class="choice-name">
+        {choice_item["name"]}
+    </div>
+    <div class="choice-description">
+        {choice_item["description"]}
+    </div>
+</li>"""
+                deselected_html.append(el)
+
+        html = [
+            '<div class="row">',
+            '<div class="col-md-6">',
+            'Available',
+            f'<ul class="choice-list" id="deselected_{id}">',
+            *deselected_html,
+            '</ul></div><div class="col-md-6">',
+            'Selected',
+            f'<ul class="choice-list" id="selected_{id}">',
+            *selected_html,
+            f'</ul></div></div><input type="hidden" id="{id}" name="{id}" value="None" />'
+        ]
+        
+        return Markup(''.join(html))
