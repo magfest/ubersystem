@@ -56,8 +56,8 @@ class PersonalInfo(AddressForm, MagForm):
         ],
         render_kw={'placeholder': 'test@example.com'})
     confirm_email = EmailField('Confirm Email Address', validators=[
-        validators.DataRequired("Please confirm your email address."),
-        ])
+        validators.DataRequired("Please confirm your email address.") if c.PREREG_CONFIRM_EMAIL_ENABLED
+        else validators.Optional()])
     cellphone = TelField('Phone Number', validators=[
         validators.DataRequired("Please provide a phone number."),
         valid_cellphone
