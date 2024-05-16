@@ -46,10 +46,10 @@ At this point you should see the containers starting up. After everything has la
 On first startup you can create an admin user by navigating to [http://localhost/accounts/insert_test_admin](http://localhost/accounts/insert_test_admin).
 After doing this you can log in using `magfest@example.com` as a username and `magfest` as a password.
 
-Now that you have a working instance you can look at the [configuration guide](configuration.md) to start customizing your instance or 
+Now that you have a working instance you can look at the [configuration guide](CONFIGURATION.md) to start customizing your instance or 
 check out the [sample event plugin](https://github.com/magfest/sample-event) to dive deeper into making Ubersystem your own.
 
-| :exclamation: If you didn't get a working instance check out the [troubleshooting guide](docs/troubleshooting.md). |
+| :exclamation: If you didn't get a working instance check out the [troubleshooting guide](docs/TROUBLESHOOTING.md). |
 |---------------------------------------------------------------------------------------------------------------|
 
 ## Production Instances
@@ -60,7 +60,7 @@ instances.
 For large deployments we provide a helm chart for deploying Ubersystem on [Kubernetes](https://kubernetes.io/).
 
 ## Setup
-After installing Ubersystem, please refer to the [Stripe instructions](docs/stripe.md) to set up immediate payment processing.
+After installing Ubersystem, please refer to the [Stripe instructions](docs/STRIPE.md) to set up immediate payment processing.
 
 ## Reference
 Here are [some quick reference notes](docs/dbutils.md) on common PostgreSQL tasks.
