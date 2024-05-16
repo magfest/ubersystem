@@ -48,9 +48,11 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
                                 attendee.available_amount_extra_opts, disabled_opts=c.SOLD_OUT_MERCH_TIERS,
                                 target_field_id=id_upgrade_prepend ~ "amount_extra") }}
     </div>
-    {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True, 
-                                    closest_hide_selector='.row' if not attendee.gets_staff_shirt or c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS else '.form-floating',
-                                    source_field_id=id_upgrade_prepend ~ "amount_extra") }}
+    {% if not attendee.gets_staff_shirt or c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
+        {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True, 
+                                        closest_hide_selector='.row' if not attendee.gets_staff_shirt else '.form-floating',
+                                        source_field_id=id_upgrade_prepend ~ "amount_extra") }}
+    {% endif %}
 {% else %}
     <div class="row g-sm-3">
         <div class="col-12 col-sm-6">
