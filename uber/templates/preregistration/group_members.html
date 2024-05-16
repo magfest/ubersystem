@@ -80,12 +80,16 @@
         {% include "groupextra.html" %}
         {% if group.status in c.DEALER_EDITABLE_STATUSES %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
+        {% endif %}
+        {% if group.status in c.DEALER_CANCELLABLE_STATUSES %}
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}
       </form>
+      {% if group.status in c.DEALER_CANCELLABLE_STATUSES %}
         <form method="post" id="cancel_dealer" action="../preregistration/cancel_dealer" class="form-horizontal" role="form">
           <input type="hidden" name="id" value="{{ group.id }}" />
         </form>
+      {% endif %}
     {% endif%}
 
 {% if group.status not in [c.CANCELLED, c.DECLINED] %}
