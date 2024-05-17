@@ -18,6 +18,7 @@
             {% if attendee.has_extras %}
             <div class="col col-auto">
                 <form method="post" action="reset_receipt">
+                    {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}"/>
                     <input type="hidden" name="return_to" value="{{ return_to }}"/>
                     <button class="btn btn-warning">Cancel All Extras</button>
