@@ -1,6 +1,8 @@
 # docker-compose for development of ubersystem
 x-uber: &uber
   build: .
+  env_file:
+      - ./.env
   environment:
     - PYTHONSTARTUP=/app/.pythonstartup.py
     - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
@@ -17,9 +19,10 @@ x-uber: &uber
     - uber_hostname=localhost
     - uber_dev_box=True
   volumes:
-    - $PWD:/app/
-    - $PWD/.pythonstartup.py:/app/.pythonstartup.py
+    - .:/app/
+    - ${PLUGIN_DIR_SRC:-./README.md}/:/${PLUGIN_DIR_TARGET:-/tmp/}
 
+name: ${PLUGIN_NAME:-uber}
 
 services:
   web:

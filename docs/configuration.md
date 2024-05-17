@@ -42,5 +42,18 @@ Note that `.` becomes `_` and the config paths is joined by underscores.
 ## Important Settings
 
 ## Generated Configuration
+When working on Uber for a specific event, it's best to start with config overrides copied from that event. Some events have their config overrides available in their own repository. In these cases, you can run the `make_config.py` script in the root of this repo, which will download and compile the config you need into ready-made config files.
+
+To run `make_config.py` and other Python scripts, you'll need to download and install [Python 3](https://www.python.org/downloads/). You'll also need to know the URL of the config repo, and the folders in the repo you want to include.
+
+For example, MAGFest's config repo URL is `https://github.com/magfest/terraform-aws-magfest.git`. You will want to use two folders when downloading MAGFest config: the "dev" environment folder, and a folder corresponding to the event and year you need to download. The following example will download and compile config for MAGFest Super 2024:
+
+```bash
+python3 make_config.py --repo https://github.com/magfest/terraform-aws-magfest.git --paths uber_config/environments/dev uber_config/events/super/2024
+```
+
+These folders are based on the specific folder structure in MAGFest's config repo [explained here](https://github.com/magfest/terraform-aws-magfest/blob/main/uber_config/README.md). Other event's config may be organized differently.
+
+Once you run this Python script, it will download a file of config overrides into the root of this repo called `uber.ini`. It may also download additional `.ini` files corresponding to custom plugins -- these files will be named after the plugin name (e.g., custom config for the magstock plugin will be compiled into `magstock.ini`). Make sure you [download these plugins](DEVELOPERS.md#custom-plugins) and move each file into the root folder of its corresponding repository folder.
 
 ## Setting Reference
