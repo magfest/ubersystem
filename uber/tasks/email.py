@@ -1,4 +1,4 @@
-from collections import Mapping
+from collections.abc import Mapping
 from datetime import timedelta, datetime
 import pytz
 from time import sleep, time
@@ -72,11 +72,11 @@ def send_email(
                             bccAddresses=bcc,
                             message=message)
             if error_msg:
-                log.error('Error while sending email: ' + error_msg)
+                log.error('Error while sending email: ' + str(error_msg))
             else:
                 record_email = True
         except Exception as error:
-            log.error('Error while sending email: {}'.format(error))
+            log.error('Error while sending email: {}'.format(str(error)))
         sleep(0.1)  # Avoid hitting rate limit
     else:
         log.error('Email sending turned off, so unable to send {}', locals())
@@ -141,14 +141,19 @@ def notify_admins_of_pending_emails():
             else:
                 emails_by_sender = {sender: emails_by_ident}
 
+            for email in emails_by_ident.values():
+                if isinstance(email[0], AutomatedEmail):
+                    email[0].reconcile(AutomatedEmail._fixtures[email[0].ident])
+
             subject = '{} Pending Emails Report for {}'.format(c.EVENT_NAME, utils.localized_now().strftime('%Y-%m-%d'))
             body = render('emails/daily_checks/pending_emails.html', {
                 'pending_emails_by_sender': emails_by_sender,
                 'primary_sender': sender,
-            })
+            }, encoding=None)
             send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
 
         return groupify(pending_emails, 'sender', 'ident')
+
 
 @celery.schedule(timedelta(minutes=5 if c.DEV_BOX else 15))
 def send_automated_emails():
@@ -189,16 +194,16 @@ def send_automated_emails():
                     session.add(automated_email)
                     session.commit()
                     unapproved_count = 0
-                    
+
                     log.debug("Loading instances for " + automated_email.ident)
                     model_instances = query_func(session)
-                    log.debug("Finished loading instances")
+                    log.trace("Finished loading instances")
                     for model_instance in model_instances:
-                        log.debug("Checking " + str(model_instance.id))
+                        log.trace("Checking " + str(model_instance.id))
                         if model_instance.id not in automated_email.emails_by_fk_id:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
-                                    if model_instance.active_receipt:
+                                    if getattr(model_instance, 'active_receipt', None):
                                         session.refresh_receipt_and_model(model_instance)
                                     automated_email.send_to(model_instance, delay=False)
                                     quantity_sent += 1
@@ -213,10 +218,10 @@ def send_automated_emails():
                     automated_email.currently_sending = False
                     session.add(automated_email)
                     session.commit()
-            
+
             log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
             return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
-    except:
+    except Exception:
         traceback.print_exc()
 
         # TODO: Once we finish converting each AutomatedEmailFixture.filter

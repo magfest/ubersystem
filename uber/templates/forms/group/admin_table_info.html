@@ -1,0 +1,14 @@
+{% extends 'forms/group/table_info.html' %}
+
+{% include 'forms/group/admin_shared.html' %}
+
+{% block group_status %}
+{% set convert_explanation %}
+<span class="popup"><a href="../dealer_admin/convert_example?id={{ group.id }}" target="_blank"><i class="fa fa-question-circle" aria-hidden="true"></i> What does this do?</a></span>
+{% endset %}
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.status, extra_field=form_macros.form_input(table_info.convert_badges, label_text=table_info.convert_badges.label.text ~ " " ~ convert_explanation)) }}</div>
+  {{ form_macros.toggle_fields_js(table_info.status, [table_info.convert_badges], on_values=[c.DECLINED], closest_hide_selector='.form-check') }}
+  <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.admin_notes) }}</div>
+</div>
+{% endblock %}

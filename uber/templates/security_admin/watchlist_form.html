@@ -1,4 +1,10 @@
 {% extends "base.html" %}{% set admin_area=True %}
+
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+
+{% set watchlist_entry = watchlist_entry or forms['watch_list_entry'] %}
+
 {% block title %}Watchlist Entry Form{% endblock %}
 {% block content %}
 {% if entry.is_new %}
@@ -45,27 +51,55 @@
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ entry.db_id }}" />
 
-    {{ macros.form_group(entry, "first_names", placeholder="Use commas to separate possible first names.") }}
-    {{ macros.form_group(entry, "last_name") }}
-    {{ macros.form_group(entry, "email") }}
-
-    <div class="form-group">
-    <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
-    <div class="col-sm-6">
-      <input type='text' class="form-control date" name="birthdate" value="{{ entry.birthdate|datetime("%Y-%m-%d") }}"/>
-    </div>
-  </div>
-
-    {{ macros.form_group(entry, "reason", type="textarea", help="The reason this attendee is on the watchlist.") }}
-    {{ macros.form_group(entry, "action", type="textarea", help="What, if anything, the attendee should do before checking in.") }}
-    <div class="form-group" id="audio_needs">
-      <label class="col-sm-3 control-label">Active?</label>
-      <div class="col-sm-9 checkbox">
-        {{ macros.checkbox(entry, "active", label="This entry will automatically place matching attendees in the On Hold status") }}
+    {% if not entry.is_new %}
+      <div class="row g-sm-3">
+        <div class="col">
+          <div class="form-text">Created</div>
+          <div class="mb-3">{{ entry.created.when|full_datetime_local }} by {{ entry.created.who }}</div>
+        </div>
+        {% if entry.last_updated %}
+        <div class="col">
+          <div class="form-text">Last Updated</div>
+          <div class="mb-3">{{ entry.last_updated.when|full_datetime_local }} by {{ entry.last_updated.who }}</div>
+        </div>
+        {% endif %}
+      </div>
+    {% endif %}
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(watchlist_entry.first_names) }}
+      </div>
+      <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(watchlist_entry.last_name) }}
       </div>
     </div>
-    
-
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(watchlist_entry.email) }}
+      </div>
+      <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(watchlist_entry.birthdate) }}
+      </div>
+    </div>
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(watchlist_entry.reason, admin_text="The reason this attendee is on the watchlist.") }}
+      </div>
+      <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(watchlist_entry.action, admin_text="What, if anything, the attendee should do before checking in.") }}
+      </div>
+    </div>
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(watchlist_entry.expiration, admin_text="The watchlist will deactivate on this day.") }}
+      </div>
+    </div>
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        {{ form_macros.form_input(watchlist_entry.active) }}
+      </div>
+    </div>
+  
     {% if not page_ro %}
       <div class="form-entry">
         <div class="col-sm-6 col-sm-offset-3">

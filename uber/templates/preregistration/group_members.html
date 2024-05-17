@@ -5,9 +5,8 @@
 {% set title_text = "Group Members" %}
 {% block content %}
 <script type="text/javascript">
-    $().ready(function() {
-        $("form[action='unset_group_member']").submit(function(event){
-            var formToSubmit = this;
+  var unsetMemberConfirm = function(event) {
+    var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
                 message: "This will permanently unassign this person's badge. They will receive an email about this. Are you sure?",
@@ -27,16 +26,17 @@
                     }
                 }
             });
-        })
+  }
 
-        $("form[action='../dealer_admin/cancel_dealer']").submit(function(event){
+  var cancelConfirm = function(event) {
             var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
-                message: "This will permanently cancel this application. All registered badges in the group will be converted to individual badges. Are you sure?",
+                title: "Cancel Dealer Application?",
+                message: "This will permanently cancel your application. All registered badges in the group will be converted to individual badges. Are you sure?",
                 buttons: {
                     confirm: {
-                        label: 'Cancel Application',
+                        label: 'Yes, Cancel My Application',
                         className: 'btn-danger'
                     },
                     cancel: {
@@ -50,7 +50,11 @@
                     }
                 }
             });
-        })
+        }
+    $().ready(function() {
+        $("form[action='unset_group_member']").submit(unsetMemberConfirm);
+
+        $("form[action='../preregistration/cancel_dealer']").submit(cancelConfirm);
     });
 </script>
 
@@ -65,23 +69,27 @@
       {{ group_fields.signed_document }}
       <h2 class="h5">"{{ group.name }}" Information</h2>
       {{ form_macros.form_validation('group-form', 'validate_dealer' if group.is_dealer else 'validate_group') }}
-      <form method="post" action="group_members" class="form-horizontal" role="form">
+      <form method="post" action="group_members" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
         {% if forms and 'group_info' in forms %}
-          {% include "forms/group_info.html" %}
+          {% include "forms/group/group_info.html" %}
         {% elif forms and 'table_info' in forms %}
-          {% include "forms/table_info.html" %}
-          {% include "forms/contact_info.html" %}
+          {% include "forms/group/table_info.html" %}
+          {% include "forms/group/contact_info.html" %}
         {% endif %}
         {% include "groupextra.html" %}
-        {% if not page_ro %}
+        {% if group.status in c.DEALER_EDITABLE_STATUSES %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
+        {% endif %}
+        {% if group.status in c.DEALER_CANCELLABLE_STATUSES %}
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}
       </form>
-        <form method="post" id="cancel_dealer" action="../dealer_admin/cancel_dealer" class="form-horizontal" role="form">
+      {% if group.status in c.DEALER_CANCELLABLE_STATUSES %}
+        <form method="post" id="cancel_dealer" action="../preregistration/cancel_dealer" class="form-horizontal" role="form">
           <input type="hidden" name="id" value="{{ group.id }}" />
         </form>
+      {% endif %}
     {% endif%}
 
 {% if group.status not in [c.CANCELLED, c.DECLINED] %}
@@ -100,7 +108,7 @@
 {% endif %}
 
 <div style="margin:15px">
-    {% if group.unregistered_badges and group.tables %}
+    {% if group.unregistered_badges and group.is_dealer %}
         Some of your {{ c.DEALER_HELPER_TERM }} badges are not yet assigned to a specific person. Using the links below, please assign these badges before the close of preregistration; any badges unclaimed at that time will be
         invalid. You may also distribute each of the registration links below to the individual members of your group,
         which will allow them to fill in their own information as well as purchase any upgrades on their own.
@@ -125,6 +133,7 @@
                 {% if attendee.is_group_leader or c.ATTENDEE_ACCOUNTS_ENABLED and attendee in logged_in_account.attendees %}
                   <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 {% else %}{{ attendee.full_name }}{% endif %}
+                {% if attendee.placeholder %}(Incomplete){% endif %}
             </td>
             <td style="padding-right: 10px">
                 {{ attendee.email|email_to_link }}
@@ -154,7 +163,7 @@
             </td>
         {% else %}
             <td colspan="5">
-              <a href="register_group_member?group_id={{ group.id }}">Register someone for this badge</a>:
+              <a href="register_group_member?group_id={{ group.id }}&id={{ attendee.id }}">Register someone for this badge</a>:
               {{ attendee.badge }}
             </td>
         {% endif %}
@@ -163,17 +172,16 @@
 </table>
 
         <br/>{% if group.is_dealer and group.min_badges_addable %}
-        You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional badges.<br/><br/>
-        {% elif group.is_dealer and group.amount_unpaid and group.dealer_badges_remaining %}
-        You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional badges after you are approved and paid.<br/><br/>
+        You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional {{ c.DEALER_HELPER_TERM }} badges.<br/><br/>
         {% elif group.is_dealer %}
-        Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional badges.
+        Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional {{ c.DEALER_HELPER_TERM }} badges.
         {% endif %}
 
 {% if group.min_badges_addable %}
     <div id="add" style="display:none">
       <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
+        <input type="hidden" id="estimatedCost" name="estimated_cost" value="{{ group.new_badge_cost|default(0, true) }}" />
         <div class="row g-sm-3">
           {%- set min_badges = group.min_badges_addable -%}
           {%- set members = group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") -%}
@@ -192,7 +200,7 @@
         </div>
         <div class="row">
         <div class="col-auto">
-          <select class="form-select" name="count">
+          <select class="form-select" id="newBadgeCount" name="count">
           {%- if group.is_dealer -%}
             {{ int_options(min_badges, group.dealer_badges_remaining) }}
           {%- else -%}
@@ -200,27 +208,42 @@
           {%- endif -%}
           </select>
         </div>
-        <div class="col-auto"><input class="btn btn-primary" type="submit" value="{{ group.is_dealer|yesno("Add " + c.DEALER_HELPER_TERM + ",Add Group Members") }}"></div>
+        <div class="col-auto">
+          <button class="btn btn-primary" id="newBadgeSubmit" type="submit">
+            Add {{ members|title }}
+          </button>
+        </div>
         </div>
       </form>
     </div>
 
+    {% if c.REMAINING_BADGES > 50 and (not c.AT_THE_CON or not c.SPIN_TERMINAL_AUTH_KEY) %}
     <script type="text/javascript">
-        {% if group.amount_unpaid %}
+        {% if receipt and receipt.current_amount_owed %}
             $(function(){
-                $('<div class="disabled" title="Group must be paid for before new members can be added">' +
+                $('<div class="disabled" title="Group must be paid for before new members can be added.">' +
                     '<button disabled class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") }}</button>' +
                   '</div>').insertAfter($("#add"));
             });
         {% else %}
+        var newBadgePrice = {{ group.new_badge_cost|default(0, true) }};
+        var newBadgeSubmitText = 'Add {{ members|title }}(s)';
+        var updateBadgeEstimate = function() {
+          if(newBadgePrice == 0) { return; }
+          $('#estimatedCost').val(newBadgePrice * parseInt($('#newBadgeCount').val()));
+          $('#newBadgeSubmit').text(newBadgeSubmitText + " for $" + $('#estimatedCost').val());
+        }
             $(function(){
                 $('<button class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") }}</button>').click(function(e){
                         $(e.target).hide();
                         $("#add").show();
+                        updateBadgeEstimate();
                     }).insertAfter($("#add"));
+                $('#newBadgeCount').change(function() {updateBadgeEstimate();});
             });
         {% endif %}
     </script>
+    {% endif %}
 {% endif %}
 {% endif %}
 </div>

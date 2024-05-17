@@ -17,13 +17,14 @@ from itertools import count
 from threading import RLock
 
 import cherrypy
+from cherrypy.lib import profiler
 import six
 import xlsxwriter
 from pockets import argmod, unwrap
 from pockets.autolog import log
-from sideboard.lib import profile, serializer
 
 import uber
+from uber.serializer import serializer
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.errors import CSRFException, HTTPRedirect
@@ -53,7 +54,7 @@ def log_pageview(func):
             try:
                 session.admin_account(cherrypy.session.get('account_id'))
             except Exception:
-                pass  # we don't care about public pages for this version
+                pass  # no tracking for non-admins yet
             else:
                 uber.models.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
@@ -159,6 +160,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 
 def requires_account(model=None):
     from uber.models import Attendee, AttendeeAccount, Group
+
     def model_requires_account(func):
         @wraps(func)
         def protected(*args, **kwargs):
@@ -184,16 +186,17 @@ def requires_account(model=None):
                     if model == Attendee:
                         attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
                     elif model == Group:
-                        attendee = session.query(model).filter_by(id=kwargs.get('group_id', kwargs.get('id'))).first().leader
+                        attendee = session.query(model).filter_by(id=kwargs.get('group_id',
+                                                                                kwargs.get('id'))).first().leader
                     else:
                         attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
-                    
+
                     # Admin account override
                     if session.admin_attendee_max_access(attendee):
                         return func(*args, **kwargs)
-                    
+
                     account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
-                    
+
                     if not account or account not in attendee.managers:
                         message = 'You do not have permission to view this page.'
 
@@ -251,12 +254,22 @@ def ajax(func):
         try:
             assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
             check_csrf(kwargs.pop('csrf_token', None))
-        except Exception as e:
+        except Exception:
             message = "There was an issue submitting the form. Please refresh and try again."
             return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     returns_json.ajax = True
     return returns_json
+
+
+def track_report(params):
+    with uber.models.Session() as session:
+        try:
+            session.admin_account(cherrypy.session.get('account_id'))
+        except Exception:
+            pass  # no tracking for non-admins yet
+        else:
+            uber.models.ReportTracking.track_report(params)
 
 
 def ajax_gettable(func):
@@ -274,8 +287,8 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
-    parameters = inspect.getargspec(func)
-    if len(parameters[0]) == 3:
+    signature = inspect.signature(func)
+    if len(signature.parameters) == 3:
         func.site_mappable = True
         func.site_map_download = True
 
@@ -290,6 +303,7 @@ def multifile_zipfile(func):
         cherrypy.response.headers['Content-Type'] = 'application/zip'
         cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.zip'
 
+        track_report(kwargs)
         return zipfile_writer.getvalue()
     return zipfile_out
 
@@ -304,8 +318,8 @@ def _set_response_filename(base_filename):
 
 
 def xlsx_file(func):
-    parameters = inspect.getargspec(func)
-    if len(parameters[0]) == 3:
+    signature = inspect.signature(func)
+    if len(signature.parameters) == 3:
         func.site_mappable = True
         func.site_map_download = True
 
@@ -336,13 +350,14 @@ def xlsx_file(func):
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.xlsx')
 
+        track_report(kwargs)
         return output
     return xlsx_out
 
 
 def csv_file(func):
-    parameters = inspect.getargspec(func)
-    if len(parameters[0]) == 3:
+    signature = inspect.signature(func)
+    if len(signature.parameters) == 3:
         func.site_mappable = True
         func.site_map_download = True
 
@@ -359,6 +374,7 @@ def csv_file(func):
             cherrypy.response.headers['Content-Type'] = 'application/csv'
             _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.csv')
 
+        track_report(kwargs)
         return output
     return csvout
 
@@ -422,12 +438,11 @@ def cached(func):
 def cached_page(func):
     innermost = unwrap(func)
     if hasattr(innermost, 'cached'):
-        from sideboard.lib import config as sideboard_config
         func.lock = RLock()
 
         @wraps(func)
         def with_caching(*args, **kwargs):
-            fpath = os.path.join(sideboard_config['root'], 'data', func.__module__ + '.' + func.__name__)
+            fpath = os.path.join("/tmp", 'data', func.__module__ + '.' + func.__name__)
             with func.lock:
                 if not os.path.exists(fpath) or datetime.now().timestamp() - os.stat(fpath).st_mtime > 60 * 15:
                     contents = func(*args, **kwargs)
@@ -564,7 +579,7 @@ def render(template_name_list, data=None, encoding='utf-8'):
 
 def render_empty(template_name_list):
     env = JinjaEnv.env()
-    template = env.get_or_select_template(template_name_list, use_request_cache=False)
+    template = env.get_or_select_template(template_name_list)
     return open(template.filename, 'rb').read().decode('utf-8')
 
 
@@ -641,13 +656,30 @@ def public(func):
     func.public = True
     return func
 
-def attendee_view(func):
+
+def any_admin_access(func):
     func.public = True
+
     @wraps(func)
     def with_check(*args, **kwargs):
         if cherrypy.session.get('account_id') is None:
             raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
-            
+        with uber.models.Session() as session:
+            account = session.admin_account(cherrypy.session.get('account_id'))
+            if not account.access_groups:
+                return "You do not have any admin accesses."
+        return func(*args, **kwargs)
+    return with_check
+
+
+def attendee_view(func):
+    func.public = True
+
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if cherrypy.session.get('account_id') is None:
+            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+
         if kwargs.get('id') and str(kwargs.get('id')) != "None":
             with uber.models.Session() as session:
                 attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
@@ -658,8 +690,10 @@ def attendee_view(func):
         return func(*args, **kwargs)
     return with_check
 
+
 def schedule_view(func):
     func.public = True
+
     @wraps(func)
     def with_check(*args, **kwargs):
         if c.HIDE_SCHEDULE and not c.HAS_READ_ACCESS:
@@ -668,28 +702,43 @@ def schedule_view(func):
         return func(*args, **kwargs)
     return with_check
 
+
 def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
         if not func.public:
-            if c.PATH == 'staffing':
+            if '/staffing/' in c.PAGE_PATH:
                 if not cherrypy.session.get('staffer_id'):
                     raise HTTPRedirect('../staffing/login?message=You+are+not+logged+in', save_location=True)
 
             elif cherrypy.session.get('account_id') is None:
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
-            elif c.PATH == 'mivs_judging':
+            elif '/mivs_judging/' in c.PAGE_PATH:
                 if not uber.models.AdminAccount.is_mivs_judge_or_admin:
-                    return 'You need to be a MIVS Judge or have access for either {} or {}'.format(c.PATH, c.PAGE_PATH)
+                    return f'You need to be a MIVS Judge or have access to {c.PAGE_PATH}'
 
             else:
                 if not c.has_section_or_page_access(include_read_only=True):
-                    return 'You need access for either {} or {}.'.format(c.PATH, c.PAGE_PATH)
+                    return f'You need access to {c.PAGE_PATH}.'
 
         return func(*args, **kwargs)
     return with_restrictions
 
+def profile(func):
+    if c.CHERRYPY_PROFILER_ON:
+        profiling_path = c.CHERRYPY_PROFILER_PATH
+        if c.CHERRYPY_PROFILER_AGGREGATE:
+            p = profiler.ProfileAggregator(profiling_path)
+        else:
+            p = profiler.Profiler(profiling_path)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return p.run(func, *args, **kwargs)
+        return wrapper
+    else:
+        return func
 
 def set_renderable(func, public):
     """
@@ -725,28 +774,8 @@ class Validation:
             return func
         return wrapper
 
+
 validation, prereg_validation = Validation(), Validation()
-
-
-class WTFormValidation:
-    def __init__(self):
-        self.validations = defaultdict(OrderedDict)
-
-    def __getattr__(self, field_name):
-        def wrapper(func):
-            self.validations[field_name][func.__name__] = func
-            return func
-        return wrapper
-    
-    def get_validations_by_field(self, field_name):
-        field_validations = self.validations.get(field_name)
-        return list(field_validations.values()) if field_validations else []
-
-    def get_validation_dict(self):
-        all_validations = {}
-        for key, dict in self.validations.items():
-            all_validations[key] = list(dict.values())
-        return all_validations
 
 
 class ReceiptItemConfig:
@@ -758,6 +787,7 @@ class ReceiptItemConfig:
             self.items[model_name][func.__name__] = func
             return func
         return wrapper
+
 
 cost_calculation, credit_calculation = ReceiptItemConfig(), ReceiptItemConfig()
 
@@ -870,5 +900,5 @@ def check_id_for_model(model, **params):
                 message = "The ID provided was not found in our database."
 
     if message:
-        log.error("check_id {} error: {}: id={}", model.__name__, message, model_id)
+        log.error("check_id {} error: {}: id={}".format(model.__name__, message, model_id))
         raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, message)

@@ -5,7 +5,7 @@
   <h1 style='color:red'>{{ c.EVENT_NAME_AND_YEAR }} pre-registration is not yet open.</h1>
   <p>
   {%- if not c.HIDE_PREREG_OPEN_DATE -%}
-    Please check back on {{ c.PREREG_OPEN|datetime_local }}!<br/>
+    Please check back at {{ c.PREREG_OPEN|datetime_local }}!<br/>
   {%- else -%}
     Please check back soon!
   {%- endif -%}

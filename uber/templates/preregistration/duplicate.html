@@ -37,9 +37,9 @@
         when these badges are available for purchase.
     {% endif %}
 
-    {% if attendee.badge_type == c.STAFF_BADGE and attendee.registered == c.STAFFERS_IMPORTED %}
+    {% if attendee.badge_type == c.STAFF_BADGE and attendee.registered == [c.PREREG_OPEN, c.DEALER_REG_START]|min %}
         <br/> <br/>
-        You were registered automatically for a complementary Staff badge as thanks for volunteering
+        You were registered automatically for a complimentary Staff badge as thanks for volunteering
         last year.  You should have already received an email letting you know about this; if you didn't
         then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> and let us know.
     {% endif %}

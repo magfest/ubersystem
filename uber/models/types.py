@@ -1,6 +1,6 @@
-from collections import Mapping, OrderedDict
+from collections.abc import Mapping
+from collections import OrderedDict
 from datetime import datetime, time, timedelta
-from dateutil.parser import parse
 import re
 
 import pytz
@@ -62,12 +62,20 @@ def default_relationship(*args, **kwargs):
         cascade now defaults to 'all,delete-orphan'
     """
     kwargs.setdefault('load_on_pending', True)
-    kwargs.setdefault('cascade', 'all,delete-orphan')
+    if kwargs.get("viewonly", False):
+        # Recent versions of SQLAlchemy won't allow cascades that cause writes
+        # on viewonly relationships.
+        kwargs.setdefault('cascade', 'expunge,refresh-expire,merge')
+    else:
+        kwargs.setdefault('cascade', 'all,delete-orphan')
     return SQLAlchemy_relationship(*args, **kwargs)
 
 
 # Alias Column and relationship to maintain backwards compatibility
-SQLAlchemy_Column, Column = Column, DefaultColumn
+class SQLAlchemy_Column(Column):
+    admin_only = None
+
+Column = DefaultColumn
 SQLAlchemy_relationship, relationship = relationship, default_relationship
 
 
@@ -169,6 +177,7 @@ class Choice(TypeDecorator):
     Utility class for storing the results of a dropdown as a database column.
     """
     impl = Integer
+    cache_ok = True
 
     def __init__(self, choices, *, allow_unspecified=False, **kwargs):
         """
@@ -262,7 +271,7 @@ class MultiChoice(TypeDecorator):
             label_lookup = {val: key for key, val in self.choices}
             label_lookup['Unknown'] = -1
             try:
-                vals = [label_lookup[label] for label in re.split('; |, |\*|\n| / ',value)]
+                vals = [label_lookup[label] for label in re.split(r'; |, |\*|\n| / ', value)]  # noqa: W605
             except KeyError:
                 # It's probably just a string list of the int values
                 return value
@@ -270,7 +279,7 @@ class MultiChoice(TypeDecorator):
         return value
 
 
-def JSONColumnMixin(column_name, fields, admin_only=False):
+def JSONColumnMixin(column_name, fields):
     """
     Creates a new mixin class with a JSON column named column_name.
 
@@ -345,12 +354,6 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
             setattr(self, attr, kwargs.pop(attr, ''))
         super(_Mixin, self).__init__(*args, **kwargs)
     _Mixin.__init__ = _Mixin__init__
-
-    def _Mixin__declare_last__(cls):
-        setattr(getattr(cls, column_name), 'admin_only', admin_only)
-        column = cls.__table__.columns.get(column_name)
-        setattr(column, 'admin_only', admin_only)
-    _Mixin.__declare_last__ = classmethod(_Mixin__declare_last__)
 
     def _Mixin__unqualify(cls, name):
         if name in getattr(cls, qualified_fields_name):

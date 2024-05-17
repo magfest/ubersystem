@@ -49,10 +49,10 @@ class TestDateFunctions:
         # ------- days_before tests ----------
 
         # deadline of 10 days from now
-        (days_before, 0, +10, 1,   None, False),
-        (days_before, 0, +10, 10,  None, False),
-        (days_before, 0, +10, 11,  None, True),
-        (days_before, 0, +10, 15,  None, True),
+        (days_before, 0, +10, 1, None, False),
+        (days_before, 0, +10, 10, None, False),
+        (days_before, 0, +10, 11, None, True),
+        (days_before, 0, +10, 15, None, True),
 
         # deadline of 10 days ago
         (days_before, 0, -10, 1, None, False),
@@ -65,7 +65,7 @@ class TestDateFunctions:
 
         # change the date of now() and then run this:
         # days_before(days=5, deadline=now+7, until=2)()
-        (days_before,  0, +7, 5, 2, False),
+        (days_before, 0, +7, 5, 2, False),
         (days_before, +1, +7, 5, 2, False),
         (days_before, +2, +7, 5, 2, False),
         (days_before, +3, +7, 5, 2, True),
@@ -83,8 +83,8 @@ class TestDateFunctions:
         (days_after, 0, +10, 15, None, False),
 
         # deadline of 10 days ago
-        (days_after, 0, -10, 1,  None, True),
-        (days_after, 0, -10, 9,  None, True),
+        (days_after, 0, -10, 1, None, True),
+        (days_after, 0, -10, 9, None, True),
         (days_after, 0, -10, 10, None, False),
         (days_after, 0, -10, 11, None, False),
         (days_after, 0, -10, 15, None, False),

@@ -1,0 +1,59 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Converting {{ c.DEALER_TERM|title }}s{% endblock %}
+{% block content %}
+<h2>Converting {{ c.DEALER_TERM|title }} Badges</h2>
+{% if not group.badges_purchased %}
+<div class="alert alert-warning">
+    This group has no badges that are marked as 'paid by group', so no badges will be converted.
+    {% if not c.DELETE_DECLINED_GROUPS %}It may have already gone through the conversion process.{% endif %}
+</div>
+{% endif %}
+<div class="row">
+    <div class="col-12 col-md-6 mb-3 mb-md-0">
+        <div class="card">
+            <div class="card-header">Explanation</div>
+            <div class="card-body">
+                <strong>How does this work?</strong>
+                <p>
+                    Declined {{ c.DEALER_TERM }}s can be converted to individual attendee badges.
+                    This releases every assigned badge to the person it is assigned to and sends them an email to claim their badge -- an example of this email is on this page.
+                </p>
+                <p>
+                    In order to claim their badge, they must pay the cost of an attendee badge when their {{ c.DEALER_APP_TERM }} was submitted.
+                    For example, if their {{ c.DEALER_APP_TERM }} was submitted four months ago, and badge prices at that time were $120,
+                    they would need to pay $120 to finish registering. After that, they will be able to pick their badge up like any other attendee.
+                </p>
+                <p>
+                    <strong>Groups will also {% if not c.DELETE_DECLINED_GROUPS %}NOT {% endif %} be deleted</strong>{% if c.DELETE_DECLINED_GROUPS %} unless they have badges that are not 'paid by group'{% endif %}.
+                    If you wish to change this, please contact your developer.
+                </p>
+                <strong>When should I enable this?</strong>
+                <p>
+                    The task to convert these badges runs every night at midnight UTC. If you use an automated decline email, make sure that email
+                    <a href="../email_admin/pending" target="_blank">has been approved</a> before marking any badges for conversion.
+                    Otherwise, {{ c.DEALER_INDEFINITE_TERM }} may get an email referencing a declined application before they get the declined application notice.
+                </p>
+                <p>
+                    In order to mark a group for conversion, you can either check the "Convert this group's badges to individual badges" checkbox on their form,
+                    OR set the status for all declined {{ c.DEALER_TERM }}s and then click the "Convert Declined {{ c.DEALER_TERM|title }}'s Badges"
+                    button on the <a href="../group_admin/index#dealers" target="_blank">main group listing.</a>
+                </p>
+                <strong>What about unassigned badges?</strong>
+                <p>
+                    <strong>Unassigned badges are DELETED</strong> when the badge conversion takes place. If your {{ c.DEALER_TERM }}s
+                    are counting on a discounted badge price (for example, if the jurying period is lengthy), please make sure they understand this.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6">
+        <div class="card">
+            <div class="card-header">Example Email</div>
+            <div class="card-body">
+                {{ macros.preview_email(example) }}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

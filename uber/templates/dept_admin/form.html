@@ -219,24 +219,6 @@
               </div>
             </div>
             <div class="form-group">
-              <label class="col-sm-3 control-label">Setup/Teardown Approval?</label>
-              <div class="col-sm-9">
-                <div class="form-control-static checkbox">
-                  {{ macros.checkbox(department, 'is_setup_approval_exempt', label='Setup approval exempt') }}
-                  &nbsp;
-                  {{ macros.checkbox(department, 'is_teardown_approval_exempt', label='Teardown approval exempt') }}
-                </div>
-                <div class="help-block">
-                  These settings determine whether members of this department require
-                  approval to work setup/teardown shifts for this department.
-                  <br><br>
-                  Unless most of the department's work is done during setup/teardown,
-                  these should remain unchecked (members of the department should
-                  probably require approval to work setup/teardown).
-                </div>
-              </div>
-            </div>
-            <div class="form-group">
               <label class="col-sm-3 control-label optional-field">Max Consecutive Hours</label>
               <div class="col-sm-6">
                   <input
@@ -298,13 +280,6 @@
 {%- endif %}
 {%- endif %}
 <p>This department {% if department.solicits_volunteers %}solicits{% else %}<b>does not</b> solicit{% endif %} volunteers.</p>
-{% if department.is_setup_approval_exempt or department.is_teardown_approval_exempt %}
-  <p>
-    Members of this department <b>do not need approval</b> to work
-    {%- if department.is_setup_approval_exempt %} setup{%- endif -%}
-    {%- if department.is_teardown_approval_exempt %}{% if department.is_setup_approval_exempt %} or{% endif %} teardown{% endif %} shifts.
-  </p>
-{% endif %}
 {% if is_admin_checklist_admin or can_admin_dept -%}
   <p>
     <a href="../dept_checklist/index?department_id={{ department.id }}">

@@ -14,10 +14,15 @@ celery.conf.beat_startup_tasks = []
 celery.conf.update(config_dict['celery'])
 
 broker_url = config_dict['secret']['broker_url']
-    
+
+celery.conf.broker_transport_options = {'global_keyprefix': config_dict['secret']['broker_prefix']}
+celery.conf.update(result_backend_transport_options={
+    'global_prefix': config_dict['secret']['broker_prefix']
+})
 celery.conf.update(broker_url=broker_url)
 celery.conf.update(result_backend=broker_url.replace("amqps://", "rpc://").replace("amqp://", "rpc://"))
 celery.conf.update(task_ignore_result=True)
+
 
 def celery_on_startup(fn, *args, **kwargs):
     celery.conf.beat_startup_tasks.append((celery.task(fn), args, kwargs))
@@ -51,23 +56,13 @@ def run_startup_tasks(*args, **kwargs):
         fn.delay(*a, **kw)
 
 
-@after_setup_logger.connect
-def configure_celery_logger(loglevel, logfile, format, colorize, **kwargs):
-    if 'logger' not in kwargs:
-        return
-
-    from sideboard.internal.logging import IndentMultilinesLogFormatter
-    log_format = '%(asctime)s [%(levelname)s] (%(processName)s) %(name)s: %(message)s'
-    for handler in kwargs['logger'].handlers:
-        handler.setFormatter(IndentMultilinesLogFormatter(log_format))
-
-
-from uber.tasks import attractions  # noqa: F401
-from uber.tasks import email  # noqa: F401
-from uber.tasks import health  # noqa: F401
-from uber.tasks import mivs  # noqa: F401
-from uber.tasks import panels  # noqa: F401
-from uber.tasks import redis # noqa: F401
-from uber.tasks import registration  # noqa: F401
-from uber.tasks import sms  # noqa: F401
-from uber.tasks import tabletop  # noqa: F401
+from uber.tasks import attractions  # noqa: F401, E402
+from uber.tasks import email  # noqa: F401, E402
+from uber.tasks import groups  # noqa: F401, E402
+from uber.tasks import health  # noqa: F401, E402
+from uber.tasks import mivs  # noqa: F401, E402
+from uber.tasks import panels  # noqa: F401, E402
+from uber.tasks import redis  # noqa: F401, E402
+from uber.tasks import registration  # noqa: F401, E402
+from uber.tasks import security  # noqa: F401, E402
+from uber.tasks import sms  # noqa: F401, E402

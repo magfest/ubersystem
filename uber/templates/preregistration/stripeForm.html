@@ -29,9 +29,8 @@
 }
 </style>
 {% if c.AUTHORIZENET_LOGIN_ID %}
-{% set bootstrap5 = 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or 'art_show_applications' in c.PAGE_PATH or admin_area %}
     <button type="button"
-        class="AcceptUI {% if bootstrap5 %}d-none{% else %}hidden{% endif %}"
+        class="AcceptUI d-none"
         id="authNetPayButton"
         data-billingAddressOptions='{"show":true, "required":true}' 
         data-apiLoginID="{{ c.AUTHORIZENET_LOGIN_ID }}" 
@@ -46,7 +45,7 @@
     {% set stripe_loaded = true %}
 {% endif %}
 <button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
-<span class="display: block; min-height: 30px;">Pay with Card</span>
+<span class="display: block; min-height: 30px;">{{ text }}</span>
 </button>
 {% if not stripeModal %}
 <div id="stripeModal" class="modal" style="color:black;" tabindex="-1" role="dialog" data-bs-backdrop="static">
@@ -70,7 +69,7 @@
         <div class="charge_desc" style="margin-bottom:10px;"></div>
         <form action="/charge" method="post" id="payment-form" class="d-none">
         <div class="form-row">
-            <label for="card-element">
+            <label for="card-element" class="form-text">
             Credit or debit card
             </label>
             <div id="card-element">
@@ -81,7 +80,7 @@
             <div id="card-errors" role="alert"></div>
         </div>
         <div style="margin-top:10px;"><button class="btn btn-success">Submit Payment</button>
-        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
         </form>
         </div>
     </div>
@@ -164,14 +163,15 @@ var loadJS = function(src, callback) {
 }
 
 {% if c.AUTHORIZENET_LOGIN_ID %}
-let authnet_ref_id = '';
-let authnet_amount = 0;
-let authnet_email = '';
-let authnet_desc = '';
-let authnet_customer_id = '';
-let authnet_success_url = '';
-let authnet_cancel_url = '';
-let authnet_loaded = false;
+if (typeof authnet_ref_id == 'undefined') {
+    let authnet_ref_id = '';
+    let authnet_amount = 0;
+    let authnet_email = '';
+    let authnet_desc = '';
+    let authnet_customer_id = '';
+    let authnet_success_url = '';
+    let authnet_cancel_url = '';
+    let authnet_loaded = false;
 
 var collectAuthNetPayment = function (ref_id, email, desc, customer_id, success_url, cancel_url, amount) {
     authnet_ref_id = ref_id;
@@ -229,10 +229,11 @@ var handleAuthNetResponse = function (response) {
             });
         }
     }
+}
 {% else %}
 var collectStripePayment = function (client_secret, stripe_id, success_url, cancel_url) {
     var stripeModal = bootstrap.Modal.getOrCreateInstance($('#stripeModal'));
-    sripeModal.show();
+    stripeModal.show();
     $("#cc-message-alert").hide().removeClass().addClass("alert").children("span").html("");
     var form = document.getElementById('payment-form');
     var stripe = Stripe('{{ c.STRIPE_PUBLIC_KEY }}');

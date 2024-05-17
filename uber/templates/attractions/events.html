@@ -57,6 +57,10 @@
         $doneModal = $('#done_modal'),
         $btnShowSoldout = $('#btn_show_soldout');
 
+    $signupBModal = bootstrap.Modal.getOrCreateInstance($signupModal);
+    $altSignupBModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
+    $doneBModal = bootstrap.Modal.getOrCreateInstance($doneModal);
+
     $btnShowSoldout.on('click', function(event) {
       var isShowing = $btnShowSoldout.hasClass('btn-plain');
       $btnShowSoldout.toggleClass('btn-outline-secondary', isShowing);
@@ -80,15 +84,12 @@
       $('.signup-event-location').html($('#' + eventId + ' .event-location').html());
 
       {% if c.AT_THE_CON %}
-      var modal = bootstrap.Modal.getOrCreateInstance($signupModal)
-      modal.show();
+      $signupBModal.show();
       {% else %}
       if($event.hasClass('badge-num-required')) {
-        var modal = bootstrap.Modal.getOrCreateInstance($signupModal)
-        modal.show();
+        $signupBModal.show();
       } else {
-        var modal = bootstrap.Modal.getOrCreateInstance($altSignupModal)
-        modal.show();
+        $altSignupBModal.show();
       }
       {% endif %}
     });
@@ -120,10 +121,12 @@
     };
 
     $signupModal.find('.modal-footer .btn.modal-form-switch').on('click', function (event) {
-      var signupModal = bootstrap.Modal.getOrCreateInstance($signupModal)
-      signupModal.hide();
-      var altSignupModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
-      altSignupModal.show();
+      $signupBModal.hide();
+      $altSignupBModal.show();
+    });
+    $altSignupModal.find('.modal-footer .btn.modal-switch-back').on('click', function (event) {
+      $altSignupBModal.hide();
+      $signupBModal.show();
     });
 
     $doneModal.find('.confirm-row .btn-success').on('click', function (event) {
@@ -157,10 +160,8 @@
         if (response) {
           updateGreeting(response['first_name'], response['badge_num'], $doneModal.find('.modal-title'));
           $doneModal.data('attendee', response);
-          var signupModal = bootstrap.Modal.getOrCreateInstance($signupModal);
-          signupModal.hide();
-          var doneModal = bootstrap.Modal.getOrCreateInstance($doneModal);
-          doneModal.show();
+          $signupBModal.hide();
+          $doneBModal.show();
         }
       });
     });
@@ -178,10 +179,8 @@
         if (response) {
           updateGreeting(response['first_name'], response['badge_num'], $doneModal.find('.modal-title'));
           $doneModal.data('attendee', response);
-          var altSignupModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
-          altSignupModal.hide();
-          var doneModal = bootstrap.Modal.getOrCreateInstance($doneModal);
-          doneModal.show();
+          $altSignupBModal.hide();
+          $doneBModal.show();
         }
       });
     });
@@ -240,12 +239,10 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
         <h4 class="modal-title">
           <span class="bling-icon"></span> <span class="signup-event-label"></span>
         </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <p>
@@ -285,53 +282,56 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
         <h4 class="modal-title">
           <span class="bling-icon"></span> <span class="signup-event-label"></span>
         </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form id="alt_signup_form" class="form-horizontal" method="post" action="sign" role="form">
+      <form id="alt_signup_form" method="post" action="sign" role="form">
         <div class="modal-body">
           <p>Enter your personal information to sign up. You must already be registered to sign up for this event.</p>
-          <div class="row">
-            <div class="col-sm-offset-2 col-sm-8">
-              <div class="attendee-info-row">
-                <input class="form-control input-lg info-field"
-                    type="text"
-                    name="first_name"
-                    placeholder="First Name"
-                    required="required" />
-              </div>
-              <div class="attendee-info-row">
-                <input class="form-control input-lg info-field"
-                    type="text"
-                    name="last_name"
-                    placeholder="Last Name"
-                    required="required" />
-              </div>
-              <div class="attendee-info-row">
+          <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">
+              <label class="form-text">First Name</label>
+              <input class="form-control info-field"
+                  type="text"
+                  name="first_name"
+                  placeholder="Pat"
+                  required="required" />
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-text">Last Name</label>
+              <input class="form-control input-lg info-field"
+                  type="text"
+                  name="last_name"
+                  placeholder="Smith"
+                  required="required" />
+            </div>
+          </div>
+            <div class="row g-sm-3">
+              <div class="col-12 col-sm-6">
+                <label class="form-text">Email Address</label>
                 <input class="form-control input-lg info-field"
                     type="email"
                     name="email"
-                    placeholder="Email Address"
+                    placeholder="email@example.com"
                     required="required" />
               </div>
-              <div class="attendee-info-row">
+              <div class="col-12 col-sm-6">
+                <label class="form-text">Zip Code</label>
                 <input class="form-control input-lg info-field"
                     pattern="[0-9]*"
                     name="zip_code"
-                    placeholder="Zip Code"
+                    placeholder="12345"
                     required="required" />
               </div>
-            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-success btn-lg btn-xl">
-              <i class="fa fa-ok"></i> Sign up
+              <i class="fa fa-check"></i> Sign up
           </button>
+          <button type="button" class="btn btn-secondary btn-lg btn-xl modal-switch-back">Use Badge #</button>
           <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">Nevermind</button>
         </div>
       </form>
@@ -344,12 +344,10 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
         <h4 class="modal-title">
           <span class="bling-icon"></span> {{ attractions_macros.attendee_name() }}
         </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body form-horizontal">
         <p>
@@ -430,7 +428,7 @@
                 data-event-start-time="{{ event.start_time_label }}">
               <div class="hover-btn-title">
                 <button class="btn btn-success btn-next btn-next-sm pull-right">
-                  <i class="fa fa-ok"></i>
+                  <i class="fa fa-check"></i>
                 </button>
                 <h2><span class="bling-icon"></span> {{ event.time_span_label }}</h2>
                 <em class="text-nowrap">{{ event.duration_label }}</em>

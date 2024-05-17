@@ -1,29 +1,32 @@
 import json
 import mimetypes
 import os
+import sys
+import ctypes
+import ctypes.util
 import traceback
+import threading
+import importlib
 from pprint import pformat
 
 import cherrypy
+import sentry_sdk
 import jinja2
 from cherrypy import HTTPError
 from pockets import is_listy
 from pockets.autolog import log
-from sideboard.jsonrpc import json_handler, ERR_INVALID_RPC, ERR_MISSING_FUNC, ERR_INVALID_PARAMS, \
-    ERR_FUNC_EXCEPTION, ERR_INVALID_JSON
-from sideboard.server import jsonrpc_reset
-from sideboard.websockets import trigger_delayed_notifications
 
 from uber.config import c, Config
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.utils import mount_site_sections, static_overrides
+from uber.redis_session import RedisSession
 
+cherrypy.lib.sessions.RedisSession = RedisSession
 
 mimetypes.init()
 
 if c.SENTRY['enabled']:
-    import sentry_sdk
     sentry_sdk.init(
         dsn=c.SENTRY['dsn'],
         environment=c.SENTRY['environment'],
@@ -34,6 +37,40 @@ if c.SENTRY['enabled']:
         # We recommend adjusting this value in production.
         traces_sample_rate=c.SENTRY['sample_rate'] / 100
     )
+
+def sentry_start_transaction():
+    cherrypy.request.sentry_transaction = sentry_sdk.start_transaction(
+        name=f"{cherrypy.request.method} {cherrypy.request.path_info}",
+        op=f"{cherrypy.request.method} {cherrypy.request.path_info}",
+    )
+    cherrypy.request.sentry_transaction.__enter__()
+
+
+cherrypy.tools.sentry_start_transaction = cherrypy.Tool('on_start_resource', sentry_start_transaction)
+
+
+def sentry_end_transaction():
+    cherrypy.request.sentry_transaction.__exit__(None, None, None)
+
+
+cherrypy.tools.sentry_end_transaction = cherrypy.Tool('on_end_request', sentry_end_transaction)
+
+
+@cherrypy.tools.register('before_finalize', priority=60)
+def secureheaders():
+    headers = cherrypy.response.headers
+    hsts_header = 'max-age=' + str(c.HSTS['max_age'])
+    if c.HSTS['include_subdomains']:
+        hsts_header += '; includeSubDomains'
+    if c.HSTS['preload']:
+        if c.HSTS['max_age'] < 31536000:
+            log.error('HSTS only supports preloading if max-age > 31536000')
+        elif not c.HSTS['include_subdomains']:
+            log.error('HSTS only supports preloading if subdomains are included')
+        else:
+            hsts_header += '; preload'
+    headers['Strict-Transport-Security'] = hsts_header
+
 
 def _add_email():
     [body] = cherrypy.response.body
@@ -238,80 +275,53 @@ c.APPCONF['/']['error_page.404'] = error_page_404
 cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
 
+cherrypy_config = {}
+for setting, value in c.CHERRYPY.items():
+    if isinstance(value, str):
+        if value.isdigit():
+            value = int(value)
+        elif value.lower() in ['true', 'false']:
+            value = value.lower() == 'true'
+    cherrypy_config[setting] = value
+cherrypy.config.update(cherrypy_config)
 
-def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
-
-    @cherrypy.expose
-    @cherrypy.tools.force_json_in()
-    @cherrypy.tools.json_out(handler=json_handler)
-    def _jsonrpc_handler(self=None):
-        id = None
-
-        def error(status, code, message):
-            response = {'jsonrpc': '2.0', 'id': id, 'error': {'code': code, 'message': message}}
-            log.debug('Returning error message: {}', repr(response).encode('utf-8'))
-            cherrypy.response.status = status
-            return response
-
-        def success(result):
-            response = {'jsonrpc': '2.0', 'id': id, 'result': result}
-            log.debug('Returning success message: {}', {
-                'jsonrpc': '2.0', 'id': id, 'result': len(result) if is_listy(result) else str(result).encode('utf-8')})
-            cherrypy.response.status = 200
-            return response
-
-        request_body = cherrypy.request.json
-        if not isinstance(request_body, dict):
-            return error(400, ERR_INVALID_JSON, 'Invalid json input: {!r}'.format(request_body))
-
-        log.debug('jsonrpc request body: {}', repr(request_body).encode('utf-8'))
-
-        id, params = request_body.get('id'), request_body.get('params', [])
-        if 'method' not in request_body:
-            return error(400, ERR_INVALID_RPC, '"method" field required for jsonrpc request')
-
-        method = request_body['method']
-        if method.count('.') != 1:
-            return error(404, ERR_MISSING_FUNC, 'Invalid method ' + method)
-
-        module, function = method.split('.')
-        if module not in services:
-            return error(404, ERR_MISSING_FUNC, 'No module ' + module)
-
-        service = services[module]
-        if not hasattr(service, function):
-            return error(404, ERR_MISSING_FUNC, 'No function ' + method)
-
-        if not isinstance(params, (list, dict)):
-            return error(400, ERR_INVALID_PARAMS, 'Invalid parameter list: {!r}'.format(params))
-
-        args, kwargs = (params, {}) if isinstance(params, list) else ([], params)
-
-        precall(request_body)
-        try:
-            return success(getattr(service, function)(*args, **kwargs))
-        except HTTPError as http_error:
-            return error(http_error.code, ERR_FUNC_EXCEPTION, http_error._message)
-        except Exception as e:
-            log.error('Unexpected error', exc_info=True)
-            message = 'Unexpected error: {}'.format(e)
-            if debug:
-                message += '\n' + traceback.format_exc()
-            return error(500, ERR_FUNC_EXCEPTION, message)
-        finally:
-            trigger_delayed_notifications()
-
-    return _jsonrpc_handler
+libpthread_path = ctypes.util.find_library("pthread")
+pthread_setname_np = None
+if libpthread_path:
+    libpthread = ctypes.CDLL(libpthread_path)
+    if hasattr(libpthread, "pthread_setname_np"):
+        pthread_setname_np = libpthread.pthread_setname_np
+        pthread_setname_np.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        pthread_setname_np.restype = ctypes.c_int
 
 
-jsonrpc_services = {}
+def _set_current_thread_ids_from(thread):
+    # thread ID part 1: set externally visible thread name in /proc/[pid]/tasks/[tid]/comm to our internal name
+    if pthread_setname_np and thread.name:
+        # linux doesn't allow thread names > 15 chars, and we ideally want to see the end of the name.
+        # attempt to shorten the name if we need to.
+        shorter_name = thread.name if len(thread.name) < 15 else thread.name.replace('CP Server Thread', 'CPServ')
+        if thread.ident is not None:
+            pthread_setname_np(thread.ident, shorter_name.encode('ASCII'))
 
 
-def register_jsonrpc(service, name=None):
-    name = name or service.__name__
-    assert name not in jsonrpc_services, '{} has already been registered'.format(name)
-    jsonrpc_services[name] = service
+# inject our own code at the start of every thread's start() method which sets the thread name via pthread().
+# Python thread names will now be shown in external system tools like 'top', '/proc', etc.
+def _thread_name_insert(self):
+    _set_current_thread_ids_from(self)
+    threading.Thread._bootstrap_inner_original(self)
 
+    threading.Thread._bootstrap_inner_original = threading.Thread._bootstrap_inner
+    threading.Thread._bootstrap_inner = _thread_name_insert
 
-jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
-cherrypy.tree.mount(jsonrpc_app, os.path.join(c.CHERRYPY_MOUNT_PATH, 'jsonrpc'), c.APPCONF)
+# set the ID's of the main thread
+threading.current_thread().name = 'ubersystem_main'
+_set_current_thread_ids_from(threading.current_thread())
+
+log.info("Loading plugins")
+for plugin_name in c.PLUGINS:
+    log.info(f"Loading plugin {plugin_name}")
+    sys.path.append(f"/app/plugins/{plugin_name}")
+    plugin = importlib.import_module(plugin_name)
+    if callable(getattr(plugin, 'on_load', None)):
+        plugin.on_load()

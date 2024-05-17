@@ -23,13 +23,14 @@
     {% endif %}
 
     <form novalidate method="post" id="prereg-form" action="additional_info" class="form-horizontal" role="form">
+      <input type="hidden" name="is_prereg" value="True" />
       {% if is_prereg_dealer %}
       <input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
       {% else %}
       <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
       {% endif %}
       {{ csrf_token() }}
-      {% include "forms/other_info.html" %}
+      {% include "forms/attendee/prereg_other_info.html" %}
       &nbsp;
       {% if editing %}
       <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
@@ -44,7 +45,7 @@
 {% if is_prereg_dealer %}
 {{ "js/warn-before-logout-dealer.js"|serve_static_content }}
 {% else %}
-<em class="form-text">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em>
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
 {{ "js/warn-before-logout.js"|serve_static_content }}
 {% endif %}
 {% endblock %}

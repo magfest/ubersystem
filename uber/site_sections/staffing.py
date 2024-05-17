@@ -1,5 +1,6 @@
 import cherrypy
-from datetime import timedelta
+from datetime import datetime, timedelta
+import ics
 
 from uber.config import c
 from uber.custom_tags import safe_string
@@ -45,8 +46,8 @@ class Root:
         attendee = session.logged_in_volunteer()
         if shirt is not None or staff_shirt is not None:
             check_csrf(csrf_token)
-            if (shirt and not int(shirt)) or (
-                attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
+            if (shirt and not int(shirt)) or (attendee.gets_staff_shirt and
+                                              c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
                 message = 'You must select a shirt size'
             else:
                 if shirt:
@@ -64,7 +65,8 @@ class Root:
         }
 
     @check_shutdown
-    def volunteer_agreement(self, session, message='', agreed_to_terms=None, agreed_to_terms_1=None, agreed_to_terms_2=None, csrf_token=None):
+    def volunteer_agreement(self, session, message='', agreed_to_terms=None, agreed_to_terms_1=None,
+                            agreed_to_terms_2=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
         if csrf_token is not None:
             check_csrf(csrf_token)
@@ -72,7 +74,8 @@ class Root:
                 attendee.agreed_to_volunteer_agreement = True
                 raise HTTPRedirect('index?message={}', 'Agreement received')
             elif agreed_to_terms_1 or agreed_to_terms_2:
-                message = "You must agree to both the terms of the agreement and the volunteering policies and guidelines"
+                message = "You must agree to both the terms of the agreement and "\
+                    "the volunteering policies and guidelines"
             else:
                 message = "You must agree to the terms of the agreement"
 
@@ -83,7 +86,7 @@ class Root:
             'agreed_to_terms_2': agreed_to_terms_2,
             'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
-        
+
     @check_shutdown
     def emergency_procedures(self, session, message='', reviewed_procedures=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
@@ -100,7 +103,7 @@ class Root:
             'attendee': attendee,
             'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
-        
+
     @check_shutdown
     def credits(self, session, message='', name_in_credits='', csrf_token=None):
         attendee = session.logged_in_volunteer()
@@ -110,12 +113,12 @@ class Root:
             message = "Thank you for providing a name for the credits roll!" if name_in_credits \
                 else "You have opted out of having your name in the credits roll."
             raise HTTPRedirect('index?message={}', message)
-            
+
         return {
             'message': message,
             'attendee': attendee,
         }
-            
+
     @check_shutdown
     @public
     def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message=''):
@@ -209,6 +212,16 @@ class Root:
         has_teardown = volunteer.can_work_teardown or any(
             d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
 
+        if not start and has_setup:
+            start = c.SETUP_JOB_START
+        elif not start:
+            start = c.EPOCH
+        else:
+            if start.endswith('Z'):
+                start = datetime.strptime(start[:-1], '%Y-%m-%dT%H:%M:%S.%f')
+            else:
+                start = datetime.strptime(start, '%Y-%m-%dT%H:%M:%S.%f')
+
         if has_setup and has_teardown:
             cal_length = c.CON_TOTAL_DAYS
         elif has_setup:
@@ -227,10 +240,31 @@ class Root:
             'assigned_depts_labels': volunteer.assigned_depts_labels,
             'view': view,
             'start': start,
+            'end': start + timedelta(days=cal_length),
             'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
-            'cal_length': cal_length,
             'show_all': all,
         }
+
+    def shifts_ical(self, session, **params):
+        attendee = session.logged_in_volunteer()
+        icalendar = ics.Calendar()
+
+        calname = "".join(filter(str.isalnum, attendee.full_name)) + "_Shifts"
+
+        for shift in attendee.shifts:
+            icalendar.events.add(ics.Event(
+                name=shift.job.name,
+                location=shift.job.department_name,
+                begin=shift.job.start_time,
+                end=(shift.job.start_time + timedelta(minutes=shift.job.duration)),
+                description=shift.job.description))
+
+        cherrypy.response.headers['Content-Type'] = \
+            'text/calendar; charset=utf-8'
+        cherrypy.response.headers['Content-Disposition'] = \
+            'attachment; filename="{}.ics"'.format(calname)
+
+        return icalendar
 
     @check_shutdown
     @ajax_gettable
@@ -263,7 +297,7 @@ class Root:
             return {'jobs': session.jobs_for_signups(all=all)}
 
     @public
-    def login(self, session, message='',  first_name='', last_name='', email='', zip_code='', original_location=None):
+    def login(self, session, message='', first_name='', last_name='', email='', zip_code='', original_location=None):
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/staffing/index')
 
         if first_name or last_name or email or zip_code:

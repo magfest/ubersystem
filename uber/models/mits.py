@@ -1,10 +1,10 @@
 import os
+import cherrypy
 from functools import wraps
 
 from PIL import Image
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_
-from sideboard.lib import on_startup
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -303,7 +303,6 @@ class MITSPanelApplication(MagModel):
     participation_interest = Column(Boolean, default=False)
 
 
-@on_startup
 def add_applicant_restriction():
     """
     We use convenience functions for our form handling, e.g. to
@@ -342,3 +341,4 @@ def add_applicant_restriction():
         'mits_applicant', 'mits_game', 'mits_times', 'mits_picture', 'mits_document', 'mits_panel_application'
     ]:
         override_getter(name)
+cherrypy.engine.subscribe('start', add_applicant_restriction, priority=98)

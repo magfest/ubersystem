@@ -3,6 +3,8 @@ import operator
 import os
 import re
 import uuid
+import time
+import traceback
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
@@ -16,13 +18,11 @@ import sqlalchemy
 from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
-from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
-from sideboard.lib import on_startup, stopped
-from sqlalchemy import and_, func, or_, not_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
@@ -34,7 +34,7 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, normalize_email_legacy, normalize_phone, DeptChecklistConf, report_critical_exception, \
+from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     valid_email, valid_password
 from uber.payments import ReceiptManager
 
@@ -48,8 +48,11 @@ def _make_getter(model):
         elif isinstance(params, str):
             return self.query(model).filter_by(id=params).one()
         else:
-            params = params.copy()
-            id = params.pop('id', 'None')
+            if params:
+                params = params.copy()
+                id = params.pop('id', 'None')
+            else:
+                id = 'None'
             if id == 'None':
                 inst = model()
             else:
@@ -85,6 +88,7 @@ class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
 
     required = ()
+    is_actually_old = False  # Set to true to force preview models to return False for `is_new`
 
     @cached_classproperty
     def NAMESPACE(cls):
@@ -168,8 +172,15 @@ class MagModel:
     def multichoice_columns(cls):
         return [c for c in cls.__table__.columns if isinstance(c.type, MultiChoice)]
 
-    @property
-    def default_cost(self):
+    def auto_update_receipt(self, params):
+        """
+        Allows event plugins to preprocess a set of params before a model's receipt is updated.
+        If we keep the receipt auto-updater around long enough, we should move some of the 
+        ReceiptManager class's auto_update_receipt to this function.
+        """
+        return params
+
+    def calc_default_cost(self):
         """
         Returns the sum of all cost and credit receipt items for this model instance.
 
@@ -177,7 +188,7 @@ class MagModel:
         return a negative value.
         """
         receipt, receipt_items = ReceiptManager.create_new_receipt(self)
-            
+
         return max(0, sum([(cost * count) for desc, cost, count in receipt_items]) / 100)
 
     @property
@@ -187,23 +198,6 @@ class MagModel:
         """
         from uber.models.commerce import ReceiptTransaction
         return self.session.query(ReceiptTransaction).filter_by(fk_id=self.id).all()
-
-    @property
-    def active_receipt(self):
-        """
-        Returns a dictionary of this object's current active receipt, if there is one.
-        This lets us access various properties of the receipt as if they were directly
-        tied to the model without having to have an extra active Session().
-        """
-        from uber.models import Session, ModelReceipt
-        receipt_dict = {}
-        with Session() as session:
-            receipt = session.get_receipt_by_model(self)
-            if receipt:
-                receipt_dict = receipt.to_dict()
-                for property in ['item_total', 'txn_total', 'current_amount_owed', 'pending_total', 'payment_total', 'refund_total']:
-                    receipt_dict[property] = getattr(receipt, property)
-        return receipt_dict
 
     @cached_classproperty
     def unrestricted(cls):
@@ -302,6 +296,8 @@ class MagModel:
         been saved to the database or if it's a new instance which has never
         been saved and thus has no corresponding row in its database table.
         """
+        if self.is_actually_old:
+            return False
         return not instance_state(self).persistent
 
     @property
@@ -368,7 +364,7 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
-            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?', val, name)
+            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?'.format(val, name))
             return ''
 
         if val == -1:
@@ -376,7 +372,7 @@ class MagModel:
 
         label = self.get_field(name).type.choices.get(val)
         if not label:
-            log.debug('{} does not have a label for {}, check your enum generating code', name, val)
+            log.debug('{} does not have a label for {}, check your enum generating code'.format(name, val))
             return ''
         return label
 
@@ -404,10 +400,11 @@ class MagModel:
 
         if name.startswith('is_'):
             return self.__class__.__name__.lower() == name[3:]
-        
+
         if name.startswith('default_') and name.endswith('_cost'):
             if self.active_receipt:
-                log.error('Cost property {} was called for object {}, which has an active receipt. This may cause problems.'.format(name, self))
+                log.debug('Cost property {} was called for object {}, \
+                          which has an active receipt. This may cause problems.'.format(name, self))
 
         receipt_items = uber.receipt_items.cost_calculation.items
         try:
@@ -440,7 +437,7 @@ class MagModel:
             if value is None:
                 return  # Totally fine for value to be None
 
-            elif value == '' and isinstance(column.type, (Float, Numeric, Choice, Integer, UTCDateTime, Date)):
+            elif value == '' and isinstance(column.type, (UUID, Float, Numeric, Choice, Integer, UTCDateTime, Date)):
                 return None
 
             elif isinstance(column.type, Boolean):
@@ -566,7 +563,7 @@ from uber.models.commerce import *  # noqa: F401,E402,F403
 from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
 from uber.models.group import *  # noqa: F401,E402,F403
-from uber.models.legal import * # noqa: F401,E402,F403
+from uber.models.legal import *  # noqa: F401,E402,F403
 from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
@@ -582,17 +579,19 @@ from uber.models.guests import *  # noqa: F401,E402,F403
 from uber.models.art_show import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
-from uber.models.admin import AccessGroup, AdminAccount, WatchList  # noqa: E402
-from uber.models.art_show import ArtShowApplication  # noqa: E402
-from uber.models.attendee import Attendee  # noqa: E402
-from uber.models.department import Job, Shift, Department  # noqa: E402
+from uber.models.admin import AccessGroup, AdminAccount, WatchList, WorkstationAssignment  # noqa: E402
+from uber.models.art_show import ArtShowApplication, ArtShowBidder  # noqa: E402
+from uber.models.attendee import Attendee, AttendeeAccount  # noqa: E402
+from uber.models.badge_printing import PrintJob  # noqa: E402
+from uber.models.commerce import ModelReceipt  # noqa: E402
+from uber.models.department import Job, Shift, Department, DeptRole  # noqa: E402
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
+from uber.models.guests import GuestGroup  # noqa: E402
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
 from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
-from uber.models.tabletop import TabletopEntrant, TabletopTournament  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 
 
@@ -618,7 +617,7 @@ class Session(SessionManager):
         tables registered in our metadata which do not actually exist yet in
         the database.
 
-        This calls the underlying sideboard function, HOWEVER, in order to
+        This calls the underlying ubersystem function, HOWEVER, in order to
         actually create any tables, you must specify modify_tables=True.  The
         reason is, we need to wait for all models from all plugins to insert
         their mixin data, so we wait until one spot in order to create the
@@ -627,7 +626,7 @@ class Session(SessionManager):
         Any calls to initialize_db() that do not specify modify_tables=True or
         drop=True are ignored.
 
-        i.e. anywhere in Sideboard that calls initialize_db() will be ignored.
+        i.e. anywhere in ubersystem that calls initialize_db() will be ignored.
         i.e. ubersystem is forcing all calls that don't specify
         modify_tables=True or drop=True to be ignored.
 
@@ -718,7 +717,10 @@ class Session(SessionManager):
 
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
-                return self.admin_account(cherrypy.session.get('account_id')).attendee
+                try:
+                    return self.admin_account(cherrypy.session.get('account_id')).attendee
+                except NoResultFound:
+                    return
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
@@ -726,12 +728,12 @@ class Session(SessionManager):
                     return self.attendee_account(cherrypy.session.get('attendee_account_id'))
                 except sqlalchemy.orm.exc.NoResultFound:
                     cherrypy.session['attendee_account_id'] = ''
-        
+
         def get_attendee_account_by_attendee(self, attendee):
             logged_in_account = self.current_attendee_account()
             if not logged_in_account:
                 return
-            
+
             attendee_accounts = attendee.managers
             if logged_in_account in attendee_accounts:
                 return logged_in_account
@@ -745,65 +747,67 @@ class Session(SessionManager):
             admin = self.current_admin_account()
             if admin.full_shifts_admin:
                 return True
-            
-            dept_ids_with_inherent_role = [dept_m.department_id for dept_m in 
+
+            dept_ids_with_inherent_role = [dept_m.department_id for dept_m in
                                            admin.attendee.dept_memberships_with_inherent_role]
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
         def admin_can_see_guest_group(self, guest):
-            return guest.group_type_label.upper().replace(' ','_') in self.current_admin_account().viewable_guest_group_types
+            return guest.group_type_label.upper().replace(' ', '_') \
+                in self.current_admin_account().viewable_guest_group_types
 
         def admin_attendee_max_access(self, attendee, read_only=True):
             admin = self.current_admin_account()
             if not admin:
-                return
-                
+                return 0
+
             if admin.full_registration_admin or attendee.creator == admin.attendee or \
-                                                attendee == admin.attendee or attendee.is_new:
+                    attendee == admin.attendee or attendee.is_new:
                 return AccessGroup.FULL
-            
+
             if attendee.access_sections:
-                return max([admin.max_level_access(section, read_only=read_only) for section in attendee.access_sections])
+                return max([admin.max_level_access(section,
+                                                   read_only=read_only) for section in attendee.access_sections])
 
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
             if not admin:
                 return
-                
+
             if admin.full_registration_admin:
                 return True
-            
+
             return admin.full_shifts_admin if attendee.badge_type == c.STAFF_BADGE else \
                 self.admin_attendee_max_access(attendee) >= AccessGroup.DEPT
-        
+
         def viewable_groups(self):
-            from uber.models import Attendee, DeptMembership, Group, GuestGroup
+            from uber.models import Group, GuestGroup
             admin = self.current_admin_account()
-            
+
             if admin.full_registration_admin:
                 return self.query(Group)
-            
+
             subqueries = [self.query(Group).filter(Group.creator == admin.attendee)]
-            
+
             group_id = admin.attendee.group.id if admin.attendee.group else ''
             if group_id:
                 subqueries.append(self.query(Group).filter(Group.id == group_id))
-            
+
             for key, val in c.GROUP_TYPE_OPTS:
                 if val.lower() + '_admin' in admin.read_or_write_access_set:
                     subqueries.append(
                         self.query(Group).join(
                             GuestGroup, Group.id == GuestGroup.group_id).filter(GuestGroup.group_type == key
-                        )
+                                                                                )
                     )
-            
+
             if 'dealer_admin' in admin.read_or_write_access_set:
                 subqueries.append(
                     self.query(Group).filter(Group.is_dealer)
                 )
-            
+
             return subqueries[0].union(*subqueries[1:])
-        
+
         def access_query_matrix(self):
             """
             There's a few different situations where we want to add certain subqueries to find attendees
@@ -813,10 +817,12 @@ class Session(SessionManager):
             return_dict = {'created': self.query(Attendee).filter(
                 or_(Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id))}
             # Guest groups
-            for group_type, badge_and_ribbon_filter in [
-                (c.BAND, and_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.BAND))),
-                (c.GUEST, and_(Attendee.badge_type == c.GUEST_BADGE, ~Attendee.ribbon.contains(c.BAND)))
-                ]:
+            for group_type, badge_and_ribbon_filter in [(c.BAND,
+                                                         and_(Attendee.badge_type == c.GUEST_BADGE,
+                                                              Attendee.ribbon.contains(c.BAND))),
+                                                        (c.GUEST,
+                                                         and_(Attendee.badge_type == c.GUEST_BADGE,
+                                                              ~Attendee.ribbon.contains(c.BAND)))]:
                 return_dict[c.GROUP_TYPES[group_type].lower() + '_admin'] = (
                     self.query(Attendee).join(Group, Attendee.group_id == Group.id)
                         .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
@@ -832,40 +838,53 @@ class Session(SessionManager):
                             )
                         )
                 )
-                
-            return_dict['panels_admin'] = self.query(Attendee).filter(
+
+            return_dict['panels_admin'] = self.query(Attendee).outerjoin(PanelApplicant).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
-                                                     Attendee.panel_interest == True,
-                                                     Attendee.panel_applications != None,
-                                                     Attendee.assigned_panelists != None,
-                                                     Attendee.panel_applicants != None,
-                                                     Attendee.panel_feedback != None))
-            return_dict['dealer_admin'] = self.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(Attendee.is_dealer)
+                                                     Attendee.panel_applications != None,  # noqa: E711
+                                                     Attendee.assigned_panelists != None,  # noqa: E711
+                                                     Attendee.panel_applicants != None,  # noqa: E711
+                                                     Attendee.panel_feedback != None))  # noqa: E711
+            return_dict['dealer_admin'] = self.query(Attendee).join(Group,
+                                                                    Attendee.group_id == Group.id
+                                                                    ).filter(Attendee.is_dealer)
             return_dict['mits_admin'] = self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
             return_dict['mivs_admin'] = (self.query(Attendee).join(Group, Attendee.group_id == Group.id)
-                    .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
-                        and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)
-                    ))
+                                         .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
+                                             and_(Group.id == Attendee.group_id,
+                                                  GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)
+                                                  ))
+            return_dict['art_show_admin'] = self.query(Attendee
+                                                       ).outerjoin(
+                                                           ArtShowApplication,
+                                                           or_(ArtShowApplication.attendee_id == Attendee.id,
+                                                               ArtShowApplication.agent_id == Attendee.id)
+                                                        ).outerjoin(ArtShowBidder).filter(
+                                                            or_(Attendee.art_show_bidder != None,  # noqa: E711
+                                                                Attendee.art_show_purchases != None,  # noqa: E711
+                                                                Attendee.art_show_applications != None,  # noqa: E711
+                                                                Attendee.art_agent_applications != None)  # noqa: E711
+                                                        )
             return return_dict
-            
+
         def viewable_attendees(self):
-            from uber.models import Attendee, DeptMembership, Group, GuestGroup, MITSApplicant
+            from uber.models import Attendee
             admin = self.current_admin_account()
-            
+
             if admin.full_registration_admin:
                 return self.query(Attendee)
-            
+
             subqueries = [self.access_query_matrix()['created']]
-            
+
             for key, val in self.access_query_matrix().items():
                 if key in admin.read_or_write_access_set:
                     subqueries.append(val)
-            
+
             if admin.full_shifts_admin:
                 subqueries.append(
                     self.query(Attendee).filter(Attendee.staffing)
                 )
-            
+
             return subqueries[0].union(*subqueries[1:])
 
         def checklist_status(self, slug, department_id):
@@ -963,18 +982,19 @@ class Session(SessionManager):
                         func.lower(Attendee.email) == entry.email.lower()
                         ),
                     and_(
-                        Attendee.birthdate != None,
+                        Attendee.birthdate != None,  # noqa: E711
                         Attendee.birthdate == entry.birthdate
                         ),
                     ),
-                Attendee.watchlist_id == None).all()
+                Attendee.watchlist_id == None).all()  # noqa: E711
 
         def get_attendee_account_by_email(self, email):
             return self.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).one()
 
         def get_admin_account_by_email(self, email):
             from uber.utils import normalize_email_legacy
-            return self.query(AdminAccount).join(Attendee).filter(Attendee.normalized_email == normalize_email_legacy(email)).one()
+            return self.query(AdminAccount
+                              ).join(Attendee).filter(Attendee.normalized_email == normalize_email_legacy(email)).one()
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
@@ -986,7 +1006,7 @@ class Session(SessionManager):
                 zip_code=zip_code
             ).filter(
                 Attendee.normalized_email == normalize_email_legacy(email),
-                Attendee.is_valid == True
+                Attendee.is_valid == True  # noqa: E712
             ).limit(10).all()
 
             if attendees:
@@ -1051,24 +1071,28 @@ class Session(SessionManager):
 
             if not password and generate_pwd:
                 password = genpasswd()
-            
-            new_account = AdminAccount(attendee=attendee, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
+
+            new_account = AdminAccount(
+                attendee=attendee,
+                hashed=create_new_hash(password))
+            if 'judge' in params:
+                new_account.judge = params.pop('judge')
             new_account.apply(params)
             self.add(new_account)
-            return new_account
+            return new_account, password
 
         def create_attendee_account(self, email=None, password=None):
             from uber.models import AttendeeAccount
             from uber.utils import normalize_email
 
-            new_account = AttendeeAccount(email=normalize_email(email), hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            new_account = AttendeeAccount(
+                email=normalize_email(email),
+                hashed=create_new_hash(password) if password else '')
             self.add(new_account)
 
             return new_account
 
         def add_attendee_to_account(self, attendee, account):
-            from uber.utils import normalize_email
-
             unclaimed_account = account.hashed != '' and not account.is_sso_account
 
             if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
@@ -1077,14 +1101,37 @@ class Session(SessionManager):
                 account.attendees.append(attendee)
 
         def match_attendee_to_account(self, attendee):
-            existing_account = self.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(attendee.email)).first()
+            existing_account = self.query(AttendeeAccount
+                                          ).filter_by(normalized_email=normalize_email_legacy(attendee.email)).first()
             if existing_account:
                 self.add_attendee_to_account(attendee, existing_account)
+
+        def get_assigned_terminal_id(self):
+            reg_station_id = cherrypy.session.get('reg_station', '')
+
+            if not reg_station_id:
+                return "Workstation ID not set!", None
+
+            workstation_assignment = self.query(WorkstationAssignment
+                                                ).filter_by(reg_station_id=int(reg_station_id)).first()
+
+            if not workstation_assignment:
+                return "This workstation does not have anything assigned, \
+                    please double-check your workstation number.", None
+
+            if not workstation_assignment.terminal_id:
+                return "This workstation has no terminal assigned, please contact a manager.", None
+
+            lookup_key = workstation_assignment.terminal_id.lower().replace('-', '')
+            if lookup_key not in c.TERMINAL_ID_TABLE:
+                return f"Could not find terminal ID {workstation_assignment.terminal_id} in our terminal lookup table."
+
+            return "", c.TERMINAL_ID_TABLE[lookup_key]
 
         def get_receipt_by_model(self, model, include_closed=False, create_if_none=""):
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
-                receipt_select = receipt_select.filter(ModelReceipt.closed == None)
+                receipt_select = receipt_select.filter(ModelReceipt.closed == None)  # noqa: E711
             receipt = receipt_select.first()
 
             if not receipt and create_if_none:
@@ -1101,19 +1148,76 @@ class Session(SessionManager):
             if cls:
                 return self.query(cls).filter_by(id=receipt.owner_id).first()
 
-        def refresh_receipt_and_model(self, model):
+        def update_paid_from_receipt(self, attendee, receipt):
+            if receipt.item_total == 0 and attendee.paid in [c.PENDING, c.NOT_PAID]:
+                if attendee.paid == c.PENDING and attendee.badge_status == c.PENDING_STATUS:
+                    attendee.badge_status = c.NEW_STATUS
+                attendee.paid = c.NEED_NOT_PAY
+            elif receipt.current_amount_owed > 0 and attendee.paid == c.NEED_NOT_PAY:
+                attendee.paid = c.NOT_PAID
+            return attendee
+
+        def refresh_receipt_and_model(self, model, is_prereg=False):
             receipt = self.get_receipt_by_model(model)
             if receipt:
                 for txn in receipt.pending_txns:
                     txn.check_paid_from_stripe()
                 self.refresh(receipt)
-            
+
+            if isinstance(model, Group):
+                model.cost = model.calc_default_cost()
+            else:
+                model.default_cost = model.calc_default_cost()
+
+            if isinstance(model, Attendee) and receipt and not is_prereg:
+                self.update_paid_from_receipt(model, receipt)
+                self.merge(model)
+
             try:
                 self.refresh(model)
             except sqlalchemy.exc.InvalidRequestError:
                 # Non-persistent object, so nothing to refresh
                 pass
+
             return receipt
+
+        def get_terminal_settlements(self):
+            from uber.models import TerminalSettlement
+
+            settlements = {}
+
+            counts_base_query = self.query(TerminalSettlement.batch_timestamp,
+                                           func.count(TerminalSettlement.batch_timestamp))
+
+            settlements['completed'] = counts_base_query.filter(or_(TerminalSettlement.error != '',
+                                                                    TerminalSettlement.response != {})).group_by(
+                                                                        TerminalSettlement.batch_timestamp).order_by(
+                                                                        TerminalSettlement.batch_timestamp
+                                                                        ).all()
+
+            settlements['succeeded'] = dict(counts_base_query.filter(TerminalSettlement.error == '',
+                                                                     TerminalSettlement.response != {}).group_by(
+                                                                         TerminalSettlement.batch_timestamp).all())
+
+            settlements['in_progress'] = self.query(TerminalSettlement.batch_timestamp,
+                                                    TerminalSettlement.batch_who,
+                                                    TerminalSettlement.workstation_num,
+                                                    TerminalSettlement.terminal_id
+                                                    ).filter(TerminalSettlement.error == '',
+                                                             TerminalSettlement.response == {}).all()
+
+            settlements['errors'] = {}
+            settlements['batch_info'] = dict(self.query(TerminalSettlement.batch_timestamp,
+                                                        TerminalSettlement.batch_who).distinct().all())
+
+            for timestamp, who in settlements['batch_info'].items():
+                settlements['errors'][timestamp] = self.query(TerminalSettlement.workstation_num,
+                                                              TerminalSettlement.terminal_id,
+                                                              TerminalSettlement.error).filter(
+                                                                  TerminalSettlement.batch_timestamp == timestamp,
+                                                                  TerminalSettlement.error != '').all()
+
+            return settlements
 
         def attendee_from_marketplace_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
@@ -1125,9 +1229,6 @@ class Session(SessionManager):
                        'for that badge!'
 
             return attendee, message
-        
-        def art_show_apps(self):
-            return self.query(ArtShowApplication).options(joinedload('attendee')).all()
 
         def attendee_from_art_show_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
@@ -1139,14 +1240,14 @@ class Session(SessionManager):
                     'for that badge!'
 
             if params.get('not_attending', ''):
-                    attendee.badge_status = c.NOT_ATTENDING
+                attendee.badge_status = c.NOT_ATTENDING
 
             return attendee, ''
 
         def lookup_agent_code(self, code):
             return self.query(ArtShowApplication).filter_by(agent_code=code).all()
 
-        def add_promo_code_to_attendee(self, attendee, code):
+        def add_promo_code_to_attendee(self, attendee, code, used_codes=defaultdict(int)):
             """
             Convenience method for adding a promo code to an attendee.
 
@@ -1161,6 +1262,10 @@ class Session(SessionManager):
                     should be added.
                 code (str): The promo code as typed by an end user, or an
                     empty string to unset the promo code.
+                used_codes (defaultdict(int)): A list of codes already used
+                    but not added to the session, e.g., in PreregCart.
+                    These codes are flattened to the list, as they're only
+                    used here to check for used PromoCodeGroup codes.
 
             Returns:
                 str: Either a failure message or an empty string
@@ -1168,19 +1273,19 @@ class Session(SessionManager):
             """
             code = code.strip() if code else ''
             if code:
-                attendee.promo_code = self.lookup_promo_code(code)
+                attendee.promo_code = self.lookup_promo_code(code, list(used_codes.keys()))
                 if attendee.promo_code:
                     attendee.promo_code_id = attendee.promo_code.id
                     return ''
                 else:
                     attendee.promo_code_id = None
-                    return 'The promo code you entered is invalid.'
+                    return f"The promo code you entered ({code}) is invalid."
             else:
                 attendee.promo_code = None
                 attendee.promo_code_id = None
                 return ''
 
-        def lookup_promo_code(self, code):
+        def lookup_promo_code(self, code, used_codes=[]):
             """
             Convenience method for finding a promo code by id or code.
             Accounts for PromoCodeGroups.
@@ -1197,10 +1302,9 @@ class Session(SessionManager):
                 return promo_code
 
             group = self.lookup_promo_or_group_code(code, PromoCodeGroup)
-            if not group:
-                return None
-
-            return group.valid_codes[0] if group.valid_codes else None
+            if group:
+                unused_valid_codes = [code for code in group.valid_codes if code.code not in used_codes]
+                return unused_valid_codes[0] if unused_valid_codes else None
 
         def lookup_promo_or_group_code(self, code, model=PromoCode):
             """
@@ -1251,7 +1355,7 @@ class Session(SessionManager):
                     uses_allowed=1,
                     group=pc_group,
                     cost=cost))
-        
+
         def remove_codes_from_pc_group(self, pc_group, badges):
             codes = sorted(pc_group.promo_codes, key=lambda x: x.cost, reverse=True)
             for _ in range(badges):
@@ -1267,7 +1371,7 @@ class Session(SessionManager):
                     'badge_type_label',
                     'ribbon_labels',
                     ]
-            
+
             errors = []
             if not printer_id:
                 errors.append("Printer ID not set.")
@@ -1277,7 +1381,7 @@ class Session(SessionManager):
 
             if print_fee is None and attendee.times_printed > 0:
                 errors.append("Please specify what reprint fee to charge this attendee, including $0.")
-            
+
             if not attendee.birthdate:
                 errors.append("Attendee is missing a date of birth.")
             elif not attendee.age_now_or_at_con:
@@ -1298,23 +1402,23 @@ class Session(SessionManager):
             if dry_run:
                 return None, None
 
-            print_job = PrintJob(attendee_id = attendee.id, 
-                                 admin_id = self.current_admin_account().id,
-                                 admin_name = self.admin_attendee().full_name,
-                                 printer_id = printer_id,
-                                 reg_station = reg_station,
-                                 print_fee = print_fee)
+            print_job = PrintJob(attendee_id=attendee.id,
+                                 admin_id=self.current_admin_account().id,
+                                 admin_name=self.admin_attendee().full_name,
+                                 printer_id=printer_id,
+                                 reg_station=reg_station,
+                                 print_fee=print_fee)
 
             if attendee.age_now_or_at_con >= 18:
                 print_job.is_minor = False
             else:
                 print_job.is_minor = True
-            
+
             json_data = attendee_fields
             del json_data['_model']
             json_data['attendee_id'] = json_data.pop('id')
             print_job.json_data = json_data
-            
+
             self.add(print_job)
             self.commit()
 
@@ -1333,7 +1437,7 @@ class Session(SessionManager):
                     errors.append("Attendee is now under 18, please requeue badge.")
                 if attendee.age_now_or_at_con >= 18 and job.is_minor:
                     errors.append("Attendee is no longer under 18, please requeue badge.")
-            
+
             fields = ['badge_num', 'badge_type_label', 'ribbon_labels', 'badge_printed_name']
             attendee_fields = attendee.to_dict(fields)
 
@@ -1425,6 +1529,25 @@ class Session(SessionManager):
 
             return 'Badge updated'
 
+        def set_badge_num_in_range(self, attendee):
+            """
+            A simpler version of update_badge which only makes sure that the attendee's
+            current badge number is in their current badge type's range.
+            """
+            from uber.badge_funcs import get_real_badge_type, needs_badge_num
+
+            if not attendee.badge_num or attendee.checked_in or (c.AFTER_PRINTED_BADGE_DEADLINE
+                                                                 and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES):
+                return
+
+            badge_type = get_real_badge_type(attendee.badge_type)
+            lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
+            if not (lower_bound <= attendee.badge_num <= upper_bound):
+                attendee.badge_num = None
+
+                if needs_badge_num(attendee):
+                    attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
+
         def auto_badge_num(self, badge_type):
             """
             Gets the next available badge number for a badge type's range.
@@ -1478,20 +1601,20 @@ class Session(SessionManager):
             query.update({Attendee.badge_num: Attendee.badge_num + shift}, synchronize_session='evaluate')
 
             return True
-        
+
         def get_next_badge_to_print(self, printer_id=''):
             query = self.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
-                    PrintJob.printed == None, PrintJob.errors == '', PrintJob.printer_id == printer_id)
+                    PrintJob.printed == None, PrintJob.errors == '', PrintJob.printer_id == printer_id)  # noqa: E711
 
             badge = query.order_by(Tracking.when.desc()).with_for_update().first()
 
             return badge
 
         def valid_attendees(self):
-            return self.query(Attendee).filter(Attendee.is_valid == True)
+            return self.query(Attendee).filter(Attendee.is_valid == True)  # noqa: E712
 
         def attendees_with_badges(self):
-            return self.query(Attendee).filter(Attendee.has_badge == True)
+            return self.query(Attendee).filter(Attendee.has_badge == True)  # noqa: E712
 
         def all_attendees(self, only_staffing=False, pending=False):
             """
@@ -1510,7 +1633,7 @@ class Session(SessionManager):
 
             badge_statuses = [c.NEW_STATUS, c.COMPLETED_STATUS]
             if pending:
-                badge_statuses.append(c.PENDING_STATUS)
+                badge_statuses.extend([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS])
 
             badge_filter = Attendee.badge_status.in_(badge_statuses)
 
@@ -1592,7 +1715,7 @@ class Session(SessionManager):
             target, term = target.strip(), term.strip()
             search_term = term.replace('AND', '').replace('OR', '').strip()
 
-            if search_term[0] in ['>', '<', '!']:
+            if search_term and search_term[0] in ['>', '<', '!']:
                 if search_term[0] == '!':
                     op = operator.ne
 
@@ -1610,8 +1733,21 @@ class Session(SessionManager):
                     search_term = search_term[1:]
             else:
                 op = operator.eq
-            
+
             return target, term, search_term, op
+
+        def index_attendees(self):
+            # Returns a base attendee query with extra joins for the index page
+            attendees = self.query(Attendee).outerjoin(Attendee.group) \
+                                            .outerjoin(Attendee.promo_code) \
+                                            .outerjoin(PromoCodeGroup, PromoCode.group) \
+                                            .options(
+                                                joinedload(Attendee.group),
+                                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
+                                                )
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                attendees = attendees.outerjoin(Attendee.managers).options(joinedload(Attendee.managers))
+            return attendees
 
         def search(self, text, *filters):
             # We need to both outerjoin on the PromoCodeGroup table and also
@@ -1620,15 +1756,17 @@ class Session(SessionManager):
             # with the outerjoin.  See https://docs.sqlalchemy.org/en/13/orm/query.html#sqlalchemy.orm.query.Query.join
             aliased_pcg = aliased(PromoCodeGroup)
 
-            attendees = self.query(Attendee) \
-                            .outerjoin(Attendee.group) \
-                            .outerjoin(Attendee.promo_code) \
-                            .outerjoin(Attendee.managers) \
-                            .outerjoin(aliased_pcg, PromoCode.group) \
-                            .options(
-                                joinedload(Attendee.group),
-                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
-                            ).filter(*filters)
+            attendees = self.query(Attendee).outerjoin(Attendee.group) \
+                                            .outerjoin(Attendee.promo_code) \
+                                            .outerjoin(aliased_pcg, PromoCode.group) \
+                                            .options(
+                                                joinedload(Attendee.group),
+                                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
+                                                )
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                attendees = attendees.outerjoin(Attendee.managers).options(joinedload(Attendee.managers))
+
+            attendees = attendees.filter(*filters)
 
             terms = text.split()
             if len(terms) == 2:
@@ -1660,12 +1798,17 @@ class Session(SessionManager):
             elif len(terms) == 1 \
                     and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
 
-                return attendees.filter(or_(
+                id_list = [
                     Attendee.id == terms[0],
                     Attendee.public_id == terms[0],
                     aliased_pcg.id == terms[0],
                     Group.id == terms[0],
-                    Group.public_id == terms[0])), ''
+                    Group.public_id == terms[0]]
+
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    id_list.extend([AttendeeAccount.id == terms[0], AttendeeAccount.public_id == terms[0]])
+
+                return attendees.filter(or_(*id_list)), ''
 
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
@@ -1680,12 +1823,15 @@ class Session(SessionManager):
             def check_text_fields(search_text):
                 check_list = [
                     Group.name.ilike('%' + search_text + '%'),
-                    aliased_pcg.name.ilike('%' + search_text + '%')
+                    aliased_pcg.name.ilike('%' + search_text + '%'),
                 ]
+
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    check_list.append(AttendeeAccount.email.ilike('%' + search_text + '%'))
 
                 for attr in Attendee.searchable_fields:
                     check_list.append(getattr(Attendee, attr).ilike('%' + search_text + '%'))
-                
+
                 return check_list
 
             if ':' in text:
@@ -1704,46 +1850,51 @@ class Session(SessionManager):
                         if target == 'email':
                             attr_search_filter = Attendee.normalized_email.contains(normalize_email_legacy(search_term))
                         elif target == 'account_email':
-                            attr_search_filter = AttendeeAccount.normalized_email.contains(normalize_email_legacy(search_term))
+                            attr_search_filter = AttendeeAccount.normalized_email.contains(
+                                normalize_email_legacy(search_term))
                         elif target == 'group':
                             attr_search_filter = Group.normalized_name.contains(search_term.strip().lower())
                         elif target == 'has_ribbon':
-                            attr_search_filter = Attendee.ribbon == Attendee.ribbon.type.convert_if_labels(search_term.title())
+                            attr_search_filter = Attendee.ribbon.contains(
+                                Attendee.ribbon.type.convert_if_labels(search_term.title()))
                         elif target in Attendee.searchable_bools:
                             t_or_f = search_term.strip().lower() not in ('f', 'false', 'n', 'no', '0', 'none')
-                            attr_search_filter = getattr(Attendee,target) == t_or_f
+                            attr_search_filter = getattr(Attendee, target) == t_or_f
 
                             if not isinstance(getattr(Attendee, target).type, Boolean):
-                                attr_search_filter = getattr(Attendee,target) != None \
-                                    if t_or_f == True else getattr(Attendee,target) == None
+                                attr_search_filter = getattr(Attendee, target) != None \
+                                    if t_or_f == True else getattr(Attendee, target) == None  # noqa: E711, E712
                         elif target in Attendee.searchable_choices:
                             if target == 'amount_extra':
                                 # Allow searching kick-in by dollar value and not just the label
                                 try:
-                                    search_term = int(search_term.replace('$',''))
-                                except:
+                                    search_term = int(search_term.replace('$', ''))
+                                except Exception:
                                     pass
                             else:
                                 try:
-                                    search_term = getattr(Attendee,target).type.convert_if_label(search_term)
+                                    search_term = getattr(Attendee, target).type.convert_if_label(search_term)
                                 except KeyError:
                                     # A lot of our labels are title-cased
                                     try:
-                                        search_term = getattr(Attendee,target).type.convert_if_label(search_term.title())
+                                        search_term = getattr(Attendee, target
+                                                              ).type.convert_if_label(search_term.title())
                                     except KeyError:
-                                        return None, 'ERROR: {} is not a valid option for {}'.format(search_term, target)
-                            attr_search_filter = self.get_truth(getattr(Attendee,target), op, search_term)
+                                        return None, 'ERROR: {} is not a valid option for {}'.format(search_term,
+                                                                                                     target)
+                            attr_search_filter = self.get_truth(getattr(Attendee, target), op, search_term)
                         else:
                             try:
-                                getattr(Attendee,target)
+                                getattr(Attendee, target)
                             except AttributeError:
                                 return None, 'ERROR: {} is not a valid attribute'.format(target)
                             # Are we a searchable property?
-                            if isinstance(getattr(Attendee,target) == search_term, sqlalchemy.sql.elements.BinaryExpression):
-                                attr_search_filter = self.get_truth(getattr(Attendee,target), op, search_term)
+                            if isinstance(getattr(Attendee, target) == search_term,
+                                          sqlalchemy.sql.elements.BinaryExpression):
+                                attr_search_filter = self.get_truth(getattr(Attendee, target), op, search_term)
                             else:
                                 return None, 'ERROR: {} is not a searchable attribute'.format(target)
-                        
+
                         if term.endswith(' OR') or last_term and last_term.endswith(' OR'):
                             or_checks.append(attr_search_filter)
                         else:
@@ -1752,7 +1903,7 @@ class Session(SessionManager):
                         last_term = term
             else:
                 or_checks.extend(check_text_fields(text))
-            
+
             if or_checks and and_checks:
                 return attendees.filter(or_(*or_checks), and_(*and_checks)), ''
             elif or_checks:
@@ -1772,10 +1923,9 @@ class Session(SessionManager):
             resource-intensive, it is locked behind the Devtools site section.
             """
             if "OR" in text:
-                return None, 'Sorry, property search does not support OR conditions due to I don\'t want to install Pandas.'
+                return None, 'Sorry, property search does not currently support OR conditions.'
             delimited_text = text.replace('AND', 'AND,')
             list_of_attr_searches = delimited_text.split(',')
-            last_term = None
 
             conditions_list = []
             results = []
@@ -1784,14 +1934,15 @@ class Session(SessionManager):
                 target, term, search_term, op = self.parse_attr_search_terms(search_text)
                 try:
                     search_term = int(search_term)
-                except Exception as ex:
+                except Exception:
                     pass
                 conditions_list.append((target, search_term, op))
 
             for attendee in self.valid_attendees():
-                if all([self.get_truth(getattr(attendee, target), op, search_term) for target, search_term, op in conditions_list]):
+                if all([self.get_truth(getattr(attendee, target), op, search_term)
+                        for target, search_term, op in conditions_list]):
                     results.append(attendee)
-            
+
             return results, ''
 
         def delete_from_group(self, attendee, group):
@@ -1826,7 +1977,7 @@ class Session(SessionManager):
                         paid=paid,
                         **extra_create_args)
                     group.attendees.append(new_attendee)
-                    
+
             elif diff < 0:
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
@@ -1889,8 +2040,8 @@ class Session(SessionManager):
             )
 
             if not c.SAML_SETTINGS:
-                test_developer_account.hashed = bcrypt.hashpw('magfest', bcrypt.gensalt())
-            
+                test_developer_account.hashed = create_new_hash('magfest')
+
             test_developer_account.access_groups.append(all_access_group)
 
             self.add(all_access_group)
@@ -2062,23 +2213,6 @@ class Session(SessionManager):
             return self.query(PanelApplicant).options(joinedload(PanelApplicant.application)) \
                 .order_by('first_name', 'last_name')
 
-        # =========================
-        # tabletop
-        # =========================
-
-        def entrants(self):
-            return self.query(TabletopEntrant).options(
-                joinedload(TabletopEntrant.reminder),
-                joinedload(TabletopEntrant.attendee),
-                subqueryload(TabletopEntrant.tournament).subqueryload(TabletopTournament.event))
-
-        def entrants_by_phone(self):
-            entrants = defaultdict(list)
-            for entrant in self.entrants():
-                cellphone = normalize_phone(entrant.attendee.cellphone)
-                entrants[cellphone].append(entrant)
-            return entrants
-
     @classmethod
     def model_mixin(cls, model):
         if model.__name__ in ['SessionMixin', 'QuerySubclass']:
@@ -2093,7 +2227,7 @@ class Session(SessionManager):
         for name in dir(model):
             if not name.startswith('_'):
                 attr = getattr(model, name)
-                if hasattr('target', '__table__') and name in target.__table__.c:
+                if hasattr(target, '__table__') and name in target.__table__.c:
                     attr.key = attr.key or name
                     attr.name = attr.name or name
                     attr.table = target.__table__
@@ -2103,7 +2237,6 @@ class Session(SessionManager):
         return target
 
 
-@on_startup(priority=1)
 def initialize_db(modify_tables=False):
     """
     Initialize the session on startup.
@@ -2120,24 +2253,18 @@ def initialize_db(modify_tables=False):
     drop=True or modify_tables=True or initialize=True to
     Session.initialize_db()
     """
-    num_tries_remaining = 10
-    while not stopped.is_set():
+    for i in range(20):
         try:
             Session.initialize_db(modify_tables=modify_tables, initialize=True)
+            return
         except KeyboardInterrupt:
             log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
         except Exception:
-            num_tries_remaining -= 1
-            if num_tries_remaining == 0:
-                log.error("DB initialize: couldn't connect to DB, we're giving up")
-                raise
-            log.error("DB initialize: can't connect to / initialize DB, will try again in 5 seconds", exc_info=True)
-            stopped.wait(5)
-        else:
-            break
+            traceback.print_exc()
+        log.info(f"Database initialization failed. (Attempt {i+1} / 20)")
+        time.sleep(i**i)
+cherrypy.engine.subscribe('start', initialize_db, priority=99)
 
-
-@on_startup
 def _attendee_validity_check():
     orig_getter = Session.SessionMixin.attendee
 
@@ -2151,7 +2278,7 @@ def _attendee_validity_check():
         else:
             return attendee
     Session.SessionMixin.attendee = with_validity_check
-
+cherrypy.engine.subscribe('start', _attendee_validity_check, priority=98)
 
 def _presave_adjustments(session, context, instances='deprecated'):
     for model in chain(session.dirty, session.new):
@@ -2180,4 +2307,28 @@ def register_session_listeners():
     listen(Session.session_factory, 'after_flush', _track_changes)
 
 
+def _track_collection_append(target, value, initiator):
+    Tracking.track_collection_change(c.ITEM_ADDED, target, value)
+
+
+def _track_collection_remove(target, value, initiator):
+    Tracking.track_collection_change(c.ITEM_REMOVED, target, value)
+
+
+def register_attribute_listeners():
+    """
+    Many-to-many tables aren't tracked via the session listener.
+    This registers all collections that we want to track explicitly.
+    """
+    for collection in [
+        AdminAccount.access_groups,
+        AttendeeAccount.attendees,
+        DeptRole.dept_memberships,
+        Job.required_roles,
+    ]:
+        listen(collection, 'append', _track_collection_append, propagate=True)
+        listen(collection, 'remove', _track_collection_remove, propagate=True)
+
+
 register_session_listeners()
+register_attribute_listeners()

@@ -25,3 +25,10 @@
     {% endif %}
   </div>
 {% endif %}
+
+{% if c.REMAINING_BADGES < c.BADGES_LEFT_ALERTS[0]|int %}
+<div class="alert alert-{{ 'danger' if c.REMAINING_BADGES < c.BADGES_LEFT_ALERTS[-1]|int else 'warning' }}">
+  We have a {% if c.REMAINING_BADGES < c.BADGES_LEFT_ALERTS[-1]|int %}VERY {% endif %}limited number of badges left before we are sold out.
+  Please make sure to fully complete your registration to reserve your badge! You will see a confirmation page when your registration is complete.
+</div>
+{% endif %}

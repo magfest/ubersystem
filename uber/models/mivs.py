@@ -1,12 +1,12 @@
 import os
 import re
+import cherrypy
 
 from datetime import datetime, timedelta
 from functools import wraps
 
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sideboard.lib import on_startup
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer
@@ -64,6 +64,10 @@ class IndieJudge(MagModel, ReviewMixin):
     @property
     def email(self):
         return self.attendee.email
+
+    def get_code_for(self, game_id):
+        codes_for_game = [code for code in self.codes if code.game_id == game_id]
+        return codes_for_game[0] if codes_for_game else ''
 
 
 class IndieStudio(MagModel):
@@ -126,7 +130,7 @@ class IndieStudio(MagModel):
     @property
     def discussion_emails_list(self):
         return list(filter(None, self.discussion_emails.split(',')))
-    
+
     @property
     def discussion_emails_last_updated(self):
         studio_updates = self.get_tracking_by_instance(self, action=c.UPDATED, last_only=False)
@@ -162,7 +166,7 @@ class IndieStudio(MagModel):
         if self.needs_hotel_space is not None:
             return "Requested hotel space for {} with email {}".format(self.name_for_hotel, self.email_for_hotel)\
                 if self.needs_hotel_space else "Opted out"
-                
+
     @property
     def show_info_status(self):
         return self.show_info_updated
@@ -213,7 +217,7 @@ class IndieStudio(MagModel):
     @property
     def submitted_games(self):
         return [g for g in self.games if g.submitted]
-    
+
     @property
     def confirmed_games(self):
         return [g for g in self.games if g.confirmed]
@@ -577,7 +581,6 @@ class IndieGameReview(MagModel):
         return self.has_video_issues or self.has_game_issues
 
 
-@on_startup
 def add_applicant_restriction():
     """
     We use convenience functions for our form handling, e.g. to
@@ -629,3 +632,4 @@ def add_applicant_restriction():
         'indie_game_image']
     for name in names:
         override_getter(name)
+cherrypy.engine.subscribe('start', add_applicant_restriction, priority=98)

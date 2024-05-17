@@ -50,7 +50,7 @@
         <label class="control-label">
             {% if attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS %}Event {% endif %}Shirt Size
         </label>
-        <select class="form-control" name="shirt">
+        <select class="form-select" name="shirt">
         <option value="{{ c.NO_SHIRT }}">Select a size</option>
         {{ options(c.SHIRT_OPTS[1:], attendee.shirt) }}
         </select>
@@ -61,7 +61,7 @@
         <label class="control-label">
             Staff Shirt Size
         </label>
-        <select class="form-control" name="staff_shirt">
+        <select class="form-select" name="staff_shirt">
         <option value="{{ c.NO_SHIRT }}">Select a size</option>
         {{ options(c.STAFF_SHIRT_OPTS[1:], attendee.staff_shirt) }}
         </select>

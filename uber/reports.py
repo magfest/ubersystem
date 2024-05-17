@@ -1,4 +1,3 @@
-from sqlalchemy import not_
 from uber.barcode import generate_barcode_from_badge_num
 from uber.config import c
 from uber.models.attendee import Attendee
@@ -24,7 +23,7 @@ class PersonalizedBadgeReport(ReportBase):
 
     def run(self, out, session, *filters, order_by=None, badge_type_override=None):
         for a in (session.query(Attendee)
-                         .filter(Attendee.has_badge == True, *filters)
+                         .filter(Attendee.has_badge == True, *filters)  # noqa: E712
                          .order_by(order_by).all()):
 
             # write the actual data

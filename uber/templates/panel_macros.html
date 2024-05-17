@@ -38,6 +38,7 @@
       'email',
       suffix=suffix,
       type='email',
+      help="<strong><span class='text-danger'>Please apply for your panel using the same email address that you buy your badge with.</span></strong>"|safe,
       is_required=True,
       is_readonly=is_readonly,
       is_admin=is_admin) }}
@@ -106,6 +107,24 @@
         placeholder='What else qualifies you to conduct this panel?',
         is_readonly=is_readonly,
         is_admin=is_admin) }}
+    {{ macros.form_group(
+        panelist,
+        'guidebook_bio',
+        suffix=suffix,
+        type='textarea',
+        label='Schedule Bio',
+        placeholder='Please write a short bio to be displayed on our public-facing schedule.',
+        is_readonly=is_readonly,
+        is_admin=is_admin) }}
+    {{ macros.form_group(
+        panelist,
+        'display_name',
+        suffix=suffix,
+        type='text',
+        label='Public Display Name',
+        help='A display name or group name to let people know who is hosting the panel. Leave this field blank if you do not want a name displayed.',
+        is_readonly=is_readonly,
+        is_admin=is_admin) }}
   {%- endif %}
 
   {% if not is_readonly or (not is_class and panelist.has_social_media) -%}
@@ -130,14 +149,14 @@
 
 
 {% macro app_panelists_form(app, is_readonly=False, is_admin=False) -%}
-  <h1>
+  <h2>
     Panelists
     <a class="btn btn-sm btn-primary" href="edit_panelist?app_id={{ app.id }}">Add Panelist</a>
-  </h1>
+  </h2>
   <div id="panelists_container">
     {% if app.submitter %}
-      <div class="card">
-        <div class="card-body">
+      <div class="{{ "card" if is_admin else "panel" }}">
+        <div class="{{ "card" if is_admin else "panel" }}-body">
           <h2>
             Point of Contact
             {% if app.submitter.attendee %}
@@ -156,8 +175,8 @@
       </div>
     {% endif %}
     {% for panelist in app.other_panelists %}
-      <div class="card">
-        <div class="card-body">
+      <div class="{{ "card" if is_admin else "panel" }}">
+        <div class="{{ "card" if is_admin else "panel" }}-body">
           <h2>
             Other Panelist #{{ loop.index }}
             {% if panelist.attendee %}

@@ -5,8 +5,8 @@
 
     <p>
         The following automated emails are ready to send, but still require manual approval of their content by admins.
-        Please visit the <a href="{{ c.URL_BASE }}/email_admin/pending">pending email approval page</a> to approve these
-        as soon as possible.  The purpose of the approval process is to make sure departments have control over the
+        If these emails are valid for your department this year, please use the links below to approve them
+        as soon as possible. The purpose of the approval process is to make sure departments have control over the
         text content and the timing of emails.
     </p>
 
@@ -17,8 +17,8 @@
           <ul style="margin-top:0px ; margin-bottom:10px">
             {% for ident, email in emails.items() %}
                 <li>
-                    {{ email.unapproved_count }} pending: <b>{{ email.subject }}</b>
-                    [<a href="{{ c.URL_BASE }}/email_admin/pending_examples?ident={{ ident }}">view examples</a>]
+                    <b>{{ email[0].subject }}</b> ({{ email[0].unapproved_count }} pending): 
+                    <a href="{{ c.URL_BASE }}/email_admin/pending_examples?ident={{ ident }}">View Examples and Approve</a>
                 </li>
             {% endfor %}
           </ul>

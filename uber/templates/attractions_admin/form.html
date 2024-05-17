@@ -677,7 +677,7 @@
 </h1>
 
 <div class="attraction-info info-block">
-  <p>{{ attraction.description|linebreaksbr }}</p>
+  <p>{{ attraction.full_description|linebreaksbr }}</p>
 
   {% if attraction.restriction != attraction._NONE -%}
     <p>{{ attraction._RESTRICTIONS[attraction.restriction].split('–')|last|trim }}.</p>
@@ -825,7 +825,7 @@
                       <div class="room-col">
                         <div class="room-title">
                           {% if can_admin_attraction -%}
-                            <select class="form-control" data-feature-id="{{ feature.id }}" data-initial-value="{{ location }}">
+                            <select class="form-select" data-feature-id="{{ feature.id }}" data-initial-value="{{ location }}">
                               {% if used_location_opts %}
                                 {{ options(used_location_opts, location) }}
                                 <option disabled="disabled">––––––––––</option>

@@ -39,7 +39,7 @@ class Root:
             studio = session.query(IndieStudio).filter_by(name=studio_name).first()
             if not studio:
                 message = 'No studio exists with that name'
-            elif not studio.hashed == bcrypt.hashpw(password, studio.hashed):
+            elif not studio.hashed.encode('utf-8') == bcrypt.hashpw(password.encode('utf-8'), studio.hashed.encode('utf-8')):
                 message = 'That is not the correct password'
             else:
                 raise HTTPRedirect('continue_app?id={}', studio.id)
@@ -55,8 +55,6 @@ class Root:
             message = check(studio)
             if not message and studio.is_new:
                 message = check(developer)
-                if not message and 'covid_agreement' not in params:
-                    message = 'You must check the box acknowledging the {} COVID Policy'.format(c.EVENT_NAME_AND_YEAR)
             if not message:
                 session.add(studio)
                 if studio.is_new:
@@ -68,7 +66,6 @@ class Root:
             'message': message,
             'studio': studio,
             'developer': developer,
-            'covid_agreement': params.get('covid_agreement'),
         }
 
     def game(self, session, message='', **params):
@@ -251,7 +248,7 @@ class Root:
                             group.leader_id = attendee.id
                 for i in range(badges_remaining):
                     group.attendees.append(Attendee(badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY))
-                group.cost = group.default_cost
+                group.cost = group.calc_default_cost()
                 group.guest = GuestGroup()
                 group.guest.group_type = c.MIVS
                 raise HTTPRedirect('index?message={}', 'Your studio has been registered')
@@ -270,7 +267,7 @@ class Root:
             game.studio.name = params.get('studio_name', '')
             if not params.get('contact_phone', ''):
                 message = "Please enter a phone number for MIVS staff to contact your studio."
-            else: 
+            else:
                 game.studio.contact_phone = params.get('contact_phone', '')
             if promo_image:
                 image = session.indie_game_image(params)
@@ -286,7 +283,7 @@ class Root:
             if not message:
                 session.add(game)
                 if game.studio.group.guest:
-                    raise HTTPRedirect('../guests/mivs_show_info?guest_id={}&message={}', 
+                    raise HTTPRedirect('../guests/mivs_show_info?guest_id={}&message={}',
                                        game.studio.group.guest.id, 'Game information uploaded')
                 raise HTTPRedirect('index?message={}', 'Game information uploaded')
 

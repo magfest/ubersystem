@@ -19,10 +19,10 @@ def pre_print_check(session, attendee, printer_id, dry_run=False, **params):
         fee_amount = int(fee_amount)
     except Exception:
         return False, "What you entered for Reprint Fee ({}) isn't even a number".format(fee_amount)
-    
+
     if not fee_amount and not reprint_reason and c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
         return False, "You must set a fee or enter a reason for a free reprint!"
-    
+
     print_id, errors = session.add_to_print_queue(attendee,
                                                   printer_id,
                                                   params.get('reg_station', cherrypy.session.get('reg_station')),
@@ -40,7 +40,7 @@ def pre_print_check(session, attendee, printer_id, dry_run=False, **params):
                         localized_now().strftime('%m/%d, %H:%M'),
                         " Reason: " + reprint_reason if reprint_reason else '')
             return True, '{}adge sent to printer.'.format("B" if not c.BADGE_REPRINT_FEE or attendee.times_printed == 0
-                                                    else "Free reprint recorded and b")
+                                                          else "Free reprint recorded and b")
     else:
         return True, 'Badge sent to printer with reprint fee of ${}.'.format(fee_amount)
     return True, 'Badge sent to printer.'
@@ -52,9 +52,10 @@ class Root:
         base_query = session.query(Attendee).join(Attendee.print_requests)
 
         if pending:
-            badges = base_query.filter(PrintJob.printed == None, PrintJob.errors == '').order_by(PrintJob.queued.desc()).all()
+            badges = base_query.filter(PrintJob.printed == None,  # noqa: E711
+                                       PrintJob.errors == '').order_by(PrintJob.queued.desc()).all()
         else:
-            badges = base_query.filter(PrintJob.printed != None).order_by(PrintJob.printed.desc()).all()
+            badges = base_query.filter(PrintJob.printed != None).order_by(PrintJob.printed.desc()).all()  # noqa: E711
 
         page = int(page)
         count = len(badges)
@@ -123,15 +124,15 @@ class Root:
 
         filters = [Tracking.action == c.CREATED]
         if flag == 'pending':
-            filters += [PrintJob.queued == None, PrintJob.printed == None, PrintJob.errors == '']
+            filters += [PrintJob.queued == None, PrintJob.printed == None, PrintJob.errors == '']  # noqa: E711
         elif flag == 'not_printed':
-            filters += [PrintJob.queued != None, PrintJob.printed == None, PrintJob.errors == '']
+            filters += [PrintJob.queued != None, PrintJob.printed == None, PrintJob.errors == '']  # noqa: E711
         elif flag == 'errors':
             filters += [PrintJob.errors != '']
         elif flag == 'created':
             filters += [PrintJob.admin_id == cherrypy.session.get('account_id')]
         elif flag == 'printed':
-            filters += [PrintJob.printed != None]
+            filters += [PrintJob.printed != None]  # noqa: E711
 
         jobs = session.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
                  *filters).order_by(Tracking.when.desc()).limit(c.ROW_LOAD_LIMIT).all()
@@ -174,7 +175,7 @@ class Root:
             job.queued = None
             session.add(job)
             session.commit()
-        
+
         return {
             'success': success,
             'message': message,
@@ -194,14 +195,14 @@ class Root:
             job.printed = datetime.utcnow()
             session.add(job)
             session.commit()
-        
+
         return {
             'success': success,
             'message': message,
             'id': job.id,
             'printed': time_day_local(job.printed)
         }
-    
+
     @ajax_gettable
     def mark_as_invalid(self, session, id):
         job = session.print_job(id)
@@ -224,7 +225,7 @@ class Root:
                                 )
             session.add(job)
             session.commit()
-        
+
         return {
             'success': success,
             'message': message,

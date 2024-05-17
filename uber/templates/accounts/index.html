@@ -10,45 +10,49 @@ table form {
 
 <div class="card">
   <div class="card-header">
-    <h3 class="card-title">New Account</h3>
+    <span class="card-title">New Account</span>
   </div>
   <div class="card-body">
-    <form id="new_admin" method="post" action="update" onsubmit="return check_passwords()" role="form" class="form-inline">
+    <form id="new_admin" method="post" action="update" {% if c.AT_OR_POST_CON %}onsubmit="return check_passwords()" {% endif %}role="form">
       <input type="hidden" name="id" value="None" />
       {{ csrf_token() }}
-      <div class="form-group">
-        <label for="attendee_id" class="sr-only">Attendee</label>
-        <select class="form-control" id="attendee_id" name="attendee_id">
-            <option value="" selected="selected">Select an attendee</option>
-            {{ options(all_attendees) }}
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="password" class="sr-only">Password</label>
-        <div class="input-group">
-          <input type="password" class="form-control" id="password" name="password" placeholder="Password"
-            {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
-           {% if not c.AT_OR_POST_CON %}
-           <span class="input-group-addon"><i class="fa fa-ban-circle"></i></span>
-           {% endif %}
+      <div class="row mb-sm-2">
+        <div class="col-12 col-sm-6">
+          <label for="attendee_id" class="visually-hidden">Attendee</label>
+          <select class="form-select" id="attendee_id" name="attendee_id">
+              <option value="" selected="selected">Select an attendee</option>
+              {{ options(all_attendees) }}
+          </select>
         </div>
-        <input type="password" class="form-control" id="check-password" name="check-password" placeholder="Re-enter Password"
-               {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
+        <div class="col-12 col-sm-6">
+          {{ macros.checkgroup_opts(
+              'access_groups_ids',
+              c.ACCESS_GROUP_OPTS,
+              include_empty_hidden=True) }}
+        </div>
       </div>
-      <div class="form-group">
-        {{ macros.checkgroup_opts(
-            'access_groups_ids',
-            c.ACCESS_GROUP_OPTS,
-            include_empty_hidden=True) }}
+      <div class="row">
+        {% if c.AT_OR_POST_CON %}
+        <div class="col-6 col-sm-3">
+          <label for="password" class="visually-hidden">Password</label>
+            <input type="password" class="form-control" id="password" name="password" placeholder="Password">
+        </div>
+        <div class="col-6 col-sm-3">
+          <label for="password" class="visually-hidden">Confirm Password</label>
+          <input type="password" class="form-control" id="check-password" name="check-password" placeholder="Re-enter Password">
+        </div>
+        {% endif %}
+        <div class="col-12 col-sm-6 {% if not c.AT_OR_POST_CON %}offset-sm-6{% endif %}">
+          <button type="submit" class="btn btn-outline-primary">Create Account</button>
+        </div>
       </div>
-      <button type="submit" class="btn btn-outline-secondary">Create Account</button>
     </form>
   </div>
 </div>
-
+<br/>
 <div class="card">
   <div class="card-header">
-    <h3 class="card-title">Existing Accounts</h3>
+    <span class="card-title">Existing Accounts</span>
   </div>
   <div class="card-body">
     <table class="table table-striped datatable">
@@ -76,8 +80,7 @@ table form {
                 {{ macros.checkgroup_opts(
                   'access_groups_ids',
                   c.ACCESS_GROUP_OPTS,
-                  defaults=account.access_groups_ids,
-                  include_empty_hidden=True) }}
+                  defaults=account.access_groups_ids) }}
               </div>
             </form>
             {% if account.attendee.assigned_depts %}
@@ -90,7 +93,7 @@ table form {
           </td>
           <td class="text-nowrap">
             <button type="submit" class="btn btn-sm btn-primary update-button">
-              <i class="fa fa-ok"></i>
+              <i class="fa fa-check"></i>
             </button>
             <form class="form delete-form" method="post" action="delete">
               {{ csrf_token() }}
@@ -108,6 +111,7 @@ table form {
 </div>
 
 <script>
+{% if c.AT_OR_POST_CON %}
 function check_passwords() {
     if (document.getElementById("password").value != document.getElementById("check-password").value) {
         alert("Passwords must match");
@@ -115,6 +119,7 @@ function check_passwords() {
     }
     return true;
 }
+{% endif %}
 
 $(document).ready(function() {
     $('table').on('click', '.delete-button', function (event) {

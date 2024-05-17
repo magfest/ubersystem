@@ -1,15 +1,11 @@
-import os
-
-import bcrypt
 import cherrypy
 from pockets import listify
-from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, Group, IndieGame, IndieGameReview, IndieStudio
+from uber.models import AdminAccount, Attendee, IndieGameReview, IndieStudio
 from uber.tasks.email import send_email
 from uber.utils import check, genpasswd
 
@@ -53,8 +49,7 @@ class Root:
                                         placeholder=True, badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY)
                     session.add(attendee)
 
-                password = genpasswd()
-                attendee.admin_account = session.create_admin_account(attendee, password, judge=judge)
+                attendee.admin_account, password = session.create_admin_account(attendee, judge=judge)
                 email_body = render('emails/accounts/new_account.txt', {
                     'password': password,
                     'account': attendee.admin_account,
@@ -113,16 +108,17 @@ class Root:
             email_body,
             model=attendee.to_dict('id'))
 
-        raise HTTPRedirect('index?message={}{}', attendee.full_name, ' has been disqualified from judging for this year')
+        raise HTTPRedirect('index?message={}{}', attendee.full_name,
+                           ' has been disqualified from judging for this year')
 
     def judges_owed_refunds(self, session):
         return {
             'judges': [
                 a for a in session.query(Attendee).join(Attendee.admin_account)
-                    .filter(AdminAccount.judge != None)
-                    .options(joinedload(Attendee.group))
-                    .order_by(Attendee.full_name) if a.paid_for_badge and not a.has_been_refunded
-            ]}  # noqa: E711
+                .filter(AdminAccount.judge != None)  # noqa: E711
+                .options(joinedload(Attendee.group))
+                .order_by(Attendee.full_name) if a.paid_for_badge and not a.has_been_refunded
+            ]}
 
     def assign_games(self, session, judge_id, message=''):
         judge = session.indie_judge(judge_id)

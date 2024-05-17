@@ -2,7 +2,9 @@
 {% block title %}Staffer Summary{% endblock %}
 {% block content %}
 {% include "shifts_admin/main_menu.html" %}
-
+{% if department_id == '' %}
+Please select a department above to view its staffers.
+{% else %}
 <div class="row">
     <div class="col-md-3">{{ attendees|length }} Staffers</div>
     <div class="col-md-3">{{ counts.regular_signups }} / {{ counts.regular_total }} Regular Hours Taken</div>
@@ -80,5 +82,5 @@
          </i> <br/>
     [L]: <i>Staffers marked with a "L" are working load-in and/or load-out</i>
 </div>
-
+{% endif %}
 {% endblock %}

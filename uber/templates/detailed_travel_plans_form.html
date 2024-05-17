@@ -18,8 +18,8 @@
 
     var showOrHideDetailedTravels = function () {
         var count = $.val('detailed_travels'),
-            $template = $('#travel_form_template > .panel'),
-            $ops = $('#travels_container > .panel');
+            $template = $('#travel_form_template > .card'),
+            $ops = $('#travels_container > .card');
         setVisible('#travels_container', count);
         if (count < $ops.size()) {
             $ops.slice(count).remove();

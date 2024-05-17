@@ -9,7 +9,7 @@
       </tr>
       </thead>
       <tbody>
-      {% for group in groups if group.guest and group.guest.group_type == c.MIVS -%}
+      {% for group in guest_groups if group.guest.group_type == c.MIVS -%}
         <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower|replace(' ','_') if group.guest else "" }} group-row">
           <td>
             <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
@@ -32,4 +32,4 @@
     </table>
   </div>
 
-<p><a href="../mivs_admin/checklist_info_csv">Export all checklist data as a CSV file</a></p>
+<p><a href="../mivs_reports/checklist_info_csv">Export all checklist data as a CSV file</a></p>

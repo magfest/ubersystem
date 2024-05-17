@@ -189,25 +189,28 @@ class Root:
 
         out.writerow(headers)
         for attendee in requesting_attendees:
-            row = [attendee.full_name, attendee.email, attendee.badge, yesno(attendee.placeholder, 'Yes,No')]
-            if requested_any:
-                row.append(yesno(attendee in department.unassigned_explicitly_requesting_attendees, 'Yes,No'))
+            if attendee.is_valid:
+                row = [attendee.full_name, attendee.email, attendee.badge, yesno(attendee.placeholder, 'Yes,No')]
+                if requested_any:
+                    row.append(yesno(attendee in department.unassigned_explicitly_requesting_attendees, 'Yes,No'))
 
-            out.writerow(row)
+                out.writerow(row)
 
     @department_id_adapter
     @csv_file
     def dept_members_export(self, out, session, department_id, message='', **params):
         department = session.query(Department).get(department_id)
         headers = ['Name', 'Legal Name', 'Email', 'Phone Number', 'Emergency Contact',
-                   'Weighted Hours', 'Badge Status', 'Placeholder']
+                   'Weighted Hours', 'Badge Status', 'Placeholder', 'Has Shifts']
 
         out.writerow(headers)
         for attendee in department.members:
             row = [attendee.full_name, attendee.legal_name, attendee.email, attendee.cellphone,
                    attendee.ec_name + ": " + attendee.ec_phone,
                    attendee.weighted_hours_in(department),
-                   attendee.badge_status_label, yesno(attendee.placeholder, 'Yes,No')]
+                   attendee.badge_status_label,
+                   yesno(attendee.placeholder, 'Yes,No'),
+                   yesno(attendee.weighted_hours_in(department) > 0, 'Yes,No')]
 
             out.writerow(row)
 

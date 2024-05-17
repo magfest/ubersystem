@@ -26,17 +26,30 @@
         setVisible($('#audio_needs'), $.val('presentation') === {{ c.MUSIC }})
     };
 
+    var controlGranularRatingCheckboxes = function () {
+        noneChecked = this.value == {{ c.NONE }} && $(this).prop('checked');
+        if (noneChecked) {
+            $(':checkbox[name=granular_rating][value!={{ c.NONE }}]').each(function() {
+                $(this).prop('checked', false);
+            })
+        } else {
+            $(':checkbox[name=granular_rating][value={{ c.NONE }}]').prop('checked', false);
+        }
+    };
+
     $(function () {
         showOrHideOtherPresentation();
         showOrHideOtherLength();
         showOrHideLengthReason();
         showOrHideModHelp();
         showOrHideLoud();
+        controlGranularRatingCheckboxes();
         $.field('presentation').on('change', showOrHideOtherPresentation);
         $.field('presentation').on('change', showOrHideModHelp);
         $.field('presentation').on('change', showOrHideLoud);
         $.field('length').on('change', showOrHideOtherLength);
         $.field('length').on('change', showOrHideLengthReason);
+        $.field('granular_rating').on('change', controlGranularRatingCheckboxes);
     });
 </script>
 <div class="form-group">
@@ -49,19 +62,17 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Department</label>
     <div class="col-sm-6">
-        <select class="form-control" name="department">
+        <select class="form-select" name="department">
+            <option value="">Please select an option</option>
             {{ options(c.PANEL_DEPT_OPTS, app.department) }}
         </select>
     </div>
     <div class="clearfix"></div>
-    <p class="help-block col-sm-9 col-sm-offset-3">
-        For regular panels, leave "{{ c.PANEL_DEPTS[c.PANELS] }}" selected.
-    </p>
 </div>
 <script type="text/javascript">
     $().ready(function() {
         if ($.field('department')) {
-            $("select[name=department]").find('option[value="{{ c.PANELS }}"]').insertBefore($("select[name=department]").find('option:eq(0)'));
+            $("select[name=department]").find('option[value="{{ c.PANELS }}"]').insertBefore($("select[name=department]").find('option:eq(1)'));
         }
     });
 </script>
@@ -70,7 +81,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Panel Content Rating</label>
     <div class="col-sm-6">
-        <select class="form-control" name="rating">
+        <select class="form-select" name="rating">
             {{ options(c.PANEL_RATING_OPTS, app.rating) }}
         </select>
     </div>
@@ -87,6 +98,7 @@
     <label class="col-sm-3 control-label">Type of Panel</label>
     <div class="col-sm-6">
         <select name="presentation" class="form-control">
+            <option value="">Please select an option</option>
             {{ options(c.PRESENTATION_OPTS, app.presentation) }}
         </select>
     </div>
@@ -107,13 +119,57 @@
     </div>
     <div class="clearfix"></div>
     <p class="help-block col-sm-9 col-sm-offset-3">
-        Will appear as a subheading on the schedule. 200 words max.
+        Will appear as a subheading on the schedule. 200 words max. 18+ panels will not be accepted.
     </p>
 </div>
+{% if c.PANEL_CONTENT_OPTS|length > 1 %}
+<div class="form-group">
+    <label class="col-sm-3 control-label">Panel Content</label>
+    <div class="col-sm-9">
+        {{ macros.checkgroup_opts(
+              'granular_rating',
+              c.PANEL_CONTENT_OPTS,
+              defaults=app.granular_rating) }}
+    </div>
+    <div class="clearfix"></div>
+    <p class="help-block col-sm-9 col-sm-offset-3">Please select the checkboxes above to let us know what your panel content may contain, or select "None" if you are sure your panel will be for all ages.</p>
+</div>
+
+<div class="form-group">
+    <div class="col-sm-9 col-sm-offset-3">
+        <strong>Do you want your content to be highlighted by the MAGScouts program?</strong>
+        <select class="form-select" name="magscouts_opt_in">
+            {{ options(c.PANEL_MAGSCOUTS_OPTS, app.magscouts_opt_in) }}
+        </select>
+    </div>
+    <div class="clearfix"></div>
+    <p class="help-block col-sm-9 col-sm-offset-3">
+        MAGScouts guides younger attendees and their adults to age-appropriate content at MAGFest events. 
+        <br/><br/>Marking your content as “MAGScouts-approved” means that demographic will be encouraged to attend, and that your content will be presented in a manner that is appropriate for all audiences.
+        <br/><br/>This doesn't mean your content has to be "for kids" only, just that it should be accessible and inoffensive to younger attendees!
+    </p>
+</div>
+<script type="text/javascript">
+    var showOrHideOtherMAGScouts = function () {
+        noneChecked = this.value == {{ c.NONE }} && $(this).prop('checked');
+        setVisible($.field('magscouts_opt_in').parents('.form-group'), noneChecked);
+        $.field('magscouts_opt_in').prop('required', noneChecked);
+    };
+
+    $(function () {
+        if ($.field('granular_rating')) {
+            $.field('magscouts_opt_in').parents('.form-group').insertAfter($.field('granular_rating').parents('.form-group'));
+        }
+
+        showOrHideOtherMAGScouts();
+        $.field('granular_rating').on('change', showOrHideOtherMAGScouts);
+    });
+</script>
+{% endif %}
 <div class="form-group">
     <label class="col-sm-3 control-label">Expected Panel Length</label>
     <div class="col-sm-6">
-        <select class="form-control" name="length">
+        <select class="form-select" name="length">
             {{ options(c.PANEL_LENGTH_OPTS, app.length) }}
         </select>
     </div>
@@ -139,7 +195,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Panel Noise Level</label>
     <div class="col-sm-6">
-        <select class="form-control" name="noise_level">
+        <select class="form-select" name="noise_level">
             <option value="">Please select an option</option>
             {{ options(c.NOISE_LEVEL_OPTS, app.noise_level) }}
         </select>
@@ -149,7 +205,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Is it okay to record or livestream your panel? </label>
     <div class="col-sm-6">
-        <select class="form-control" name="livestream">
+        <select class="form-select" name="livestream">
             {{ options(c.LIVESTREAM_OPTS, app.livestream) }}
         </select>
     </div>

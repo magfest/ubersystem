@@ -1,3 +1,18 @@
+<div class="row g-sm-3 row-cols-auto">
+    <div class="col col-sm-6 col-md-4">
+        <form role="form" method="get" action="../registration/index" id="search_form">
+            <div class="input-group">
+                <input class="form-control" id="search_bar" type="text" name="search_text" placeholder="Find another attendee..." value="{{ search_text }}" />
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="fa fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    <div class="col flex-grow-1"><a class="btn btn-primary" href="form?id=None">Add an attendee</a></div>
+    </div>
+    <br/>
+
 {{ macros.nav_menu(
     attendee, c.PAGE_PATH,
     "../registration/form?id={id}", "Attendee Data", True,

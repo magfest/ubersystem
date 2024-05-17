@@ -1,10 +1,7 @@
 import uuid
-from collections import defaultdict
 
 import bcrypt
 import cherrypy
-from pockets.autolog import log
-from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -12,9 +9,10 @@ from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
                              department_id_adapter, not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
-from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
+from uber.models import AdminAccount, Attendee, PasswordReset, WorkstationAssignment
 from uber.tasks.email import send_email
-from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
+from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
+                        create_new_hash)
 
 
 def valid_password(password, account):
@@ -24,14 +22,15 @@ def valid_password(password, account):
         pr = None
 
     all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
-    return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
+    return any(bcrypt.hashpw(password.encode('utf-8'),
+                             hashed.encode('utf-8')) == hashed.encode('utf-8') for hashed in all_hashed)
 
 
 @all_renderable()
 class Root:
     def index(self, session, message=''):
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.is_valid == True)
+            .filter(Attendee.first_name != '', Attendee.is_valid == True)  # noqa: E712
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -51,8 +50,11 @@ class Root:
     def update(self, session, password='', message='', **params):
         if not params.get('attendee_id', '') and params.get('id', 'None') == 'None':
             message = "Please select an attendee to create an admin account for."
-        
+
         if not message:
+            if 'access_groups_ids' not in params:
+                params['access_groups_ids'] = []
+
             account = session.admin_account(params)
 
             if account.is_new and not c.SAML_SETTINGS:
@@ -64,9 +66,9 @@ class Root:
                     password = password
                 else:
                     password = genpasswd()
-                
+
                 if not message:
-                    account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                    account.hashed = create_new_hash(password)
 
             message = message or check(account)
         if not message:
@@ -89,11 +91,11 @@ class Root:
                     body,
                     model=attendee.to_dict('id'))
             session.commit()
-            return { 'success': True, 'message': message }
+            return {'success': True, 'message': message}
         else:
             session.rollback()
 
-        return { 'success': False, 'message': message }
+        return {'success': False, 'message': message}
 
     @csrf_protected
     def delete(self, session, id, **params):
@@ -149,6 +151,10 @@ class Root:
     def get_access_group(self, session, id):
         access_group = session.access_group(id)
         return {
+            'start_time': access_group.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y %-I:%M %A')
+            if access_group.start_time else '',
+            'end_time': access_group.end_time.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y %-I:%M %A')
+            if access_group.end_time else '',
             'access': access_group.access,
             'read_only_access': access_group.read_only_access,
         }
@@ -179,7 +185,7 @@ class Root:
             req = prepare_saml_request(cherrypy.request)
             auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
             raise HTTPRedirect(auth.login(return_to=redirect_url))
-        
+
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
         if 'email' in params:
             try:
@@ -204,20 +210,27 @@ class Root:
     def homepage(self, session, message=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
-        
+
+        reg_station_id = cherrypy.session.get('reg_station', '')
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(
+            reg_station_id=reg_station_id or -1).first()
+
         return {
             'message': message,
-            'site_sections': [key for key in session.access_query_matrix().keys() if getattr(c, 'HAS_' + key.upper() + '_ACCESS')]
+            'site_sections': [key for key in session.access_query_matrix().keys()
+                              if getattr(c, 'HAS_' + key.upper() + '_ACCESS')],
+            'reg_station_id': reg_station_id,
+            'workstation_assignment': workstation_assignment,
             }
-        
+
     @public
     @not_site_mappable
     def attendees(self, session, query=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
-        
+
         attendees = session.access_query_matrix()[query].limit(c.ROW_LOAD_LIMIT).all() if query else None
-        
+
         return {
             'attendees': attendees,
             }
@@ -227,12 +240,12 @@ class Root:
         for key in list(cherrypy.session.keys()):
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
-        
+
         if c.SAML_SETTINGS:
             raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
         else:
             raise HTTPRedirect('login?message={}', 'You have been logged out.')
-        
+
     @public
     @not_site_mappable
     def process_logout(self):
@@ -254,7 +267,7 @@ class Root:
                 if account.password_reset:
                     session.delete(account.password_reset)
                     session.commit()
-                session.add(PasswordReset(admin_account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt())))
+                session.add(PasswordReset(admin_account=account, hashed=create_new_hash(password)))
                 body = render('emails/accounts/password_reset.txt', {
                     'name': account.attendee.full_name,
                     'password':  password}, encoding=None)
@@ -294,7 +307,7 @@ class Root:
             else:
                 check_csrf(csrf_token)
                 account = session.admin_account(id)
-                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                account.hashed = create_new_hash(new_password)
                 raise HTTPRedirect('index?message={}', 'Account Password Updated')
 
         return {
@@ -326,7 +339,7 @@ class Root:
                 message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
-                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                account.hashed = create_new_hash(new_password)
                 raise HTTPRedirect('homepage?message={}', 'Your password has been updated')
 
         return {'message': message}
@@ -376,7 +389,7 @@ class Root:
                     if account.is_new:
                         if not c.SAML_SETTINGS:
                             password = genpasswd()
-                            account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                            account.hashed = create_new_hash(password)
                         account.attendee = match
                         session.add(account)
                         body = render('emails/accounts/new_account.txt', {

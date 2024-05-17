@@ -1,5 +1,4 @@
 {% extends "./preregistration/preregbase.html" %}
-{% import "forms/attendee.html" as attendee_fields with context %}
 {% import "forms/group.html" as group_fields with context %}
 {% import "forms/account.html" as account_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
@@ -9,7 +8,6 @@
 {% set title_text = "Registration Step 1 of 4: Personal Info" %}
 {% endif %}
 {% block content %}
-  {{ attendee_fields.amount_extra_js }}
 {% set original_location = ".." ~ c.PAGE_PATH %}
 <div class="card">
   <div class="card-body">
@@ -25,59 +23,30 @@
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
+<input type="hidden" name="is_prereg" value="True" />
 {{ csrf_token() }}
 
+{% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
+{# Dealers shouldn't be able to select other badge types. #}
+  {% include "forms/prereg_fields.html" %}
+
 {% if forms and 'group_info' in forms %}
-  {% include "forms/group_info.html" %}
-{% elif attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
+  {% include "forms/group/group_info.html" %}
+{% endif %}
+{% endif %}
+
+{% if attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
+{# Dealer reg does not involve payment, so they cannot select badge add-ons until after applying. #}
   <h2 class="h3 text-center">{{ c.DEALER_TERM|title }} Personal Info</h2>
   {{ forms['badge_extras'].badge_type }}
 {% else %}
-  {% include "forms/badge_extras.html" %}
+  {% include "forms/attendee/badge_extras.html" %}
+  {# hidden field to keep promo code if an attendee clicked the group invite link #}
+  <input type="hidden" name="promo_code_code" value="{{ promo_code_code }}" />
 {% endif %}
-  {% include "forms/personal_info.html" %}
-  {% include "forms/consents.html" %}
 
-{# old fields, kept for reference as we migrate to new fields
-  {% include "forms/other_info.html" %}
-  {{ group_fields.group_name }}
-  {{ group_fields.badges_dropdown }}
-  {% if is_prereg_dealer %}
-    {{ group_fields.tables }}
-    {{ group_fields.categories }}
-    {{ group_fields.wares }}
-    {{ group_fields.description }}
-    {{ group_fields.special_needs }}
-    {{ group_fields.website }}
-    {{ group_fields.address }}
-    {{ group_fields.invite_code_field }}
-  {% endif %}
-  {% if not is_prereg_dealer and c.GROUPS_ENABLED %}{{ attendee_fields.promo_code }}{% endif %}
-  {{ group_fields.explanation }}
-  {{ attendee_fields.group_fields }}
-  {{ attendee_fields.badge_buttons }}
-  {{ attendee_fields.badge_type }}
-  {{ attendee_fields.name }}
-  {{ attendee_fields.amount_extra() }}
-  {{ attendee_fields.badge_printed_name }}
-  {{ attendee_fields.shirt_size }}
-  {{ attendee_fields.extra_donation() }}
-  {{ attendee_fields.staffing }}
-  {{ attendee_fields.job_interests }}
-  {{ attendee_fields.age }}
-  {{ attendee_fields.email }}
-  {{ attendee_fields.address }}
-  {{ attendee_fields.emergency_contact }}
-  {{ attendee_fields.onsite_contact }}
-  {{ attendee_fields.cellphone }}
-  {% if (not is_prereg_dealer or c.ART_SHOW_ENABLED) and not c.GROUPS_ENABLED %}{{ attendee_fields.promo_code }}{% endif %}
-  {{ attendee_fields.interests }}
-  {{ attendee_fields.found_how }}
-  {{ attendee_fields.comments }}
-  {{ attendee_fields.requested_accessibility_services }}
-  {{ attendee_fields.can_spam }}
-  {{ attendee_fields.panel_interest }}
-  {{ attendee_fields.pii_consent_checkbox }} #}
+{% include "forms/attendee/personal_info.html" %}
+{% include "forms/attendee/consents.html" %}
 
   {# Deprecated forms included for backwards compatibility with old plugins #}
   {% include "groupform.html" %}
@@ -102,7 +71,7 @@
 {% if is_prereg_dealer %}
 {{ "js/warn-before-logout-dealer.js"|serve_static_content }}
 {% else %}
-<em class="form-text">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em>
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
 {% if cart_not_empty %}{{ "js/warn-before-logout.js"|serve_static_content }}{% endif %}
 {% endif %}
 {% endblock %}

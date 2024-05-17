@@ -1,6 +1,6 @@
 {% import 'macros.html' as macros with context %}
 {% set page_ro = false %}
-{% set bootstrap5 = 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or 'art_show_applications' in c.PAGE_PATH or admin_area %}
+{% set bootstrap5 = 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or 'art_show_applications' in c.PAGE_PATH or 'attractions' in c.PAGE_PATH or admin_area %}
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
@@ -215,6 +215,13 @@
             return false;
         };
 
+        let serverValidationPassed;
+        resetServerValidation = function() {
+            if (serverValidationPassed !== undefined) {
+                serverValidationPassed = false;
+            }
+        }
+
         $(function() {
             {% if c.PRE_CON and c.SLOW_LOAD_CHECK %}
             $(window).on('load', function() {
@@ -295,7 +302,7 @@
 
                         if($(filter_span).length) {
                         // Create the select list and search operation
-                        var select = $('<select><option label="(No Filter)"></option> </select>')
+                        var select = $('<select class="form-select form-select-sm"><option label="(No Filter)"></option> </select>')
                             .appendTo(
                                 filter_span
                             )
@@ -339,7 +346,7 @@
 
                         if($(filter_span).length) {
                         // Create the select list and search operation
-                        var select = $('<select><option label="(No Filter)"></option> </select>')
+                        var select = $('<select class="form-select"><option label="(No Filter)"></option> </select>')
                             .appendTo(
                                 filter_span
                             )
@@ -423,7 +430,7 @@
             {% endif %}
             <!-- Modal -->
             <div class="modal fade" id="attendee_modal" role="dialog">
-                <div class="modal-dialog modal-lg">
+                <div class="modal-dialog modal-xl">
                     <!-- Modal content-->
                     <div class="modal-content"><div style='padding: 10px;'>Loading...</div></div>
                 </div>
@@ -536,11 +543,12 @@
         <![endif]-->
       <script type="text/javascript">
           $(window).on("runJavaScript", function() {
-              $('.form-control-static').each(function(index) {
-                  if($( this ).text().trim() == '' && $(this).is(":visible")) {
-                      $(this).parents('.form-group').hide();
-                  }
-              })
+            $('.form-control-static').each(function(index) {
+                if($( this ).text().trim() == '' && $(this).is(":visible")) {
+                    $(this).parents('.form-group').hide();
+                }
+            })
+            $(':input').on('change', resetServerValidation);
           });
       </script>
       {% if admin_area %}

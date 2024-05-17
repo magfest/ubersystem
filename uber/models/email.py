@@ -1,13 +1,16 @@
 import re
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, date
+from dateutil import parser as dateparser
 
 from pockets import cached_property, classproperty, groupify
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
@@ -63,6 +66,7 @@ class BaseEmailMixin(object):
 
 class AutomatedEmail(MagModel, BaseEmailMixin):
     _fixtures = OrderedDict()
+    email_overrides = [] # Used in plugins, list of (ident, key, val) tuples
 
     format = Column(UnicodeText, default='text')
     ident = Column(UnicodeText, unique=True)
@@ -78,20 +82,27 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
 
     active_after = Column(UTCDateTime, nullable=True, default=None)
     active_before = Column(UTCDateTime, nullable=True, default=None)
+    revert_changes = Column(MutableDict.as_mutable(JSONB), default={})
 
     emails = relationship('Email', backref='automated_email', order_by='Email.id')
-    
+
     @presave_adjustment
     def date_adjustments(self):
         if self.active_after == '':
             self.active_after = None
         elif isinstance(self.active_after, str):
-            self.active_after = datetime.strptime(self.active_after, c.DATE_FORMAT)
-        
+            try:
+                self.active_after = datetime.strptime(self.active_after, c.DATE_FORMAT)
+            except ValueError:
+                self.active_after = dateparser.parse(self.active_after)
+
         if self.active_before == '':
             self.active_before = None
         elif isinstance(self.active_before, str):
-            self.active_before = datetime.strptime(self.active_before, c.DATE_FORMAT)
+            try:
+                self.active_before = datetime.strptime(self.active_before, c.DATE_FORMAT)
+            except ValueError:
+                self.active_before = dateparser.parse(self.active_before)
 
     @classproperty
     def filters_for_allowed(cls):
@@ -105,31 +116,92 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     def filters_for_active(cls):
         now = utils.localized_now()
         return cls.filters_for_allowed + [
-            or_(cls.active_after == None, cls.active_after <= now),
+            or_(cls.active_after == None, cls.active_after <= now),  # noqa: E711
             or_(cls.active_before == None, cls.active_before >= now)]  # noqa: E711
 
     @classproperty
     def filters_for_approvable(cls):
-        return [
-            cls.approved == False,
-            cls.needs_approval == True,
-            or_(cls.active_before == None, cls.active_before >= utils.localized_now())]  # noqa: E711,E712
+        return [cls.approved == False, cls.needs_approval == True,  # noqa: E712
+                or_(cls.active_before == None, cls.active_before >= utils.localized_now())]  # noqa: E711, E712
 
     @classproperty
     def filters_for_pending(cls):
         return cls.filters_for_active + [
-            cls.approved == False,
-            cls.needs_approval == True,
-            cls.unapproved_count > 0]  # noqa: E712
+            cls.approved == False, cls.needs_approval == True, cls.unapproved_count > 0]  # noqa: E712
 
     @staticmethod
-    def reconcile_fixtures():
+    def update_fixture(session, ident, **kwargs):
+        fixture = AutomatedEmail._fixtures.get(ident, None)
+        if not fixture:
+            log.error(f"We tried to update fixture ident {ident}, but it wasn't in our list of email fixtures!")
+            return
+        
+        kwargs.pop('csrf_token', None)
+
+        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
+        for key, val in kwargs.items():
+            if not hasattr(fixture, key):
+                log.debug(f"We tried to update fixture ident {ident} with parameter {key}, "
+                          f"but there's no attribute named {key}!")
+            elif getattr(fixture, key) != val and (getattr(fixture, key) or val):
+                if key not in automated_email.revert_changes:
+                    current_val = getattr(fixture, key)
+                    if isinstance(current_val, date):
+                        current_val = current_val.isoformat()
+                    automated_email.revert_changes[key] = current_val
+                setattr(fixture, key, val)
+
+        updated_email = automated_email.reconcile(fixture)
+        session.merge(updated_email)
+        session.commit()
+
+        # Check to see if any properties got changed back to their original value
+        listed_changes = updated_email.revert_changes.copy()
+        for key in listed_changes:
+            if getattr(updated_email, key) == updated_email.revert_changes[key] or (
+                    not getattr(updated_email, key) and not updated_email.revert_changes[key]):
+                updated_email.revert_changes.pop(key)
+        session.merge(updated_email)
+    
+    @staticmethod
+    def reset_fixture_attr(session, ident, key):
+        fixture = AutomatedEmail._fixtures.get(ident, None)
+        if not fixture:
+            log.error(f"We tried to update fixture ident {ident}, but it wasn't in our list of email fixtures!")
+            return
+        
+        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
+        revert_val = automated_email.revert_changes.get(key, None)
+
+        setattr(fixture, key, revert_val)
+        automated_email.revert_changes.pop(key, None)
+
+        session.add(automated_email.reconcile(fixture))
+
+    @staticmethod
+    def reconcile_fixtures(cleanup=True):
         from uber.models import Session
         with Session() as session:
             for ident, fixture in AutomatedEmail._fixtures.items():
                 automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
+
+                if automated_email:
+                    # Load changes from DB to avoid blowing away dynamic updates
+                    for key in automated_email.revert_changes:
+                        AutomatedEmail.update_fixture(session, ident, **{key: getattr(automated_email, key, '')})
+
+                # Load plugin overrides
+                for ident, key, val in AutomatedEmail.email_overrides:
+                    AutomatedEmail.update_fixture(session, ident, **{key: val})
+
                 session.add(automated_email.reconcile(fixture))
+                if not fixture.template_plugin_name or not fixture.template_url:
+                    fixture.update_template_plugin_info()
             session.flush()
+
+            if not cleanup:
+                return
+
             for automated_email in session.query(AutomatedEmail).all():
                 if automated_email.ident in AutomatedEmail._fixtures:
                     # This automated email exists in our email fixtures.
@@ -272,7 +344,8 @@ class Email(MagModel, BaseEmailMixin):
 
     @cached_property
     def fk(self):
-        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() if self.session and self.fk_id else None
+        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() \
+            if self.session and self.fk_id else None
 
     @property
     def fk_email(self):

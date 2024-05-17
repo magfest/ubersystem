@@ -2,6 +2,7 @@ from markupsafe import escape, Markup
 from wtforms.widgets import NumberInput, html_params, CheckboxInput, Select
 from uber.config import c
 
+
 class MultiCheckbox():
     """
     Renders a MultiSelect field as a set of checkboxes, e.g., "What interests you?"
@@ -10,11 +11,11 @@ class MultiCheckbox():
         kwargs.setdefault('type', 'checkbox')
         field_id = kwargs.pop('id', field.id)
         html = ['<div {}>'.format(html_params(class_=div_class))]
-        html.append('<fieldset {}>'.format(html_params(id=field_id)))
-        html.append('<legend class="form-text mt-0"><span class="form-label">{}</span>{}</legend>'.format(field.label.text,
-                                                                          Markup(' <span class="required-indicator text-danger">*</span>')
-                                                                          if field.flags.required else ''))
-        for value, label, checked in field.iter_choices():
+        html.append(f'<fieldset {html_params(id=field_id)}>')
+        html.append(f'<legend class="form-text mt-0"><span class="form-label">{field.label.text}</span>'
+                    '{}</legend>'.format(Markup(' <span class="required-indicator text-danger">*</span>')
+                                         if field.flags.required else ''))
+        for value, label, checked, _html_attribs in field.iter_choices():
             choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
             if value == c.OTHER:
@@ -32,11 +33,14 @@ class MultiCheckbox():
 class IntSelect():
     """
     Renders an Integer or Decimal field as a select dropdown, e.g., the "badges" dropdown for groups.
-    The list of choices must be provided on render and should be a list of (value, label) tuples.
+    The list of choices can be provided on init or during render and should be a list of (value, label) tuples.
     Note that choices must include a null/zero option if you want one.
     """
+    def __init__(self, choices=None, **kwargs):
+        self.choices = choices
 
-    def __call__(self, field, choices, **kwargs):
+    def __call__(self, field, choices=None, **kwargs):
+        choices = choices or self.choices or [('', "ERROR: No choices provided")]
         field_id = kwargs.pop('id', field.id)
         options = dict(kwargs, id=field_id, name=field.name)
         if 'readonly' in options:
@@ -58,7 +62,7 @@ class SwitchInput(CheckboxInput):
 
 
 class NumberInputGroup(NumberInput):
-    def __init__(self, prefix='', suffix='', **kwargs):
+    def __init__(self, prefix='$', suffix='.00', **kwargs):
         self.prefix = prefix
         self.suffix = suffix
         super().__init__(**kwargs)
@@ -69,14 +73,10 @@ class NumberInputGroup(NumberInput):
             html.append('<span class="input-group-text">{}</span>'.format(self.prefix))
         html.append(super().__call__(field, **kwargs))
         if self.suffix:
-            html.append('<span class="input-group-text">{}</span>'.format(self.suffix))
+            html.append('<span class="input-group-text rounded-end">{}</span>'.format(self.suffix))
 
         return Markup(''.join(html))
 
-
-class DollarInput(NumberInputGroup):
-    def __init__(self, prefix='$', suffix='.00', **kwargs):
-        super().__init__(prefix, suffix, **kwargs)
 
 class CountrySelect(Select):
     """

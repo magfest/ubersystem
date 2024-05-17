@@ -7,11 +7,15 @@
 <br/>
 
 <form method="post" enctype="multipart/form-data" class="form form-inline">
-    <select name="selected_model" class="form-control">
+  <div class="row g-sm-3 row-cols-auto">
+    <div class="col">
+    <select name="selected_model" class="form-select">
         {{ options(tables) }}
     </select>
-  <button type="submit" class="btn btn-primary" onClick="form.action='export_guidebook_xlsx';">Download Data Xlsx</button>
-  <button type="submit" class="btn btn-success" onClick="form.action='export_guidebook_zip';">Download Images Zip</button>
+    </div>
+    <div class="col"><button type="submit" class="btn btn-primary" onClick="form.action='export_guidebook_xlsx';">Download Data Xlsx</button></div>
+    <div class="col"><button type="submit" class="btn btn-success" onClick="form.action='export_guidebook_zip';">Download Images Zip</button></div>
+  </div>
 </form>
 
 

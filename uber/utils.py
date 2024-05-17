@@ -1,31 +1,29 @@
+import bcrypt
+import cherrypy
 import importlib
 import math
 import os
+import phonenumbers
 import random
 import re
 import string
 import traceback
-from typing import Iterable
+import uber
 import urllib
+
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 from glob import glob
 from os.path import basename
-from random import randrange
 from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
-
-import cherrypy
-import phonenumbers
 from phonenumbers import PhoneNumberFormat
-from pockets import cached_property, classproperty, floor_datetime, is_listy, listify
+from pockets import floor_datetime, listify
 from pockets.autolog import log
-from sideboard.lib import threadlocal
 from pytz import UTC
 
-import uber
-from uber.config import c, _config, signnow_sdk
+from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
 
 
@@ -127,8 +125,8 @@ def normalize_email(email, split_address=False):
     from email_validator import validate_email
     response = validate_email(email, check_deliverability=False)
     if split_address:
-        return response['local'], response['domain']
-    return response['email']
+        return response.local_part, response.domain
+    return response.normalized
 
 
 def normalize_email_legacy(email):
@@ -188,6 +186,25 @@ def url_domain(url):
     url = re.sub(r'^https?:/', '', url)
     url = re.sub(r'^www\.', '', url)
     return url.split('/', 1)[0].strip('@#?=. ')
+
+
+def extract_urls(text):
+    """
+    Extract all URLs from a block of text and returns them in a list.
+    Designed for use with attendee-submitted URLs, e.g., URLs inside
+    seller application fields.
+
+    This is a simplified version of https://stackoverflow.com/a/50790119.
+    We don't look for IP addresses of any kind, and we assume that
+    attendees put whitespace after each URL so we can match complex
+    resources paths with a wide variety of characters.
+    """
+    if not text:
+        return
+
+    regex = (r"\b((?:https?:\/\/)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6}))"
+             r"(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:\/\S*)*\/?)\b")
+    return re.findall(regex, text, re.IGNORECASE)
 
 
 def create_valid_user_supplied_redirect_url(url, default_url):
@@ -308,7 +325,7 @@ def get_age_conf_from_birthday(birthdate, today=None):
     for val, age_group in c.AGE_GROUP_CONFIGS.items():
         if val != c.AGE_UNKNOWN and age_group['min_age'] <= age and age <= age_group['max_age']:
             return age_group
-        
+
     return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
 
 
@@ -471,8 +488,10 @@ class days_between(DateBase):
     :param: until - (optional) number of days prior to deadline to end (default: 0)
 
     Examples:
-        days_between((14, c.POSITRON_BEAM_DEADLINE), (5, c.EPOCH))() - True if it's 14 days before c.POSITRON_BEAM_DEADLINE and 5 days before c.EPOCH
-        days_between((c.WARP_COIL_DEADLINE, 5), c.EPOCH)() - True if it's 5 days after c.WARP_COIL_DEADLINE up to c.EPOCH
+        days_between((14, c.POSITRON_BEAM_DEADLINE), (5, c.EPOCH))():
+            True if it's 14 days before c.POSITRON_BEAM_DEADLINE and 5 days before c.EPOCH
+        days_between((c.WARP_COIL_DEADLINE, 5), c.EPOCH)():
+            True if it's 5 days after c.WARP_COIL_DEADLINE up to c.EPOCH
     """
     def __init__(self, first_deadline_tuple, second_deadline_tuple):
         self.errors = []
@@ -481,9 +500,9 @@ class days_between(DateBase):
         self.ending_date = self.process_deadline_tuple(second_deadline_tuple)
 
         if self.errors:
-            raise ValueError(f"{' '.join(self.errors)} Please use the following format: \
-                             optional days_before(int), deadline(datetime), optional days_after(int). \
-                             Note that you cannot set both days_before and days_after.")        
+            raise ValueError(f"{' '.join(self.errors)} Please use the following format: "
+                             "optional days_before(int), deadline(datetime), optional days_after(int). "
+                             "Note that you cannot set both days_before and days_after.")
 
         assert self.starting_date < self.ending_date
 
@@ -562,6 +581,8 @@ def check(model, *, prereg=False):
         for validator in v[model.__class__.__name__].values():
             message = validator(model)
             if message:
+                if isinstance(message, tuple):
+                    message = message[1]
                 errors.append(message)
     return "ERROR: " + "<br>".join(errors) if errors else None
 
@@ -600,45 +621,52 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def validate_model(forms, model, preview_model=None, extra_validators_module=None, is_admin=False):
+def validate_model(forms, model, preview_model=None, is_admin=False):
     from wtforms import validators
-    from wtforms.validators import ValidationError, StopValidation
 
     all_errors = defaultdict(list)
-    
+
     if not preview_model:
         preview_model = model
     else:
-        for module in forms.values():
-            module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
+        for form in forms.values():
+            form.populate_obj(preview_model)  # We need a populated model BEFORE we get its optional fields below
+        if not model.is_new:
+            preview_model.is_actually_old = True
 
-    for module in forms.values():
+    for form in forms.values():
         extra_validators = defaultdict(list)
-        for field_name in module.get_optional_fields(preview_model, is_admin):
-            field = getattr(module, field_name)
+        for field_name in form.get_optional_fields(preview_model, is_admin):
+            field = getattr(form, field_name)
             if field:
-                field.validators = [validators.Optional()]
+                field.validators = (
+                    [validators.Optional()] +
+                    [validator for validator in field.validators
+                     if not isinstance(validator, (validators.DataRequired, validators.InputRequired))])
 
-        if extra_validators_module:
-            for key, field in module.field_list:
-                extra_validators[key].extend(extra_validators_module.form_validation.get_validations_by_field(key))
-                if field and (model.is_new or getattr(model, key, None) != field.data):
-                    extra_validators[key].extend(extra_validators_module.new_or_changed_validation.get_validations_by_field(key))
-
-        valid = module.validate(extra_validators=extra_validators)
+        # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
+        for key, field in form.field_list:
+            if key == 'badge_num' and field.data:
+                field_data = int(field.data)  # Badge number box is a string to accept encrypted barcodes
+            else:
+                field_data = field.data
+            extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
+            if field and (model.is_new or getattr(model, key, None) != field_data):
+                extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
+        valid = form.validate(extra_validators=extra_validators)
         if not valid:
-            for key, val in module.errors.items():
+            for key, val in form.errors.items():
                 all_errors[key].extend(map(str, val))
 
-    if extra_validators_module:
-        for key, val in extra_validators_module.post_form_validation.get_validation_dict().items():
-            for func in val:
-                try:
-                    func(preview_model)
-                except (ValidationError, StopValidation) as e:
-                    all_errors[key].append(str(e))
-                    if isinstance(e, StopValidation):
-                        break
+    validations = [uber.model_checks.validation.validations]
+    prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []
+    for v in validations + prereg_validations:
+        for validator in v[model.__class__.__name__].values():
+            error = validator(preview_model)
+            if error and isinstance(error, tuple):
+                all_errors[error[0]].append(error[1])
+            elif error:
+                all_errors[''].append(error)
 
     if all_errors:
         return all_errors
@@ -693,26 +721,33 @@ def genpasswd(short=False):
         return ''.join(random.choice(characters) for i in range(8))
 
 
+def create_new_hash(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+
 # ======================================================================
 # Miscellaneous helpers
 # ======================================================================
 
 def redirect_to_allowed_dept(session, department_id, page):
-    error_msg = 'You have been given admin access to this page, but you are not in any departments that you can admin. ' \
-                'Please contact STOPS to remedy this.'
-                
+    error_msg = ('You have been given admin access to this page, but you are not in any departments '
+                 'that you can admin. Please contact STOPS to remedy this.')
+
     if c.DEFAULT_DEPARTMENT_ID == -1:
         raise HTTPRedirect('../accounts/homepage?message={}', "Please add at least one department to manage staffers.")
     if c.DEFAULT_DEPARTMENT_ID == 0:
         raise HTTPRedirect('../accounts/homepage?message={}', error_msg)
-    
+
     if department_id == 'All':
         if len(c.ADMIN_DEPARTMENT_OPTS) == 1:
             raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
         return
 
+    if department_id is None and c.DEFAULT_DEPARTMENT_ID and len(c.ADMIN_DEPARTMENTS) < 5:
+        raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
+
     if not department_id:
-        raise HTTPRedirect('{}?department_id=All', page, department_id)
+        raise HTTPRedirect('{}?department_id=None', page)
     if 'shifts_admin' in c.PAGE_PATH:
         can_access = session.admin_attendee().can_admin_shifts_for(department_id)
     elif 'dept_checklist' in c.PAGE_PATH:
@@ -732,7 +767,7 @@ def valid_email(email):
         return 'Email addresses cannot be longer than 255 characters.'
     elif not email:
         return 'Please enter an email address.'
-    
+
     try:
         validate_email(email)
     except EmailNotValidError as e:
@@ -749,7 +784,7 @@ def valid_password(password):
     if len(password) < c.MINIMUM_PASSWORD_LENGTH:
         return 'Password must be at least {} characters long.'.format(c.MINIMUM_PASSWORD_LENGTH)
     if re.search("[^a-zA-Z0-9{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
-        return 'Password must contain only letters, numbers, and the following symbols: {}'.format(c.PASSWORD_SPECIAL_CHARS)
+        return 'Password must contain only letters, numbers, and the following symbols: ' + c.PASSWORD_SPECIAL_CHARS
     if 'lowercase_char' in c.PASSWORD_CONDITIONS and not re.search("[a-z]", password):
         return 'Password must contain at least one lowercase letter.'
     if 'uppercase_char' in c.PASSWORD_CONDITIONS and not re.search("[A-Z]", password):
@@ -786,11 +821,13 @@ class Registry:
 class DeptChecklistConf(Registry):
     instances = OrderedDict()
 
-    def __init__(self, slug, description, deadline, full_description='', name=None, path=None, email_post_con=False, external_form_url=''):
+    def __init__(self, slug, description, deadline, full_description='', name=None, path=None,
+                 email_post_con=False, external_form_url=''):
         assert re.match('^[a-z0-9_]+$', slug), \
             'Dept Head checklist item sections must have separated_by_underscore names'
 
-        self.slug, self.description, self.full_description, self.external_form_url = slug, description, full_description, external_form_url
+        self.slug, self.description = slug, description
+        self.full_description, self.external_form_url = full_description, external_form_url
         self.name = name or slug.replace('_', ' ').title()
         self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
         self.email_post_con = bool(email_post_con)
@@ -911,14 +948,16 @@ def remove_opt(opts, other):
 def _server_to_url(server):
     if not server:
         return ''
-    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').rstrip('/').partition('/')
+    protocol = 'https' if 'https' in server or 'http' not in server else 'http'
+    host, _, path = urllib.parse.unquote(server
+                                         ).replace('http://', '').replace('https://', '').rstrip('/').partition('/')
     if path.startswith('reggie'):
-        return 'https://{}/reggie'.format(host)
+        return f'{protocol}://{host}/reggie'
     elif path.startswith('uber'):
-        return 'https://{}/uber'.format(host)
+        return f'{protocol}://{host}/uber'
     elif path in ['uber', 'rams']:
-        return 'https://{}/{}'.format(host, path)
-    return 'https://{}'.format(host)
+        f'{protocol}://{host}/{path}'
+    return f'{protocol}://{host}'
 
 
 def _server_to_host(server):
@@ -942,6 +981,8 @@ def get_api_service_from_server(target_server, api_token):
     Helper method that gets a service that can be used for API calls between servers.
     Returns the service or None, an error message or '', and a JSON-RPC URI
     """
+    import ssl
+
     target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
     uri = '{}/jsonrpc/'.format(target_url)
 
@@ -953,7 +994,8 @@ def get_api_service_from_server(target_server, api_token):
             message = 'Unrecognized hostname: {}'.format(target_server)
 
         if not message:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token},
+                                  ssl_opts={'ssl_version': ssl.PROTOCOL_SSLv23})
 
     return service, message, target_url
 
@@ -1075,18 +1117,24 @@ class ExcelWorksheetStreamWriter:
             self.next_col += 1
 
 
+"""
 class OAuthRequest:
+    This class is not currently in use, but kept in case we want to re-add integration with Auth0.
+    If we need it, re-add the Authlib library so you can import OAuth2Session.
 
     def __init__(self, scope='openid profile email', state=None):
         self.redirect_uri = (c.REDIRECT_URL_BASE or c.URL_BASE) + "/accounts/"
-        self.client = OAuth2Session(c.AUTH_CLIENT_ID, c.AUTH_CLIENT_SECRET, scope=scope, state=state, redirect_uri=self.redirect_uri + "process_login")
+        self.client = OAuth2Session(c.AUTH_CLIENT_ID, c.AUTH_CLIENT_SECRET, scope=scope, state=state,
+                                    redirect_uri=self.redirect_uri + "process_login")
         self.state = state if state else None
 
     def set_auth_url(self):
-        self.auth_uri, self.state = self.client.create_authorization_url("https://{}/authorize".format(c.AUTH_DOMAIN), self.state)
+        self.auth_uri, self.state = self.client.create_authorization_url("https://{}/authorize".format(c.AUTH_DOMAIN),
+                                                                         self.state)
 
     def set_token(self, code, state):
-        self.auth_token = self.client.fetch_token("https://{}/oauth/token".format(c.AUTH_DOMAIN), code=code, state=state).get('access_token')
+        self.auth_token = self.client.fetch_token("https://{}/oauth/token".format(c.AUTH_DOMAIN),
+                                                  code=code, state=state).get('access_token')
 
     def get_email(self):
         profile = self.client.get("https://{}/userinfo".format(c.AUTH_DOMAIN)).json()
@@ -1101,13 +1149,40 @@ class OAuthRequest:
                     c.AUTH_DOMAIN,
                     c.AUTH_CLIENT_ID,
                     self.redirect_uri + "process_logout")
+"""
 
 
-class SignNowDocument:    
-    def __init__(self):
+class SignNowRequest:
+    def __init__(self, session, group=None, ident='', create_if_none=False):
+        self.group = group
+        self.group_leader_name = ''
+        self.document = None
         self.access_token = None
         self.error_message = ''
+
         self.set_access_token()
+        if self.error_message:
+            log.error(self.error_message)
+            return
+
+        from uber.models import SignedDocument
+
+        if group:
+            self.document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
+
+            if not self.document and create_if_none:
+                self.document = SignedDocument(fk_id=group.id, model="Group", ident=ident)
+                first_name = group.leader.first_name if group.leader else ''
+                last_name = group.leader.last_name if group.leader else ''
+                self.group_leader_name = first_name + ' ' + last_name
+
+            if self.document and not self.document.document_id:
+                self.document.document_id = self.create_document(
+                    template_id=c.SIGNNOW_DEALER_TEMPLATE_ID,
+                    doc_title="MFF {} Dealer Terms - {}".format(c.EVENT_YEAR, group.name),
+                    folder_id=c.SIGNNOW_DEALER_FOLDER_ID,
+                    uneditable_texts_list=group.signnow_texts_list,
+                    fields={} if c.SIGNNOW_ENV == 'eval' else {'printed_name': self.group_leader_name})
 
     @property
     def api_call_headers(self):
@@ -1131,58 +1206,63 @@ class SignNowDocument:
         if c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
             access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
             if 'error' in access_request:
-                self.error_message = "Error getting access token from SignNow using username and passsword: " + access_request['error']
+                self.error_message = ("Error getting access token from SignNow using username and passsword: " +
+                                      access_request['error'])
             else:
                 self.access_token = access_request['access_token']
                 return
         elif not aws_secrets_client:
-            self.error_message = "Couldn't get a SignNow access token because there was no AWS Secrets client. If you're on a development box, you can instead use a username and password."
+            self.error_message = ("Couldn't get a SignNow access token because there was no AWS Secrets client. "
+                                  "If you're on a development box, you can instead use a username and password.")
         elif not c.AWS_SIGNNOW_SECRET_NAME:
-            self.error_message = "Couldn't get a SignNow access token because the secret name is not set. If you're on a development box, you can instead use a username and password."
+            self.error_message = ("Couldn't get a SignNow access token because the secret name is not set. "
+                                  "If you're on a development box, you can instead use a username and password.")
         else:
             aws_secrets_client.get_signnow_secret()
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
             return
 
-        if self.error_message:
-            log.error(self.error_message)
-
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
-        from requests import post, put
+        from requests import put
         from json import dumps, loads
 
         self.set_access_token(refresh=True)
         if not self.error_message:
             document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
-        
+
             if 'error' in document_request:
-                self.error_message = "Error creating document from template with token {}: {}".format(self.access_token, document_request['error'])
-                return None
+                self.error_message = (f"Error creating document from template with token {self.access_token}: " +
+                                      document_request['error'])
 
         if self.error_message:
             return None
-        
+
         if uneditable_texts_list:
-            response = put(signnow_sdk.Config().get_base_url() + '/document/' + document_request.get('id'), headers=self.api_call_headers,
-            data=dumps({
-                "texts": uneditable_texts_list,
-            }))
+            response = put(signnow_sdk.Config().get_base_url() + '/document/' +
+                           document_request.get('id'), headers=self.api_call_headers,
+                           data=dumps({
+                               "texts": uneditable_texts_list,
+                               }))
             edit_request = loads(response.content)
 
             if 'errors' in edit_request:
-                self.error_message = "Error setting up uneditable text fields: " + '; '.join([e['message'] for e in edit_request['errors']])
+                self.error_message = "Error setting up uneditable text fields: " + '; '.join(
+                    [e['message'] for e in edit_request['errors']])
                 return None
-        
+
         if fields:
-            response = put(signnow_sdk.Config().get_base_url() + '/v2/documents/' + document_request.get('id') + '/prefill-texts', headers=self.api_call_headers,
-            data=dumps({
-                "fields": [{"field_name": field, "prefilled_text": name} for field, name in fields.items()],
-            }))
+            response = put(signnow_sdk.Config().get_base_url() + '/v2/documents/' +
+                           document_request.get('id') + '/prefill-texts', headers=self.api_call_headers,
+                           data=dumps({
+                               "fields": [{"field_name": field, "prefilled_text": name}
+                                          for field, name in fields.items()],
+                                          }))
             if response.status_code != 204:
                 fields_request = response.json()
 
                 if 'errors' in fields_request:
-                    self.error_message = "Error setting up text fields: " + '; '.join([e['message'] for e in fields_request['errors']])
+                    self.error_message = "Error setting up fields: " + '; '.join(
+                        [e['message'] for e in fields_request['errors']])
                     return None
 
         if folder_id:
@@ -1192,10 +1272,37 @@ class SignNowDocument:
             if 'error' in result:
                 self.error_message = "Error moving document into folder: " + result['error']
                 # Give the document request back anyway
-        
+
         return document_request.get('id')
-    
-    def get_signing_link(self, document_id, first_name="", last_name="", redirect_uri=""):
+
+    def get_doc_signed_timestamp(self):
+        if not self.document:
+            self.error_message = "Tried to get a signed timestamp without a document attached to the request!"
+            return
+
+        details = self.get_document_details()
+        if details and details.get('signatures'):
+            return details['signatures'][0].get('created')
+
+    def create_dealer_signing_link(self):
+        if not self.group:
+            self.error_message = "Tried to send a dealer signing link without a group attached to the request!"
+            return
+        if not self.document:
+            self.error_message = "Tried to send a dealer signing link without a document attached to the request!"
+            return
+
+        first_name = self.group.leader.first_name if self.group.leader else ''
+        last_name = self.group.leader.last_name if self.group.leader else ''
+
+        if self.document.document_id and not self.document.signed:
+            link = self.get_signing_link(first_name,
+                                         last_name,
+                                         (c.REDIRECT_URL_BASE or c.URL_BASE) + '/preregistration/group_members?id={}'
+                                         .format(self.group.id))
+            return link
+
+    def get_signing_link(self, first_name="", last_name="", redirect_uri=""):
         from requests import post
         from json import dumps, loads
 
@@ -1209,59 +1316,70 @@ class SignNowDocument:
             dict: A dictionary representing the JSON response containing the signing links for the document.
         """
 
-        self.set_access_token(refresh=True)
+        if not self.document:
+            self.error_message = "Tried to send a signing link without a document attached to the request!"
+            return
 
         response = post(signnow_sdk.Config().get_base_url() + '/link', headers=self.api_call_headers,
-        data=dumps({
-            "document_id": document_id,
-            "firstname": first_name,
-            "lastname": last_name,
-            "redirect_uri": redirect_uri
-        }))
+                        data=dumps({
+                            "document_id": self.document.document_id,
+                            "firstname": first_name,
+                            "lastname": last_name,
+                            "redirect_uri": redirect_uri
+                            }))
         signing_request = loads(response.content)
         if 'errors' in signing_request:
-            self.error_message = "Error getting signing link: " + '; '.join([e['message'] for e in signing_request['errors']])
+            self.error_message = "Error getting signing link: " + '; '.join(
+                [e['message'] for e in signing_request['errors']])
         else:
             return signing_request.get('url_no_signup')
 
-    def send_signing_invite(self, document_id, group, name):
-        self.set_access_token(refresh=True)
+    def send_dealer_signing_invite(self):
+        from uber.custom_tags import email_only
+        if not self.group:
+            self.error_message = "Tried to send a dealer signing invite without a group attached to the request!"
+            return
 
         invite_payload = {
             "to": [
-                { "email": group.email, "prefill_signature_name": name, "role_id": "", "role": "Signer", "order": 1 }
+                {"email": self.group.email, "prefill_signature_name": self.group_leader_name,
+                 "role": "Dealer", "order": 1}
             ],
-            "from": c.MARKETPLACE_EMAIL,
+            "from": email_only(c.MARKETPLACE_EMAIL),
             "cc": [],
-            "subject": "ACTION REQUIRED: {} {} Terms and Conditions".format(c.EVENT_NAME, c.DEALER_TERM.title()),
-            "message": "Congratulations on being accepted into the {} {}! Please click the button below to review and sign \
-                        the terms and conditions. You MUST sign this in order to complete your registration.".format(
-                        c.EVENT_NAME, c.DEALER_LOC_TERM.title()),
-            "redirect_uri": "{}/preregistration/group_members?id={}&message={}".format(c.REDIRECT_URL_BASE or c.URL_BASE, group.id, 
-                                                                                       "Thanks for signing! Please pay your application fee below.")
+            "subject": f"ACTION REQUIRED: {c.EVENT_NAME} {c.DEALER_TERM.title()} Terms and Conditions",
+            "message": (f"Congratulations on being accepted into the {c.EVENT_NAME} {c.DEALER_LOC_TERM.title()}! "
+                        "Please click the button below to review and sign the terms and conditions. "
+                        "You MUST sign this in order to complete your registration."),
+            "redirect_uri": "{}/preregistration/group_members?id={}".format(c.REDIRECT_URL_BASE or c.URL_BASE,
+                                                                            self.group.id)
             }
-        
-        log.debug(str(invite_payload))
 
-        invite_request = signnow_sdk.Document.invite(self.access_token, document_id, invite_payload)
+        invite_request = signnow_sdk.Document.invite(self.access_token, self.document.document_id, invite_payload)
 
         if 'error' in invite_request:
             self.error_message = "Error sending invite to sign: " + invite_request['error']
         else:
             return invite_request
 
-    def get_download_link(self, document_id):
-        self.set_access_token(refresh=True)
-        download_request = signnow_sdk.Document.download_link(self.access_token, document_id)
+    def get_download_link(self):
+        if not self.document:
+            self.error_message = "Tried to get a download link from a request without a document!"
+            return
+
+        download_request = signnow_sdk.Document.download_link(self.access_token, self.document.document_id)
 
         if 'error' in download_request:
             self.error_message = "Error getting download link: " + download_request['error']
         else:
             return download_request.get('link')
-    
-    def get_document_details(self, document_id):
-        self.set_access_token(refresh=True)
-        document_request = signnow_sdk.Document.get(self.access_token, document_id)
+
+    def get_document_details(self):
+        if not self.document:
+            self.error_message = "Tried to get document details from a request without a document!"
+            return
+
+        document_request = signnow_sdk.Document.get(self.access_token, self.document.document_id)
 
         if 'error' in document_request:
             self.error_message = "Error getting document: " + document_request['error']
@@ -1314,13 +1432,14 @@ class TaskUtils:
             else:
                 num_attendees = len(results.get('attendees', []))
                 if num_attendees != 1:
-                    errors.append("ERROR: We expected one attendee for this query, but got " + str(num_attendees) + " instead.")
-            
+                    errors.append("ERROR: We expected one attendee for this query, "
+                                  f"but got {str(num_attendees)} instead.")
+
             if errors:
                 import_job.errors += "; {}".format("; ".join(errors)) if import_job.errors else "; ".join(errors)
                 session.commit()
                 return
-            
+
             attendee = results.get('attendees', [])[0]
             badge_label = c.BADGES[badge_type].lower()
 
@@ -1328,10 +1447,11 @@ class TaskUtils:
                 paid = c.NEED_NOT_PAY
             else:
                 paid = c.NOT_PAID
-        
+
             import_from_url = '{}/registration/form?id={}\n\n'.format(import_job.target_server, attendee['id'])
             new_admin_notes = '{}\n\n'.format(extra_admin_notes) if extra_admin_notes else ''
-            old_admin_notes = 'Old Admin Notes:\n{}\n'.format(attendee['admin_notes']) if attendee['admin_notes'] else ''
+            old_admin_notes = ('Old Admin Notes:\n{}\n'.format(attendee['admin_notes'])
+                               if attendee['admin_notes'] else '')
 
             attendee.update({
                 'badge_type': badge_type,
@@ -1344,7 +1464,7 @@ class TaskUtils:
             })
             if attendee['shirt'] not in c.SHIRT_OPTS:
                 del attendee['shirt']
-                
+
             del attendee['id']
             del attendee['all_years']
             del attendee['badge_num']
@@ -1354,7 +1474,7 @@ class TaskUtils:
             if badge_type != c.STAFF_BADGE:
                 attendee = Attendee().apply(attendee, restricted=False)
             else:
-                assigned_depts = {attendee[0]: 
+                assigned_depts = {attendee[0]:
                                   attendee[1] for attendee in map(partial(TaskUtils._guess_dept, session),
                                   attendee.pop('assigned_depts', {}).items()) if attendee}
                 checklist_admin_depts = attendee.pop('checklist_admin_depts', {})
@@ -1379,7 +1499,8 @@ class TaskUtils:
                     ))
 
                 requested_anywhere = requested_depts.pop('All', False)
-                requested_depts = {d[0]: d[1] for d in map(partial(TaskUtils._guess_dept, session), requested_depts.items()) if d}
+                requested_depts = {d[0]: d[1] for d in map(partial(TaskUtils._guess_dept, session),
+                                                           requested_depts.items()) if d}
 
                 if requested_anywhere:
                     attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
@@ -1397,7 +1518,8 @@ class TaskUtils:
                 except Exception as ex:
                     import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
 
-                account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
+                account = session.query(AttendeeAccount).filter(
+                    AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
                 if not account:
                     del account_to_import['id']
                     account = AttendeeAccount().apply(account_to_import, restricted=False)
@@ -1413,28 +1535,26 @@ class TaskUtils:
                 session.commit()
             except IntegrityError as e:
                 session.rollback()
-                if(isinstance(e.orig, UniqueViolation)):
+                if isinstance(e.orig, UniqueViolation):
                     attendee.badge_num = None
                     session.add(attendee)
                     try:
                         session.commit()
                     except Exception as e:
                         session.rollback()
-                        import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
+                        import_job.errors += "; {}".format(str(e)) if import_job.errors else str(e)
                 else:
                     session.rollback()
-                    import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
+                    import_job.errors += "; {}".format(str(e)) if import_job.errors else str(e)
             except Exception as e:
                 session.rollback()
-                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
+                import_job.errors += "; {}".format(str(e)) if import_job.errors else str(e)
             else:
                 import_job.completed = datetime.now()
             session.commit()
-    
+
     @staticmethod
     def get_attendee_account_by_id(account_id, service):
-        from uber.models import AttendeeAccount
-
         try:
             results = service.attendee_account.export(account_id, False)
         except Exception as ex:
@@ -1442,8 +1562,8 @@ class TaskUtils:
         else:
             num_accounts = len(results.get('accounts', []))
             if num_accounts != 1:
-                raise Exception("ERROR: We expected one account for this query, but got " + str(num_accounts) + " instead.")
-        
+                raise Exception(f"ERROR: We expected one account for this query, but got {str(num_accounts)} instead.")
+
         return results.get('accounts', [])[0]
 
     @staticmethod
@@ -1456,7 +1576,7 @@ class TaskUtils:
         })
         if attendee.get('shirt', '') and attendee['shirt'] not in c.SHIRT_OPTS:
             del attendee['shirt']
-            
+
         del attendee['id']
         del attendee['all_years']
 
@@ -1473,23 +1593,23 @@ class TaskUtils:
             import_job.queued = datetime.now()
             session.commit()
 
-            errors = []
-
             try:
                 account_to_import = TaskUtils.get_attendee_account_by_id(import_job.query, service)
             except Exception as ex:
                 import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
                 session.commit()
                 return
-            
+
             if c.SSO_EMAIL_DOMAINS:
                 local, domain = normalize_email(account_to_import['email'], split_address=True)
                 if domain in c.SSO_EMAIL_DOMAINS:
-                    log.debug("Skipping account import for {} as it matches the SSO email domain.".format(account_to_import['email']))
+                    log.debug(f"Skipping account import for {account_to_import['email']} "
+                              "as it matches the SSO email domain.")
                     import_job.completed = datetime.now()
                     return
 
-            account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
+            account = session.query(AttendeeAccount).filter(
+                AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
             if not account:
                 del account_to_import['id']
                 account = AttendeeAccount().apply(account_to_import, restricted=False)
@@ -1510,11 +1630,12 @@ class TaskUtils:
 
             try:
                 account_attendees = service.attendee_account.export_attendees(import_job.query, True)['attendees']
-            except Exception as ex:
+            except Exception:
                 pass
 
             for attendee in account_attendees:
-                if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0], c.BADGE_RANGES[c.STAFF_BADGE][1]):
+                if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0],
+                                                         c.BADGE_RANGES[c.STAFF_BADGE][1]):
                     if not c.SSO_EMAIL_DOMAINS:
                         # Try to match staff to their existing badge, which would be newer than the one we're importing
                         old_badge_num = attendee['badge_num']
@@ -1528,11 +1649,10 @@ class TaskUtils:
                             new_staff.managers.append(account)
                             session.add(new_staff)
                     # If SSO is used for attendee accounts, we don't import staff at all
-                elif attendee['badge_status'] not in [c.PENDING_STATUS, c.INVALID_STATUS, 
-                                                      c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]: # Workaround for a bug in the export, we can remove this check next year
+                else:
                     new_attendee = TaskUtils.basic_attendee_import(attendee)
                     new_attendee.paid = c.NOT_PAID
-                    
+
                     new_attendee.managers.append(account)
                     session.add(new_attendee)
 
@@ -1547,7 +1667,7 @@ class TaskUtils:
     def group_import(import_job):
         # Import groups, then their attendees, then those attendee's accounts
 
-        from uber.models import Attendee, AttendeeAccount, Group
+        from uber.models import AttendeeAccount, Group
 
         with uber.models.Session() as session:
             service, message, target_url = get_api_service_from_server(import_job.target_server,
@@ -1565,13 +1685,13 @@ class TaskUtils:
             else:
                 num_groups = len(results.get('groups', []))
                 if num_groups != 1:
-                    errors.append("ERROR: We expected one group for this query, but got " + str(num_groups) + " instead.")
-            
+                    errors.append(f"ERROR: We expected one group for this query, but got {str(num_groups)} instead.")
+
             if errors:
                 import_job.errors += "; {}".format("; ".join(errors)) if import_job.errors else "; ".join(errors)
                 session.commit()
                 return
-            
+
             group_to_import = results.get('groups', [])[0]
             group_attendees = {}
 
@@ -1612,14 +1732,16 @@ class TaskUtils:
                 new_attendee.group = new_group
                 if is_leader:
                     new_group.leader = new_attendee
-                
+
                 for id in attendee.get('attendee_account_ids', ''):
                     try:
                         account_to_import = TaskUtils.get_attendee_account_by_id(id, service)
                     except Exception as ex:
-                        import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+                        import_job.errors += "; {}".format("; ".join(str(ex)))\
+                            if import_job.errors else "; ".join(str(ex))
 
-                    account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
+                    account = session.query(AttendeeAccount).filter(
+                        AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
                     if not account:
                         del account_to_import['id']
                         account = AttendeeAccount().apply(account_to_import, restricted=False)
@@ -1636,5 +1758,6 @@ class TaskUtils:
                     import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
                     session.rollback()
 
-            session.assign_badges(new_group, group_to_import['badges'], group_results['unassigned_badge_type'], group_results['unassigned_ribbon'])
+            session.assign_badges(new_group, group_to_import['badges'], group_results['unassigned_badge_type'],
+                                  group_results['unassigned_ribbon'])
             session.commit()

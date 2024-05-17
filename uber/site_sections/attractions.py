@@ -6,7 +6,6 @@ from pytz import UTC
 from pockets import sluggify
 from sqlalchemy.orm import subqueryload
 
-from uber.config import c
 from uber.decorators import ajax, all_renderable
 from uber.errors import HTTPRedirect
 from uber.models.attraction import Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup
@@ -15,7 +14,7 @@ from uber.site_sections.preregistration import check_post_con
 
 def _attendee_for_badge_num(session, badge_num, options=None):
     from uber.barcode import get_badge_num_from_barcode
-    
+
     if not badge_num:
         return None
 
@@ -108,7 +107,7 @@ class Root:
 
         if slug and feature:
             attraction = session.query(Attraction).filter(
-                Attraction.is_public == True,
+                Attraction.is_public == True,  # noqa: E712
                 Attraction.slug.startswith(slug)).first()  # noqa: E712
             if attraction:
                 feature = session.query(AttractionFeature).filter(
@@ -138,7 +137,7 @@ class Root:
         if not attendee:
             raise HTTPRedirect('index')
         if attendee.amount_unpaid:
-            raise HTTPRedirect('../preregistration/new_badge_payment?id=' + attendee.id + 
+            raise HTTPRedirect('../preregistration/new_badge_payment?id=' + attendee.id +
                                '&return_to=../attractions/manage?id=' + attendee.id)
         return {
             'attractions': session.query(Attraction).order_by('name').all(),
@@ -204,7 +203,7 @@ class Root:
 
             if event.is_sold_out:
                 return {'error': '{} is already sold out'.format(event.label)}
-            
+
             if not event.signups_open:
                 return {'error': '{} is not yet available for signups'.format(event.label)}
 

@@ -1,8 +1,6 @@
 from collections import defaultdict, OrderedDict
 from datetime import datetime
-
 from pytz import UTC
-from sqlalchemy import or_
 
 from uber.config import c
 from uber.custom_tags import format_currency, datetime_local_filter
@@ -12,6 +10,7 @@ from uber.models import Attendee
 
 def sort(d, label_list):
     return sorted(d.items(), key=lambda tup: label_list.index(tup[0]))
+
 
 def label(s):
     return 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
@@ -69,9 +68,12 @@ class Root:
                 staff_shirt_label = attendee.staff_shirt_label or 'size unknown'
             else:
                 staff_shirt_label = attendee.shirt_label or 'size unknown'
-            counts['all_staff_shirts'][label(staff_shirt_label)][status(attendee.got_merch)] += attendee.num_staff_shirts_owed
-            counts['all_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_event_shirts_owed
-            counts['free_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_free_event_shirts
+            counts['all_staff_shirts'][
+                label(staff_shirt_label)][status(attendee.got_merch)] += attendee.num_staff_shirts_owed
+            counts['all_event_shirts'][
+                label(shirt_label)][status(attendee.got_merch)] += attendee.num_event_shirts_owed
+            counts['free_event_shirts'][
+                label(shirt_label)][status(attendee.got_merch)] += attendee.num_free_event_shirts
             if attendee.paid_for_a_shirt:
                 counts['paid_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sale_week = (min(datetime.now(UTC), c.ESCHATON) - attendee.registered).days // 7
@@ -95,11 +97,13 @@ class Root:
 
     def extra_merch(self, session):
         return {
-            'attendees': session.valid_attendees().filter(Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
-        
+            'attendees': session.valid_attendees().filter(
+                Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
+
     def owed_merch(self, session):
         return {
-            'attendees': session.valid_attendees().filter(Attendee.amount_extra > 0, Attendee.got_merch == False)
+            'attendees': session.valid_attendees().filter(Attendee.amount_extra > 0,
+                                                          Attendee.got_merch == False)  # noqa: E712
         }
 
     @csv_file
@@ -116,7 +120,8 @@ class Root:
             'Checked In',
             'Admin Notes',
         ])
-        attendees = session.valid_attendees().filter(Attendee.amount_extra > 0, Attendee.got_merch == False)
+        attendees = session.valid_attendees().filter(Attendee.amount_extra > 0,
+                                                     Attendee.got_merch == False)  # noqa: E712
         for attendee in attendees:
             out.writerow([
                 attendee.full_name,
@@ -130,5 +135,3 @@ class Root:
                 datetime_local_filter(attendee.checked_in),
                 attendee.admin_notes,
             ])
-        
-        

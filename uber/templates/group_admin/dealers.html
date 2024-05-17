@@ -9,9 +9,12 @@
 </script>
 
   <div class="card-body">
-    {{ dealer_groups }} {{ c.DEALER_TERM }} groups ({{ dealer_badges }} badges, {{ tables }} tables)
-    <span class="pull-right"><a href="index?show_all=true#dealers" class="btn btn-info">Show All {{ c.DEALER_TERM|title }}s</a>
-    <a href="../dealer_admin/waitlist" class="btn btn-warning">Manage Waitlisted {{ c.DEALER_TERM|title }}s</a></span>
+    {{ num_dealer_groups }} {{ c.DEALER_TERM }} groups ({{ dealer_badges }} badges, {{ tables }} tables)
+    <span class="pull-right">
+      <a href="index?show_all=true#dealers" class="btn btn-info">Show All {{ c.DEALER_TERM|title }}s</a>
+      <a href="../dealer_admin/waitlist" class="btn btn-warning">Manage Waitlisted {{ c.DEALER_TERM|title }}s</a>
+      <a href="../dealer_admin/convert_declined" class="btn btn-danger">Convert Declined {{ c.DEALER_TERM|title }}'s Badges</a>
+    </span>
     <br/> <br/>
     {{ approved_tables }} approved tables / {{ waitlisted_tables }} waitlisted tables / {{ unapproved_tables }} unapproved tables
   </div>  
@@ -23,7 +26,7 @@
   <thead>
     <tr>
       <th>Name</th>
-      <th>Approved</th>
+      <th>Status</th>
       <th>Website</th>
       <th>Badges{{ macros.popup_link("../static_views/badgeCounts.html") }}</th>
       <th>Tables</th>
@@ -35,14 +38,14 @@
     </tr>
   </thead>
   <tbody>
-{% for group in groups if group.is_dealer and (show_all or (group.status not in [c.DECLINED, c.IMPORTED, c.CANCELLED])) %}
+{% for group in dealer_groups %}
     <tr{% if c.SIGNNOW_DEALER_TEMPLATE_ID and not group.signnow_document_signed or group.status in [c.DECLINED, c.CANCELLED] %} class="danger"{% endif %}>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> 
           <a href="form?id={{ group.id }}">{{ group.name|default('?????', boolean=True) }}</a></td>
         <td>
-            {{ group.status_label }}
+            {{ group.status_label }}{% if group.convert_badges and group.badges_purchased %} <span class="text-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="This {{ c.DEALER_TERM }}'s badges will be converted to individual badges tonight!"><i class="fa fa-exclamation-circle" aria-hidden="true"></i></span>{% endif %}
         </td>
-        <td><a href="{{ group.website }}" target="_blank">{{ group.website }}</a></td>
+        <td>{{ group.website|url_to_link(target="_blank", is_relative=False) }}</td>
         <td data-order="{{ group.badges_purchased }}" data-search="{{ group.badges_purchased }}"> {{ group.badges_purchased }} / {{ group.badges }} </td>
         <td>{{ group.tables }}</td>
         <td>{{ group.cost|format_currency }}</td>

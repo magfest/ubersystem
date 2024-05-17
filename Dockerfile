@@ -1,45 +1,49 @@
-FROM ghcr.io/magfest/sideboard:main
-MAINTAINER RAMS Project "code@magfest.org"
-LABEL version.rams-core ="0.1"
+# syntax = docker/dockerfile:1.4.0
 
-# install ghostscript and gettext-base
-RUN apt-get update && apt-get install -y ghostscript libxml2-dev libxmlsec1-dev dnsutils gettext-base vim && rm -rf /var/lib/apt/lists/*
+FROM python:3.12.3-alpine as build
+ARG PLUGINS="[]"
+ARG PLUGIN_NAMES="[]"
+WORKDIR /app
+ENV PYTHONPATH=/app
+ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.cargo/bin
 
-ADD requirements*.txt plugins/uber/
-ADD setup.py plugins/uber/
-ADD uber/_version.py plugins/uber/uber/
+ADD https://astral.sh/uv/install.sh /tmp/install-uv.sh
 
-RUN /app/env/bin/paver install_deps
+# We're upgrading to edge because lxml comes with its own libxml2 which must match the system version for xmlsec to work
+# We can remove this once python ships a docker container with a libxml2 that matches lxml
+# Check lxml version with:
+# import lxml.etree
+# lxml.etree.LIBXML_VERSION
+# Alternatively, build lxml from source to link against system libxml2: RUN uv pip install --system --no-binary lxml lxml
+RUN --mount=type=cache,target=/var/cache/apk \
+    sed -i 's/v3.19/edge/' /etc/apk/repositories && \
+    apk --update-cache upgrade && \
+    apk add git libxml2 xmlsec-dev build-base jq curl && \
+    sh /tmp/install-uv.sh && \
+    rm /tmp/install-uv.sh
 
-ADD uber-development.ini.template ./uber-development.ini.template
-ADD sideboard-development.ini.template ./sideboard-development.ini.template
+ADD requirements.txt /app/
+#RUN --mount=type=cache,target=/root/.cache \
+RUN    uv pip install --system -r requirements.txt;
+
 ADD uber-wrapper.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/uber-wrapper.sh
-ADD rebuild-config.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/rebuild-config.sh
 
-ADD . plugins/uber/
+RUN <<EOF cat >> PLUGINS.json
+$PLUGINS
+EOF
 
-# These are just semi-reasonable defaults. Use either -e or --env-file to set what you need
-# I.e.:
-# docker run -it -e HOST=192.168.0.10 -e PORT=80 ghcr.io/magfest/ubersystem:main
-# or
-# echo "HOST=192.168.0.10" > uberenv
-# docker run -it --env-file uberenv ghcr.io/magfest/ubersystem:main
-ENV HOST=0.0.0.0
-ENV PORT=8282
-ENV HOSTNAME=localhost
-ENV DEFAULT_URL=/uber
-ENV DEBUG=false
-ENV SESSION_HOST=redis
-ENV SESSION_PORT=6379
-ENV SESSION_PREFIX=uber
-ENV BROKER_PROTOCOL=amqp
-ENV BROKER_HOST=rabbitmq
-ENV BROKER_PORT=5672
-ENV BROKER_USER=celery
-ENV BROKER_PASS=celery
-ENV BROKER_VHOST=uber
+RUN jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' PLUGINS.json > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
+ENV uber_plugins=$PLUGIN_NAMES
 
+FROM build as test
+ADD requirements_test.txt /app/
+#RUN --mount=type=cache,target=/root/.cache \
+RUN uv pip install --system -r requirements_test.txt
+CMD python -m pytest
+ADD . /app
+
+FROM build as release
 ENTRYPOINT ["/usr/local/bin/uber-wrapper.sh"]
 CMD ["uber"]
+ADD . /app

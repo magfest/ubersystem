@@ -1,7 +1,7 @@
 import random
 import string
 
-from sqlalchemy import func
+from sqlalchemy import func, case
 from datetime import datetime
 from pytz import UTC
 
@@ -24,11 +24,11 @@ class ArtShowApplication(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'),
                          nullable=True)
     attendee = relationship('Attendee', foreign_keys=attendee_id, cascade='save-update, merge',
-                                  backref=backref('art_show_applications', cascade='save-update, merge'))
+                            backref=backref('art_show_applications', cascade='save-update, merge'))
     agent_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'),
-                         nullable=True)
+                      nullable=True)
     agent = relationship('Attendee', foreign_keys=agent_id, cascade='save-update, merge',
-                            backref=backref('art_agent_applications', cascade='save-update, merge'))
+                         backref=backref('art_agent_applications', cascade='save-update, merge'))
     agent_code = Column(UnicodeText)
     checked_in = Column(UTCDateTime, nullable=True)
     checked_out = Column(UTCDateTime, nullable=True)
@@ -59,6 +59,14 @@ class ArtShowApplication(MagModel):
     us_only = Column(Boolean, default=False)
     admin_notes = Column(UnicodeText, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
+    active_receipt = relationship(
+        'ModelReceipt',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(ArtShowApplication.id),'
+        'ModelReceipt.owner_model == "ArtShowApplication",'
+        'ModelReceipt.closed == None)',
+        uselist=False)
+    default_cost = Column(Integer, nullable=True)
 
     email_model_name = 'app'
 
@@ -66,6 +74,8 @@ class ArtShowApplication(MagModel):
     def _cost_adjustments(self):
         if self.overridden_price == '':
             self.overridden_price = None
+        if self.is_valid:
+            self.default_cost = self.calc_default_cost()
 
     @presave_adjustment
     def add_artist_id(self):
@@ -78,8 +88,8 @@ class ArtShowApplication(MagModel):
                     s for (s,) in session.query(ArtShowApplication.artist_id).all())
 
             code_candidate = self._get_code_from_name(self.artist_name, old_codes) \
-                             or self._get_code_from_name(self.attendee.last_name, old_codes) \
-                             or self._get_code_from_name(self.attendee.first_name, old_codes)
+                or self._get_code_from_name(self.attendee.last_name, old_codes) \
+                or self._get_code_from_name(self.attendee.first_name, old_codes)
 
             if not code_candidate:
                 # We're out of manual alternatives, time for a random code
@@ -127,22 +137,43 @@ class ArtShowApplication(MagModel):
         if self.attendee.placeholder and self.attendee.badge_status != c.NOT_ATTENDING:
             return "Missing registration info"
 
+    @hybrid_property
+    def is_valid(self):
+        return self.status != c.DECLINED
+
+    @hybrid_property
+    def true_default_cost(self):
+        # why did I do this
+        if self.overridden_price is None:
+            return self.default_cost if self.default_cost is not None else self.calc_default_cost()
+        return self.overridden_price
+
+    @true_default_cost.expression
+    def true_default_cost(cls):
+        return case(
+            [(cls.overridden_price == None, cls.default_cost)],  # noqa: E711
+            else_=cls.overridden_price)
+
+    @hybrid_property
+    def true_default_cost_cents(self):
+        return self.true_default_cost * 100
+
     @property
     def total_cost(self):
         if self.status != c.APPROVED:
             return 0
         else:
             if self.active_receipt:
-                return self.active_receipt['item_total'] / 100
-            return self.potential_cost
+                return self.active_receipt.item_total / 100
+            return self.true_default_cost or self.calc_default_cost()
 
     @property
     def potential_cost(self):
-        return self.default_cost or 0
+        return self.true_default_cost or 0
 
     def calc_app_price_change(self, **kwargs):
         preview_app = ArtShowApplication(**self.to_dict())
-        current_cost = int(self.potential_cost * 100)
+        current_cost = int(self.calc_default_cost() * 100)
 
         if 'overridden_price' in kwargs:
             try:
@@ -158,7 +189,7 @@ class ArtShowApplication(MagModel):
         if 'tables_ad' in kwargs:
             preview_app.tables_ad = int(kwargs['tables_ad'])
 
-        return current_cost, int(preview_app.potential_cost * 100) - current_cost
+        return current_cost, int(preview_app.calc_default_cost() * 100) - current_cost
 
     @property
     def email(self):
@@ -166,23 +197,23 @@ class ArtShowApplication(MagModel):
 
     @property
     def is_unpaid(self):
-        return not self.amount_paid and self.potential_cost
+        return not self.amount_paid and (self.total_cost or self.status != c.APPROVED and self.potential_cost)
 
     @property
     def amount_unpaid(self):
-        return max(0, self.total_cost - (self.amount_paid / 100))
+        return max(0, ((self.total_cost * 100) - self.amount_paid) / 100)
 
     @property
     def amount_pending(self):
-        return self.active_receipt.get('pending_total', 0)
+        return self.active_receipt.pending_total if self.active_receipt else 0
 
     @property
     def amount_paid(self):
-        return self.active_receipt.get('payment_total', 0)
+        return self.active_receipt.payment_total if self.active_receipt else 0
 
     @property
     def amount_refunded(self):
-        return self.active_receipt.get('refund_total', 0)
+        return self.active_receipt.refund_total if self.active_receipt else 0
 
     @property
     def has_general_space(self):
@@ -195,7 +226,8 @@ class ArtShowApplication(MagModel):
     @property
     def highest_piece_id(self):
         if len(self.art_show_pieces) > 1:
-            return sorted([piece for piece in self.art_show_pieces if piece.piece_id], key=lambda piece: piece.piece_id, reverse=True)[0].piece_id
+            return sorted([piece for piece in self.art_show_pieces if piece.piece_id],
+                          key=lambda piece: piece.piece_id, reverse=True)[0].piece_id
         elif self.art_show_pieces:
             return 1
         else:
@@ -221,14 +253,19 @@ class ArtShowApplication(MagModel):
 class ArtShowPiece(MagModel):
     app_id = Column(UUID, ForeignKey('art_show_application.id', ondelete='SET NULL'), nullable=True)
     app = relationship('ArtShowApplication', foreign_keys=app_id,
-                         cascade='save-update, merge',
-                         backref=backref('art_show_pieces',
-                                         cascade='save-update, merge'))
+                       cascade='save-update, merge',
+                       backref=backref('art_show_pieces',
+                                       cascade='save-update, merge'))
     receipt_id = Column(UUID, ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ArtShowReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
                            backref=backref('pieces',
                                            cascade='save-update, merge'))
+    winning_bidder_id = Column(UUID, ForeignKey('art_show_bidder.id', ondelete='SET NULL'), nullable=True)
+    winning_bidder = relationship('ArtShowBidder', foreign_keys=winning_bidder_id,
+                                  cascade='save-update, merge',
+                                  backref=backref('art_show_pieces',
+                                                  cascade='save-update, merge'))
     piece_id = Column(Integer)
     name = Column(UnicodeText)
     for_sale = Column(Boolean, default=False)
@@ -340,12 +377,12 @@ class ArtShowReceipt(MagModel):
         return max(0, self.total - self.paid)
 
     @property
-    def stripe_payments(self):
-        return [payment for payment in self.art_show_payments if payment.type == c.STRIPE]
+    def card_payments(self):
+        return [payment for payment in self.art_show_payments if payment.type in [c.STRIPE, c.SQUARE]]
 
     @property
-    def stripe_total(self):
-        return sum([payment.amount for payment in self.art_show_payments if payment.type == c.STRIPE])
+    def card_total(self):
+        return sum([payment.amount for payment in self.art_show_payments if payment.type in [c.STRIPE, c.SQUARE]])
 
     @property
     def cash_total(self):

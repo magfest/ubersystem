@@ -1,20 +1,12 @@
-import random
-import string
-
-from sqlalchemy import case, func
-from datetime import datetime
-from pytz import UTC
-
 from uber.config import c
 from uber.models import MagModel
-from uber.decorators import presave_adjustment, render
+from uber.decorators import presave_adjustment
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship, MultiChoice, utcnow
 
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, joinedload
-from sqlalchemy.types import Integer, Boolean
-from sqlalchemy.schema import ForeignKey, Index
+from sqlalchemy.orm import backref
+from sqlalchemy.types import Integer
+from sqlalchemy.schema import ForeignKey
 
 
 __all__ = ['MarketplaceApplication']

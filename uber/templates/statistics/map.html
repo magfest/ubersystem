@@ -135,7 +135,11 @@
     }
     </script>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBc0XLtT-jCG3-v0JFLo9vSr2xYljpRRh4&callback=initMap"
-    async defer></script>
+    {% if not c.GOOGLE_MAPS_API_KEY %}
+        No Google Maps API key set!
+    {% else %}
+        <script src="https://maps.googleapis.com/maps/api/js?key={{ c.GOOGLE_MAPS_API_KEY }}&callback=initMap"
+        async defer></script>
+    {% endif %}
 
 {% endblock %}

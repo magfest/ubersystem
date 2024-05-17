@@ -5,20 +5,21 @@
   <div class="card-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
-    <h2>{% if group.status == c.WAITLISTED %}You've been added to our waitlist!{% else %}Thanks for applying as a {{ c.DEALER_TERM }}!{% endif %}</h2>
+    <h2>{% if group.status == c.WAITLISTED %}You've been added to our waitlist!{% else %}Thanks for applying as {{ c.DEALER_INDEFINITE_TERM }}!{% endif %}</h2>
 
-    We've received your application for {{ group.name }} to purchase a {{ c.DEALER_REG_TERM }} for {{ c.EVENT_NAME }}.
+    <p>We've received your application for being {{ c.DEALER_INDEFINITE_TERM }} under the name {{ group.name }} for {{ c.EVENT_NAME }}.</p>
 
-    <br/><br/>
+    <p>
     {% if group.status == c.WAITLISTED %}
         Since the Marketplace is currently full, you've been added to our waitlist, and we'll let you know if a spot opens up for you.
     {% else %}
         We receive a flood of applications every year, so application processing takes a considerable amount of time.
         Approvals will be done as promptly as possible; usually no later than <strong>two months</strong> before the event.
     {% endif %}
+    </p>
 
     <h3>What Happens Next</h3>
-    After approval, you will be emailed a link to manage your {{ c.DEALER_REG_TERM }}. From this link, you will be able to:
+    <p>After approval, you will be emailed a link to manage your {{ c.DEALER_REG_TERM }}. From this link, you will be able to:
     <ul>
         <li>Pay for your {{ c.DEALER_REG_TERM }}, which includes the cost of tables and badges.</li>
         <li>Register your {{ c.DEALER_HELPER_TERM }}s.</li>
@@ -27,14 +28,14 @@
 
     Your {{ c.DEALER_REG_TERM }} payment includes your table cost and all badges in your group.  After payment, you'll be sent a link
     by email to follow if you wish to later upgrade your badge. Your {{ c.DEALER_HELPER_TERM }}s will be able to upgrade their own
-    badges and pay for those upgrades on their own.
+    badges and pay for those upgrades on their own.</p>
 
-    <br/><br/>Later, you will receive another email with more specific information about this year's event.
+    <p>Later, you will receive another email with more specific information about this year's event.</p>
 
-    <br/><br/>In the event we cannot accommodate your {{ c.DEALER_REG_TERM }}, you will receive an email. If your application
+    <p>In the event we cannot accommodate your {{ c.DEALER_REG_TERM }}, you will receive an email. If your application
     is not approved, you will be able to purchase badges for yourself and the number of assistants on the application
     at the pre-registration price of {{ c.BADGE_PRICE|format_currency }} when the waitlist is exhausted. You will receive an email
-    when these badges are available for purchase.
+    when these badges are available for purchase.</p>
   </div>
 </div>
 {% endblock %}
