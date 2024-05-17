@@ -1,7 +1,10 @@
 # docker-compose for development of ubersystem
 x-uber: &uber
   build: .
+  env_file:
+      - ./.env
   environment:
+    - PYTHONSTARTUP=/app/.pythonstartup.py
     - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
     - uber_cherrypy_server_socket_port=80
     - uber_cherrypy_server_socket_host=0.0.0.0
@@ -14,14 +17,14 @@ x-uber: &uber
     - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber
     - uber_url_root=http://localhost
     - uber_hostname=localhost
-    - uber_plugins=["magprime"]
     - uber_dev_box=True
   volumes:
-    - $PWD:/app/
-    - $PWD/../magprime:/app/plugins/magprime
+    - .:/app/
+    - ${PLUGIN_DIR_SRC:-./README.md}/:/${PLUGIN_DIR_TARGET:-/tmp/}
 
+name: ${PLUGIN_NAME:-uber}
 
-services: 
+services:
   web:
     <<: *uber
     ports:
@@ -52,11 +55,7 @@ services:
     <<: *uber
     stdin_open: true
     tty: true
-    volumes:
-      - $PWD/.pythonstartup.py:/app/.pythonstartup.py
-    environment:
-      - PYTHONSTARTUP=/app/.pythonstartup.py
-    command: ['/app/env/bin/python3']
+    command: ['python']
     profiles: ["dev"]
   flower:
     container_name: ${COMPOSE_PROJECT_NAME}-flower
