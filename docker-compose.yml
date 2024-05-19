@@ -20,7 +20,7 @@ x-uber: &uber
     - uber_dev_box=True
   volumes:
     - .:/app/
-    - ${PLUGIN_DIR_SRC:-./README.md}/:/${PLUGIN_DIR_TARGET:-/tmp/}
+    - ${PLUGIN_DIR_SRC:-./README.md}:${PLUGIN_DIR_TARGET:-/tmp/}
 
 name: ${PLUGIN_NAME:-uber}
 
