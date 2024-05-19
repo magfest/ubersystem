@@ -71,6 +71,9 @@ You'll download the custom plugin repository the same way you download this repo
 
 When cloning the repository with Git (`git clone REPOURL`), your repo URL can look like either `https://github.com/magfest/magprime` (copied from your browser URL bar) or `https://github.com/magfest/magprime.git` (copied from the "Code" dropdown on GitHub).
 
+| :exclamation: If cloning a repo with non-alphanumeric characters, like hyphens, you should rename the base repo folder to convert them to underscores. E.g., `mff-rams-plugin` should be renamed to `mff_rams_plugin`. |
+|---------------------------------------------------------------------------------------------------------------|
+
 To enable your plugin, you'll follow the loading instructions below. First, though, make sure your plugin has a config override file. You can [download the file from a config repo](configuration#generated-configuration) (if applicable) or create a blank text file in the root folder of the plugin. It should be named after the plugin itself, e.g., `/magprime/magprime.ini`.
 
 ### Loading Custom Config and Plugins
