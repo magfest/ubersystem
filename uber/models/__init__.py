@@ -2231,7 +2231,7 @@ class Session(SessionManager):
                     attr.key = attr.key or name
                     attr.name = attr.name or name
                     attr.table = target.__table__
-                    target.__table__.c.replace(attr)
+                    target.__table__.append_column(attr, replace_existing=True)
                 else:
                     setattr(target, name, attr)
         return target
