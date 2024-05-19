@@ -1735,7 +1735,8 @@ class Root:
         if account and not account.hashed:
             return {'success': False,
                     'message': "We had an issue logging you into your account. Please contact an administrator."}
-        elif not account or not bcrypt.hashpw(password, account.hashed) == account.hashed:
+        elif not account or not bcrypt.hashpw(password.encode('utf-8'),
+                                              account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             return {'success': False, 'message': "Incorrect email/password combination."}
 
         cherrypy.session['attendee_account_id'] = account.id
@@ -2175,7 +2176,8 @@ class Root:
 
         if not password:
             message = 'Please enter your current password to make changes to your account.'
-        elif not bcrypt.hashpw(password.encode('utf-8'), account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
+        elif not bcrypt.hashpw(password.encode('utf-8'),
+                               account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             message = 'Incorrect password'
 
         if not message:
@@ -2247,7 +2249,8 @@ class Root:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
             message = 'This link has expired. Please use the "forgot password" option to get a new link.'
-        elif bcrypt.hashpw(token.encode('utf-8'), account.password_reset.hashed.encode('utf-8')) != account.password_reset.hashed.encode('utf-8'):
+        elif bcrypt.hashpw(token.encode('utf-8'),
+                           account.password_reset.hashed.encode('utf-8')) != account.password_reset.hashed.encode('utf-8'):
             message = 'Invalid token. Did you copy the URL correctly?'
 
         if message:
