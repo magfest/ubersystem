@@ -309,7 +309,7 @@ class OtherInfo(MagForm):
                 else:
                     if code.is_expired:
                         raise ValidationError("That promo code has expired.")
-                    elif code.uses_remaining <= 0 and not code.is_unlimited:
+                    elif not code.is_unlimited and code.uses_remaining <= 0:
                         raise ValidationError("That promo code has been used already.")
 
 
