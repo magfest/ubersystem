@@ -984,7 +984,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def amount_unpaid(self):
-        if self.paid == c.PAID_BY_GROUP:
+        if self.paid == c.PAID_BY_GROUP and not self.active_receipt:
             personal_cost = max(0, self.total_cost - self.badge_cost)
         else:
             personal_cost = self.total_cost
