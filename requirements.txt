@@ -25,7 +25,7 @@ python3-saml==1.16.0
 pytz==2024.1
 pyyaml==6.0.1
 redis==5.0.3
-requests==2.31.0
+requests==2.32.0
 residue @ git+https://github.com/magfest/residue.git@3935b8cce36f85f9c8a7837c52a88ee096f24d3d
 rpctools==0.3.1
 sentry-sdk==1.45.0
