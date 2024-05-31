@@ -524,13 +524,12 @@ def staff_import_placeholder(a): return a.placeholder and (a.registered_local <=
                                                                 "staff import".lower() in a.admin_notes.lower()))
 
 
-def volunteer_placeholder(a): return a.placeholder and a.registered_local > c.PREREG_OPEN
-# a.staffing provided by StopsEmailFixture
+def volunteer_placeholder(a): return a.staffing and a.placeholder and a.registered_local > c.PREREG_OPEN
 
 
 # TODO: Add an email for MIVS judges, an email for non-Guest or Band guest group badges,
 # and an email for group-leader-created badges
-def generic_placeholder(a): return a.placeholder and (c.AT_THE_CON or not deferred_attendee_placeholder
+def generic_placeholder(a): return a.placeholder and (not deferred_attendee_placeholder(a)
                                                       and not panelist_placeholder(a) and not guest_placeholder(a)
                                                       and not band_placeholder(a) and not dealer_placeholder(a)
                                                       and not staff_import_placeholder(a)
@@ -561,7 +560,7 @@ AutomatedEmailFixture(
     Attendee,
     'Claim your deferred badge for {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/deferred.html',
-    deferred_attendee_placeholder,
+     deferred_attendee_placeholder,
     when=after(c.PREREG_OPEN),
     ident='claim_deferred_badge')
 
@@ -613,7 +612,7 @@ StopsEmailFixture(
 StopsEmailFixture(
     'Claim your Volunteer badge for {EVENT_NAME} {EVENT_YEAR}',
     'placeholders/volunteer.txt',
-    lambda a: volunteer_placeholder(a),
+    volunteer_placeholder,
     ident='volunteer_badge_confirmation')
 
 AutomatedEmailFixture(

@@ -150,7 +150,7 @@ def notify_admins_of_pending_emails():
                 'pending_emails_by_sender': emails_by_sender,
                 'primary_sender': sender,
             }, encoding=None)
-            send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
+            send_email(c.REPORTS_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
 
         return groupify(pending_emails, 'sender', 'ident')
 
