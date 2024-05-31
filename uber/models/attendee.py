@@ -439,6 +439,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         backref='buyer',
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='art_show_receipt')
+    art_agent_apps = relationship(
+        'ArtShowApplication',
+        backref='agents',
+        secondary='art_show_agent_code',
+        viewonly=True)
 
     _attendee_table_args = [
         Index('ix_attendee_paid_group_id', paid, group_id),
@@ -653,13 +658,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.paid = c.NEED_NOT_PAY
 
     @presave_adjustment
-    def add_as_agent(self):
-        if self.promo_code:
-            art_apps = self.session.lookup_agent_code(self.promo_code.code)
-            for app in art_apps:
-                app.agent_id = self.id
-
-    @presave_adjustment
     def child_badge(self):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
             if self.age_now_or_at_con is not None and self.age_now_or_at_con < 18 \
@@ -735,7 +733,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('mits_admin')
         if self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
             section_list.append('mivs_admin')
-        if self.art_show_applications or self.art_show_bidder or self.art_show_purchases or self.art_agent_applications:
+        if self.art_show_applications or self.art_show_bidder or self.art_show_purchases or self.art_agent_apps:
             section_list.append('art_show_admin')
         if self.marketplace_applications:
             section_list.append('marketplace_admin')
@@ -1224,7 +1222,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group
         ) and (not self.is_group_leader or not self.group.is_valid) and not self.checked_in and (
             not self.art_show_applications or not self.art_show_applications[0].is_valid
-        ) and (not self.art_agent_applications or not any(app.is_valid for app in self.art_agent_applications))
+        ) and (not self.art_agent_apps or not any(app.is_valid for app in self.art_agent_apps))
 
     @property
     def can_self_service_refund_badge(self):

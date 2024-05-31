@@ -9,6 +9,7 @@ from uber.config import c
 from uber.models import MagModel
 from uber.decorators import presave_adjustment
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship
+from uber.utils import RegistrationCode
 
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -17,7 +18,35 @@ from sqlalchemy.types import Integer, Boolean
 from sqlalchemy.schema import ForeignKey
 
 
-__all__ = ['ArtShowApplication', 'ArtShowPiece', 'ArtShowPayment', 'ArtShowReceipt', 'ArtShowBidder']
+__all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPayment', 'ArtShowReceipt', 'ArtShowBidder']
+
+
+class ArtShowAgentCode(MagModel):
+    app_id = Column(UUID, ForeignKey('art_show_application.id'))
+    app = relationship('ArtShowApplication',
+                       backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
+                       foreign_keys=app_id,
+                       cascade='merge,refresh-expire,expunge')
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'),
+                         unique=True, nullable=True)
+    attendee = relationship('Attendee',
+                            backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
+                            foreign_keys=attendee_id,
+                            cascade='merge,refresh-expire,expunge')
+    code = Column(UnicodeText)
+    cancelled = Column(UTCDateTime, nullable=True)
+
+    @hybrid_property
+    def normalized_code(self):
+        return RegistrationCode.normalize_code(self.code)
+
+    @normalized_code.expression
+    def normalized_code(cls):
+        return RegistrationCode.sql_normalized_code(cls.code)
+
+    @property
+    def attendee_first_name(self):
+        return self.attendee.first_name if self.attendee else None
 
 
 class ArtShowApplication(MagModel):
@@ -25,11 +54,6 @@ class ArtShowApplication(MagModel):
                          nullable=True)
     attendee = relationship('Attendee', foreign_keys=attendee_id, cascade='save-update, merge',
                             backref=backref('art_show_applications', cascade='save-update, merge'))
-    agent_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'),
-                      nullable=True)
-    agent = relationship('Attendee', foreign_keys=agent_id, cascade='save-update, merge',
-                         backref=backref('art_agent_applications', cascade='save-update, merge'))
-    agent_code = Column(UnicodeText)
     checked_in = Column(UTCDateTime, nullable=True)
     checked_out = Column(UTCDateTime, nullable=True)
     locations = Column(UnicodeText)
@@ -104,26 +128,30 @@ class ArtShowApplication(MagModel):
         name = "".join(list(filter(lambda char: char.isalpha(), name)))
         if len(name) >= 3:
             return name[:3] if name[:3].upper() not in old_codes else None
+        
+    def generate_new_agent_code(self):
+        from uber.utils import RegistrationCode
+        return ArtShowAgentCode(
+            app_id = self.id,
+            code=RegistrationCode.generate_random_code(ArtShowAgentCode)
+            )
 
-    @presave_adjustment
-    def add_new_agent_code(self):
-        if not self.agent_code and self.delivery_method == c.AGENT:
-            self.agent_code = self.new_agent_code()
+    @property
+    def valid_agent_codes(self):
+        return sorted([code for code in self.agent_codes if not code.cancelled],
+                      key=lambda c: c.attendee_first_name)
 
-    def new_agent_code(self):
-        from uber.models import PromoCode
-        new_agent_code = PromoCode.generate_random_code()
-
-        self.session.add(PromoCode(
-            discount=0,
-            discount_type=PromoCode._FIXED_DISCOUNT,
-            code=new_agent_code))
-
-        return new_agent_code
+    @property
+    def current_agents(self):
+        return [code.attendee for code in self.valid_agent_codes if code.attendee is not None]
 
     @property
     def display_name(self):
         return self.banner_name or self.artist_name or self.attendee.full_name
+    
+    @property
+    def artist_or_full_name(self):
+        return self.artist_name or self.attendee.full_name
 
     @property
     def incomplete_reason(self):

@@ -35,7 +35,7 @@ from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
-    valid_email, valid_password
+    RegistrationCode, valid_email, valid_password
 from uber.payments import ReceiptManager
 
 
@@ -857,13 +857,15 @@ class Session(SessionManager):
             return_dict['art_show_admin'] = self.query(Attendee
                                                        ).outerjoin(
                                                            ArtShowApplication,
-                                                           or_(ArtShowApplication.attendee_id == Attendee.id,
-                                                               ArtShowApplication.agent_id == Attendee.id)
+                                                           or_(ArtShowApplication.attendee_id == Attendee.id)
                                                         ).outerjoin(ArtShowBidder).filter(
                                                             or_(Attendee.art_show_bidder != None,  # noqa: E711
                                                                 Attendee.art_show_purchases != None,  # noqa: E711
                                                                 Attendee.art_show_applications != None,  # noqa: E711
-                                                                Attendee.art_agent_applications != None)  # noqa: E711
+                                                                Attendee.art_agent_apps != None)  # noqa: E711
+                                                        ).outerjoin(ArtShowAgentCode).filter(
+                                                            ArtShowAgentCode.attendee_id == Attendee.id,
+                                                            ArtShowAgentCode.cancelled == None  # noqa: E711
                                                         )
             return return_dict
 
@@ -1297,16 +1299,16 @@ class Session(SessionManager):
                 PromoCode: A PromoCode object, either matching
                 the given code or found in the matching PromoCodeGroup.
             """
-            promo_code = self.lookup_promo_or_group_code(code, PromoCode)
+            promo_code = self.lookup_registration_code(code, PromoCode)
             if promo_code:
                 return promo_code
 
-            group = self.lookup_promo_or_group_code(code, PromoCodeGroup)
+            group = self.lookup_registration_code(code, PromoCodeGroup)
             if group:
                 unused_valid_codes = [code for code in group.valid_codes if code.code not in used_codes]
                 return unused_valid_codes[0] if unused_valid_codes else None
 
-        def lookup_promo_or_group_code(self, code, model=PromoCode):
+        def lookup_registration_code(self, code, model=PromoCode):
             """
             Convenience method for finding a promo code by id or code.
 
@@ -1321,11 +1323,11 @@ class Session(SessionManager):
             if isinstance(code, uuid.UUID):
                 code = code.hex
 
-            normalized_code = PromoCode.normalize_code(code)
+            normalized_code = RegistrationCode.normalize_code(code)
             if not normalized_code:
                 return None
 
-            unambiguous_code = PromoCode.disambiguate_code(code)
+            unambiguous_code = RegistrationCode.disambiguate_code(code)
             clause = or_(model.normalized_code == normalized_code, model.normalized_code == unambiguous_code)
 
             # Make sure that code is a valid UUID before adding

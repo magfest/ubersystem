@@ -62,7 +62,7 @@ def _add_promo_code(session, attendee, submitted_promo_code):
     if attendee.promo_code and submitted_promo_code != attendee.promo_code_code:
         attendee.promo_code = None
     if c.BADGE_PROMO_CODES_ENABLED and submitted_promo_code:
-        if session.lookup_promo_or_group_code(submitted_promo_code, PromoCodeGroup):
+        if session.lookup_registration_code(submitted_promo_code, PromoCodeGroup):
             PreregCart.universal_promo_codes[attendee.id] = submitted_promo_code
         session.add_promo_code_to_attendee(attendee, submitted_promo_code)
 
@@ -1127,7 +1127,7 @@ class Root:
 
     def email_promo_code(self, session, group_id, message='', **params):
         if cherrypy.request.method == 'POST':
-            code = session.lookup_promo_or_group_code(params.get('code'))
+            code = session.lookup_registration_code(params.get('code'))
             if not code:
                 message = "This code is invalid. If it has not been claimed, please contact us at {}".format(
                     email_only(c.REGDESK_EMAIL))
