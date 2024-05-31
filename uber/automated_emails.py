@@ -1316,53 +1316,102 @@ AutomatedEmailFixture(
     ident='band_checklist_inquiry')
 
 BandEmailFixture(
+    'Reminder to apply for a {EVENT_NAME} Panel',
+    'guests/band_panel_reminder.txt',
+    lambda b: not b.panel_status,
+    when=days_before(14, c.BAND_PANEL_DEADLINE, 3),
+    ident='band_panel_reminder')
+
+BandEmailFixture(
     'Last chance to apply for a {EVENT_NAME} Panel',
     'guests/band_panel_reminder.txt',
     lambda b: not b.panel_status,
     when=days_before(3, c.BAND_PANEL_DEADLINE),
-    ident='band_panel_reminder')
+    ident='band_panel_reminder_last')
 
 BandEmailFixture(
-    'Last Chance to accept your offer to perform at {EVENT_NAME}',
+    'Reminder to accept your offer to perform at {EVENT_NAME}',
+    'guests/band_agreement_reminder.txt',
+    lambda b: not b.info_status,
+    when=days_before(14, c.BAND_INFO_DEADLINE, 3),
+    ident='band_agreement_reminder')
+
+BandEmailFixture(
+    'Last chance to accept your offer to perform at {EVENT_NAME}',
     'guests/band_agreement_reminder.txt',
     lambda b: not b.info_status,
     when=days_before(3, c.BAND_INFO_DEADLINE),
-    ident='band_agreement_reminder')
+    ident='band_agreement_reminder_last')
+
+BandEmailFixture(
+    'Reminder to include your bio info on the {EVENT_NAME} website',
+    'guests/band_bio_reminder.txt',
+    lambda b: not b.bio_status,
+    when=days_before(14, c.BAND_BIO_DEADLINE, 3),
+    ident='band_bio_reminder')
 
 BandEmailFixture(
     'Last chance to include your bio info on the {EVENT_NAME} website',
     'guests/band_bio_reminder.txt',
     lambda b: not b.bio_status,
     when=days_before(3, c.BAND_BIO_DEADLINE),
-    ident='band_bio_reminder')
+    ident='band_bio_reminder_last')
 
 BandEmailFixture(
-    '{EVENT_NAME} W9 reminder',
+    'Reminder to submit your W9 for {EVENT_NAME}',
+    'guests/band_w9_reminder.txt',
+    lambda b: b.payment and not b.taxes_status,
+    when=days_before(14, c.BAND_TAXES_DEADLINE, 3),
+    ident='band_w9_reminder')
+
+BandEmailFixture(
+    'Last chance to submit your W9 for {EVENT_NAME}',
     'guests/band_w9_reminder.txt',
     lambda b: b.payment and not b.taxes_status,
     when=days_before(3, c.BAND_TAXES_DEADLINE),
-    ident='band_w9_reminder')
+    ident='band_w9_reminder_last')
+
+BandEmailFixture(
+    'Reminder to sign up for selling merchandise at {EVENT_NAME}',
+    'guests/band_merch_reminder.txt',
+    lambda b: not b.merch_status,
+    when=days_before(14, c.BAND_MERCH_DEADLINE, 3),
+    ident='band_merch_reminder')
 
 BandEmailFixture(
     'Last chance to sign up for selling merchandise at {EVENT_NAME}',
     'guests/band_merch_reminder.txt',
     lambda b: not b.merch_status,
     when=days_before(3, c.BAND_MERCH_DEADLINE),
-    ident='band_merch_reminder')
+    ident='band_merch_reminder_last')
 
 BandEmailFixture(
-    '{EVENT_NAME} charity auction reminder',
+    'Reminder to submit items for the {EVENT_NAME} charity auction',
     'guests/band_charity_reminder.txt',
     lambda b: not b.charity_status,
-    when=days_before(3, c.BAND_CHARITY_DEADLINE),
+    when=days_before(14, c.BAND_CHARITY_DEADLINE, 3),
     ident='band_charity_reminder')
 
 BandEmailFixture(
-    '{EVENT_NAME} stage plot reminder',
+    'Last chance to submit items for the {EVENT_NAME} charity auction',
+    'guests/band_charity_reminder.txt',
+    lambda b: not b.charity_status,
+    when=days_before(3, c.BAND_CHARITY_DEADLINE),
+    ident='band_charity_reminder_last')
+
+BandEmailFixture(
+    'Reminder to submit a stage plot for {EVENT_NAME}',
+    'guests/band_stage_plot_reminder.txt',
+    lambda b: not b.stage_plot_status,
+    when=days_before(14, c.BAND_STAGE_PLOT_DEADLINE, 3),
+    ident='band_stage_plot_reminder')
+
+BandEmailFixture(
+    'Last chance to submit a stage plot for {EVENT_NAME}',
     'guests/band_stage_plot_reminder.txt',
     lambda b: not b.stage_plot_status,
     when=days_before(3, c.BAND_STAGE_PLOT_DEADLINE),
-    ident='band_stage_plot_reminder')
+    ident='band_stage_plot_reminder_last')
 
 GuestEmailFixture(
     'It\'s time to send us your info for {EVENT_NAME}!',
