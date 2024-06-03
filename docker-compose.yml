@@ -3,7 +3,7 @@ x-uber: &uber
   build: .
   env_file:
       - path: ./.env
-      - required: false
+        required: false
   environment:
     - PYTHONSTARTUP=/app/.pythonstartup.py
     - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
