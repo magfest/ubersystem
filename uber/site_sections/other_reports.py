@@ -33,7 +33,7 @@ class Root:
         header = ['Name', 'Badge Type', 'Badge #', 'Eligible']
         ordered_food_restrictions = []
         for val, label in c.FOOD_RESTRICTIONS.items():
-            ordered_food_restrictions.append(val)
+            ordered_food_restrictions.append(str(val))
             header.append(label)
         
         header.append('Notes')
