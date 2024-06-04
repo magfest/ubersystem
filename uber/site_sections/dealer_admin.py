@@ -190,6 +190,10 @@ class Root:
         group.status = old_status
 
         return {'group': group, 'example_attendee': example_attendee, 'example': example}
+    
+    def dealer_statuses(self, session, id, **params):
+        group = session.group(id)
+        return {'group': group}
 
     @ajax
     def unapprove(self, session, id, action, email_text, message=''):
