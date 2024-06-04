@@ -53,7 +53,7 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.add_column('group', sa.Column('shared_with_id', residue.UUID(), nullable=True))
-    op.create_foreign_key(op.f('fk_group_shared_with_id_group'), 'group', 'group', ['shared_with_id'], ['id'])
+    op.create_foreign_key(op.f('fk_group_shared_with_id_group'), 'group', 'group', ['shared_with_id'], ['id'], ondelete='SET NULL')
 
 
 def downgrade():

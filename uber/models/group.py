@@ -25,7 +25,7 @@ __all__ = ['Group']
 
 class Group(MagModel, TakesPaymentMixin):
     public_id = Column(UUID, default=lambda: str(uuid4()))
-    shared_with_id = Column(UUID, ForeignKey('group.id'), nullable=True)
+    shared_with_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     shared_with = relationship(
         'Group',
         foreign_keys='Group.shared_with_id',
