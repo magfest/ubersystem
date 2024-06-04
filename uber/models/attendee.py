@@ -510,7 +510,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.group and self.paid == c.PAID_BY_GROUP and self.has_or_will_have_badge:
             if not self.group.is_valid:
                 self.badge_status = c.INVALID_GROUP_STATUS
-            elif self.group.is_dealer and self.group.status != c.APPROVED:
+            elif self.group.is_dealer and self.group.status not in [c.APPROVED, c.SHARED]:
                 self.badge_status = c.UNAPPROVED_DEALER_STATUS
 
         if self.badge_status == c.INVALID_GROUP_STATUS and (
@@ -520,7 +520,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.UNAPPROVED_DEALER_STATUS and (not self.group or
                                                                 not self.group.is_dealer or
                                                                 self.paid != c.PAID_BY_GROUP or
-                                                                self.group.status == c.APPROVED):
+                                                                self.group.status in [c.APPROVED, c.SHARED]):
             self.badge_status = c.NEW_STATUS
 
         if self.badge_status == c.WATCHED_STATUS and not self.banned:
@@ -1197,7 +1197,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS, c.AT_DOOR_PENDING_STATUS]:
             return "Badge status is {}".format(self.badge_status_label)
 
-        if self.group and self.paid == c.PAID_BY_GROUP and self.group.is_dealer and self.group.status != c.APPROVED:
+        if self.group and self.paid == c.PAID_BY_GROUP and self.group.is_dealer \
+                and self.group.status not in [c.APPROVED, c.SHARED]:
             return "Unapproved dealer"
 
         if self.group and self.paid == c.PAID_BY_GROUP and self.group.amount_unpaid:

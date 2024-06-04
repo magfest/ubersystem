@@ -1478,6 +1478,12 @@ class Session(SessionManager):
             for attendee in [m for m in all_models if isinstance(m, Attendee)]:
                 if attendee.badge_num is not None and lower_bound <= attendee.badge_num <= upper_bound:
                     new_badge_num = max(new_badge_num, 1 + attendee.badge_num)
+                    # Make sure we didn't just run into the end of a badge number gap
+                    while new_badge_num <= upper_bound:
+                        if self.badge_num_in_use(new_badge_num):
+                            new_badge_num += 1
+                        else:
+                            break
 
             assert new_badge_num < upper_bound, 'There are no more badge numbers available in this range!'
 
@@ -1549,6 +1555,16 @@ class Session(SessionManager):
 
                 if needs_badge_num(attendee):
                     attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
+        
+        def badge_num_in_use(self, badge_num):
+            """
+            This is a last resort for assigning a non-duplicate badge number. It should only be needed
+            in the case where multiple badge numbers are being assigned inside one session commit, as it's
+            possible for them to run into duplicate numbers if there's a gap in assigned badge numbers
+            that is smaller than the quantity of badges getting assigned numbers.
+            """
+            dupe_num = self.query(Attendee.badge_num).filter(Attendee.badge_num == badge_num)
+            return bool(dupe_num.first())
 
         def auto_badge_num(self, badge_type):
             """

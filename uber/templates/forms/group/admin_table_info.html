@@ -9,6 +9,40 @@
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.status, extra_field=form_macros.form_input(table_info.convert_badges, label_text=table_info.convert_badges.label.text ~ " " ~ convert_explanation)) }}</div>
   {{ form_macros.toggle_fields_js(table_info.status, [table_info.convert_badges], on_values=[c.DECLINED], closest_hide_selector='.form-check') }}
+
+  {% if c.ALLOW_SHARED_TABLES %}
+    {% if group.table_shares %}
+    <div class="col-12 col-sm-6">
+      <div class="form-text">Shared Tables</div>
+      <div>
+      {% if group.table_shares|length == 1 %}
+      This {{ c.DEALER_TERM }} is sharing a table with {{ group.table_shares[0]|form_link(True) }}.
+      {% elif group.table_shares %}
+      This {{ c.DEALER_TERM }} is sharing a table with the following groups:
+      <ul>
+        {% for group in group.table_shares %}
+        <li>{{ group|form_link }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      </div>
+    </div>
+    {% else %}
+      <script type="text/javascript">
+        var showOrHideSharedName = function() {
+          toggleOn = $("#{{ table_info.status.id }}").val() == "{{ c.SHARED }}";
+          $("#{{ table_info.shared_with_name.id }}").closest('.col-12').toggle(toggleOn);
+        }
+        $().ready(function () {
+          showOrHideSharedName();
+          $('#{{ table_info.status.id }}').change(showOrHideSharedName);
+        });
+      </script>
+      {% set shared_link = '' if not table_info.shared_with_name else group.shared_with|form_link(True, 'View ') %}
+      <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.shared_with_name, admin_text=shared_link) }}</div>
+      </div><div class="row g-sm-3">
+    {% endif %}
+  {% endif %}
   <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.admin_notes) }}</div>
 </div>
 {% endblock %}
