@@ -82,6 +82,7 @@ class ArtShowApplication(MagModel):
     delivery_method = Column(Choice(c.ART_SHOW_DELIVERY_OPTS), default=c.BRINGING_IN)
     us_only = Column(Boolean, default=False)
     admin_notes = Column(UnicodeText, admin_only=True)
+    check_in_notes = Column(UnicodeText)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
     active_receipt = relationship(
         'ModelReceipt',

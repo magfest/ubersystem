@@ -184,6 +184,14 @@
   {{ macros.form_group(app, 'check_payable', label="Name on Check", placeholder=app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name, is_readonly=printable, use_bs5=True) }}
 {% endif %}
 </div>
+
+<div class="col-12">
+  <label class="form-text">Check-In Notes</label>
+  <div class="mb-3">
+    <textarea name="check_in_notes" class="form-control" rows="4">{{ app.check_in_notes }}</textarea>
+  </div>
+</div>
+
 <div class="table-responsive">
   <table class="table table-striped"{% if not printable %} id="datatable_{{ app.id }}" {% endif %}>
     <thead>
