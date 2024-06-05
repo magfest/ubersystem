@@ -28,7 +28,7 @@
     {# Problems that attendees should not contact registration over: #}
     {% if attendee.art_show_applications %}
         {% set abandon_hover_text %}Please contact {{ c.ART_SHOW_EMAIL|email_only }} to cancel your art show application first.{% endset %}
-    {% elif attendee.art_agent_applications %}
+    {% elif attendee.art_agent_apps %}
         {% set abandon_hover_text %}Please ask the artist you're agenting for to assign a new agent first.{% endset %}
     {% endif %}
 

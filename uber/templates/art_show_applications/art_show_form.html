@@ -2,6 +2,25 @@
 {% set max_tables = c.MAX_ART_TABLES if not admin_area else 30 %}
 {% set max_panels = c.MAX_ART_PANELS if not admin_area else 30 %}
 
+{% if app.delivery_method == c.AGENT and not app.current_agents %}
+  <div class="alert alert-warning">
+    <p>Your art show application does not have an agent assigned to bring and hang art.
+    {% if app.valid_agent_codes|length == 1 %}
+      Your agent code is <strong>{{ app.valid_agent_codes[0].code }}</strong>. Your agent can enter this code
+    {% else %}
+      Your agent can enter one of the available codes below
+    {% endif %}
+    after registering for {{ c.EVENT_NAME }} by 
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging in and editing their registration{% else %}using their registration confirmation link{% endif %}.</p>
+
+    {% if c.ONE_AGENT_PER_APP %}
+    <p>Applications are limited to one agent. Use the button below to cancel the existing code and generate a new one.</p>
+    <input type="hidden" form="cancel_agent_code" name="id" value="{{ app.valid_agent_codes[0].id }}" />
+    <button type="submit" form="cancel_agent_code" class="btn btn-danger">Generate New Code</button>
+    {% endif %}
+  </div>
+  {% endif %}
+
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
     <label for="artist_name" class="form-text">Artist Name</label>
@@ -46,23 +65,26 @@
   </div>
 </div>
 
-{% if app.agent_code and app.delivery_method == c.AGENT %}
-  <div class="row g-sm-3">
-    <div class="col-12">
-      <label for="agent_code" class="form-text">Agent</label>
-      {% if app.agent %}
-        {{ app.agent.full_name }} is currently assigned as your agent.
-      {% else %}
-        Your art show application does not have an agent assigned. Your agent code
-        is <strong>{{ app.agent_code }}</strong>. Your agent
-        can enter this code while preregistering for {{ c.EVENT_NAME }}, or after
-        registering by using their registration confirmation link.
-        {% endif %}
-      {% if not readonly %}
-      <input type="hidden" name="id" form="new_agent" value="{{ app.id }}" />
-      <br/><button type="submit" form="new_agent" class="btn btn-primary">Assign New Agent</button>
-      {% else %}</div>{% endif %}
-  </div>
+{% if app.delivery_method == c.AGENT %}
+  {% if not c.ONE_AGENT_PER_APP %}
+    <input type="hidden" form="add_agent_code" name="id" value="{{ app.id }}" />
+    <button type="submit" form="add_agent_code" class="btn btn-primary">Generate Another Agent Code</button>
+  {% endif %}
+
+  {% if app.current_agents or app.valid_agent_codes|length > 1 %}
+    {% for agent_code in app.valid_agent_codes %}
+      {% set label = "Agent" if agent_code.attendee else "Agent Code" %}
+      <div class="col-12 col-sm-6">
+        <label for="agent_code" class="form-text">{{ label }}{% if app.valid_agent_codes|length > 1 %}{{ loop.count }}{% endif %}</label>
+        <br/>{{ agent_code.attendee.full_name if agent_code.attendee else agent_code.code }}
+        {% if not readonly %}
+        &nbsp;
+          <input type="hidden" form="cancel_agent_code" name="id" value="{{ app.valid_agent_codes[0].id }}" />
+          <button type="submit" form="cancel_agent_code" class="btn btn-danger btn-sm">{{ "Remove Agent" if agent_code.attendee else "Cancel Code" }}</button>
+      {% endif %}
+      </div>
+    {% endfor %}
+{% endif %}
 {% endif %}
 
 <div class="row g-sm-3">

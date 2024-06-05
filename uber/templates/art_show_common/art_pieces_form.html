@@ -135,7 +135,7 @@
       <div class="col-12 col-sm-6">
         <label for="banner_name" class="form-text">Banner Name</label>
         {% if readonly %}
-          {{ app.banner_name or app.artist_name or app.attendee.full_name }}
+          {{ app.display_name }}
         {% else %}
           <input type="text" class="form-control" name="banner_name" id="banner_name" value="{{ app.banner_name }}" placeholder="{{ app.artist_name or app.attendee.full_name }}"/>
           {% if not admin_area %}<p class="form-text">The name displayed with your art.</p>{% endif %}

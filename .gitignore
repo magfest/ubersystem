@@ -36,3 +36,5 @@ config*.ini
 uber.ini
 .env
 .venv/
+ssl-cert.pem
+ssl-key.pem

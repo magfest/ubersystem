@@ -223,12 +223,6 @@
         }
 
         $(function() {
-            {% if c.PRE_CON and c.SLOW_LOAD_CHECK %}
-            $(window).on('load', function() {
-                $(".loader").fadeOut("fast");
-            });
-            {% endif %}
-
             // This nonsense is so we can have line breaks AND unescaped quotes in our messages
             var message = '{{ message|sanitize_html|tojson if message else "" }}';
             var error_message = '{{ error_message|sanitize_html|tojson if error_message else "" }}';
@@ -416,9 +410,6 @@
     {% block head_additional %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100">
-    {% if c.PRE_CON and c.SLOW_LOAD_CHECK %}
-        <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
-    {% endif %}
     {% block top_of_body_additional %}
         {% if admin_area %}
             <div id="floating_logo">

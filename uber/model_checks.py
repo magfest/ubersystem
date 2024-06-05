@@ -1051,11 +1051,9 @@ def volunteers_cellphone_or_checkbox(attendee):
 def promo_code_is_useful(attendee):
     if attendee.promo_code:
         with Session() as session:
-            if session.lookup_agent_code(attendee.promo_code.code):
-                return
-            code = session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCode)
-            group = code.group if code and code.group else session.lookup_promo_or_group_code(attendee.promo_code.code,
-                                                                                              PromoCodeGroup)
+            code = session.lookup_registration_code(attendee.promo_code.code, PromoCode)
+            group = code.group if code and code.group else session.lookup_registration_code(attendee.promo_code.code,
+                                                                                            PromoCodeGroup)
             if group and group.total_cost == 0:
                 return
 
@@ -1107,18 +1105,6 @@ def banned_volunteer(attendee):
         return ('staffing', "We've declined to invite {} back as a volunteer, ".format(attendee.full_name) + (
                     'talk to STOPS to override if necessary' if c.AT_THE_CON else
                     'Please contact us via {} if you believe this is in error'.format(c.CONTACT_URL)))
-
-
-@validation.Attendee
-def agent_code_already_used(attendee):
-    if attendee.promo_code:
-        with Session() as session:
-            apps_with_code = session.lookup_agent_code(attendee.promo_code.code)
-            if apps_with_code:
-                for app in apps_with_code:
-                    if not app.agent_id or app.agent_id == attendee.id:
-                        return
-                return ('promo_code', "That agent code has already been used.")
 
 
 @validation.Attendee

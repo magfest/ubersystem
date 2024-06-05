@@ -62,7 +62,7 @@ def _add_promo_code(session, attendee, submitted_promo_code):
     if attendee.promo_code and submitted_promo_code != attendee.promo_code_code:
         attendee.promo_code = None
     if c.BADGE_PROMO_CODES_ENABLED and submitted_promo_code:
-        if session.lookup_promo_or_group_code(submitted_promo_code, PromoCodeGroup):
+        if session.lookup_registration_code(submitted_promo_code, PromoCodeGroup):
             PreregCart.universal_promo_codes[attendee.id] = submitted_promo_code
         session.add_promo_code_to_attendee(attendee, submitted_promo_code)
 
@@ -1127,7 +1127,7 @@ class Root:
 
     def email_promo_code(self, session, group_id, message='', **params):
         if cherrypy.request.method == 'POST':
-            code = session.lookup_promo_or_group_code(params.get('code'))
+            code = session.lookup_registration_code(params.get('code'))
             if not code:
                 message = "This code is invalid. If it has not been claimed, please contact us at {}".format(
                     email_only(c.REGDESK_EMAIL))
@@ -1735,7 +1735,8 @@ class Root:
         if account and not account.hashed:
             return {'success': False,
                     'message': "We had an issue logging you into your account. Please contact an administrator."}
-        elif not account or not bcrypt.hashpw(password, account.hashed) == account.hashed:
+        elif not account or not bcrypt.hashpw(password.encode('utf-8'),
+                                              account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             return {'success': False, 'message': "Incorrect email/password combination."}
 
         cherrypy.session['attendee_account_id'] = account.id
@@ -2175,7 +2176,8 @@ class Root:
 
         if not password:
             message = 'Please enter your current password to make changes to your account.'
-        elif not bcrypt.hashpw(password.encode('utf-8'), account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
+        elif not bcrypt.hashpw(password.encode('utf-8'),
+                               account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             message = 'Incorrect password'
 
         if not message:
@@ -2247,7 +2249,8 @@ class Root:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
             message = 'This link has expired. Please use the "forgot password" option to get a new link.'
-        elif bcrypt.hashpw(token.encode('utf-8'), account.password_reset.hashed.encode('utf-8')) != account.password_reset.hashed.encode('utf-8'):
+        elif bcrypt.hashpw(token.encode('utf-8'),
+                           account.password_reset.hashed.encode('utf-8')) != account.password_reset.hashed.encode('utf-8'):
             message = 'Invalid token. Did you copy the URL correctly?'
 
         if message:

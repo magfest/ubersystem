@@ -2,7 +2,7 @@
 
 <p>
     We already have a <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> with email address {{ attendee.email }} in our database with a
-{% if attendee.paid == c.PAID_BY_GROUP and attendee.group.is_dealer and attendee.group.status != c.APPROVED %}
+{% if attendee.paid == c.PAID_BY_GROUP and attendee.group.is_dealer and attendee.group.status in [c.APPROVED, c.SHARED] %}
     {{ attendee.group.status_label }}
 {% elif attendee.paid == c.HAS_PAID or attendee.paid == c.PAID_BY_GROUP %}
     paid

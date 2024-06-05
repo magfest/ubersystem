@@ -1,13 +1,14 @@
 import cherrypy
+from datetime import datetime
 
 from uber.config import c
 from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
-from uber.models import ArtShowApplication
+from uber.models import ArtShowAgentCode, ArtShowApplication
 from uber.payments import TransactionRequest
 from uber.tasks.email import send_email
-from uber.utils import check
+from uber.utils import check, RegistrationCode
 
 
 @all_renderable(public=True)
@@ -75,6 +76,9 @@ class Root:
 
         app = session.art_show_application(params, restricted='art_show_applications' in return_to,
                                            ignore_csrf=True)
+        if not app.valid_agent_codes and app.delivery_method == c.AGENT:
+            session.add(app.generate_new_agent_code())
+            session.commit()
 
         if cherrypy.request.method == 'POST':
             message = check(app, prereg='art_show_applications' in return_to)
@@ -239,35 +243,48 @@ class Root:
 
         raise HTTPRedirect('edit?id={}&message={}', app.id, message)
 
-    def new_agent(self, session, **params):
-        app = session.art_show_application(params['id'])
-        promo_code = session.promo_code(code=app.agent_code)
-        message = 'Agent code updated'
+    def cancel_agent_code(self, session, id, **params):
+        old_code = session.art_show_agent_code(id)
+        app = old_code.app
+        message = 'Agent code cancelled.'
         page = "edit" if 'admin' not in params else "../art_show_admin/form"
 
-        app.agent_code = app.new_agent_code()
-        session.delete(promo_code)
-        if app.agent:
-            message = 'Agent removed and code updated'
+        old_code.cancelled = datetime.now()
+
+        if old_code.attendee:
+            message = 'Agent removed.'
             send_email.delay(
                 c.ART_SHOW_EMAIL,
-                [app.agent.email_to_address, app.attendee.email_to_address],
+                [old_code.attendee.email_to_address, app.attendee.email_to_address],
                 '{} Art Show Agent Removed'.format(c.EVENT_NAME),
                 render('emails/art_show/agent_removed.html',
-                       {'app': app}, encoding=None), 'html',
+                       {'app': app, 'agent': old_code.attendee}, encoding=None), 'html',
                 model=app.to_dict('id'))
-            app.agent_id = None
 
-        send_email.delay(
-            c.ART_SHOW_EMAIL,
-            app.attendee.email_to_address,
-            'New Agent Code for the {} Art Show'.format(c.EVENT_NAME),
-            render('emails/art_show/agent_code.html',
-                   {'app': app}, encoding=None), 'html',
-            model=app.to_dict('id'))
+        session.commit()
+        session.refresh(app)
+        if not app.valid_agent_codes:
+            new_code = app.generate_new_agent_code()
+            session.add(new_code)
+            if page == 'edit':
+                message += f' Your new agent code is {new_code.code}.'
+            else:
+                send_email.delay(
+                    c.ART_SHOW_EMAIL,
+                    app.attendee.email_to_address,
+                    'New Agent Code for the {} Art Show'.format(c.EVENT_NAME),
+                    render('emails/art_show/agent_code.html',
+                        {'app': app, 'agent_code': new_code}, encoding=None), 'html',
+                    model=app.to_dict('id'))
 
-        raise HTTPRedirect('{}?id={}&message={}',
-                           page, app.id, message)
+        raise HTTPRedirect('{}?id={}&message={}', page, app.id, message)
+    
+    def add_agent_code(self, session, id, **pararms):
+        app = session.art_show_application(id)
+        new_code = app.generate_new_agent_code()
+        session.add(new_code)
+
+        raise HTTPRedirect('edit?message=', f'New agent code "{new_code.code}" added!')
 
     def new_agent_app(self, session, id, **params):
         agent = session.attendee(id)
@@ -278,18 +295,17 @@ class Root:
             message = check(agent)
 
         if not message:
-            message = 'That application already has an agent.'
+            agent_code = session.lookup_registration_code(params['agent_code'], ArtShowAgentCode)
+            if not agent_code:
+                message = 'We could not find that code!'
+            elif agent_code.cancelled:
+                message = 'That code can no longer be used.'
+            
+        if not message:
+            agent_code.attendee = agent
+            message = f'You are now an agent for {agent_code.app.display_name}.'                   
 
-            matching_apps = session.lookup_agent_code(params['agent_code'])
-            for app in matching_apps:
-                if not app.agent:
-                    app.agent = agent
-                    name = app.artist_name or app.attendee.full_name
-                    message = 'You are now an agent for {}.'\
-                        .format(name)
-
-        raise HTTPRedirect('../preregistration/confirm?id={}&message={}',
-                           id, message)
+        raise HTTPRedirect('../preregistration/confirm?id={}&message={}', id, message)
 
     @ajax
     @credit_card

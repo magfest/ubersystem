@@ -8,6 +8,7 @@
     Art Show Application Information
   </div>
   <div class="card-body">
+    {% include 'confirm_tabs.html' with context %}
     {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.badge_status != c.NOT_ATTENDING or attendee.marketplace_applications %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
@@ -74,7 +75,8 @@
       Unfortunately, since your application has been {{ app.status_label|lower }}, you may no longer edit it. However,
       you may still view the details of your application below. <br/><br/>
       {% endif %}
-    <form method="post" id="new_agent" action="new_agent" role="form"></form>
+    <form method="post" id="cancel_agent_code" action="cancel_agent_code" role="form"></form>
+    <form method="post" id="add_agent_code" action="add_agent_code"></form>
     <form method="post" action="edit" class="form-horizontal" role="form">
       <input type="hidden" name="id" value="{{ app.id }}">
 
