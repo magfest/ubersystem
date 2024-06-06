@@ -494,7 +494,7 @@ class CheckInForm(MagForm):
     badge_type = HiddenIntField('Badge Type')
     badge_num = StringField('Badge Number', id="checkin_badge_num", default='', validators=[
         validators.DataRequired('Badge number is required.'),
-    ])
+    ] if c.NUMBERED_BADGES else [])
     badge_printed_name = PersonalInfo.badge_printed_name
     got_merch = AdminBadgeExtras.got_merch
     got_staff_merch = AdminStaffingInfo.got_staff_merch
