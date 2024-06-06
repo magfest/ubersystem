@@ -67,21 +67,32 @@ app, c.PAGE_PATH,
         <p class="help-block col-sm-6 col-sm-offset-3">Changing this may trigger an email to the attendee.</p>
       </div>
 
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Paid?</label>
-        <div class="col-sm-6">
-          {% if app.status == c.APPROVED %}
-          <div class="form-inline">
-          <span id="amount_paid" class="form-control-static">
-            {{ (app.amount_paid / 100)|format_currency }} out of {{ app.total_cost|format_currency }}
-          </span>
+      <div class="row g-3 form-group">
+        <div class="col-12 col-sm-6">
+          <label class="col-12 control-label">Paid?</label>
+          <div class="col-12">
+            {% if app.status == c.APPROVED %}
+            <div class="form-inline">
+            <span id="amount_paid" class="form-control-static">
+              {{ (app.amount_paid / 100)|format_currency }} out of {{ app.total_cost|format_currency }}
+            </span>
+            </div>
+            {% else %}
+            <p class="form-control-static">
+              N/A
+            </p>
+            {% endif %}
           </div>
-          {% else %}
-          <p class="form-control-static">
-            N/A
-          </p>
-          {% endif %}
         </div>
+        <div class="col-12 col-sm-6">
+          <label class="col-12 control-label">Payout Method</label>
+          <div class="col-12">
+            <select class="form-select" name="payout_method">
+              {{ options(c.ARTIST_PAYOUT_METHOD_OPTS, app.payout_method) }}
+            </select>
+          </div>
+        </div>
+
         {% if app.amount_unpaid %}
           {% if not app.is_new and (not c.AT_THE_CON or not c.SPIN_TERMINAL_AUTH_KEY) %}
           <div class="clearfix"></div>

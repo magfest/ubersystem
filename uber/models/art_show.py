@@ -59,6 +59,7 @@ class ArtShowApplication(MagModel):
     locations = Column(UnicodeText)
     artist_name = Column(UnicodeText)
     artist_id = Column(UnicodeText, admin_only=True)
+    payout_method = Column(Choice(c.ARTIST_PAYOUT_METHOD_OPTS), default=c.CHECK)
     banner_name = Column(UnicodeText)
     check_payable = Column(UnicodeText)
     hotel_name = Column(UnicodeText)
