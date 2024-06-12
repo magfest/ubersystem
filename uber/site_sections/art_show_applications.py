@@ -34,10 +34,9 @@ class Root:
         if cherrypy.request.method == 'POST':
             attendee, message = session.attendee_from_art_show_app(**params)
 
-            if attendee and attendee.badge_status == c.NOT_ATTENDING \
+            if not c.INDEPENDENT_ART_SHOW and attendee and attendee.badge_status == c.NOT_ATTENDING \
                     and app.delivery_method == c.BRINGING_IN:
-                message = 'You cannot bring your own art ' \
-                          'if you are not attending.'
+                message = 'You cannot bring your own art if you are not attending.'
 
             message = message or check(attendee) or check(app, prereg=True)
             if not message:

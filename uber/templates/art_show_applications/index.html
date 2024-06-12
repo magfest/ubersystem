@@ -1,6 +1,7 @@
 {% extends "preregistration/preregbase.html" %}
 {% block title %}Art Show Application{% endblock %}
 {% block content %}
+{% if not c.INDEPENDENT_ART_SHOW %}
 <script type="text/javascript">
     var showOrHideNewBadge = function() {
         var noBadgeChecked = $.field("new_badge").prop('checked');
@@ -13,6 +14,7 @@
         $.field('new_badge').on('click', showOrHideNewBadge);
     });
 </script>
+{% endif %}
 <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
 <div class="card">
   <div class="card-body">
@@ -48,6 +50,7 @@
 
     <form method="post" action="index" role="form">
       <h3>Your Information</h3>
+      {% if not c.INDEPENDENT_ART_SHOW %}
       <div class="row g-sm-3">
         <div class="col-12 col-sm-6">
           <label for="attendee_id" class="form-text">Confirmation Number</label>
@@ -73,6 +76,7 @@
           opportunity to complete your registration after submitting your application.
         </p>
       </div>
+      {% endif %}
 
       {% include 'art_show_applications/new_attendee_fields.html' %}
 
