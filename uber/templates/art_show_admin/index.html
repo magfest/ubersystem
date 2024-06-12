@@ -34,8 +34,10 @@
     <th>General Tables</th>
     <th>Mature Panels</th>
     <th>Mature Tables</th>
+    {% if c.ART_SHOW_HAS_FEES %}
     <th>Cost</th>
     <th>Owed</th>
+    {% endif %}
     <th>Admin Notes</th>
 </tr></thead>
 {% for app in applications %}
@@ -51,8 +53,10 @@
         <td>{{ app.tables }}</td>
         <td>{{ app.panels_ad }}</td>
         <td>{{ app.tables_ad }}</td>
+        {% if c.ART_SHOW_HAS_FEES %}
         <td>{{ app.total_cost|format_currency }}</td>
         <td>{{ app.amount_unpaid|format_currency }}</td>
+        {% endif %}
         <td>{{ app.admin_notes }}</td>
     </tr>
 {% endfor %}
