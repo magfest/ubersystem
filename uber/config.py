@@ -381,6 +381,10 @@ class Config(_Overridable):
     @property
     def ART_SHOW_OPEN(self):
         return self.AFTER_ART_SHOW_REG_START and self.BEFORE_ART_SHOW_DEADLINE
+    
+    @property
+    def ART_SHOW_HAS_FEES(self):
+        return c.COST_PER_PANEL or c.COST_PER_TABLE or c.ART_MAILING_FEE
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):

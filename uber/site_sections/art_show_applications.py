@@ -41,7 +41,7 @@ class Root:
 
             message = message or check(attendee) or check(app, prereg=True)
             if not message:
-                if c.AFTER_ART_SHOW_WAITLIST:
+                if c.ART_SHOW_WAITLIST and c.AFTER_ART_SHOW_WAITLIST:
                     app.status = c.WAITLISTED
                 session.add(attendee)
                 app.attendee = attendee

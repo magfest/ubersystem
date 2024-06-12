@@ -37,7 +37,7 @@ app, c.PAGE_PATH,
 
       {% if new_app or c.HAS_ART_SHOW_ADMIN_ACCESS %}
       <div class="form-group">
-        <label for="attendee" class="col-sm-3 control-label">Attendee</label>
+        <label for="attendee" class="col-sm-3 form-text">Attendee</label>
         <div class="col-sm-6">
           <select class="form-select" id="attendee_id" name="attendee_id" required="true">
             <option value="" selected="selected">Select an attendee</option>
@@ -47,7 +47,7 @@ app, c.PAGE_PATH,
       </div>
       {% else %}
       <div class="form-group">
-        <label for="attendee" class="col-sm-3 control-label">Attendee Badge Status</label>
+        <label for="attendee" class="col-sm-3 form-text">Attendee Badge Status</label>
         <div class="col-sm-6">
           <select class="form-select" id="badge_status" name="badge_status">
             {{ options(c.BADGE_STATUS_OPTS, app.attendee.badge_status) }}
@@ -57,7 +57,7 @@ app, c.PAGE_PATH,
       {% endif %}
 
       <div class="form-group">
-        <label for="status" class="col-sm-3 control-label">Application Status</label>
+        <label for="status" class="col-sm-3 form-text">Application Status</label>
         <div class="col-sm-6">
           <select class="form-select" name="status">
             {{ options(c.ART_SHOW_STATUS_OPTS, app.status) }}
@@ -68,8 +68,9 @@ app, c.PAGE_PATH,
       </div>
 
       <div class="row g-3 form-group">
+        {% if c.ART_SHOW_HAS_FEES %}
         <div class="col-12 col-sm-6">
-          <label class="col-12 control-label">Paid?</label>
+          <label class="col-12 form-text">Paid?</label>
           <div class="col-12">
             {% if app.status == c.APPROVED %}
             <div class="form-inline">
@@ -84,8 +85,9 @@ app, c.PAGE_PATH,
             {% endif %}
           </div>
         </div>
+        {% endif %}
         <div class="col-12 col-sm-6">
-          <label class="col-12 control-label">Payout Method</label>
+          <label class="col-12 form-text">Payout Method</label>
           <div class="col-12">
             <select class="form-select" name="payout_method">
               {{ options(c.ARTIST_PAYOUT_METHOD_OPTS, app.payout_method) }}
@@ -109,8 +111,9 @@ app, c.PAGE_PATH,
 
       {% include 'art_show_applications/art_show_form.html' %}
 
+      {% if c.ART_SHOW_HAS_FEES %}
       <div class="form-group">
-        <label class="col-sm-3 control-label">Discounted Price</label>
+        <label class="col-sm-3 form-text">Discounted Price</label>
         <div class="col-sm-2">
           <input type="text" class="form-control" name="overridden_price"
                  value="{{ app.overridden_price if app.overridden_price != None else '' }}" />
@@ -124,16 +127,22 @@ app, c.PAGE_PATH,
           {% if app.status != c.APPROVED %}<br/>Attendees are only asked to pay once their applications are approved.
           {% endif %}</p>
       </div>
+      {% endif %}
 
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Check-In Notes</label>
-        <div class="col-sm-6">
+      <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Check-In Notes</label>
           <textarea name="check_in_notes" class="form-control" rows="4">{{ app.check_in_notes }}</textarea>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Agent Notes</label>
+          <textarea name="agent_notes" class="form-control" rows="4">{{ app.agent_notes }}</textarea>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Admin Notes</label>
-        <div class="col-sm-6">
+      <div class="row mb-3 g-sm-3">
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Admin Notes</label>
           <textarea name="admin_notes" class="form-control" rows="4">{{ app.admin_notes }}</textarea>
         </div>
       </div>

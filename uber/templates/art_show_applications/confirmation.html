@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card">
   <div class="card-body">
-    <h2>{% if c.AFTER_ART_SHOW_WAITLIST %}You've been added to our waitlist!
+    <h2>{% if c.ART_SHOW_WAITLIST and c.AFTER_ART_SHOW_WAITLIST %}You've been added to our waitlist!
       {% else %}Thanks for applying for the Art Show!{% endif %}</h2>
 
     <p>We've received your application for the {{ c.EVENT_NAME }} Art Show. You applied for {{ app.panels }}
@@ -17,7 +17,7 @@
     if and when your application is approved.</p>
     {% endif %}
 
-    {% if c.AFTER_ART_SHOW_WAITLIST %}
+    {% if c.ART_SHOW_WAITLIST and c.AFTER_ART_SHOW_WAITLIST %}
     <p>You've been added to our waitlist, and we'll let you know if a spot opens up for you.</p>
     {% endif %}
 

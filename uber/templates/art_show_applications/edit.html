@@ -9,9 +9,6 @@
   </div>
   <div class="card-body">
     {% include 'confirm_tabs.html' with context %}
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.badge_status != c.NOT_ATTENDING or attendee.marketplace_applications %}
-      {% include 'confirm_tabs.html' with context %}
-    {% endif %}
       {% if app.status == c.APPROVED %}
       Congratulations, your application has been approved!
         {% if not app.incomplete_reason and app.amount_unpaid %}

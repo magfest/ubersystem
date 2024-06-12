@@ -316,12 +316,13 @@ if c.ART_SHOW_ENABLED:
         ident='art_show_payment_received'
     )
 
-    ArtShowAppEmailFixture(
-        'Reminder to pay for your {EVENT_NAME} Art Show application',
-        'art_show/payment_reminder.txt',
-        lambda a: a.status == c.APPROVED and a.is_unpaid,
-        when=days_between((14, c.ART_SHOW_PAYMENT_DUE), (1, c.EPOCH)),
-        ident='art_show_payment_reminder')
+    if c.ART_SHOW_HAS_FEES:
+        ArtShowAppEmailFixture(
+            'Reminder to pay for your {EVENT_NAME} Art Show application',
+            'art_show/payment_reminder.txt',
+            lambda a: a.status == c.APPROVED and a.is_unpaid,
+            when=days_between((14, c.ART_SHOW_PAYMENT_DUE), (1, c.EPOCH)),
+            ident='art_show_payment_reminder')
 
     ArtShowAppEmailFixture(
         '{EVENT_NAME} Art Show piece entry needed',
@@ -341,7 +342,8 @@ if c.ART_SHOW_ENABLED:
         '{EVENT_NAME} Art Show MAIL IN Instructions',
         'art_show/mailing_in.html',
         lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.BY_MAIL,
-        when=days_between((c.ART_SHOW_REG_START, 13), (16, c.ART_SHOW_WAITLIST)),
+        when=days_between((c.ART_SHOW_REG_START, 13),
+                          (16, c.ART_SHOW_WAITLIST if c.ART_SHOW_WAITLIST else c.ART_SHOW_DEADLINE)),
         ident='art_show_mail_in')
 
 
