@@ -39,7 +39,7 @@
     <select name="delivery_method" class="form-select">
       {{ options(c.ART_SHOW_DELIVERY_OPTS, app.delivery_method) }}
     </select>
-      {% if not admin_area %}
+      {% if not admin_area and c.ART_MAILING_FEE %}
       <p class="form-text">Mailing your art to the show incurs a fee of {{ c.ART_MAILING_FEE|format_currency }}.</p>
       {% endif %}
     {% endif %}
@@ -98,7 +98,7 @@
     {% else %}
       <select class="form-select" name="panels" id="panels">
         {{ int_options(0, max_panels, app.panels) }}
-      </select>({{ c.COST_PER_PANEL|format_currency }} per panel)
+      </select>{% if c.COST_PER_PANEL %}({{ c.COST_PER_PANEL|format_currency }} per panel){% endif %}
     {% endif %}
   </div>
   <div class="col-12 col-sm-6">
@@ -111,7 +111,7 @@
     {% else %}
       <select class="form-select" name="tables" id="tables">
         {{ int_options(0, max_tables, app.tables) }}
-      </select>({{ c.COST_PER_TABLE|format_currency }} per table section)
+      </select>{% if c.COST_PER_TABLE %}({{ c.COST_PER_TABLE|format_currency }} per table section){% endif %}
     {% endif %}
   </div>
 </div>
@@ -127,7 +127,7 @@
     {% else %}
       <select class="form-select" id="panels_ad" name="panels_ad">
         {{ int_options(0, max_panels, app.panels_ad) }}
-      </select>{% if not no_help_text %}({{ c.COST_PER_PANEL|format_currency }} per panel){% endif %}
+      </select>{% if c.COST_PER_PANEL %}({{ c.COST_PER_PANEL|format_currency }} per panel){% endif %}
       {% endif %}
     </div>
     <div class="col-12 col-sm-6">
@@ -140,7 +140,7 @@
       {% else %}
         <select class="form-select" name="tables_ad" id="tables_ad">
           {{ int_options(0, max_tables, app.tables_ad) }}
-        </select>{% if not no_help_text %}({{ c.COST_PER_TABLE|format_currency }} per table section){% endif %}
+        </select>{% if c.COST_PER_TABLE %}({{ c.COST_PER_TABLE|format_currency }} per table section){% endif %}
       {% endif %}
     </div>
 </div>

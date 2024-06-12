@@ -36,7 +36,7 @@ confirmation link they receive by email when they register.
 {% endif %}
 
 <br/><br/>
-{% if c.AFTER_ART_SHOW_WAITLIST %}
+{% if c.ART_SHOW_WAITLIST and c.AFTER_ART_SHOW_WAITLIST %}
     Because our art show is currently full, your submission has been automatically placed on our waitlist.  We'll let
     you know if your application is later approved.
 {% else %}

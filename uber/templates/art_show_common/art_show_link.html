@@ -12,7 +12,7 @@
           {% elif app.status == c.DECLINED %}
           Unfortunately, we were not able to accept your application.
           {% else %}
-          Your application has been approved! {% if app.is_unpaid %}Please make sure to pay before the
+          Your application has been approved! {% if c.ART_SHOW_HAS_FEES and app.is_unpaid %}Please make sure to pay before the
           deadline of {{ c.ART_SHOW_PAYMENT_DUE|datetime_local }}.{% endif %}
           {% endif %}
           You may view your art show application
@@ -20,7 +20,7 @@
         {% endfor %}
       {% elif not admin_area %}
         You have not yet applied for the {{ c.EVENT_NAME }} art show! You may apply
-        <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" target="_blank">here</a>{% if c.AFTER_ART_SHOW_WAITLIST %} to be added to the waiting list{% endif %}.
+        <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" target="_blank">here</a>{% if c.ART_SHOW_WAITLIST and c.AFTER_ART_SHOW_WAITLIST %} to be added to the waiting list{% endif %}.
         Art show applications close on {{ c.ART_SHOW_DEADLINE|datetime_local }}.
       {% elif attendee.art_show_applications and c.HAS_ART_SHOW_ADMIN_ACCESS %}
         {% for app in attendee.art_show_applications %}
