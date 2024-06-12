@@ -8,7 +8,9 @@
     Art Show Application Information
   </div>
   <div class="card-body">
-    {% include 'confirm_tabs.html' with context %}
+    {% if not c.INDEPENDENT_ART_SHOW %}
+      {% include 'confirm_tabs.html' with context %}
+    {% endif %}
       {% if app.status == c.APPROVED %}
       Congratulations, your application has been approved!
         {% if not app.incomplete_reason and app.amount_unpaid %}

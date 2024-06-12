@@ -843,7 +843,7 @@ def us_only(app):
 
 @validation.ArtShowApplication
 def cant_ghost_art_show(app):
-    if app.attendee and app.delivery_method == c.BRINGING_IN \
+    if not c.INDEPENDENT_ART_SHOW and app.attendee and app.delivery_method == c.BRINGING_IN \
             and app.attendee.badge_status == c.NOT_ATTENDING:
         return 'You cannot bring your own art if you are not attending.'
 
