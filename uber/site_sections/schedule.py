@@ -133,7 +133,7 @@ class Root:
                     begin=event.start_time,
                     end=(event.start_time + timedelta(minutes=event.minutes)),
                     description=normalize_newlines(event.description),
-                    created=event.created.when,
+                    created=event.created_info.when,
                     location=event.location_label))
 
         cherrypy.response.headers['Content-Type'] = \
