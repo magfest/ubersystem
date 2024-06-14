@@ -1439,12 +1439,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def num_free_event_shirts(self):
         """
-        If someone is staff-shirt-eligible, we use the number of event shirts they have selected (if any)
-        Volunteers also get a free event shirt.
+        If someone is staff-shirt-eligible, we use the number of event shirts they have selected (if any).
+        Volunteers also get a free event shirt. Staff get an event shirt if staff shirts are turned off for the event.
         Returns: Integer representing the number of free event shirts this attendee should get.
-
         """
-        return max(0, self.num_event_shirts) if self.gets_staff_shirt else self.volunteer_event_shirt_eligible
+        return max(0, self.num_event_shirts) if self.gets_staff_shirt else bool(
+            self.volunteer_event_shirt_eligible or (self.badge_type == c.STAFF_BADGE and c.HOURS_FOR_SHIRT))
 
     @property
     def volunteer_event_shirt_eligible(self):

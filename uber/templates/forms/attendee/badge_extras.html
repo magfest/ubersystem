@@ -57,7 +57,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     <div class="row g-sm-3">
         <div class="col-12 col-sm-6">
             <div class="form-text">{{ badge_extras.amount_extra.label.text }}</div>
-            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
+            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label or "None" }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
         </div>
     </div>
 {% endif %}
