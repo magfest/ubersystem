@@ -813,26 +813,41 @@ ArtShowApplication.required = [('description', 'Description'), ('website', 'Webs
 
 @prereg_validation.ArtShowApplication
 def max_panels(app):
-    if app.panels > c.MAX_ART_PANELS and app.panels != app.orig_value_of('panels'):
+    if app.panels > c.MAX_ART_PANELS and app.panels != app.orig_value_of('panels') or \
+        app.panels_ad > c.MAX_ART_PANELS and app.panels_ad != app.orig_value_of('panels_ad'):
         return 'You cannot have more than {} panels.'.format(c.MAX_ART_PANELS)
 
 
 @prereg_validation.ArtShowApplication
 def min_panels(app):
-    if app.panels < 0:
+    if app.panels < 0 or app.panels_ad < 0:
         return 'You cannot have fewer than 0 panels.'
 
 
 @prereg_validation.ArtShowApplication
 def max_tables(app):
-    if app.tables > c.MAX_ART_TABLES and app.tables != app.orig_value_of('tables'):
+    if app.tables > c.MAX_ART_TABLES and app.tables != app.orig_value_of('tables') or \
+        app.tables_ad > c.MAX_ART_TABLES and app.tables_ad != app.orig_value_of('tables_ad'):
         return 'You cannot have more than {} tables.'.format(c.MAX_ART_TABLES)
 
 
 @prereg_validation.ArtShowApplication
 def min_tables(app):
-    if app.tables < 0:
+    if app.tables < 0 or app.tables_ad < 0:
         return 'You cannot have fewer than 0 tables.'
+
+
+@prereg_validation.ArtShowApplication
+def invalid_mature_banner(app):
+    if app.banner_name_ad and not app.has_mature_space:
+        return "You cannot enter a banner name for the mature gallery without any space in the mature gallery."
+
+
+@prereg_validation.ArtShowApplication
+def contact_at_con(app):
+    if not app.contact_at_con:
+        return "Please tell us the best way to get a hold of you at the event, e.g., " \
+        "your mobile number or your hotel and room number."
 
 
 @validation.ArtShowApplication

@@ -61,9 +61,12 @@ class ArtShowApplication(MagModel):
     artist_id = Column(UnicodeText, admin_only=True)
     payout_method = Column(Choice(c.ARTIST_PAYOUT_METHOD_OPTS), default=c.CHECK)
     banner_name = Column(UnicodeText)
+    banner_name_ad = Column(UnicodeText)
+    artist_id_ad = Column(UnicodeText, admin_only=True)
     check_payable = Column(UnicodeText)
     hotel_name = Column(UnicodeText)
     hotel_room_num = Column(UnicodeText)
+    contact_at_con = Column(UnicodeText)
     panels = Column(Integer, default=0)
     panels_ad = Column(Integer, default=0)
     tables = Column(Integer, default=0)
@@ -107,24 +110,34 @@ class ArtShowApplication(MagModel):
     def add_artist_id(self):
         from uber.models import Session
         if self.status == c.APPROVED and not self.artist_id:
-            with Session() as session:
-                # Kind of inefficient, but doing one big query for all the existing
-                # codes will be faster than a separate query for each new code.
-                old_codes = set(
-                    s for (s,) in session.query(ArtShowApplication.artist_id).all())
+            self.artist_id = self.generate_artist_id(self.banner_name)
+    
+    @presave_adjustment
+    def add_artist_id_ad(self):
+        if self.status == c.APPROVED and self.has_mature_space and self.banner_name_ad and not self.artist_id_ad:
+            self.artist_id_ad = self.generate_artist_id(self.banner_name_ad)
 
-            code_candidate = self._get_code_from_name(self.artist_name, old_codes) \
-                or self._get_code_from_name(self.attendee.last_name, old_codes) \
-                or self._get_code_from_name(self.attendee.first_name, old_codes)
+    def generate_artist_id(self, banner_name):
+        from uber.models import Session
+        with Session() as session:
+            # Kind of inefficient, but doing one big query for all the existing
+            # codes will be faster than a separate query for each new code.
+            old_codes = set(
+                s for (s,) in session.query(ArtShowApplication.artist_id).all())
 
-            if not code_candidate:
-                # We're out of manual alternatives, time for a random code
-                code_candidates = [''.join(random.choices(string.ascii_uppercase, k=3)) for _ in range(100)]
-                for code_candidate in code_candidates:
-                    if code_candidate not in old_codes:
-                        break
+        code_candidate = self._get_code_from_name(banner_name, old_codes) \
+            or self._get_code_from_name(self.artist_name, old_codes) \
+            or self._get_code_from_name(self.attendee.last_name, old_codes) \
+            or self._get_code_from_name(self.attendee.first_name, old_codes)
 
-            self.artist_id = code_candidate.upper()
+        if not code_candidate:
+            # We're out of manual alternatives, time for a random code
+            code_candidates = [''.join(random.choices(string.ascii_uppercase, k=3)) for _ in range(100)]
+            for code_candidate in code_candidates:
+                if code_candidate not in old_codes:
+                    break
+
+        return code_candidate.upper()
 
     def _get_code_from_name(self, name, old_codes):
         name = "".join(list(filter(lambda char: char.isalpha(), name)))
@@ -150,6 +163,10 @@ class ArtShowApplication(MagModel):
     @property
     def display_name(self):
         return self.banner_name or self.artist_name or self.attendee.full_name
+    
+    @property
+    def mature_display_name(self):
+        return self.banner_name_ad or self.banner_name or self.artist_name or self.attendee.full_name
     
     @property
     def artist_or_full_name(self):
@@ -258,8 +275,6 @@ class ArtShowApplication(MagModel):
         if len(self.art_show_pieces) > 1:
             return sorted([piece for piece in self.art_show_pieces if piece.piece_id],
                           key=lambda piece: piece.piece_id, reverse=True)[0].piece_id
-        elif self.art_show_pieces:
-            return 1
         else:
             return 0
 

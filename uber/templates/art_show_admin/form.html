@@ -11,7 +11,7 @@ app, c.PAGE_PATH,
 "index", "Return to App List", True
 ) }}
 
-<h2>Art Show Application Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</h2>
+<h2>Art Show {{ c.ART_SHOW_APP_TERM|title }} Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</h2>
 
 {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
   {% include 'registration/spin_terminal_form.html' with context %}
@@ -57,7 +57,7 @@ app, c.PAGE_PATH,
       {% endif %}
 
       <div class="form-group">
-        <label for="status" class="col-sm-3 form-text">Application Status</label>
+        <label for="status" class="col-sm-3 form-text">{{ c.ART_SHOW_APP_TERM|title }} Status</label>
         <div class="col-sm-6">
           <select class="form-select" name="status">
             {{ options(c.ART_SHOW_STATUS_OPTS, app.status) }}
@@ -99,7 +99,7 @@ app, c.PAGE_PATH,
           {% if not app.is_new and (not c.AT_THE_CON or not c.SPIN_TERMINAL_AUTH_KEY) %}
           <div class="clearfix"></div>
             <p class="help-block col-sm-6 col-sm-offset-3">
-              <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View this application</a> for the payment button.
+              <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View this {{ c.ART_SHOW_APP_TERM }}</a> for the payment button.
             </p>
           {% elif not app.is_new %}
             <a href="paid_with_cash?id={{ app.id }}" class="btn btn-success" type="submit">Paid with Cash</a>
@@ -107,6 +107,18 @@ app, c.PAGE_PATH,
             <button type="button" class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ app.id }}', '', refreshPage, '../art_show_admin/start_terminal_payment')">Prompt Payment at Terminal</button>
           {% endif %}
         {% endif %}
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Artist ID</label>
+          <input type="text" name="artist_id" class="form-control" value="{{ app.artist_id }}">
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Mature Artist ID</label>
+          <input type="text" name="artist_id_ad" class="form-control" value="{{ app.artist_id_ad }}">
+          <p class="form-text">This will be the same as the artist ID unless the artist entered a separate mature banner name.</p>
+        </div>
       </div>
 
       {% include 'art_show_applications/art_show_form.html' %}
@@ -122,9 +134,9 @@ app, c.PAGE_PATH,
           (Base Price: {{ app.base_price|default(app.potential_cost)|format_currency }})
         </span>
         <div class="clearfix"></div>
-        <p class="help-block col-sm-6 col-sm-offset-3">Change this to set an override on the application price, or leave
+        <p class="help-block col-sm-6 col-sm-offset-3">Change this to set an override on the {{ c.ART_SHOW_APP_TERM }} price, or leave
           it blank to use the base price.
-          {% if app.status != c.APPROVED %}<br/>Attendees are only asked to pay once their applications are approved.
+          {% if app.status != c.APPROVED %}<br/>Attendees are only asked to pay once their {{ c.ART_SHOW_APP_TERM }}s are approved.
           {% endif %}</p>
       </div>
       {% endif %}

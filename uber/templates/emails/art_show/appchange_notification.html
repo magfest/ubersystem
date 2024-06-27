@@ -23,7 +23,7 @@ the changes.
     <li><strong>Total Price</strong>: {{ app.potential_cost|format_currency }}{% if app.delivery_method == c.BY_MAIL and c.ART_MAILING_FEE %} (including {{ app.default_mailing_fee_cost|format_currency }} mailing fee){% endif %}</li>
     <li><strong>Description</strong>: {{ app.description }}</li>
     {% if app.special_needs %}<li><strong>Special Requests</strong>: {{ app.special_needs }}</li>{% endif %}
-    {% if app.attendee.badge_status == c.NOT_ATTENDING %}<li>You will not be attending {{ c.EVENT_NAME }} and thus will
+    {% if app.attendee.badge_status == c.NOT_ATTENDING and not c.INDEPENDENT_ART_SHOW %}<li>You will not be attending {{ c.EVENT_NAME }} and thus will
     not be issued a badge. If you expect this to change, please contact the art show staff at {{ c.ART_SHOW_EMAIL }}
     {% endif %}
     {% if app.website %}<li><strong>Website URL</strong>: {{ app.website }}</li>{% endif %}

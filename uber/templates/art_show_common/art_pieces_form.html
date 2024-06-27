@@ -137,19 +137,21 @@
         {% if readonly %}
           {{ app.display_name }}
         {% else %}
-          <input type="text" class="form-control" name="banner_name" id="banner_name" value="{{ app.banner_name }}" placeholder="{{ app.artist_name or app.attendee.full_name }}"/>
+          <input type="text" class="form-control" name="banner_name" id="banner_name" value="{{ app.banner_name }}" placeholder="{{ app.display_name }}"/>
           {% if not admin_area %}<p class="form-text">The name displayed with your art.</p>{% endif %}
         {% endif %}
       </div>
+      {% if app.has_mature_space %}
       <div class="col-12 col-sm-6">
-        <label for="check_payable" class="form-text">Name on Check</label>
+        <label for="banner_name_ad" class="form-text">Mature Banner Name</label>
         {% if readonly %}
-          {{ app.check_payable or (app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name) }}
+          {{ app.display_name }}
         {% else %}
-          <input type="text" class="form-control" name="check_payable" id="check_payable" value="{{ app.check_payable }}" placeholder="{{ app.attendee.legal_first_name ~ ' ' ~ app.attendee.legal_last_name }}"/>
-          {% if not admin_area %}<p class="form-text">The name your check should be made payable to.</p>{% endif %}
+          <input type="text" class="form-control" name="banner_name_ad" id="banner_name_ad" value="{{ app.banner_name_ad }}" placeholder="{{ app.mature_display_name }}"/>
+          {% if not admin_area %}<p class="form-text">The name displayed with your art in the mature gallery, if different from your banner name in the general gallery.</p>{% endif %}
         {% endif %}
       </div>
+      {% endif %}
     </div>
 
     <div class="row g-sm-3 mb-3">
@@ -167,6 +169,27 @@
           {{ app.hotel_room_num|default("N/A") }}
         {% else %}
           <input type="text" class="form-control" name="hotel_room_num" id="hotel_room_num" value="{{ app.hotel_room_num }}"/>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row g-sm-3 mb-3">
+      <div class="col-12 col-sm-6">
+        <label for="check_payable" class="form-text">Name on Check</label>
+        {% if readonly %}
+          {{ app.check_payable or (app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name) }}
+        {% else %}
+          <input type="text" class="form-control" name="check_payable" id="check_payable" value="{{ app.check_payable }}" placeholder="{{ app.attendee.legal_first_name ~ ' ' ~ app.attendee.legal_last_name }}"/>
+          {% if not admin_area %}<p class="form-text">The name your check should be made payable to.</p>{% endif %}
+        {% endif %}
+      </div>
+      <div class="col-12 col-sm-6">
+        <label for="contact_at_con" class="form-text">How should we contact you at-con?</label>
+        {% if readonly %}
+          {{ app.contact_at_con }}
+        {% else %}
+          <textarea class="form-control" name="contact_at_con" id="contact_at_con" rows="2">{{ app.contact_at_con }}</textarea>
+          {% if not admin_area %}<p class="form-text">Please tell us the best way to get a hold of you during the event.</p>{% endif %}
         {% endif %}
       </div>
     </div>
