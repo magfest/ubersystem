@@ -57,7 +57,7 @@
                 </div>
               </div>
               <div class="col-12 col-sm-6">
-                <label class="form-text" for="quick_sale_price-{{ real_piece.id or 'new' }}">Quick Sale Price</label>
+                <label class="form-text" for="quick_sale_price-{{ real_piece.id or 'new' }}">{{ c.QS_PRICE_TERM|title }}</label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
                   <input type="number" step="1" min="0" class="form-control" name="quick_sale_price" id="quick_sale_price-{{ real_piece.id or 'new' }}" value="{{ real_piece.quick_sale_price or '' }}" required autocomplete="off" />
@@ -296,7 +296,7 @@
         </td>
         <td> {% if piece.valid_for_sale %}
           Opening Bid: {{ piece.opening_bid }}
-          <br/>Quick Sale Price: {% if not piece.valid_quick_sale %}N/A{% else %}{{ piece.quick_sale_price }}{% endif %}
+          <br/>{{ c.QS_PRICE_TERM|title }}: {% if not piece.valid_quick_sale %}N/A{% else %}{{ piece.quick_sale_price }}{% endif %}
           {% else %}N/A{% endif %}
         </td>
         {% if not app.checked_in or admin_area %}

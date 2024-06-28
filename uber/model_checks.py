@@ -19,6 +19,7 @@ from urllib.request import urlopen
 import cherrypy
 import phonenumbers
 from pockets.autolog import log
+from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
 from uber.config import c
@@ -851,6 +852,28 @@ def contact_at_con(app):
 
 
 @validation.ArtShowApplication
+def artist_id_dupe(app):
+    if app.is_new or app.artist_id != app.orig_value_of('artist_id'):
+        with Session() as session:
+            dupe = session.query(ArtShowApplication).filter(or_(ArtShowApplication.artist_id == app.artist_id,
+                                                                ArtShowApplication.artist_id_ad == app.artist_id),
+                                                            ArtShowApplication.id != app.id).first()
+            if dupe:
+                return f"{dupe.display_name}'s {c.ART_SHOW_APP_TERM} already has the code {app.artist_id}!"
+
+
+@validation.ArtShowApplication
+def artist_id_ad_dupe(app):
+    if app.is_new or app.artist_id_ad != app.orig_value_of('artist_id_ad'):
+        with Session() as session:
+            dupe = session.query(ArtShowApplication).filter(or_(ArtShowApplication.artist_id == app.artist_id_ad,
+                                                                ArtShowApplication.artist_id_ad == app.artist_id_ad),
+                                                            ArtShowApplication.id != app.id).first()
+            if dupe:
+                return f"{dupe.display_name}'s {c.ART_SHOW_APP_TERM} already has the mature code {app.artist_id_ad}!"
+
+
+@validation.ArtShowApplication
 def us_only(app):
     if app.delivery_method == c.BY_MAIL and not app.us_only:
         return 'Please confirm your address is within the continental US if you are mailing your art in.'
@@ -959,14 +982,14 @@ def price_checks_if_for_sale(piece):
 
         if not piece.no_quick_sale:
             if not piece.quick_sale_price:
-                "Please enter a quick sale price"
+                "Please enter a " + c.QS_PRICE_TERM
 
             try:
                 price = int(piece.quick_sale_price)
                 if price <= 0:
                     return "A piece must cost more than $0, even after bidding ends"
             except Exception:
-                return f"What you entered for the quick sale price ({piece.quick_sale_price}) isn't even a number"
+                return f"What you entered for the {c.QS_PRICE_TERM} ({piece.quick_sale_price}) isn't even a number"
 
 
 @validation.ArtShowPiece
