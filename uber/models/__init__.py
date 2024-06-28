@@ -98,8 +98,8 @@ class MagModel:
     dictionary (if there are multiple objects to track in the external service)
     or just strings and datetime objects, respectively.
     """
-    external_id = Column(MutableDict.as_mutable(JSONB), server_default='{}')
-    last_synced = Column(MutableDict.as_mutable(JSONB), server_default='{}')
+    external_id = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
+    last_synced = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
 
     required = ()
     is_actually_old = False  # Set to true to force preview models to return False for `is_new`
@@ -503,8 +503,11 @@ class MagModel:
                     value = dateparser.parse(value)
                 return value.date()
 
-            elif isinstance(column.type, JSONB) and isinstance(value, str):
-                return json.loads(value)
+            elif isinstance(column.type, JSONB):
+                if isinstance(value, str):
+                    return json.loads(value)
+                elif isinstance(value, (datetime, date)):
+                    return value.isoformat()
 
         except Exception as error:
             log.debug(
