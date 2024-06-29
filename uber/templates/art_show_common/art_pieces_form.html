@@ -1,5 +1,5 @@
 {% import 'art_show_common/artist_checkin_macros.html' as artist_checkin_macros with context %}
-{% set readonly = app.checked_in and not admin_area %}
+{% set readonly = app.checked_in and not c.INDEPENDENT_ART_SHOW and not admin_area %}
 <style>
   table form {
     display: inline;
@@ -199,7 +199,9 @@
       <input type="hidden" name="us_only" value="{{ app.us_only|yesno("1,0") }}" />
       {% endif %}
       {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name, is_readonly=readonly) }}
-      {{ macros.address_form(app, label_prefix="Mailing", is_readonly=readonly) }}
+    {% endif %}
+    {% if app.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW %}
+      {{ macros.address_form(app, label_prefix="Mailing" if app.delivery_method == c.BY_MAIL else "", is_readonly=readonly, use_bs5=True) }}
     {% endif %}
 
     {% if not readonly %}
@@ -211,8 +213,8 @@
     {% endif %}
   </form>
   <h3 class="card-title">Art Show Pieces</h3>
-  <div class="row g-sm-3 text-center">
-    {% if not readonly %}
+  {% if not readonly %}
+  <div class="row g-sm-3 mb-3 text-center">
     <div class="col-4">
       <button class="btn btn-primary" id="add_piece_modal">Add {% if app.art_show_pieces %}Another {% endif %}Piece</button>
     </div>
@@ -224,15 +226,15 @@
         <button type="submit" class="btn btn-outline-secondary" id="confirm_pieces">Confirm Current Pieces</button>
       </form>
     </div>
-    {% endif %}
     <div class="col-4">
       <form role="form" target="_blank" method="post" id="print_form" action="../art_show_admin/print_check_in_out_form">
       <input type="hidden" name="id" value="{{ app.id }}" />
       <button class="btn btn-success">Print Check-In Form</button>
-    </form>
+      </form>
     {{ csrf_token() }}
-    </form>
+    </div>
   </div>
+  {% endif %}
   {% if admin_area %}
   <div class="row text-center">
     <br/>

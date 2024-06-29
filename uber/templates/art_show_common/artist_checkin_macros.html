@@ -141,7 +141,9 @@
     {% else %}
       {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name, is_readonly=printable, use_bs5=True) }}
     {% endif %}
-  {{ macros.address_form(app, label_prefix="Mailing", is_readonly=printable) }}
+  {% endif %}
+  {% if app.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW %}
+  {{ macros.address_form(app, label_prefix="Mailing" if app.delivery_method == c.BY_MAIL else "", is_readonly=printable, use_bs5=True) }}
   {% endif %}
 
   <div class="col">
@@ -185,12 +187,20 @@
 {% endif %}
 </div>
 
+{% if app.check_in_notes or not printable %}
 <div class="col-12">
   <label class="form-text">Check-In Notes</label>
   <div class="mb-3">
-    <textarea name="check_in_notes" class="form-control" rows="4">{{ app.check_in_notes }}</textarea>
+    {% if printable %}
+      <div class="form-control-static">
+        {{ app.check_in_notes }}
+      </div>
+    {% else %}
+      <textarea name="check_in_notes" class="form-control" rows="4">{{ app.check_in_notes }}</textarea>
+    {% endif %}
   </div>
 </div>
+{% endif %}
 
 <div class="table-responsive">
   <table class="table table-striped"{% if not printable %} id="datatable_{{ app.id }}" {% endif %}>
@@ -231,10 +241,7 @@
 {% elif not printable and not app.checked_out %}<em>NOTE: All "Hung" pieces will become "Return to Artist" upon clicking "Save & Check-Out"</em>{% endif %}
   {% if printable and not checkout %}
 <span class="text-center pagebreak">
-<strong><p>I understand that I am giving Midwest Furfest the right to sell my art at the above prices.  I also understand that I will be charged a commission of 10% on all sales and that the convention will collect sales tax on my sales. I also have read and agree to the art show rules.</p>
-<p>MFF reserves the right to remove works for sale that, in our sole discretion, do not conform to our rules and policies. MFF will have no liability for any loss, including but not limited to lost revenue, resulting from the removal of works from the Furfest Art Show for violation of MFF's rules and/or policies.</p>
-<p>If I have chosen an Agent I understand that they have the rights to act as myself and make decisions on my behalf.</p>
-<p>I understand that all unsold art must be picked up between Noon and 5PM on Sunday.</p></strong><br/>
+<strong>{% include "art_show_applications/checkin_agreement.html" %}</strong><br/>
 </span>
 
 <div class="row g-sm-3">

@@ -338,6 +338,7 @@ if c.ART_SHOW_ENABLED:
         when=after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1))),
         ident='art_show_agent_reminder')
 
+if c.ART_SHOW_REG_START < (c.EPOCH - timedelta(days=7)):
     ArtShowAppEmailFixture(
         '{EVENT_NAME} Art Show MAIL IN Instructions',
         'art_show/mailing_in.html',
