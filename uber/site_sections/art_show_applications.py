@@ -84,6 +84,7 @@ class Root:
             if not message:
                 session.add(app)
                 session.commit()  # Make sure we update the DB or the email will be wrong!
+                """
                 send_email.delay(
                     c.ART_SHOW_EMAIL,
                     app.email_to_address,
@@ -93,6 +94,7 @@ class Root:
                     bcc=c.ART_SHOW_BCC_EMAIL,
                     format='html',
                     model=app.to_dict('id'))
+                """
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id,
                                    'Your application has been updated')
             else:
