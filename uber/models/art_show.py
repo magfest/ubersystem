@@ -9,7 +9,7 @@ from uber.config import c
 from uber.models import MagModel
 from uber.decorators import presave_adjustment
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship
-from uber.utils import RegistrationCode
+from uber.utils import RegistrationCode, get_static_file_path
 
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -143,6 +143,12 @@ class ArtShowApplication(MagModel):
         name = "".join(list(filter(lambda char: char.isalpha(), name)))
         if len(name) >= 3:
             return name[:3] if name[:3].upper() not in old_codes else None
+    
+    @property
+    def artist_codes(self):
+        if self.artist_id_ad:
+            return f"{self.artist_id}/{self.artist_id_ad}"
+        return f"{self.artist_id}"
         
     def generate_new_agent_code(self):
         from uber.utils import RegistrationCode
@@ -343,6 +349,13 @@ class ArtShowPiece(MagModel):
         if self.gallery == c.MATURE and self.app.artist_id_ad:
             return str(self.app.artist_id_ad) + "-" + str(self.piece_id)
         return str(self.app.artist_id) + "-" + str(self.piece_id)
+    
+    @property
+    def app_display_name(self):
+        if self.gallery == c.MATURE:
+            return self.app.mature_display_name
+        else:
+            return self.app.display_name
 
     @property
     def barcode_data(self):
@@ -363,6 +376,57 @@ class ArtShowPiece(MagModel):
     @property
     def winning_bidder_num(self):
         return self.receipt.attendee.art_show_bidder.bidder_num
+    
+    def print_bidsheet(self, pdf, sheet_num, normal_font_name, bold_font_name, set_fitted_font_size):
+        xplus = yplus = 0
+
+        if sheet_num in [1, 3]:
+            xplus = 306
+        if sheet_num in [2, 3]:
+            yplus = 396
+
+        # Location, Piece ID, and barcode
+        pdf.image(get_static_file_path('bidsheet.png'), x=0 + xplus, y=0 + yplus, w=306)
+        pdf.set_font(normal_font_name, size=10)
+        pdf.set_xy(81 + xplus, 27 + yplus)
+        pdf.cell(80, 16, txt=self.app.locations, ln=1, align="C")
+        pdf.set_font("3of9", size=22)
+        pdf.set_xy(163 + xplus, 15 + yplus)
+        pdf.cell(132, 22, txt=self.barcode_data, ln=1, align="C")
+        pdf.set_font(bold_font_name, size=8,)
+        pdf.set_xy(163 + xplus, 32 + yplus)
+        pdf.cell(132, 12, txt=self.artist_and_piece_id, ln=1, align="C")
+
+        # Artist, Title, Media
+        pdf.set_font(normal_font_name, size=12)
+        set_fitted_font_size(self.app_display_name)
+        pdf.set_xy(81 + xplus, 54 + yplus)
+        pdf.cell(160, 24,
+                    txt=(self.app_display_name),
+                    ln=1, align="C")
+        pdf.set_xy(81 + xplus, 80 + yplus)
+        set_fitted_font_size(self.name)
+        pdf.cell(160, 24, txt=self.name, ln=1, align="C")
+        pdf.set_font(normal_font_name, size=12)
+        pdf.set_xy(81 + xplus, 105 + yplus)
+        pdf.cell(
+            160, 24,
+            txt=self.media +
+                (' ({} of {})'.format(self.print_run_num, self.print_run_total) if self.type == c.PRINT else ''),
+            ln=1, align="C"
+        )
+
+        # Type, Minimum Bid, QuickSale Price
+        pdf.set_font(normal_font_name, size=10)
+        pdf.set_xy(242 + xplus, 54 + yplus)
+        pdf.cell(53, 24, txt=self.type_label, ln=1, align="C")
+        pdf.set_font(normal_font_name, size=8)
+        pdf.set_xy(242 + xplus, 90 + yplus)
+        # Note: we want the prices on the PDF to always have a trailing .00
+        pdf.cell(53, 14, txt=('${:,.2f}'.format(self.opening_bid)) if self.valid_for_sale else 'N/A', ln=1)
+        pdf.set_xy(242 + xplus, 116 + yplus)
+        pdf.cell(
+            53, 14, txt=('${:,.2f}'.format(self.quick_sale_price)) if self.valid_quick_sale else 'N/A', ln=1)
 
 
 class ArtShowPayment(MagModel):

@@ -84,7 +84,6 @@ class Root:
             if not message:
                 session.add(app)
                 session.commit()  # Make sure we update the DB or the email will be wrong!
-                """
                 send_email.delay(
                     c.ART_SHOW_EMAIL,
                     app.email_to_address,
@@ -94,7 +93,6 @@ class Root:
                     bcc=c.ART_SHOW_BCC_EMAIL,
                     format='html',
                     model=app.to_dict('id'))
-                """
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id,
                                    'Your application has been updated')
             else:
@@ -102,8 +100,10 @@ class Root:
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id, message)
 
         receipt = session.refresh_receipt_and_model(app)
+        from uber.utils import get_static_file_path
 
         return {
+            'blob': get_static_file_path('NotoSans-Regular.ttf'),
             'message': message,
             'app': app,
             'receipt': receipt,
@@ -200,7 +200,7 @@ class Root:
             send_email.delay(
                 c.ART_SHOW_EMAIL,
                 [app.email_to_address, c.ART_SHOW_NOTIFICATIONS_EMAIL],
-                'Art Show Pieces Updated',
+                f'[{app.artist_codes}] {c.EVENT_NAME} Art Show: Pieces Updated',
                 render('emails/art_show/pieces_confirmation.html',
                        {'app': app}, encoding=None), 'html',
                 model=app.to_dict('id'))

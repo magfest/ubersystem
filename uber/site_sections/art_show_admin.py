@@ -415,58 +415,12 @@ class Root:
                 font_size -= 0.2
                 pdf.set_font_size(size=font_size)
 
-        for index, piece in enumerate(sorted(pieces, key=lambda piece: piece.piece_id)):
+        for index, piece in enumerate(sorted(pieces, key=lambda piece: (piece.gallery_label, piece.piece_id))):
             sheet_num = index % 4
-            xplus = yplus = 0
             if sheet_num == 0:
                 pdf.add_page()
-            if sheet_num in [1, 3]:
-                xplus = 306
-            if sheet_num in [2, 3]:
-                yplus = 396
 
-            # Location, Piece ID, and barcode
-            pdf.image(get_static_file_path('bidsheet.png'), x=0 + xplus, y=0 + yplus, w=306)
-            pdf.set_font(normal_font_name, size=10)
-            pdf.set_xy(81 + xplus, 27 + yplus)
-            pdf.cell(80, 16, txt=piece.app.locations, ln=1, align="C")
-            pdf.set_font("3of9", size=22)
-            pdf.set_xy(163 + xplus, 15 + yplus)
-            pdf.cell(132, 22, txt=piece.barcode_data, ln=1, align="C")
-            pdf.set_font(bold_font_name, size=8,)
-            pdf.set_xy(163 + xplus, 32 + yplus)
-            pdf.cell(132, 12, txt=piece.artist_and_piece_id, ln=1, align="C")
-
-            # Artist, Title, Media
-            pdf.set_font(normal_font_name, size=12)
-            set_fitted_font_size(piece.app.display_name)
-            pdf.set_xy(81 + xplus, 54 + yplus)
-            pdf.cell(160, 24,
-                     txt=(piece.app.display_name),
-                     ln=1, align="C")
-            pdf.set_xy(81 + xplus, 80 + yplus)
-            set_fitted_font_size(piece.name)
-            pdf.cell(160, 24, txt=piece.name, ln=1, align="C")
-            pdf.set_font(normal_font_name, size=12)
-            pdf.set_xy(81 + xplus, 105 + yplus)
-            pdf.cell(
-                160, 24,
-                txt=piece.media +
-                    (' ({} of {})'.format(piece.print_run_num, piece.print_run_total) if piece.type == c.PRINT else ''),
-                ln=1, align="C"
-            )
-
-            # Type, Minimum Bid, QuickSale Price
-            pdf.set_font(normal_font_name, size=10)
-            pdf.set_xy(242 + xplus, 54 + yplus)
-            pdf.cell(53, 24, txt=piece.type_label, ln=1, align="C")
-            pdf.set_font(normal_font_name, size=8)
-            pdf.set_xy(242 + xplus, 90 + yplus)
-            # Note: we want the prices on the PDF to always have a trailing .00
-            pdf.cell(53, 14, txt=('${:,.2f}'.format(piece.opening_bid)) if piece.valid_for_sale else 'N/A', ln=1)
-            pdf.set_xy(242 + xplus, 116 + yplus)
-            pdf.cell(
-                53, 14, txt=('${:,.2f}'.format(piece.quick_sale_price)) if piece.valid_quick_sale else 'N/A', ln=1)
+            piece.print_bidsheet(pdf, sheet_num, normal_font_name, bold_font_name, set_fitted_font_size)
 
         import unicodedata
         filename = str(unicodedata.normalize('NFKD', piece.app.display_name).encode('ascii', 'ignore'))
@@ -475,7 +429,7 @@ class Root:
         filename = filename + "_" + localized_now().strftime("%m%d%Y_%H%M")
 
         cherrypy.response.headers['Content-Disposition'] = 'attachment; filename={}.pdf'.format(filename)
-        return pdf.output(dest='S').encode('latin-1')
+        return bytes(pdf.output())
 
     def bidder_signup(self, session, message='', page=1, search_text='', order=''):
         filters = []

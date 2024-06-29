@@ -213,7 +213,7 @@
     {% endif %}
   </form>
   <h3 class="card-title">Art Show Pieces</h3>
-  {% if not readonly %}
+  {% if not readonly and (not app.checked_in or admin_area) %}
   <div class="row g-sm-3 mb-3 text-center">
     <div class="col-4">
       <button class="btn btn-primary" id="add_piece_modal">Add {% if app.art_show_pieces %}Another {% endif %}Piece</button>
@@ -236,19 +236,22 @@
   </div>
   {% endif %}
   {% if admin_area %}
-  <div class="row text-center">
-    <br/>
-    <form method="post" action="../art_show_admin/bid_sheet_pdf" class="form-inline">
-      <label class="control-label">Piece IDs:</label>
-      <input type="hidden" name="id" value="{{ app.id }}" />
-      {{ csrf_token() }}
-      <input type="text" class="form-control" name="piece_ids" size="7" placeholder="1-2, 5, 7" />
-      <button type="submit" class="btn btn-outline-secondary">Print Bid Sheets</button>
-      <p class="help-block">
-      Leave piece IDs blank to print all bid sheets for this artist.
-      </p>
-    </form>
+  <form method="post" action="../art_show_admin/bid_sheet_pdf">
+  <div class="row">
+      <div class="col text-end">
+        <label class="control-label">Piece IDs:</label>
+      </div>
+      <div class="col text-center">
+        <input type="hidden" name="id" value="{{ app.id }}" />
+        {{ csrf_token() }}
+        <input type="text" class="form-control" name="piece_ids" size="7" placeholder="1-2, 5, 7" />
+        <p class="help-block">
+        Leave piece IDs blank to print all bid sheets for this artist.
+        </p>
+      </div>
+      <div class="col"><button type="submit" class="btn btn-outline-secondary">Print Bid Sheets</button></div>
   </div>
+  </form>
   {% endif %}
   
   <div class="table-responsive">
