@@ -43,6 +43,7 @@ def send_email(
         format='text',
         cc=(),
         bcc=(),
+        replyto=[],
         model=None,
         ident=None,
         automated_email=None,
@@ -68,6 +69,7 @@ def send_email(
             error_msg = email_sender.sendEmail(
                             source=sender,
                             toAddresses=to,
+                            replyToAddresses=replyto,
                             ccAddresses=cc,
                             bccAddresses=bcc,
                             message=message)
