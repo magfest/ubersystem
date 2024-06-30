@@ -34,14 +34,13 @@ class Root:
         if cherrypy.request.method == 'POST':
             attendee, message = session.attendee_from_art_show_app(**params)
 
-            if attendee and attendee.badge_status == c.NOT_ATTENDING \
+            if not c.INDEPENDENT_ART_SHOW and attendee and attendee.badge_status == c.NOT_ATTENDING \
                     and app.delivery_method == c.BRINGING_IN:
-                message = 'You cannot bring your own art ' \
-                          'if you are not attending.'
+                message = 'You cannot bring your own art if you are not attending.'
 
             message = message or check(attendee) or check(app, prereg=True)
             if not message:
-                if c.AFTER_ART_SHOW_WAITLIST:
+                if c.ART_SHOW_WAITLIST and c.AFTER_ART_SHOW_WAITLIST:
                     app.status = c.WAITLISTED
                 session.add(attendee)
                 app.attendee = attendee
@@ -91,6 +90,7 @@ class Root:
                     'Art Show Application Updated',
                     render('emails/art_show/appchange_notification.html',
                            {'app': app}, encoding=None),
+                    bcc=c.ART_SHOW_BCC_EMAIL,
                     format='html',
                     model=app.to_dict('id'))
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id,
@@ -197,13 +197,13 @@ class Root:
         if cherrypy.request.method == 'POST':
             send_email.delay(
                 c.ART_SHOW_EMAIL,
-                app.email_to_address,
-                'Art Show Pieces Updated',
+                [app.email_to_address, c.ART_SHOW_NOTIFICATIONS_EMAIL],
+                f'[{app.artist_codes}] {c.EVENT_NAME} Art Show: Pieces Updated',
                 render('emails/art_show/pieces_confirmation.html',
                        {'app': app}, encoding=None), 'html',
                 model=app.to_dict('id'))
             raise HTTPRedirect('..{}?id={}&message={}', params['return_to'], app.id,
-                               'Confirmation email sent')
+                               'Confirmation email sent!')
 
     def confirmation(self, session, id):
         return {
@@ -259,6 +259,7 @@ class Root:
                 '{} Art Show Agent Removed'.format(c.EVENT_NAME),
                 render('emails/art_show/agent_removed.html',
                        {'app': app, 'agent': old_code.attendee}, encoding=None), 'html',
+                bcc=c.ART_SHOW_BCC_EMAIL,
                 model=app.to_dict('id'))
 
         session.commit()
@@ -275,6 +276,7 @@ class Root:
                     'New Agent Code for the {} Art Show'.format(c.EVENT_NAME),
                     render('emails/art_show/agent_code.html',
                         {'app': app, 'agent_code': new_code}, encoding=None), 'html',
+                    bcc=c.ART_SHOW_BCC_EMAIL,
                     model=app.to_dict('id'))
 
         raise HTTPRedirect('{}?id={}&message={}', page, app.id, message)

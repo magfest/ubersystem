@@ -280,7 +280,7 @@ class Root:
                       "Type",
                       "Media",
                       "Minimum Bid",
-                      "QuickSale Price",
+                      c.QS_PRICE_TERM,
                       "Sale Price",
                       ])
 

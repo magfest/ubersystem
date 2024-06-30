@@ -9,7 +9,7 @@ checkdigit==0.5.0
 cherrypy==18.9.0
 configobj==5.0.8
 email_validator==2.1.1
-fpdf==1.7.2
+fpdf2==2.7.9
 geopy==2.4.1
 ics==0.7.2
 Jinja2==3.1.3

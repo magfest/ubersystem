@@ -52,7 +52,7 @@
       <th> <a href="bidder_signup?order={{ order.legal_name }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Name on ID</a> </th>
       {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="bidder_signup?order={{ order.badge_printed_name }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Badge Name</a> </th>{% endif %}
       {% if c.NUMBERED_BADGES %}<th> <a href="bidder_signup?order={{ order.badge_num }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Badge #</a> </th> {% endif %}
-      <th> <a href="bidder_signup?order={{ order.art_show_app_id }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Art Show Application</a> </th>
+      <th> <a href="bidder_signup?order={{ order.art_show_app_id }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Art Show {{ c.ART_SHOW_APP_TERM|title }}</a> </th>
       <th></th>
       {% endblock tableheadings %}
     </tr>

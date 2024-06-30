@@ -4,7 +4,7 @@
 
 {% if app.delivery_method == c.AGENT and not app.current_agents %}
   <div class="alert alert-warning">
-    <p>Your art show application does not have an agent assigned to bring and hang art.
+    <p>Your art show {{ c.ART_SHOW_APP_TERM }} does not have an agent assigned to bring and hang art.
     {% if app.valid_agent_codes|length == 1 %}
       Your agent code is <strong>{{ app.valid_agent_codes[0].code }}</strong>. Your agent can enter this code
     {% else %}
@@ -14,7 +14,7 @@
         {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging in and editing their registration{% else %}using their registration confirmation link{% endif %}.</p>
 
     {% if c.ONE_AGENT_PER_APP %}
-    <p>Applications are limited to one agent. Use the button below to cancel the existing code and generate a new one.</p>
+    <p>{{ c.ART_SHOW_APP_TERM|title }}s are limited to one agent. Use the button below to cancel the existing code and generate a new one.</p>
     <input type="hidden" form="cancel_agent_code" name="id" value="{{ app.valid_agent_codes[0].id }}" />
     <button type="submit" form="cancel_agent_code" class="btn btn-danger">Generate New Code</button>
     {% endif %}
@@ -25,10 +25,10 @@
   <div class="col-12 col-sm-6">
     <label for="artist_name" class="form-text">Artist Name</label>
     {% if readonly %}
-    {{ app.display_name }}
+    {{ app.artist_or_full_name }}
     {% else %}
     <input type="text" name="artist_name" id="artist_name" value="{{ app.artist_name }}" class="form-control" placeholder="{{ app.attendee.full_name }}">
-    {% if not admin_area %}<p class="form-text">The name you want to use with your artwork, if different from your first and last name.</p>{% endif %}
+    {% if not admin_area %}<p class="form-text">The name you want to use on your {{ c.ART_SHOW_APP_TERM }}, if different from your first and last name.</p>{% endif %}
     {% endif %}
   </div>
   <div class="col-12 col-sm-6">
@@ -39,7 +39,7 @@
     <select name="delivery_method" class="form-select">
       {{ options(c.ART_SHOW_DELIVERY_OPTS, app.delivery_method) }}
     </select>
-      {% if not admin_area %}
+      {% if not admin_area and c.ART_MAILING_FEE %}
       <p class="form-text">Mailing your art to the show incurs a fee of {{ c.ART_MAILING_FEE|format_currency }}.</p>
       {% endif %}
     {% endif %}
@@ -63,6 +63,42 @@
     </div>
   {% endif %}
   </div>
+</div>
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+    <label for="banner_name" class="form-text">Banner Name</label>
+    {% if readonly %}
+    {{ app.display_name }}
+    {% else %}
+    <input type="text" name="banner_name" id="banner_name" value="{{ app.banner_name }}" class="form-control" placeholder="{{ app.display_name }}">
+    {% if not admin_area %}<p class="form-text">The name you want to display with your artwork, if different from your artist name.</p>{% endif %}
+    {% endif %}
+  </div>
+  {% if not readonly or app.has_mature_space %}
+  <div class="col-12 col-sm-6">
+    <label for="banner_name_ad" class="form-text">Mature Banner Name</label>
+    {% if readonly %}
+    {{ app.display_name }}
+    {% else %}
+    <div id="mature_banner_name">
+      <input type="text" name="banner_name_ad" id="banner_name_ad" value="{{ app.banner_name_ad }}" class="form-control" placeholder="{{ app.mature_display_name }}">
+      </div>
+    <label for="diff_mature_name" class="form-check-label">
+      <input type="checkbox" id="diff_mature_name" class="form-check-input" {% if app.banner_name_ad %}checked {% endif %}/>
+      I want a different banner name for my pieces in the mature gallery.
+    </label>
+    <script type="text/javascript">
+      var showOrHideMatureBanner = function() {
+        setVisible($('#mature_banner_name'), $('#diff_mature_name').prop('checked') == true);
+      };
+      $(function() {
+        showOrHideMatureBanner();
+        $('#diff_mature_name').on('change', showOrHideMatureBanner);
+      });
+  </script>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 
 {% if app.delivery_method == c.AGENT %}
@@ -92,26 +128,26 @@
     <label for="panels" class="form-text">General Panels</label>
     {% if app.panels and app.panels > max_panels and not admin_area %}
       An admin has granted you {{ app.panels }} general panels. Please contact us via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
-      if you wish to change the number of panels on your application.
+      if you wish to change the number of panels on your {{ c.ART_SHOW_APP_TERM }}.
     {% elif readonly %}
       {{ app.panels }}
     {% else %}
       <select class="form-select" name="panels" id="panels">
         {{ int_options(0, max_panels, app.panels) }}
-      </select>({{ c.COST_PER_PANEL|format_currency }} per panel)
+      </select>{% if c.COST_PER_PANEL %}({{ c.COST_PER_PANEL|format_currency }} per panel){% endif %}
     {% endif %}
   </div>
   <div class="col-12 col-sm-6">
     <label for="tables" class="form-text">General Table Sections</label>
     {% if app.tables and app.tables > max_tables and not admin_area %}
       An admin has granted you {{ app.tables }} general table sections. Please contact us via via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
-      if you wish to change the number of table sections on your application.
+      if you wish to change the number of table sections on your {{ c.ART_SHOW_APP_TERM }}.
     {% elif readonly %}
       {{ app.tables }}
     {% else %}
       <select class="form-select" name="tables" id="tables">
         {{ int_options(0, max_tables, app.tables) }}
-      </select>({{ c.COST_PER_TABLE|format_currency }} per table section)
+      </select>{% if c.COST_PER_TABLE %}({{ c.COST_PER_TABLE|format_currency }} per table section){% endif %}
     {% endif %}
   </div>
 </div>
@@ -121,26 +157,26 @@
     <label for="panels_ad" class="form-text">Mature Panels</label>
     {% if app.panels_ad and app.panels_ad > max_panels and not admin_area %}
       An admin has granted you {{ app.panels_ad }} mature panels. Please contact us via via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
-      if you wish to change the number of panels on your application.
+      if you wish to change the number of panels on your {{ c.ART_SHOW_APP_TERM }}.
     {% elif readonly %}
       {{ app.panels_ad }}
     {% else %}
       <select class="form-select" id="panels_ad" name="panels_ad">
         {{ int_options(0, max_panels, app.panels_ad) }}
-      </select>{% if not no_help_text %}({{ c.COST_PER_PANEL|format_currency }} per panel){% endif %}
+      </select>{% if c.COST_PER_PANEL %}({{ c.COST_PER_PANEL|format_currency }} per panel){% endif %}
       {% endif %}
     </div>
     <div class="col-12 col-sm-6">
       <label for="tables" class="form-text">Mature Table Sections</label>
       {% if app.tables_ad and app.tables_ad > max_tables and not admin_area %}
         An admin has granted you {{ app.tables_ad }} mature table sections. Please contact us via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
-        if you wish to change the number of table sections on your application.
+        if you wish to change the number of table sections on your {{ c.ART_SHOW_APP_TERM }}.
       {% elif readonly %}
         {{ app.tables_ad }}
       {% else %}
         <select class="form-select" name="tables_ad" id="tables_ad">
           {{ int_options(0, max_tables, app.tables_ad) }}
-        </select>{% if not no_help_text %}({{ c.COST_PER_TABLE|format_currency }} per table section){% endif %}
+        </select>{% if c.COST_PER_TABLE %}({{ c.COST_PER_TABLE|format_currency }} per table section){% endif %}
       {% endif %}
     </div>
 </div>
@@ -168,12 +204,21 @@
       {{ app.website }}
     {% else %}
       <input type="text" class="form-control" name="website" id="website" value="{{ app.website }}"/>
-      {% if not admin_area %}<p class="form-text">If you do not have a website showing your work, please enter 'N/A' and contact {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} after submitting your application.</p>{% endif %}
+      {% if not admin_area %}<p class="form-text">If you do not have a website showing your work, please enter 'N/A' and contact {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} after submitting your {{ c.ART_SHOW_APP_TERM }}.</p>{% endif %}
     {% endif %}
   </div>
 </div>
 
 <div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+    <label for="contact_at_con" class="form-text">How should we contact you at-con?</label>
+    {% if readonly %}
+      {{ app.contact_at_con }}
+    {% else %}
+      <textarea class="form-control" name="contact_at_con" id="contact_at_con" rows="4">{{ app.contact_at_con }}</textarea>
+      {% if not admin_area %}<p class="form-text">Please tell us the best way to get a hold of you during the event.</p>{% endif %}
+    {% endif %}
+  </div>
   <div class="col-12 col-sm-6">
     <label for="special_needs" class="form-text">Special Requests</label>
     {% if readonly %}

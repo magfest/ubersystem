@@ -32,7 +32,7 @@
         <td>N/A</td>
         {% endif %}
         <td>
-          {{ refund.created.when|datetime_local }}
+          {{ refund.created_info.when|datetime_local }}
         </td>
         <td>{{ (refund.amount / 100)|format_currency }}</td>
         <td>

@@ -18,11 +18,13 @@ import sqlalchemy
 from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
+from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sqlalchemy import and_, func, or_
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
@@ -33,7 +35,7 @@ import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     RegistrationCode, valid_email, valid_password
 from uber.payments import ReceiptManager
@@ -86,6 +88,18 @@ metadata = MetaData(naming_convention=immutabledict(naming_convention))
 @declarative_base(metadata=metadata)
 class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
+    created = Column(UTCDateTime, server_default=utcnow())
+    last_updated = Column(UTCDateTime, server_default=utcnow())
+
+    """
+    The two columns below allow tracking any object in external sources,
+    e.g., a CRM. Both columns are dictionaries where the keys are idents
+    for the external services, e.g., 'hubspot'. The values can be either a
+    dictionary (if there are multiple objects to track in the external service)
+    or just strings and datetime objects, respectively.
+    """
+    external_id = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
+    last_synced = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
 
     required = ()
     is_actually_old = False  # Set to true to force preview models to return False for `is_new`
@@ -267,6 +281,10 @@ class MagModel:
             self.session.set_relation_ids(self, relation, ModelClass, ids)
         setattr(self, '_relation_ids', {})
 
+    @presave_adjustment
+    def update_last_updated(self):
+        self.last_updated = datetime.now(UTC)
+
     @property
     def session(self):
         """
@@ -301,11 +319,11 @@ class MagModel:
         return not instance_state(self).persistent
 
     @property
-    def created(self):
+    def created_info(self):
         return self.get_tracking_by_instance(self, action=c.CREATED, last_only=True)
 
     @property
-    def last_updated(self):
+    def last_update_info(self):
         return self.get_tracking_by_instance(self, action=c.UPDATED, last_only=True)
 
     @property
@@ -485,8 +503,11 @@ class MagModel:
                     value = dateparser.parse(value)
                 return value.date()
 
-            elif isinstance(column.type, JSONB) and isinstance(value, str):
-                return json.loads(value)
+            elif isinstance(column.type, JSONB):
+                if isinstance(value, str):
+                    return json.loads(value)
+                elif isinstance(value, (datetime, date)):
+                    return value.isoformat()
 
         except Exception as error:
             log.debug(

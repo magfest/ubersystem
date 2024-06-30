@@ -1,19 +1,18 @@
 {% extends "preregistration/preregbase.html" %}
-{% block title %}Art Show Application{% endblock %}
+{% block title %}Art Show {{ c.ART_SHOW_APP_TERM|title }}{% endblock %}
 {% block content %}
 {% include "region_opts.html" %}
 {% set attendee = app.attendee %}
 <div class="card">
   <div class="card-header">
-    Art Show Application Information
+    Art Show {{ c.ART_SHOW_APP_TERM|title }} Information
   </div>
   <div class="card-body">
-    {% include 'confirm_tabs.html' with context %}
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.badge_status != c.NOT_ATTENDING or attendee.marketplace_applications %}
+    {% if not c.INDEPENDENT_ART_SHOW %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
       {% if app.status == c.APPROVED %}
-      Congratulations, your application has been approved!
+      Your {{ c.ART_SHOW_APP_TERM }} has been approved!
         {% if not app.incomplete_reason and app.amount_unpaid %}
         <br/><br/>
           {% if c.AT_THE_CON %}
@@ -35,7 +34,7 @@
               Please contact us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
             {% endif %}
           {% else %}
-          In order to complete your application, please pay {{ app.amount_unpaid|format_currency }} using the button below.
+          In order to complete your {{ c.ART_SHOW_APP_TERM }}, please pay {{ app.amount_unpaid|format_currency }} using the button below.
           <br/><br/>
           <div style="text-align:center">
               {{ stripe_form('process_art_show_payment', app) }}
@@ -43,13 +42,14 @@
           {% endif %}
         {% elif app.attendee.placeholder and app.attendee.badge_status != c.NOT_ATTENDING %}
         <br/><br/>
-          Before completing your application, please finish filling out your information
+          Before completing your {{ c.ART_SHOW_APP_TERM }}, please finish filling out your information
           <a href="../preregistration/confirm?id={{ app.attendee_id }}">here</a>. Afterwards, you will
-          be able to pay for your application on this page.
+          be able to pay for your {{ c.ART_SHOW_APP_TERM }} on this page.
         {% elif app.delivery_method == c.BY_MAIL and not app.address1 %}
         <br/><br/>
-          Please fill in your mailing address below. Afterwards, you will be able to pay for your application on this page.
+          Please fill in your mailing address below. Afterwards, you will be able to pay for your {{ c.ART_SHOW_APP_TERM }} on this page.
         {% else %}
+        You can update your information below and add, edit, or delete your pieces anytime until you check in on-site.
         <br/><br/>{% include 'art_show_common/art_pieces_form.html' %}<br/><br/>
         {% endif %}
         {% if app.delivery_method == c.BY_MAIL and not app.address1 %}
@@ -72,8 +72,8 @@
           </form>
         {% endif %}
       {% elif app.status != c.UNAPPROVED %}
-      Unfortunately, since your application has been {{ app.status_label|lower }}, you may no longer edit it. However,
-      you may still view the details of your application below. <br/><br/>
+      Unfortunately, since your {{ c.ART_SHOW_APP_TERM }} has been {{ app.status_label|lower }}, you may no longer edit it. However,
+      you may still view the details of your {{ c.ART_SHOW_APP_TERM }} below. <br/><br/>
       {% endif %}
     <form method="post" id="cancel_agent_code" action="cancel_agent_code" role="form"></form>
     <form method="post" id="add_agent_code" action="add_agent_code"></form>
@@ -85,7 +85,7 @@
       {% if app.status == c.UNAPPROVED %}
       <div class="form-group">
         <div class="col-sm-6 col-sm-offset-3">
-          <button type="submit" class="btn btn-primary">Update Application</button>
+          <button type="submit" class="btn btn-primary">Update {{ c.ART_SHOW_APP_TERM|title }}</button>
         </div>
       </div>
       {% endif %}

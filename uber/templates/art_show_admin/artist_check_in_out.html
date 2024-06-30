@@ -17,7 +17,7 @@
   </div>
   <div class="card-body">
     <form role="form" method="get" action="artist_check_in_out" id="search_form" class="form-inline">
-      <div class="form-group"><a class="btn btn-outline-secondary" href="form?new_app=True">Add an application</a></div>
+      <div class="form-group"><a class="btn btn-outline-secondary" href="form?new_app=True">Add a new {{ c.ART_SHOW_APP_TERM }}</a></div>
       {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
       <div class="input-group col-sm-6">
         <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
@@ -67,6 +67,7 @@
         <th>General Tables</th>
         <th>Mature Panels</th>
         <th>Mature Tables</th>
+        <th>Check-In Notes</th>
         <th>Admin Notes</th>
         <th>Check-{{ checkout|yesno("Out,In") }}</th>
       </tr></thead>
@@ -80,6 +81,7 @@
         <td>{{ app.tables }}</td>
         <td>{{ app.panels_ad }}</td>
         <td>{{ app.tables_ad }}</td>
+        <td>{{ app.check_in_notes }}</td>
         <td>{{ app.admin_notes }}</td>
         <td>
           {% if not app.checked_in %}
