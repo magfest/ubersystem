@@ -100,10 +100,8 @@ class Root:
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id, message)
 
         receipt = session.refresh_receipt_and_model(app)
-        from uber.utils import get_static_file_path
 
         return {
-            'blob': get_static_file_path('NotoSans-Regular.ttf'),
             'message': message,
             'app': app,
             'receipt': receipt,
