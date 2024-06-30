@@ -26,9 +26,9 @@
     You may change your {{ c.ART_SHOW_APP_TERM }} up until it is approved, declined, or waitlisted by an admin.</p>
 
     <p>Once your {{ c.ART_SHOW_APP_TERM }} has been reviewed, you will receive an email letting you know of your {{ c.ART_SHOW_APP_TERM }}'s
-    status. If your {{ c.ART_SHOW_APP_TERM }} is approved, you will also receive a link to pay for the panel and table space you've
-    requested.{% if app.attendee.paid == c.NOT_PAID %} Your payment will also include your badge for the convention.
-    {% endif %}</p>
+    status.{% if c.ART_SHOW_HAS_FEES %} If your {{ c.ART_SHOW_APP_TERM }} is approved, you will also receive a link to pay for
+    the panel and table space you've requested.{% if app.attendee.badge_status != c.NOT_ATTENDING and app.attendee.paid == c.NOT_PAID %}
+    Your payment will also include your badge for the convention.{% endif %}{% endif %}</p>
 
     <p>If you have any questions, please email us at <a href="mailto:{{c.ART_SHOW_EMAIL}}">{{ c.ART_SHOW_EMAIL }}</a>.</p>
   </div>
