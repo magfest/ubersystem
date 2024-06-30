@@ -34,7 +34,7 @@ def check_duplicate_registrations():
     the registration email address. This allows us to see new duplicate
     attendees without repetitive emails.
     """
-    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
+    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         subject = c.EVENT_NAME + ' Duplicates Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
             if session.no_email(subject):
@@ -65,7 +65,7 @@ def check_duplicate_registrations():
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_placeholder_registrations():
-    if c.PRE_CON and c.CHECK_PLACEHOLDERS and (c.DEV_BOX or c.SEND_EMAILS):
+    if c.PRE_CON and c.CHECK_PLACEHOLDERS and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         emails = [[
             'Staff',
             c.STAFF_EMAIL,
@@ -108,7 +108,7 @@ def check_placeholder_registrations():
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_pending_badges():
-    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
+    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         emails = [[
             'Staff',
             c.STAFF_EMAIL,
@@ -135,7 +135,7 @@ def check_pending_badges():
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_unassigned_volunteers():
-    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
+    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         with Session() as session:
             unassigned = session.query(Attendee).filter(
                 Attendee.is_valid == True,  # noqa: E712
@@ -151,13 +151,14 @@ def check_unassigned_volunteers():
 
 @celery.schedule(timedelta(minutes=5))
 def check_near_cap():
-    actual_badges_left = c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT
-    for badges_left in [int(num) for num in c.BADGES_LEFT_ALERTS]:
-        subject = "BADGES SOLD ALERT: {} BADGES LEFT!".format(badges_left)
-        with Session() as session:
-            if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
-                body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left}, encoding=None)
-                send_email.delay(c.REPORTS_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
+    if c.REPORTS_EMAIL:
+        actual_badges_left = c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT
+        for badges_left in [int(num) for num in c.BADGES_LEFT_ALERTS]:
+            subject = "BADGES SOLD ALERT: {} BADGES LEFT!".format(badges_left)
+            with Session() as session:
+                if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
+                    body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left}, encoding=None)
+                    send_email.delay(c.REPORTS_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
 
 
 @celery.schedule(timedelta(days=1))
