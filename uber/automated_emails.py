@@ -89,6 +89,7 @@ class AutomatedEmailFixture:
             sender=None,
             cc=(),
             bcc=(),
+            replyto=(),
             needs_approval=True,
             allow_at_the_con=False,
             allow_post_con=False,
@@ -113,6 +114,7 @@ class AutomatedEmailFixture:
         self.sender = sender or c.REGDESK_EMAIL
         self.cc = listify(cc)
         self.bcc = listify(bcc)
+        self.replyto = listify(replyto)
         self.needs_approval = needs_approval
         self.allow_at_the_con = allow_at_the_con
         self.allow_post_con = allow_post_con
@@ -497,8 +499,10 @@ class StopsEmailFixture(AutomatedEmailFixture):
 
 
 # TODO: Refactor all this into something less lazy
-def deferred_attendee_placeholder(a): return a.placeholder and (a.registered_local <= min(c.PREREG_OPEN,
-                                                                                          c.DEALER_REG_START)
+earliest_opening_date = min(c.PREREG_OPEN, c.DEALER_REG_START) if c.DEALER_REG_START else c.PREREG_OPEN
+
+
+def deferred_attendee_placeholder(a): return a.placeholder and (a.registered_local <= earliest_opening_date
                                                                 and a.badge_type == c.ATTENDEE_BADGE
                                                                 and a.paid == c.NEED_NOT_PAY
                                                                 and "staff import".lower() not in a.admin_notes.lower()
@@ -538,8 +542,7 @@ def generic_placeholder(a): return a.placeholder and (not deferred_attendee_plac
                                                       and not band_placeholder(a) and not dealer_placeholder(a)
                                                       and not staff_import_placeholder(a)
                                                       and not volunteer_placeholder(a)
-                                                      and a.registered_local > min(c.PREREG_OPEN,
-                                                                                   c.DEALER_REG_START))
+                                                      and a.registered_local > earliest_opening_date)
 
 
 AutomatedEmailFixture(
