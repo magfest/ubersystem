@@ -1,6 +1,7 @@
 import random
 import string
 
+from pockets import classproperty
 from sqlalchemy import func, case
 from datetime import datetime
 from pytz import UTC
@@ -509,10 +510,26 @@ class ArtShowBidder(MagModel):
     admin_notes = Column(UnicodeText)
     signed_up = Column(UTCDateTime, nullable=True)
 
+    @presave_adjustment
+    def zfill_bidder_num(self):
+        if not self.bidder_num:
+            return
+        base_bidder_num = ArtShowBidder.strip_bidder_num(self.bidder_num)
+        self.bidder_num = self.bidder_num[:2] + str(base_bidder_num).zfill(4)
+
+    @classmethod
+    def strip_bidder_num(cls, num):
+        return int(num[2:])
+
     @hybrid_property
     def bidder_num_stripped(self):
-        return int(self.bidder_num[2:]) if self.bidder_num else 0
+        return ArtShowBidder.strip_bidder_num(self.bidder_num) if self.bidder_num else 0
 
     @bidder_num_stripped.expression
     def bidder_num_stripped(cls):
         return func.cast("0" + func.substr(cls.bidder_num, 3, func.length(cls.bidder_num)), Integer)
+    
+    @classproperty
+    def required_fields(cls):
+        # Override for independent art shows to force attendee fields to be filled out
+        return {}

@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from io import BytesIO
 
 from uber.config import c
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
@@ -438,23 +438,36 @@ class Root:
             order = order or 'badge_printed_name'
             if re.match(r'\w-[0-9]{4}', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
-                    ArtShowBidder.bidder_num.ilike('%{}%'.format(search_text[2:])))
+                    ArtShowBidder.bidder_num == search_text)
+                if not attendees.first():
+                    existing_bidder_num = session.query(Attendee).join(Attendee.art_show_bidder).filter(
+                        ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(search_text)}%")).first()
+                    message = f"There is no one with the bidder number {search_text}."
+                    if existing_bidder_num:
+                        message += " Search for bidder {existing_bidder_num.art_show_bidder.bidder_num} instead."
             else:
-                # Sorting by bidder number requires a join, which would filter out anyone without a bidder number
-                order = 'badge_printed_name' if order == 'bidder_num' else order
-                try:
-                    badge_num = int(search_text)
-                except Exception:
-                    filters.append(Attendee.badge_printed_name.ilike('%{}%'.format(search_text)))
+                if c.INDEPENDENT_ART_SHOW:
+                    # Independent art shows likely won't have badge numbers or badge names
+                    # so they can search by anything
+                    attendees, error = session.search(search_text, Attendee.is_valid == True)  # noqa: E712
+                    if error:
+                        raise HTTPRedirect('bidder_signup?search_text={}&order={}&message={}'
+                                        ).format(search_text, order, error)
                 else:
-                    filters.append(or_(Attendee.badge_num == badge_num,
-                                       Attendee.badge_printed_name.ilike('%{}%'.format(search_text))))
-                attendees = session.query(Attendee).filter(*filters).filter(Attendee.is_valid == True)  # noqa: E712
+                    # For systems that run registration, search is limited for data privacy
+                    try:
+                        badge_num = int(search_text)
+                    except Exception:
+                        filters.append(Attendee.badge_printed_name.ilike('%{}%'.format(search_text)))
+                    else:
+                        filters.append(or_(Attendee.badge_num == badge_num,
+                                        Attendee.badge_printed_name.ilike('%{}%'.format(search_text))))
+                    attendees = session.query(Attendee).filter(*filters).filter(Attendee.is_valid == True)  # noqa: E712
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_bidder)
 
         if 'bidder_num' in str(order) or not order:
-            attendees = attendees.join(Attendee.art_show_bidder).order_by(
+            attendees = attendees.outerjoin(Attendee.art_show_bidder).order_by(
                 ArtShowBidder.bidder_num.desc() if '-' in str(order) else ArtShowBidder.bidder_num)
         else:
             attendees = attendees.order(order)
@@ -480,23 +493,58 @@ class Root:
 
     @ajax
     def sign_up_bidder(self, session, **params):
-        attendee = session.attendee(params['attendee_id'])
+        try:
+            attendee = session.attendee(params['attendee_id'])
+        except NoResultFound:
+            if c.INDEPENDENT_ART_SHOW:
+                attendee = Attendee(
+                    id=params['attendee_id'],
+                    placeholder=True,
+                    badge_status=c.NOT_ATTENDING,
+                    )
+                session.add(attendee)
+            else:
+                return {'error': "No attendee found for this bidder!", 'attendee_id': params['attendee_id']}
+
         success = 'Bidder saved'
+        missing_fields = []
+
+        for field_name in params.copy().keys():
+            if params.get(field_name, None) and \
+                    hasattr(attendee, field_name) and not hasattr(ArtShowBidder(), field_name):
+                setattr(attendee, field_name, params.pop(field_name))
+            elif c.INDEPENDENT_ART_SHOW and field_name in ArtShowBidder.required_fields.keys():
+                missing_fields.append(ArtShowBidder.required_fields[field_name])
+        
+        if missing_fields:
+            return {'error': "Please fill out the following fields: " + readable_join(missing_fields) + ".",
+                    'attendee_id': attendee.id}
+
         if params['id']:
             bidder = session.art_show_bidder(params)
         else:
             params.pop('id')
-            if 'cellphone' in params and params['cellphone']:
-                attendee.cellphone = params.pop('cellphone')
             bidder = ArtShowBidder()
-            bidder.apply(params, restricted=False)
-            latest_bidder = session.query(ArtShowBidder).filter(ArtShowBidder.id != bidder.id) \
-                .order_by(ArtShowBidder.bidder_num_stripped.desc()).first()
-
-            next_num = str(min(latest_bidder.bidder_num_stripped + 1, 9999)).zfill(4) if latest_bidder else "0001"
-
-            bidder.bidder_num = attendee.last_name[:1].upper() + "-" + next_num
             attendee.art_show_bidder = bidder
+
+        bidder.apply(params, restricted=False)
+        latest_bidder = session.query(ArtShowBidder).filter(ArtShowBidder.id != bidder.id) \
+            .order_by(ArtShowBidder.bidder_num_stripped.desc()).first()
+
+        if not params.get('bidder_num', None):
+            next_num = str(min(latest_bidder.bidder_num_stripped + 1, 9999)) if latest_bidder else "1"
+            bidder.bidder_num = attendee.last_name[:1].upper() + "-" + next_num
+        else:
+            bidder_num_dupe = session.query(ArtShowBidder).filter(
+                ArtShowBidder.id != bidder.id,
+                ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(params.get('bidder_num'))}%")).first()
+            if bidder_num_dupe:
+                session.rollback()
+                return {
+                    'error': f"The bidder number {bidder_num_dupe.bidder_num[2:]} already belongs to bidder"
+                             f" {bidder_num_dupe.bidder_num}.",
+                    'attendee_id': attendee.id
+                }
 
         if params['complete']:
             bidder.signed_up = localized_now()
@@ -507,7 +555,7 @@ class Root:
             message = check(bidder)
         if message:
             session.rollback()
-            return {'error': message}
+            return {'error': message, 'attendee_id': attendee.id}
         else:
             session.commit()
 
@@ -536,7 +584,7 @@ class Root:
             order = order or 'badge_num'
             if re.match(r'\w-[0-9]{4}', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
-                    ArtShowBidder.bidder_num.ilike('%{}%'.format(search_text[2:])))
+                    ArtShowBidder.bidder_num.ilike('%{}%'.format(ArtShowBidder.strip_bidder_num(search_text))))
             else:
                 # Sorting by bidder number requires a join, which would filter out anyone without a bidder number
                 order = 'badge_num' if order == 'bidder_num' else order
