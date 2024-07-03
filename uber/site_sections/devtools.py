@@ -194,7 +194,7 @@ class Root:
 
             for colname, val in row.items():
                 col = cols[colname]
-                setattr(model_instance, col, model_instance.coerce_column_data(col, val))
+                setattr(model_instance, colname, model_instance.coerce_column_data(col, val))
 
             id_list.append(model_instance.id)
 
