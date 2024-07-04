@@ -272,7 +272,7 @@ class Root:
         message = check(app)
         if message:
             session.rollback()
-            return {'error': message}
+            return {'error': message, 'app_id': app.id}
         else:
             if 'check_in' in params and params['check_in']:
                 app.checked_in = localized_now()
@@ -297,7 +297,7 @@ class Root:
             message = check(attendee)
             if message:
                 session.rollback()
-                return {'error': message}
+                return {'error': message, 'app_id': app.id}
             else:
                 session.commit()
 

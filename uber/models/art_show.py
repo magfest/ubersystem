@@ -350,7 +350,7 @@ class ArtShowPiece(MagModel):
         if self.gallery == c.MATURE and self.app.artist_id_ad:
             return str(self.app.artist_id_ad) + "-" + str(self.piece_id)
         return str(self.app.artist_id) + "-" + str(self.piece_id)
-    
+
     @property
     def app_display_name(self):
         if self.gallery == c.MATURE:

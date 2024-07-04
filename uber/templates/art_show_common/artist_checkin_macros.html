@@ -10,11 +10,11 @@
         <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="app_title_{{ app.id }}">Check-{{ checkout|yesno("Out, In") }} Artist</h4>
       </div>
-
-      <form target="upload_frame" method="post" action="../art_show_admin/save_and_check_in_out" role="form" class="form-horizontal">
-        <div class="modal-body">
-          {% if not printable %}{{ csrf_token() }}{% endif %}
-          {{ check_in_form(app) }}
+      <div class="modal-body">
+        <div class="alert alert-dismissible" role="alert" id="artist-message-alert-{{ app.id }}"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('artist-message-alert-{{ app.id }}')" aria-label="Close"></button></div>
+        <form target="upload_frame" method="post" action="../art_show_admin/save_and_check_in_out" role="form" class="form-horizontal">
+            {% if not printable %}{{ csrf_token() }}{% endif %}
+            {{ check_in_form(app) }}
         </div>
         <div class="modal-footer">
           {% set print_invoice = checkout and app.total_sales %}
