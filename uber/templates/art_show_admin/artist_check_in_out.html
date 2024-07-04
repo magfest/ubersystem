@@ -16,17 +16,26 @@
     <h3 class="card-title">Artist Check-{{ checkout|yesno("Out, In") }}</h3>
   </div>
   <div class="card-body">
-    <form role="form" method="get" action="artist_check_in_out" id="search_form" class="form-inline">
-      <div class="form-group"><a class="btn btn-outline-secondary" href="form?new_app=True">Add a new {{ c.ART_SHOW_APP_TERM }}</a></div>
-      {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
-      <div class="input-group col-sm-6">
-        <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
-        <button class="btn btn-outline-secondary" type="submit">
-            <i class="fa fa-search"></i>
-        </button>
+    <div class="row justify-content-start">
+      <div class="col-12 col-sm-4">
+      <form role="form" method="get" action="artist_check_in_out" id="search_form">
+        {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
+        <div class="input-group">
+          <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
+          <button class="btn btn-outline-secondary" type="submit">
+              <i class="fa fa-search"></i>
+          </button>
+        </div>
+      </form>
       </div>
-    </form>
-    {% if search_text %}<a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a>{% endif %}
+      {% if search_text %}
+      <div class="col"><a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a></div>
+      {% endif %}
+      {% set new_app_link = '../art_show_applications/' if c.INDEPENDENT_ART_SHOW else 'form?new_app=True' %}
+      <div class="col">
+        <a class="btn btn-outline-secondary" href="{{ new_app_link }}" target="_blank">Add a new {{ c.ART_SHOW_APP_TERM }}</a>
+      </div>
+    </div>
 
     <iframe id="upload_frame" name="upload_frame" style="display:none"></iframe>
     <div id="app_modals">
@@ -43,7 +52,8 @@
       <input type="hidden" name="id" class="print_id" />
       {{ csrf_token() }}
     </form>
-    <ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+    <br/>
+  <ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
   {% for pagenum in pages %}
   {% if pagenum == page %}
   <li class="page-item active">
