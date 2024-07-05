@@ -436,7 +436,7 @@
         if (result.error) {
           showErrorMessage(result.error.substring(7), alertId, false);
         } else if (result.success) {
-          window.location = '?id={{ app.id }}&message=' + result.success;
+          window.location = '?id={{ app.id }}&message=' + encodeURIComponent(result.success);
         }
         $('#piece_modals').find('.save_piece').prop('disabled', false);
       });
