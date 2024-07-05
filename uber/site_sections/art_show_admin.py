@@ -217,7 +217,7 @@ class Root:
                          'full_name', 'last_first', 'badge_printed_name']:
                 search_filters.append(getattr(Attendee, attr).ilike('%' + search_text + '%'))
 
-            for attr in ['artist_name', 'banner_name']:
+            for attr in ['artist_name', 'banner_name', 'artist_id', 'artist_id_ad']:
                 search_filters.append(getattr(ArtShowApplication, attr).ilike('%' + search_text + '%'))
 
         applications = session.query(ArtShowApplication).join(ArtShowApplication.attendee)\
