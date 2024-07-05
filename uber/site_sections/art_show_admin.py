@@ -341,6 +341,11 @@ class Root:
                     elif 'check_out' in params and params['check_out'] and piece.status == c.HUNG:
                         piece.status = c.RETURN
                     session.commit()  # We save as we go so it's less annoying if there's an error
+        for piece in app.art_show_pieces:
+            if 'check_in' in params and params['check_in'] and piece.status == c.EXPECTED:
+                piece.status = c.HUNG
+            elif 'check_out' in params and params['check_out'] and piece.status == c.HUNG:
+                piece.status = c.SOLD
 
         return {
             'id': app.id,
@@ -436,7 +441,7 @@ class Root:
         search_text = search_text.strip()
         if search_text:
             order = order or 'badge_printed_name'
-            if re.match(r'\w-[0-9]{4}', search_text):
+            if re.match(r'\w-[0-9]{3,4}', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
                     ArtShowBidder.bidder_num == search_text)
                 if not attendees.first():
