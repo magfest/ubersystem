@@ -443,13 +443,13 @@ class Root:
             order = order or 'badge_printed_name'
             if re.match(r'\w-[0-9]{3,4}', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
-                    ArtShowBidder.bidder_num == search_text)
+                    ArtShowBidder.bidder_num.ilike(search_text.lower()))
                 if not attendees.first():
                     existing_bidder_num = session.query(Attendee).join(Attendee.art_show_bidder).filter(
                         ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(search_text)}%")).first()
                     message = f"There is no one with the bidder number {search_text}."
                     if existing_bidder_num:
-                        message += " Search for bidder {existing_bidder_num.art_show_bidder.bidder_num} instead."
+                        message += f" Search for bidder {existing_bidder_num.art_show_bidder.bidder_num} instead."
             else:
                 if c.INDEPENDENT_ART_SHOW:
                     # Independent art shows likely won't have badge numbers or badge names
@@ -466,8 +466,9 @@ class Root:
                         filters.append(Attendee.badge_printed_name.ilike('%{}%'.format(search_text)))
                     else:
                         filters.append(or_(Attendee.badge_num == badge_num,
-                                        Attendee.badge_printed_name.ilike('%{}%'.format(search_text))))
-                    attendees = session.query(Attendee).filter(*filters).filter(Attendee.is_valid == True)  # noqa: E712
+                                           and_(Attendee.art_show_bidder != None,
+                                                ArtShowBidder.bidder_num.ilike('%{search_text}%'))))
+                    attendees = session.query(Attendee).outerjoin(ArtShowBidder).filter(*filters).filter(Attendee.is_valid == True)  # noqa: E712
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_bidder)
 
@@ -480,7 +481,7 @@ class Root:
         count = attendees.count()
         page = int(page) or 1
 
-        if not count and search_text:
+        if not count and search_text and not message:
             message = 'No matches found'
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
