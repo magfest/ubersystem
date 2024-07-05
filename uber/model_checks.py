@@ -853,7 +853,7 @@ def contact_at_con(app):
 
 @validation.ArtShowApplication
 def artist_id_dupe(app):
-    if app.is_new or app.artist_id != app.orig_value_of('artist_id'):
+    if app.artist_id and (app.is_new or app.artist_id != app.orig_value_of('artist_id')):
         with Session() as session:
             dupe = session.query(ArtShowApplication).filter(or_(ArtShowApplication.artist_id == app.artist_id,
                                                                 ArtShowApplication.artist_id_ad == app.artist_id),
