@@ -515,12 +515,12 @@ class Root:
         missing_fields = []
 
         for field_name in params.copy().keys():
-            if params.get(field_name, None) and \
-                    hasattr(attendee, field_name) and not hasattr(ArtShowBidder(), field_name):
-                setattr(attendee, field_name, params.pop(field_name))
+            if params.get(field_name, None):
+                if hasattr(attendee, field_name) and not hasattr(ArtShowBidder(), field_name):
+                    setattr(attendee, field_name, params.pop(field_name))
             elif c.INDEPENDENT_ART_SHOW and field_name in ArtShowBidder.required_fields.keys():
                 missing_fields.append(ArtShowBidder.required_fields[field_name])
-        
+
         if missing_fields:
             return {'error': "Please fill out the following fields: " + readable_join(missing_fields) + ".",
                     'attendee_id': attendee.id}
@@ -533,23 +533,17 @@ class Root:
             attendee.art_show_bidder = bidder
 
         bidder.apply(params, restricted=False)
-        latest_bidder = session.query(ArtShowBidder).filter(ArtShowBidder.id != bidder.id) \
-            .order_by(ArtShowBidder.bidder_num_stripped.desc()).first()
 
-        if not params.get('bidder_num', None):
-            next_num = str(min(latest_bidder.bidder_num_stripped + 1, 9999)) if latest_bidder else "1"
-            bidder.bidder_num = attendee.last_name[:1].upper() + "-" + next_num
-        else:
-            bidder_num_dupe = session.query(ArtShowBidder).filter(
-                ArtShowBidder.id != bidder.id,
-                ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(params.get('bidder_num'))}%")).first()
-            if bidder_num_dupe:
-                session.rollback()
-                return {
-                    'error': f"The bidder number {bidder_num_dupe.bidder_num[2:]} already belongs to bidder"
-                             f" {bidder_num_dupe.bidder_num}.",
-                    'attendee_id': attendee.id
-                }
+        bidder_num_dupe = session.query(ArtShowBidder).filter(
+            ArtShowBidder.id != bidder.id,
+            ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(params.get('bidder_num'))}%")).first()
+        if bidder_num_dupe:
+            session.rollback()
+            return {
+                'error': f"The bidder number {bidder_num_dupe.bidder_num[2:]} already belongs to bidder"
+                            f" {bidder_num_dupe.bidder_num}.",
+                'attendee_id': attendee.id
+            }
 
         if params['complete']:
             bidder.signed_up = localized_now()

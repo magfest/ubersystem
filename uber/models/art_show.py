@@ -532,4 +532,6 @@ class ArtShowBidder(MagModel):
     @classproperty
     def required_fields(cls):
         # Override for independent art shows to force attendee fields to be filled out
-        return {}
+        return {
+            'bidder_num': "bidder number",
+        }
