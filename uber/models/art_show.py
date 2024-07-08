@@ -109,7 +109,6 @@ class ArtShowApplication(MagModel):
 
     @presave_adjustment
     def add_artist_id(self):
-        from uber.models import Session
         if self.status == c.APPROVED and not self.artist_id:
             self.artist_id = self.generate_artist_id(self.banner_name)
     

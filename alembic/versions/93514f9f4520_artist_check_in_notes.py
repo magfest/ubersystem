@@ -1,7 +1,7 @@
 """Artist check in notes
 
 Revision ID: 93514f9f4520
-Revises: 98d035b97e18
+Revises: d25b82fa1b13
 Create Date: 2024-06-05 22:19:06.367573
 
 """
@@ -9,7 +9,7 @@ Create Date: 2024-06-05 22:19:06.367573
 
 # revision identifiers, used by Alembic.
 revision = '93514f9f4520'
-down_revision = '98d035b97e18'
+down_revision = 'd25b82fa1b13'
 branch_labels = None
 depends_on = None
 
