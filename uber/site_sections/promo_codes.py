@@ -102,6 +102,7 @@ class Root:
             discount_type=0,
             discount=10,
             uses_allowed=1,
+            admin_notes='',
             export=False)
         params = dict(defaults, **{k: v for k, v in params.items() if k in defaults})
 

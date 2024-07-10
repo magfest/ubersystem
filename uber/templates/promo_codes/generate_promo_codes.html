@@ -346,6 +346,12 @@ $(document).ready(function() {
           </div>
         </div>
       </div>
+      <div class="col-12 col-sm-6">
+        <label for="admin_notes" class="form-text">Admin Notes</label>
+        <div class="mb-3">
+          <textarea name="admin_notes" class="form-control" rows="4">{{ admin_notes }}</textarea>
+        </div>
+      </div>
     </div>
 
     <div class="row g-sm-3">
@@ -370,6 +376,7 @@ $(document).ready(function() {
         <th>Expiration Date</th>
         <th>Discount</th>
         <th>Allowed Uses</th>
+        <th>Admin Notes</th>
       </tr>
     </thead>
     {% for code in promo_codes %}
@@ -378,6 +385,7 @@ $(document).ready(function() {
       <td>{{ code.expiration_date|datetime_local("%Y-%m-%d %-I:%M%p") }}</td>
       <td>{{ code.discount_str }}</td>
       <td>{{ code.uses_allowed_str }}</td>
+      <td>{{ code.admin_notes }}</td>
     </tr>
     {% endfor %}
   </table>

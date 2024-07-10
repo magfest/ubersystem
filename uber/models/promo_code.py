@@ -315,6 +315,7 @@ class PromoCode(MagModel):
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
     cost = Column(Integer, nullable=True, default=None)
+    admin_notes = Column(UnicodeText)
 
     group_id = Column(UUID, ForeignKey('promo_code_group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(

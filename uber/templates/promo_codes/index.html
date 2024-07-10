@@ -85,7 +85,9 @@ $(document).ready(function() {
         <th>Discount</th>
         <th>Allowed Uses</th>
         <th>Number of Uses</th>
-        {% if show != 'admin' %}
+        {% if show == 'admin' %}
+        <th>Admin Notes</th>
+        {% else %}
         <th>Promo Code Group</th>
         {% endif %}
         <th></th>
@@ -126,7 +128,9 @@ $(document).ready(function() {
           <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}
           {% endfor %}
         </td>
-        {% if show != 'admin' %}
+        {% if show == 'admin' %}
+        <td>{{ promo_code.admin_notes }}</td>
+        {% else %}
         <td>
           <a href="promo_code_group_form?id={{ promo_code.group.id }}" target="_blank">{{ promo_code.group.name }}</a>
         </td>
