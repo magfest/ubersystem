@@ -180,6 +180,22 @@ class Root:
 
         raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id,
                            "{} receipt created.".format("Blank" if blank else "Default"))
+    
+    def edit_receipt_item(self, session, **params):
+        item = session.receipt_item(params)
+
+        if params.get('receipt_txn_id', None):
+            item.receipt_txn = session.receipt_transaction(params.get('receipt_txn_id'))
+        elif params.get('receipt_txn_id', None) == '':
+            item.receipt_txn = None
+        
+        message = check(item)
+        model = session.get_model_by_receipt(item.receipt)
+        if message:
+            session.rollback()
+        else:
+            message = "Receipt item updated."
+        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id, message)
 
     @ajax
     def add_receipt_item(self, session, id='', **params):
