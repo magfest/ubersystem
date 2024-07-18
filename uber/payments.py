@@ -1536,7 +1536,7 @@ class ReceiptManager:
 
             for item in txn.receipt_items:
                 if item.amount > 0:
-                    item.closed = datetime.now()
+                    item.closed = txn.added()
                     session.add(item)
 
             session.commit()
