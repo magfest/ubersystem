@@ -125,7 +125,7 @@ class PanelApplication(MagModel):
     livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
     panelist_bringing = Column(UnicodeText)
     extra_info = Column(UnicodeText)
-    applied = Column(UTCDateTime, server_default=utcnow())
+    applied = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     accepted = Column(UTCDateTime, nullable=True)
     confirmed = Column(UTCDateTime, nullable=True)
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)

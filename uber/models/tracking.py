@@ -251,7 +251,7 @@ class TxnRequestTracking(MagModel):
     workstation_num = Column(Integer, default=0)
     terminal_id = Column(UnicodeText)
     who = Column(UnicodeText)
-    requested = Column(UTCDateTime, server_default=utcnow())
+    requested = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     resolved = Column(UTCDateTime, nullable=True)
     success = Column(Boolean, default=False)
     response = Column(MutableDict.as_mutable(JSONB), default={})

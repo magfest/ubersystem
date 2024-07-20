@@ -30,7 +30,7 @@ class MITSTeam(MagModel):
     waiver_signature = Column(UnicodeText)
     waiver_signed = Column(UTCDateTime, nullable=True)
 
-    applied = Column(UTCDateTime, server_default=utcnow())
+    applied = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     status = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
 
     applicants = relationship('MITSApplicant', backref='team')

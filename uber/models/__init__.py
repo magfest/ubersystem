@@ -88,8 +88,8 @@ metadata = MetaData(naming_convention=immutabledict(naming_convention))
 @declarative_base(metadata=metadata)
 class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
-    created = Column(UTCDateTime, server_default=utcnow())
-    last_updated = Column(UTCDateTime, server_default=utcnow())
+    created = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+    last_updated = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
 
     """
     The two columns below allow tracking any object in external sources,

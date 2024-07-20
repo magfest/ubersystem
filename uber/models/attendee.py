@@ -239,7 +239,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     can_transfer = Column(Boolean, default=False, admin_only=True)
 
     reg_station = Column(Integer, nullable=True, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     confirmed = Column(UTCDateTime, nullable=True, default=None)
     checked_in = Column(UTCDateTime, nullable=True)
 
