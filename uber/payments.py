@@ -18,7 +18,7 @@ import uber
 from uber.config import c
 from uber.custom_tags import format_currency, email_only
 from uber.utils import report_critical_exception
-import uber.spin_rest_utils
+import uber.spin_rest_utils as spin_rest_utils
 
 class MockStripeIntent(dict):
     """
