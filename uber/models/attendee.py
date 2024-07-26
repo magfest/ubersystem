@@ -595,8 +595,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _use_promo_code(self):
         if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and not self.overridden_price and self.is_unpaid:
-            log.debug(self.badge_cost_with_promo_code)
-            log.debug(self.promo_code)
             if self.badge_cost_with_promo_code > 0:
                 self.overridden_price = self.badge_cost_with_promo_code
             else:
@@ -799,10 +797,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def badge_cost_with_promo_code(self):
         return self.calculate_badge_cost(use_promo_code=True)
 
-    def calculate_badge_cost(self, use_promo_code=False):
+    def calculate_badge_cost(self, use_promo_code=False, include_price_override=True):
         if self.paid == c.NEED_NOT_PAY:
             return 0
-        elif self.overridden_price is not None:
+        elif self.overridden_price is not None and include_price_override:
             return self.overridden_price
         elif self.is_dealer:
             return c.DEALER_BADGE_PRICE
@@ -816,22 +814,15 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return cost
 
-    def calculate_badge_prices_cost(self, current_badge_type=c.ATTENDEE_BADGE):
-        # This is a special calculation that accounts for badge upgrades for comped attendees
-        # All other badge type changes (i.e. those not to/from a badge type in BADGE_TYPE_PRICES)
-        # use the attendee's actual current badge cost
-
-        base_badge_cost = self.new_badge_cost if self.paid == c.NEED_NOT_PAY \
-            else self.calculate_badge_cost() + self.age_discount
-
-        if self.badge_type in c.BADGE_TYPE_PRICES and current_badge_type in c.BADGE_TYPE_PRICES:
-            return c.BADGE_TYPE_PRICES[self.badge_type] - c.BADGE_TYPE_PRICES[current_badge_type]
-        elif current_badge_type in c.BADGE_TYPE_PRICES:
-            return base_badge_cost - c.BADGE_TYPE_PRICES[current_badge_type]
-        elif self.badge_type in c.BADGE_TYPE_PRICES:
-            return c.BADGE_TYPE_PRICES[self.badge_type] - base_badge_cost
-        else:
-            return 0
+    @property
+    def base_badge_prices_cost(self):
+        # This is a special type of cost that accounts for badge upgrades for comped attendees
+        # as well as age discounts, which get included in the upgrade price
+        if self.paid == c.NEED_NOT_PAY:
+            return self.new_badge_cost
+        if self.qualifies_for_discounts:
+            return self.calculate_badge_cost() - min(self.calculate_badge_cost(), abs(self.age_discount))
+        return self.calculate_badge_cost()
 
     def undo_extras(self):
         if self.active_receipt:
@@ -843,7 +834,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def qualifies_for_discounts(self):
-        return self.paid != c.NEED_NOT_PAY and self.overridden_price is None \
+        return not self.promo_code and self.paid != c.NEED_NOT_PAY and self.overridden_price is None \
             and not self.is_dealer and self.badge_type not in c.BADGE_TYPE_PRICES
 
     @property
@@ -857,9 +848,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def new_badge_cost(self):
         # What this badge would cost if it were new, i.e., not taking into
-        # account special overrides
+        # account special overrides or upgrades
         registered = self.registered_local if self.registered else uber.utils.localized_now()
-        if self.badge_type == c.ONE_DAY_BADGE:
+        if self.is_dealer:
+            return c.DEALER_BADGE_PRICE
+        elif self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
@@ -1007,93 +1000,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @is_unpaid.expression
     def is_unpaid(cls):
         return cls.paid == c.NOT_PAID
-
-    def calc_badge_cost_change(self, **kwargs):
-        preview_attendee = Attendee(**self.to_dict())
-        new_cost = None
-        if 'overridden_price' in kwargs:
-            try:
-                preview_attendee.overridden_price = int(kwargs['overridden_price'])
-            except TypeError:
-                preview_attendee.overridden_price = kwargs['overridden_price']
-        if 'badge_type' in kwargs:
-            preview_attendee.badge_type = int(kwargs['badge_type'])
-            new_cost = preview_attendee.calculate_badge_prices_cost(self.badge_type) * 100
-        if 'ribbon' in kwargs:
-            add_opt(preview_attendee.ribbon_ints, int(kwargs['ribbon']))
-
-        current_cost = self.calculate_badge_cost() * 100
-        if not new_cost:
-            new_cost = (preview_attendee.calculate_badge_cost() * 100) - current_cost
-
-        return current_cost, new_cost
-
-    def calc_age_discount_change(self, birthdate):
-        # Get around the fact that child badges need to be set to NEED_NOT_PAY
-        if self.badge_cost and (self.age_discount * -1) >= self.badge_cost and self.paid == c.NEED_NOT_PAY:
-            self.paid = c.NOT_PAID
-            if not self.qualifies_for_discounts:
-                self.paid = c.NEED_NOT_PAY
-                return 0, 0
-            self.paid = c.NEED_NOT_PAY
-        elif not self.qualifies_for_discounts:
-            return 0, 0
-
-        preview_attendee = Attendee(**self.to_dict())
-        preview_attendee.birthdate = birthdate
-
-        if self.badge_cost:
-            current_discount = max(self.badge_cost * 100 * -1, self.age_discount * 100)
-            new_discount = max(self.badge_cost * 100 * -1, preview_attendee.age_discount * 100)
-        else:
-            current_discount, new_discount = self.age_discount * 100, preview_attendee.age_discount * 100
-
-        if not new_discount:
-            return current_discount, current_discount * -1
-        elif not current_discount:
-            return current_discount, new_discount
-        else:
-            return current_discount, new_discount - current_discount
-
-    def calc_promo_discount_change(self, promo_code_code):
-        badge_cost = self.calculate_badge_cost() * 100
-        if self.promo_code:
-            if badge_cost == (self.badge_cost_with_promo_code * 100):
-                current_discount = badge_cost * -1
-            else:
-                current_discount = (badge_cost - (self.badge_cost_with_promo_code * 100)) * -1
-        else:
-            current_discount = 0
-        if promo_code_code:
-            from uber.models import Session
-            with Session() as session:
-                pc_obj = session.lookup_promo_code(promo_code_code)
-                new_discount = (badge_cost - (pc_obj.calculate_discounted_price(badge_cost) * 100)) * -1
-        else:
-            new_discount = 0
-
-        log.debug(new_discount)
-        if not new_discount:
-            return current_discount, current_discount * -1
-        elif not current_discount:
-            return current_discount, new_discount
-        else:
-            return current_discount, new_discount - current_discount
-
-    def calc_badge_comp_change(self, paid):
-        preview_attendee = Attendee(**self.to_dict())
-        paid = int(paid)
-        free_badge_statuses = [c.NEED_NOT_PAY, c.REFUNDED, c.PAID_BY_GROUP]
-        preview_attendee.paid = paid
-        if paid not in free_badge_statuses and self.paid not in free_badge_statuses:
-            return 0, 0
-        elif self.paid in free_badge_statuses and paid in free_badge_statuses:
-            return 0, 0
-        elif paid in free_badge_statuses:
-            return 0, self.badge_cost * -1 * 100
-        else:
-            badge_cost = preview_attendee.calculate_badge_cost() * 100
-            return badge_cost * -1, badge_cost
 
     @hybrid_property
     def is_unassigned(self):

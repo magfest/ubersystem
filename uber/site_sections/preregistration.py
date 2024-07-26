@@ -1006,11 +1006,15 @@ class Root:
                 model = session.get_model_by_receipt(receipt)
 
             if model and not txn.charge_id:
+                new_model = model.__class__(**model.to_dict())
                 for item in txn.receipt_items:
                     for col_name in item.revert_change:
-                        receipt_item = ReceiptManager.process_receipt_upgrade_item(
-                            model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
-                        session.add(receipt_item)
+                        setattr(new_model, col_name, item.revert_change[col_name])
+                for item in txn.receipt_items:
+                    for col_name in item.revert_change:
+                        receipt_items = ReceiptManager.process_receipt_change(
+                            model, col_name, receipt=receipt, new_model=new_model)
+                        session.add_all(receipt_items)
                         model.apply(item.revert_change, restricted=False)
             if not txn.charge_id:
                 txn.cancelled = datetime.now()
@@ -1169,6 +1173,8 @@ class Root:
         receipt = session.get_receipt_by_model(group.buyer)
         if receipt:
             session.add(ReceiptManager().create_receipt_item(receipt,
+                                                             c.REG_RECEIPT_ITEM,
+                                                             c.GROUP_BADGE,
                                                              f'{count} extra badge{"s" if count > 1 else ""} '
                                                              f'for {group.name}',
                                                              count * c.GROUP_PRICE * 100))
@@ -1327,7 +1333,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             # TODO: I don't think this works, but it probably should just be removed
             if attendee and receipt:
-                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
                 session.add_all(receipt_items)
 
             if attendee.placeholder:
@@ -1622,6 +1628,8 @@ class Root:
 
             if not message:
                 attendee.badge_status = c.DEFERRED_STATUS
+                # TODO: Add a receipt item manually for this, if we ever want to use this page again
+                # Use attendee.calculate_shipping_fee_cost()
                 session.add(attendee)
                 session.commit()
 
@@ -1823,7 +1831,7 @@ class Root:
             attendee = session.attendee(params.get('id'))
             receipt = session.get_receipt_by_model(attendee)
             if cherrypy.request.method == 'POST':
-                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
                 session.add_all(receipt_items)
         else:
             receipt = None
@@ -1960,8 +1968,17 @@ class Root:
         if not params.get('col_name'):
             return {'error': "Can't calculate cost change without the column name"}
 
-        desc, change, count = ReceiptManager.process_receipt_upgrade_item(attendee, params['col_name'],
-                                                                          new_val=params.get('val'))
+        preview_attendee = Attendee(**attendee.to_dict())
+        new_val = params.get('val')
+
+        column = preview_attendee.__table__.columns.get(params['col_name'])
+        if column is not None:
+            new_val = preview_attendee.coerce_column_data(column, new_val)
+        setattr(preview_attendee, params['col_name'], new_val)
+        
+        changes_list = ReceiptManager.process_receipt_change(attendee, params['col_name'],
+                                                                    new_model=preview_attendee)
+        desc, change, count = changes_list[0] if changes_list else "", 0, 0
         return {'desc': desc, 'change': change}  # We don't need the count for this preview
 
     @ajax
@@ -1977,7 +1994,8 @@ class Root:
             return {'error': "You already have an outstanding balance, please refresh the page to pay \
                     for your current items or contact {}".format(email_only(c.REGDESK_EMAIL))}
 
-        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+        receipt_items = ReceiptManager.auto_update_receipt(attendee,
+                                                           session.get_receipt_by_model(attendee), params.copy())
         if not receipt_items:
             return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
         session.add_all(receipt_items)

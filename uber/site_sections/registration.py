@@ -52,7 +52,8 @@ def load_attendee(session, params):
 
 def save_attendee(session, attendee, params):
     if cherrypy.request.method == 'POST':
-        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+        receipt_items = ReceiptManager.auto_update_receipt(attendee,
+                                                           session.get_receipt_by_model(attendee), params.copy())
         session.add_all(receipt_items)
 
     forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
@@ -436,6 +437,8 @@ class Root:
                     if receipt and cost_per_badge:
                         session.add(
                             ReceiptManager().create_receipt_item(receipt,
+                                                                 c.REG_RECEIPT_ITEM,
+                                                                 c.GROUP_BADGE,
                                                                  f'Adding {badges} Badge{"s" if badges > 1 else ""}',
                                                                  badges * int(cost_per_badge) * 100))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")

@@ -51,10 +51,14 @@ def check_custom_receipt_item_txn(params, is_txn=False):
 def revert_receipt_item(session, item):
     receipt = item.receipt
     model = session.get_model_by_receipt(receipt)
+    new_model = model.__class__(**model.to_dict())
     for col_name in item.revert_change:
-        receipt_item = ReceiptManager.process_receipt_upgrade_item(model, col_name, receipt=receipt,
-                                                                   new_val=item.revert_change[col_name])
-        session.add(receipt_item)
+        setattr(new_model, col_name, item.revert_change[col_name])
+
+    for col_name in item.revert_change:
+        receipt_items = ReceiptManager.process_receipt_change(model, col_name, receipt=receipt,
+                                                             new_model=new_model)
+        session.add_all(receipt_items)
         model.apply(item.revert_change, restricted=False)
 
     error = check(model)
@@ -66,6 +70,8 @@ def revert_receipt_item(session, item):
 
 def comped_receipt_item(item):
     return ReceiptItem(receipt_id=item.receipt.id,
+                       department=item.department,
+                       category=c.ITEM_COMP,
                        desc="Credit for " + item.desc,
                        amount=item.amount * -1,
                        count=item.count,
@@ -189,17 +195,18 @@ class Root:
             receipt_txn = session.receipt_transaction(params.get('receipt_txn_id'))
             item.receipt_txn = receipt_txn
             if not item.closed:
-                item.closed = receipt_txn.added()
+                item.closed = receipt_txn.added
         elif txn_id == '':
             item.closed = None
             item.receipt_txn = None
         
         message = check(item)
-        model = session.get_model_by_receipt(item.receipt)
         if message:
             session.rollback()
         else:
             message = "Receipt item updated."
+
+        model = session.get_model_by_receipt(item.receipt)
         raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id, message)
 
     @ajax
@@ -225,6 +232,8 @@ class Root:
                 return {'error': "The count must be a number."}
 
         session.add(ReceiptItem(receipt_id=receipt.id,
+                                department=params.get('department', c.OTHER_RECEIPT_ITEM),
+                                category=params.get('category', c.OTHER),
                                 desc=params['desc'],
                                 amount=amount * 100,
                                 count=int(count or 1),
@@ -251,7 +260,7 @@ class Root:
         if isinstance(item_or_txn, ReceiptTransaction):
             for item in item_or_txn.receipt_items:
                 item.closed = None
-                item.txn_id = None
+                item.receipt_txn = None
                 session.add(item)
 
         receipt = item_or_txn.receipt
@@ -301,6 +310,12 @@ class Root:
             else:
                 refund = TransactionRequest(receipt=item.receipt, amount=refund_amount, method=item.receipt_txn.method)
 
+            # Add credit item first so that the refund is attached to it
+            credit_item = comped_receipt_item(item)
+            session.add(credit_item)
+            session.commit()
+            session.refresh(item.receipt)
+
             error = refund.refund_or_cancel(item.receipt_txn)
             if error:
                 return {'error': error}
@@ -311,7 +326,7 @@ class Root:
                 session.merge(model)
 
             if refund.refund_str == 'voided':
-                # We just voided the payment so we need to update any matching transactions and their receipts
+                # We had to void the payment so we need to update all other matching transactions and their receipts
                 matching_txns = session.query(ReceiptTransaction).filter_by(
                     intent_id=item.receipt_txn.intent_id).filter(ReceiptTransaction.id != item.receipt_txn.id)
                 for txn in matching_txns:
@@ -319,24 +334,22 @@ class Root:
                     txn.refunded = txn.amount
                     refund_id = str(refund.response_id) or getattr(refund, 'ref_id')
                     refund.receipt_manager.create_refund_transaction(txn.receipt,
-                                                                     "Automatic refund of transaction " +
+                                                                     "Automatic void of transaction " +
                                                                      txn.stripe_id, refund_id,
                                                                      txn.amount, method=refund.method)
                     refund.receipt_manager.update_transaction_refund(txn, txn.amount)
-                    model = session.get_model_by_receipt(txn.receipt)
-                    model_info = f"{model.__class__.__name__} {model.id}"
-                    refund.receipt_manager.create_receipt_item(txn.receipt,
-                                                               "Automatic credit for voided transaction, "
-                                                               f"see {model_info} for refund information.",
-                                                               txn.amount)
+                    for voided_item in txn.receipt_items:
+                        # We don't do this in other refund cases, but
+                        # voiding is roughly equivalent to cancelling
+                        session.add(voided_item)
+                        voided_item.closed = None
+                        voided_item.receipt_txn = None
 
             message_add = f" and its transaction {refund.refund_str}."
             session.add_all(refund.get_receipt_items_to_add())
         else:
             message_add = ". Its corresponding transaction was already fully refunded."
 
-        credit_item = comped_receipt_item(item)
-        session.add(credit_item)
         item.comped = True
         session.commit()
 
@@ -350,6 +363,9 @@ class Root:
         if message:
             session.rollback()
             return {'error': message}
+        
+        session.commit()
+        session.refresh(item.receipt)
 
         if item.receipt_txn and item.receipt_txn.amount_left:
             refund_amount = min(item.amount * item.count, item.receipt_txn.amount_left)
@@ -357,6 +373,8 @@ class Root:
                 processing_fees = item.receipt_txn.calc_processing_fee(refund_amount)
                 session.add(ReceiptItem(
                     receipt_id=item.receipt.id,
+                    department=c.OTHER_RECEIPT_ITEM,
+                    category=c.PROCESSING_FEES,
                     desc=f"Processing Fees for Refunding {item.desc}",
                     amount=processing_fees,
                     who=AdminAccount.admin_name() or 'non-admin',
@@ -409,6 +427,7 @@ class Root:
                 session.add(model)
 
         new_txn = ReceiptTransaction(receipt_id=receipt.id,
+                                     department=receipt.default_department,
                                      amount=amount * 100,
                                      method=params.get('method'),
                                      desc=params['desc'],
@@ -422,7 +441,8 @@ class Root:
             session.rollback()
             return {'error': "Encountered an exception while trying to save transaction."}
 
-        if (receipt.item_total - receipt.txn_total) <= 0 and amount > 0:
+        session.refresh(receipt)
+        if receipt.current_amount_owed == 0:
             for item in receipt.open_receipt_items:
                 if item.receipt_txn:
                     item.closed = item.receipt_txn.added
@@ -488,10 +508,14 @@ class Root:
                     session.add(ReceiptTransaction(
                         receipt_id=txn.receipt_id,
                         refund_id=last_refund_id,
+                        department=txn.receipt.default_department,
                         amount=(new_amount - prior_amount) * -1,
+                        receipt_items=txn.receipt.open_receipt_items,
                         desc="Automatic refund of Stripe transaction " + txn.stripe_id,
                         who=AdminAccount.admin_name() or 'non-admin'
                     ))
+                    for item in txn.receipt.open_receipt_items:
+                        item.closed = datetime.now()
 
             session.commit()
         else:
@@ -572,6 +596,7 @@ class Root:
         processing_fee_total = 0
         group_leader_receipt = None
         group_refund_amount = 0
+        department = c.REG_RECEIPT_ITEM
 
         if attendee_id:
             model = session.attendee(attendee_id)
@@ -580,32 +605,10 @@ class Root:
                 group_refund_amount = model.promo_code.cost * 100
         elif group_id:
             model = session.group(group_id)
+            if model.is_dealer:
+                department = c.DEALER_RECEIPT_ITEM
 
         if session.get_receipt_by_model(model) == receipt:
-            for txn in receipt.refundable_txns:
-                refund_amount = txn.amount_left
-                if exclude_fees:
-                    processing_fees = txn.calc_processing_fee(txn.amount_left)
-                    session.add(ReceiptItem(
-                        receipt_id=txn.receipt.id,
-                        desc=f"Processing Fees for Full Refund of {txn.desc}",
-                        amount=processing_fees,
-                        who=AdminAccount.admin_name() or 'non-admin',
-                    ))
-                    refund_amount -= processing_fees
-                    processing_fee_total += processing_fees
-
-                if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
-                    refund = SpinTerminalRequest(receipt=receipt, amount=refund_amount, method=txn.method)
-                else:
-                    refund = TransactionRequest(receipt=receipt, amount=refund_amount, method=txn.method)
-
-                error = refund.refund_or_skip(txn)
-                if error:
-                    raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, error)
-                session.add_all(refund.get_receipt_items_to_add())
-                refund_total += refund.amount
-
             refund_desc = "Full Refund for {model.id}"
             if isinstance(model, Attendee):
                 refund_desc = f"Refunding and Cancelling {model.full_name}'s Badge",
@@ -614,10 +617,44 @@ class Root:
 
             session.add(ReceiptItem(
                 receipt_id=receipt.id,
+                department=department,
+                category=c.OTHER,
                 desc=refund_desc,
                 amount=-(refund_total + processing_fee_total),
                 who=AdminAccount.admin_name() or 'non-admin',
             ))
+            session.commit()
+            session.refresh(receipt)
+
+            for txn in receipt.refundable_txns:
+                if txn.department == getattr(model, 'department', c.OTHER_RECEIPT_ITEM):
+                    refund_amount = txn.amount_left
+                    if exclude_fees:
+                        processing_fees = txn.calc_processing_fee(txn.amount_left)
+                        session.add(ReceiptItem(
+                            receipt_id=txn.receipt.id,
+                            department=c.OTHER_RECEIPT_ITEM,
+                            category=c.PROCESSING_FEES,
+                            desc=f"Processing Fees for Full Refund of {txn.desc}",
+                            amount=processing_fees,
+                            who=AdminAccount.admin_name() or 'non-admin',
+                        ))
+                        refund_amount -= processing_fees
+                        processing_fee_total += processing_fees
+                        session.commit()
+                        session.refresh(receipt)
+
+                    if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
+                        refund = SpinTerminalRequest(receipt=receipt, amount=refund_amount, method=txn.method)
+                    else:
+                        refund = TransactionRequest(receipt=receipt, amount=refund_amount, method=txn.method)
+
+                    error = refund.refund_or_skip(txn)
+                    if error:
+                        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                                           attendee_id or group_id, error)
+                    session.add_all(refund.get_receipt_items_to_add())
+                    refund_total += refund.amount
 
             receipt.closed = datetime.now()
             session.add(receipt)
@@ -647,6 +684,8 @@ class Root:
 
             session.add(ReceiptItem(
                 receipt_id=txn.receipt.id,
+                department=department,
+                category=c.REFUND,
                 desc=f"Refunding {model.full_name}'s Promo Code",
                 amount=-group_refund_amount,
                 who=AdminAccount.admin_name() or 'non-admin',
@@ -656,11 +695,16 @@ class Root:
                 processing_fees = txn.calc_processing_fee(group_refund_amount)
                 session.add(ReceiptItem(
                     receipt_id=txn.receipt.id,
+                    department=c.OTHER_RECEIPT_ITEM,
+                    category=c.PROCESSING_FEES,
                     desc=f"Processing Fees for Refund of {model.full_name}'s Promo Code",
                     amount=processing_fees,
                     who=AdminAccount.admin_name() or 'non-admin',
                 ))
                 group_refund_amount -= processing_fees
+            
+            session.commit()
+            session.refresh(txn.receipt)
 
             if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
                 refund = SpinTerminalRequest(receipt=txn.receipt, amount=group_refund_amount, method=txn.method)

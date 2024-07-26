@@ -100,29 +100,6 @@ class Group(MagModel, TakesPaymentMixin):
             for a in self.attendees:
                 a.presave_adjustments()
 
-    def calc_group_price_change(self, **kwargs):
-        preview_group = Group(**self.to_dict())
-        current_cost = int(self.cost * 100)
-        new_cost = None
-
-        if 'cost' in kwargs:
-            try:
-                preview_group.cost = int(kwargs['cost'])
-            except TypeError:
-                preview_group.cost = 0
-            new_cost = preview_group.cost * 100
-        if 'tables' in kwargs:
-            preview_group.tables = int(kwargs['tables'])
-            return self.default_table_cost * 100, (preview_group.default_table_cost * 100
-                                                   ) - (self.default_table_cost * 100)
-        if 'badges' in kwargs:
-            num_new_badges = int(kwargs['badges']) - self.badges
-            return self.current_badge_cost * 100, self.new_badge_cost * num_new_badges * 100
-
-        if not new_cost:
-            new_cost = int(preview_group.calc_default_cost() * 100)
-        return current_cost, new_cost - current_cost
-
     @presave_adjustment
     def assign_creator(self):
         if self.is_new and not self.creator_id:

@@ -4,6 +4,7 @@ from barcode.writer import ImageWriter
 import re
 import math
 
+from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload
@@ -34,7 +35,7 @@ class Root:
         else:
             if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
                 app = session.art_show_application(params.get('id'))
-                receipt_items = ReceiptManager.auto_update_receipt(app, session.get_receipt_by_model(app), params)
+                receipt_items = ReceiptManager.auto_update_receipt(app, session.get_receipt_by_model(app), params.copy())
                 session.add_all(receipt_items)
             app = session.art_show_application(params, bools=['us_only'])
         attendee = None
@@ -780,22 +781,31 @@ class Root:
 
             # Now that we're not changing the receipt anymore, record the item total and the cash sum
             attendee_receipt = session.get_receipt_by_model(receipt.attendee, create_if_none="BLANK")
+            sales_item = ReceiptItem(
+                receipt_id=attendee_receipt.id,
+                department=c.ART_SHOW_RECEIPT_ITEM,
+                category=c.PURCHASE,
+                desc=f"Art Show Receipt #{receipt.invoice_num}",
+                amount=receipt.total,
+                who=AdminAccount.admin_name() or 'non-admin',
+            )
+            session.add(sales_item)
+
             total_cash = receipt.cash_total
             if total_cash != 0:
-                session.add(ReceiptTransaction(
+                cash_txn = ReceiptTransaction(
                     receipt_id=attendee_receipt.id,
                     method=c.CASH,
+                    department=c.ART_SHOW_RECEIPT_ITEM,
                     desc="{} Art Show Receipt #{}".format(
                         "Payment for" if total_cash > 0 else "Refund for", receipt.invoice_num),
                     amount=total_cash,
                     who=AdminAccount.admin_name() or 'non-admin',
-                ))
-            session.add(ReceiptItem(
-                receipt_id=attendee_receipt.id,
-                desc=f"Art Show Receipt #{receipt.invoice_num}",
-                amount=receipt.total,
-                who=AdminAccount.admin_name() or 'non-admin',
-            ))
+                )
+                session.add(cash_txn)
+                if total_cash == receipt.total: # TODO: Fix this when items can have multiple txns
+                    sales_item.receipt_txn = cash_txn
+                    sales_item.closed = datetime.now()
 
             session.commit()
 

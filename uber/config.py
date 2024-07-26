@@ -347,6 +347,13 @@ class Config(_Overridable):
     @property
     def CHERRYPY(self):
         return _config['cherrypy']
+    
+    @property
+    def RECEIPT_CATEGORY_OPTS(self):
+        opts = []
+        for key, dict in c.RECEIPT_DEPT_CATEGORIES.items():
+            opts.extend([(key, val) for key, val in dict.items()])
+        return opts
 
     @property
     def DEALER_REG_OPEN(self):
@@ -1437,6 +1444,11 @@ for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
+c.RECEIPT_DEPT_CATEGORIES = {}
+for _name, _val in _config['enums']['receipt_item_dept'].items():
+    _val = getattr(c, _name.upper())
+    c.RECEIPT_DEPT_CATEGORIES[_val] = {getattr(c, key.upper()): val for key, val in _config['enums'][_name].items()}
+
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
 
@@ -1447,7 +1459,6 @@ c.DOOR_PAYMENT_METHODS = {key: val for key, val in c.DOOR_PAYMENT_METHODS.items(
 c.TERMINAL_ID_TABLE = {k.lower().replace('-', ''): v for k, v in _config['secret']['terminal_ids'].items()}
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
-c.DISCOUNTABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DISCOUNTABLE_BADGE_TYPES]
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
 

@@ -105,8 +105,8 @@ class ModelReceipt(MagModel):
         return sorted(self.receipt_items + self.receipt_txns, key=lambda x: x.added)
     
     @property
-    def sorted_payments(self):
-        return sorted([txn for txn in self.receipt_txns if txn.amount > 0], key=lambda x: x.added)
+    def sorted_txns(self):
+        return sorted([txn for txn in self.receipt_txns], key=lambda x: x.added)
 
     @property
     def total_processing_fees(self):
@@ -206,6 +206,12 @@ class ModelReceipt(MagModel):
                                                           "Payments" if self.txn_total >= 0 else "Refunds",
                                                           "They" if self.current_receipt_amount >= 0 else "We",
                                                           format_currency(abs(self.current_receipt_amount / 100)))
+    
+    @property
+    def default_department(self):
+        from uber.models import Session
+        model = Session.resolve_model(self.owner_model)
+        return getattr(model, 'department', c.OTHER_RECEIPT_ITEM)
 
     def get_last_incomplete_txn(self):
         from uber.models import Session
@@ -268,6 +274,7 @@ class ReceiptTransaction(MagModel):
     charge_id = Column(UnicodeText)
     refund_id = Column(UnicodeText)
     method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
+    department = Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS), default=c.OTHER_RECEIPT_ITEM)
     amount = Column(Integer)
     txn_total = Column(Integer, default=0)
     processing_fee = Column(Integer, default=0)
@@ -463,6 +470,8 @@ class ReceiptItem(MagModel):
     receipt_txn = relationship('ReceiptTransaction', foreign_keys=txn_id,
                                cascade='save-update, merge',
                                backref=backref('receipt_items', cascade='save-update, merge'))
+    department = Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS), default=c.OTHER_RECEIPT_ITEM)
+    category = Column(Choice(c.RECEIPT_CATEGORY_OPTS), default=c.OTHER)
     amount = Column(Integer)
     comped = Column(Boolean, default=False)
     reverted = Column(Boolean, default=False)
@@ -481,7 +490,7 @@ class ReceiptItem(MagModel):
     def paid(self):
         if not self.closed:
             return
-        return self.receipt_txn.added
+        return self.receipt_txn.added and self.receipt_txn.amount > 0
 
     @property
     def available_actions(self):
