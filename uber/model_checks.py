@@ -152,7 +152,7 @@ def include_other_details(entry):
 
 @validation.WatchList
 def not_active_after_expiration(entry):
-    if entry.active and localized_now().date() > entry.expiration:
+    if entry.active and entry.expiration and localized_now().date() > entry.expiration:
         return ('expiration', 'An entry cannot be active with an expiration date in the past.')
 
 
