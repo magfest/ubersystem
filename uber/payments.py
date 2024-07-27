@@ -685,7 +685,7 @@ class TransactionRequest:
                                                                                params.get('first_name', ''),
                                                                                params.get('last_name', ''))
                     if not payment_profile:
-                        return f"Could not complete payment. Please contact us at {email_only(c.REGDESK_EMAIL)}"
+                        return f"Could not complete payment. Please contact us at {email_only(c.REGDESK_EMAIL)}."
 
             elif 'cc_num' in params:
                 # This is only for refunds, hence the lack of expiration date
@@ -739,22 +739,24 @@ class TransactionRequest:
                 else:
                     error_code = str(response.transactionResponse.errors.error[0].errorCode)
                     error_msg = str(response.transactionResponse.errors.error[0].errorText)
-                    log.debug(f"Transaction {self.tracking_id} request did not receive a transaction response! "
+                    log.debug(f"Transaction {self.tracking_id} declined! "
                               f"{error_code}: {error_msg}")
 
-                    return str(response.transactionResponse.errors.error[0].errorText)
+                    return "Transaction declined. Please ensure you are entering the correct " + \
+                        "expiry date, card CVV/CVC, and ZIP Code&trade;."
             else:
                 if hasattr(response, 'transactionResponse') is True \
                         and hasattr(response.transactionResponse, 'errors') is True:
-                    error_code = response.transactionResponse.errors.error[0].errorCode
-                    error_msg = response.transactionResponse.errors.error[0].errorText
+                    error_code = str(response.transactionResponse.errors.error[0].errorCode)
+                    error_msg = str(response.transactionResponse.errors.error[0].errorText)
                 else:
-                    error_code = response.messages.message[0]['code'].text
-                    error_msg = response.messages.message[0]['text'].text
+                    error_code = str(response.messages.message[0]['code'].text)
+                    error_msg = str(response.messages.message[0]['text'].text)
 
-                log.debug(f"Transaction {self.tracking_id} request failed! {error_code}: {error_msg}")
+                log.error(f"Transaction {self.tracking_id} request failed! {error_code}: {error_msg}")
 
-                return str(error_msg)
+                return "Transaction failed. Please refresh the page and try again, " + \
+                    f"or contact us at {email_only(c.REGDESK_EMAIL)}."
         else:
             log.error(f"Transaction {self.tracking_id} request to AuthNet failed: no response received.")
 
