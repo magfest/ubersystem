@@ -1978,7 +1978,8 @@ class Root:
         
         changes_list = ReceiptManager.process_receipt_change(attendee, params['col_name'],
                                                                     new_model=preview_attendee)
-        desc, change, count = changes_list[0] if changes_list else "", 0, 0
+        only_change = changes_list[0] if changes_list else ("", 0, 0)
+        desc, change, count = only_change
         return {'desc': desc, 'change': change}  # We don't need the count for this preview
 
     @ajax
