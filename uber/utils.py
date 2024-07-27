@@ -1114,7 +1114,7 @@ def _server_to_url(server):
     elif path.startswith('uber'):
         return f'{protocol}://{host}/uber'
     elif path in ['uber', 'rams']:
-        f'{protocol}://{host}/{path}'
+        return f'{protocol}://{host}/{path}'
     return f'{protocol}://{host}'
 
 
