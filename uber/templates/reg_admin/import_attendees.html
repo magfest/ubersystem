@@ -271,7 +271,7 @@
 {% endif %}
 
 {% if accounts %}
-  <h2>Attendee Accounts to Import</h2>
+  <h2>Attendee Accounts Queued for Import</h2>
   <form id="confirm_accounts" action="confirm_import_attendee_accounts" method="post" class="form">
     <input type="hidden" name="target_server" value="{{ target_server }}">
     <input type="hidden" name="api_token" value="{{ api_token }}">
@@ -287,26 +287,12 @@
       <tbody>
         {% for account in accounts %}
           <tr>
-            <td>
-              <input
-                type="checkbox"
-                name="account_ids"
-                value="{{ account.id }}"
-                checked>
-            </td>
             <td>{{ account.email }}</td>
             <td>{% for id in account.attendees %}{% if not loop.first %} | {% endif %}{{ account.attendees[id] }}{% endfor %}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
-
-    <div class="form-group">
-      <label class="control-label">Import</label>
-      <div class="control-inline">
-        <input type="submit" class="btn btn-primary" value="Import Attendee Accounts">
-      </div>
-    </div>
   </form>
 {% endif %}
 
