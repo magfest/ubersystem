@@ -596,7 +596,6 @@ class Root:
         processing_fee_total = 0
         group_leader_receipt = None
         group_refund_amount = 0
-        department = c.REG_RECEIPT_ITEM
 
         if attendee_id:
             model = session.attendee(attendee_id)
@@ -605,8 +604,6 @@ class Root:
                 group_refund_amount = model.promo_code.cost * 100
         elif group_id:
             model = session.group(group_id)
-            if model.is_dealer:
-                department = c.DEALER_RECEIPT_ITEM
 
         if session.get_receipt_by_model(model) == receipt:
             refund_desc = "Full Refund for {model.id}"
@@ -617,8 +614,8 @@ class Root:
 
             session.add(ReceiptItem(
                 receipt_id=receipt.id,
-                department=department,
-                category=c.OTHER,
+                department=receipt.default_department,
+                category=c.CANCEL_ITEM,
                 desc=refund_desc,
                 amount=-(refund_total + processing_fee_total),
                 who=AdminAccount.admin_name() or 'non-admin',

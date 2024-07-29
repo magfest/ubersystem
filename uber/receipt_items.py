@@ -348,12 +348,14 @@ def badge_comp_credit(attendee, new_attendee=None):
 
     if attendee.paid in comp_statuses and new_attendee.paid in comp_statuses:
         return
-    elif attendee.paid in comp_statuses:
+    elif attendee.paid in comp_statuses and new_attendee.paid != c.REFUNDED:
         diff = new_attendee.calculate_badge_cost() * 100
         label = f'Remove Paid Status "{string.capwords(attendee.paid_label)}"'
     elif new_attendee.paid in comp_statuses:
         diff = attendee.badge_cost * 100 * -1
-        label = f'Add Paid Status "{new_attendee.paid_label.title()}"'
+        label = f'Add Paid Status "{string.capwords(new_attendee.paid_label)}"'
+    else:
+        return
 
     return (label, diff, 'paid')
 
