@@ -411,6 +411,39 @@ def check_missed_stripe_payments():
     return paid_ids
 
 
+@celery.task
+def import_attendee_accounts(accounts, admin_id, admin_name, target_server, api_token):
+    already_queued = 0
+    with Session() as session:
+        for account in accounts:
+            id = account['id']
+            existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_account_import",
+                                                           ApiJob.query == id,
+                                                           ApiJob.completed == None,  # noqa: E711
+                                                           ApiJob.cancelled == None,  # noqa: E711
+                                                           ApiJob.errors == '').count()
+            if existing_import:
+                already_queued += 1
+            else:
+                import_job = ApiJob(
+                    admin_id=admin_id,
+                    admin_name=admin_name,
+                    job_name="attendee_account_import",
+                    target_server=target_server,
+                    api_token=api_token,
+                    query=id,
+                    json_data={'all': False}
+            )
+                if len(accounts) < 25:
+                    TaskUtils.attendee_account_import(import_job)
+                else:
+                    session.add(import_job)
+        session.commit()
+    count = len(accounts) - already_queued
+    return f"{count} account(s) queued for import. {already_queued} jobs were already in the queue."
+    
+
+
 @celery.schedule(timedelta(minutes=30))
 def process_api_queue():
     known_job_names = ['attendee_account_import', 'attendee_import', 'group_import']
