@@ -167,6 +167,10 @@ class ModelReceipt(MagModel):
         return select([func.sum(ReceiptTransaction.amount) * -1]
                       ).where(and_(ReceiptTransaction.amount < 0, ReceiptTransaction.receipt_id == cls.id)
                               ).label('refund_total')
+    
+    @property
+    def has_at_con_payments(self):
+        return any([txn for txn in self.receipt_txns if txn.method == c.SQUARE])
 
     @hybrid_property
     def current_amount_owed(self):
@@ -210,10 +214,13 @@ class ModelReceipt(MagModel):
     @property
     def default_department(self):
         from uber.models import Session, Attendee, Group
-        model = Session.resolve_model(self.owner_model)
-        if isinstance(model, (Attendee, Group)) and model.is_dealer:
-            return c.DEALER_RECEIPT_ITEM
-        return getattr(model, 'department', c.OTHER_RECEIPT_ITEM)
+        cls = Session.resolve_model(self.owner_model)
+        if cls in [Attendee, Group]:
+            with Session() as session:
+                model = session.query(cls).filter_by(id=self.owner_id).first()
+                if model and model.is_dealer:
+                    return c.DEALER_RECEIPT_ITEM
+        return getattr(cls, 'department')
 
     def get_last_incomplete_txn(self):
         from uber.models import Session

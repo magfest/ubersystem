@@ -921,6 +921,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def in_reg_cart_group(self):
         if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
             return self.badge_status == c.AT_DOOR_PENDING_STATUS and len(self.managers[0].at_door_attendees) > 1
+        
+    @property
+    def has_at_con_payments(self):
+        return self.active_receipt.has_at_con_payments if self.active_receipt else False
 
     @property
     def amount_extra_unpaid(self):
@@ -1088,7 +1092,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.badge_type_label in c.DAYS_OF_WEEK
 
     @property
-    def is_not_ready_to_checkin(self):
+    def cannot_check_in_reason(self):
         """
         Returns None if we are ready for checkin, otherwise a short error
         message why we can't check them in.
@@ -1124,26 +1128,50 @@ class Attendee(MagModel, TakesPaymentMixin):
         return message
 
     @property
-    def can_abandon_badge(self):
-        return not self.amount_paid and (
-            not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group
-        ) and (not self.is_group_leader or not self.group.is_valid) and not self.checked_in and (
-            not self.art_show_applications or not self.art_show_applications[0].is_valid
-        ) and (not self.art_agent_apps or not any(app.is_valid for app in self.art_agent_apps))
+    def cannot_abandon_badge_reason(self):
+        from uber.custom_tags import email_only
+        if self.checked_in:
+            return "This badge has already been picked up."
+        if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
+            return f"Please contact {email_only(c.STAFF_EMAIL)} to cancel or defer your badge."
+
+        if self.art_show_applications and self.art_show_applications[0].is_valid:
+            return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
+        if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
+            return "Please ask the artist you're agenting for {} first.".format(
+                "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
+            )
+        
+        reason = ""
+        if self.paid == c.NEED_NOT_PAY and not self.in_promo_code_group:
+            reason = "You cannot abandon a comped badge."
+        elif self.is_group_leader and self.group.is_valid:
+            reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
+        elif self.amount_paid:
+            reason = self.cannot_self_service_refund_reason
+
+        if reason:
+            return reason + "Please {} contact us at {}{}.".format(
+                "transfer your badge instead or" if self.is_transferable else "",
+                email_only(c.REGDESK_EMAIL),
+                " for a refund" if c.SELF_SERVICE_REFUNDS_OPEN else "")
 
     @property
-    def can_self_service_refund_badge(self):
-        return self.amount_paid \
-               and self.amount_paid > 0 \
-               and self.paid not in [c.NEED_NOT_PAY, c.REFUNDED] \
-               and not self.is_group_leader \
-               and self.active_receipt \
-               and not self.checked_in \
-               and c.SELF_SERVICE_REFUNDS_OPEN
+    def cannot_self_service_refund_reason(self):
+        from uber.custom_tags import datetime_local_filter
+
+        if not c.REFUND_CUTOFF:
+            return "We do not offer refunds."
+        if self.has_at_con_payments:
+            return "We cannot automatically refund at-the-door payments."
+        if c.AFTER_REFUND_CUTOFF:
+            return "Refunds are no longer available."
+        if c.BEFORE_REFUND_START:
+            return f"Refunds will open at {datetime_local_filter(c.REFUND_START)}."
 
     @property
     def can_defer_badge(self):
-        return not self.can_abandon_badge and not self.checked_in \
+        return self.cannot_abandon_badge_reason and not self.checked_in \
                and self.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
                and not self.group and not self.in_promo_code_group \
                and self.badge_status == c.COMPLETED_STATUS and not self.amount_unpaid \
@@ -2193,10 +2221,6 @@ class AttendeeAccount(MagModel):
         if c.SSO_EMAIL_DOMAINS:
             local, domain = normalize_email(self.email, split_address=True)
             return domain in c.SSO_EMAIL_DOMAINS
-
-    @property
-    def has_only_one_badge(self):
-        return len(self.attendees) == 1
 
     @property
     def has_dealer(self):

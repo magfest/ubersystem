@@ -1672,7 +1672,7 @@ class Root:
                     .format(email_only(c.REGDESK_EMAIL))
         page_redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else page_redirect
 
-        if (not attendee.amount_paid and not attendee.can_abandon_badge)\
+        if (not attendee.amount_paid and attendee.cannot_abandon_badge_reason)\
                 or (attendee.amount_paid and not attendee.can_self_service_refund_badge):
             raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
 

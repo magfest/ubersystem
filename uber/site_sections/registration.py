@@ -230,9 +230,9 @@ class Root:
                 session.add(attendee)
                 session.commit()
                 if params.get('save_check_in', False):
-                    if attendee.is_not_ready_to_checkin:
+                    if attendee.cannot_check_in_reason:
                         message = "Attendee saved, but they cannot check in now. Reason: {}".format(
-                            attendee.is_not_ready_to_checkin)
+                            attendee.cannot_check_in_reason)
                         stay_on_form = True
                     elif attendee.amount_unpaid_if_valid:
                         message = "Attendee saved, but they must pay ${} before they can check in.".format(
