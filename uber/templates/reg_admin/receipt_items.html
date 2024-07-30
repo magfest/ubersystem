@@ -467,7 +467,7 @@
     
   });
 </script>
-{% macro receipt_item_macro(item) %}
+{% macro receipt_item_macro(item, receipt=receipt) %}
 <div class="modal fade" id="receiptModal-{{ item.id }}" tabindex="-1" role="dialog" aria-labelledby="receiptModal-{{ item.id }}-title">
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
@@ -677,7 +677,7 @@
 
 See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> for information on how to use this page.
 
-{% macro receipt_item_form(type="purchase") %}
+{% macro receipt_item_form(type="purchase", receipt=receipt) %}
 <tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
   <td colspan="8">
     <button type="button" class="btn-close pull-left" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')" aria-label="Close"></button>
@@ -723,7 +723,7 @@ See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> fo
   </td>
 </tr>
 {% endmacro %}
-{% macro receipt_txn_form(type="payment") %}
+{% macro receipt_txn_form(type="payment", receipt=receipt) %}
 <tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
   <td colspan="8">
     <button type="button" class="btn-close pull-left" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')" aria-label="Close"></button>
@@ -808,7 +808,7 @@ See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> fo
           {{ receipt_txn_macro(item) }}
           {% else %}
           <button type="button" data-bs-toggle="modal" data-bs-target="#receiptModal-{{ item.id }}" class="btn btn-sm btn-warning">View/Edit</button>
-          {{ receipt_item_macro(item) }}
+          {{ receipt_item_macro(item, receipt) }}
           {% endif %}
         </td>
         <td>{{ item.desc }}{{ " (" ~ processors[item.method] ~ " ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
@@ -876,10 +876,10 @@ See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> fo
         <span class="pull-right"><strong>Total</strong>: <span id="receipt_total">{{ receipt.total_str }}</span></span>
       </td>
     </tr>
-    {{ receipt_item_form(type="purchase") }}
-    {{ receipt_item_form(type="credit") }}
-    {{ receipt_txn_form(type="payment") }}
-    {{ receipt_txn_form(type="refund") }}
+    {{ receipt_item_form(type="purchase", receipt=receipt) }}
+    {{ receipt_item_form(type="credit", receipt=receipt) }}
+    {{ receipt_txn_form(type="payment", receipt=receipt) }}
+    {{ receipt_txn_form(type="refund", receipt=receipt) }}
     {% if not receipt.closed %}
     <tr id="{{ receipt.id }}">
       <td colspan="8">
