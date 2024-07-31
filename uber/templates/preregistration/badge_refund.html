@@ -13,10 +13,10 @@
             var formToSubmit = $('#abandon_badge');
             bootbox.confirm({
                 title: 'Cancel Registration?',
-                message: '{{ "Refunding" if attendee.amount_paid else "Abandoning" }} your badge will IMMEDIATELY cancel your registration. If you decide to attend {{ c.EVENT_NAME }}, you will need to purchase a new badge. Are you sure you want to do this?',
+                message: '{{ "Refunding" if attendee.amount_paid else "Abandoning" }} your badge will <strong>immediately</strong> cancel your registration.<br/><br/>The registration fee and any upgrades purchased will be refunded to the original payment method.<br/><br/>You will need to purchase a new badge if you wish to attend {{ c.EVENT_NAME }}.<br/><br/>Do you wish to proceed?',
                 buttons: {
                     confirm: {
-                        label: "Yes, I'm Sure",
+                        label: "Yes, Cancel My Registration",
                         className: 'btn-danger'
                     },
                     cancel: {
