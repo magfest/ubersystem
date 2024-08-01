@@ -6,8 +6,6 @@
   <p>
   {%- if not c.HIDE_PREREG_OPEN_DATE -%}
     Please check back at {{ c.PREREG_OPEN|datetime_local }}!<br/>
-  {%- else -%}
-    Please check back soon!
   {%- endif -%}
   </p>
   {%- if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN -%}
