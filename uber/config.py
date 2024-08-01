@@ -1,4 +1,5 @@
 import ast
+import csv
 import hashlib
 import inspect
 import math
@@ -343,6 +344,19 @@ class Config(_Overridable):
         if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin',
                                                                   'band_admin', 'mivs_admin']):
             return True
+        
+    def update_name_problems(self):
+        c.PROBLEM_NAMES = {}
+        file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')
+        try:
+            result = csv.DictReader(open(file_loc))
+        except FileNotFoundError:
+            return "File not found!"
+        
+        for row in result:
+            c.PROBLEM_NAMES[row['text']] = [row[f"canonical_form_{x}"] for x in range(1, 4)
+                                            if row[f"canonical_form_{x}"]]
+
     
     @property
     def CHERRYPY(self):
@@ -1574,7 +1588,7 @@ c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
 c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
-
+c.update_name_problems()
 
 try:
     _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
