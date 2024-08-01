@@ -45,7 +45,7 @@
         <td>{{ badge.badge_type_label }}</td>
         <td>{{ badge.ribbon_labels|join(", ") }}</td>
         <td>{{ badge.assigned_depts_labels|join(", ") }}</td>
-        <td>{{ badge.created.who }}</td>
+        <td>{{ badge.created_info.who }}</td>
         <td>{{ badge.admin_notes }}</td>
         <td><button class="btn btn-primary" onClick="approve('{{ badge.id }}')">Approve Badge</button></td>
       </tr>

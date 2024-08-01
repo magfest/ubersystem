@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Update List of Banned Badge Names{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header"><h2>Banned Badge Names</h2></div>
+    <div class="card-body">
+        <p>Use the form below to upload a new CSV file for the system to use when flagging <a href="printed_name_problems" target="_blank">badge printed names</a> for admin review.</p>
+
+        {% if file_exists %}<p><a href="download_problem_names">Download the current list</a> of banned names.</p>{% endif %}
+
+        <p>
+            The format of the file is a CSV with the headers ['text', 'canonical_form_1', 'canonical_form_2', canonical_form_3'].
+            "Text" is what text should be matched, and the canonical forms are the 'translated' version of any profanity or slurs used in that
+            text, e.g., "@ss" has the canonical form of "ass". Text matches only whole words in the badge name.
+        </p>
+        
+        <p>The canonical forms are used as hints for admins when reviewing names, so
+            you can also use them to clarify why that word should be flagged. Other information in the file is preserved but unused.
+        </p>
+
+        <p>This file format is based on the profanity list <a href="https://github.com/surge-ai/profanity/" target="_blank">Surge AI</a>.</p>
+
+        <form action="update_problem_names" method="post" enctype="multipart/form-data">
+            <div class="row g-sm-3">
+                <div class="col-6 col-sm-4"><input class="form-control" type="file" name="new_file" /></div>
+                <div class="col col-auto"><input class="btn btn-primary" type="submit" value="Upload" /></div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

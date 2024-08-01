@@ -128,6 +128,7 @@ class MagForm(Form):
     field_aliases = {}
     dynamic_choices_fields = {}
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
+    kwarg_overrides = {}
 
     def get_optional_fields(self, model, is_admin=False):
         return []
@@ -302,6 +303,11 @@ class MagForm(Form):
             unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field,
                                                                           unbound_field.kwargs.get('render_kw', {}),
                                                                           field_name)
+            
+            # Allow overriding the default kwargs via kwarg_overrides
+            if field_name in form.kwarg_overrides:
+                for kw, val in form.kwarg_overrides[field_name].items():
+                    unbound_field.kwargs['render_kw'][kw] = val
 
             return unbound_field.bind(form=form, **options)
 

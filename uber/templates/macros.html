@@ -478,25 +478,36 @@
           var regionopts = $('#region{{ suffix }}');
           var whichCountry = $('#country{{ suffix }}').find(':selected').text();
           switch(whichCountry) {
-              case 'United States':
-                  regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control"></select>');
-                  $('[name="{{ name_prefix }}region"]').html(regionsforUS);
-                  break;
-              case 'Canada':
-                  regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control"></select>');
-                  $('[name="{{ name_prefix }}region"]').html(regionsforCanada);
-                  break;
-          }
+            case 'United States':
+                regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="{{ "form-select" if use_bs5 else "form-control" }}"></select>');
+                $('#region{{ suffix }}').html(regionsforUS);
+                break;
+            case 'Canada':
+                regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="{{ "form-select" if use_bs5 else "form-control" }}"></select>');
+                $('#region{{ suffix }}').html(regionsforCanada);
+                break;
+            }
           var optionToSelect{{ suffix }} = $('#region{{ suffix }} option[value="{{ model[region_attr] }}"]');
           if (optionToSelect{{ suffix }}.length) {
               optionToSelect{{ suffix }}.prop('selected', true);
+              console.log("{{ suffix }} now set to " + optionToSelect{{ suffix }}.text())
           }
       };
 
       $(function() {
           {% if update_international %}setInternational();{% endif %}
-          $('#country{{ suffix }}').val('{{ model[country_attr] }}');
-          $('#country{{ suffix }}').selectToAutocomplete();
+          
+          if ($('#country{{ suffix }}').closest('.modal').find('.modal-content').length) {
+            {% if use_bs5 %}
+            $('#country{{ suffix }}').removeClass('form-control').addClass('form-select');
+            {% endif %}
+            // selectToAutocomplete is broken in modals
+            var countryToSelect{{ suffix }} = $('#country{{ suffix }} option[value="{{ model[country_attr] }}"]');
+            countryToSelect{{ suffix }}.prop('selected', true);
+          } else {
+            $('#country{{ suffix }}').val('{{ model[country_attr] }}');
+            $('#country{{ suffix }}').selectToAutocomplete();
+          }
           $('#country{{ suffix }}').change(function() {
               $('#region{{ suffix }}').replaceWith('<input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" value="{{ model[region_attr] }}" class="form-control" placeholder="State/Province">');
               regionChange{{ suffix }}();
@@ -516,7 +527,7 @@
         {%- if is_readonly -%}
             {{ model[country_attr]|linebreaksbr }}
         {%- else -%}
-        <select name="{{ name_prefix }}country" id="country{{ suffix }}" class="form-select" placeholder="Country" autocorrect="off" autocomplete="country" {% if is_required %}required="required"{% endif %}>
+        <select name="{{ name_prefix }}country" id="country{{ suffix }}" class="form-control" placeholder="Country" autocorrect="off" autocomplete="country" {% if is_required %}required="required"{% endif %}>
           {% include "country_opts.html" %}
         </select>
         {%- endif -%}

@@ -301,7 +301,7 @@ class OtherInfo(MagForm):
             with Session() as session:
                 code = session.lookup_promo_code(field.data)
                 if not code:
-                    group = session.lookup_promo_or_group_code(field.data, PromoCodeGroup)
+                    group = session.lookup_registration_code(field.data, PromoCodeGroup)
                     if not group:
                         raise ValidationError("The promo code you entered is invalid.")
                     elif not group.valid_codes:

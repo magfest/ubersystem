@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}List of Flagged Badge Names{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header"><h2>Flagged Badge Names</h2></div>
+    <div class="card-body">
+        <p>The attendees below entered badge names that may be inappropriate for printing.</p>
+        
+        <p><a href="update_problem_names" target="_blank">Update the list of flagged words</a>.</p>
+        
+        <table class="table table-striped datatable">
+            <thead>
+                <tr>
+                    <th>Badge Name</th>
+                    <th>Email</th>
+                    <th>Flagged Words</th>
+                    <th>Canonical Words/Meaning</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attendee in attendees %}
+                <tr>
+                    <td>{{ attendee.badge_printed_name }}</td>
+                    <td>{{ attendee.email|email_to_link }}</td>
+                    <td>{{ word_matches[attendee.id]|readable_join }}</td>
+                    <td>{{ origin_words[attendee.id]|readable_join }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

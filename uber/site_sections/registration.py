@@ -1,15 +1,18 @@
 import json
-import pytz
 import math
+import os
+import pytz
 import re
+import shutil
 from datetime import datetime, timedelta
 from functools import wraps
 from io import BytesIO
 
 import cherrypy
+from cherrypy.lib.static import serve_file
 from aztec_code_generator import AztecCode
 from pytz import UTC
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, any_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -52,7 +55,8 @@ def load_attendee(session, params):
 
 def save_attendee(session, attendee, params):
     if cherrypy.request.method == 'POST':
-        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+        receipt_items = ReceiptManager.auto_update_receipt(attendee,
+                                                           session.get_receipt_by_model(attendee), params.copy())
         session.add_all(receipt_items)
 
     forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
@@ -229,9 +233,9 @@ class Root:
                 session.add(attendee)
                 session.commit()
                 if params.get('save_check_in', False):
-                    if attendee.is_not_ready_to_checkin:
+                    if attendee.cannot_check_in_reason:
                         message = "Attendee saved, but they cannot check in now. Reason: {}".format(
-                            attendee.is_not_ready_to_checkin)
+                            attendee.cannot_check_in_reason)
                         stay_on_form = True
                     elif attendee.amount_unpaid_if_valid:
                         message = "Attendee saved, but they must pay ${} before they can check in.".format(
@@ -436,6 +440,8 @@ class Root:
                     if receipt and cost_per_badge:
                         session.add(
                             ReceiptManager().create_receipt_item(receipt,
+                                                                 c.REG_RECEIPT_ITEM,
+                                                                 c.GROUP_BADGE,
                                                                  f'Adding {badges} Badge{"s" if badges > 1 else ""}',
                                                                  badges * int(cost_per_badge) * 100))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
@@ -1448,3 +1454,71 @@ class Root:
         session.commit()
 
         return {'added': id}
+    
+    def update_problem_names(self, session, new_file=None, message=''):        
+        if cherrypy.request.method == "POST":
+            if not new_file:
+                message = "Please upload a new file for matching badge names against."
+            else:
+                file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')
+                with open(file_loc, 'wb') as f:
+                    shutil.copyfileobj(new_file.file, f)
+                
+                message = c.update_name_problems() or "File uploaded!"
+        
+        file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')
+        file_exists = os.path.isfile(file_loc)
+
+        return {
+            'message': message,
+            'file_exists': file_exists,
+            }
+
+    def download_problem_names(self, session):
+        try:
+            return serve_file(
+                os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv'),
+                disposition="attachment",
+                name=f'problem_names{datetime.now().strftime("%Y%m%d")}.csv',
+                content_type='application/csv')
+        except FileNotFoundError:
+            raise HTTPRedirect(f'update_problem_names?message={"File not found!"}')
+    
+    def printed_name_problems(self, session):
+        posix_regex_list = []
+        python_regex_dict = {}
+
+        # We want to generally match against word boundaries, but this excludes some creative forms of profanity
+        # from being matched, so we also check against whitespace (or beginning/end of string) manually
+        for word in c.PROBLEM_NAMES:
+            posix_regex_list.append(f"(\\s|^){word}(\\s|$)")
+            posix_regex_list.append(f"\\y{word}\\y")
+            python_regex_dict[f"(\\s|^){word}(\\s|$)"] = word
+            python_regex_dict[f"\\b{word}\\b"] = word
+
+        word_list = [f"\\y{word}\\y" for word in c.PROBLEM_NAMES]
+        attendees = session.query(Attendee).filter(Attendee.badge_printed_name.regexp_match(any_(posix_regex_list),
+                                                                                            flags="i"))
+        word_matches = {}
+        origin_words = {}
+
+        for attendee in attendees:
+            word_match_list = []
+            origin_match_list = []
+            for regex in python_regex_dict:
+                if re.search(re.compile(regex, re.IGNORECASE), attendee.badge_printed_name):
+                    found_word = python_regex_dict[regex]
+                    if found_word not in word_match_list:
+                        word_match_list.append(found_word)
+                    for origin_word in c.PROBLEM_NAMES[found_word]:
+                        if origin_word not in origin_match_list:
+                            origin_match_list.append(origin_word)
+
+            word_matches[attendee.id] = word_match_list
+            origin_words[attendee.id] = origin_match_list
+
+        return {
+            'attendees': attendees,
+            'word_matches': word_matches,
+            'origin_words': origin_words,
+        }

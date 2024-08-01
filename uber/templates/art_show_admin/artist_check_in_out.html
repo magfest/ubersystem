@@ -16,17 +16,26 @@
     <h3 class="card-title">Artist Check-{{ checkout|yesno("Out, In") }}</h3>
   </div>
   <div class="card-body">
-    <form role="form" method="get" action="artist_check_in_out" id="search_form" class="form-inline">
-      <div class="form-group"><a class="btn btn-outline-secondary" href="form?new_app=True">Add an application</a></div>
-      {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
-      <div class="input-group col-sm-6">
-        <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
-        <button class="btn btn-outline-secondary" type="submit">
-            <i class="fa fa-search"></i>
-        </button>
+    <div class="row justify-content-start">
+      <div class="col-12 col-sm-4">
+      <form role="form" method="get" action="artist_check_in_out" id="search_form">
+        {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
+        <div class="input-group">
+          <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
+          <button class="btn btn-outline-secondary" type="submit">
+              <i class="fa fa-search"></i>
+          </button>
+        </div>
+      </form>
       </div>
-    </form>
-    {% if search_text %}<a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a>{% endif %}
+      {% if search_text %}
+      <div class="col"><a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a></div>
+      {% endif %}
+      {% set new_app_link = '../art_show_applications/' if c.INDEPENDENT_ART_SHOW else 'form?new_app=True' %}
+      <div class="col">
+        <a class="btn btn-outline-secondary" href="{{ new_app_link }}" target="_blank">Add a new {{ c.ART_SHOW_APP_TERM }}</a>
+      </div>
+    </div>
 
     <iframe id="upload_frame" name="upload_frame" style="display:none"></iframe>
     <div id="app_modals">
@@ -43,7 +52,8 @@
       <input type="hidden" name="id" class="print_id" />
       {{ csrf_token() }}
     </form>
-    <ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+    <br/>
+  <ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
   {% for pagenum in pages %}
   {% if pagenum == page %}
   <li class="page-item active">
@@ -60,26 +70,30 @@
 </ul>
     <table class="table table-striped">
       <thead><tr>
-        <th><a href="artist_check_in_out?order={{ order.first_name }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}{{ '&checkout=True' if checkout }}">Name</a></th>
+        <th>Artist Code</th>
+        <th><a href="artist_check_in_out?order={{ order.last_name }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}{{ '&checkout=True' if checkout }}">Artist's Name</a></th>
+        <th>Display Name</th>
         <th>Pieces Submitted</th>
-        <th>Status</th>
         <th>General Panels</th>
         <th>General Tables</th>
         <th>Mature Panels</th>
         <th>Mature Tables</th>
+        <th>Check-In Notes</th>
         <th>Admin Notes</th>
         <th>Check-{{ checkout|yesno("Out,In") }}</th>
       </tr></thead>
       {% for app in applications %}
       <tr class="app-row" data-app_id="{{ app.id }}">
-        <td><a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}{% if app.artist_name %} ({{ app.artist_name }}){% endif %}</a></td>
-        <td>{% if app.incomplete_reason or app.is_unpaid %}N/A{% else %}
+        <td>{{ app.artist_codes }}</td>
+        <td><a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}</a></td>
+        <td>{{ app.display_name|default("?????") }}{% if app.banner_name_ad %} ({{ app.banner_name_ad }}){% endif %}</td>
+        <td>{% if app.incomplete_reason or app.is_unpaid %}{{ app.incomplete_reason|default("Unpaid") }}{% else %}
           {{ app.art_show_pieces|length }} (<a href="pieces?id={{ app.id }}">View</a>){% endif %}</td>
-        <td>{{ app.status_label }}</td>
         <td>{{ app.panels }}</td>
         <td>{{ app.tables }}</td>
         <td>{{ app.panels_ad }}</td>
         <td>{{ app.tables_ad }}</td>
+        <td>{{ app.check_in_notes }}</td>
         <td>{{ app.admin_notes }}</td>
         <td>
           {% if not app.checked_in %}
@@ -103,6 +117,7 @@
             e.preventDefault();
             var id = $(this).closest('.app-row').data('app_id');
             $('#app_modals').find('.modal').removeClass('print_form');
+            hideMessageBox('artist-message-alert-'+ id);
             var modal = bootstrap.Modal.getOrCreateInstance($('#app_'+id));
             modal.show();
 
@@ -167,12 +182,13 @@
                                     modal.hide();
                                     location.href = '?{% if checkout %}checkout=True&{% endif %}message=' + response['success'];
                                 }
-                            } else {
-                                showErrorMessage('', response['error'], {timeOut: 5000});
-                            }
-                        } catch(ex) {
-                            showErrorMessage('', 'There was an error saving the app: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                              } else {
+                            showErrorMessage(response['error'], 'artist-message-alert-'+response['app_id']);
                         }
+                    } catch(ex) {
+                      modal.hide();
+                      showErrorMessage('There was an error saving the bidder: ' + responseText.substring(0, 1024));
+                    }
                     }
                 } finally {
                     $('#app_modals').find('.save_app').prop('disabled', false);

@@ -10,7 +10,7 @@ The [docker-compose.yml](docker-compose.yml) file in the root of this repo will 
 Additionally, it will mount this repository directory into the containers as a volume -- each container will mount the files inside `/app/plugins/uber`. This allows code changes you make on your computer to update inside the containers without rebuilding them.
 
 ### The Command Line
-Throughout this guide and elsewhere in our documentation, we will be providing commands to run in a command line terminal. If you aren't familiar with the command line, it is a text-based interface that allows you to quickly run complex operations by communicating directly with programs. Depending on your operating system, you'll likely run commands using either [Bash](https://www.gnu.org/software/bash/) (Linux), [Zsh](https://zsh.sourceforge.io/) (Mac), or [Command Prompt/CMD](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands) (Windows).
+Throughout this guide and elsewhere in our documentation, we will be providing commands to run in a command line terminal. If you aren't familiar with the command line, it is a text-based interface that allows you to quickly run complex operations by communicating directly with programs. Depending on your operating system, you'll likely run commands using either [Bash](https://www.gnu.org/software/bash/) (Linux), [Zsh](https://zsh.sourceforge.io/) (Mac), or **Git Bash** (Windows).
 
 Providing command-line commands lets us give specific instructions that won't become outdated with software updates. Many applications will also have graphical interfaces that you can use as a convenience, and we encourage you to explore those when you are comfortable with the basics.
 
@@ -19,6 +19,7 @@ You will need the following programs installed to run Ubersystem using Docker Co
 
 - [Docker Desktop](https://docs.docker.com/desktop/), or [Docker Engine](https://docs.docker.com/engine/install/) if you are on Linux. This is the program that actually builds and runs the containers.
 - [Git](https://git-scm.com/), which will let you download and manage the code from this repository.
+  - On Windows, this will also install **Git Bash**, a command line interface that lets you run bash-style comamnds (like the ones in these instructions!).
 - A code editor of your choice. If you don't already have a preference, we recommend [VSCode](https://code.visualstudio.com/) as it is free, easy to learn, and has many useful extensions. It also comes with [source control tools](https://code.visualstudio.com/docs/sourcecontrol/overview) that provide a convenient interface for using Git.
 
 ### Instructions
@@ -49,6 +50,7 @@ You should *only* edit configspec.ini if you are adding new config options to Ub
 If you're just getting started and not working for a specific event, you can use the example config overrides below. Create a new text file in the root of this repo called `uber.ini`, then copy and paste the block below and edit it to whatever values you want.
 
 ```ini
+url_root = http://localhost  # If using SSL, change this to https://localhost
 event_year = 2025
 
 [dates]
@@ -71,6 +73,9 @@ You'll download the custom plugin repository the same way you download this repo
 
 When cloning the repository with Git (`git clone REPOURL`), your repo URL can look like either `https://github.com/magfest/magprime` (copied from your browser URL bar) or `https://github.com/magfest/magprime.git` (copied from the "Code" dropdown on GitHub).
 
+| :exclamation: If cloning a repo with non-alphanumeric characters, like hyphens, you should rename the base repo folder to convert them to underscores. E.g., `mff-rams-plugin` should be renamed to `mff_rams_plugin`. |
+|---------------------------------------------------------------------------------------------------------------|
+
 To enable your plugin, you'll follow the loading instructions below. First, though, make sure your plugin has a config override file. You can [download the file from a config repo](configuration#generated-configuration) (if applicable) or create a blank text file in the root folder of the plugin. It should be named after the plugin itself, e.g., `/magprime/magprime.ini`.
 
 ### Loading Custom Config and Plugins
@@ -84,3 +89,83 @@ Instead, we have an `.env.example` file, located in the root of this repository.
 - On the line `YOURPLUGIN_CONFIG_FILES=${PLUGIN_NAME}`, change `YOURPLUGIN` to an all-caps version of your plugin folder's name, e.g., `MAGPRIME`.
 
 If you used these instructions to set up your config file(s) (`uber.ini` for this repository, plus `yourplugin.ini` for any custom plugins), that's all you need to change. The next time you use `docker compose up`, your plugin and custom config will be loaded!
+
+## Enabling SAML Login
+
+Some events use SAML to manage admin and/or attendee accounts for Uber. SAML login allows admins to log into the Uber backend using their account on third-party "identity provider" (e.g., Google, Okta, Auth0). The identity provider owns and manages the account itself, and it provides information about that account to Uber when someone tries to log in.
+
+If your event uses SAML login, you'll want to enable it locally as well. Enabling SAML logins on your local environment requires the following:
+- An identity provider that is configured to redirect to https://localhost, plus "metadata" for that provider.
+- A "self-signed" security certificate.
+- A proxy service that forwards secure HTTPS traffic to Uber. We'll use `Nginx` for this.
+
+### Identity Provider Configuration
+If your event already supports SAML it will likely already have an identity provider configured for local development. If it doesn't, you'll need to ask your event's IT folks to configure one.
+
+You'll also need metadata about the provider, so that your server knows how to contact the provider's server. Add the following config to your local `uber.ini` config file, under the `[secret]` heading:
+
+```ini
+[[saml_idp_settings]]
+# The URL for the service provider with a unique ID, e.g., http://www.okta.com/MY_ID
+entityId = ""
+
+# The public key for the SSL certificate on the identity provider, a string over 1000 characters long
+x509cert = ""
+
+[[[singleSignOnService]]]
+# The full URL to direct people to when logging in, e.g., https://login.myevent.net/app/local_identity/MY_ID/sso/saml
+url = ""
+binding = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" # This likely will not change
+
+[[[security]]]
+authnRequestsSigned = "false"
+
+[[saml_sp_settings]]
+# Leave these blank for now
+x509cert = '''
+'''
+privateKey = '''
+'''
+```
+
+### Self-Signed Certificate
+SAML is designed to only work over the secure HTTPS protocol. To enable HTTPS for your local server, you need a local SSL certificate.
+
+You'll use a program called [OpenSSL](https://www.openssl.org/) to generate this certificate. You'll likely have this already; OpenSSL is preinstalled on Mac and most Linux distributions, and installing Git for Windows also installs OpenSSL.
+
+To generate the certificate and add it to Uber: 
+1. Run the following command:
+```
+openssl req -x509 -nodes -newkey rsa:2048 -keyout ssl-key.pem -out ssl-cert.pem -sha256 -subj "/CN=localhost/"
+```
+This will create two files, `ssl-key.pem` and `ssl-cert.pem`.
+
+2. Make sure these files are located in the root of this repository, moving them if necessary.
+3. Open both files. Each file will have a header and footer, e.g., `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----`.
+4. For each file, copy the string **between** those lines into the variables under the `[[saml_sp_settings]]` section you added to `uber.ini` earlier, as shown below.
+
+```ini
+[[saml_sp_settings]]
+x509cert = '''EXTREMELY_LONG_
+STRING_FROM_SSL-CERT.PEM'''
+privateKey = '''EXTREMELY_LONG_
+STRING_FROM_SSL-KEY.PEM'''
+```
+
+Although this is a self-signed SSL certificate, please still treat the value of `ssl-key.pem` as private and secret. Do not publish or upload these files or their corresponding values in your config file.
+
+### Enabling Nginx
+
+The `docker-compose.yml` file in the root of this repository includes Nginx as an optional container. Nginx is a proxy that will handle the HTTPS connection using the self-signed certificate you generated.
+
+In order to enable this service, you need to enable the `ssl` Docker Compose profile. The easiest way to do this is using an `.env` file to define the `COMPOSE_PROFILES` environment variable.
+
+If you don't already have an `.env` file, follow the instructions for [enabling custom config and plugins](#loading-custom-config-and-plugins) to set one up.
+
+Once you have an `.env` file, open it and edit the line `COMPOSE_PROFILES=dev`. You can change `dev` to `dev,ssl`, or change it to `ssl` if you don't want the [optional development containers](DEBUGGING.md).
+
+| :exclamation: When restarting the web container, be sure to restart the nginx container at the same time by running `docker compose restart nginx web`. Otherwise, nginx may stop being able to access the app, causing a 502 error on all pages. |
+|---------------------------------------------------------------------------------------------------------------|
+
+### Invalid Cert Bypass
+Since the certificate is self-signed, your browser may show a warning screen when you try to browse to https://localhost/. The exact screen varies based on the browser, but there is always a way to bypass this warning to continue to your local server. This may be hidden behind an extra link, like "Advanced options."

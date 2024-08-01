@@ -7,6 +7,7 @@ import phonenumbers
 import random
 import re
 import string
+import textwrap
 import traceback
 import uber
 import urllib
@@ -22,6 +23,7 @@ from phonenumbers import PhoneNumberFormat
 from pockets import floor_datetime, listify
 from pockets.autolog import log
 from pytz import UTC
+from sqlalchemy import func
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
@@ -807,6 +809,162 @@ class Order:
     def __str__(self):
         return self.order
 
+class RegistrationCode():
+    """
+    A class that provides functions to manage human-readable unique codes that
+    attendees can enter at registration, e.g., promo codes.
+    """
+
+    _AMBIGUOUS_CHARS = {
+        '0': 'OQD',
+        '1': 'IL',
+        '2': 'Z',
+        '5': 'S',
+        '6': 'G',
+        '8': 'B'}
+
+    _UNAMBIGUOUS_CHARS = string.digits + string.ascii_uppercase
+    for _, s in _AMBIGUOUS_CHARS.items():
+        _UNAMBIGUOUS_CHARS = re.sub('[{}]'.format(s), '', _UNAMBIGUOUS_CHARS)
+    
+    @classmethod
+    def sql_normalized_code(cls, code):
+        return func.replace(func.replace(func.lower(code), '-', ''), ' ', '')
+    
+    @classmethod
+    def _generate_code(cls, generator, model, count=None):
+        """
+        Helper method to limit collisions for the other generate() methods.
+
+        Arguments:
+            generator (callable): Function that returns a newly generated code.
+            count (int): The number of codes to generate. If `count` is `None`,
+                then a single code will be generated. Defaults to `None`.
+
+        Returns:
+            If an `int` value was passed for `count`, then a `list` of newly
+            generated codes is returned. If `count` is `None`, then a single
+            `str` is returned.
+        """
+        from uber.models import Session
+        with Session() as session:
+            # Kind of inefficient, but doing one big query for all the existing
+            # codes will be faster than a separate query for each new code.
+            old_codes = set(s for (s,) in session.query(model.code).all())
+
+        # Set an upper limit on the number of collisions we'll allow,
+        # otherwise this loop could potentially run forever.
+        max_collisions = 100
+        collisions = 0
+        codes = set()
+        while len(codes) < (1 if count is None else count):
+            code = generator().strip()
+            if not code:
+                break
+            if code in codes or code in old_codes:
+                collisions += 1
+                if collisions >= max_collisions:
+                    break
+            else:
+                codes.add(code)
+        return (codes.pop() if codes else None) if count is None else codes
+
+    @classmethod
+    def generate_random_code(cls, model, count=None, length=9, segment_length=3):
+        """
+        Generates a random promo code.
+
+        With `length` = 12 and `segment_length` = 3::
+
+            XXX-XXX-XXX-XXX
+
+        With `length` = 6 and `segment_length` = 2::
+
+            XX-XX-XX
+
+        Arguments:
+            count (int): The number of codes to generate. If `count` is `None`,
+                then a single code will be generated. Defaults to `None`.
+            length (int): The number of characters to use for the code.
+            segment_length (int): The length of each segment within the code.
+
+        Returns:
+            If an `int` value was passed for `count`, then a `list` of newly
+            generated codes is returned. If `count` is `None`, then a single
+            `str` is returned.
+        """
+
+        # The actual generator function, called repeatedly by `_generate_code`
+        def _generate_random_code():
+            letters = ''.join(random.choice(cls._UNAMBIGUOUS_CHARS) for _ in range(length))
+            return '-'.join(textwrap.wrap(letters, segment_length))
+
+        return cls._generate_code(_generate_random_code, model, count=count)
+
+    @classmethod
+    def generate_word_code(cls, count=None):
+        """
+        Generates a promo code consisting of words from `PromoCodeWord`.
+
+        Arguments:
+            count (int): The number of codes to generate. If `count` is `None`,
+                then a single code will be generated. Defaults to `None`.
+
+        Returns:
+            If an `int` value was passed for `count`, then a `list` of newly
+            generated codes is returned. If `count` is `None`, then a single
+            `str` is returned.
+        """
+        from uber.models import Session, PromoCodeWord
+        with Session() as session:
+            words = PromoCodeWord.group_by_parts_of_speech(
+                session.query(PromoCodeWord).order_by(PromoCodeWord.normalized_word).all())
+
+        # The actual generator function, called repeatedly by `_generate_code`
+        def _generate_word_code():
+            code_words = []
+            for part_of_speech, _ in PromoCodeWord._PART_OF_SPEECH_OPTS:
+                if words[part_of_speech]:
+                    code_words.append(random.choice(words[part_of_speech]))
+            return ' '.join(code_words)
+
+        return cls._generate_code(_generate_word_code, count=count)
+
+    @classmethod
+    def disambiguate_code(cls, code):
+        """
+        Removes ambiguous characters in a promo code supplied by an attendee.
+
+        Arguments:
+            code (str): A promo code as typed by an attendee.
+
+        Returns:
+            str: A copy of `code` with all ambiguous characters replaced by
+                their unambiguous equivalent.
+        """
+        code = cls.normalize_code(code)
+        if not code:
+            return ''
+        for unambiguous, ambiguous in cls._AMBIGUOUS_CHARS.items():
+            ambiguous_pattern = '[{}]'.format(ambiguous.lower())
+            code = re.sub(ambiguous_pattern, unambiguous.lower(), code)
+        return code
+
+    @classmethod
+    def normalize_code(cls, code):
+        """
+        Normalizes a promo code supplied by an attendee.
+
+        Arguments:
+            code (str): A promo code as typed by an attendee.
+
+        Returns:
+            str: A copy of `code` converted to all lowercase, with dashes ("-")
+                and whitespace characters removed.
+        """
+        if not code:
+            return ''
+        return re.sub(r'[\s\-]+', '', code.lower())
 
 class Registry:
     """
@@ -956,7 +1114,7 @@ def _server_to_url(server):
     elif path.startswith('uber'):
         return f'{protocol}://{host}/uber'
     elif path in ['uber', 'rams']:
-        f'{protocol}://{host}/{path}'
+        return f'{protocol}://{host}/{path}'
     return f'{protocol}://{host}'
 
 

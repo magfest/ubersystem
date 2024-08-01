@@ -118,7 +118,7 @@ class Root:
                             redirect_url = None
 
                 if not redirect_url:
-                    if c.AT_THE_CON and admin_account:
+                    if c.AT_OR_POST_CON and admin_account:
                         redirect_url = "../accounts/homepage"
                     else:
                         redirect_url = "../preregistration/homepage"

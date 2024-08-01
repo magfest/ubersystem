@@ -109,16 +109,16 @@
                     <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
                         <i class="fa fa-pencil"></i> Edit Details
                     </a>
-                    {% if c.ART_SHOW_OPEN %}
-                    {% if not attendee.art_show_applications %}
-                    <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning">
-                        <i class="fa fa-tags"></i>&nbsp; Apply for Art Show
-                    </a>
-                    {% else %}
-                    <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
-                        <i class="fa fa-tags"></i>&nbsp; View Art Show App
-                    </a>
-                    {% endif %}
+                    {% if c.ART_SHOW_ENABLED %}
+                        {% if not attendee.art_show_applications and c.ART_SHOW_OPEN %}
+                        <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning">
+                            <i class="fa fa-tags"></i>&nbsp; Apply for Art Show
+                        </a>
+                        {% elif attendee.art_show_applications %}
+                        <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
+                            <i class="fa fa-tags"></i>&nbsp; View Art Show App
+                        </a>
+                        {% endif %}
                     {% endif %}
                     {% if c.AFTER_MARKETPLACE_REG_START %}
                     {% if c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}

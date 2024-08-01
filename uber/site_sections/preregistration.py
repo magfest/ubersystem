@@ -62,7 +62,7 @@ def _add_promo_code(session, attendee, submitted_promo_code):
     if attendee.promo_code and submitted_promo_code != attendee.promo_code_code:
         attendee.promo_code = None
     if c.BADGE_PROMO_CODES_ENABLED and submitted_promo_code:
-        if session.lookup_promo_or_group_code(submitted_promo_code, PromoCodeGroup):
+        if session.lookup_registration_code(submitted_promo_code, PromoCodeGroup):
             PreregCart.universal_promo_codes[attendee.id] = submitted_promo_code
         session.add_promo_code_to_attendee(attendee, submitted_promo_code)
 
@@ -1006,11 +1006,15 @@ class Root:
                 model = session.get_model_by_receipt(receipt)
 
             if model and not txn.charge_id:
+                new_model = model.__class__(**model.to_dict())
                 for item in txn.receipt_items:
                     for col_name in item.revert_change:
-                        receipt_item = ReceiptManager.process_receipt_upgrade_item(
-                            model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
-                        session.add(receipt_item)
+                        setattr(new_model, col_name, item.revert_change[col_name])
+                for item in txn.receipt_items:
+                    for col_name in item.revert_change:
+                        receipt_items = ReceiptManager.process_receipt_change(
+                            model, col_name, receipt=receipt, new_model=new_model)
+                        session.add_all(receipt_items)
                         model.apply(item.revert_change, restricted=False)
             if not txn.charge_id:
                 txn.cancelled = datetime.now()
@@ -1127,7 +1131,7 @@ class Root:
 
     def email_promo_code(self, session, group_id, message='', **params):
         if cherrypy.request.method == 'POST':
-            code = session.lookup_promo_or_group_code(params.get('code'))
+            code = session.lookup_registration_code(params.get('code'))
             if not code:
                 message = "This code is invalid. If it has not been claimed, please contact us at {}".format(
                     email_only(c.REGDESK_EMAIL))
@@ -1169,6 +1173,8 @@ class Root:
         receipt = session.get_receipt_by_model(group.buyer)
         if receipt:
             session.add(ReceiptManager().create_receipt_item(receipt,
+                                                             c.REG_RECEIPT_ITEM,
+                                                             c.GROUP_BADGE,
                                                              f'{count} extra badge{"s" if count > 1 else ""} '
                                                              f'for {group.name}',
                                                              count * c.GROUP_PRICE * 100))
@@ -1327,7 +1333,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             # TODO: I don't think this works, but it probably should just be removed
             if attendee and receipt:
-                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
                 session.add_all(receipt_items)
 
             if attendee.placeholder:
@@ -1622,6 +1628,8 @@ class Root:
 
             if not message:
                 attendee.badge_status = c.DEFERRED_STATUS
+                # TODO: Add a receipt item manually for this, if we ever want to use this page again
+                # Use attendee.calculate_shipping_fee_cost()
                 session.add(attendee)
                 session.commit()
 
@@ -1664,7 +1672,7 @@ class Root:
                     .format(email_only(c.REGDESK_EMAIL))
         page_redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else page_redirect
 
-        if (not attendee.amount_paid and not attendee.can_abandon_badge)\
+        if (not attendee.amount_paid and attendee.cannot_abandon_badge_reason)\
                 or (attendee.amount_paid and not attendee.can_self_service_refund_badge):
             raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
 
@@ -1735,7 +1743,8 @@ class Root:
         if account and not account.hashed:
             return {'success': False,
                     'message': "We had an issue logging you into your account. Please contact an administrator."}
-        elif not account or not bcrypt.hashpw(password, account.hashed) == account.hashed:
+        elif not account or not bcrypt.hashpw(password.encode('utf-8'),
+                                              account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             return {'success': False, 'message': "Incorrect email/password combination."}
 
         cherrypy.session['attendee_account_id'] = account.id
@@ -1822,7 +1831,7 @@ class Root:
             attendee = session.attendee(params.get('id'))
             receipt = session.get_receipt_by_model(attendee)
             if cherrypy.request.method == 'POST':
-                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
                 session.add_all(receipt_items)
         else:
             receipt = None
@@ -1959,8 +1968,18 @@ class Root:
         if not params.get('col_name'):
             return {'error': "Can't calculate cost change without the column name"}
 
-        desc, change, count = ReceiptManager.process_receipt_upgrade_item(attendee, params['col_name'],
-                                                                          new_val=params.get('val'))
+        preview_attendee = Attendee(**attendee.to_dict())
+        new_val = params.get('val')
+
+        column = preview_attendee.__table__.columns.get(params['col_name'])
+        if column is not None:
+            new_val = preview_attendee.coerce_column_data(column, new_val)
+        setattr(preview_attendee, params['col_name'], new_val)
+        
+        changes_list = ReceiptManager.process_receipt_change(attendee, params['col_name'],
+                                                                    new_model=preview_attendee)
+        only_change = changes_list[0] if changes_list else ("", 0, 0)
+        desc, change, count = only_change
         return {'desc': desc, 'change': change}  # We don't need the count for this preview
 
     @ajax
@@ -1976,7 +1995,8 @@ class Root:
             return {'error': "You already have an outstanding balance, please refresh the page to pay \
                     for your current items or contact {}".format(email_only(c.REGDESK_EMAIL))}
 
-        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+        receipt_items = ReceiptManager.auto_update_receipt(attendee,
+                                                           session.get_receipt_by_model(attendee), params.copy())
         if not receipt_items:
             return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
         session.add_all(receipt_items)
@@ -2175,7 +2195,8 @@ class Root:
 
         if not password:
             message = 'Please enter your current password to make changes to your account.'
-        elif not bcrypt.hashpw(password.encode('utf-8'), account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
+        elif not bcrypt.hashpw(password.encode('utf-8'),
+                               account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             message = 'Incorrect password'
 
         if not message:
@@ -2247,7 +2268,8 @@ class Root:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
             message = 'This link has expired. Please use the "forgot password" option to get a new link.'
-        elif bcrypt.hashpw(token.encode('utf-8'), account.password_reset.hashed.encode('utf-8')) != account.password_reset.hashed.encode('utf-8'):
+        elif bcrypt.hashpw(token.encode('utf-8'),
+                           account.password_reset.hashed.encode('utf-8')) != account.password_reset.hashed.encode('utf-8'):
             message = 'Invalid token. Did you copy the URL correctly?'
 
         if message:

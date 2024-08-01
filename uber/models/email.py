@@ -36,6 +36,7 @@ class BaseEmailMixin(object):
     sender = Column(UnicodeText)
     cc = Column(UnicodeText)
     bcc = Column(UnicodeText)
+    replyto = Column(UnicodeText)
 
     _repr_attr_names = ['subject']
 

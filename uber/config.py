@@ -1,4 +1,5 @@
 import ast
+import csv
 import hashlib
 import inspect
 import math
@@ -343,10 +344,30 @@ class Config(_Overridable):
         if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin',
                                                                   'band_admin', 'mivs_admin']):
             return True
+        
+    def update_name_problems(self):
+        c.PROBLEM_NAMES = {}
+        file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')
+        try:
+            result = csv.DictReader(open(file_loc))
+        except FileNotFoundError:
+            return "File not found!"
+        
+        for row in result:
+            c.PROBLEM_NAMES[row['text']] = [row[f"canonical_form_{x}"] for x in range(1, 4)
+                                            if row[f"canonical_form_{x}"]]
+
     
     @property
     def CHERRYPY(self):
         return _config['cherrypy']
+    
+    @property
+    def RECEIPT_CATEGORY_OPTS(self):
+        opts = []
+        for key, dict in c.RECEIPT_DEPT_CATEGORIES.items():
+            opts.extend([(key, val) for key, val in dict.items()])
+        return opts
 
     @property
     def DEALER_REG_OPEN(self):
@@ -381,6 +402,10 @@ class Config(_Overridable):
     @property
     def ART_SHOW_OPEN(self):
         return self.AFTER_ART_SHOW_REG_START and self.BEFORE_ART_SHOW_DEADLINE
+    
+    @property
+    def ART_SHOW_HAS_FEES(self):
+        return c.COST_PER_PANEL or c.COST_PER_TABLE or c.ART_MAILING_FEE
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
@@ -1433,6 +1458,11 @@ for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
+c.RECEIPT_DEPT_CATEGORIES = {}
+for _name, _val in _config['enums']['receipt_item_dept'].items():
+    _val = getattr(c, _name.upper())
+    c.RECEIPT_DEPT_CATEGORIES[_val] = {getattr(c, key.upper()): val for key, val in _config['enums'][_name].items()}
+
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
 
@@ -1443,7 +1473,6 @@ c.DOOR_PAYMENT_METHODS = {key: val for key, val in c.DOOR_PAYMENT_METHODS.items(
 c.TERMINAL_ID_TABLE = {k.lower().replace('-', ''): v for k, v in _config['secret']['terminal_ids'].items()}
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
-c.DISCOUNTABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DISCOUNTABLE_BADGE_TYPES]
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
 
@@ -1559,7 +1588,7 @@ c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
 c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
-
+c.update_name_problems()
 
 try:
     _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
@@ -1583,7 +1612,8 @@ c.JAVASCRIPT_INCLUDES = []
 # relative URL of the resource (e.g., theme/prereg.css) and the value is the hash for that resource
 c.STATIC_HASH_LIST = {}
 
-
+if not c.ALLOW_SHARED_TABLES:
+    c.DEALER_STATUS_OPTS = [(key, val) for key, val in c.DEALER_STATUS_OPTS if key != c.SHARED]
 dealer_status_label_lookup = {val: key for key, val in c.DEALER_STATUS_OPTS}
 c.DEALER_EDITABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_EDITABLE_STATUS_LIST]
 c.DEALER_CANCELLABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_CANCELLABLE_STATUS_LIST]

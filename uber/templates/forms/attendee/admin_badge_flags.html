@@ -3,10 +3,10 @@
 {% block attendee_info %}
 {% if not attendee.is_new %}
 <div class="row g-sm-3">
-    {% if attendee.created and attendee.created.when|full_datetime_local != attendee.registered|full_datetime_local and attendee.created.who == "non-admin" %}
+    {% if attendee.created_info and attendee.created_info.when|full_datetime_local != attendee.registered|full_datetime_local and attendee.created_info.who == "non-admin" %}
     <div class="col">
         <div class="form-text">Created</div>
-        <div class="mb-4">{{ attendee.created.when|full_datetime_local }} by {{ attendee.created.who }}</div>
+        <div class="mb-4">{{ attendee.created_info.when|full_datetime_local }} by {{ attendee.created_info.who }}</div>
     </div>
     {% endif %}
     {% if attendee.registered %}
@@ -15,10 +15,10 @@
         <div class="mb-4">{{ attendee.registered_local|full_datetime_local }}</div>
     </div>
     {% endif %}
-    {% if attendee.last_updated %}
+    {% if attendee.last_update_info %}
     <div class="col">
         <div class="form-text">Last Updated</div>
-        <div class="mb-4">{{ attendee.last_updated.when|full_datetime_local }} by {{ attendee.last_updated.who }}</div>
+        <div class="mb-4">{{ attendee.last_update_info.when|full_datetime_local }} by {{ attendee.last_update_info.who }}</div>
     </div>
     {% endif %}
 </div>
@@ -57,8 +57,8 @@
         <div class="mb-4">
             {% if attendee.checked_in %}
                 {{ attendee.checked_in_local|datetime("%B %-d, %Y, %-I:%M %p") }}
-            {% elif attendee.is_not_ready_to_checkin %}
-                Can't check in yet: {{ attendee.is_not_ready_to_checkin }}
+            {% elif attendee.cannot_check_in_reason %}
+                Can't check in yet: {{ attendee.cannot_check_in_reason }}
             {% else %}
                 Not checked in yet
             {% endif %}

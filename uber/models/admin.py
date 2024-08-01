@@ -231,7 +231,7 @@ class AdminAccount(MagModel):
 class PasswordReset(MagModel):
     admin_id = Column(UUID, ForeignKey('admin_account.id'), unique=True, nullable=True)
     attendee_id = Column(UUID, ForeignKey('attendee_account.id'), unique=True, nullable=True)
-    generated = Column(UTCDateTime, server_default=utcnow())
+    generated = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     hashed = Column(UnicodeText, private=True)
 
     @property

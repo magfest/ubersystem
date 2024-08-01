@@ -1441,11 +1441,11 @@ $(window).on("runJavaScript", function () {
 
 {% set last_updated %}
 {# Always read-only #}
-{% if attendee.last_updated %}
+{% if attendee.last_update_info %}
   <div class="form-group">
     <label class="col-sm-3 control-label">Last Updated</label>
     <div class="col-sm-9 form-control-static">
-      {{ attendee.last_updated.when|full_datetime_local }} by {{ attendee.last_updated.who }}
+      {{ attendee.last_update_info.when|full_datetime_local }} by {{ attendee.last_update_info.who }}
     </div>
   </div>
 {% endif %}
