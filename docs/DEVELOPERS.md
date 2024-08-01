@@ -76,7 +76,7 @@ When cloning the repository with Git (`git clone REPOURL`), your repo URL can lo
 | :exclamation: If cloning a repo with non-alphanumeric characters, like hyphens, you should rename the base repo folder to convert them to underscores. E.g., `mff-rams-plugin` should be renamed to `mff_rams_plugin`. |
 |---------------------------------------------------------------------------------------------------------------|
 
-To enable your plugin, you'll follow the loading instructions below. First, though, make sure your plugin has a config override file. You can [download the file from a config repo](configuration#generated-configuration) (if applicable) or create a blank text file in the root folder of the plugin. It should be named after the plugin itself, e.g., `/magprime/magprime.ini`.
+To enable your plugin, you'll follow the loading instructions below. First, though, make sure your plugin has a config override file. You can [download the file from a config repo](configuration#generated-configuration) (if applicable) or create a blank INI file in the root folder of the plugin. It should be named after the plugin itself, e.g., `/magprime/magprime.ini` for the magprime plugin.
 
 ### Loading Custom Config and Plugins
 The last step for loading custom config or plugins (or both) is to tell Docker Compose to use them. There are a few ways to do this, but here we'll cover how to use environment variables defined in an `.env` file.
@@ -87,6 +87,8 @@ Instead, we have an `.env.example` file, located in the root of this repository.
 
 - On the line `PLUGIN_NAME=yourplugin`, replace `yourplugin` with your plugin folder's name in its normal case, e.g., `magprime`.
 - On the line `YOURPLUGIN_CONFIG_FILES=${PLUGIN_NAME}`, change `YOURPLUGIN` to an all-caps version of your plugin folder's name, e.g., `MAGPRIME`.
+
+Alternatively, if you want to load custom config but no plugin, delete or use the `#` character to comment out all lines except `UBER_CONFIG_FILES=uber.ini`.
 
 If you used these instructions to set up your config file(s) (`uber.ini` for this repository, plus `yourplugin.ini` for any custom plugins), that's all you need to change. The next time you use `docker compose up`, your plugin and custom config will be loaded!
 

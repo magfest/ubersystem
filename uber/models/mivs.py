@@ -278,8 +278,13 @@ class IndieGame(MagModel, ReviewMixin):
     title = Column(UnicodeText)
     brief_description = Column(UnicodeText)       # 140 max
     genres = Column(MultiChoice(c.MIVS_INDIE_GENRE_OPTS))
+    is_multiplayer = Column(Boolean, default=False)
+    player_count = Column(UnicodeText)
     platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
+    content_warning = Column(Boolean, default=False)
+    warning_desc = Column(UnicodeText)
+    photosensitive_warning = Column(Boolean, default=False)
     description = Column(UnicodeText)  # 500 max
     how_to_play = Column(UnicodeText)  # 1000 max
     link_to_video = Column(UnicodeText)
