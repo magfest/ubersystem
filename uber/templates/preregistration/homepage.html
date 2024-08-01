@@ -5,7 +5,11 @@
 {% set dealer_reg_open = c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
 {% set prereg_message %}
     {% if c.BEFORE_PREREG_OPEN %}
+        {% if not c.HIDE_PREREG_OPEN_DATE %}
         Preregistration will open {{ c.PREREG_OPEN|datetime_local }}.
+        {% else %}
+        Preregistration will open later this year.
+        {% endif %}
     {% elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON %}
         Preregistration has closed for the year.
     {% elif not c.ATTENDEE_BADGE_AVAILABLE %}
