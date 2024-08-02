@@ -4,7 +4,7 @@
 {%- set attendee_or_group = attendee if attendee else group -%}
 
 {% set signed_document %}
-{% if c.SIGNNOW_DEALER_TEMPLATE_ID and attendee_or_group.is_valid and attendee_or_group.status == c.APPROVED %}
+{% if c.SIGNNOW_DEALER_TEMPLATE_ID and attendee_or_group.is_valid and attendee_or_group.status in [c.APPROVED, c.SHARED] %}
   {% if signnow_document and signnow_document.signed %}
   <span id="tc-link">
     <a href="../preregistration/download_signnow_document?id={{ group.id }}" class="btn btn-info" role="button">
@@ -77,14 +77,16 @@
   </script>
 {% else %}
   {# Always read-only for attendees #}
-  {% if group.status == c.APPROVED %}
+  {% if group.status in [c.APPROVED, c.SHARED] %}
     <div class="alert alert-success pb-0" role="alert">
     <p>Congratulations, your {{ c.DEALER_APP_TERM }} has been <strong>approved</strong>!</p>
     {% if group.cost %}
       <p>Here is your group's cost breakdown:</p>
       <ul>
         {% if group.auto_recalc %}
-          <li>{{ group.default_table_cost|format_currency }} for {% if group.tables_repr %}a {{ group.tables_repr }}{% else %}{{ group.tables }} table{{ group.tables|pluralize }}{% endif %}</li>
+          {% if group.tables %}
+            <li>{{ group.default_table_cost|format_currency }} for {% if group.tables_repr %}a {{ group.tables_repr }}{% else %}{{ group.tables }} table{{ group.tables|pluralize }}{% endif %}</li>
+          {% endif %}
           {% if group.badges_purchased %}
             <li>{{ group.default_badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}</li>
           {% endif %}

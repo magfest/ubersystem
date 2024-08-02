@@ -1,0 +1,201 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Converting {{ c.DEALER_TERM|title }}s{% endblock %}
+{% block content %}
+
+<h2>{{ c.DEALER_TERM|title }} Group Statuses</h2>
+
+<div class="row">
+    <div class="col-12 col-md-6 mb-3 mb-md-0">
+        <div class="card">
+            <div class="card-header">Explanation</div>
+            <div class="card-body">
+                <p>{{ c.DEALER_TERM|title }} statuses control how {{ c.DEALER_TERM }} groups are handled during the jurying process.
+                    Below is a rundown on what they mean and what they do.</p>
+                <p>
+                    <strong>{{ c.DEALER_STATUS[c.IMPORTED] }}</strong>
+                    <br/>Used for events that import {{ c.DEALER_APP_TERM }}s from prior years.
+                    {{ c.DEALER_APP_TERM|title }}s in this status are shown to {{ c.DEALER_TERM }}s when they log into their account, and {{ c.DEALER_TERM }}s are
+                    given an option to 'reapply' using the information in the application. These groups are hidden from the default group list.
+                </p>
+                <p>
+                    <strong>{{ c.DEALER_STATUS[c.UNAPPROVED] }}</strong>
+                    <br/>This is the default status for {{ c.DEALER_APP_TERM }}s when they apply.
+                    {{ c.DEALER_TERM|title }}s can assign or add badges, but are not prompted for payment. Usually, {{ c.DEALER_TERM }}s can also
+                    edit their application -- check "{{ c.DEALER_TERM|title }} Event Configuration" to see if this is true for your event.
+                </p>
+                <p>
+                    <strong>{{ c.DEALER_STATUS[c.WAITLISTED] }}</strong>
+                    <br/>If the {{ c.DEALER_APP_TERM }} form is set to 'soft close', then any
+                    {{ c.DEALER_TERM }} applying after that date is automatically waitlisted. Waitlisted {{ c.DEALER_TERM }}s mostly work the same as
+                    {{ c.DEALER_STATUS[c.UNAPPROVED] }} dealers.
+        
+                    <br/><br/>Some events "close the waitlist," which sets all waitlisted dealers to {{ c.DEALER_STATUS[c.DECLINED] }} and converts
+                    their badges to non-{{ c.DEALER_TERM }} badges. You can do this on the <a href="../dealer_admin/waitlist">waitlist management</a> page.
+                </p>
+                <p>
+                    <strong>{{ c.DEALER_STATUS[c.APPROVED] }}</strong>
+                    <br/>{{ c.DEALER_TERM|title }}s in this state will be notified that they have been approved and prompted to pay for their
+                    application. Once paid, all assigned badges inside the {{ c.DEALER_TERM }} group may check into the event and pick up their badge.
+                    Any groups in this state that have unassigned badges will get a reminder to assign those badges before the event.
+                    {% if c.SIGNNOW_DEALER_TEMPLATE_ID %}
+                    <br/><br/>These groups are also prompted to sign a "terms and conditions" document before paying.
+                    {% endif %}
+                </p>
+                <p>
+                    <strong>{{ c.DEALER_STATUS[c.DECLINED] }}</strong>
+                    <br/>These groups are considered invalid. By default, the badges in these groups
+                    will not be able to check in and pick up a badge. Most events choose to convert all declined dealer badges to individual badges
+                    to allow declined dealers to register outside of their application.
+                </p>
+                <p>
+                    <strong>{{ c.DEALER_STATUS[c.CANCELLED] }}</strong>
+                    <br/>This is the only status that can be set by the {{ c.DEALER_TERM }} themselves.
+                    They do this by clicking a "Cancel Application" button on their group management page. Some events have this disabled in certain cases,
+                    so check "{{ c.DEALER_TERM|title }} Event Configuration" for more details.
+        
+                    <br/><br/>
+                    {{ c.DEALER_TERM|title }}s who cancel their own applications automatically get their badges converted to individual badges.
+                    Otherwise, these applications work the same as {{ c.DEALER_STATUS[c.DECLINED] }} applications.
+                </p>
+                {% if c.ALLOW_SHARED_TABLES %}
+                <p>
+                    <strong>{{ c.DEALER_STATUS[c.SHARED] }}</strong>
+                    <br/>This status is very similar to the {{ c.DEALER_STATUS[c.APPROVED] }} status, with a few changes. Unlike 
+                    {{ c.DEALER_STATUS[c.APPROVED] }} groups, groups in this status are not able to add additional badges. Additionally, when using
+                    the "Mark as Shared" button on the group form, all the group's tables and all unassigned badges are removed.
+                    This does not happen if you use the Status dropdown instead.
+        
+                    <br/><br/>Finally, groups in this status can be designated as "shared with" another group. The other group can NOT have a 
+                    {{ c.DEALER_STATUS[c.SHARED] }} status -- this is to help prevent recursive loops or confusing chains of shared groups.
+                    Designating another group as "shared with" will add a link to that group on this group's form, and vice-versa.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6">
+        <div class="card">
+            <div class="card-header">Status Notes</div>
+            <div class="card-body">
+                <p>
+                    <strong>Converting {{ c.DEALER_TERM }} badges to individual badges</strong>
+                    <br/>Due to the often-lengthy jurying process, most events allow declined or cancelled dealers to register as individuals. For declined
+                    {{ c.DEALER_TERM }}s, this can be controlled on a case-by-case basis or done en masse. You can read more about how this works
+                    <a href="../dealer_admin/convert_example?id={{ group.id }}" target="_blank">here</a>.
+                </p>
+                
+                <p>
+                    <strong>Waitlisting/Declining {{ c.DEALER_TERM|title }}s</strong>
+                    <br/>Some events set up <a href="../email_admin/pending#{{ c.MARKETPLACE_EMAIL|email_only }}" target="_blank">automated emails</a>
+                    that are sent to waitlisted and declined dealers when their status is changed. If your event does <em>NOT</em> have these emails,
+                    you should send a custom email by using the "Waitlist/Decline With a Custom Message" button on the group form. Otherwise, the 
+                    {{ c.DEALER_TERM }} will not be notified of their application being waitlisted/declined.
+                </p>
+            </div>
+        </div>
+        <br/>
+        <div class="card">
+            <div class="card-header">{{ c.DEALER_TERM|title }} Event Configuration</div>
+            <div class="card-body">
+                <p>
+                    To help different events run their {{ c.DEALER_LOC_TERM }}, there are many different configuration options that change how
+                    the {{ c.DEALER_APP_TERM }} jurying process works. Below are some of the current settings for this event:
+                </p>
+                <table class="table table-hover table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Setting</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>{{ c.DEALER_APP_TERM|title }} Open Date</td>
+                        <td>{{ c.DEALER_REG_START|datetime_local }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {{ c.DEALER_APP_TERM|title }} "Soft Close" Date
+                            <br/><span class="form-text">Dealers can still apply after this date but are automatically waitlisted.</span>
+                        </td>
+                        <td>{{ c.DEALER_REG_DEADLINE|datetime_local if c.DEALER_REG_DEADLINE else "Not Enabled" }}</td>
+                    </tr>
+                    <tr>
+                        <td>{{ c.DEALER_APP_TERM|title }} Close Date</td>
+                        <td>{{ c.DEALER_REG_SHUTDOWN|datetime_local }}</td>
+                    </tr>
+                    <tr>
+                        <td>{{ c.DEALER_APP_TERM|title }} Payment Due</td>
+                        <td>{{ c.DEALER_PAYMENT_DUE|datetime_local }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {{ c.DEALER_APP_TERM|title }} Public Open
+                            <br/><span class="form-text">A link to the application appears on the preregistration form after this date.</span>
+                        </td>
+                        <td>{{ c.DEALER_REG_PUBLIC|datetime_local if c.DEALER_REG_DEADLINE else "Never" }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {{ c.DEALER_TERM|title }} Max # Tables
+                            <br/><span class="form-text">The maximum number of tables that can be requested on an application.</span>
+                        </td>
+                        <td>{{ c.MAX_TABLES }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {{ c.DEALER_TERM|title }} Max # Badges
+                            <br/>
+                            <span class="form-text">
+                                The number of badges that can be requested on an application.
+                                {% if not c.MAX_DEALERS %}"Custom" means it is dependent on the number of tables requested.{% endif %}
+                            </span>
+                        </td>
+                        <td>{{ c.MAX_DEALERS|default("Custom", True) }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {{ c.DEALER_TERM|title }} Application Limit
+                            <br/><span class="form-text">The application closes once this number of applications has been submitted.</span>
+                        </td>
+                        <td>{{ c.MAX_DEALER_APPS|default("Not Set", True) }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {{ c.DEALER_TERM|title }} Editable Statuses
+                            <br/><span class="form-text">
+                                {{ c.DEALER_TERM|title }}s with this status can still edit their application.
+                                Edit notices will be sent to {{ c.MARKETPLACE_NOTIFICATIONS_EMAIL }}.
+                            </span>
+                        </td>
+                        <td>{{ c.DEALER_EDITABLE_STATUS_LIST|readable_join if c.DEALER_EDITABLE_STATUS_LIST|length > 0 else "Disabled" }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {{ c.DEALER_TERM|title }} Cancellable Statuses
+                            <br/><span class="form-text">{{ c.DEALER_TERM|title }}s with this status may cancel their application from their group management page.</span>
+                        </td>
+                        <td>{{ c.DEALER_CANCELLABLE_STATUS_LIST|readable_join if c.DEALER_CANCELLABLE_STATUS_LIST|length > 0 else "Disabled" }}</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {{ c.DEALER_TERM|title }} Invite Code
+                            <br/><span class="form-text">This restricts applications only to {{ c.DEALER_TERM }}s who have a specific URL that includes this code.</span>
+                        </td>
+                        <td>{{ c.DEALER_INVITE_CODE|default("Not Enabled", True) }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            The admin notification email ({{ c.MARKETPLACE_NOTIFICATIONS_EMAIL }}) {% if c.NOTIFY_DEALER_APPLIED %}WILL{% else %}will NOT{% endif %}
+                            be notified of every {{ c.DEALER_APP_TERM }} submitted.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p>Keep in mind that some of the settings above may not apply to your event -- for example, if your payment due date is based on the
+                    {{ c.DEALER_TERM }}'s approval date rather than a set deadline, that will not be reflected in the list.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

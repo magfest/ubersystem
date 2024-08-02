@@ -20,7 +20,7 @@
 <tbody>
 {% for attendee, matches in attendees %}
     <tr id="{{ attendee.id }}">
-        <td data-sort="{{ attendee.created.when }}">{{ attendee.created.when|datetime_local }}</td>
+        <td data-sort="{{ attendee.created_info.when }}">{{ attendee.created_info.when|datetime_local }}</td>
         <td>{{ attendee|form_link("true") }}</td>
         <td>{{ attendee.email }}</td>
         <td>{{ attendee.amount_extra_label }}</td>

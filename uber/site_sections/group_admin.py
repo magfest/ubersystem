@@ -51,7 +51,7 @@ class Root:
             'show_all': show_all,
             'unapproved_tables': sum(g.tables for g in dealer_groups if g.status == c.UNAPPROVED),
             'waitlisted_tables': sum(g.tables for g in dealer_groups if g.status == c.WAITLISTED),
-            'approved_tables':   sum(g.tables for g in dealer_groups if g.status == c.APPROVED)
+            'approved_tables':   sum(g.tables for g in dealer_groups if g.status in [c.APPROVED, c.SHARED])
         }
 
     def new_group_from_attendee(self, session, id):
@@ -68,23 +68,6 @@ class Root:
         session.add(group)
 
         raise HTTPRedirect('form?id={}&message={}', group.id, "Group successfully created.")
-
-    def resend_signnow_link(self, session, id):
-        group = session.group(id)
-
-        signnow_request = SignNowRequest(session=session, group=group)
-        if not signnow_request.document:
-            raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
-
-        signnow_request.send_dealer_signing_invite()
-        if signnow_request.error_message:
-            log.error(signnow_request.error_message)
-            raise HTTPRedirect("form?id={}&message={}", id,
-                               f"Error sending SignNow link: {signnow_request.error_message}")
-        else:
-            signnow_request.document.last_emailed = datetime.now(UTC)
-            session.add(signnow_request.document)
-            raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
@@ -119,7 +102,7 @@ class Root:
 
         signnow_last_emailed = None
         signnow_signed = False
-        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED:
+        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status in [c.APPROVED, c.SHARED]:
             if cherrypy.request.method == 'POST':
                 signnow_request = SignNowRequest(session=session, group=group,
                                                  ident="terms_and_conditions", create_if_none=True)
@@ -168,6 +151,19 @@ class Root:
                     badge_status=new_badge_status,
                     )
 
+            if group.is_dealer and group.status == c.SHARED:
+                if group.table_shares:
+                    message = ("This group has shared tables connected to it. "
+                               "If there are more than two tables sharing a spot, "
+                               "please connect the other tables to this group instead.")
+                if not message and 'shared_with_name' in params:
+                    shared_with_name = params.pop('shared_with_name')
+                    if shared_with_name != group.shared_with_name:
+                        try:
+                            group.set_shared_with_name(shared_with_name)
+                        except ValueError as e:
+                            message = str(e)
+
             if not message and group.is_new and group.leader_first_name:
                 session.commit()
                 leader = group.leader = group.attendees[0]
@@ -191,7 +187,7 @@ class Root:
                     group.guest.group_type = group.guest_group_type
 
                 if group.is_new and group.is_dealer:
-                    if group.status == c.APPROVED and group.amount_unpaid:
+                    if group.status in [c.APPROVED, c.SHARED] and group.amount_unpaid:
                         raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                     elif group.status == c.APPROVED:
                         raise HTTPRedirect(
@@ -200,7 +196,8 @@ class Root:
                         raise HTTPRedirect(
                             'index?message={}', group.name + ' is uploaded as ' + group.status_label)
                 elif group.is_dealer:
-                    if group.status == c.APPROVED and group.orig_value_of('status') != c.APPROVED:
+                    if group.status in [c.APPROVED, c.SHARED] and group.orig_value_of('status') not in [c.APPROVED,
+                                                                                                        c.SHARED]:
                         for attendee in group.attendees:
                             attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
                             session.add(attendee)

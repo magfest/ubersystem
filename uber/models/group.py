@@ -25,6 +25,14 @@ __all__ = ['Group']
 
 class Group(MagModel, TakesPaymentMixin):
     public_id = Column(UUID, default=lambda: str(uuid4()))
+    shared_with_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    shared_with = relationship(
+        'Group',
+        foreign_keys='Group.shared_with_id',
+        backref=backref('table_shares', viewonly=True),
+        cascade='save-update,merge,refresh-expire,expunge',
+        remote_side='Group.id',
+        single_parent=True)
     name = Column(UnicodeText)
     tables = Column(Numeric, default=0)
     zip_code = Column(UnicodeText)
@@ -50,7 +58,7 @@ class Group(MagModel, TakesPaymentMixin):
     convert_badges = Column(Boolean, default=False, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     approved = Column(UTCDateTime, nullable=True)
     leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
     creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
@@ -58,7 +66,7 @@ class Group(MagModel, TakesPaymentMixin):
     creator = relationship(
         'Attendee',
         foreign_keys=creator_id,
-        backref=backref('created_groups', order_by='Group.name', cascade='all,delete-orphan'),
+        backref=backref('created_groups', order_by='Group.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Attendee.id',
         single_parent=True)
@@ -162,6 +170,43 @@ class Group(MagModel, TakesPaymentMixin):
                 signed = True
 
         return signed
+    
+    def convert_to_shared(self, session):
+        self.tables = 0
+        if len(self.floating) < abs(1 - self.badges):
+            new_badges_count = self.badges - len(self.floating)
+        else:
+            new_badges_count = 1
+
+        session.assign_badges(self, new_badges_count)
+
+    @property
+    def shared_with_name(self):
+        if self.shared_with:
+            return self.shared_with.name
+
+    def set_shared_with_name(self, value):
+        # This is not a setter function in order to avoid being processed inside WTForms
+        # TODO: Make that work
+
+        from uber.models import Session
+        if value == '':
+            self.shared_with = None
+        elif self.is_dealer and self.status == c.SHARED:
+            with Session() as session:
+                shared_group = session.query(Group).filter(Group.name == value).first()
+                if not shared_group:
+                    raise ValueError(f"Could not find group name {value}.")
+                elif shared_group.status == c.SHARED:
+                    raise ValueError(f"Group {value} is already sharing a table with {shared_group.shared_with.name}."
+                                     "You may want to share this group's table with that group instead.")
+                else:
+                    self.shared_with_id = shared_group.id
+    
+    @presave_adjustment
+    def unshare_table(self):
+        if self.status != c.SHARED:
+            self.shared_with = None
 
     @property
     def sorted_attendees(self):
@@ -206,12 +251,12 @@ class Group(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def attendees_have_badges(self):
-        return self.is_valid and (not self.is_dealer or self.status == c.APPROVED)
+        return self.is_valid and (not self.is_dealer or self.status in [c.APPROVED, c.SHARED])
 
     @attendees_have_badges.expression
     def attendees_have_badges(cls):
         return and_(cls.is_valid,
-                    or_(cls.is_dealer == False, cls.status == c.APPROVED))  # noqa: E712
+                    or_(cls.is_dealer == False, cls.status.in_([c.APPROVED, c.SHARED])))  # noqa: E712
 
     @property
     def new_ribbon(self):
@@ -324,7 +369,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def amount_unpaid(self):
-        if self.is_dealer and self.status != c.APPROVED:
+        if self.is_dealer and self.status not in [c.APPROVED, c.SHARED]:
             return 0
 
         if self.registered:

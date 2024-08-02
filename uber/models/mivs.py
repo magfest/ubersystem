@@ -80,7 +80,7 @@ class IndieStudio(MagModel):
     status = Column(
         Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW, admin_only=True)
     staff_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
 
     accepted_core_hours = Column(Boolean, default=False)
     discussion_emails = Column(UnicodeText)
@@ -317,7 +317,7 @@ class IndieGame(MagModel, ReviewMixin):
     status = Column(
         Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW, admin_only=True)
     judge_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     waitlisted = Column(UTCDateTime, nullable=True)
     accepted = Column(UTCDateTime, nullable=True)
 

@@ -55,12 +55,12 @@
       <div class="row g-sm-3">
         <div class="col">
           <div class="form-text">Created</div>
-          <div class="mb-3">{{ entry.created.when|full_datetime_local }} by {{ entry.created.who }}</div>
+          <div class="mb-3">{{ entry.created_info.when|full_datetime_local }} by {{ entry.created_info.who }}</div>
         </div>
-        {% if entry.last_updated %}
+        {% if entry.last_update_info %}
         <div class="col">
           <div class="form-text">Last Updated</div>
-          <div class="mb-3">{{ entry.last_updated.when|full_datetime_local }} by {{ entry.last_updated.who }}</div>
+          <div class="mb-3">{{ entry.last_update_info.when|full_datetime_local }} by {{ entry.last_update_info.who }}</div>
         </div>
         {% endif %}
       </div>

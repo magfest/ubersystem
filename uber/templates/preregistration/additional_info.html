@@ -32,10 +32,10 @@
       {{ csrf_token() }}
       {% include "forms/attendee/prereg_other_info.html" %}
       &nbsp;
-      {% if editing %}
-      <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
-      {% elif is_prereg_dealer %}
+      {% if is_prereg_dealer %}
       <button type="submit" class="btn btn-primary mt-3" value="Submit Application">Submit Application</button>
+      {% elif editing %}
+      <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
       {% else %}
       <button type="submit" class="btn btn-primary mt-3" value="Add to Cart">Add to Cart</button>
       {% endif %}

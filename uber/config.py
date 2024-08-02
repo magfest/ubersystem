@@ -324,7 +324,7 @@ class Config(_Overridable):
             count = session.query(Attendee).filter(
                 Attendee.paid != c.NOT_PAID,
                 Attendee.badge_type == badge_type,
-                Attendee.has_or_will_have_badge == True).count()  # noqa: E712
+                Attendee.has_badge == True).count()  # noqa: E712
         return count
 
     def has_section_or_page_access(self, include_read_only=False, page_path=''):
@@ -381,6 +381,10 @@ class Config(_Overridable):
     @property
     def ART_SHOW_OPEN(self):
         return self.AFTER_ART_SHOW_REG_START and self.BEFORE_ART_SHOW_DEADLINE
+    
+    @property
+    def ART_SHOW_HAS_FEES(self):
+        return c.COST_PER_PANEL or c.COST_PER_TABLE or c.ART_MAILING_FEE
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
@@ -406,7 +410,8 @@ class Config(_Overridable):
         from uber.models import Session, PromoCode, PromoCodeGroup
         base_count = self.get_badge_count_by_type(c.ATTENDEE_BADGE)
         with Session() as session:
-            pc_code_count = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0).count()
+            pc_code_count = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0,
+                                                                                 PromoCode.uses_remaining > 0).count()
         return base_count + pc_code_count
 
     @request_cached_property
@@ -787,7 +792,7 @@ class Config(_Overridable):
                         opts.append((badge, day_name + ' Badge (${})'.format(price)))
                     day += timedelta(days=1)
             elif self.ONE_DAY_BADGE_AVAILABLE:
-                opts.append((self.ONE_DAY_BADGE,  'Single Day Badge (${})'.format(self.ONEDAY_BADGE_PRICE)))
+                opts.append((self.ONE_DAY_BADGE, 'Single Day Badge (${})'.format(self.ONEDAY_BADGE_PRICE)))
         return opts
 
     @property
@@ -1512,8 +1517,8 @@ c.REGION_OPTS_CANADA = [('', 'Select a province')] + sorted(
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 
 c.JOB_PAGE_OPTS = (
-    ('index',    'Calendar View'),
-    ('signups',  'Signups View'),
+    ('index', 'Calendar View'),
+    ('signups', 'Signups View'),
     ('staffers', 'Staffer Summary'),
 )
 c.WEIGHT_OPTS = (
@@ -1527,6 +1532,7 @@ c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibil
 c.PREREG_SHIRT_OPTS = sorted(c.PREREG_SHIRT_OPTS if c.PREREG_SHIRT_OPTS else c.SHIRT_OPTS)[1:]
 c.PREREG_SHIRTS = {key: val for key, val in c.PREREG_SHIRT_OPTS}
 c.STAFF_SHIRT_OPTS = sorted(c.STAFF_SHIRT_OPTS if len(c.STAFF_SHIRT_OPTS) > 1 else c.SHIRT_OPTS)
+c.SHIRT_OPTS = sorted(c.SHIRT_OPTS)
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.SHIRT_OPTS))
 c.MERCH_STAFF_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.STAFF_SHIRT_OPTS))
 shirt_label_lookup = {val: key for key, val in c.SHIRT_OPTS}
@@ -1587,9 +1593,11 @@ c.JAVASCRIPT_INCLUDES = []
 # relative URL of the resource (e.g., theme/prereg.css) and the value is the hash for that resource
 c.STATIC_HASH_LIST = {}
 
-
+if not c.ALLOW_SHARED_TABLES:
+    c.DEALER_STATUS_OPTS = [(key, val) for key, val in c.DEALER_STATUS_OPTS if key != c.SHARED]
 dealer_status_label_lookup = {val: key for key, val in c.DEALER_STATUS_OPTS}
 c.DEALER_EDITABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_EDITABLE_STATUS_LIST]
+c.DEALER_CANCELLABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_CANCELLABLE_STATUS_LIST]
 
 
 # A list of models that have properties defined for exporting for Guidebook

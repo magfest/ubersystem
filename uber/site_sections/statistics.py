@@ -197,7 +197,10 @@ class Root:
 
             if a.badge_status not in [c.INVALID_GROUP_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
                 counts['paid'][a.paid_label] += 1
-                counts['ages'][a.age_group_label] += 1
+                if a.age_group_label:
+                    counts['ages'][a.age_group_label] += 1
+                else:
+                    counts['ages'][c.AGE_GROUPS[c.AGE_UNKNOWN]]
                 for val in a.ribbon_ints:
                     counts['ribbons'][c.RIBBONS[val]] += 1
                 counts['badges'][a.badge_type_label] += 1

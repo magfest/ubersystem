@@ -343,7 +343,7 @@ form_link_site_sections = {}
 
 
 @JinjaEnv.jinja_filter
-def form_link(model, new_window=False):
+def form_link(model, new_window=False, prepend=''):
     if not model:
         return ''
 
@@ -379,7 +379,7 @@ def form_link(model, new_window=False):
                                                            page,
                                                            model.id,
                                                            ' target="_blank"' if new_window else '',
-                                                           escape(name)))
+                                                           prepend + escape(name)))
     return name
 
 

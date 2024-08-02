@@ -1,0 +1,8 @@
+{% if attendee.first_name %}{{ attendee.first_name }},
+
+{% endif %}Thanks for coming out to perform at {{ c.EVENT_NAME }}! We've added you to our registration database for your complimentary badge, but we don't have all of your personal information. To ensure that you can pick up your badge with no hassles, please fill out the rest of your info at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to {{ c.EVENT_NAME }}.
+
+Please let us know if you have any questions by reaching out to us at {{ c.BAND_EMAIL|email_only }}.
+
+Thank you!
+{{ c.BAND_EMAIL_SIGNATURE }}

@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from io import BytesIO
 
 from uber.config import c
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
@@ -217,7 +217,7 @@ class Root:
                          'full_name', 'last_first', 'badge_printed_name']:
                 search_filters.append(getattr(Attendee, attr).ilike('%' + search_text + '%'))
 
-            for attr in ['artist_name', 'banner_name']:
+            for attr in ['artist_name', 'banner_name', 'artist_id', 'artist_id_ad']:
                 search_filters.append(getattr(ArtShowApplication, attr).ilike('%' + search_text + '%'))
 
         applications = session.query(ArtShowApplication).join(ArtShowApplication.attendee)\
@@ -272,7 +272,7 @@ class Root:
         message = check(app)
         if message:
             session.rollback()
-            return {'error': message}
+            return {'error': message, 'app_id': app.id}
         else:
             if 'check_in' in params and params['check_in']:
                 app.checked_in = localized_now()
@@ -297,7 +297,7 @@ class Root:
             message = check(attendee)
             if message:
                 session.rollback()
-                return {'error': message}
+                return {'error': message, 'app_id': app.id}
             else:
                 session.commit()
 
@@ -341,6 +341,11 @@ class Root:
                     elif 'check_out' in params and params['check_out'] and piece.status == c.HUNG:
                         piece.status = c.RETURN
                     session.commit()  # We save as we go so it's less annoying if there's an error
+        for piece in app.art_show_pieces:
+            if 'check_in' in params and params['check_in'] and piece.status == c.EXPECTED:
+                piece.status = c.HUNG
+            elif 'check_out' in params and params['check_out'] and piece.status == c.HUNG:
+                piece.status = c.SOLD
 
         return {
             'id': app.id,
@@ -415,58 +420,12 @@ class Root:
                 font_size -= 0.2
                 pdf.set_font_size(size=font_size)
 
-        for index, piece in enumerate(sorted(pieces, key=lambda piece: piece.piece_id)):
+        for index, piece in enumerate(sorted(pieces, key=lambda piece: (piece.gallery_label, piece.piece_id))):
             sheet_num = index % 4
-            xplus = yplus = 0
             if sheet_num == 0:
                 pdf.add_page()
-            if sheet_num in [1, 3]:
-                xplus = 306
-            if sheet_num in [2, 3]:
-                yplus = 396
 
-            # Location, Piece ID, and barcode
-            pdf.image(get_static_file_path('bidsheet.png'), x=0 + xplus, y=0 + yplus, w=306)
-            pdf.set_font(normal_font_name, size=10)
-            pdf.set_xy(81 + xplus, 27 + yplus)
-            pdf.cell(80, 16, txt=piece.app.locations, ln=1, align="C")
-            pdf.set_font("3of9", size=22)
-            pdf.set_xy(163 + xplus, 15 + yplus)
-            pdf.cell(132, 22, txt=piece.barcode_data, ln=1, align="C")
-            pdf.set_font(bold_font_name, size=8,)
-            pdf.set_xy(163 + xplus, 32 + yplus)
-            pdf.cell(132, 12, txt=piece.artist_and_piece_id, ln=1, align="C")
-
-            # Artist, Title, Media
-            pdf.set_font(normal_font_name, size=12)
-            set_fitted_font_size(piece.app.display_name)
-            pdf.set_xy(81 + xplus, 54 + yplus)
-            pdf.cell(160, 24,
-                     txt=(piece.app.display_name),
-                     ln=1, align="C")
-            pdf.set_xy(81 + xplus, 80 + yplus)
-            set_fitted_font_size(piece.name)
-            pdf.cell(160, 24, txt=piece.name, ln=1, align="C")
-            pdf.set_font(normal_font_name, size=12)
-            pdf.set_xy(81 + xplus, 105 + yplus)
-            pdf.cell(
-                160, 24,
-                txt=piece.media +
-                    (' ({} of {})'.format(piece.print_run_num, piece.print_run_total) if piece.type == c.PRINT else ''),
-                ln=1, align="C"
-            )
-
-            # Type, Minimum Bid, QuickSale Price
-            pdf.set_font(normal_font_name, size=10)
-            pdf.set_xy(242 + xplus, 54 + yplus)
-            pdf.cell(53, 24, txt=piece.type_label, ln=1, align="C")
-            pdf.set_font(normal_font_name, size=8)
-            pdf.set_xy(242 + xplus, 90 + yplus)
-            # Note: we want the prices on the PDF to always have a trailing .00
-            pdf.cell(53, 14, txt=('${:,.2f}'.format(piece.opening_bid)) if piece.valid_for_sale else 'N/A', ln=1)
-            pdf.set_xy(242 + xplus, 116 + yplus)
-            pdf.cell(
-                53, 14, txt=('${:,.2f}'.format(piece.quick_sale_price)) if piece.valid_quick_sale else 'N/A', ln=1)
+            piece.print_bidsheet(pdf, sheet_num, normal_font_name, bold_font_name, set_fitted_font_size)
 
         import unicodedata
         filename = str(unicodedata.normalize('NFKD', piece.app.display_name).encode('ascii', 'ignore'))
@@ -475,32 +434,46 @@ class Root:
         filename = filename + "_" + localized_now().strftime("%m%d%Y_%H%M")
 
         cherrypy.response.headers['Content-Disposition'] = 'attachment; filename={}.pdf'.format(filename)
-        return pdf.output(dest='S').encode('latin-1')
+        return bytes(pdf.output())
 
     def bidder_signup(self, session, message='', page=1, search_text='', order=''):
         filters = []
         search_text = search_text.strip()
         if search_text:
             order = order or 'badge_printed_name'
-            if re.match(r'\w-[0-9]{4}', search_text):
+            if re.match(r'\w-[0-9]{3,4}', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
-                    ArtShowBidder.bidder_num.ilike('%{}%'.format(search_text[2:])))
+                    ArtShowBidder.bidder_num.ilike(search_text.lower()))
+                if not attendees.first():
+                    existing_bidder_num = session.query(Attendee).join(Attendee.art_show_bidder).filter(
+                        ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(search_text)}%")).first()
+                    message = f"There is no one with the bidder number {search_text}."
+                    if existing_bidder_num:
+                        message += f" Search for bidder {existing_bidder_num.art_show_bidder.bidder_num} instead."
             else:
-                # Sorting by bidder number requires a join, which would filter out anyone without a bidder number
-                order = 'badge_printed_name' if order == 'bidder_num' else order
-                try:
-                    badge_num = int(search_text)
-                except Exception:
-                    filters.append(Attendee.badge_printed_name.ilike('%{}%'.format(search_text)))
+                if c.INDEPENDENT_ART_SHOW:
+                    # Independent art shows likely won't have badge numbers or badge names
+                    # so they can search by anything
+                    attendees, error = session.search(search_text, Attendee.is_valid == True)  # noqa: E712
+                    if error:
+                        raise HTTPRedirect('bidder_signup?search_text={}&order={}&message={}'
+                                        ).format(search_text, order, error)
                 else:
-                    filters.append(or_(Attendee.badge_num == badge_num,
-                                       Attendee.badge_printed_name.ilike('%{}%'.format(search_text))))
-                attendees = session.query(Attendee).filter(*filters).filter(Attendee.is_valid == True)  # noqa: E712
+                    # For systems that run registration, search is limited for data privacy
+                    try:
+                        badge_num = int(search_text)
+                    except Exception:
+                        filters.append(Attendee.badge_printed_name.ilike('%{}%'.format(search_text)))
+                    else:
+                        filters.append(or_(Attendee.badge_num == badge_num,
+                                           and_(Attendee.art_show_bidder != None,
+                                                ArtShowBidder.bidder_num.ilike('%{search_text}%'))))
+                    attendees = session.query(Attendee).outerjoin(ArtShowBidder).filter(*filters).filter(Attendee.is_valid == True)  # noqa: E712
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_bidder)
 
         if 'bidder_num' in str(order) or not order:
-            attendees = attendees.join(Attendee.art_show_bidder).order_by(
+            attendees = attendees.outerjoin(Attendee.art_show_bidder).order_by(
                 ArtShowBidder.bidder_num.desc() if '-' in str(order) else ArtShowBidder.bidder_num)
         else:
             attendees = attendees.order(order)
@@ -508,7 +481,7 @@ class Root:
         count = attendees.count()
         page = int(page) or 1
 
-        if not count and search_text:
+        if not count and search_text and not message:
             message = 'No matches found'
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
@@ -526,23 +499,52 @@ class Root:
 
     @ajax
     def sign_up_bidder(self, session, **params):
-        attendee = session.attendee(params['attendee_id'])
+        try:
+            attendee = session.attendee(params['attendee_id'])
+        except NoResultFound:
+            if c.INDEPENDENT_ART_SHOW:
+                attendee = Attendee(
+                    id=params['attendee_id'],
+                    placeholder=True,
+                    badge_status=c.NOT_ATTENDING,
+                    )
+                session.add(attendee)
+            else:
+                return {'error': "No attendee found for this bidder!", 'attendee_id': params['attendee_id']}
+
         success = 'Bidder saved'
+        missing_fields = []
+
+        for field_name in params.copy().keys():
+            if params.get(field_name, None):
+                if hasattr(attendee, field_name) and not hasattr(ArtShowBidder(), field_name):
+                    setattr(attendee, field_name, params.pop(field_name))
+            elif c.INDEPENDENT_ART_SHOW and field_name in ArtShowBidder.required_fields.keys():
+                missing_fields.append(ArtShowBidder.required_fields[field_name])
+
+        if missing_fields:
+            return {'error': "Please fill out the following fields: " + readable_join(missing_fields) + ".",
+                    'attendee_id': attendee.id}
+
         if params['id']:
             bidder = session.art_show_bidder(params)
         else:
             params.pop('id')
-            if 'cellphone' in params and params['cellphone']:
-                attendee.cellphone = params.pop('cellphone')
             bidder = ArtShowBidder()
-            bidder.apply(params, restricted=False)
-            latest_bidder = session.query(ArtShowBidder).filter(ArtShowBidder.id != bidder.id) \
-                .order_by(ArtShowBidder.bidder_num_stripped.desc()).first()
-
-            next_num = str(min(latest_bidder.bidder_num_stripped + 1, 9999)).zfill(4) if latest_bidder else "0001"
-
-            bidder.bidder_num = attendee.last_name[:1].upper() + "-" + next_num
             attendee.art_show_bidder = bidder
+
+        bidder.apply(params, restricted=False)
+
+        bidder_num_dupe = session.query(ArtShowBidder).filter(
+            ArtShowBidder.id != bidder.id,
+            ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(params.get('bidder_num'))}%")).first()
+        if bidder_num_dupe:
+            session.rollback()
+            return {
+                'error': f"The bidder number {bidder_num_dupe.bidder_num[2:]} already belongs to bidder"
+                            f" {bidder_num_dupe.bidder_num}.",
+                'attendee_id': attendee.id
+            }
 
         if params['complete']:
             bidder.signed_up = localized_now()
@@ -553,7 +555,7 @@ class Root:
             message = check(bidder)
         if message:
             session.rollback()
-            return {'error': message}
+            return {'error': message, 'attendee_id': attendee.id}
         else:
             session.commit()
 
@@ -582,7 +584,7 @@ class Root:
             order = order or 'badge_num'
             if re.match(r'\w-[0-9]{4}', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
-                    ArtShowBidder.bidder_num.ilike('%{}%'.format(search_text[2:])))
+                    ArtShowBidder.bidder_num.ilike('%{}%'.format(ArtShowBidder.strip_bidder_num(search_text))))
             else:
                 # Sorting by bidder number requires a join, which would filter out anyone without a bidder number
                 order = 'badge_num' if order == 'bidder_num' else order

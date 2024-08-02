@@ -60,6 +60,9 @@ class PersonalInfo(AddressForm, MagForm):
         validators.Email(granular_message=True),
         ],
         render_kw={'placeholder': 'test@example.com'})
+    confirm_email = EmailField('Confirm Email Address', validators=[
+        validators.DataRequired("Please confirm your email address.") if c.PREREG_CONFIRM_EMAIL_ENABLED
+        else validators.Optional()])
     cellphone = TelField('Phone Number', validators=[
         validators.DataRequired("Please provide a phone number."),
         valid_cellphone
@@ -107,9 +110,12 @@ class PersonalInfo(AddressForm, MagForm):
             return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone']
         if is_admin and attendee.unassigned_group_reg:
             return ['first_name', 'last_name', 'email', 'badge_printed_name',
-                    'cellphone'] + self.placeholder_optional_field_names()
+                    'cellphone', 'confirm_email'] + self.placeholder_optional_field_names()
 
         optional_list = super().get_optional_fields(attendee, is_admin)
+
+        if not attendee.needs_pii_consent and not attendee.badge_status == c.PENDING_STATUS:
+            optional_list.append('confirm_email')
 
         if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE
                                                                     and c.AFTER_PRINTED_BADGE_DEADLINE):
@@ -156,6 +162,11 @@ class PersonalInfo(AddressForm, MagForm):
         if not field.data and not form.no_onsite_contact.data:
             raise ValidationError('Please enter contact information for at least one trusted friend onsite, \
                                  or indicate that we should use your emergency contact information instead.')
+
+    @field_validation.confirm_email
+    def match_email(form, field):
+        if field.data and field.data != form.email.data:
+            raise ValidationError("Your email address and email confirmation do not match.")
 
     @field_validation.birthdate
     def birthdate_format(form, field):
@@ -295,7 +306,7 @@ class OtherInfo(MagForm):
             with Session() as session:
                 code = session.lookup_promo_code(field.data)
                 if not code:
-                    group = session.lookup_promo_or_group_code(field.data, PromoCodeGroup)
+                    group = session.lookup_registration_code(field.data, PromoCodeGroup)
                     if not group:
                         raise ValidationError("The promo code you entered is invalid.")
                     elif not group.valid_codes:
@@ -303,7 +314,7 @@ class OtherInfo(MagForm):
                 else:
                     if code.is_expired:
                         raise ValidationError("That promo code has expired.")
-                    elif code.uses_remaining <= 0 and not code.is_unlimited:
+                    elif not code.is_unlimited and code.uses_remaining <= 0:
                         raise ValidationError("That promo code has been used already.")
 
 
@@ -488,7 +499,7 @@ class CheckInForm(MagForm):
     badge_type = HiddenIntField('Badge Type')
     badge_num = StringField('Badge Number', id="checkin_badge_num", default='', validators=[
         validators.DataRequired('Badge number is required.'),
-    ])
+    ] if c.NUMBERED_BADGES else [])
     badge_printed_name = PersonalInfo.badge_printed_name
     got_merch = AdminBadgeExtras.got_merch
     got_staff_merch = AdminStaffingInfo.got_staff_merch

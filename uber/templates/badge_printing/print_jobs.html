@@ -22,7 +22,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
     </tr></thead>
     {% for job in jobs %}
     <tr>
-    <td data-order="{{ job.created.when }}">{{ job.created.when|time_day_local }}</td>
+    <td data-order="{{ job.created_info.when }}">{{ job.created_info.when|time_day_local }}</td>
     <td>{{ job.id }}</td>
     {% if not attendee %}
     <td data-order="{{ job.attendee.full_name }}" data-search="{{ job.attendee.full_name }}">

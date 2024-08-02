@@ -104,6 +104,58 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
           }
         }
     </script>
+    {% if c.ALLOW_SHARED_TABLES and group.status != c.SHARED and not group.table_shares %}
+    <a href="#" class="btn btn-info" onClick="sharedTable()">Mark as Shared Table</a>
+    <div id="sharedDealerDiv" class="d-none">
+      <p>
+        This will remove all tables from this {{ c.DEALER_APP_TERM }}, plus any unassigned badges.
+        It will also send this {{ c.DEALER_TERM }} an email letting them know they've been set as a shared table.
+      </p>
+    
+      <div class="form-horizontal" id="sharedDealerForm">
+        <input type="text" class="form-control" name="shared_group_name" onChange="updateSharedGroupName()">
+        <div class="form-text">Enter the exact name of the group this {{ c.DEALER_TERM }} is sharing with, or leave blank. This can be changed later.</div>
+      </div>
+    </div>
+    <script type="text/javascript">
+      var shared_group_name = '';
+      var updateSharedGroupName = function () {
+        shared_group_name = $("#sharedDealerForm [name='shared_group_name']").val();
+        console.log(shared_group_name);
+      }
+      var sharedTable = function() {
+        var form = $("#sharedDealerDiv").html();
+        $("#sharedDealerDiv").html('');
+
+        bootbox.confirm({
+            backdrop: true,
+            title: 'Mark Table as Shared?',
+            message: form,
+            buttons: {
+            confirm: { label: 'Yes, Make This a Shared Table', className: 'btn-success' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+            },
+            callback: function (result) {
+              $("#sharedDealerDiv").html(form);
+              if(result) {
+                $.post('../dealer_admin/set_table_shared', {
+                  csrf_token: csrf_token,
+                  id: "{{ group.id }}",
+                  shared_group_name: shared_group_name
+                }, function (response) {
+                  hideMessageBox();
+                  if (response.error) {
+                    showErrorMessage(response.error);
+                  } else {
+                    window.location = "form?id={{ group.id }}&message=" + response.message;
+                  }
+                }, 'json');
+              }
+            }
+        });
+      }
+    </script>
+    {% endif %}
 {% endif %}
 {% endif %}
 <hr/>

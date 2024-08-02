@@ -1,7 +1,11 @@
 # docker-compose for development of ubersystem
 x-uber: &uber
   build: .
+  env_file:
+      - path: ./.env
+        required: false
   environment:
+    - PYTHONSTARTUP=/app/.pythonstartup.py
     - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
     - uber_cherrypy_server_socket_port=80
     - uber_cherrypy_server_socket_host=0.0.0.0
@@ -12,18 +16,17 @@ x-uber: &uber
     - uber_loggers_cherrypy_access=DEBUG
     - uber_redis_host=redis
     - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber
-    - uber_url_root=http://localhost
     - uber_hostname=localhost
-    - uber_plugins=["magprime"]
     - uber_dev_box=True
     - UBER_CONFIG_FILES=uber.ini
     - LOG_CONFIG=true
   volumes:
     - .:/app/
-    - ./../magprime:/app/plugins/magprime
+    - ${PLUGIN_DIR_SRC:-./README.md}:${PLUGIN_DIR_TARGET:-/tmp/README.md}
 
+name: ${PLUGIN_NAME:-uber}
 
-services: 
+services:
   web:
     <<: *uber
     ports:
@@ -51,14 +54,11 @@ services:
       - RABBITMQ_DEFAULT_PASS=celery
       - RABBITMQ_DEFAULT_VHOST=uber
   python-repl:
+    container_name: ${COMPOSE_PROJECT_NAME}-python
     <<: *uber
     stdin_open: true
     tty: true
-    volumes:
-      - $PWD/.pythonstartup.py:/app/.pythonstartup.py
-    environment:
-      - PYTHONSTARTUP=/app/.pythonstartup.py
-    command: ['/app/env/bin/python3']
+    command: ['python']
     profiles: ["dev"]
   flower:
     container_name: ${COMPOSE_PROJECT_NAME}-flower
@@ -69,3 +69,14 @@ services:
     ports:
       - 5555:5555
     profiles: ["dev"]
+  nginx:
+    image: nginx
+    volumes:
+      - ./dev-nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./ssl-key.pem:/root/ssl/key.pem
+      - ./ssl-cert.pem:/root/ssl/cert.pem
+    ports:
+      - "443:443"
+    depends_on:
+      - web
+    profiles: ["ssl"]

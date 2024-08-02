@@ -21,7 +21,7 @@ class MarketplaceApplication(MagModel):
                             backref=backref('marketplace_applications', cascade='save-update, merge'))
     business_name = Column(UnicodeText)
     status = Column(Choice(c.MARKETPLACE_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     approved = Column(UTCDateTime, nullable=True)
 
     categories = Column(MultiChoice(c.DEALER_WARES_OPTS))

@@ -180,6 +180,27 @@ class Root:
 
         raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id,
                            "{} receipt created.".format("Blank" if blank else "Default"))
+    
+    def edit_receipt_item(self, session, **params):
+        item = session.receipt_item(params)
+        txn_id = params.get('receipt_txn_id', None)
+
+        if txn_id:
+            receipt_txn = session.receipt_transaction(params.get('receipt_txn_id'))
+            item.receipt_txn = receipt_txn
+            if not item.closed:
+                item.closed = receipt_txn.added()
+        elif txn_id == '':
+            item.closed = None
+            item.receipt_txn = None
+        
+        message = check(item)
+        model = session.get_model_by_receipt(item.receipt)
+        if message:
+            session.rollback()
+        else:
+            message = "Receipt item updated."
+        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id, message)
 
     @ajax
     def add_receipt_item(self, session, id='', **params):
@@ -403,8 +424,11 @@ class Root:
 
         if (receipt.item_total - receipt.txn_total) <= 0 and amount > 0:
             for item in receipt.open_receipt_items:
-                item.txn_id = item.txn_id or new_txn.id
-                item.closed = datetime.now()
+                if item.receipt_txn:
+                    item.closed = item.receipt_txn.added
+                else:
+                    item.txn_id = new_txn.id
+                    item.closed = new_txn.added
                 session.add(item)
             if isinstance(model, Attendee) and model.paid == c.NOT_PAID:
                 model.paid = c.HAS_PAID
@@ -1059,6 +1083,7 @@ class Root:
     @site_mappable
     def import_attendees(self, session, target_server='', api_token='',
                          query='', message='', which_import='', **params):
+        from uber.tasks.registration import import_attendee_accounts
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)
         message = message or service_message
 
@@ -1131,6 +1156,10 @@ class Root:
                     existing_key = account.email
                     accounts_by_email.pop(existing_key, {})
                 accounts = list(chain(*accounts_by_email.values()))
+                admin_id = cherrypy.session.get('account_id')
+                admin_name = session.admin_attendee().full_name
+                import_attendee_accounts.delay(accounts, admin_id, admin_name, target_server, api_token)
+                message = f"{len(accounts)} attendee accounts queued for import." 
 
             if models and which_import == 'groups':
                 groups = models
@@ -1196,7 +1225,7 @@ class Root:
                     TaskUtils.attendee_import(import_job)
                 else:
                     session.add(import_job)
-            session.commit()
+        session.commit()
 
         attendee_count = len(attendee_ids) - already_queued
         badge_label = c.BADGES[int(badge_type)].lower()
@@ -1216,62 +1245,6 @@ class Root:
                 badge_label=badge_label,
                 queued='' if not already_queued else ' {} badges are already queued for import.'.format(already_queued),
             )
-        )
-
-    def confirm_import_attendee_accounts(self, session, target_server, api_token, query, account_ids):
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('import_attendees?target_server={}&api_token={}&query={}&which_import={}',
-                               target_server,
-                               api_token,
-                               query,
-                               'accounts')
-
-        admin_id = cherrypy.session.get('account_id')
-        admin_name = session.admin_attendee().full_name
-        already_queued = 0
-        account_ids = account_ids if isinstance(account_ids, list) else [account_ids]
-
-        for id in account_ids:
-            existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_account_import",
-                                                           ApiJob.query == id,
-                                                           ApiJob.completed == None,  # noqa: E711
-                                                           ApiJob.cancelled == None,  # noqa: E711
-                                                           ApiJob.errors == '').count()
-            if existing_import:
-                already_queued += 1
-            else:
-                import_job = ApiJob(
-                    admin_id=admin_id,
-                    admin_name=admin_name,
-                    job_name="attendee_account_import",
-                    target_server=target_server,
-                    api_token=api_token,
-                    query=id,
-                    json_data={'all': False}
-                )
-                if len(account_ids) < 25:
-                    TaskUtils.attendee_account_import(import_job)
-                else:
-                    session.add(import_job)
-            session.commit()
-
-        attendee_count = len(account_ids) - already_queued
-
-        if len(account_ids) > 100:
-            query = ''  # Clear very large queries to prevent 502 errors
-
-        raise HTTPRedirect(
-            'import_attendees?target_server={}&api_token={}&query={}&message={}&which_import={}',
-            target_server,
-            api_token,
-            query,
-            '{count} attendee account{s} queued for import.{queued}'.format(
-                count=attendee_count,
-                s=pluralize(attendee_count),
-                queued='' if not already_queued else
-                ' {} accounts are already queued for import.'.format(already_queued),
-            ),
-            'accounts',
         )
 
     def confirm_import_groups(self, session, target_server, api_token, query, group_ids):
@@ -1309,7 +1282,7 @@ class Root:
                     TaskUtils.group_import(import_job)
                 else:
                     session.add(import_job)
-            session.commit()
+        session.commit()
 
         attendee_count = len(group_ids) - already_queued
 

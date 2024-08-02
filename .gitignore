@@ -33,5 +33,8 @@ uber/static/fonts/free3of9.pkl
 .history
 .lh*
 config*.ini
-sideboard.ini
+uber.ini
+.env
 .venv/
+ssl-cert.pem
+ssl-key.pem
