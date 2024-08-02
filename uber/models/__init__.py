@@ -2145,7 +2145,7 @@ class Session(SessionManager):
             try:
                 return self.indie_studio(cherrypy.session.get('studio_id'))
             except Exception:
-                raise HTTPRedirect('../mivs/studio')
+                raise HTTPRedirect('../mivs/login_explanation')
 
         def logged_in_judge(self):
             judge = self.admin_attendee().admin_account.judge
