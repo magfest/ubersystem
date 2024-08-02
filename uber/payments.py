@@ -1256,7 +1256,10 @@ class ReceiptManager:
                                                                                 } if col_name else {}
                                                                  ))
                             else:
-                                receipt_items.append((desc, price, cost[price]))
+                                try:
+                                    receipt_items.append((desc, price, cost[price]))
+                                except TypeError as e:
+                                    log.error(f"{str(e)} for {desc} with price of {price}. Full cost: {cost}")
                     elif receipt:
                         receipt_items.append(ReceiptItem(receipt_id=receipt.id,
                                                          desc=desc,
