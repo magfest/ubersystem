@@ -382,6 +382,7 @@ class Root:
             return errors
 
         group = self._get_unsaved(id, PreregCart.pending_dealers)
+        group.is_dealer = True
         attendee = group.attendees[0]
 
         if c.ATTENDEE_ACCOUNTS_ENABLED:
