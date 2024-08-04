@@ -60,7 +60,8 @@ class Group(MagModel, TakesPaymentMixin):
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     approved = Column(UTCDateTime, nullable=True)
-    leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
+    leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
+                       nullable=True)
     creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 
     creator = relationship(
