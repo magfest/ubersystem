@@ -672,6 +672,7 @@ start = 2023-12-18
 
 [redis]
 prefix = super2024
+host = "${REDIS_HOST}"
 
 
 [sentry]
