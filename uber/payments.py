@@ -743,7 +743,7 @@ class TransactionRequest:
                               f"{error_code}: {error_msg}")
 
                     return "Transaction declined. Please ensure you are entering the correct " + \
-                        "expiry date, card CVV/CVC, and ZIP Code&trade;."
+                        "expiration date, card CVV/CVC, and ZIP Code."
             else:
                 if hasattr(response, 'transactionResponse') is True \
                         and hasattr(response.transactionResponse, 'errors') is True:

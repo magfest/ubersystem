@@ -1024,17 +1024,16 @@ class Attendee(MagModel, TakesPaymentMixin):
     @hybrid_property
     def is_valid(self):
         return self.badge_status not in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS, c.INVALID_STATUS,
-                                         c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]
+                                         c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS, c.REFUNDED_STATUS]
 
     @is_valid.expression
     def is_valid(cls):
         return not_(cls.badge_status.in_([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS, c.INVALID_STATUS,
-                                          c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]))
+                                          c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS, c.REFUNDED_STATUS]))
 
     @hybrid_property
     def has_or_will_have_badge(self):
-        return self.is_valid and self.badge_status not in [c.REFUNDED_STATUS, c.NOT_ATTENDING,
-                                                           c.UNAPPROVED_DEALER_STATUS]
+        return self.is_valid and self.badge_status not in [c.NOT_ATTENDING, c.UNAPPROVED_DEALER_STATUS]
 
     @has_or_will_have_badge.expression
     def has_or_will_have_badge(cls):
@@ -2249,6 +2248,11 @@ class AttendeeAccount(MagModel):
     @property
     def imported_group_badges(self):
         return [attendee for attendee in self.imported_attendees if attendee.group]
+    
+    @property
+    def imported_group_leaders(self):
+        return [attendee for attendee in self.imported_attendees
+                if attendee.group and attendee.id == attendee.group.leader_id]
 
     @property
     def pending_attendees(self):
