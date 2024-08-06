@@ -561,7 +561,8 @@ class Root:
             }
 
         if cherrypy.request.method == 'POST':
-            _add_promo_code(session, attendee, params.get('promo_code_code'))
+            if not attendee.promo_code_code:
+                _add_promo_code(session, attendee, params.get('promo_code_code'))
 
             if attendee.badge_type == c.PSEUDO_GROUP_BADGE:
                 message = "Please enter a group name" if not params.get('name') else message
