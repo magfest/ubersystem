@@ -1284,17 +1284,22 @@ class ReceiptManager:
             if isinstance(cost, Iterable):
                 # A list of the same item at different prices, e.g., group badges
                 for price in cost:
-                    if receipt:
-                        receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                        department=department,
-                                                        category=category,
-                                                        desc=desc,
-                                                        amount=price,
-                                                        count=cost[price],
-                                                        revert_change=revert_change,
-                                                        ))
+                    try:
+                        price = int(price)
+                    except ValueError:
+                        log.exception(f"The price for {desc} ({price}) isn't a number!")
                     else:
-                        receipt_items.append((desc, price, cost[price]))
+                        if receipt:
+                            receipt_items.append(ReceiptItem(receipt_id=receipt.id,
+                                                            department=department,
+                                                            category=category,
+                                                            desc=desc,
+                                                            amount=price,
+                                                            count=cost[price],
+                                                            revert_change=revert_change,
+                                                            ))
+                        else:
+                            receipt_items.append((desc, price, cost[price]))
             elif receipt:
                 receipt_items.append(ReceiptItem(receipt_id=receipt.id,
                                                 department=department,
