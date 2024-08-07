@@ -153,7 +153,7 @@ def include_other_details(entry):
 
 @validation.WatchList
 def not_active_after_expiration(entry):
-    if entry.active and localized_now().date() > entry.expiration:
+    if entry.active and entry.expiration and localized_now().date() > entry.expiration:
         return ('expiration', 'An entry cannot be active with an expiration date in the past.')
 
 
@@ -624,12 +624,6 @@ def unavailability(app):
 def panel_other(app):
     if app.presentation == c.OTHER and not app.other_presentation:
         return 'Since you selected "Other" for your type of panel, please describe it'
-
-
-@validation.PanelApplication
-def app_deadline(app):
-    if localized_now() > c.PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS and not app.poc_id:
-        return 'We are now past the deadline and are no longer accepting panel applications'
 
 
 @validation.PanelApplication

@@ -35,10 +35,11 @@
 The following is a list of panelists with accepted panels which are NOT marked as having a badge.  You may use the
 forms below to add badges for those without them OR associate these panelists with existing attendee records.
 
-<table class="table table-striped">
+<table class="table table-striped datatable">
 <thead>
     <tr>
         <th>Panel</th>
+        <th>Confirmed?</th>
         <th>Panelist Name</th>
         <th>Panelist Email</th>
         <th>Possible Matches</th>
@@ -49,19 +50,20 @@ forms below to add badges for those without them OR associate these panelists wi
 {% for pa, matches in applicants %}
     <tr id="{{ pa.id }}">
         <td><a href="app?id={{ pa.application.id }}">{{ pa.application.name }}</a></td>
+        <td>{{ pa.confirmed|datetime_local if pa.confirmed else "No" }}</td>
         <td>{{ pa.full_name }}</td>
         <td>{{ pa.email|email_to_link }}</td>
         <td>
             {% for attendee in matches %}
                 <p>
-                    <button onClick="link('{{ pa.id }}', '{{ attendee.id }}')">Link</button>
+                    <button class="btn btn-info" onClick="link('{{ pa.id }}', '{{ attendee.id }}')">Link</button>
                     {{ attendee|form_link }} [{{ attendee.badge }}] ({{ attendee.email }})
                 </p>
             {% else %}
                 (no matching attendees)
             {% endfor %}
         </td>
-        <td><button onClick="create('{{ pa.id }}')">Add New Badge</button></td>
+        <td><button class="btn btn-primary" onClick="create('{{ pa.id }}')">Add New Badge</button></td>
     </tr>
 {% endfor %}
 </tbody>

@@ -6,7 +6,7 @@ from uber.config import c
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
 from uber.models import PanelApplicant, PanelApplication
-from uber.utils import add_opt, check
+from uber.utils import add_opt, check, localized_now
 
 
 OTHER_PANELISTS_FIELDS = [
@@ -78,7 +78,10 @@ class Root:
         other_panelists = compile_other_panelists_from_params(session, app, **params)
 
         if cherrypy.request.method == 'POST':
-            message = check(panelist) or check_extra_verifications(**params)
+            if localized_now() > c.PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS:
+                message = 'We are now past the deadline and are no longer accepting panel applications.'
+            if not message:
+                message = check(panelist) or check_extra_verifications(**params)
             if not message and other_panelists and 'verify_poc' not in params:
                 message = 'You must agree to being the point of contact for your group'
             if not message:

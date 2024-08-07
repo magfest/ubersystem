@@ -109,7 +109,7 @@ class PersonalInfo(AddressForm, MagForm):
 
         optional_list = super().get_optional_fields(attendee, is_admin)
 
-        if not attendee.needs_pii_consent and not attendee.badge_status == c.PENDING_STATUS:
+        if is_admin or not attendee.needs_pii_consent and attendee.badge_status != c.PENDING_STATUS:
             optional_list.append('confirm_email')
 
         if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE
