@@ -1447,7 +1447,7 @@ class ScheduleLookup:
                     'start_unix': int(mktime(event.start_time.utctimetuple())),
                     'end_unix': int(mktime(event.end_time.utctimetuple())),
                     'duration': event.minutes,
-                    'description': event.description,
+                    'description': event.public_description or event.description,
                     'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
                 }
                 for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])

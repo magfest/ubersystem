@@ -23,6 +23,7 @@ class Event(MagModel):
     duration = Column(Integer)  # half-hour increments
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
+    public_description = Column(UnicodeText)
 
     assigned_panelists = relationship('AssignedPanelist', backref='event')
     applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"),
@@ -73,7 +74,8 @@ class Event(MagModel):
         panelists_creds = '<br/><br/>' + '<br/><br/>'.join(
             a.other_credentials for a in self.applications[0].applicants if a.other_credentials
         ) if self.applications else ''
-        return self.description + panelists_creds
+        description = self.public_description or self.description
+        return description + panelists_creds
 
     @property
     def guidebook_location(self):
@@ -104,6 +106,7 @@ class PanelApplication(MagModel):
     length_text = Column(UnicodeText)
     length_reason = Column(UnicodeText)
     description = Column(UnicodeText)
+    public_description = Column(UnicodeText)
     unavailable = Column(UnicodeText)
     available = Column(UnicodeText)
     affiliations = Column(UnicodeText)
@@ -123,6 +126,7 @@ class PanelApplication(MagModel):
     tabletop = Column(Boolean, default=False)
     cost_desc = Column(UnicodeText)
     livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
+    record = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
     panelist_bringing = Column(UnicodeText)
     extra_info = Column(UnicodeText)
     applied = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
@@ -141,11 +145,17 @@ class PanelApplication(MagModel):
         if self.event:
             self.event.name = self.name
             self.event.description = self.description
+            self.event.public_description = self.public_description
     
     @presave_adjustment
     def set_default_dept(self):
         if len(c.PANEL_DEPT_OPTS) <= 1 and not self.department:
             self.department = c.PANELS
+
+    @presave_adjustment
+    def set_record(self):
+        if len(c.LIVESTREAM_OPTS) > 2 and not self.record:
+            self.record = c.OPT_OUT
 
     @property
     def email(self):

@@ -119,7 +119,17 @@
     </div>
     <div class="clearfix"></div>
     <p class="form-text col-sm-9 col-sm-offset-3">
-        Will appear as a subheading on the schedule. 200 words max. 18+ panels will not be accepted.
+        This is to explain your pitch to us - this can be different from what you want to show the public. <strong>18+ panels will not be accepted.</strong>
+    </p>
+</div>
+<div class="form-group">
+    <label class="form-text">Schedule Description</label>
+    <div class="col-sm-6">
+        <textarea class="form-control" name="public_description" rows="4">{{ app.public_description }}</textarea>
+    </div>
+    <div class="clearfix"></div>
+    <p class="form-text col-sm-9 col-sm-offset-3">
+        To be shown on the public facing schedule. 200 words max. Leave blank if this is the same as the Panel Description.
     </p>
 </div>
 {% if c.PANEL_CONTENT_OPTS|length > 1 %}
@@ -202,10 +212,12 @@
     </div>
     <div class="clearfix"></div>
 </div>
+{% if c.LIVE_STREAM_OPTS|length > 2 %}
 <div class="form-group">
     <label class="form-text">Is it okay to record or livestream your panel? </label>
     <div class="col-sm-6">
         <select class="form-select" name="livestream">
+            <option value="">Please select an option</option>
             {{ options(c.LIVESTREAM_OPTS, app.livestream) }}
         </select>
     </div>
@@ -214,6 +226,34 @@
         While we don't record/live stream every panel, we attempt to record and post most panels to our YouTube channel after the event.
     </p>
 </div>
+{% else %}
+<div class="form-group">
+    <label class="form-text">Is it okay to record your panel? </label>
+    <div class="col-sm-6">
+        <select class="form-select" name="record">
+            <option value="">Please select an option</option>
+            {{ options(c.LIVESTREAM_OPTS, app.record) }}
+        </select>
+    </div>
+    <div class="clearfix"></div>
+    <p class="form-text col-sm-9 col-sm-offset-3">
+        While we don't record every panel, we attempt to record and post most panels to our YouTube channel after the event.
+    </p>
+</div>
+<div class="form-group">
+    <label class="form-text">Is it okay to livestream your panel? </label>
+    <div class="col-sm-6">
+        <select class="form-select" name="livestream">
+            <option value="">Please select an option</option>
+            {{ options(c.LIVESTREAM_OPTS, app.livestream) }}
+        </select>
+    </div>
+    <div class="clearfix"></div>
+    <p class="form-text col-sm-9 col-sm-offset-3">
+        If you answered Yes to being livestreamed, please ensure that you're not presenting anything that could be considered copyright infringement.
+    </p>
+</div>
+{% endif %}
 
 
 <div class="form-group">
