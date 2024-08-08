@@ -106,7 +106,7 @@
             <p class="help-block col-sm-9 col-sm-offset-3">
               Please list all times during the event when you will NOT be available to hold your panel.
               This is used for scheduling purposes. Rescheduling based on information not given here will be very difficult.
-              <br/><br/>Panels run form 12 PM to 3 AM Thursday, 10 AM to 3 AM Friday, 10 AM to 3 AM Saturday, and 10 AM to 3 PM Sunday.
+              <br/><br/>Panels run from 12 PM to 3 AM Thursday, 10 AM to 3 AM Friday, 10 AM to 3 AM Saturday, and 10 AM to 3 PM Sunday.
             </p>
           </div>
           <div class="form-group">
@@ -131,8 +131,8 @@
             <div class="col-sm-9 col-sm-offset-3">
               <label class="checkbox-label" style="font-weight: normal;">
                 <input type="checkbox" name="verify_waiting"{% if verify_waiting %} checked{% endif %} />
-                I understand that I will not hear back until {{ c.EXPECTED_RESPONSE }},
-                <b>and I will not prematurely email {{ c.EVENT_NAME }} to check my panel status.</b>
+                <strong>I will not prematurely e-mail {{ c.EVENT_NAME }} to check my panel status</strong>,
+                with the understanding that {{ c.EVENT_NAME }} will send final determinations by the end of {{ c.EXPECTED_RESPONSE }}.
               </label>
             </div>
           </div>
