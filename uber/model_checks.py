@@ -639,6 +639,19 @@ def specify_nonstandard_time(app):
 
 
 @validation.PanelApplication
+def select_livestream_opt(app):
+    if not app.livestream:
+        return 'Please select your preference for recording/livestreaming.' \
+            if len(c.LIVESTREAM_OPTS) > 2 else 'Please tell us if we can livestream your panel.'
+    
+
+@validation.PanelApplication
+def select_record_opt(app):
+    if not app.record and len(c.LIVESTREAM_OPTS) <= 2:
+        return 'Please tell us if we can record your panel.'
+
+
+@validation.PanelApplication
 def specify_table_needs(app):
     if app.need_tables and not app.tables_desc:
         return 'Please describe how you need tables set up for your panel.'
