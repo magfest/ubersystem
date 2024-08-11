@@ -108,4 +108,7 @@ class RoomAssignment(MagModel):
 
 
 class LotteryApplication(MagModel):
-    hotel_preference = Column(MultiChoice(c.HOTEL_LOTTERY_HOTEL_OPTS))
+    hotel_preference = Column(MultiChoice(c.HOTEL_LOTTERY_HOTELS_OPTS))
+    room_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS))
+    selection_priorities = Column(MultiChoice(c.HOTEL_LOTTERY_HOTEL_PRIORITIES_OPTS))
+    suite_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS))

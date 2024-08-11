@@ -43,6 +43,9 @@
     {{ form_macros.form_validation('hotel-lottery-form', 'validate_hotel_lottery') }}
     <form novalidate method="POST" id="hotel-lottery-form" action="form">
         {{ form_macros.form_input(lottery_application.hotel_preference) }}
+        {{ form_macros.form_input(lottery_application.room_type_preference) }}
+        {{ form_macros.form_input(lottery_application.selection_priorities) }}
+        {{ form_macros.form_input(lottery_application.suite_type_preference) }}
         {{ csrf_token() }}
         <button type="submit" class="btn btn-primary" value="Upload">Save</button>
     </form>
