@@ -256,6 +256,10 @@ class Root:
         errors = check_if_can_reg(is_dealer_reg=True)
         if errors:
             return errors
+        
+        cherrypy.session['imported_attendee_ids'] = {}
+        for key in PreregCart.session_keys:
+            cherrypy.session.pop(key)
 
         old_attendee = session.attendee(id)
         old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
@@ -264,7 +268,7 @@ class Root:
         new_attendee.badge_type = c.PSEUDO_DEALER_BADGE
 
         old_group = session.group(old_attendee.group.id)
-        old_group_dict = old_group.to_dict(c.GROUP_REAPPLY_ATTRS)
+        old_group_dict = old_group.to_dict(c.GROUP_REAPPLY_ATTRS)  # TODO: c.GROUP_REAPPLY_ATTRS doesn't exist??
         del old_group_dict['id']
         new_group = Group(**old_group_dict)
 
@@ -287,6 +291,16 @@ class Root:
             del old_attendee_dict['id']
 
             new_attendee = Attendee(**old_attendee_dict)
+
+            if old_attendee.promo_code and not old_attendee.promo_code.is_expired:
+                unpaid_uses_count = PreregCart.get_unpaid_promo_code_uses_count(old_attendee.promo_code.id, new_attendee.id)
+                
+                if old_attendee.promo_code.is_unlimited or (old_attendee.promo_code.uses_remaining - unpaid_uses_count) > 0:
+                    new_attendee.promo_code = old_attendee.promo_code
+            
+            if old_attendee.badge_type in c.BADGE_TYPE_PRICES and old_attendee.badge_type not in c.SOLD_OUT_BADGE_TYPES:
+                new_attendee.badge_type = old_attendee.badge_type
+                new_attendee.shirt = old_attendee.shirt
 
             cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
 
@@ -1667,11 +1681,9 @@ class Root:
         if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
                 .format(email_only(c.REGDESK_EMAIL))
-            new_status = c.REFUNDED_STATUS
             page_redirect = 'repurchase'
         else:
             success_message = "Sorry you can't make it! We hope to see you next year!"
-            new_status = c.INVALID_STATUS
             page_redirect = '../landing/index'
             if attendee.is_group_leader:
                 failure_message = "You cannot abandon your badge because you are the leader of a group."
@@ -1717,7 +1729,7 @@ class Root:
             raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
         # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
         else:
-            attendee.badge_status = new_status
+            attendee.badge_status = c.REFUNDED_STATUS
             for shift in attendee.shifts:
                 session.delete(shift)
             raise HTTPRedirect('{}?id={}&message={}',

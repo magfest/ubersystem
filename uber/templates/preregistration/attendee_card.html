@@ -104,6 +104,9 @@
                     </a>
                 </div>
             {% elif attendee.is_valid %}
+            <div class="btn-group pull-left mt-2" role="group">
+                {% include 'preregistration/badge_refund.html' with context %}
+            </div>
                 <div class="btn-group pull-right mt-2" role="group">
                 {% include 'preregistration/card_buttons.html' %}
                 <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">

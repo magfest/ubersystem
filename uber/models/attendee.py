@@ -1142,7 +1142,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             )
         
         reason = ""
-        if self.paid == c.NEED_NOT_PAY and not self.in_promo_code_group:
+        if self.paid == c.NEED_NOT_PAY and not self.promo_code:
             reason = "You cannot abandon a comped badge."
         elif self.is_group_leader and self.group.is_valid:
             reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
@@ -1150,10 +1150,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             reason = self.cannot_self_service_refund_reason
 
         if reason:
-            return reason + "Please {} contact us at {}{}.".format(
+            return reason + " Please {} contact us at {}{}.".format(
                 "transfer your badge instead or" if self.is_transferable else "",
                 email_only(c.REGDESK_EMAIL),
-                " for a refund" if c.SELF_SERVICE_REFUNDS_OPEN else "")
+                " to cancel your badge.")
 
     @property
     def cannot_self_service_refund_reason(self):
