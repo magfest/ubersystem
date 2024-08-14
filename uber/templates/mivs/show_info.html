@@ -50,6 +50,8 @@
   </table>
   <a class="btn btn-primary" href="screenshot?game_id={{ game.id }}&use_in_promo=True">Upload a Screenshot</a>
 
+  {# TODO: Add Guidebook image upload!! #}
+
   <form method="post" enctype="multipart/form-data" class="form-horizontal" action="show_info">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ game.id }}" />

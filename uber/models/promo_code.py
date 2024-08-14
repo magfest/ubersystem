@@ -415,7 +415,7 @@ class PromoCode(MagModel):
 
     @property
     def valid_used_by(self):
-        return [attendee for attendee in self.used_by if attendee.is_valid]
+        return list(set([attendee for attendee in self.used_by if attendee.is_valid]))
 
     @property
     def uses_allowed_str(self):

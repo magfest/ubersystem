@@ -281,8 +281,8 @@
                                     </form>
                                 {% endif %}
                             </td>
-                    {% elif attendee.is_not_ready_to_checkin %}
-                        <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+                    {% elif attendee.cannot_check_in_reason %}
+                        <td>Can't checkin ({{ attendee.cannot_check_in_reason }})</td>
                     {% else %}
                       {% if not reg_station_id and attendee.amount_unpaid %}
                         <td>Set workstation ID to check in (Attendee owes {{ attendee.amount_unpaid|format_currency }})</td>

@@ -789,7 +789,7 @@ class ReceiptItemConfig:
         return wrapper
 
 
-cost_calculation, credit_calculation = ReceiptItemConfig(), ReceiptItemConfig()
+receipt_calculation = ReceiptItemConfig()
 
 
 adjustment_counter = count().__next__

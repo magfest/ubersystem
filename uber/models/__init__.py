@@ -142,6 +142,14 @@ class MagModel:
         automated emails -- override this instead.
         """
         return self.email
+    
+    def cc_emails_for_ident(self, ident=''):
+        # A list of emails to carbon-copy for an automated email with a particular ident
+        return
+    
+    def bcc_emails_for_ident(self, ident=''):
+        # A list of emails to blind-carbon-copy for an automated email with a particular ident
+        return
 
     @property
     def gets_emails(self):
@@ -424,7 +432,7 @@ class MagModel:
                 log.debug('Cost property {} was called for object {}, \
                           which has an active receipt. This may cause problems.'.format(name, self))
 
-        receipt_items = uber.receipt_items.cost_calculation.items
+        receipt_items = uber.receipt_items.receipt_calculation.items
         try:
             cost_calc = receipt_items[self.__class__.__name__][name[8:]](self)
             if not cost_calc:
@@ -2145,7 +2153,7 @@ class Session(SessionManager):
             try:
                 return self.indie_studio(cherrypy.session.get('studio_id'))
             except Exception:
-                raise HTTPRedirect('../mivs/studio')
+                raise HTTPRedirect('../mivs/login_explanation')
 
         def logged_in_judge(self):
             judge = self.admin_attendee().admin_account.judge

@@ -153,6 +153,15 @@
         </div>
     </div>
 
+    {% if app.public_description %}
+    <div class="row">
+        <label class="form-text">Schedule Description</label>
+        <div class="col-sm-6 form-control-static">
+            {{ app.public_description|linebreaksbr }}
+        </div>
+    </div>
+    {% endif %}
+
     {% if c.PANEL_RATING_OPTS|length > 1 %}
     <div class="row">
         <label class="form-text">Rating</label>
@@ -203,9 +212,18 @@
 
     <div class="row">
         <label class="form-text">How do they feel about recording or livestreaming?</label>
+        {% if c.LIVE_STREAM_OPTS|length > 2 %}
         <div class="col-sm-6 form-control-static">
             {{ app.livestream_label }}
         </div>
+        {% else %}
+        <div class="col-sm-6 form-control-static">
+            Recording: {{ app.record_label }}
+        </div>
+        <div class="col-sm-6 form-control-static">
+            Livestreaming: {{ app.livestream_label }}
+        </div>
+        {% endif %}
     </div>
 
     {% if app.tables_desc %}

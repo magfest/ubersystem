@@ -6,7 +6,7 @@
 {% include "registration/menu.html" %}
 
 {% include "check_in.html" %}
-{% set can_check_in = c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and (not receipt or not receipt.current_amount_owed) %}
+{% set can_check_in = c.AT_THE_CON and not attendee.checked_in and not attendee.cannot_check_in_reason and (not receipt or not receipt.current_amount_owed) %}
 
 <div class="row mb-3">
     <div class="col">

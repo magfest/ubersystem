@@ -1,12 +1,15 @@
 import json
-import pytz
 import math
+import os
+import pytz
 import re
+import shutil
 from datetime import datetime, timedelta
 from functools import wraps
 from io import BytesIO
 
 import cherrypy
+from cherrypy.lib.static import serve_file
 from aztec_code_generator import AztecCode
 from pytz import UTC
 from sqlalchemy import and_, func, or_
@@ -52,7 +55,8 @@ def load_attendee(session, params):
 
 def save_attendee(session, attendee, params):
     if cherrypy.request.method == 'POST':
-        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+        receipt_items = ReceiptManager.auto_update_receipt(attendee,
+                                                           session.get_receipt_by_model(attendee), params.copy())
         session.add_all(receipt_items)
 
     forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
@@ -229,9 +233,9 @@ class Root:
                 session.add(attendee)
                 session.commit()
                 if params.get('save_check_in', False):
-                    if attendee.is_not_ready_to_checkin:
+                    if attendee.cannot_check_in_reason:
                         message = "Attendee saved, but they cannot check in now. Reason: {}".format(
-                            attendee.is_not_ready_to_checkin)
+                            attendee.cannot_check_in_reason)
                         stay_on_form = True
                     elif attendee.amount_unpaid_if_valid:
                         message = "Attendee saved, but they must pay ${} before they can check in.".format(
@@ -436,6 +440,8 @@ class Root:
                     if receipt and cost_per_badge:
                         session.add(
                             ReceiptManager().create_receipt_item(receipt,
+                                                                 c.REG_RECEIPT_ITEM,
+                                                                 c.GROUP_BADGE,
                                                                  f'Adding {badges} Badge{"s" if badges > 1 else ""}',
                                                                  badges * int(cost_per_badge) * 100))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
@@ -1448,3 +1454,44 @@ class Root:
         session.commit()
 
         return {'added': id}
+    
+    def update_problem_names(self, session, new_file=None, message=''):        
+        if cherrypy.request.method == "POST":
+            if not new_file:
+                message = "Please upload a new file for matching badge names against."
+            else:
+                file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')
+                with open(file_loc, 'wb') as f:
+                    shutil.copyfileobj(new_file.file, f)
+                
+                message = c.update_name_problems() or "File uploaded!"
+        
+        file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')
+        file_exists = os.path.isfile(file_loc)
+
+        return {
+            'message': message,
+            'file_exists': file_exists,
+            }
+
+    def download_problem_names(self, session):
+        try:
+            return serve_file(
+                os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv'),
+                disposition="attachment",
+                name=f'problem_names{datetime.now().strftime("%Y%m%d")}.csv',
+                content_type='application/csv')
+        except FileNotFoundError:
+            raise HTTPRedirect(f'update_problem_names?message={"File not found!"}')
+
+    def printed_name_problems(self, session):
+        problem_name_ids = c.REDIS_STORE.smembers(c.REDIS_PREFIX + 'problem_name_ids')
+        attendees = session.query(Attendee).filter(Attendee.id.in_(problem_name_ids))
+
+        return {
+            'attendees': attendees,
+            'word_matches': {key: json.loads(val) for key, val in
+                             c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'word_matches').items()},
+            'origin_words': {key: json.loads(val) for key, val in
+                             c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'origin_words').items()},
+        }

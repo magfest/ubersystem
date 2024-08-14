@@ -60,7 +60,8 @@ class Group(MagModel, TakesPaymentMixin):
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     approved = Column(UTCDateTime, nullable=True)
-    leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
+    leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
+                       nullable=True)
     creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 
     creator = relationship(
@@ -99,29 +100,6 @@ class Group(MagModel, TakesPaymentMixin):
         if not self.is_unpaid or self.orig_value_of('status') != self.status:
             for a in self.attendees:
                 a.presave_adjustments()
-
-    def calc_group_price_change(self, **kwargs):
-        preview_group = Group(**self.to_dict())
-        current_cost = int(self.cost * 100)
-        new_cost = None
-
-        if 'cost' in kwargs:
-            try:
-                preview_group.cost = int(kwargs['cost'])
-            except TypeError:
-                preview_group.cost = 0
-            new_cost = preview_group.cost * 100
-        if 'tables' in kwargs:
-            preview_group.tables = int(kwargs['tables'])
-            return self.default_table_cost * 100, (preview_group.default_table_cost * 100
-                                                   ) - (self.default_table_cost * 100)
-        if 'badges' in kwargs:
-            num_new_badges = int(kwargs['badges']) - self.badges
-            return self.current_badge_cost * 100, self.new_badge_cost * num_new_badges * 100
-
-        if not new_cost:
-            new_cost = int(preview_group.calc_default_cost() * 100)
-        return current_cost, new_cost - current_cost
 
     @presave_adjustment
     def assign_creator(self):

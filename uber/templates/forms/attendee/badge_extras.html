@@ -23,7 +23,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% if c.BADGE_TYPE_PRICES and (not receipt or upgrade_modal) %}
     <div class="row g-sm-3">
     {{ form_macros.card_select(badge_extras.badge_type,
-                                attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES,
+                                attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES[1:] if attendee.badge_type in c.SOLD_OUT_BADGE_TYPES else c.SOLD_OUT_BADGE_TYPES,
                                 target_field_id=id_upgrade_prepend ~ "badge_type") }}
     </div>
 {% elif not is_prereg_attendee %}

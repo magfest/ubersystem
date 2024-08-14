@@ -210,6 +210,11 @@ class ArtShowApplication(MagModel):
     @hybrid_property
     def true_default_cost_cents(self):
         return self.true_default_cost * 100
+    
+    @property
+    def panels_and_tables_cost(self):
+        # Mail-in fees are applied on top of this price
+        return c.COST_PER_PANEL * (self.panels + self.panels_ad) + c.COST_PER_TABLE * (self.tables + self.tables_ad)
 
     @property
     def total_cost(self):
@@ -223,26 +228,6 @@ class ArtShowApplication(MagModel):
     @property
     def potential_cost(self):
         return self.true_default_cost or 0
-
-    def calc_app_price_change(self, **kwargs):
-        preview_app = ArtShowApplication(**self.to_dict())
-        current_cost = int(self.calc_default_cost() * 100)
-
-        if 'overridden_price' in kwargs:
-            try:
-                preview_app.overridden_price = int(kwargs['overridden_price'])
-            except TypeError:
-                preview_app.overridden_price = kwargs['overridden_price']
-        if 'panels' in kwargs:
-            preview_app.panels = int(kwargs['panels'])
-        if 'panels_ad' in kwargs:
-            preview_app.panels_ad = int(kwargs['panels_ad'])
-        if 'tables' in kwargs:
-            preview_app.tables = int(kwargs['tables'])
-        if 'tables_ad' in kwargs:
-            preview_app.tables_ad = int(kwargs['tables_ad'])
-
-        return current_cost, int(preview_app.calc_default_cost() * 100) - current_cost
 
     @property
     def email(self):

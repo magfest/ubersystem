@@ -34,16 +34,7 @@ class Root:
         cherrypy.session['studio_id'] = id
         raise HTTPRedirect('index')
 
-    def login(self, session, message='', studio_name=None, password=None):
-        if cherrypy.request.method == 'POST':
-            studio = session.query(IndieStudio).filter_by(name=studio_name).first()
-            if not studio:
-                message = 'No studio exists with that name'
-            elif not studio.hashed.encode('utf-8') == bcrypt.hashpw(password.encode('utf-8'), studio.hashed.encode('utf-8')):
-                message = 'That is not the correct password'
-            else:
-                raise HTTPRedirect('continue_app?id={}', studio.id)
-
+    def login_explanation(self, message=''):
         return {'message': message}
 
     def studio(self, session, message='', **params):
