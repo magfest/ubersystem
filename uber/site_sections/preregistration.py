@@ -13,7 +13,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import email_only
-from uber.decorators import ajax, all_renderable, credit_card, csrf_protected, id_required, log_pageview, \
+from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
@@ -21,7 +21,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, Pro
                         ReceiptTransaction, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
-    valid_password, SignNowRequest, validate_model, create_new_hash
+    valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 
 
@@ -487,6 +487,12 @@ class Root:
             return {"error": all_errors}
 
         return {"success": True}
+    
+    @ajax_gettable
+    def check_consent_form(self, session, birthdate):
+        age_conf = get_age_conf_from_birthday(birthdate, c.NOW_OR_AT_CON)
+
+        return {"consent_form": age_conf['consent_form']}
 
     @cherrypy.expose('post_form')
     @redirect_if_at_con_to_kiosk
