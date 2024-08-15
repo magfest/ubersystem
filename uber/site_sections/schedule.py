@@ -100,7 +100,7 @@ class Root:
                 'date': event.start_time_local.strftime('%m/%d/%Y'),
                 'start_time': event.start_time_local.strftime('%I:%M:%S %p'),
                 'end_time': (event.start_time_local + timedelta(minutes=event.minutes)).strftime('%I:%M:%S %p'),
-                'description': normalize_newlines(event.description).replace('\n', ' ')
+                'description': normalize_newlines(event.public_description or event.description).replace('\n', ' '),
             }))
 
         return render('schedule/schedule.tsv', {
@@ -132,7 +132,7 @@ class Root:
                     name=event.name,
                     begin=event.start_time,
                     end=(event.start_time + timedelta(minutes=event.minutes)),
-                    description=normalize_newlines(event.description),
+                    description=normalize_newlines(event.public_description or event.description),
                     created=event.created_info.when,
                     location=event.location_label))
 
@@ -160,7 +160,7 @@ class Root:
                 (event.start_time_local + timedelta(minutes=event.minutes)).strftime('%I:%M:%S %p'),
                 event.location_label,
                 event.guidebook_track,
-                normalize_newlines(event.description).replace('\n', ' '),
+                normalize_newlines(event.public_description or event.description).replace('\n', ' '),
                 '', '', '', ''
             ])
         for r in sorted(rows, key=lambda tup: tup[4]):
@@ -179,7 +179,7 @@ class Root:
                     event.start_time_local.strftime('%I%p %a').lstrip('0'),
                     '{} minutes'.format(event.minutes),
                     event.location_label,
-                    event.description,
+                    event.public_description or event.description,
                     panelist_names])
 
     @schedule_view
@@ -194,7 +194,7 @@ class Root:
                 'start_unix': int(mktime(event.start_time.utctimetuple())),
                 'end_unix': int(mktime(event.end_time.utctimetuple())),
                 'duration': event.minutes,
-                'description': event.description,
+                'description': event.public_description or event.description,
                 'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
             }
             for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])
@@ -243,6 +243,7 @@ class Root:
                 if event.is_new:
                     event.name = add_panel.name
                     event.description = add_panel.description
+                    event.public_description = add_panel.public_description
                     for pa in add_panel.applicants:
                         if pa.attendee_id:
                             assigned_panelist = AssignedPanelist(attendee_id=pa.attendee.id, event_id=event.id)

@@ -801,7 +801,7 @@ class AttendeeLookup:
                     and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints and 'paid' not in params:
                 attendee.paid = c.NEED_NOT_PAY
 
-        return attendee.id
+            return attendee.id
 
 
 @all_api_auth('api_read')
@@ -1447,7 +1447,7 @@ class ScheduleLookup:
                     'start_unix': int(mktime(event.start_time.utctimetuple())),
                     'end_unix': int(mktime(event.end_time.utctimetuple())),
                     'duration': event.minutes,
-                    'description': event.description,
+                    'description': event.public_description or event.description,
                     'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
                 }
                 for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])

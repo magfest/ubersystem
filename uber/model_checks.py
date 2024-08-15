@@ -153,7 +153,7 @@ def include_other_details(entry):
 
 @validation.WatchList
 def not_active_after_expiration(entry):
-    if entry.active and localized_now().date() > entry.expiration:
+    if entry.active and entry.expiration and localized_now().date() > entry.expiration:
         return ('expiration', 'An entry cannot be active with an expiration date in the past.')
 
 
@@ -627,12 +627,6 @@ def panel_other(app):
 
 
 @validation.PanelApplication
-def app_deadline(app):
-    if localized_now() > c.PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS and not app.poc_id:
-        return 'We are now past the deadline and are no longer accepting panel applications'
-
-
-@validation.PanelApplication
 def specify_other_time(app):
     if app.length == c.OTHER and not app.length_text:
         return 'Please specify how long your panel will be.'
@@ -642,6 +636,19 @@ def specify_other_time(app):
 def specify_nonstandard_time(app):
     if app.length != c.SIXTY_MIN and not app.length_reason and not app.poc_id:
         return 'Please explain why your panel needs to be longer than sixty minutes.'
+
+
+@validation.PanelApplication
+def select_livestream_opt(app):
+    if not app.livestream:
+        return 'Please select your preference for recording/livestreaming.' \
+            if len(c.LIVESTREAM_OPTS) > 2 else 'Please tell us if we can livestream your panel.'
+    
+
+@validation.PanelApplication
+def select_record_opt(app):
+    if not app.record and len(c.LIVESTREAM_OPTS) <= 2:
+        return 'Please tell us if we can record your panel.'
 
 
 @validation.PanelApplication

@@ -57,8 +57,8 @@
         <div class="mb-4">
             {% if attendee.checked_in %}
                 {{ attendee.checked_in_local|datetime("%B %-d, %Y, %-I:%M %p") }}
-            {% elif attendee.is_not_ready_to_checkin %}
-                Can't check in yet: {{ attendee.is_not_ready_to_checkin }}
+            {% elif attendee.cannot_check_in_reason %}
+                Can't check in yet: {{ attendee.cannot_check_in_reason }}
             {% else %}
                 Not checked in yet
             {% endif %}

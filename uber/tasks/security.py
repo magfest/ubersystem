@@ -11,6 +11,7 @@ __all__ = ['deactivate_expired_watchlist_entries']
 def deactivate_expired_watchlist_entries():
     with Session() as session:
         expired_entries = session.query(WatchList).filter(WatchList.active == True,  # noqa: E712
+                                                          WatchList.expiration != None,
                                                           WatchList.expiration <= date.today())
 
         expired_count = expired_entries.count()

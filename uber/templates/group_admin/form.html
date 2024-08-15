@@ -171,8 +171,8 @@
           {% if c.AT_THE_CON and attendee.checked_in %}
             <td><b>Checked-in {{ attendee.checked_in_local|datetime("%-I:%M%p")|lower }} {{ attendee.checked_in_local|datetime("%a") }}</b></td>
           {% elif c.AT_THE_CON %}
-            {% if attendee.is_not_ready_to_checkin %}
-              <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+            {% if attendee.cannot_check_in_reason %}
+              <td>Can't checkin ({{ attendee.cannot_check_in_reason }})</td>
             {% else %}
               <td id="cin_{{ attendee.id }}">
                 <button class="attendee-checkin btn btn-sm btn-success" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>

@@ -82,7 +82,7 @@
             {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.SHARED, c.CANCELLED] %}
             <br/><br/>If you would like, you may instead
             <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
-            {% if attendee.group.status not in [c.APPROVED, c.SHARED] and not attendee.is_not_ready_to_checkin %}
+            {% if attendee.group.status not in [c.APPROVED, c.SHARED] and not attendee.cannot_check_in_reason %}
               <p><br/>
               {% if attendee.amount_unpaid %}Once you have paid your outstanding balance of {{ (attendee.amount_unpaid / 100)|format_currency }}, y{% else %}Y{% endif %}ou 
               will be able to check in regardless of whether or not your group is approved.</p>
@@ -142,7 +142,7 @@
         </div>
       </div>
 
-      {% if not page_ro and not attendee.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE %}
+      {% if not page_ro and not attendee.cannot_check_in_reason and c.USE_CHECKIN_BARCODE %}
         <div class="form-group">
         <label class="col-sm-3 control-label">Check-in Barcode</label>
           <div class="col-sm-6">
@@ -157,8 +157,8 @@
       {% endif %}
     </form>
 
-    {% if not page_ro and attendee.can_abandon_badge or attendee.can_self_service_refund_badge %}
-      <form method="post" action="abandon_badge" id="abandon_badge">
+    {% if not page_ro and (not attendee.cannot_abandon_badge_reason or attendee.cannot_self_service_refund_reason) %}
+      <form method="post" action="abandon_badge" id="abandon_badge_{{ attendee.id }}">
         <input type="hidden" name="id" value="{{ attendee.id }}"/>
         {{ csrf_token() }}
       </form>

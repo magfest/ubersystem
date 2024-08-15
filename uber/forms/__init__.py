@@ -308,7 +308,6 @@ class MagForm(Form):
             
             # Allow overriding the default kwargs via kwarg_overrides
             if field_name in form.kwarg_overrides:
-                log.error(form.kwarg_overrides[field_name])
                 for kw, val in form.kwarg_overrides[field_name].items():
                     unbound_field.kwargs['render_kw'][kw] = val
 

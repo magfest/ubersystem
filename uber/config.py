@@ -1,4 +1,5 @@
 import ast
+import csv
 import hashlib
 import inspect
 import math
@@ -343,10 +344,30 @@ class Config(_Overridable):
         if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin',
                                                                   'band_admin', 'mivs_admin']):
             return True
+        
+    def update_name_problems(self):
+        c.PROBLEM_NAMES = {}
+        file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')
+        try:
+            result = csv.DictReader(open(file_loc))
+        except FileNotFoundError:
+            return "File not found!"
+        
+        for row in result:
+            c.PROBLEM_NAMES[row['text']] = [row[f"canonical_form_{x}"] for x in range(1, 4)
+                                            if row[f"canonical_form_{x}"]]
+
     
     @property
     def CHERRYPY(self):
         return _config['cherrypy']
+    
+    @property
+    def RECEIPT_CATEGORY_OPTS(self):
+        opts = []
+        for key, dict in c.RECEIPT_DEPT_CATEGORIES.items():
+            opts.extend([(key, val) for key, val in dict.items()])
+        return opts
 
     @property
     def DEALER_REG_OPEN(self):
@@ -1437,6 +1458,11 @@ for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
+c.RECEIPT_DEPT_CATEGORIES = {}
+for _name, _val in _config['enums']['receipt_item_dept'].items():
+    _val = getattr(c, _name.upper())
+    c.RECEIPT_DEPT_CATEGORIES[_val] = {getattr(c, key.upper()): val for key, val in _config['enums'][_name].items()}
+
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
 
@@ -1447,7 +1473,6 @@ c.DOOR_PAYMENT_METHODS = {key: val for key, val in c.DOOR_PAYMENT_METHODS.items(
 c.TERMINAL_ID_TABLE = {k.lower().replace('-', ''): v for k, v in _config['secret']['terminal_ids'].items()}
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
-c.DISCOUNTABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DISCOUNTABLE_BADGE_TYPES]
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
 
@@ -1569,7 +1594,7 @@ for name, item in c.HOTEL_LOTTERY.items():
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
 c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
-
+c.update_name_problems()
 
 try:
     _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)

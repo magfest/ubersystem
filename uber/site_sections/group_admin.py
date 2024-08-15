@@ -76,7 +76,7 @@ class Root:
         if params.get('id') not in [None, '', 'None']:
             group = session.group(params.get('id'))
             if cherrypy.request.method == 'POST':
-                receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params)
+                receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params.copy())
                 session.add_all(receipt_items)
         else:
             group = Group(is_dealer=True, tables=1) if new_dealer else Group()
