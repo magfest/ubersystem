@@ -35,7 +35,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
 {{ macros.form_group(team, 'name', is_required=True) }}
 {{ csrf_token() }}
 {{ macros.form_group(team, 'days_available', type='number', placeholder="3 days minimum", is_required=True, help="How many days can you present?") }}
-{{ macros.form_group(team, 'hours_available', type='number', placeholder="4 hours per day minimum", is_required=True, help="How many hours each day can you present?") }}
+{{ macros.form_group(team, 'hours_available', type='number', placeholder="8 hours per day minimum", is_required=True, help="How many hours each day can you present?") }}
 {{ macros.form_group(team, 'concurrent_attendees', type='number', is_required=True, help="How many attendees can you run games for at once?") }}
 <div class="form-group">
   <div class="col-sm-6 col-sm-offset-3">
