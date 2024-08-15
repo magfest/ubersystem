@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean
+from sqlalchemy.types import Boolean, Date
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -108,4 +108,22 @@ class RoomAssignment(MagModel):
 
 
 class LotteryApplication(MagModel):
-    hotel_preference = Column(MultiChoice(c.HOTEL_LOTTERY_HOTEL_OPTS))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    
+    wants_room = Column(Boolean, default=False)
+    earliest_room_checkin_date = Column(Date)
+    latest_room_checkin_date = Column(Date)
+    earliest_room_checkout_date = Column(Date)
+    latest_room_checkout_date = Column(Date)
+    hotel_preference = Column(MultiChoice(c.HOTEL_LOTTERY_HOTELS_OPTS))
+    room_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS))
+    selection_priorities = Column(MultiChoice(c.HOTEL_LOTTERY_HOTEL_PRIORITIES_OPTS))
+    
+    wants_suite = Column(Boolean, default=False)
+    earliest_suite_checkin_date = Column(Date)
+    latest_suite_checkin_date = Column(Date)
+    earliest_suite_checkout_date = Column(Date)
+    latest_suite_checkout_date = Column(Date)
+    suite_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS))
+    
+    terms_accepted = Column(Boolean, default=False)

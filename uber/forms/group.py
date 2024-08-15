@@ -10,11 +10,7 @@ from uber.forms.attendee import valid_cellphone
 from uber.custom_tags import format_currency, pluralize
 from uber.model_checks import invalid_phone_number
 
-__all__ = ['HotelLotteryApplication', 'GroupInfo', 'ContactInfo', 'TableInfo', 'AdminGroupInfo', 'AdminTableInfo']
-
-
-class HotelLotteryApplication(MagForm):
-    ranked_hotels = Ranking(c.HOTEL_LOTTERY.keys())
+__all__ = ['GroupInfo', 'ContactInfo', 'TableInfo', 'AdminGroupInfo', 'AdminTableInfo']
 
 
 class GroupInfo(MagForm):
