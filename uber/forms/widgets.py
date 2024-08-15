@@ -144,6 +144,27 @@ class Ranking():
 </li>"""
                 deselected_html.append(el)
 
+        script = f"""
+<script type="text/javascript">
+    Sortable.create(deselected_{ id }, {{
+        group: '{ id }',
+        animation: 100
+    }});
+
+    Sortable.create(selected_{ id }, {{
+        group: '{ id }',
+        animation: 100,
+        onChange: function(evt) {{
+            el = document.getElementById("selected_{ id }");
+            let selected = [];
+            for (let i=0; i<el.children.length; i++) {{
+                selected.push(el.children[i].getAttribute("value"));
+            }}
+            document.getElementById("{ id }").value = selected.join(",");
+        }}
+    }});
+</script>"""
+
         html = [
             '<div class="row">',
             '<div class="col-md-6">',
@@ -154,7 +175,8 @@ class Ranking():
             'Selected',
             f'<ul class="choice-list" id="selected_{id}">',
             *selected_html,
-            f'</ul></div></div><input type="hidden" id="{id}" name="{id}" value="None" />'
+            f'</ul></div></div><input type="hidden" id="{id}" name="{id}" value="None" />',
+            script
         ]
         
         return Markup(''.join(html))
