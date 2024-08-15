@@ -268,8 +268,12 @@ class MultiChoice(TypeDecorator):
             int(listify(value)[0])
         except ValueError:
             # This is a string list, is it the labels?
-            label_lookup = {val: key for key, val in self.choices}
-            label_lookup['Unknown'] = -1
+            try:
+                label_lookup = {val: key for key, val in self.choices}
+                label_lookup['Unknown'] = -1
+            except TypeError:
+                # The labels are unhashable, probably just a string list of the int values
+                return value
             try:
                 vals = [label_lookup[label] for label in re.split(r'; |, |\*|\n| / ', value)]  # noqa: W605
             except KeyError:

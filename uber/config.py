@@ -1589,7 +1589,9 @@ c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
 for key in ["hotels", "room_types", "suite_room_types", "hotel_priorities"]:
     opts = []
     for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
+        print(item)
         if isinstance(item, dict):
+            item.__hash__ = lambda x: hash(x.name + x.description)
             opts.append((str(int(sha512(name.upper().encode()).hexdigest()[:7], 16)), item))
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
 

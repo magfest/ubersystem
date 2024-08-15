@@ -154,7 +154,7 @@ class Ranking():
     Sortable.create(selected_{ id }, {{
         group: '{ id }',
         animation: 100,
-        onChange: function(evt) {{
+        onSort: function(evt) {{
             el = document.getElementById("selected_{ id }");
             let selected = [];
             for (let i=0; i<el.children.length; i++) {{
@@ -175,7 +175,7 @@ class Ranking():
             'Selected',
             f'<ul class="choice-list" id="selected_{id}">',
             *selected_html,
-            f'</ul></div></div><input type="hidden" id="{id}" name="{id}" value="None" />',
+            f'</ul></div></div><input type="hidden" id="{id}" name="{id}" value="{field.data}" />',
             script
         ]
         
