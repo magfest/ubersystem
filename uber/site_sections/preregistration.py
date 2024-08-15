@@ -1683,7 +1683,7 @@ class Root:
                 .format(email_only(c.REGDESK_EMAIL))
             page_redirect = 'repurchase'
         else:
-            success_message = "Sorry you can't make it! We hope to see you next year!"
+            success_message = "Your badge has been successfully cancelled. Sorry you can't make it! We hope to see you next year!"
             page_redirect = '../landing/index'
             if attendee.is_group_leader:
                 failure_message = "You cannot abandon your badge because you are the leader of a group."
@@ -1710,7 +1710,7 @@ class Root:
             receipt.closed = datetime.now()
             session.add(receipt)
 
-            success_message = "Your refund of {} should appear on your credit card in a few days."\
+            success_message = "Your badge has been successfully cancelled. Your refund of {} should appear on your credit card in 7-10 days."\
                 .format(format_currency(total_refunded / 100))
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
