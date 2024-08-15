@@ -23,7 +23,7 @@ from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
 from uber.config import c
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, readable_join
 from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
                          AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event,
@@ -476,7 +476,7 @@ def mivs_description(image):
 
 @validation.IndieGameImage
 def mivs_valid_type(screenshot):
-    if screenshot.extension not in c.MIVS_ALLOWED_SCREENSHOT_TYPES:
+    if screenshot.extension not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
         return 'Our server did not recognize your upload as a valid image'
 
 
@@ -488,6 +488,7 @@ MITSTeam.required = [
     ('name', 'Production Team Name')
 ]
 
+
 MITSApplicant.required = [
     ('first_name', 'First Name'),
     ('last_name', 'Last Name'),
@@ -495,14 +496,12 @@ MITSApplicant.required = [
     ('cellphone', 'Cellphone Number')
 ]
 
+
 MITSGame.required = [
     ('name', 'Name'),
     ('description', 'Description')
 ]
 
-MITSPicture.required = [
-    ('description', 'Description')
-]
 
 MITSDocument.required = [
     ('description', 'Description')
@@ -533,8 +532,8 @@ def address_required_for_sellers(team):
 def min_num_days_hours(team):
     if team.days_available is not None and team.days_available < 3:
         return 'You must be available at least 3 days to present at MITS.'
-    if team.hours_available is not None and team.hours_available < 4:
-        return 'You must be able to show at least 4 hours per day to present at MITS.'
+    if team.hours_available is not None and team.hours_available < 8:
+        return 'You must be able to show at least 8 hours per day to present at MITS.'
 
 
 @validation.MITSTeam

@@ -16,6 +16,7 @@ from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 from glob import glob
 from os.path import basename
+from PIL import Image
 from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
@@ -621,6 +622,14 @@ def check_pii_consent(params, attendee=None):
         if needs_pii_consent and not has_pii_consent:
             return 'You must agree to allow us to store your personal information in order to register.'
     return ''
+
+
+def check_image_size(image, size_list):
+    try:
+        return Image.open(image).size == tuple(map(int, size_list))
+    except OSError:
+        # This probably isn't an image, so it's not a header image
+        return
 
 
 def validate_model(forms, model, preview_model=None, is_admin=False):
