@@ -369,7 +369,7 @@ def age_discount_credit(attendee, new_attendee=None):
         if not old_cost:
             return
         
-        if abs(attendee.age_discount) > old_cost:
+        if abs(attendee.age_discount * 100) > old_cost:
             diff = old_cost * -1
         else:
             diff = attendee.age_discount * 100
