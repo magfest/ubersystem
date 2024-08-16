@@ -723,7 +723,7 @@ if c.PRINTED_BADGE_DEADLINE:
     StopsEmailFixture(
         'Last chance to personalize your {EVENT_NAME} ({EVENT_DATE}) badge',
         'personalized_badges/volunteers.txt',
-        lambda a: (a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder
+        lambda a: (a.staffing and a.has_personalized_badge and a.placeholder
                    and a.badge_type != c.CONTRACTOR_BADGE),
         when=days_before(7, c.PRINTED_BADGE_DEADLINE),
         ident='volunteer_personalized_badge_reminder')
@@ -734,7 +734,7 @@ if c.PRINTED_BADGE_DEADLINE:
             Attendee,
             'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
             'personalized_badges/reminder.txt',
-            lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
+            lambda a: a.has_personalized_badge and not a.placeholder,
             when=days_before(7, c.PRINTED_BADGE_DEADLINE),
             ident='personalized_badge_reminder')
 

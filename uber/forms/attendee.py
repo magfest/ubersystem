@@ -112,8 +112,8 @@ class PersonalInfo(AddressForm, MagForm):
         if is_admin or not attendee.needs_pii_consent and attendee.badge_status != c.PENDING_STATUS:
             optional_list.append('confirm_email')
 
-        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE
-                                                                    and c.AFTER_PRINTED_BADGE_DEADLINE):
+        if not attendee.has_personalized_badge or (c.PRINTED_BADGE_DEADLINE
+                                                   and c.AFTER_PRINTED_BADGE_DEADLINE):
             optional_list.append('badge_printed_name')
 
         if self.same_legal_name.data:
@@ -502,8 +502,8 @@ class CheckInForm(MagForm):
     def get_optional_fields(self, attendee, is_admin=False):
         optional_list = super().get_optional_fields(attendee, is_admin)
 
-        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE and
-                                                                    c.AFTER_PRINTED_BADGE_DEADLINE):
+        if not attendee.has_personalized_badge or (c.PRINTED_BADGE_DEADLINE and
+                                                   c.AFTER_PRINTED_BADGE_DEADLINE):
             optional_list.append('badge_printed_name')
 
         return optional_list
