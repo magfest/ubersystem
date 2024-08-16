@@ -389,7 +389,7 @@ def age_discount_credit(attendee, new_attendee=None):
     if old_credit and new_credit:
         return ("Update Age Discount", (new_credit - old_credit) * 100, c.BADGE_DISCOUNT)
     elif old_credit:
-        return ("Remove Age Discount", old_credit * 100, c.BADGE_DISCOUNT)
+        return ("Remove Age Discount", old_credit * 100 * -1, c.BADGE_DISCOUNT)
     elif new_credit:
         return ("Add Age Discount", new_credit * 100, c.BADGE_DISCOUNT)
 
@@ -407,23 +407,23 @@ def promo_code_credit(attendee, new_attendee=None):
             return ("Badge Comp (Promo Code)", discount * 100 * -1, c.ITEM_COMP)
         else:
             return ("Promo Code Discount", discount * 100 * -1, c.BADGE_DISCOUNT)
-    
+
     old_cost = attendee.badge_cost_with_promo_code * 100
     new_cost = new_attendee.badge_cost_with_promo_code * 100
 
     if old_cost == new_cost:
         return
-    
+
     if attendee.promo_code and new_attendee.promo_code:
-        return ("Update Promo Code", new_cost - old_cost * 100 * -1, c.BADGE_DISCOUNT)
+        return ("Update Promo Code", new_cost - old_cost, c.BADGE_DISCOUNT)
     elif attendee.promo_code:
         if not old_cost:
-            return ("Remove Badge Comp (Promo Code)", new_cost - old_cost * 100 * -1, c.ITEM_COMP)
-        return ("Remove Promo Code", new_cost - old_cost * 100 * -1, c.BADGE_DISCOUNT)
+            return ("Remove Badge Comp (Promo Code)", new_cost, c.ITEM_COMP)
+        return ("Remove Promo Code", new_cost - old_cost, c.BADGE_DISCOUNT)
     elif new_attendee.promo_code:
         if not new_cost:
-            return ("Add Badge Comp (Promo Code)", new_cost - old_cost * 100 * -1, c.ITEM_COMP)
-        return ("Add Promo Code", new_cost - old_cost * 100 * -1, c.BADGE_DISCOUNT)
+            return ("Add Badge Comp (Promo Code)", old_cost * -1, c.ITEM_COMP)
+        return ("Add Promo Code", new_cost - old_cost, c.BADGE_DISCOUNT)
     
 
 @receipt_calculation.Attendee
