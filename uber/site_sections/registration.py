@@ -12,7 +12,7 @@ import cherrypy
 from cherrypy.lib.static import serve_file
 from aztec_code_generator import AztecCode
 from pytz import UTC
-from sqlalchemy import and_, func, or_, any_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -1483,42 +1483,15 @@ class Root:
                 content_type='application/csv')
         except FileNotFoundError:
             raise HTTPRedirect(f'update_problem_names?message={"File not found!"}')
-    
+
     def printed_name_problems(self, session):
-        posix_regex_list = []
-        python_regex_dict = {}
-
-        # We want to generally match against word boundaries, but this excludes some creative forms of profanity
-        # from being matched, so we also check against whitespace (or beginning/end of string) manually
-        for word in c.PROBLEM_NAMES:
-            posix_regex_list.append(f"(\\s|^){word}(\\s|$)")
-            posix_regex_list.append(f"\\y{word}\\y")
-            python_regex_dict[f"(\\s|^){word}(\\s|$)"] = word
-            python_regex_dict[f"\\b{word}\\b"] = word
-
-        word_list = [f"\\y{word}\\y" for word in c.PROBLEM_NAMES]
-        attendees = session.query(Attendee).filter(Attendee.badge_printed_name.regexp_match(any_(posix_regex_list),
-                                                                                            flags="i"))
-        word_matches = {}
-        origin_words = {}
-
-        for attendee in attendees:
-            word_match_list = []
-            origin_match_list = []
-            for regex in python_regex_dict:
-                if re.search(re.compile(regex, re.IGNORECASE), attendee.badge_printed_name):
-                    found_word = python_regex_dict[regex]
-                    if found_word not in word_match_list:
-                        word_match_list.append(found_word)
-                    for origin_word in c.PROBLEM_NAMES[found_word]:
-                        if origin_word not in origin_match_list:
-                            origin_match_list.append(origin_word)
-
-            word_matches[attendee.id] = word_match_list
-            origin_words[attendee.id] = origin_match_list
+        problem_name_ids = c.REDIS_STORE.smembers(c.REDIS_PREFIX + 'problem_name_ids')
+        attendees = session.query(Attendee).filter(Attendee.id.in_(problem_name_ids))
 
         return {
             'attendees': attendees,
-            'word_matches': word_matches,
-            'origin_words': origin_words,
+            'word_matches': {key: json.loads(val) for key, val in
+                             c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'word_matches').items()},
+            'origin_words': {key: json.loads(val) for key, val in
+                             c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'origin_words').items()},
         }

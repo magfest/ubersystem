@@ -305,9 +305,14 @@ def get_age_from_birthday(birthdate, today=None):
     Returns: An integer indicating the age.
 
     """
+    from uber.models import Attendee
 
     if not today:
         today = date.today()
+
+    if isinstance(birthdate, str):
+        birthdate_col = Attendee.__table__.columns.get('birthdate')
+        birthdate = Attendee().coerce_column_data(birthdate_col, birthdate)
 
     # int(True) == 1 and int(False) == 0
     upcoming_birthday = int(

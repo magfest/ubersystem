@@ -801,7 +801,7 @@ class AttendeeLookup:
                     and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints and 'paid' not in params:
                 attendee.paid = c.NEED_NOT_PAY
 
-        return attendee.id
+            return attendee.id
 
 
 @all_api_auth('api_read')

@@ -14,7 +14,9 @@
       <br/>
     {% endif %}
     <br/>
+    {% if c.ATTENDEE_BADGE_AVAILABLE and (c.AFTER_PREREG_OPEN and c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON) %}
     To register as a non-vendor attendee for {{ c.EVENT_NAME_AND_YEAR }}, click <a href="../preregistration/">here</a>.<br/>
     <br/>
+    {% endif %}
     Please <a href="{{ c.CONTACT_URL }}">contact us</a> if you have any questions.<br/>
 </body></html>

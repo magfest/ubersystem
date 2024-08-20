@@ -66,7 +66,8 @@ class Root:
         return {'result': result}
 
     def delete_promo_codes(self, session, id=None, **params):
-        query = session.query(PromoCode).filter(PromoCode.uses_count == 0)
+        query = session.query(PromoCode).filter(PromoCode.uses_count == 0,
+                                                PromoCode.group == None)
         if id is not None:
             ids = [s.strip() for s in id.split(',') if s.strip()]
             query = query.filter(PromoCode.id.in_(ids))
@@ -78,15 +79,19 @@ class Root:
         raise HTTPRedirect(page + '?message={}', '{} promo code{} deleted'.format(result, '' if result == 1 else 's'))
 
     @csv_file
-    def export_promo_codes(self, out, session, codes):
-        codes = codes or session.query(PromoCode).all()
-        out.writerow(['Code', 'Expiration Date', 'Discount', 'Uses'])
+    def export_promo_codes(self, out, session, code_ids=[]):
+        if code_ids:
+            codes = [session.promo_code(id) for id in code_ids]
+        else:
+            codes = session.query(PromoCode).filter(PromoCode.group == None).all()
+        out.writerow(['Code', 'Expiration Date', 'Discount', 'Total Uses', '# Uses'])
         for code in codes:
             out.writerow([
                 code.code,
                 code.expiration_date,
                 code.discount_str,
-                code.uses_allowed_str])
+                code.uses_allowed_str,
+                code.uses_count_str])
 
     @site_mappable
     @log_pageview
@@ -176,7 +181,7 @@ class Root:
                 result['message'] = 'Some of the requested promo codes could not be generated'
 
         if params['export']:
-            return self.export_promo_codes(codes=result['promo_codes'])
+            return self.export_promo_codes(code_ids=[code.id for code in result['promo_codes']])
 
         result.update(defaults)
         return result

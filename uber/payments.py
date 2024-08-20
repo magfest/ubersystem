@@ -743,7 +743,7 @@ class TransactionRequest:
                               f"{error_code}: {error_msg}")
 
                     return "Transaction declined. Please ensure you are entering the correct " + \
-                        "expiry date, card CVV/CVC, and ZIP Code&trade;."
+                        "expiration date, card CVV/CVC, and ZIP Code."
             else:
                 if hasattr(response, 'transactionResponse') is True \
                         and hasattr(response.transactionResponse, 'errors') is True:
@@ -1284,17 +1284,22 @@ class ReceiptManager:
             if isinstance(cost, Iterable):
                 # A list of the same item at different prices, e.g., group badges
                 for price in cost:
-                    if receipt:
-                        receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                        department=department,
-                                                        category=category,
-                                                        desc=desc,
-                                                        amount=price,
-                                                        count=cost[price],
-                                                        revert_change=revert_change,
-                                                        ))
+                    try:
+                        price = int(price)
+                    except ValueError:
+                        log.exception(f"The price for {desc} ({price}) isn't a number!")
                     else:
-                        receipt_items.append((desc, price, cost[price]))
+                        if receipt:
+                            receipt_items.append(ReceiptItem(receipt_id=receipt.id,
+                                                            department=department,
+                                                            category=category,
+                                                            desc=desc,
+                                                            amount=price,
+                                                            count=cost[price],
+                                                            revert_change=revert_change,
+                                                            ))
+                        else:
+                            receipt_items.append((desc, price, cost[price]))
             elif receipt:
                 receipt_items.append(ReceiptItem(receipt_id=receipt.id,
                                                 department=department,
@@ -1389,7 +1394,7 @@ class ReceiptManager:
 
     @classmethod
     def auto_update_receipt(self, model, receipt, params):
-        from uber.models import Group, ArtShowApplication, Session
+        from uber.models import Attendee, Group, ArtShowApplication, Session
         if not receipt:
             return []
 
@@ -1468,7 +1473,11 @@ class ReceiptManager:
                     setattr(new_model, 'promo_code', None)
                     with Session() as session:
                         session.add_promo_code_to_attendee(new_model, val)
-                    changed_params.append(key)
+                        items = self.process_receipt_change(model, key, new_model, receipt)
+                        if items:
+                            for receipt_item in items:
+                                if receipt_item.amount != 0:
+                                    receipt_items += [receipt_item]
 
         if isinstance(model, Group):
             # "badges" is a property and not a column, so we have to include it explicitly
@@ -1476,6 +1485,9 @@ class ReceiptManager:
             if maybe_badges_update is not None and maybe_badges_update != model.badges:
                 setattr(new_model, 'badges_update', int(maybe_badges_update))
                 changed_params.append('badges')
+
+        if isinstance(model, Attendee) and (model.qualifies_for_discounts != new_model.qualifies_for_discounts):
+            changed_params.append('birthdate')
 
         for param in changed_params:
             items = self.process_receipt_change(model, param, new_model, receipt)

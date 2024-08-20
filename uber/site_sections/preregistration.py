@@ -13,7 +13,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import email_only
-from uber.decorators import ajax, all_renderable, credit_card, csrf_protected, id_required, log_pageview, \
+from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
@@ -21,7 +21,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, Pro
                         ReceiptTransaction, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
-    valid_password, SignNowRequest, validate_model, create_new_hash
+    valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 
 
@@ -256,6 +256,10 @@ class Root:
         errors = check_if_can_reg(is_dealer_reg=True)
         if errors:
             return errors
+        
+        cherrypy.session['imported_attendee_ids'] = {}
+        for key in PreregCart.session_keys:
+            cherrypy.session.pop(key)
 
         old_attendee = session.attendee(id)
         old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
@@ -264,7 +268,7 @@ class Root:
         new_attendee.badge_type = c.PSEUDO_DEALER_BADGE
 
         old_group = session.group(old_attendee.group.id)
-        old_group_dict = old_group.to_dict(c.GROUP_REAPPLY_ATTRS)
+        old_group_dict = old_group.to_dict(c.GROUP_REAPPLY_ATTRS)  # TODO: c.GROUP_REAPPLY_ATTRS doesn't exist??
         del old_group_dict['id']
         new_group = Group(**old_group_dict)
 
@@ -287,6 +291,16 @@ class Root:
             del old_attendee_dict['id']
 
             new_attendee = Attendee(**old_attendee_dict)
+
+            if old_attendee.promo_code and not old_attendee.promo_code.is_expired:
+                unpaid_uses_count = PreregCart.get_unpaid_promo_code_uses_count(old_attendee.promo_code.id, new_attendee.id)
+                
+                if old_attendee.promo_code.is_unlimited or (old_attendee.promo_code.uses_remaining - unpaid_uses_count) > 0:
+                    new_attendee.promo_code = old_attendee.promo_code
+            
+            if old_attendee.badge_type in c.BADGE_TYPE_PRICES and old_attendee.badge_type not in c.SOLD_OUT_BADGE_TYPES:
+                new_attendee.badge_type = old_attendee.badge_type
+                new_attendee.shirt = old_attendee.shirt
 
             cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
 
@@ -382,6 +396,7 @@ class Root:
             return errors
 
         group = self._get_unsaved(id, PreregCart.pending_dealers)
+        group.is_dealer = True
         attendee = group.attendees[0]
 
         if c.ATTENDEE_ACCOUNTS_ENABLED:
@@ -486,6 +501,12 @@ class Root:
             return {"error": all_errors}
 
         return {"success": True}
+    
+    @ajax_gettable
+    def check_consent_form(self, session, birthdate):
+        age_conf = get_age_conf_from_birthday(birthdate, c.NOW_OR_AT_CON)
+
+        return {"consent_form": age_conf['consent_form']}
 
     @cherrypy.expose('post_form')
     @redirect_if_at_con_to_kiosk
@@ -561,7 +582,8 @@ class Root:
             }
 
         if cherrypy.request.method == 'POST':
-            _add_promo_code(session, attendee, params.get('promo_code_code'))
+            if not attendee.promo_code_code:
+                _add_promo_code(session, attendee, params.get('promo_code_code'))
 
             if attendee.badge_type == c.PSEUDO_GROUP_BADGE:
                 message = "Please enter a group name" if not params.get('name') else message
@@ -1659,11 +1681,9 @@ class Root:
         if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
                 .format(email_only(c.REGDESK_EMAIL))
-            new_status = c.REFUNDED_STATUS
             page_redirect = 'repurchase'
         else:
-            success_message = "Sorry you can't make it! We hope to see you next year!"
-            new_status = c.INVALID_STATUS
+            success_message = "Your badge has been successfully cancelled. Sorry you can't make it! We hope to see you next year!"
             page_redirect = '../landing/index'
             if attendee.is_group_leader:
                 failure_message = "You cannot abandon your badge because you are the leader of a group."
@@ -1673,7 +1693,7 @@ class Root:
         page_redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else page_redirect
 
         if (not attendee.amount_paid and attendee.cannot_abandon_badge_reason)\
-                or (attendee.amount_paid and not attendee.can_self_service_refund_badge):
+                or (attendee.amount_paid and attendee.cannot_self_service_refund_reason):
             raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
 
         if attendee.amount_paid:
@@ -1690,7 +1710,7 @@ class Root:
             receipt.closed = datetime.now()
             session.add(receipt)
 
-            success_message = "Your refund of {} should appear on your credit card in a few days."\
+            success_message = "Your badge has been successfully cancelled. Your refund of {} should appear on your credit card in 7-10 days."\
                 .format(format_currency(total_refunded / 100))
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
@@ -1709,7 +1729,7 @@ class Root:
             raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
         # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
         else:
-            attendee.badge_status = new_status
+            attendee.badge_status = c.REFUNDED_STATUS
             for shift in attendee.shifts:
                 session.delete(shift)
             raise HTTPRedirect('{}?id={}&message={}',

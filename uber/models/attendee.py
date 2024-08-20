@@ -798,7 +798,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.calculate_badge_cost(use_promo_code=True)
 
     def calculate_badge_cost(self, use_promo_code=False, include_price_override=True):
-        if self.paid == c.NEED_NOT_PAY:
+        if self.paid == c.NEED_NOT_PAY or self.badge_status == c.NOT_ATTENDING:
             return 0
         elif self.overridden_price is not None and include_price_override:
             return self.overridden_price
@@ -1024,17 +1024,16 @@ class Attendee(MagModel, TakesPaymentMixin):
     @hybrid_property
     def is_valid(self):
         return self.badge_status not in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS, c.INVALID_STATUS,
-                                         c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]
+                                         c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS, c.REFUNDED_STATUS]
 
     @is_valid.expression
     def is_valid(cls):
         return not_(cls.badge_status.in_([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS, c.INVALID_STATUS,
-                                          c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]))
+                                          c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS, c.REFUNDED_STATUS]))
 
     @hybrid_property
     def has_or_will_have_badge(self):
-        return self.is_valid and self.badge_status not in [c.REFUNDED_STATUS, c.NOT_ATTENDING,
-                                                           c.UNAPPROVED_DEALER_STATUS]
+        return self.is_valid and self.badge_status not in [c.NOT_ATTENDING, c.UNAPPROVED_DEALER_STATUS]
 
     @has_or_will_have_badge.expression
     def has_or_will_have_badge(cls):
@@ -1143,7 +1142,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             )
         
         reason = ""
-        if self.paid == c.NEED_NOT_PAY and not self.in_promo_code_group:
+        if self.paid == c.NEED_NOT_PAY and not self.promo_code:
             reason = "You cannot abandon a comped badge."
         elif self.is_group_leader and self.group.is_valid:
             reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
@@ -1151,10 +1150,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             reason = self.cannot_self_service_refund_reason
 
         if reason:
-            return reason + "Please {} contact us at {}{}.".format(
+            return reason + " Please {} contact us at {}{}.".format(
                 "transfer your badge instead or" if self.is_transferable else "",
                 email_only(c.REGDESK_EMAIL),
-                " for a refund" if c.SELF_SERVICE_REFUNDS_OPEN else "")
+                " to cancel your badge.")
 
     @property
     def cannot_self_service_refund_reason(self):
@@ -2249,6 +2248,11 @@ class AttendeeAccount(MagModel):
     @property
     def imported_group_badges(self):
         return [attendee for attendee in self.imported_attendees if attendee.group]
+    
+    @property
+    def imported_group_leaders(self):
+        return [attendee for attendee in self.imported_attendees
+                if attendee.group and attendee.id == attendee.group.leader_id]
 
     @property
     def pending_attendees(self):

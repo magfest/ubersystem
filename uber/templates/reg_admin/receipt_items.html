@@ -23,9 +23,8 @@
   var updateRow = function (id, selector, text) {
     $('#' + id + selector).html(text);
   };
-  var updateTotal = function (text, disable_button=true) {
+  var updateTotal = function (text) {
     $('#receipt_total').html(text);
-    $('.record_payment_refund').prop('disabled', disable_button);
   }
   var showForm = function(receiptId, whichForm) {
     $('#' + receiptId + whichForm).removeClass('d-none')
@@ -58,7 +57,7 @@
             } else {
               $("#message-alert").addClass("alert-info").show().children('span').html('Item deleted');
               hideRow(response.removed);
-              updateTotal(response.new_total, response.disable_button);
+              updateTotal(response.new_total);
             }
           }, 'json');
         }
@@ -165,7 +164,7 @@
             } else {
               $("#message-alert").addClass("alert-info").show().children('span').html('Transaction cancelled');
               updateRow(response.cancelled, ' td:last', "<em>Cancelled " + response.time + ".</em>");
-              updateTotal(response.new_total, response.disable_button);
+              updateTotal(response.new_total);
             }
           }, 'json');
         }
@@ -203,7 +202,7 @@
             } else {
               $("#message-alert").addClass("alert-info").show().children('span').html('Transaction refunded');
               updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
-              updateTotal(response.new_total, response.disable_button);
+              updateTotal(response.new_total);
             }
           }, 'json');
         }
@@ -887,8 +886,8 @@ See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> fo
           <button class="btn btn-outline-secondary">Record:</button>
           <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-purchase-form')">Purchase</button>
           <button class="btn btn-success" onClick="showForm('{{ receipt.id }}', '-credit-form')">Credit</button>
-          <button class="btn btn-info record_payment_refund" onClick="showForm('{{ receipt.id }}', '-payment-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Payment</button>
-          <button class="btn btn-warning record_payment_refund" onClick="showForm('{{ receipt.id }}', '-refund-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Refund</button>
+          <button class="btn btn-info" onClick="showForm('{{ receipt.id }}', '-payment-form')">Payment</button>
+          <button class="btn btn-warning" onClick="showForm('{{ receipt.id }}', '-refund-form')">Refund</button>
         </div>
       </td>
     </tr>

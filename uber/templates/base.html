@@ -55,7 +55,7 @@
 
             showErrorMessage = function(message='', alertId="message-alert", scrollToTop=true) {
                 $("#" + alertId).addClass("alert-danger").show().children('span').html(message);
-                if (scrollToTop == true) { window.scrollTo(0,0); }
+                if (scrollToTop == true) { window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100); }
             }
             hideMessageBox = function(alertId="message-alert") {
                 $("#" + alertId).hide().removeClass().addClass("alert alert-dismissible").children("span").html("");
