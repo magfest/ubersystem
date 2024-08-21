@@ -102,7 +102,7 @@ class PersonalInfo(AddressForm, MagForm):
 
     def get_optional_fields(self, attendee, is_admin=False):
         if attendee.valid_placeholder and (is_admin or cherrypy.request.method == 'POST'):
-            return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone']
+            return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone', 'confirm_email']
         if is_admin and attendee.unassigned_group_reg:
             return ['first_name', 'last_name', 'email', 'badge_printed_name',
                     'cellphone', 'confirm_email'] + self.placeholder_optional_field_names()
