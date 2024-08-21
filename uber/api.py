@@ -17,13 +17,15 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.types import Boolean, Date
+from sqlalchemy.sql.elements import not_
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership, DeptMembershipRequest, \
-    Event, IndieStudio, Job, Session, Shift, Group, GuestGroup, Room, HotelRequests, RoomAssignment
+from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership,
+                         DeptMembershipRequest, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
+                         GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.server import register_jsonrpc
 from uber.utils import check, check_csrf, normalize_email, normalize_newlines
@@ -383,6 +385,23 @@ class MivsLookup:
             else:
                 query = session.query(IndieStudio)
             return [mivs.to_dict(self.fields) for mivs in query]
+
+    def judges_export(self):
+        """
+        Returns a set of tuples of MIVS judges and their corresponding attendees.
+        Excludes judges that were disqualified or opted out of judging.
+
+        Results are returned in the format expected by
+        <a href="../mivs_admin/import_judges">the MIVS judge importer</a>.
+        """
+        judges_list = []
+        with Session() as session:
+            judges = session.query(IndieJudge).filter(not_(IndieJudge.status.in_([c.CANCELLED, c.DISQUALIFIED])))
+            for judge in judges:
+                fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
+                judges_list.append((judge.to_dict(), judge.attendee.to_dict(fields)))
+
+            return judges_list
 
 
 @all_api_auth('api_read')
