@@ -1,0 +1,156 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Import MIVS Judges{% endblock %}
+{% block content %}
+
+<h3>MIVS Judge Importer</h3>
+
+<form action="import_judges" method="post" class="form">
+    <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">
+            <label for="target_server" class="form-text">Hostname</label>
+            <div class="mb-3">
+                <input
+                    class="form-control"
+                    type="text"
+                    id="target_server"
+                    name="target_server"
+                    value="{{ target_server }}"
+                    placeholder="event.uber.magfest.org/uber"
+                    required>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6">
+            <label for="api_token" class="form-text">API Token</label>
+            <div class="mb-3">
+                <input
+                    class="form-control"
+                    type="text"
+                    id="api_token"
+                    name="api_token"
+                    value="{{ api_token }}"
+                    placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
+            </div>
+        </div>
+    </div>
+    <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">
+            <button class="btn btn-primary" type="submit">Import Judges</button>
+        </div>
+    </div>
+</form><br/>
+
+{% if existing_judges %}
+  <h3>Existing Judges</h3>
+  <table id="existing_judges" class="table table-hover form">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Badge Status</th>
+        <th>Judge Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in existing_judges %}
+        <tr>
+            <td>
+                <a href="../mivs_admin/edit_judge?id={{ entry.existing_judge.id }}" target="_blank">
+                {{ entry.existing_judge.attendee.full_name }}
+                </a>
+            </td>
+          <td>{{ entry.existing_judge.attendee.email }}</td>
+          <td>{{ entry.existing_judge.attendee.badge_status_label }}</td>
+          <td>{{ entry.existing_judge.status_label }}</td>
+          <td><a href="{{ entry.href }}" class="btn btn-sm btn-info" target="_blank">View Original <i class="fa fa-external-link"></i></a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+
+{% if existing_attendees or judges %}
+<form id="confirm_judges" action="confirm_import_judges" method="post" class="form">
+    <input type="hidden" name="target_server" value="{{ target_server }}">
+    <input type="hidden" name="api_token" value="{{ api_token }}">
+    <input type="hidden" name="query" value="{{ query }}">
+
+{% if existing_attendees %}
+  <h3>Existing Attendees</h3>
+  The following attendees will have their MIVS judging data imported and attached to their existing registration.
+  <table id="existing_attendees" class="table table-hover form">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Name</th>
+        <th>Badge Status</th>
+        <th>Judge Status</th>
+        <th>Email</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in existing_attendees %}
+        <tr>
+            <td>
+                <input
+                type="checkbox"
+                name="judge_ids"
+                value="{{ entry.judge.id }}"
+                checked>
+            </td>
+            <td>{{ entry.existing_attendee|form_link }}</td>
+            <td>{{ entry.existing_attendee.badge_status_label }}</td>
+            <td>{{ entry.judge.status_label }}</td>
+            <td>{{ entry.attendee.email }}</td>
+            <td><a href="{{ entry.href }}" class="btn btn-sm btn-info" target="_blank">View Original <i class="fa fa-external-link"></i></a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+
+{% if judges %}
+  <h2>Judges to Import</h2>
+    <table id="matching_attendees" class="table table-hover table-bordered">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Name</th>
+          <th>Badge Status</th>
+          <th>Judge Status</th>
+          <th>Email</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in judges %}
+          <tr>
+            <td>
+              <input
+                type="checkbox"
+                name="judge_ids"
+                value="{{ entry.judge.id }}"
+                checked>
+            </td>
+            <td>{{ entry.attendee.first_name }} {{ entry.attendee.last_name }}</td>
+            <td>{{ entry.attendee.badge_status_label }}</td>
+            <td>{{ c.MIVS_JUDGE_STATUS[entry.judge.status] }}</td>
+            <td>{{ entry.attendee.email }}</td>
+            <td><a href="{{ entry.href }}" class="btn btn-sm btn-info" target="_blank">View Original <i class="fa fa-external-link"></i></a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+{% endif %}
+
+    <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">
+            <button class="btn btn-primary" type="submit">Import Judges</button>
+        </div>
+    </div>
+  </form>
+{% endif %}
+
+
+{% endblock %}

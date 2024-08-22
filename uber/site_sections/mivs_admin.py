@@ -1,13 +1,14 @@
 import cherrypy
 from pockets import listify
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, IndieGameReview, IndieStudio
+from uber.models import AdminAccount, Attendee, IndieJudge, IndieGameReview, IndieStudio
 from uber.tasks.email import send_email
-from uber.utils import check, genpasswd
+from uber.utils import check, get_api_service_from_server, normalize_email_legacy
 
 
 @all_renderable()
@@ -24,6 +25,115 @@ class Root:
             'message': message,
             'studios': session.query(IndieStudio).all()
         }
+    
+    def import_judges(self, session, target_server='', api_token='',
+                      query='', message='', **params):
+        service, service_message, target_url = get_api_service_from_server(target_server, api_token)
+        message = message or service_message
+        judges, existing_judges, existing_attendees, results = [], [], [], {}
+
+        if service:
+            try:
+                results = service.mivs.judges_export()
+                href_base = '{}/mivs_admin/edit_judge?id={}'
+            except Exception as ex:
+                message = str(ex)
+
+        if cherrypy.request.method == 'POST' and not message:
+            for judge, attendee in results:
+                d = {'first_name': attendee['first_name'],
+                     'attendee': attendee,
+                     'judge': judge,
+                     'href': href_base.format(target_url, judge['id'])
+                     }
+
+                existing_attendee = session.query(Attendee).filter(
+                    func.lower(Attendee.first_name) == attendee['first_name'].lower(),
+                    func.lower(Attendee.last_name) == attendee['last_name'].lower(),
+                    Attendee.normalized_email == normalize_email_legacy(attendee['email'])).first()
+                if existing_attendee and existing_attendee.admin_account and existing_attendee.admin_account.judge:
+                    d['existing_judge'] = existing_attendee.admin_account.judge
+                    existing_judges.append(d)
+                elif existing_attendee:
+                    d['existing_attendee'] = existing_attendee
+                    existing_attendees.append(d)
+                else:
+                    judges.append(d)
+
+        return {
+            'target_server': target_server,
+            'api_token': api_token,
+            'message': message,
+            'existing_judges': sorted(existing_judges, key=lambda a: a['first_name']),
+            'existing_attendees': sorted(existing_attendees, key=lambda a: a['first_name']),
+            'judges': sorted(judges, key=lambda a: a['first_name']),
+        }
+
+    def confirm_import_judges(self, session, target_server, api_token, judge_ids, **params):
+        redirect_url = f'import_judges?target_server={target_server}&api_token={api_token}'
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect(redirect_url)
+
+        judge_ids = judge_ids if isinstance(judge_ids, list) else [judge_ids]
+
+        service, message, target_url = get_api_service_from_server(target_server, api_token)
+
+        if not message:
+            try:
+                results = service.mivs.judges_export()
+            except Exception as ex:
+                message = str(ex)
+
+        if message:
+            raise HTTPRedirect(redirect_url)
+
+        # Rewrite this for Super 2026 to actually use the selection from the page (and rename export_judges)
+        for old_judge, old_attendee in results:
+            old_judge.pop('id', '')
+            old_judge.pop('admin_id', '')
+            password = ''
+            new_judge = IndieJudge().apply(old_judge, restricted=False)
+            new_judge.status = c.UNCONFIRMED
+            new_judge.no_game_submission = None
+
+            existing_attendee = session.query(Attendee).filter(
+                func.lower(Attendee.first_name) == old_attendee['first_name'].lower(),
+                func.lower(Attendee.last_name) == old_attendee['last_name'].lower(),
+                Attendee.normalized_email == normalize_email_legacy(old_attendee['email'])).first()
+            if existing_attendee and existing_attendee.admin_account and existing_attendee.admin_account.judge:
+                continue
+            elif existing_attendee:
+                attendee = existing_attendee
+            else:
+                old_attendee.pop('id', '')
+                old_attendee.pop('badge_num', '')
+                attendee = Attendee().apply(old_attendee, restricted=False)
+                attendee.badge_status = c.NEW_STATUS
+                attendee.placeholder = True
+                attendee.badge_type = c.ATTENDEE_BADGE
+                attendee.paid = c.NEED_NOT_PAY
+
+            if attendee.admin_account:
+                new_judge.admin_id == attendee.admin_account.id
+            else:
+                attendee.admin_account, password = session.create_admin_account(attendee, judge=new_judge)
+                new_judge.admin_id = attendee.admin_account.id
+                email_body = render('emails/accounts/new_account.txt', {
+                        'password': password,
+                        'account': attendee.admin_account,
+                        'creator': AdminAccount.admin_name()
+                    }, encoding=None)
+                send_email.delay(
+                    c.MIVS_EMAIL,
+                    attendee.email_to_address,
+                    'New {} MIVS Judge Account'.format(c.EVENT_NAME),
+                    email_body,
+                    model=attendee.to_dict('id'))
+
+            session.add(new_judge)
+            session.add(attendee)
+
+        raise HTTPRedirect(redirect_url + "&message=Judges imported!")
 
     def create_judge(self, session, message='', first_name='', last_name='', email='', **params):
         judge = session.indie_judge(params, checkgroups=['genres', 'platforms'])
@@ -43,24 +153,24 @@ class Root:
                     else:
                         attendee.admin_account.judge = judge
                         raise HTTPRedirect('index?message={}{}', attendee.full_name, ' has been granted judge access')
+                else:
+                    if not attendee:
+                        attendee = Attendee(first_name=first_name, last_name=last_name, email=email,
+                                            placeholder=True, badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY)
+                        session.add(attendee)
 
-                if not attendee:
-                    attendee = Attendee(first_name=first_name, last_name=last_name, email=email,
-                                        placeholder=True, badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY)
-                    session.add(attendee)
-
-                attendee.admin_account, password = session.create_admin_account(attendee, judge=judge)
-                email_body = render('emails/accounts/new_account.txt', {
-                    'password': password,
-                    'account': attendee.admin_account,
-                    'creator': AdminAccount.admin_name()
-                }, encoding=None)
-                send_email.delay(
-                    c.MIVS_EMAIL,
-                    attendee.email_to_address,
-                    'New {} MIVS Judge Account'.format(c.EVENT_NAME),
-                    email_body,
-                    model=attendee.to_dict('id'))
+                    attendee.admin_account, password = session.create_admin_account(attendee, judge=judge)
+                    email_body = render('emails/accounts/new_account.txt', {
+                        'password': password,
+                        'account': attendee.admin_account,
+                        'creator': AdminAccount.admin_name()
+                    }, encoding=None)
+                    send_email.delay(
+                        c.MIVS_EMAIL,
+                        attendee.email_to_address,
+                        'New {} MIVS Judge Account'.format(c.EVENT_NAME),
+                        email_body,
+                        model=attendee.to_dict('id'))
                 raise HTTPRedirect(
                     'index?message={}{}', attendee.full_name, ' has been given an admin account as a MIVS Judge')
 
