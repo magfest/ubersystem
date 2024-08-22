@@ -38,6 +38,7 @@ class IndieJudge(MagModel, ReviewMixin):
     genres = Column(MultiChoice(c.MIVS_INDIE_JUDGE_GENRE_OPTS))
     platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
+    vr_text = Column(UnicodeText)
     staff_notes = Column(UnicodeText)
 
     codes = relationship('IndieGameCode', backref='judge')
@@ -552,6 +553,7 @@ class IndieGameReview(MagModel):
     game_status = Column(
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_content_bad = Column(Boolean, default=False)
+    read_how_to_play = Column(Boolean, default=False)
 
     # 0 = not reviewed, 1-10 score (10 is best)
     readiness_score = Column(Integer, default=0)

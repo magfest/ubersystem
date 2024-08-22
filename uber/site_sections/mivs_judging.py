@@ -43,13 +43,15 @@ class Root:
         return {'studio': studio}
 
     def game_review(self, session, message='', **params):
-        review = session.indie_game_review(params, bools=['game_content_bad'])
+        review = session.indie_game_review(params, bools=['game_content_bad', 'read_how_to_play'])
         if cherrypy.request.method == 'POST':
             if review.video_status == c.PENDING and review.game_status == c.PENDING:
                 message = 'You must select a Video or Game Status to tell us whether or not ' \
                           'you were able to view the video or download and run the game'
             elif review.game_status == c.PLAYABLE and not review.game_score:
                 message = "You must indicate the game's readiness, design, and enjoyment"
+            elif review.game_status == c.PLAYABLE and review.game.how_to_play and not review.read_how_to_play:
+                message = "Please confirm that you've read the 'How to Play' instructions before reviewing this game."
             elif review.game_status != c.PLAYABLE and review.game_score:
                 message = 'If the game is not playable, please leave the score fields blank'
             else:
