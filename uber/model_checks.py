@@ -369,22 +369,36 @@ IndieGameCode.required = [
     ('code', 'Game Code')
 ]
 
+
 IndieJudge.required = [
-    ('genres', 'Genres')
+    ('platforms', 'Platforms'),
+    ('genres', 'Genres'),
 ]
+
+
+@validation.IndieJudge
+def must_have_pc(judge):
+    if c.PC not in judge.platforms_ints and c.PCGAMEPAD not in judge.platforms_ints:
+        return 'You must have a PC to judge for MIVS.'
+
+
+@validation.IndieJudge
+def vr_text(judge):
+    if c.VR in judge.platforms_ints and not judge.vr_text:
+        return 'Please tell us what VR/AR platforms you own.'
 
 
 @validation.IndieStudio
 def mivs_new_studio_deadline(studio):
     if studio.is_new and not c.CAN_SUBMIT_MIVS:
-        return 'Sorry, but the deadline has already passed, so no new studios may be registered'
+        return 'Sorry, but the deadline has already passed, so no new studios may be registered.'
 
 
 @validation.IndieStudio
 def mivs_valid_url(studio):
     if studio.website and _is_invalid_url(studio.website_href):
         return 'We cannot contact that website; please enter a valid url ' \
-            'or leave the website field blank until your website goes online'
+            'or leave the website field blank until your website goes online.'
 
 
 @validation.IndieStudio
