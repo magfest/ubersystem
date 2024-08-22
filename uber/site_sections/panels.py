@@ -1,6 +1,7 @@
 import cherrypy
 
 from datetime import datetime
+from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import all_renderable
@@ -112,26 +113,34 @@ class Root:
 
         app = session.panel_application(
             params, checkgroups=PanelApplication.all_checkgroups, restricted=True, ignore_csrf=True)
-        attendee = session.attendee(id=attendee_id)
-        if attendee.badge_type != c.GUEST_BADGE:
-            add_opt(attendee.ribbon_ints, c.PANELIST_RIBBON)
-        panelist = PanelApplicant(
-            app_id=app.id,
-            attendee_id=attendee.id,
-            submitter=True,
-            first_name=attendee.first_name,
-            last_name=attendee.last_name,
-            email=attendee.email,
-            cellphone=attendee.cellphone
-        )
-        other_panelists = compile_other_panelists_from_params(session, app, **params)
+        
         go_to = return_to if 'ignore_return_to' not in params and return_to \
-            else 'guest?attendee_id=' + attendee_id + '&return_to=' + return_to
+                else 'guest?attendee_id=' + attendee_id + '&return_to=' + return_to
+        
+        try:
+            attendee = session.attendee(id=attendee_id)
+        except Exception as e:
+            log.error(str(e))
+            raise HTTPRedirect(go_to + '&message={}',
+                               'There was a problem with preparing the panel application. Please try again.')
 
         if cherrypy.request.method == 'POST':
+            if attendee.badge_type != c.GUEST_BADGE:
+                add_opt(attendee.ribbon_ints, c.PANELIST_RIBBON)
+            panelist = PanelApplicant(
+                app_id=app.id,
+                attendee_id=attendee.id,
+                submitter=True,
+                first_name=attendee.first_name,
+                last_name=attendee.last_name,
+                email=attendee.email,
+                cellphone=attendee.cellphone
+            )
+            other_panelists = compile_other_panelists_from_params(session, app, **params)
+
             message = process_panel_app(session, app, panelist, other_panelists, **params)
             if not message:
-                raise HTTPRedirect(go_to + '&message={}', 'Your panel application has been submitted')
+                raise HTTPRedirect(go_to + '&message={}', 'Your panel application has been submitted!')
 
         return {
             'app': app,
