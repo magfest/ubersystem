@@ -1469,6 +1469,7 @@ class Root:
         session.assign_badges(group, group.badges + count)
         session.commit()
         if group.auto_recalc:
+            session.refresh(group)
             group.cost = group.calc_default_cost()
             session.add(group)
 
