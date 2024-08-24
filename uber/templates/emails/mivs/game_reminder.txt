@@ -1,0 +1,9 @@
+Ahoy {{ studio.primary_contact_first_names }},
+
+Thanks again for registering your studio ({{ studio.name }}) to the MAGFest Indie Videogame Showcase! (MIVS)
+
+We just wanted to remind you that {{ c.MIVS_DEADLINE|datetime_local }} is the last chance to submit a game, including a playable demo with at least 15 minutes of gameplay. You currently do not have any games submitted for consideration.
+
+You can submit a game anytime until the deadline at {{ c.URL_BASE }}/mivs/continue_app?id={{ studio.id }}
+
+{{ c.MIVS_EMAIL_SIGNATURE }}
