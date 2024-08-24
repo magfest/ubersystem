@@ -900,6 +900,15 @@ if c.MIVS_ENABLED:
         ident='mivs_video_broken')
 
     MIVSEmailFixture(
+        IndieStudio,
+        'Reminder to submit your game to MIVS',
+        'mivs/game_reminder.txt',
+        lambda studio: not studio.games,
+        ident='mivs_studio_submission_reminder',
+        when=days_before(7, c.MIVS_DEADLINE)
+    )
+
+    MIVSEmailFixture(
         IndieGame,
         'Reminder to submit your game to MIVS',
         'mivs/submission_reminder.txt',
