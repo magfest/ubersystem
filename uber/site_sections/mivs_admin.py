@@ -118,17 +118,18 @@ class Root:
             else:
                 attendee.admin_account, password = session.create_admin_account(attendee, judge=new_judge)
                 new_judge.admin_id = attendee.admin_account.id
-                email_body = render('emails/accounts/new_account.txt', {
-                        'password': password,
-                        'account': attendee.admin_account,
-                        'creator': AdminAccount.admin_name()
-                    }, encoding=None)
-                send_email.delay(
-                    c.MIVS_EMAIL,
-                    'kitsuta@gmail.com',
-                    'New {} MIVS Judge Account'.format(c.EVENT_NAME),
-                    email_body,
-                    model=attendee.to_dict('id'))
+                if False:
+                    email_body = render('emails/accounts/new_account.txt', {
+                            'password': password,
+                            'account': attendee.admin_account,
+                            'creator': AdminAccount.admin_name()
+                        }, encoding=None)
+                    send_email.delay(
+                        c.MIVS_EMAIL,
+                        c.ADMIN_EMAIL,
+                        'New {} MIVS Judge Account'.format(c.EVENT_NAME),
+                        email_body,
+                        model=attendee.to_dict('id'))
 
             session.add(new_judge)
             session.add(attendee)
