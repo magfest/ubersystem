@@ -114,7 +114,7 @@ class Root:
                 attendee.paid = c.NEED_NOT_PAY
 
             if attendee.admin_account:
-                new_judge.admin_id == attendee.admin_account.id
+                new_judge.admin_id = attendee.admin_account.id
             else:
                 attendee.admin_account, password = session.create_admin_account(attendee, judge=new_judge)
                 new_judge.admin_id = attendee.admin_account.id
@@ -125,7 +125,7 @@ class Root:
                     }, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
-                    attendee.email_to_address,
+                    'kitsuta@gmail.com',
                     'New {} MIVS Judge Account'.format(c.EVENT_NAME),
                     email_body,
                     model=attendee.to_dict('id'))
