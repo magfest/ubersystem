@@ -1791,20 +1791,21 @@ c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GRO
 
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
-    {'name': 'bio', 'header': 'Announcement Info Provided'},
     {'name': 'panel', 'header': 'Panel'},
-    {'name': 'mc', 'header': 'MC'},
-    {'name': 'info', 'header': 'Agreement Completed'},
-    {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},
-    {'name': 'merch', 'header': 'Merch'},
-    {'name': 'charity', 'header': 'Charity'},
-    {'name': 'badges', 'header': 'Badges Claimed'},
-    {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
     {'name': 'autograph'},
+    {'name': 'bio', 'header': 'Announcement Info Provided'},
+    {'name': 'info', 'header': 'Agreement Completed'},
+    {'name': 'merch', 'header': 'Merch'},
     {'name': 'interview'},
-    {'name': 'travel_plans'},
+    {'name': 'performer_badges', 'header': 'Performer Badges'},
+    {'name': 'mc', 'header': 'MC'},
+    {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
     {'name': 'rehearsal'},
+    {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},
+    {'name': 'badges', 'header': 'Badges Claimed'},
     {'name': 'hospitality'},
+    {'name': 'travel_plans'},
+    {'name': 'charity', 'header': 'Charity'},
 ]
 
 # Generate the possible template prefixes per step

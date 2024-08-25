@@ -13,7 +13,7 @@
 <h3><a href="{{ conf.external_form_url }}" target="_blank">{{ c.EVENT_NAME }} {{ conf.name }} Form</a></h3>
 Once you've filled out the form above, please click the button below.<br/>
 <br/>
-<button type="submit" name="comments" value="">I Have Filled out the {{ conf.name }} Form</button>
+<button type="submit" name="comments" value="">I Have Filled Out the {{ conf.name }} Form</button>
 {% else %}
 <br/> <br/>
 <textarea name="comments" rows="5" cols="80">{{ item.comments|default('', boolean=True) }}</textarea>

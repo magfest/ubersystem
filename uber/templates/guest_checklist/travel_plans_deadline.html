@@ -9,10 +9,10 @@
     <td colspan="3">
       {% block deadline_text %}
         {% if guest.travel_plans_status %}
-          You have already told us how you will be traveling to {{ c.EVENT_NAME }}, but you can use the link above to update your
-          preferences.
+        You've already indicated that you have completed <a href="https://forms.gle/BvWEK1DYWiT7SkSc7" target="_blank">our travel plans form</a>.
+        If you need to update something, please contact us at {% if guest.group_type == c.BAND %}{{ c.BAND_EMAIL|email_only|email_to_link }}{% else %}{{ c.GUEST_EMAIL|email_only|email_to_link }}{% endif %}.
         {% else %}
-          Use the link above to let us know your travel plans for getting to {{ c.EVENT_NAME }}.
+          Please fill out a form so we are aware of your travel plans and can accommodate accordingly.
         {% endif %}
       {% endblock %}
       <br/></br>
@@ -33,7 +33,7 @@
   <h2>{% block form_title %}Travel Plans for {{ guest.group.name }}{% endblock %}</h2>
 
   {% block form_desc %}
-    To help with scheduling, please include any travel you have arranged through {{ c.EVENT_NAME }}.
+    Please fill out a form so we are aware of your travel plans and can accommodate accordingly.
   {% endblock %}
   <br/> <br/>
 
