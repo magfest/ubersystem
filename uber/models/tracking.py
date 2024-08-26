@@ -116,7 +116,7 @@ class Tracking(MagModel):
                     return ''
                 opts = dict(column.type.choices)
                 value_opts = map(lambda s: int(s or 0), str(value).split(','))
-                return repr(','.join(opts[i] for i in value_opts if i in opts))
+                return repr(','.join(str(opts.get(i, opts.get(str(i), f"Unknown ({i})"))) for i in value_opts))
             elif isinstance(column.type, Choice) and value not in [None, '']:
                 opts = dict(column.type.choices)
                 return repr(opts.get(int(value), '<nonstandard>'))

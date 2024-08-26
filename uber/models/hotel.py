@@ -108,7 +108,9 @@ class RoomAssignment(MagModel):
 
 
 class LotteryApplication(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    # If this is null then the claim_code should be set and this is an invite waiting to be claimed
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    selection_priorities = Column(MultiChoice(c.HOTEL_LOTTERY_HOTEL_PRIORITIES_OPTS))
     
     wants_room = Column(Boolean, default=False)
     earliest_room_checkin_date = Column(Date)
@@ -117,7 +119,6 @@ class LotteryApplication(MagModel):
     latest_room_checkout_date = Column(Date)
     hotel_preference = Column(MultiChoice(c.HOTEL_LOTTERY_HOTELS_OPTS))
     room_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS))
-    selection_priorities = Column(MultiChoice(c.HOTEL_LOTTERY_HOTEL_PRIORITIES_OPTS))
     
     wants_suite = Column(Boolean, default=False)
     earliest_suite_checkin_date = Column(Date)
@@ -127,3 +128,16 @@ class LotteryApplication(MagModel):
     suite_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS))
     
     terms_accepted = Column(Boolean, default=False)
+    
+    # If this is set to another application then the above values are overridden by the parent application
+    # If this is not set then this application is the group leader.
+    parent_application = Column(UUID, ForeignKey('lottery_application.id'), nullable=True)
+    
+    # This is a name for this group set by the owner so everyone else knows what they are joining
+    application_group_name = Column(UnicodeText)
+    
+    # This is an attendee name shared with the group leader so they can see who is in their group
+    public_attendee_name = Column(UnicodeText)
+    
+    # If set then this application is an invite to join the parent application
+    claim_code = Column(UUID, nullable=True)

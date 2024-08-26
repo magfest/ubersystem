@@ -30,6 +30,7 @@ def valid_cellphone(form, field):
 
 
 class LotteryApplication(MagForm):
+    application_group_name = StringField('Name your room. This will be shared with anyone you invite to your application.', id="application_group_name")
     wants_room = BooleanField('I would like to enter the hotel room lottery.', default=False)
     earliest_room_checkin_date = DateField('Earliest acceptable Check-In Date', validators=[validators.DataRequired("Please enter your earliest check-in date.")])
     latest_room_checkin_date = DateField('Latest acceptable Check-In Date', validators=[validators.DataRequired("Please enter your latest check-in date.")])
@@ -45,7 +46,9 @@ class LotteryApplication(MagForm):
     latest_suite_checkin_date = DateField('Latest acceptable Check-In Date', validators=[validators.DataRequired("Please enter your latest check-in date.")])
     earliest_suite_checkout_date = DateField('Earliest acceptable Check-Out Date', validators=[validators.DataRequired("Please enter your earliest check-out date.")])
     latest_suite_checkout_date = DateField('Latest acceptable Check-Out Date', validators=[validators.DataRequired("Please enter your latest check-out date.")])
-    suite_type_preference = StringField('Hotel Preference', widget=Ranking(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS, id="suite_type_preference"))
+    suite_type_preference = StringField('Suite Type Preference', widget=Ranking(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS, id="suite_type_preference"))
+    
+    public_attendee_name = StringField('Your preferred name. This will only be shared with your group leader if you join a group.')
     
     terms_accepted = BooleanField('I accept the terms of service of the hotel lottery.', default=False)
 

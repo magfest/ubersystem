@@ -61,7 +61,11 @@ def upgrade():
     sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
+    sa.Column('attendee_id', residue.UUID(), nullable=True),
+    sa.Column('parent_application', residue.UUID(), nullable=True),
+    sa.Column('application_group_name', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('public_attendee_name', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('claim_code', residue.UUID(), nullable=True),
     sa.Column('wants_room', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('earliest_room_checkin_date', Date(), nullable=False),
     sa.Column('latest_room_checkin_date', Date(), nullable=False),
@@ -78,6 +82,7 @@ def upgrade():
     sa.Column('suite_type_preference', sa.Unicode(), server_default='', nullable=False),
     sa.Column('terms_accepted', sa.Boolean(), server_default='False', nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_lottery_application_attendee_id_attendee')),
+    sa.ForeignKeyConstraint(['parent_application'], ['lottery_application.id'], name=op.f('fk_lottery_application_parent_application_lottery_application')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_lottery_application'))
     )
     # ### end Alembic commands ###
