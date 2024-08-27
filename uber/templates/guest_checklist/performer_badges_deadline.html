@@ -1,0 +1,40 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.badges_assigned) }}</td>
+    <td><b><a href="performer_badges?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Assign Performer Badges{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('performer_badges')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+      Please assign all badges for performers in your group, excluding plus-ones.
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+  <h2>{% block form_title %}Performer Badges for {{ guest.group.name }}{% endblock %}</h2>
+
+  {% block form_desc %}
+  <p><a href="../preregistration/group_members?id={{ guest.group.id }}" class="btn btn-lg btn-info" target="_blank">Manage Badge(s)</a></p>
+    {% if guest.badges_assigned %}
+      <p>You've already indicated that you have assigned all performer badges.
+      You may unassign and re-assign badges using the link above, or use the confirmation link sent to each badge to view and update its information.</p>
+    {% else %}
+        <p>Please use the badge assignment page above to enter information for all performer(s).</p>
+        <p>You can send each "Register someone for this badge" link directly to other group member(s) to fill out. Once you are done, let us know using the button below. You do <strong>NOT</strong> need to fill out information for your plus-ones to complete this step.</p>
+    {% endif %}
+  {% endblock %}
+
+  {% if guest.badges_assigned %}
+  <a href="index?id={{ guest.id }}" class="btn btn-default">Back to Checklist</a>
+  {% else %}
+  <form method="post" action="performer_badges" class="form-horizontal" role="form">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    {{ csrf_token() }}
+    {% block form_extra %}{% endblock %}
+    <button type="submit" name="badges_assigned" class="btn btn-primary" value="1">I Have Assigned All Performer Badges</button>
+  </form>
+  {% endif %}
+{% endif %}

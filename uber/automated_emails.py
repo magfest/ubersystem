@@ -340,14 +340,14 @@ if c.ART_SHOW_ENABLED:
         when=after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1))),
         ident='art_show_agent_reminder')
 
-if c.ART_SHOW_REG_START < (c.EPOCH - timedelta(days=7)):
-    ArtShowAppEmailFixture(
-        '{EVENT_NAME} Art Show MAIL IN Instructions',
-        'art_show/mailing_in.html',
-        lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.BY_MAIL,
-        when=days_between((c.ART_SHOW_REG_START, 13),
-                          (16, c.ART_SHOW_WAITLIST if c.ART_SHOW_WAITLIST else c.ART_SHOW_DEADLINE)),
-        ident='art_show_mail_in')
+    if c.ART_SHOW_REG_START < (c.EPOCH - timedelta(days=7)):
+        ArtShowAppEmailFixture(
+            '{EVENT_NAME} Art Show MAIL IN Instructions',
+            'art_show/mailing_in.html',
+            lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.BY_MAIL,
+            when=days_between((c.ART_SHOW_REG_START, 13),
+                            (16, c.ART_SHOW_WAITLIST if c.ART_SHOW_WAITLIST else c.ART_SHOW_DEADLINE)),
+            ident='art_show_mail_in')
 
 
 # =============================
@@ -723,7 +723,7 @@ if c.PRINTED_BADGE_DEADLINE:
     StopsEmailFixture(
         'Last chance to personalize your {EVENT_NAME} ({EVENT_DATE}) badge',
         'personalized_badges/volunteers.txt',
-        lambda a: (a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder
+        lambda a: (a.staffing and a.has_personalized_badge and a.placeholder
                    and a.badge_type != c.CONTRACTOR_BADGE),
         when=days_before(7, c.PRINTED_BADGE_DEADLINE),
         ident='volunteer_personalized_badge_reminder')
@@ -734,7 +734,7 @@ if c.PRINTED_BADGE_DEADLINE:
             Attendee,
             'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
             'personalized_badges/reminder.txt',
-            lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
+            lambda a: a.has_personalized_badge and not a.placeholder,
             when=days_before(7, c.PRINTED_BADGE_DEADLINE),
             ident='personalized_badge_reminder')
 
@@ -898,6 +898,15 @@ if c.MIVS_ENABLED:
         'mivs/video_broken.txt',
         lambda game: game.video_broken,
         ident='mivs_video_broken')
+
+    MIVSEmailFixture(
+        IndieStudio,
+        'Reminder to submit your game to MIVS',
+        'mivs/game_reminder.txt',
+        lambda studio: not studio.games,
+        ident='mivs_studio_submission_reminder',
+        when=days_before(7, c.MIVS_DEADLINE)
+    )
 
     MIVSEmailFixture(
         IndieGame,

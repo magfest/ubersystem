@@ -1,10 +1,14 @@
-Ahoy {{ judge.attendee.first_name }}!
+Ahoy {{ judge.attendee.first_name }}! {% set existing_account = judge.admin_account.read_or_write_access_set %}
 
 Congratulations, you have been selected to be a judge for the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase! If this is your first time judging for MIVS, welcome aboard! If you're a returning judging veteran, welcome back to another year!
 
-To be a judge for this year, please follow this link to update your status and preferences : <a href="{{ c.URL_BASE }}/mivs_judging" target="_mivs_judge">{{ c.URL_BASE }}/mivs_judging</a>. You will have to log in using this email address and the password that you received in an earlier email.
+To be a judge for this year, {% if not existing_account %}you first need to set up your account. Click this link to get a temporary password emailed to you: {{ c.URL_BASE }}/accounts/reset?email={{ judge.attendee.email }} and then follow the instructions in the email. After you log in, {% endif %}please follow this link to update your status and preferences: {{ c.URL_BASE }}/mivs_judging{% if existing_account %} . You will need to log in using your existing account email and password.{% else %}
 
-Judging will begin soon and go until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}
+
+You may have received extra emails regarding your MIVS judging account. This was an error on our side (Sorry! --The Developer) and these emails can be ignored. You will still need to use the link above to obtain a valid password.{% endif %}
+
+
+Judging will begin soon and go until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}.
 
 As a judge, you'll be responsible for judging a dozen games. Expect to spend at least 15 minutes per game to get a good idea for how the games feels. 
 

@@ -798,7 +798,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.calculate_badge_cost(use_promo_code=True)
 
     def calculate_badge_cost(self, use_promo_code=False, include_price_override=True):
-        if self.paid == c.NEED_NOT_PAY:
+        if self.paid == c.NEED_NOT_PAY or self.badge_status == c.NOT_ATTENDING:
             return 0
         elif self.overridden_price is not None and include_price_override:
             return self.overridden_price

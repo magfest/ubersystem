@@ -344,7 +344,7 @@ class Root:
             detailed_travel_plans = compile_travel_plans_from_params(session, **params) or \
                 guest_travel_plans.detailed_travel_plans
         else:
-            guest_travel_plans = session.guest_travel_plans(params, checkgroups=['modes'])
+            guest_travel_plans = session.guest_travel_plans(params, restricted=True)
 
         if cherrypy.request.method == 'POST':
             if guest.uses_detailed_travel_plans:
@@ -397,6 +397,17 @@ class Root:
         return {
             'guest': guest,
             'guest_hospitality': guest.hospitality or guest_hospitality,
+            'message': message
+        }
+    
+    def performer_badges(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            guest.badges_assigned = bool(params.get('badges_assigned'))
+            raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for assigning your badges!')
+
+        return {
+            'guest': guest,
             'message': message
         }
 

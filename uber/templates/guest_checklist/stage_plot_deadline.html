@@ -44,6 +44,10 @@
       <div class="col-sm-6">
         <input type="file" name="plot" />
       </div>
+      {% if guest.stage_plot and guest.stage_plot.filename %}
+      <div class="clearfix"></div>
+      <p class="help-block col-sm-6 col-sm-offset-3">Uploading a new file will replace the existing one.</p>
+      {% endif %}
     </div>
     <div class="form-group">
       <label class="col-sm-3 control-label optional-field">Additional Notes</label>

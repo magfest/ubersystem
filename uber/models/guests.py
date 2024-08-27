@@ -37,6 +37,7 @@ class GuestGroup(MagModel):
 
     wants_mc = Column(Boolean, nullable=True)
     needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
+    badges_assigned = Column(Boolean, default=False)
     info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
     bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
     taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -92,7 +93,7 @@ class GuestGroup(MagModel):
 
     @property
     def uses_detailed_travel_plans(self):
-        return self.group_type == c.BAND
+        return  # Disabled for now
 
     @property
     def all_badges_claimed(self):
@@ -649,9 +650,10 @@ class GuestInterview(MagModel):
 
 class GuestTravelPlans(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
-    modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS))
+    modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
     modes_text = Column(UnicodeText)
     details = Column(UnicodeText)
+    completed = Column(Boolean, default=False)
 
     @property
     def num_detailed_travel_plans(self):

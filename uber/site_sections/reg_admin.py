@@ -271,7 +271,6 @@ class Root:
         return {
             'removed': id,
             'new_total': receipt.total_str,
-            'disable_button': receipt.current_amount_owed == 0
         }
 
     @ajax
@@ -484,7 +483,6 @@ class Root:
             'cancelled': id,
             'time': datetime_local_filter(txn.cancelled),
             'new_total': txn.receipt.total_str,
-            'disable_button': txn.receipt.current_amount_owed == 0
         }
 
     @ajax
@@ -541,7 +539,6 @@ class Root:
             'message': "Successfully refunded {}".format(format_currency(txn.refunded)),
             'refund_total': txn.refunded,
             'new_total': txn.receipt.total_str,
-            'disable_button': txn.receipt.current_amount_owed == 0
         }
 
     @ajax
@@ -760,7 +757,8 @@ class Root:
     def remove_promo_code(self, session, id=''):
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee)
-        attendee.paid = c.NOT_PAID
+        if attendee.paid == c.NEED_NOT_PAY:
+            attendee.paid = c.NOT_PAID
         attendee.overridden_price = None
         if receipt:
             receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, {'promo_code_code': ''})

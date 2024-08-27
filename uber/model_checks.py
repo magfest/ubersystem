@@ -23,7 +23,7 @@ from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
 from uber.config import c
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, readable_join
 from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
                          AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event,
@@ -369,22 +369,36 @@ IndieGameCode.required = [
     ('code', 'Game Code')
 ]
 
+
 IndieJudge.required = [
-    ('genres', 'Genres')
+    ('platforms', 'Platforms'),
+    ('genres', 'Genres'),
 ]
+
+
+@validation.IndieJudge
+def must_have_pc(judge):
+    if c.PC not in judge.platforms_ints and c.PCGAMEPAD not in judge.platforms_ints:
+        return 'You must have a PC to judge for MIVS.'
+
+
+@validation.IndieJudge
+def vr_text(judge):
+    if c.VR in judge.platforms_ints and not judge.vr_text:
+        return 'Please tell us what VR/AR platforms you own.'
 
 
 @validation.IndieStudio
 def mivs_new_studio_deadline(studio):
     if studio.is_new and not c.CAN_SUBMIT_MIVS:
-        return 'Sorry, but the deadline has already passed, so no new studios may be registered'
+        return 'Sorry, but the deadline has already passed, so no new studios may be registered.'
 
 
 @validation.IndieStudio
 def mivs_valid_url(studio):
     if studio.website and _is_invalid_url(studio.website_href):
         return 'We cannot contact that website; please enter a valid url ' \
-            'or leave the website field blank until your website goes online'
+            'or leave the website field blank until your website goes online.'
 
 
 @validation.IndieStudio
@@ -476,7 +490,7 @@ def mivs_description(image):
 
 @validation.IndieGameImage
 def mivs_valid_type(screenshot):
-    if screenshot.extension not in c.MIVS_ALLOWED_SCREENSHOT_TYPES:
+    if screenshot.extension not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
         return 'Our server did not recognize your upload as a valid image'
 
 
@@ -488,6 +502,7 @@ MITSTeam.required = [
     ('name', 'Production Team Name')
 ]
 
+
 MITSApplicant.required = [
     ('first_name', 'First Name'),
     ('last_name', 'Last Name'),
@@ -495,14 +510,12 @@ MITSApplicant.required = [
     ('cellphone', 'Cellphone Number')
 ]
 
+
 MITSGame.required = [
     ('name', 'Name'),
     ('description', 'Description')
 ]
 
-MITSPicture.required = [
-    ('description', 'Description')
-]
 
 MITSDocument.required = [
     ('description', 'Description')
@@ -533,8 +546,8 @@ def address_required_for_sellers(team):
 def min_num_days_hours(team):
     if team.days_available is not None and team.days_available < 3:
         return 'You must be available at least 3 days to present at MITS.'
-    if team.hours_available is not None and team.hours_available < 4:
-        return 'You must be able to show at least 4 hours per day to present at MITS.'
+    if team.hours_available is not None and team.hours_available < 8:
+        return 'You must be able to show at least 8 hours per day to present at MITS.'
 
 
 @validation.MITSTeam

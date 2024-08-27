@@ -65,10 +65,27 @@
       </div>
       <div class="clearfix"></div>
       <div class="col-sm-6 col-sm-offset-3">
-        If you selected PC as a platform, please include your PC specs below.
-        <input id="platforms-other" class="form-control" type="text" name="platforms_text" value="{{ judge.platforms_text }}" placeholder="Other platform(s)"/>
+        <input id="vr_text" class="form-control" type="text" name="vr_text" value="{{ judge.vr_text }}" placeholder="VR/AR platform(s)"/>
+      </div>
+      <script type="text/javascript">
+        var showOrHideVRText = function() {
+            setVisible('#vr_text', $(":checkbox[name=platforms][value={{ c.VR }}]").prop("checked"));
+        };
+  
+        $(function () {
+          showOrHideVRText();
+            $(":checkbox[name=platforms]").click(showOrHideVRText);
+        });
+      </script>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">PC Specs and Other Platforms</label>
+      <div class="col-sm-6">
+        <textarea name="platforms_text" class="form-control" rows="4" placeholder="List your PC specs and any other platforms you own.">{{ judge.platforms_text }}</textarea>
       </div>
     </div>
+
     <div class="form-group">
       <div class="col-sm-6 col-sm-offset-2">
         <button type="submit" class="btn btn-primary">Update Preferences</button>
