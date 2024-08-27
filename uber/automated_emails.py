@@ -340,14 +340,14 @@ if c.ART_SHOW_ENABLED:
         when=after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1))),
         ident='art_show_agent_reminder')
 
-if c.ART_SHOW_REG_START < (c.EPOCH - timedelta(days=7)):
-    ArtShowAppEmailFixture(
-        '{EVENT_NAME} Art Show MAIL IN Instructions',
-        'art_show/mailing_in.html',
-        lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.BY_MAIL,
-        when=days_between((c.ART_SHOW_REG_START, 13),
-                          (16, c.ART_SHOW_WAITLIST if c.ART_SHOW_WAITLIST else c.ART_SHOW_DEADLINE)),
-        ident='art_show_mail_in')
+    if c.ART_SHOW_REG_START < (c.EPOCH - timedelta(days=7)):
+        ArtShowAppEmailFixture(
+            '{EVENT_NAME} Art Show MAIL IN Instructions',
+            'art_show/mailing_in.html',
+            lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.BY_MAIL,
+            when=days_between((c.ART_SHOW_REG_START, 13),
+                            (16, c.ART_SHOW_WAITLIST if c.ART_SHOW_WAITLIST else c.ART_SHOW_DEADLINE)),
+            ident='art_show_mail_in')
 
 
 # =============================
