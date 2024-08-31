@@ -470,6 +470,7 @@ def table_cost(group, new_group=None):
         table_count = int(float(group.tables))
         if table_count:
             return (f"{table_count} Tables", c.get_table_price(table_count) * 100, 'tables')
+        return
     
     old_tables = int(float(group.tables))
     new_tables = int(float(new_group.tables))
