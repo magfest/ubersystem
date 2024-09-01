@@ -2,7 +2,9 @@
 {% set title_text = "Hotel Lottery Application" %}
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% set lottery_application = lottery_application or forms['lottery_application'] %}
+{% set lottery_info = lottery_info or forms['lottery_info'] %}
+{% set room_lottery = room_lottery or forms['room_lottery'] %}
+{% set suite_lottery = suite_lottery or forms['suite_lottery'] %}
 
 {% block content %}
 
@@ -38,60 +40,134 @@
     }
 </style>
 
+<script type="text/javascript">
+    var setStep = function () {}
+
+    var submitAndContinue = function () {}
+
+    $().ready(function () {
+        {% if application.terms_accepted %}
+        $('#select-action').show();
+        {% else %}
+        $('#start').show();
+        {% endif %}
+    })
+</script>
+
+<h1>{{ c.EVENT_NAME }} Hotel Lottery</h1>
 <div class="card">
   <div class="card-body">
     {{ form_macros.form_validation('hotel-lottery-form', 'validate_hotel_lottery') }}
-    <form novalidate method="POST" id="hotel-lottery-form" action="form?id={{id}}">
-        <h1>Lottery Terms</h1>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean auctor imperdiet orci, id finibus urna eleifend quis. Mauris id lectus turpis. Nulla facilisis quis quam mattis ultricies. Sed sagittis lacinia nunc eu dictum. Pellentesque fringilla in lectus at gravida. Phasellus velit odio, laoreet sit amet leo at, dignissim auctor tortor. Vivamus facilisis viverra faucibus. Proin tempus aliquam eleifend. In commodo consequat tincidunt. Nunc lorem tortor, ornare et purus at, euismod fermentum sapien. Fusce consequat vestibulum ipsum, sit amet ultrices neque. Maecenas laoreet quis nulla et sodales. Integer sagittis purus eu ante ornare malesuada. Mauris fermentum pharetra lectus. Maecenas vitae enim elit.</p>
-        <p>Donec eleifend arcu enim, eu auctor tortor pharetra in. Interdum et malesuada fames ac ante ipsum primis in faucibus. Fusce id velit eleifend, volutpat tellus at, tincidunt magna. Nulla facilisi. Mauris interdum diam et pharetra efficitur. Nulla hendrerit diam bibendum tristique viverra. Vestibulum non lobortis dui. Curabitur mollis massa porttitor varius malesuada. Donec malesuada, diam sit amet rutrum efficitur, sem velit commodo justo, vitae laoreet massa lectus non nunc. Nam quis elementum risus, et laoreet nisi. Maecenas consequat risus at fringilla efficitur. Morbi sagittis sem nunc, eu hendrerit tortor volutpat ut. Quisque pulvinar quis lacus a facilisis. Donec purus erat, aliquet vel ante id, placerat volutpat nunc. Fusce nec molestie neque.</p>
-        <p>Maecenas sit amet ipsum nec nibh porta condimentum et vehicula enim. Nam sed sapien sollicitudin, dignissim massa sit amet, euismod eros. Aenean laoreet sollicitudin velit, sit amet ornare massa volutpat quis. Aenean sed mollis lorem, in semper magna. Aliquam in nulla elit. Vestibulum lacus velit, viverra vel mi sit amet, feugiat elementum ligula. Phasellus sagittis velit lorem, in porta tortor tempus sit amet. Nullam placerat erat augue, vel lobortis orci feugiat ac.</p>
+    <div id="start" class="collapse">
+        <h2>Welcome to the {{ c.EVENT_NAME_AND_YEAR }} Hotel Lottery</h2>
+        <p><img src="../static/theme/logo.png"></p>
+        <p>
+            Hello and welcome to the {{ c.EVENT_YEAR }} {{ c.EVENT_NAME }} room lottery!
+            Before you get started, please note that there's no need to rush, as your time of entry has absolutely no bearing on the lottery results.
+            Take your time and read the instructions carefully, as the rules outlined in the steps ahead are binding on all entries.
+            If you get stuck, don't hesitate to reach out to {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} with any questions.
+        </p>
 
-        {{ form_macros.form_input(lottery_application.terms_accepted) }}
-        
+        <p>
+            Note: Your entry is not complete until you reach the last ("confirmation") page.
+        </p>
+
+        <p>
+            If you close your browser before you finish or are unable to complete the entry process for any reason, you may return at any time while the lottery is still open and start again.
+        </p>
+
+        <p>
+            Once your entry is complete, you'll receive an email with the entry details. You can return to this page at any time to edit your entry, manage a room group, or join or leave a room group.
+        </p>
+
+        <p><button type="button" class="btn btn-primary">Continue</button></p>
+    </div>
+
+    <div id="lottery-tos" class="collapse">
+    {% include 'hotel_lottery/lottery_tos.html' %}
+
+    <form novalidate method="post" id="hotel-lottery-form" action="form?id={{ id }}">
+        {{ form_macros.form_input(lottery_info.terms_accepted) }}
+    </form>
+
+    <button type="button" class="btn btn-primary">Continue</button>
+    </div>
+
+        <div id="select-action" class="collapse">
+            <h2>Lottery Options</h2>
+            <p>You currently {{ application.current_status_str }}.</p>
+
+            <p>
+                <button type="button" class="btn btn-info">View Terms of Service</button>
+                {% if application.parent_application %}
+                <button type="button" class="btn btn-danger">Leave Room Group</button>
+                {% else %}
+                <button type="button" class="btn btn-primary">Join Room Group</button>
+                <button type="button" class="btn btn-secondary">
+                    {{ "Edit Room Lottery Entry" if application.wants_room else "Enter Room Lottery" }}
+                </button>
+                <button type="button" class="btn btn-success">
+                    {{ "Edit Suite Lottery Entry" if application.wants_room else "Enter Suite Lottery" }}
+                </button>
+                {% endif %}
+            </p>
+        </div>
+
+        <div id="join-group" class="collapse">
         <h1>Group Information</h1>
         <p>For the best chance at getting a room you and your friends can group your applications together.</p>
         <p>To combine your applications only the group leader needs to fill out this form. They will then receive invite codes to distribute to everyone else.</p>
         <div class="row g-sm-3">
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.application_group_name) }}</div>
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.public_attendee_name) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_info.application_group_name) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_info.public_attendee_name) }}</div>
+        </div>
         </div>
 
+        <div id="room-lottery" class="collapse">
         <h1>Standard Room Lottery</h1>
         <p>If you wish to enter the hotel room lottery for a standard hotel room fill out this section.</p>
-        {{ form_macros.form_input(lottery_application.wants_room) }}
-        {{ form_macros.form_input(lottery_application.hotel_preference) }}
+        {{ form_macros.form_input(room_lottery.wants_room) }}
+        <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(room_lottery.application_group_name) }}</div>
+        </div>
+        {{ form_macros.form_input(room_lottery.hotel_preference) }}
         <h2>When would you like to check IN?</h2>
         <div class="row g-sm-3">
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.earliest_room_checkin_date) }}</div>
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.latest_room_checkin_date) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(room_lottery.earliest_room_checkin_date) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(room_lottery.latest_room_checkin_date) }}</div>
         </div>
         <h2>When would you like to check OUT?</h2>
         <div class="row g-sm-3">
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.earliest_room_checkout_date) }}</div>
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.latest_room_checkout_date) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(room_lottery.earliest_room_checkout_date) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(room_lottery.latest_room_checkout_date) }}</div>
         </div>
-        {{ form_macros.form_input(lottery_application.room_type_preference) }}
+        {{ form_macros.form_input(room_lottery.room_type_preference) }}
+        <h2>Priorities</h2>
+        <p>Rank the following from most important to least important for you.</p>
+        {{ form_macros.form_input(room_lottery.room_selection_priorities) }}
+        </div>
 
+        <div id="suite-lottery" class="collapse">
         <h1>Suite Lottery</h1>
         <p>If you wish to enter the suite lottery fill out this section.</p>
-        {{ form_macros.form_input(lottery_application.wants_suite) }}
+        {{ form_macros.form_input(suite_lottery.wants_suite) }}
         <h2>When would you like to check IN?</h2>
         <div class="row g-sm-3">
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.earliest_suite_checkin_date) }}</div>
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.latest_suite_checkin_date) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(suite_lottery.earliest_suite_checkin_date) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(suite_lottery.latest_suite_checkin_date) }}</div>
         </div>
         <h2>When would you like to check OUT?</h2>
         <div class="row g-sm-3">
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.earliest_suite_checkout_date) }}</div>
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_application.latest_suite_checkout_date) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(suite_lottery.earliest_suite_checkout_date) }}</div>
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(suite_lottery.latest_suite_checkout_date) }}</div>
         </div>
-        {{ form_macros.form_input(lottery_application.suite_type_preference) }}
+        {{ form_macros.form_input(suite_lottery.suite_type_preference) }}
 
-        <h1>Priorities</h1>
+        <h2>Priorities</h2>
         <p>Rank the following from most important to least important for you.</p>
-        {{ form_macros.form_input(lottery_application.selection_priorities) }}
+        {{ form_macros.form_input(suite_lottery.suite_selection_priorities) }}
         {{ csrf_token() }}
+        </div>
         <button type="submit" class="btn btn-primary" value="Upload">Save</button>
     </form>
   </div>

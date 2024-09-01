@@ -104,14 +104,23 @@ class CountrySelect(Select):
         )
 
 class Ranking():
-    def __init__(self, choices=None, id=None, **kwargs):
-        self.choices = choices
-        self.id = id
+    def __init__(self, choices=None, **kwargs):
+        self.choices = choices or self.field.choices
+        super().__init__(**kwargs)
     
-    def __call__(self, field, choices=None, id=None, **kwargs):
+    def display_price(self, choice_item):
+        if 'price' in choice_item and choice_item['price']:
+            price_str = f"${choice_item['price']}"
+            if c.BEFORE_HOTEL_LOTTERY_FORM_START and 'staff_price' in choice_item and choice_item['staff_price']:
+                price_str = price_str + f"/${choice_item['staff_price']}"
+            return f'<h5 class="card-subtitle mb-2 text-muted">{price_str}</h5>'
+        return ''
+    
+    def __call__(self, field, choices=None, **kwargs):
         choices = choices or self.choices or [('', {"name": "Error", "description": "No choices are configured"})]
-        id = id or self.id or "ranking"
-        selected_choices = field.data.split(",")
+        id = kwargs.pop('id', field.id) or "ranking"
+        selected_choices = field.data if isinstance(field.data, list) else [str(field.data)]
+        read_only = 'readonly' in kwargs and kwargs['readonly']
 
         deselected_html = []
         selected_html = []
@@ -119,64 +128,79 @@ class Ranking():
         for choice_id in selected_choices:
             try:
                 choice_item = choice_dict[choice_id]
+                price_subtitle = self.display_price(choice_item)
                 el = f"""
-    <li class="choice" value="{choice_id}">
-        <div class="choice-name">
-            {choice_item["name"]}
-        </div>
-        <div class="choice-description">
-            {choice_item["description"]}
-        </div>
-    </li>"""
+                <li class="card card-body border-dark gap-2" value="{choice_id}">
+                    <h4 class="card-title">
+                        {choice_item["name"]}
+                    </h4>
+                    {price_subtitle}
+                    <div class="card-text">
+                        {choice_item["description"]}
+                    </div>
+                    <input type="hidden" name="{id}" value="{choice_id}">
+                </li>"""
                 selected_html.append(el)
             except KeyError:
                 continue
         for choice_id, choice_item in choices:
             if not choice_id in selected_choices:
+                price_subtitle = self.display_price(choice_item)
                 el = f"""
-<li class="choice" value="{choice_id}">
-    <div class="choice-name">
-        {choice_item["name"]}
-    </div>
-    <div class="choice-description">
-        {choice_item["description"]}
-    </div>
-</li>"""
+                <li class="card card-body border-dark gap-2" value="{choice_id}">
+                    <h4 class="card-title">
+                        {choice_item["name"]}
+                    </h4>
+                    {price_subtitle}
+                    <div class="card-text">
+                        {choice_item["description"]}
+                    </div>
+                    <input type="hidden" value="{choice_id}">
+                </li>"""
                 deselected_html.append(el)
 
         script = f"""
-<script type="text/javascript">
-    Sortable.create(deselected_{ id }, {{
-        group: '{ id }',
-        animation: 100
-    }});
+        <script type="text/javascript">
+            Sortable.create(deselected_{ id }, {{
+                group: '{ id }',
+                animation: 100
+            }});
 
-    Sortable.create(selected_{ id }, {{
-        group: '{ id }',
-        animation: 100,
-        onSort: function(evt) {{
-            el = document.getElementById("selected_{ id }");
-            let selected = [];
-            for (let i=0; i<el.children.length; i++) {{
-                selected.push(el.children[i].getAttribute("value"));
-            }}
-            document.getElementById("{ id }").value = selected.join(",");
-        }}
-    }});
-</script>"""
+            Sortable.create(selected_{ id }, {{
+                group: '{ id }',
+                animation: 100,
+                onSort: function(evt) {{
+                    el = document.getElementById("selected_{ id }");
+                    for (let i=0; i<el.children.length; i++) {{
+                        el.children[i].querySelector("input").setAttribute("name", "{ id }");
+                    }}
 
-        html = [
-            '<div class="row">',
+                    dl = document.getElementById("deselected_{ id }");
+                    for (let i=0; i<dl.children.length; i++) {{
+                        dl.children[i].querySelector("input").removeAttribute("name");
+                    }}
+                    
+                }}
+            }});
+        </script>"""
+
+        html = ['<div class="row">']
+
+        if not read_only:
+            html.extend([
+                '<div class="col-md-6">',
+                f'<span class="form-text">Available {field.label.text}</span>',
+                f'<ul class="card card-body bg-light gap-2" id="deselected_{id}">',
+                *deselected_html,
+                '</ul></div>'
+                ])
+        html.extend([
             '<div class="col-md-6">',
-            'Available',
-            f'<ul class="choice-list" id="deselected_{id}">',
-            *deselected_html,
-            '</ul></div><div class="col-md-6">',
-            'Selected',
-            f'<ul class="choice-list" id="selected_{id}">',
+            f'<span class="form-text">{'' if read_only else 'Selected '}{field.label.text}</span>',
+            f'<ul class="card card-body bg-light gap-2" id="selected_{id}">',
             *selected_html,
-            f'</ul></div></div><input type="hidden" id="{id}" name="{id}" value="{field.data}" />',
+            f'</ul></div></div>',
             script
-        ]
+            ])
         
         return Markup(''.join(html))

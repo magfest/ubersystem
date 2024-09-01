@@ -1,0 +1,25 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Hotel Lottery Application" %}
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set lottery_info = lottery_info or forms['lottery_info'] %}
+
+{% block content %}
+<h1>{{ c.EVENT_NAME }} Hotel Lottery</h1>
+<div class="card">
+    <div class="card-body">
+        {{ form_macros.form_validation('lottery-info-form', 'validate_hotel_lottery', form_list=['LotteryInfo']) }}
+
+        {% include 'hotel_lottery/lottery_tos.html' %}
+
+        <form novalidate method="post" id="lottery-info-form" action="index">
+            <input type="hidden" name="id" value="{{ application.id }}" />
+            <input type="hidden" name="attendee_id" value="{{ attendee_id }}" />
+            {{ csrf_token() }}
+            {{ form_macros.form_input(lottery_info.terms_accepted) }}
+
+        <button type="submit" class="btn btn-primary">Continue</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

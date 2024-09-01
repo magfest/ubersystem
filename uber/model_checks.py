@@ -23,7 +23,7 @@ from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
 from uber.config import c
-from uber.custom_tags import format_currency, readable_join
+from uber.custom_tags import format_currency, full_date_local
 from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
                          AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event,
@@ -304,6 +304,33 @@ def attendee_tournament_email(app):
 def attendee_tournament_cellphone(app):
     if app.cellphone and invalid_phone_number(app.cellphone):
         return 'You did not enter a valid cellphone number'
+
+
+@validation.LotteryApplication
+def room_meets_requirements(app):
+    if app.any_room_dates_different:
+        latest_checkin, earliest_checkout = app.shortest_room_check_in_out_dates
+        nights = app.build_nights_map(latest_checkin, earliest_checkout)
+        if len(nights) > 2:
+            for night in nights:
+                if 'Friday' in night or 'Saturday' in night:
+                    return
+        return ('', "Standard rooms require a two-night minimum with at least one night on Friday or Saturday.")
+
+
+@validation.LotteryApplication
+def suite_meets_requirements(app):
+    if app.any_suite_dates_different:
+        latest_checkin, earliest_checkout = app.shortest_suite_check_in_out_dates
+        nights = app.build_nights_map(latest_checkin, earliest_checkout)
+        night_counter = 0
+        if len(nights) > 3:
+            for night in nights:
+                if 'Friday' in night or 'Saturday' in night:
+                    night_counter += 1
+                if night_counter == 2:
+                    return
+        return ('', "Suites require a three-night minimum with both Friday night and Saturday night.")
 
 
 # =============================

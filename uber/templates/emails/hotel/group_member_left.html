@@ -1,0 +1,16 @@
+<html>
+<head></head>
+<body>
+<p>
+    {{ application.attendee.full_name }},<br/>
+    This is to notify you that {{ member.attendee.full_name }} has left your room group "{{ application.room_group_name }}".
+    This brings the total number of group members, including yourself, to {{ application.group_members|length + 1 }}.
+</p>
+<p>
+    Your group invite code is {{ application.invite_code }}. You can view your current group members on your <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ application.id }}" target="_blank">room group management page</a>.
+</p>
+<p>
+    For more options, log into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.
+</p>
+</body>
+</html>

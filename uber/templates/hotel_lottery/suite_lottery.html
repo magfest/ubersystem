@@ -1,0 +1,111 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Hotel Suite Lottery Application" %}
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set suite_lottery = suite_lottery or forms['suite_lottery'] %}
+{% set app_or_parent = application.parent_application or application %}
+
+{% block content %}
+{% if not read_only %}
+<script type="text/javascript">
+    withdrawConfirm = function() {
+        var formToSubmit = this;
+        event.preventDefault();
+
+        bootbox.confirm({
+        backdrop: true,
+        title: 'Withdraw From Suite Lottery?',
+        message: '<p>Are you sure you want to withdraw from the suite lottery?</p>' +
+            '<p>This will <strong>delete your lottery entry</strong>. Unless you join a room group ' +
+            'or re-enter the lottery, you will not be eligible for a suite booking.</p>',
+            {% if application.group_members %} + '<p>Your group members will be notified of the cancellation.</p>'{% endif %}
+        buttons: {
+            confirm: { label: 'Yes, Withdraw', className: 'btn-danger' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+        },
+        callback: function (result) {
+            if (result) {
+                formToSubmit.submit();
+            }
+        }
+        });
+    }
+
+    $().ready(function() {
+        $("#withdraw-lottery").submit(withdrawConfirm);
+    });
+</script>
+{% endif %}
+
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery</h1>
+<div class="card">
+    <div class="card-body">
+        {{ form_macros.form_validation('suite-lottery-form', 'validate_hotel_lottery', form_list=['SuiteLottery']) }}
+
+        {% if not read_only and application.attendee.age_now_or_at_con and application.attendee.age_now_or_at_con < 21 %}
+        <div class="alert alert-danger">
+            Our records show that you will not be 21 years old by the start of {{ c.EVENT_NAME }}.
+            You will not be able to complete this application if you will not be 21 on your earliest selected check-in date.
+            If you believe this is an error, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
+        </div>
+        {% endif %}
+
+        <h2>Suite Lottery <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
+        {% if not app_or_parent.wants_suite %}
+        <p>Please carefully read the instructions, fill out the fields below, and click "Enter Lottery" to enter the lottery for a suite.</p>
+        {% elif read_only %}
+        <p>Below are the details for your room group's suite lottery entry. Only your group leader can edit this.</p>
+        {% else %}
+        <p>
+            Below are the details for your current suite lottery entry.
+            You can change them and click "Update" to update your entry any time before <strong>{{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</strong>.
+        </p>
+        {% endif %}
+        {% block suite_policies %}
+        <p>
+            Suite entries are processed first and prioritized above standard room entries in the lottery. Suites are in extremely high demand, and necessitate special policies:
+            <ul>
+                <li>A one night, non-refundable deposit is required and will be invoiced on confirmation of the suite.</li>
+                <li>Cancellations must be received on or prior to {{ c.HOTEL_LOTTERY_SUITE_CUTOFF|datetime_local }}, otherwise all guests in that suite will be ineligible for future year suite lotteries in addition to forfeiting the deposit.</li>
+                <li>All suites are directly managed by {{ c.EVENT_NAME }}. Suite confirmations are issued by the convention, not the hotel.</li>
+                <li>Additional policies apply to suites. It is essential all attendees requesting a suite read and understand these policies, as you are required to comply as a condition of retaining the suite during the event, and for eligibility in future years.</li>
+            </ul>
+        </p>
+        <p>If awarded a suite, you will receive additional information via email regarding your suite.</p>
+
+        <p>Suite policies, floor plans and other details pertaining to suites may be found on the Suite FAQ.</p>
+        {% endblock %}
+        {% if application.wants_suite and not read_only %}
+        <p>
+            <form id="withdraw-lottery" method="post" action="withdraw_suite">
+                <input type="hidden" name="id" value="{{ application.id }}">
+                <button type="submit" class="btn btn-danger">Withdraw Suite Lottery Entry</button>
+            </form>
+        </p>
+        {% endif %}
+        <hr/>
+        {% if not read_only %}
+        <form novalidate method="post" id="suite-lottery-form" action="suite_lottery">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ application.id }}">
+            {{ form_macros.form_input(suite_lottery.wants_suite, force_hidden=True, default="1") }}
+        {% endif %}
+            
+            {% include 'hotel_lottery/suite_lottery_form.html' with context %}
+
+            <div class="row g-sm-3 mb-3">
+                <div class="col-12">
+                    <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">{% if not app_or_parent.wants_suite %}Cancel and {% endif %}Return to Options</a>
+                    {% if not read_only %}
+                    <button type="submit" class="btn btn-primary pull-right">
+                        {% if application.wants_suite %}Update Suite Lottery Entry{% else %}Enter Suite Lottery{% endif %}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        {% if not read_only %}
+        </form>
+        {% endif %}   
+    </div>
+</div>
+{% endblock %}

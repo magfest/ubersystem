@@ -19,7 +19,7 @@ from uber.utils import get_age_conf_from_birthday
 
 __all__ = ['AdminBadgeExtras', 'AdminBadgeFlags', 'AdminConsents', 'AdminStaffingInfo', 'BadgeExtras',
            'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo',
-           'LotteryApplication', 'Consents']
+           'Consents']
 
 
 # TODO: turn this into a proper validation class
@@ -28,29 +28,6 @@ def valid_cellphone(form, field):
         raise ValidationError('Please provide a valid 10-digit US phone number or '
                               'include a country code (e.g. +44) for international numbers.')
 
-
-class LotteryApplication(MagForm):
-    application_group_name = StringField('Name your room. This will be shared with anyone you invite to your application.', id="application_group_name")
-    wants_room = BooleanField('I would like to enter the hotel room lottery.', default=False)
-    earliest_room_checkin_date = DateField('Earliest acceptable Check-In Date', validators=[validators.DataRequired("Please enter your earliest check-in date.")])
-    latest_room_checkin_date = DateField('Latest acceptable Check-In Date', validators=[validators.DataRequired("Please enter your latest check-in date.")])
-    earliest_room_checkout_date = DateField('Earliest acceptable Check-Out Date', validators=[validators.DataRequired("Please enter your earliest check-out date.")])
-    latest_room_checkout_date = DateField('Latest acceptable Check-Out Date', validators=[validators.DataRequired("Please enter your latest check-out date.")])
-    hotel_preference = StringField('Hotel Preference', widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS, id="hotel_preference"))
-    room_type_preference = StringField('Room Type Preference', widget=Ranking(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS, id="room_type_preference"))
-    selection_priorities = StringField('Room Priorities', widget=Ranking(c.HOTEL_LOTTERY_HOTEL_PRIORITIES_OPTS, id="selection_priorities"))
-    accessibility_contact = BooleanField('Please contact me in regards to an accessibility requirement.', default=False)
-
-    wants_suite = BooleanField('I would like to enter the suite lottery.', default=False)
-    earliest_suite_checkin_date = DateField('Earliest acceptable Check-In Date', validators=[validators.DataRequired("Please enter your earliest check-in date.")])
-    latest_suite_checkin_date = DateField('Latest acceptable Check-In Date', validators=[validators.DataRequired("Please enter your latest check-in date.")])
-    earliest_suite_checkout_date = DateField('Earliest acceptable Check-Out Date', validators=[validators.DataRequired("Please enter your earliest check-out date.")])
-    latest_suite_checkout_date = DateField('Latest acceptable Check-Out Date', validators=[validators.DataRequired("Please enter your latest check-out date.")])
-    suite_type_preference = StringField('Suite Type Preference', widget=Ranking(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS, id="suite_type_preference"))
-    
-    public_attendee_name = StringField('Your preferred name. This will only be shared with your group leader if you join a group.')
-    
-    terms_accepted = BooleanField('I accept the terms of service of the hotel lottery.', default=False)
 
 class PersonalInfo(AddressForm, MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()

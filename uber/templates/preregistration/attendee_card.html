@@ -84,7 +84,10 @@
             {% for row in rows %}
             <div class="row g-sm-3">{{ row }}</div>
             {% endfor %}
-            <div class="col-sm-12">
+        </div>
+    </div>
+            
+    <div class="row">
             {% if attendee.badge_status == c.IMPORTED_STATUS and not attendee.current_attendee %}
                 <div class="pull-right">
                 {% if attendee.group and attendee == attendee.group.leader and dealer_reg_open %}
@@ -104,14 +107,21 @@
                     </a>
                 </div>
             {% elif attendee.is_valid %}
-            <div class="btn-group pull-left mt-2" role="group">
-                {% include 'preregistration/badge_refund.html' with context %}
-            </div>
+                <div class="col-sm-3 mt-2">
+                    {% include 'preregistration/badge_refund.html' with context %}
+                </div>
+                <div class="col-sm-9">
                 <div class="btn-group pull-right mt-2" role="group">
-                {% include 'preregistration/card_buttons.html' %}
-                <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
-                    <i class="fa fa-pencil"></i> Edit Details
-                </a>
+                {% include 'preregistration/card_buttons.html' with context %}
+                {% if attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
+                    <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-success" value="Edit">
+                        <i class="fa fa-address-card-o"></i> Finish Registering
+                    </a>
+                {% elif attendee.badge_status != c.NOT_ATTENDING %}
+                    <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
+                        <i class="fa fa-pencil"></i> Edit Details
+                    </a>
+                {% endif %}
                 {% if c.ART_SHOW_ENABLED %}
                     {% if not attendee.art_show_applications and c.ART_SHOW_OPEN %}
                     <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning">
@@ -135,7 +145,9 @@
                 {% endif %}
                 {% endif %}
                 </div>
+                </div>
+            
             {% endif %}
-            </div>
-        </div>
+            
+        
     </div>

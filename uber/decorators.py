@@ -5,6 +5,7 @@ import inspect
 import json
 import os
 import re
+import sqlalchemy
 import threading
 import traceback
 import uuid
@@ -182,10 +183,11 @@ def requires_account(model=None):
                         attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
                     message = 'You must log in to view this page.'
                 elif kwargs.get('id') and model:
-                    check_id_for_model(model, **kwargs)
                     if model == Attendee:
-                        attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
+                        check_id_for_model(model, alt_id='attendee_id', **kwargs)
+                        attendee = session.attendee(kwargs.get('attendee_id', kwargs.get('id')), allow_invalid=True)
                     elif model == Group:
+                        check_id_for_model(model, alt_id='group_id', **kwargs)
                         attendee = session.query(model).filter_by(id=kwargs.get('group_id',
                                                                                 kwargs.get('id'))).first().leader
                     else:
@@ -549,6 +551,10 @@ def sessionized(func):
 
     @wraps(func)
     def with_session(*args, **kwargs):
+        if len(args) > 1 and isinstance(args[1], sqlalchemy.orm.session.Session):
+            retval = func(*args, **kwargs)
+            return retval
+
         with uber.models.Session() as session:
             try:
                 retval = func(*args, session=session, **kwargs)
@@ -880,10 +886,13 @@ def id_required(model):
     return model_id_required
 
 
-def check_id_for_model(model, **params):
+def check_id_for_model(model, alt_id=None, **params):
     message = None
     session = params['session']
-    model_id = params.get('id')
+    if alt_id:
+        model_id = params.get(alt_id, params.get('id'))
+    else:
+        model_id = params.get('id')
 
     if not model_id:
         message = "No ID provided. Try using a different link or going back."

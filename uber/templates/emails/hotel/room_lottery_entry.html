@@ -1,0 +1,31 @@
+<html>
+<head></head>
+<body>
+<p>
+    {{ application.attendee.full_name }},<br/>
+    Thank you for {{ entering_or_updating_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your entry details are below.
+    You can <a href="{{ c.URL_BASE }}/hotel_lottery/room_lottery?id={{ application.id }}" target="_blank">update or withdraw your entry</a> at any time until {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}.
+</p>
+{% if not application.room_group_name and not application.parent_application %}
+<p>
+    If you know who you are rooming with, you can 
+    <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ application.id }}&create=True" target="_blank">create a room group</a> for up to four people total.
+    Room groups are given additional weighting in the lottery. Note that in order to join a room group you must have a valid registration for {{ c.EVENT_NAME }}.
+</p>
+{% endif %}
+<p>You can also review the lottery terms and policies or {% if application.wants_suite %}update your entry for{% else %}enter{% endif %} the suite lottery by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
+<ul>
+    <li><strong>Hotel Preference</strong>: {{ application.hotel_preference_labels|readable_join }}</li>
+    <li><strong>Preferred Check-In/Out Dates</strong>: {{ application.earliest_room_checkin_date.strftime('%m/%d/%Y') }} to {{ application.latest_room_checkout_date.strftime('%m/%d/%Y') }}</li>
+    {% if application.latest_room_checkin_date or application.earliest_room_checkout_date %}
+    {% set acceptable_check_in_date, acceptable_check_out_date = application.shortest_room_check_in_out_dates %}
+    <li><strong>Acceptable Check-In/Out Dates</strong>: {{ acceptable_check_in_date.strftime('%m/%d/%Y') }} to {{ acceptable_check_out_date.strftime('%m/%d/%Y') }}</li>
+    {% endif %}
+    <li><strong>Room Type Preference</strong>: {{ application.room_type_preference_labels|readable_join }}{% if application.wants_ada %} (ADA Room Requested){% endif %}</li>
+    {% if application.wants_ada %}
+    <li><strong>ADA Room Accommodations Requested</strong>: {{ application.ada_requests }}</li>
+    {% endif %}
+    <li><strong>Preference Priorities</strong>: {{ application.room_selection_priorities_labels|readable_join }}</li>
+</ul>
+</body>
+</html>

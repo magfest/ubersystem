@@ -1,0 +1,17 @@
+<html>
+<head></head>
+<body>
+<p>
+    {{ application.attendee.full_name }},<br/>
+    This is to notify you that {{ member.attendee.full_name }} has just joined your room group "{{ application.room_group_name }}".
+    This brings the total number of group members, including yourself, to {{ application.group_members|length + 1 }}{% if application.group_members|length == 3 %} -- the total number of members you can have in a group{% endif %}.
+</p>
+<p>
+    If this is not someone you expected to join, you can remove them from the group on your <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ application.id }}" target="_blank">room group management page</a>.
+    We recommend also generating a new invite code to prevent them from re-joining.
+</p>
+<p>
+    For more options, log into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.
+</p>
+</body>
+</html>

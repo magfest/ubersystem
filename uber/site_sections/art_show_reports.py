@@ -195,8 +195,8 @@ class Root:
                           app.attendee.legal_first_name + " " + app.attendee.legal_last_name,
                           app.check_payable or (app.attendee.legal_first_name + " " + app.attendee.legal_last_name),
                           app.email,
-                          app.agent.full_name if app.agent else '',
-                          app.agent.email if app.agent else '',
+                          app.single_agent.full_name if app.current_agents else '',
+                          app.single_agent.email if app.current_agents else '',
                           ])
 
     @csv_file

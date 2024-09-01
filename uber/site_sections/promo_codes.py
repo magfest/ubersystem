@@ -157,7 +157,7 @@ class Root:
                         segment_length = int(params['segment_length'])
                     except Exception:
                         segment_length = 3
-                    codes = RegistrationCode.generate_random_code(PromoCode, params['count'],
+                    codes = RegistrationCode.generate_random_code(PromoCode.code, params['count'],
                                                                   length, segment_length)
 
             promo_codes = []

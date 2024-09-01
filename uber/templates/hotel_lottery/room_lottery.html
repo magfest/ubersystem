@@ -1,0 +1,96 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Hotel Room Lottery Application" %}
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set room_lottery = room_lottery or forms['room_lottery'] %}
+{% set app_or_parent = application.parent_application or application %}
+
+{% block content %}
+{% if not read_only %}
+<script type="text/javascript">
+    withdrawConfirm = function() {
+        var formToSubmit = this;
+        event.preventDefault();
+
+        bootbox.confirm({
+        backdrop: true,
+        title: 'Withdraw From Room Lottery?',
+        message: '<p>Are you sure you want to withdraw from the room lottery?</p>' +
+            '<p>This will <strong>delete your lottery entry</strong>. Unless you join a room group ' +
+            'or re-enter the lottery, you will not be eligible for a standard room booking.</p>',
+            {% if application.group_members %} + '<p>Your group members will be notified of the cancellation.</p>'{% endif %}
+        buttons: {
+            confirm: { label: 'Yes, Withdraw', className: 'btn-danger' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+        },
+        callback: function (result) {
+            if (result) {
+                formToSubmit.submit();
+            }
+        }
+        });
+    }
+
+    $().ready(function() {
+        $("#withdraw-lottery").submit(withdrawConfirm);
+    });
+</script>
+{% endif %}
+
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery</h1>
+<div class="card">
+    <div class="card-body">
+        {% if not read_only %}
+        {{ form_macros.form_validation('room-lottery-form', 'validate_hotel_lottery', form_list=['RoomLottery']) }}
+        {% endif %}
+
+        {% if not read_only and application.attendee.age_now_or_at_con and app_or_parent.attendee.age_now_or_at_con < 21 %}
+        <div class="alert alert-danger">
+            Our records show that you will not be 21 years old by the start of {{ c.EVENT_NAME }}.
+            You will not be able to complete this application if you will not be 21 on your earliest selected check-in date.
+            If you believe this is an error, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
+        </div>
+        {% endif %}
+
+        <h2>Standard Room Lottery <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
+        {% if not app_or_parent.wants_room %}
+        <p>Please carefully read the instructions, fill out the fields below, and click "Enter Lottery" to enter the lottery for a standard hotel room.</p>
+        {% elif read_only %}
+        <p>Below are the details for your room group's room lottery entry. Only your group leader can edit this.</p>
+        {% else %}
+        <p>
+            Below are the details for your current room lottery entry.
+            You can change them and click "Update" to update your entry any time before <strong>{{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</strong>.
+        </p>
+        <p>
+            <form id="withdraw-lottery" method="post" action="withdraw_room">
+                <input type="hidden" name="id" value="{{ application.id }}">
+                <button type="submit" class="btn btn-danger">Withdraw Room Lottery Entry</button>
+            </form>
+        </p>
+        {% endif %}
+        <hr/>
+        {% if not read_only %}
+        <form novalidate method="post" id="room-lottery-form" action="room_lottery">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ application.id }}">
+            {{ form_macros.form_input(room_lottery.wants_room, force_hidden=True, default="1") }}
+        {% endif %}
+            {% include 'hotel_lottery/room_lottery_form.html' with context %}
+
+            <div class="row g-sm-3 mb-3">
+                <div class="col-12">
+                    <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">{% if not app_or_parent.wants_room %}Cancel and {% endif %}Return to Options</a>
+                    {% if not read_only %}
+                    <button type="submit" class="btn btn-primary pull-right">
+                        {% if application.wants_room %}Update Room Lottery Entry{% else %}Enter Room Lottery{% endif %}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        {% if not read_only %}
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -155,7 +155,7 @@ class PromoCodeGroup(MagModel):
         codes, so we use that class' generator method.
         """
         if not self.code:
-            self.code = RegistrationCode.generate_random_code(PromoCode)
+            self.code = RegistrationCode.generate_random_code(PromoCode.code)
 
     @hybrid_property
     def normalized_code(self):
@@ -474,7 +474,7 @@ class PromoCode(MagModel):
         self.code = self.code.strip() if self.code else ''
         if not self.code:
             # If 'code' is empty, then generate a random code
-            self.code = RegistrationCode.generate_random_code(PromoCode)
+            self.code = RegistrationCode.generate_random_code(PromoCode.code)
         else:
             # Replace multiple whitespace characters with a single space
             self.code = re.sub(r'\s+', ' ', self.code)

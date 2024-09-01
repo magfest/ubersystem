@@ -1586,13 +1586,12 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND]
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
 c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
-for key in ["hotels", "room_types", "suite_room_types", "hotel_priorities"]:
+for key in ["hotels", "room_types", "suite_room_types", "room_priorities", "suite_priorities"]:
     opts = []
     for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
-        print(item)
         if isinstance(item, dict):
             item.__hash__ = lambda x: hash(x.name + x.description)
-            opts.append((str(int(sha512(name.upper().encode()).hexdigest()[:7], 16)), item))
+            opts.append((int(sha512(name.upper().encode()).hexdigest()[:7], 16), item))
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters

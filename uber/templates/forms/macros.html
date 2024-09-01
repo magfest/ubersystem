@@ -105,8 +105,7 @@
     {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% elif type == 'ranking' %}
-<div class="form-floating{% if not no_margin %} mb-3{% endif %}">
-  {{ form_label(field, label_text=label_text, required=label_required) }}
+<div{% if not no_margin %} class="mb-3"{% endif %}>
   {{ field(**custom_kwargs) }}
   {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>

@@ -2,34 +2,15 @@
 {% set title_text = "Hotel Lottery Application" %}
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% set lottery_application = lottery_application or forms['lottery_application'] %}
+{% set lottery_info = lottery_info or forms['lottery_info'] %}
+{% set lottery_room_group = lottery_room_group or forms['lottery_room_group'] %}
+{% set room_lottery = room_lottery or forms['room_lottery'] %}
+{% set suite_lottery = suite_lottery or forms['suite_lottery'] %}
 
 {% block content %}
-
 <script src="https://raw.githack.com/SortableJS/Sortable/master/Sortable.js"></script>
 
 <style>
-    ul {
-        list-style: none;
-        padding: 0;
-    }
-    .choice {
-        outline: auto;
-        margin: 5px;
-        padding: 2px;
-    }
-    .choice-name {
-        font-size: 20pt;
-        font-weight: bold;
-    }
-    .choice-description {
-
-    }
-    .choice-list {
-        padding: 20px;
-        min-height: 100px;
-        background: #eee;
-    }
     .sortable-ghost {
         opacity: 0.6;
     }
@@ -38,17 +19,90 @@
     }
 </style>
 
+<script type="text/javascript">
+    var setStep = function (selector) {
+        $('.collapse').hide();
+        $(selector).show();
+        if (selector == '#select-action') {
+            const querystring = new URLSearchParams(window.location.search);
+            querystring.delete('confirm');
+            querystring.delete('action');
+            history.replaceState( {} , '', "{{ c.PAGE }}" + '?' + querystring.toString() );
+        }
+    }
+
+    $().ready(function () {
+        {% if confirm != '' %}
+        $('#confirm').show();
+        {% else %}
+        $('#select-action').show();
+        {% endif %}
+    })
+</script>
+
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery</h1>
 <div class="card">
-  <div class="card-body">
-    {{ form_macros.form_validation('hotel-lottery-form', 'validate_hotel_lottery') }}
-    <form novalidate method="POST" id="hotel-lottery-form" action="form">
-        {{ form_macros.form_input(lottery_application.hotel_preference) }}
-        {{ form_macros.form_input(lottery_application.room_type_preference) }}
-        {{ form_macros.form_input(lottery_application.selection_priorities) }}
-        {{ form_macros.form_input(lottery_application.suite_type_preference) }}
-        {{ csrf_token() }}
-        <button type="submit" class="btn btn-primary" value="Upload">Save</button>
-    </form>
-  </div>
+    <div class="card-body">
+        <div id="select-action" class="collapse">
+            <p>You currently {{ application.current_status_str }}.{% if application.wants_suite and not application.wants_room %} We <strong>strongly</strong> recommend also entering the room lottery.{% endif %}</p>
+
+            <p>The hotel lottery form will close at <strong>{{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</strong>.</p>
+
+            {% block additional_lottery_info %}{% endblock %}
+
+            <h2>Lottery Options</h2>
+            <p class="mb-0">
+                <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
+
+                <a class="btn btn-primary" href="room_group?id={{ application.id }}">
+                    {% if application.room_group_name %}
+                    Manage Room Group
+                    {% elif application.parent_application %}
+                    View Room Group
+                    {% else %}
+                    Join or Create Room Group
+                    {% endif %}
+                </a>
+                {% set view_or_edit = "View Your Group's" if application.parent_application else "Edit" %}
+                {% if not application.parent_application or application.parent_application.wants_room %}
+                <a class="btn btn-secondary" href="room_lottery?id={{ application.id }}">
+                    {{ view_or_edit ~ " Room Lottery Entry" if application.wants_room or application.parent_application else "Enter Room Lottery" }}
+                </a>
+                {% endif %}
+                {% if not application.parent_application or application.parent_application.wants_suite %}
+                <a class="btn btn-success" href="suite_lottery?id={{ application.id }}">
+                    {{ view_or_edit ~ " Suite Lottery Entry" if application.wants_suite or application.parent_application else "Enter Suite Lottery" }}
+                </a>
+                {% endif %}
+            </p>
+        </div>
+        <div id="confirm" class="collapse">
+            <h2>{{ confirm.title() }} Lottery Entry {{ action.title() }}</h2>
+            <p>
+                {% if action == 'confirmation' %}
+                Thank you for entering the {{ confirm }} lottery for {{ c.EVENT_NAME_AND_YEAR }}!
+                {% else %}
+                Thank you for updating your {{ confirm }} lottery entry!
+                {% endif %}
+            </p>
+            <p>You should receive an email titled "{{ c.EVENT_NAME_AND_YEAR }} {{ confirm.title() }} Lottery {{ action.title() }}" containing details about your lottery entry.</p>
+            <button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Back to Options</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="lottery-terms" tabindex="-1" role="dialog" aria-labelledby="lottery-terms-title">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="lottery-terms-title">Hotel Lottery Policies</h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            {% include 'hotel_lottery/lottery_tos.html' with context %}
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal" aria-label="Close">Close</button></div>
+      </div>
+    </div>
 </div>
 {% endblock %}

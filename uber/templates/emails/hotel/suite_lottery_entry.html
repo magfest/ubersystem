@@ -1,0 +1,35 @@
+<html>
+<head></head>
+<body>
+<p>
+    {{ application.attendee.full_name }},<br/>
+    Thank you for {{ entering_or_updating_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your entry details are below.
+    You can <a href="{{ c.URL_BASE }}/hotel_lottery/suite_lottery?id={{ application.id }}" target="_blank">update or withdraw your entry</a> at any time until {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}.
+</p>
+{% if not application.wants_room %}
+<p>
+    Suites are in extremely high demand.
+    We <strong>strongly</strong> recommend anyone entering the suite lottery also 
+    <a href="{{ c.URL_BASE }}/hotel_lottery/room_lottery?id={{ application.id }}" target="_blank">enters the standard room lottery</a>
+    to maximize their chances of getting a hotel room.
+</p>
+{% endif %}
+{% if not application.room_group_name and not application.parent_application %}
+<p>
+    If you know who you are rooming with, you can 
+    <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ application.id }}&create=True" target="_blank">form a room group</a> for up to four people total.
+    Room groups are given additional weighting in the lottery. Note that in order to join a room group you must have a valid registration for {{ c.EVENT_NAME }}.
+</p>
+{% endif %}
+<p>For more options, log into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
+<ul>
+    <li><strong>Preferred Check-In/Out Dates</strong>: {{ application.earliest_suite_checkin_date.strftime('%m/%d/%Y') }} to {{ application.latest_suite_checkout_date.strftime('%m/%d/%Y') }}</li>
+    {% if application.latest_suite_checkin_date or application.earliest_suite_checkout_date %}
+    {% set acceptable_check_in_date, acceptable_check_out_date = application.shortest_suite_check_in_out_dates %}
+    <li><strong>Acceptable Check-In/Out Dates</strong>: {{ acceptable_check_in_date.strftime('%m/%d/%Y') }} to {{ acceptable_check_out_date.strftime('%m/%d/%Y') }}</li>
+    {% endif %}
+    <li><strong>Room Type Preference</strong>: {{ application.suite_type_preference_labels|readable_join }}{% if application.wants_ada %} (ADA Room Requested){% endif %}</li>
+    <li><strong>Preference Priorities</strong>: {{ application.suite_selection_priorities_labels|readable_join }}</li>
+</ul>
+</body>
+</html>

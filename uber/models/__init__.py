@@ -410,7 +410,10 @@ class MagModel:
     def _labels(self, name, val):
         ints = getattr(self, name + '_ints')
         labels = dict(self.get_field(name).type.choices)
-        return sorted(labels[i] for i in ints)
+        if len(ints) > 0 and isinstance(labels[ints[0]], dict):
+            return [labels[i].get('name', '') for i in ints]
+        else:
+            return sorted(labels[i] for i in ints)
 
     def __getattr__(self, name):
         suffixed = suffix_property.check(self, name)

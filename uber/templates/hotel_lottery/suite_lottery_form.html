@@ -1,0 +1,26 @@
+{% extends 'hotel_lottery/room_lottery_form.html' %}
+
+{% block hotel_ranking %}{% endblock %}
+
+{% block room_type_ranking %}
+<h3>{{ room_text.title() }} Type Preference</h3>
+<p>
+    {% if read_only %}Below are your selected {{ room_text }} types in order of preference.
+    {% else %}
+    Rank your choice of {{ room_text }} type by clicking and dragging rooms from "Available" to "Selected" in order of preference.
+    At least one selection is required.
+    {% endif %}
+</p>
+{{ form_macros.form_input(room_or_suite_lottery.shared_fields['room_or_suite_type_preference'], readonly=read_only) }}
+<hr/>
+{% endblock %}
+
+{% block terms %}
+{% if not read_only %}
+<div class="row g-sm-3">
+    <div class="col-12">
+        <strong>{{ form_macros.form_input(room_or_suite_lottery.suite_terms_accepted) }}</strong>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
