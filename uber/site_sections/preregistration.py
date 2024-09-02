@@ -916,7 +916,8 @@ class Root:
                         if c.ATTENDEE_ACCOUNTS_ENABLED else cart.receipt_email
                     charge = TransactionRequest(receipt_email=receipt_email,
                                                 description=cart.description,
-                                                amount=sum([receipt.current_amount_owed for receipt in receipts]))
+                                                amount=sum([receipt.current_amount_owed for receipt in receipts]),
+                                                who='non-admin')
                     message = charge.create_stripe_intent()
 
         if message:
@@ -1392,7 +1393,7 @@ class Root:
         group = session.group(id)
         receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, group.email, charge_desc)
+        charge = TransactionRequest(receipt, group.email, charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
         if message:
@@ -1701,7 +1702,7 @@ class Root:
             receipt = session.get_receipt_by_model(attendee)
             total_refunded = 0
             for txn in receipt.receipt_txns:
-                refund = TransactionRequest(receipt, amount=txn.amount_left)
+                refund = TransactionRequest(receipt, amount=txn.amount_left, who='non-admin')
                 error = refund.refund_or_skip(txn)
                 if error:
                     raise HTTPRedirect('confirm?id={}&message={}', id, error)
@@ -1998,7 +1999,7 @@ class Root:
         setattr(preview_attendee, params['col_name'], new_val)
         
         changes_list = ReceiptManager.process_receipt_change(attendee, params['col_name'],
-                                                                    new_model=preview_attendee)
+                                                             new_model=preview_attendee)
         only_change = changes_list[0] if changes_list else ("", 0, 0)
         desc, change, count = only_change
         return {'desc': desc, 'change': change}  # We don't need the count for this preview
@@ -2120,7 +2121,7 @@ class Root:
         receipt = session.model_receipt(receipt_id)
         attendee = session.attendee(id)
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, attendee.email, charge_desc)
+        charge = TransactionRequest(receipt, attendee.email, charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
         if message:
@@ -2192,7 +2193,7 @@ class Root:
         session.commit()
 
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, attendee.email, charge_desc)
+        charge = TransactionRequest(receipt, attendee.email, charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
         if message:

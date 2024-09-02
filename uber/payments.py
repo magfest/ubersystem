@@ -262,7 +262,7 @@ class PreregCart:
 class TransactionRequest:
     # TODO: Split out Stripe and AuthNet logic into their own subclasses, like SpinTerminalRequest
     def __init__(self, receipt=None, receipt_email='', description='', amount=0,
-                 method=c.STRIPE, customer_id=None, create_receipt_item=False):
+                 method=c.STRIPE, customer_id=None, create_receipt_item=False, **kwargs):
         self.amount = int(amount)
         self.receipt_email = receipt_email[0] if isinstance(receipt_email, list) else receipt_email
         self.description = description
@@ -279,6 +279,11 @@ class TransactionRequest:
             log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, "
                       f"which has {receipt.current_amount_owed} balance due.")
             self.receipt_manager = ReceiptManager(receipt)
+
+            self.receipt_manager.who = ''
+            if 'who' in kwargs:
+                self.receipt_manager.who = kwargs['who']
+
             if not self.amount:
                 self.amount = receipt.current_amount_owed
             if create_receipt_item:
@@ -1186,7 +1191,7 @@ class ReceiptManager:
                                                     txn_total=txn_total or amount,
                                                     receipt_items=self.receipt.open_receipt_items,
                                                     desc=desc,
-                                                    who=AdminAccount.admin_name() or 'non-admin'
+                                                    who=self.who or AdminAccount.admin_name() or 'non-admin'
                                                     ))
         if not intent:
             for item in self.receipt.open_receipt_items:
@@ -1203,7 +1208,7 @@ class ReceiptManager:
                                          amount=amount * -1,
                                          receipt_items=receipt.open_receipt_items,
                                          desc=desc,
-                                         who=AdminAccount.admin_name() or 'non-admin'
+                                         who=self.who or AdminAccount.admin_name() or 'non-admin'
                                          )
 
         for item in receipt.open_receipt_items:
@@ -1222,7 +1227,7 @@ class ReceiptManager:
                                    desc=desc,
                                    amount=amount,
                                    count=1,
-                                   who=AdminAccount.admin_name() or 'non-admin'
+                                   who=self.who or AdminAccount.admin_name() or 'non-admin'
                                    )
 
         self.items_to_add.append(receipt_item)
@@ -1307,7 +1312,7 @@ class ReceiptManager:
                                                 desc=desc,
                                                 amount=cost,
                                                 count=count,
-                                                who=AdminAccount.admin_name() or 'non-admin',
+                                                who=self.who or AdminAccount.admin_name() or 'non-admin',
                                                 revert_change=revert_change,
                                                 ))
             else:
@@ -1342,9 +1347,6 @@ class ReceiptManager:
         except TypeError as e:
             log.error(str(e))
             return
-        
-        log.error(cost_desc)
-        log.error(cost_change)
 
         old_val = getattr(model, col_name)
         try:
@@ -1386,7 +1388,7 @@ class ReceiptManager:
                                 desc=cost_desc,
                                 amount=cost_change,
                                 count=count,
-                                who=AdminAccount.admin_name() or 'non-admin',
+                                who=self.who or AdminAccount.admin_name() or 'non-admin',
                                 revert_change=revert_change,
                                )]
         else:
