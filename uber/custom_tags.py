@@ -380,13 +380,14 @@ def form_link(model, new_window=False, prepend=''):
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
     name = getattr(model, 'name', getattr(model, 'full_name', getattr(model, 'email', model)))
+    extra_html = ' target="_blank"' if new_window and page != '#attendee_form' else ''
 
     if site_section or cls == Attendee and page == '#attendee_form':
         return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(
                                                            site_section,
                                                            page,
                                                            model.id,
-                                                           ' target="_blank"' if new_window else '',
+                                                           extra_html,
                                                            prepend + escape(name)))
     return name
 

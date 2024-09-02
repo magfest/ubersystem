@@ -118,6 +118,11 @@ loadForm("{{ tab_view }}");
             <button class="btn btn-info" onClick="refreshTab()">
             Refresh&nbsp;<i class="fa fa-refresh"></i>
             </button>
+            {% if c.HAS_REGISTRATION_ACCESS %}
+            <a class="btn btn-secondary" href="../registration/form?id={{ attendee.id }}" target="_blank">
+              Open Full Profile&nbsp;<i class="fa fa-external-link"></i>
+            </a>
+            {% endif %}
           </li>
       </ul>
       {% endif %}

@@ -39,7 +39,7 @@
             {% elif model.attendee %}
             <td data-order="{{ model.attendee.full_name }}" data-search="{{ model.attendee.full_name }}">
             {% endif %}
-              {{ model|form_link }}
+              {{ model|form_link(new_window=True) }}
             </td>
             <td>
               {{ refund.added|datetime_local }}
