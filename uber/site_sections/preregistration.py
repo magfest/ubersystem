@@ -1794,7 +1794,14 @@ class Root:
 
     @requires_account()
     def homepage(self, session, message='', **params):
-        account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
+        if 'id' in params:
+            admin = session.current_admin_account()
+            if admin.full_registration_admin:
+                account = session.attendee_account(params['id'])
+            else:
+                raise HTTPRedirect('homepage?message={}', "Only full registration admins can see attendee homepages.")
+        else:
+            account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
         attendees_who_owe_money = {}
         for attendee in account.attendees:
@@ -1815,6 +1822,7 @@ class Root:
             raise HTTPRedirect('../landing/index')
 
         return {
+            'id': params.get('id'),
             'message': message,
             'homepage_account': account,
             'account_attendee': account_attendee,

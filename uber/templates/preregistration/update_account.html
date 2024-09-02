@@ -1,4 +1,5 @@
 {% import "forms/account.html" as account_fields with context %}
+<div class="form-text text-start">Logged in as: {{ homepage_account.email }}</div>
 <div class="row g-sm-3">
     <div class="col-4">
         {% if not homepage_account.is_sso_account %}
@@ -13,7 +14,7 @@
         {% endif %}
     </div>
     <div class="col-4">
-        <a href="../preregistration/logout" class="btn btn-danger pull-right">
+        <br/><a href="../preregistration/logout" class="btn btn-danger pull-right">
             <i class="fa fa-log-out"></i> Log Out
         </a>
     </div>
