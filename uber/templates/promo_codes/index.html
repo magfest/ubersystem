@@ -17,7 +17,45 @@ table form {
 }
 </style>
 
-<script>
+<script type="text/javascript">
+  var updateAll = function() {
+    let bigData = ''
+    $('[id^=update_promo_code_]').each(function() {
+      let serializedData = new URLSearchParams($(this).serialize());
+
+      if (bigData == '') {
+        bigData = 'csrf_token=' + serializedData.get('csrf_token')
+      }
+
+      bigData = bigData + '&id=' + serializedData.get('id')
+
+      for (const [key, value] of serializedData) {
+        if (key != 'csrf_token' && key != 'id') {
+          bigData = bigData + '&' + key + '_' + serializedData.get('id') + '=' + value
+        }
+      }
+    })
+    $.ajax({
+      method: 'POST',
+      url: 'update_all',
+      dataType: 'json',
+      data: bigData,
+      success: function (json) {
+        hideMessageBox();
+        var message = json.message;
+        if (json.success) {
+          $("#message-alert").addClass("alert-info").show().children('span').html(message);
+          window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+        } else {
+          showErrorMessage(message);
+        }
+      },
+      error: function () {
+          showErrorMessage('Unable to connect to server, please try again.');
+      }
+    });
+  }
+
 $(document).ready(function() {
     $('table').on('click', '.delete-button', function(event) {
         event.preventDefault();
@@ -79,7 +117,7 @@ $(document).ready(function() {
   </div>
 </div>
 <div class="table-responsive">
-  <table id="promo_code_list" class="table table-striped datatable form-horizontal">
+  <table id="promo_code_list" class="table table-striped datatable">
     <thead>
       <tr>
         <th>Promo Code</th>
@@ -132,7 +170,9 @@ $(document).ready(function() {
           {% endfor %}
         </td>
         {% if show == 'admin' %}
-        <td>{{ promo_code.admin_notes }}</td>
+        <td>
+          <input type="text" form="update_promo_code_{{ promo_code.id }}" name="admin_notes" class="form-control" size="30" placeholder="E.g., intended usage, department" value="{{ promo_code.admin_notes }}">
+        </td>
         {% else %}
         <td>
           <a href="promo_code_group_form?id={{ promo_code.group.id }}" target="_blank">{{ promo_code.group.name }}</a>
@@ -164,6 +204,11 @@ $(document).ready(function() {
       {% endfor %}
     </tbody>
   </table>
+<div class="row g-sm-3 justify-content-end mt-1">
+  <div class="col col-auto">
+    <button type="button" class="btn btn-primary" onClick="updateAll()">Update All</button>
+  </div>
+</div>
 </div>
 </div>
 {% endblock %}
