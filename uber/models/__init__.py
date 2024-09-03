@@ -1163,14 +1163,14 @@ class Session(SessionManager):
 
             return "", c.TERMINAL_ID_TABLE[lookup_key]
 
-        def get_receipt_by_model(self, model, include_closed=False, create_if_none=""):
+        def get_receipt_by_model(self, model, include_closed=False, who='', create_if_none=""):
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
                 receipt_select = receipt_select.filter(ModelReceipt.closed == None)  # noqa: E711
             receipt = receipt_select.first()
 
             if not receipt and create_if_none:
-                receipt, receipt_items = ReceiptManager.create_new_receipt(model, create_model=True)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(model, who=who, create_model=True)
 
                 self.add(receipt)
                 if create_if_none != "BLANK":

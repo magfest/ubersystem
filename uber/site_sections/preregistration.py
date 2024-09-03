@@ -454,7 +454,7 @@ class Root:
                     if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
                         form['legal_name'].data = ''
                     form.populate_obj(attendee)
-                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, create_model=True)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
                 session.add(receipt)
                 session.add_all(receipt_items)
 
@@ -772,7 +772,7 @@ class Root:
                 session.add_attendee_to_account(attendee, account)
             else:
                 session.add(attendee)
-            receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, create_model=True)
+            receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
             session.add(receipt)
             session.add_all(receipt_items)
             total_cost = sum([(item.amount * item.count) for item in receipt_items])
@@ -797,7 +797,7 @@ class Root:
         if cart.total_cost <= 0:
             used_codes = defaultdict(int)
             for attendee in cart.attendees:
-                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, create_model=True)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
                 session.add(receipt)
                 session.add_all(receipt_items)
 
@@ -875,7 +875,9 @@ class Root:
             if not message:
                 receipts = []
                 for model in cart.models:
-                    charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model, create_model=True)
+                    charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model,
+                                                                                             who='non-admin',
+                                                                                             create_model=True)
                     existing_receipt = session.refresh_receipt_and_model(model, is_prereg=True)
                     if existing_receipt:
                         # Multiple attendees can have the same transaction during pre-reg,
@@ -1036,7 +1038,7 @@ class Root:
                 for item in txn.receipt_items:
                     for col_name in item.revert_change:
                         receipt_items = ReceiptManager.process_receipt_change(
-                            model, col_name, receipt=receipt, new_model=new_model)
+                            model, col_name, who='non-admin', receipt=receipt, new_model=new_model)
                         session.add_all(receipt_items)
                         model.apply(item.revert_change, restricted=False)
             if not txn.charge_id:
@@ -1371,7 +1373,7 @@ class Root:
                 session.add_attendee_to_account(attendee, session.current_attendee_account())
 
             if not receipt:
-                new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                new_receipt = session.get_receipt_by_model(attendee, who='non-admin', create_if_none="DEFAULT")
                 if new_receipt.current_amount_owed and not new_receipt.pending_total:
                     raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=confirm')
             raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
@@ -1391,7 +1393,7 @@ class Root:
     @credit_card
     def process_group_payment(self, session, id):
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
+        receipt = session.get_receipt_by_model(group, who='non-admin', create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, group.email, charge_desc, who='non-admin')
 
@@ -1490,7 +1492,7 @@ class Root:
         return {
             'count': count,
             'group': group,
-            'receipt': session.get_receipt_by_model(group, create_if_none="DEFAULT"),
+            'receipt': session.get_receipt_by_model(group, who='non-admin', create_if_none="DEFAULT"),
             'message': message,
         }
 
@@ -2007,6 +2009,7 @@ class Root:
         setattr(preview_attendee, params['col_name'], new_val)
         
         changes_list = ReceiptManager.process_receipt_change(attendee, params['col_name'],
+                                                             who='non-admin',
                                                              new_model=preview_attendee)
         only_change = changes_list[0] if changes_list else ("", 0, 0)
         desc, change, count = only_change
@@ -2153,7 +2156,7 @@ class Root:
         attendee = session.attendee(id)
         return {
             'attendee': attendee,
-            'receipt': session.get_receipt_by_model(attendee, create_if_none="DEFAULT"),
+            'receipt': session.get_receipt_by_model(attendee, who='non-admin', create_if_none="DEFAULT"),
             'return_to': return_to,
             'message': message,
         }
@@ -2170,7 +2173,7 @@ class Root:
             receipt.closed = datetime.now()
             session.add(receipt)
 
-            new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+            new_receipt = session.get_receipt_by_model(attendee, who='non-admin', create_if_none="DEFAULT")
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if new_receipt.current_amount_owed:
                 raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
@@ -2194,7 +2197,7 @@ class Root:
         if session.get_receipt_by_model(attendee):
             return {'error': 'You have outstanding purchases. Please refresh the page to pay for them.'}
 
-        receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, create_model=True)
+        receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
         session.add(receipt)
         session.add_all(receipt_items)
 

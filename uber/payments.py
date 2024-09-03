@@ -1238,7 +1238,7 @@ class ReceiptManager:
         self.items_to_add.append(txn)
 
     @classmethod
-    def create_new_receipt(cls, model, create_model=False):
+    def create_new_receipt(cls, model, who='', create_model=False):
         """
         Iterates through the cost_calculations for this model and returns a list containing
         all non-null cost and credit items.
@@ -1312,7 +1312,7 @@ class ReceiptManager:
                                                 desc=desc,
                                                 amount=cost,
                                                 count=count,
-                                                who=self.who or AdminAccount.admin_name() or 'non-admin',
+                                                who=who or AdminAccount.admin_name() or 'non-admin',
                                                 revert_change=revert_change,
                                                 ))
             else:
@@ -1322,7 +1322,7 @@ class ReceiptManager:
 
 
     @classmethod
-    def process_receipt_change(cls, model, col_name, new_model, receipt=None, count=1, revert_change={}):
+    def process_receipt_change(cls, model, col_name, new_model, receipt=None, who='', count=1, revert_change={}):
         from uber.models import AdminAccount, ReceiptItem, Group
         from uber.models.types import Choice
 
@@ -1388,7 +1388,7 @@ class ReceiptManager:
                                 desc=cost_desc,
                                 amount=cost_change,
                                 count=count,
-                                who=self.who or AdminAccount.admin_name() or 'non-admin',
+                                who=who or AdminAccount.admin_name() or 'non-admin',
                                 revert_change=revert_change,
                                )]
         else:
