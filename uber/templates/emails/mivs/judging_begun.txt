@@ -1,16 +1,23 @@
 Ahoy {{ judge.attendee.first_name }},
 
-Judging for this year's MIVS Entries has begun!  
+Judging for this year's MIVS entries has begun!  
 
-This year, games you're assigned to judge should match the platforms that you set.  To properly judge your entries, you should play at least 15 minutes to make sure you've seen enough to provide a just score. You can also provide optional feedback to the developers. We will try to share your feedback with them, so please leave constructive notes. 
+Games you're assigned to judge should match the platforms that you set. If you do not have the appropriate platform for a game assigned to you, please reach out to {{ c.MIVS_EMAIL|email_only }} and we will swap it out.
+
+To properly judge your entries, you should play at least 15 minutes to make sure you've seen enough to provide a just score. 
+
+You'll be giving the games a score from 1-10 based on three categories:
+Show Readiness - How ready the game appears to be when shown to the public. This means the degree of visual and audible asset completion as well any programming bugs.
+Overall Design - How well the judge feels that the game addresses its own central concept. (i.e. If it is a puzzle game, are the puzzles good? If it is a narrative-driven game, is the story compelling?)
+Overall Enjoyment - How enjoyable was the game? Did it keep you on your toes, make you laugh, push your reflexes to the limit?
+
+You can also provide optional feedback to the developers. We will try to share your feedback with them, so please leave constructive notes. Notes should NOT include the actual score given or any notes to the MIVS staff. Feedback for the MIVS staff can be emailed to us directly at {{ c.MIVS_EMAIL|email_only }}.
 
 Let us know if you have any problems with your entries that may prevent you from scoring fairly.  This may include a game that requires more controllers than you own, or one where you know the developers. Just drop us a note, and we'll swap out your entries. If you finish your entries and would like "extra credit", we're happy to hook you up with more!
 
-The final date we can accept judging is {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}.  But, we are encouraging you to finish by {{ c.SOFT_MIVS_JUDGING_DEADLINE|datetime_local }}, which will help us tablulate scores on time.  
+The final date we can accept judging is {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}. But, we are encouraging you to finish by {{ c.SOFT_MIVS_JUDGING_DEADLINE|datetime_local }}, which will help us tablulate scores on time.  
 
-NOTE: There will be a section in your judging page talking about Video judging.  You can disregard this entire section. 
-
-If you find you don't have the time to judge your entries, it's ok!  Just let us know ASAP so we can assign replacements.
+If you find you don't have the time to judge your entries, it's ok! Just let us know ASAP so we can assign replacements.
 
 You can begin judging at: {{ c.URL_BASE }}/mivs_judging
 
