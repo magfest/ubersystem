@@ -7,7 +7,16 @@
     {% include 'barcode_client.html' %}
   {% endif %}
   <style> .badge_count { margin-left: 15px; } </style>
-  <script>
+  <script type="text/javascript">
+    var invertShowAll = function() {
+      {% if invalid %}
+      $('#search_invalid').val('');
+      {% else %}
+      $('#search_invalid').val('1');
+      {% endif %}
+      $('#search_form').submit();
+    }
+
     $(function() {
       $('#search_bar').select();
 
@@ -85,26 +94,34 @@
 {% endblock adminheader %}
 {% block admin_controls %}
 <div class="row g-sm-3 row-cols-auto">
-    <div class="col-12 col-sm-6 col-md-4">
+    <div class="col-12 col-sm-6 col-md-5">
       <form role="form" method="get" action="index" id="search_form">
+        <div class="row g-sm-1 row-cols-auto">
+          <div class="col flex-grow-1">
             <input type="hidden" name="order" value="{{ order }}" />
-            <input type="hidden" name="invalid" value="{{ invalid }}" />
+            <input type="hidden" name="invalid" id="search_invalid" value="{{ invalid }}" />
             <div class="input-group">
                 <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
                 <button class="btn btn-outline-secondary" type="submit">
                     <i class="fa fa-search"></i>
                 </button>
             </div>
+          </div>
+          <div class="col col-auto">
+            <button type="button" class="btn btn-info" onClick="invertShowAll()">
+              {% if invalid %}
+                Hide Invalid Badges
+              {% else %}
+                Show All Badges
+              {% endif %}
+            </button>
+          </div>
+        </div>
         </form>
     </div>
 
     <div class="col flex-grow-1">
         <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
-        {% if invalid  %}
-            <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hide Invalid Badges</a>
-        {% else %}
-            <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid=True">Show All Badges</a>
-        {% endif %}
 
         {% if c.HAS_REG_ADMIN_ACCESS and search_results and attendees %}
         <a class="btn btn-success" href="#" onClick="exportSearch()">Export Current Search</a>
