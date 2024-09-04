@@ -73,7 +73,16 @@ class RoomLottery(MagForm):
         'Preference Priorities', coerce=int, choices=c.HOTEL_LOTTERY_ROOM_PRIORITIES_OPTS,
         widget=Ranking(c.HOTEL_LOTTERY_ROOM_PRIORITIES_OPTS))
     wants_ada = BooleanField('I would like to request an ADA room.', default=False)
-    ada_requests = TextAreaField('Requested Accommodations')
+    ada_requests = TextAreaField('Requested Accommodations',
+                                 validators=[validators.DataRequired("Please explain some of the ADA accommodations you will require.")])
+    
+    def get_optional_fields(self, attendee, is_admin=False):
+        optional_list = super().get_optional_fields(attendee, is_admin)
+
+        if not attendee.wants_ada:
+            optional_list.append('ada_requests')
+
+        return optional_list
 
     @property
     def shared_fields(self):
