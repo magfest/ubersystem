@@ -46,11 +46,13 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 {% block check_in_out_dates %}
 {% set room_requirements = app_or_parent.suite_requirements_str if 'suite_lottery' in forms else app_or_parent.room_requirements_str %}
+{% set has_acceptable_checkin_date = app_or_parent.latest_suite_checkin_date if 'suite_lottery' in forms else app_or_parent.latest_room_checkin_date %}
+{% set has_acceptable_checkout_date = app_or_parent.earliest_suite_checkout_date if 'suite_lottery' in forms else app_or_parent.earliest_room_checkout_date %}
 <h3>Check-In and Check-Out Dates</h3>
 <p>
     Rooms are available from {{ c.HOTEL_LOTTERY_CHECKIN_START|full_date_local }} to {{ c.HOTEL_LOTTERY_CHECKOUT_END|full_date_local }}. {{ room_requirements }}
 </p>
-{% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date or not read_only %}
+{% if has_acceptable_checkin_date or has_acceptable_checkout_date or not read_only %}
 {% if read_only %}Below are your{% else %}Enter your{% endif %}
     <strong>preferred dates</strong> and <strong>acceptable dates</strong> for check-in and check-out{% if not read_only %} below{% endif %}. We use the acceptable dates as a backup in case the full range of preferred dates isn't available when your entry is drawn.
 </p>
@@ -64,12 +66,12 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['earliest_checkin_date'], readonly=read_only) }}</div>
     <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['latest_checkout_date'], readonly=read_only) }}</div>
 </div>
-{% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date or not read_only %}
+{% if has_acceptable_checkin_date or has_acceptable_checkout_date or not read_only %}
 <div class="row g-sm-3 mb-3">
-    {% if app_or_parent.latest_checkin_date or not read_only %}
+    {% if has_acceptable_checkin_date or not read_only %}
     <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['latest_checkin_date'], readonly=read_only) }}</div>
     {% endif %}
-    {% if app_or_parent.earliest_checkout_date or not read_only %}
+    {% if has_acceptable_checkout_date or not read_only %}
     <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['earliest_checkout_date'], readonly=read_only) }}</div>
     {% endif %}
 </div>
@@ -98,7 +100,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     {% if read_only %}The list below determines{% else %}Rank the options below to determine{% endif %}
     how we'll prioritize your ranked choices and preferred dates.
     This ranking only applies if your entry has multiple options for a given category, as we can only work within the options that {% if application.parent_application %}your group leader specifies{% else %}you specify{% endif %} as acceptable.</p>
-{% if not read_only %}<p>Please rank all preferences even if you've only selected a single option for a category, in case you add more options to your lottery entry later.</p>{% endif %}
 {% include 'hotel_lottery/priorities_example.html' with context %}
 {{ form_macros.form_input(room_or_suite_lottery.shared_fields['selection_priorities'], readonly=read_only) }}
 {% endblock %}

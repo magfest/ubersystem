@@ -1,10 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
-{% set title_text = "Hotel Lottery Application" %}
+{% set title_text = "Hotel Lottery Application for " ~ attendee.full_name %}
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 
 {% block content %}
-<h1>{{ c.EVENT_NAME }} Hotel Lottery</h1>
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ attendee.full_name }}</span></h1>
 <div class="card">
     <div class="card-body">
         <p>
@@ -26,7 +26,7 @@
             Once your entry is complete, you'll receive an email with the entry details. You can return to this page at any time to edit your entry, manage a room group, or join or leave a room group.
         </p>
 
-        <p><a class="btn btn-primary" href="terms?attendee_id={{ attendee_id }}">Continue</a></p>
+        <p><a class="btn btn-primary" href="terms?attendee_id={{ attendee.id }}">Continue</a></p>
     </div>
 </div>
 {% endblock %}

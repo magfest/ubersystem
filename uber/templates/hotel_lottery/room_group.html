@@ -1,5 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
-{% set title_text = "Hotel Lottery Application" %}
+{% set title_text = "Hotel Lottery Application for " ~ application.attendee.full_name %}
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set lottery_room_group = lottery_room_group or forms['lottery_room_group'] %}
@@ -97,6 +97,33 @@
         });
     }
 
+    joinConfirm = function(event) {
+        var formToSubmit = this;
+        event.preventDefault();
+        bootbox.confirm({
+            title: "Join Room Group?",
+            message: "<p>This will withdraw your current lottery entries.</p>" + 
+                     "<p>You will ONLY be entered for the suite and/or room lottery if your group has an entry for it. " +
+                     "You will be able to view your group's lottery entries on your lottery options page.</p>" +
+                     "<p>Are you sure you want to join this group?</p>",
+            buttons: {
+                confirm: {
+                    label: 'Yes, Join Group',
+                    className: 'btn-success'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    formToSubmit.submit();
+                }
+            }
+        });
+    }
+
     leaveConfirm = function(event){
         var formToSubmit = this;
         event.preventDefault();
@@ -104,7 +131,7 @@
             title: "Leave Room Group?",
             message: "<p>This will remove you from the group's lottery entry.</p>" + 
                      "<p>The group leader will be notified via email. " +
-                     "You will be reverted to any entries you had before joining the group.</p>" +
+                     "You will be reverted to any lottery entries you had before joining the group.</p>" +
                      "<p>Are you sure?</p>",
             buttons: {
                 confirm: {
@@ -135,11 +162,15 @@
 
         $("#remove-member").submit(removeConfirm);
         if($('#disband-group').length) { $("#disband-group").submit(disbandConfirm); }
+
+        {% if application.wants_room or application.wants_suite %}
+        $("#join-group-form").submit(joinConfirm);
+        {% endif %}
         if($('#leave-group').length) { $("#leave-group").submit(leaveConfirm); }
     })
 </script>
 
-<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery</h1>
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
 <div class="card">
     <div class="card-body">
         <div id="select-action" class="collapse">
@@ -214,17 +245,20 @@
                 </form>
             {% else %}
                 <h2>Room Group Information</h2>
-                {% include 'hotel_lottery/room_group_info.html' %}
+                {% include 'hotel_lottery/room_group_info.html' with context %}
 
+                {% if not application.can_create_group %}
+                <p class="mb-0">
+                    <button class="btn btn-primary" onClick="setStep('#join-group')">Continue</button>
+                {% else %}
                 <h2>Room Group Options</h2>
                 <p class="mb-0">
                 <button class="btn btn-primary" onClick="setStep('#join-group')">Join Room Group</button>
-                {% if application.wants_room or application.wants_suite %}
                 <button class="btn btn-info" onClick="setStep('#create-group')">Create Room Group</button>
                 {% endif %}
                 <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
+                </p>
             {% endif %}
-            </p>
         </div>
         <div id="join-group" class="collapse">
             <h2>Join Room Group <button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button></h2>
@@ -244,7 +278,7 @@
                     We found the group "<span class='group-name'></span>" (invite code <strong><span class='invite-code'></span></strong>).
                     This group's group leader is <span class='leader-name'></span> They will be able to see your first and last name ({{ application.attendee.full_name }}).
                 </p>
-                <form method="post" action="join_group">
+                <form method="post" action="join_group" id="join-group-form">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     <input type="hidden" id="room_group_id" name="room_group_id" value="">
                     <div class="row g-sm-3">

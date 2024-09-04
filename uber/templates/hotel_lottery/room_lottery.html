@@ -1,5 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
-{% set title_text = "Hotel Room Lottery Application" %}
+{% set title_text = "Hotel Room Lottery Application for " ~ application.attendee.full_name %}
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set room_lottery = room_lottery or forms['room_lottery'] %}
@@ -16,9 +16,14 @@
         backdrop: true,
         title: 'Withdraw From Room Lottery?',
         message: '<p>Are you sure you want to withdraw from the room lottery?</p>' +
-            '<p>This will <strong>delete your lottery entry</strong>. Unless you join a room group ' +
-            'or re-enter the lottery, you will not be eligible for a standard room booking.</p>',
-            {% if application.group_members %} + '<p>Your group members will be notified of the cancellation.</p>'{% endif %}
+            '<p>This will <strong>delete your lottery entry</strong>. ' +
+            {% if application.group_members %}
+            'Unless you re-enter the lottery, you and your group members ' +
+            {% else %}
+            'Unless you join a room group or re-enter the lottery, you ' +
+            {% endif %}
+            'will not be eligible for a standard room booking.</p>'
+            {% if application.group_members %} + '<p>Your group members will be notified of the cancellation.</p>'{% endif %},
         buttons: {
             confirm: { label: 'Yes, Withdraw', className: 'btn-danger' },
             cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
@@ -36,8 +41,7 @@
     });
 </script>
 {% endif %}
-
-<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery</h1>
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
 <div class="card">
     <div class="card-body">
         {% if not read_only %}

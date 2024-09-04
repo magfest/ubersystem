@@ -540,28 +540,3 @@ class Root:
 
             raise HTTPRedirect('room_group?id={}&message={}', application.id,
                                f'Successfully left the room group "{room_group.room_group_name}".')
-
-    @cherrypy.expose('post_form')
-    @requires_account()
-    def form(self, session, attendee_id, message="", **params):
-        if id:
-            attendee = session.attendee(attendee_id)
-        else:
-            attendee = session.attendee()
-        application = session.query(LotteryApplication).filter(LotteryApplication.attendee_id == attendee.id).one_or_none()
-        if not application:
-            application = LotteryApplication(attendee_id=attendee.id)
-            
-        forms_list = ["LotteryInfo", "RoomLottery", "SuiteLottery"]
-        forms = load_forms(params, application, forms_list)
-        for form in forms.values():
-            form.populate_obj(application)
-        if cherrypy.request.method == 'POST':
-            session.add(application)
-            session.commit()
-        return {
-            'id': id,
-            'forms': forms,
-            'message': message,
-            'application': application
-        }

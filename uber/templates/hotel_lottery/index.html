@@ -1,5 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
-{% set title_text = "Hotel Lottery Application" %}
+{% set title_text = "Hotel Lottery Application for " ~ application.attendee.full_name %}
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set lottery_info = lottery_info or forms['lottery_info'] %}
@@ -40,18 +40,22 @@
     })
 </script>
 
-<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery</h1>
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
 <div class="card">
     <div class="card-body">
         <div id="select-action" class="collapse">
-            <p>You currently {{ application.current_status_str }}.{% if application.wants_suite and not application.wants_room %} We <strong>strongly</strong> recommend also entering the room lottery.{% endif %}</p>
+            <p>
+                You currently {{ application.current_status_str }}.
+                {% if not application.parent_application and application.wants_suite and not application.wants_room %}We <strong>strongly</strong> recommend also entering the room lottery.{% endif %}
+                {% if not application.has_any_entry %}Use the buttons below to join a room group or enter the room and/or suite lottery.{% endif %}
+            </p>
 
             <p>The hotel lottery form will close at <strong>{{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</strong>.</p>
 
             {% block additional_lottery_info %}{% endblock %}
 
             <h2>Lottery Options</h2>
-            <p class="mb-0">
+            <p>
                 <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
 
                 <a class="btn btn-primary" href="room_group?id={{ application.id }}">
@@ -60,7 +64,7 @@
                     {% elif application.parent_application %}
                     View Room Group
                     {% else %}
-                    Join or Create Room Group
+                    Join {% if application.can_create_group %}or Create {% endif %}Room Group
                     {% endif %}
                 </a>
                 {% set view_or_edit = "View Your Group's" if application.parent_application else "Edit" %}
@@ -75,6 +79,9 @@
                 </a>
                 {% endif %}
             </p>
+
+            {% if not application.can_create_group %}<p>You are currently not eligible to create a group. Use the buttons above to create a room or suite lottery entry first.</p>{% endif %}
+            
         </div>
         <div id="confirm" class="collapse">
             <h2>{{ confirm.title() }} Lottery Entry {{ action.title() }}</h2>

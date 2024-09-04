@@ -199,6 +199,10 @@ class LotteryApplication(MagModel):
     def has_any_entry(self):
         return self.parent_application or self.wants_room or self.wants_suite
 
+    @property
+    def can_create_group(self):
+        return self.wants_room or self.wants_suite
+
     def build_nights_map(self, check_in, check_out):
         if isinstance(check_in, datetime):
             check_in = check_in.date()
