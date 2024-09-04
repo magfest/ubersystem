@@ -326,6 +326,7 @@ class Root:
                 return {"error": "There was an issue with the form. Please refresh and try again."}
         else:
             application = session.lottery_application(params.get('id'))
+            attendee = application.attendee
 
         if not form_list:
             form_list = ["LotteryInfo"]
@@ -334,6 +335,10 @@ class Root:
         forms = load_forms(params, application, form_list, get_optional=False)
 
         all_errors = validate_model(forms, application, LotteryApplication(**application.to_dict()))
+        check_date = params.get('earliest_suite_checkin_date', params.get('earliest_room_checkin_date', ''))
+        if attendee.birthdate and check_date and get_age_from_birthday(attendee.birthdate,
+                                                                       check_date) < 21:
+            all_errors[''].append("You must be at least 21 on your preferred check-in date.")
         if all_errors:
             return {"error": all_errors}
 
