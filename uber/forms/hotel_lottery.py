@@ -1,20 +1,10 @@
-import cherrypy
-from datetime import date
-
-from markupsafe import Markup
-from wtforms import (BooleanField, DateField, EmailField,
-                     HiddenField, SelectField, SelectMultipleField, IntegerField,
-                     StringField, TelField, validators, TextAreaField)
-from wtforms.validators import ValidationError, StopValidation
+from wtforms import (BooleanField, DateField, SelectMultipleField,
+                     StringField, validators, TextAreaField)
+from wtforms.validators import ValidationError
 
 from uber.config import c
-from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, CustomValidation, Ranking)
-from uber.custom_tags import popup_link
-from uber.badge_funcs import get_real_badge_type
-from uber.models import Attendee, Session, PromoCodeGroup
-from uber.model_checks import invalid_phone_number
-from uber.utils import get_age_conf_from_birthday
+from uber.forms import (MagForm, CustomValidation, Ranking)
+from uber.custom_tags import readable_join
 
 
 __all__ = ['LotteryInfo', 'RoomLottery', 'SuiteLottery', 'LotteryRoomGroup']
@@ -124,9 +114,28 @@ class RoomLottery(MagForm):
                                   later than your preferred check-out date.")
 
     @field_validation.room_selection_priorities
-    def all_options_ranked(form, field):
-        if len(field.data) < len(c.HOTEL_LOTTERY_ROOM_PRIORITIES_OPTS):
-            raise ValidationError("Please rank all priorities for selecting a hotel room.")
+    def correct_options_ranked(form, field):
+        include_list = []
+        throw_error = 0
+
+        if len(form.hotel_preference.data) > 1:
+            include_list.append("hotel preference")
+            if c.HOTEL_LOTTERY_HOTEL not in field.data:
+                throw_error += 1
+
+        if form.latest_room_checkin_date.data or form.earliest_room_checkout_date.data:
+            include_list.append("check-in and check-out dates")
+            if c.HOTEL_LOTTERY_DATES not in field.data:
+                throw_error += 1
+        
+        if len(form.room_type_preference.data) > 1:
+            include_list.append("room type preference")
+            if c.HOTEL_LOTTERY_ROOM not in field.data:
+                throw_error += 1
+
+        if throw_error > 1:
+            raise ValidationError(
+                f"Please include {readable_join(include_list)} in your list of ranked priorities for selecting a hotel room.")
 
 
 class SuiteLottery(MagForm):
@@ -201,6 +210,20 @@ class SuiteLottery(MagForm):
                                   later than your preferred check-out date.")
         
     @field_validation.suite_selection_priorities
-    def all_options_ranked(form, field):
-        if len(field.data) < len(c.HOTEL_LOTTERY_SUITE_PRIORITIES_OPTS):
-            raise ValidationError("Please rank all priorities for selecting a hotel suite.")
+    def correct_options_ranked(form, field):
+        include_list = []
+        throw_error = False
+
+        if form.latest_suite_checkin_date.data or form.earliest_suite_checkout_date.data:
+            include_list.append("check-in and check-out dates")
+            if c.HOTEL_LOTTERY_DATES not in field.data:
+                throw_error = True
+        
+        if len(form.room_type_preference.data) > 1:
+            include_list.append("room type preference")
+            if c.HOTEL_LOTTERY_ROOM not in field.data:
+                throw_error = True
+
+        if throw_error:
+            raise ValidationError(
+                f"Please include {readable_join(include_list)} in your list of ranked priorities for selecting a hotel suite.")

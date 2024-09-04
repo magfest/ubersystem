@@ -1591,7 +1591,10 @@ for key in ["hotels", "room_types", "suite_room_types", "room_priorities", "suit
     for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
         if isinstance(item, dict):
             item.__hash__ = lambda x: hash(x.name + x.description)
-            opts.append((int(sha512(name.upper().encode()).hexdigest()[:7], 16), item))
+            base_key = f"HOTEL_LOTTERY_{name.upper()}"
+            dict_key = int(sha512(base_key.encode()).hexdigest()[:7], 16)
+            setattr(c, base_key, dict_key)
+            opts.append((dict_key, item))
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
