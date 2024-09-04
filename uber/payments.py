@@ -280,7 +280,6 @@ class TransactionRequest:
                       f"which has {receipt.current_amount_owed} balance due.")
             self.receipt_manager = ReceiptManager(receipt)
 
-            self.receipt_manager.who = ''
             if 'who' in kwargs:
                 self.receipt_manager.who = kwargs['who']
 
@@ -1169,6 +1168,7 @@ class ReceiptManager:
     def __init__(self, receipt=None, **params):
         self.receipt = receipt
         self.items_to_add = []
+        self.who = ''
 
     def create_payment_transaction(self, desc='', intent=None, amount=0, txn_total=0, method=c.STRIPE):
         from uber.models import AdminAccount, ReceiptTransaction
@@ -1395,7 +1395,7 @@ class ReceiptManager:
             return [(cost_desc, cost_change, count)]
 
     @classmethod
-    def auto_update_receipt(self, model, receipt, params):
+    def auto_update_receipt(self, model, receipt, params, who=''):
         from uber.models import Attendee, Group, ArtShowApplication, Session
         if not receipt:
             return []
@@ -1429,8 +1429,8 @@ class ReceiptManager:
 
             if new_cost != current_cost:
                 items = self.process_receipt_change(old_model,
-                                                           'overridden_price' if overridden_unset else 'cost',
-                                                           model, receipt, revert_change=revert_change)
+                                                    'overridden_price' if overridden_unset else 'cost',
+                                                    model, receipt, who=who, revert_change=revert_change)
                 if items:
                     for receipt_item in items:
                         if receipt_item.amount != 0:
@@ -1438,7 +1438,7 @@ class ReceiptManager:
 
         if not params.get('no_override') and params.get('overridden_price', None) not in [None, '']:
             new_model.overridden_price = int(params.get('overridden_price') or 0)
-            items = self.process_receipt_change(model, 'overridden_price', new_model, receipt)
+            items = self.process_receipt_change(model, 'overridden_price', new_model, receipt, who=who)
             return items if items else []
         elif params.get('no_override'):
             params.pop('overridden_price')
@@ -1446,7 +1446,7 @@ class ReceiptManager:
         if not params.get('auto_recalc') and isinstance(model, Group):
             new_model.cost = int(params.get('cost') or 0)
             new_model.auto_recalc = False
-            items = self.process_receipt_change(model, 'cost', new_model, receipt)
+            items = self.process_receipt_change(model, 'cost', new_model, receipt, who=who)
             return items if items else []
         else:
             params.pop('cost', None)
@@ -1455,7 +1455,7 @@ class ReceiptManager:
                                                                             None) is None:
             new_model.power_fee = int(params.get('power_fee') or 0)
             new_model.power = int(params.get('power') or 0)
-            items = self.process_receipt_change(model, 'power_fee', new_model, receipt)
+            items = self.process_receipt_change(model, 'power_fee', new_model, receipt, who=who)
             receipt_items += items if items else []
             params.pop('power')
             params.pop('power_fee')
@@ -1475,7 +1475,7 @@ class ReceiptManager:
                     setattr(new_model, 'promo_code', None)
                     with Session() as session:
                         session.add_promo_code_to_attendee(new_model, val)
-                        items = self.process_receipt_change(model, key, new_model, receipt)
+                        items = self.process_receipt_change(model, key, new_model, receipt, who=who)
                         if items:
                             for receipt_item in items:
                                 if receipt_item.amount != 0:
@@ -1492,7 +1492,7 @@ class ReceiptManager:
             changed_params.append('birthdate')
 
         for param in changed_params:
-            items = self.process_receipt_change(model, param, new_model, receipt)
+            items = self.process_receipt_change(model, param, new_model, receipt, who=who)
             if items:
                 for receipt_item in items:
                     if receipt_item.amount != 0:

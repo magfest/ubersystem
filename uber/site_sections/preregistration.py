@@ -2028,8 +2028,8 @@ class Root:
             return {'error': "You already have an outstanding balance, please refresh the page to pay \
                     for your current items or contact {}".format(email_only(c.REGDESK_EMAIL))}
 
-        receipt_items = ReceiptManager.auto_update_receipt(attendee,
-                                                           session.get_receipt_by_model(attendee), params.copy())
+        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee),
+                                                           params.copy(), who='non-admin')
         if not receipt_items:
             return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
         session.add_all(receipt_items)
