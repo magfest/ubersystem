@@ -24,17 +24,22 @@ def convert_dealer_badge(session, attendee, admin_note=''):
 
     receipt = session.get_receipt_by_model(attendee)
     receipt_items = []
-    attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
-    attendee.badge_cost = None  # Triggers re-calculating the base badge price on save
-    session.add(attendee)
+    params = {
+        'ribbon': remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON),
+        'badge_cost': None,
+    }
 
     if attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY]:
-        receipt_item = ReceiptManager.process_receipt_credit_change(attendee, 'paid', c.NOT_PAID, receipt)
-        receipt_items += [receipt_item] if receipt_item else []
-        attendee.paid = c.NOT_PAID
-        attendee.badge_status = c.NEW_STATUS
-        session.add(attendee)
-        session.commit()
+        params['paid'] = c.NOT_PAID
+        params['badge_status'] = c.NEW_STATUS
+
+    receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+
+    for key, val in params.items():
+        setattr(attendee, key, val)
+
+    session.add(attendee)
+    session.commit()
 
     if admin_note:
         attendee.append_admin_note(admin_note)

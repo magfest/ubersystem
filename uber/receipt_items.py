@@ -325,6 +325,8 @@ def dealer_badge_credit(attendee, new_attendee=None):
 
     if old_cost == new_cost:
         return
+    if attendee.paid != new_attendee.paid and new_attendee.paid == c.NOT_PAID:
+        return # This cost change will be in the paid status receipt item
     
     if attendee.is_dealer and new_attendee.is_dealer:
         return
