@@ -13,6 +13,9 @@
     Room groups are given additional weighting in the lottery. Note that in order to join a room group you must have a valid registration for {{ c.EVENT_NAME }}.
 </p>
 {% endif %}
+{% if not application.wants_suite %}
+<p>You can now also <a href="{{ c.URL_BASE }}/hotel_lottery/suite_lottery?id={{ application.id }}" target="_blank">enter the suite lottery.</a></p>
+{% endif %}
 <p>You can also review the lottery terms and policies or {% if application.wants_suite %}update your entry for{% else %}enter{% endif %} the suite lottery by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
 <ul>
     <li><strong>Hotel Preference</strong>: {{ application.hotel_preference_labels|readable_join }}</li>

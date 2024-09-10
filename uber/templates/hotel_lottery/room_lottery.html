@@ -66,14 +66,17 @@
             Below are the details for your current room lottery entry.
             You can change them and click "Update" to update your entry any time before <strong>{{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</strong>.
         </p>
-        <p>
-            <form id="withdraw-lottery" method="post" action="withdraw_room">
-                <input type="hidden" name="id" value="{{ application.id }}">
-                <button type="submit" class="btn btn-danger">Withdraw Room Lottery Entry</button>
-            </form>
-        </p>
+            {% if not application.room_group_name %}
+            <p>
+                <form id="withdraw-lottery" method="post" action="withdraw_room">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    <button type="submit" class="btn btn-danger"{% if app_or_parent.wants_suite %} disabled{% endif %}>Withdraw Room Lottery Entry</button>
+                    {% if app_or_parent.wants_suite %}<div class="form-text">You cannot withdraw your room lottery entry until you withdraw your suite lottery entry.</div>{% endif %}
+                </form>
+            </p>
+            {% endif %}
         {% endif %}
-        <hr/>
+
         {% if not read_only %}
         <form novalidate method="post" id="room-lottery-form" action="room_lottery">
             {{ csrf_token() }}

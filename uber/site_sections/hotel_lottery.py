@@ -172,43 +172,29 @@ class Root:
         forms = load_forms(params, application, forms_list)
 
         if cherrypy.request.method == 'POST':
-            if application.attendee.birthdate and get_age_from_birthday(application.attendee.birthdate,
-                                                                        application.earliest_room_checkin_date) < 21:
-                message = "You must be at least 21 on your preferred check-in date."
-            if not message:
-                if not application.wants_room:
-                    entering_or_updating_str = "entering the room lottery"
-                    subject_str = "Confirmation"
-                else:
-                    entering_or_updating_str = "updating your room lottery entry"
-                    subject_str = "Updated"
-                for form in forms.values():
-                    form.populate_obj(application)
+            if not application.wants_room:
+                entering_or_updating_str = "entering the room lottery"
+                subject_str = "Confirmation"
+            else:
+                entering_or_updating_str = "updating your room lottery entry"
+                subject_str = "Updated"
+            for form in forms.values():
+                form.populate_obj(application)
 
-                session.commit()
-                session.refresh(application)
+            session.commit()
+            session.refresh(application)
 
-                body = render('emails/hotel/room_lottery_entry.html', {
-                    'application': application,
-                    'entering_or_updating_str': entering_or_updating_str,}, encoding=None)
-                send_email.delay(
-                    c.HOTEL_LOTTERY_EMAIL,
-                    application.attendee.email_to_address,
-                    c.EVENT_NAME_AND_YEAR + f' Room Lottery {subject_str}',
-                    body,
-                    model=application.to_dict('id'))
-                if subject_str == "Confirmation":
-                    for member in application.group_members:
-                        body = render('emails/hotel/group_lottery_entry_added.html', {
-                            'application': member, 'room_or_suite': 'room'}, encoding=None)
-                        send_email.delay(
-                            c.HOTEL_LOTTERY_EMAIL,
-                            member.attendee.email_to_address,
-                            c.EVENT_NAME_AND_YEAR + f' Room Lottery Entered',
-                            body,
-                            model=member.to_dict('id'))
-                raise HTTPRedirect('index?attendee_id={}&confirm=room&action={}',
-                                   application.attendee.id, subject_str.lower())
+            body = render('emails/hotel/room_lottery_entry.html', {
+                'application': application,
+                'entering_or_updating_str': entering_or_updating_str,}, encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                application.attendee.email_to_address,
+                c.EVENT_NAME_AND_YEAR + f' Room Lottery {subject_str}',
+                body,
+                model=application.to_dict('id'))
+            raise HTTPRedirect('index?attendee_id={}&confirm=room&action={}',
+                                application.attendee.id, subject_str.lower())
 
         return {
             'id': application.id,
@@ -223,9 +209,9 @@ class Root:
     def withdraw_room(self, session, id=None, **params):
         application = session.lottery_application(id)
 
-        if application.room_group_name and not application.wants_suite:
+        if application.room_group_name:
             raise HTTPRedirect('room_lottery?id={}&message={}', application.id,
-                               "Room groups must have either a room or suite lottery entry. Enter the suite lottery or disband the group first.")
+                               "Room groups must have a room lottery entry. You must disband the group first.")
 
         defaults = LotteryApplication().to_dict()
         for attr in ['earliest_room_checkin_date', 'latest_room_checkin_date',
@@ -242,19 +228,10 @@ class Root:
             c.EVENT_NAME_AND_YEAR + f' Room Lottery Entry Cancelled',
             body,
             model=application.to_dict('id'))
-        for member in application.group_members:
-            body = render('emails/hotel/group_lottery_entry_withdrawn.html', {
-                'application': member, 'room_or_suite': 'standard room'}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                member.attendee.email_to_address,
-                c.EVENT_NAME_AND_YEAR + f' Room Lottery Entry Cancelled',
-                body,
-                model=member.to_dict('id'))
-        extra_str = " and your room group's members" if application.group_members else ""
+
         raise HTTPRedirect('index?attendee_id={}&message={}',
                            application.attendee.id,
-                           f"Room lottery entry canceled. You{extra_str} will receive an email confirming the cancellation.")
+                           f"Room lottery entry canceled. You will receive an email confirming the cancellation.")
     
     @requires_account(LotteryApplication)
     def suite_lottery(self, session, id=None, message="", **params):
@@ -279,43 +256,39 @@ class Root:
         forms = load_forms(params, application, forms_list)
 
         if cherrypy.request.method == 'POST':
-            if application.attendee.birthdate and get_age_from_birthday(application.attendee.birthdate,
-                                                                        application.earliest_suite_checkin_date) < 21:
-                message = "You must be at least 21 on your preferred check-in date."
-            if not message:
-                if not application.wants_suite:
-                    entering_or_updating_str = "entering the suite lottery"
-                    subject_str = "Confirmation"
-                else:
-                    entering_or_updating_str = "updating your suite lottery entry"
-                    subject_str = "Updated"
-                for form in forms.values():
-                    form.populate_obj(application)
+            if not application.wants_suite:
+                entering_or_updating_str = "entering the suite lottery"
+                subject_str = "Confirmation"
+            else:
+                entering_or_updating_str = "updating your suite lottery entry"
+                subject_str = "Updated"
+            for form in forms.values():
+                form.populate_obj(application)
 
-                session.commit()
-                session.refresh(application)
+            session.commit()
+            session.refresh(application)
 
-                body = render('emails/hotel/suite_lottery_entry.html', {
-                    'application': application,
-                    'entering_or_updating_str': entering_or_updating_str,}, encoding=None)
-                send_email.delay(
-                    c.HOTEL_LOTTERY_EMAIL,
-                    application.attendee.email_to_address,
-                    c.EVENT_NAME_AND_YEAR + f' Suite Lottery {subject_str}',
-                    body,
-                    model=application.to_dict('id'))
-                if subject_str == "Confirmation":
-                    for member in application.group_members:
-                        body = render('emails/hotel/group_lottery_entry_added.html', {
-                            'application': member, 'room_or_suite': 'suite'}, encoding=None)
-                        send_email.delay(
-                            c.HOTEL_LOTTERY_EMAIL,
-                            member.attendee.email_to_address,
-                            c.EVENT_NAME_AND_YEAR + f' Suite Lottery Entered',
-                            body,
-                            model=member.to_dict('id'))
-                raise HTTPRedirect('index?attendee_id={}&confirm=suite&action={}',
-                                   application.attendee.id, subject_str.lower())
+            body = render('emails/hotel/suite_lottery_entry.html', {
+                'application': application,
+                'entering_or_updating_str': entering_or_updating_str,}, encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                application.attendee.email_to_address,
+                c.EVENT_NAME_AND_YEAR + f' Suite Lottery {subject_str}',
+                body,
+                model=application.to_dict('id'))
+            if subject_str == "Confirmation":
+                for member in application.group_members:
+                    body = render('emails/hotel/group_lottery_entry_added.html', {
+                        'application': member, 'room_or_suite': 'suite'}, encoding=None)
+                    send_email.delay(
+                        c.HOTEL_LOTTERY_EMAIL,
+                        member.attendee.email_to_address,
+                        c.EVENT_NAME_AND_YEAR + f' Suite Lottery Entered',
+                        body,
+                        model=member.to_dict('id'))
+            raise HTTPRedirect('index?attendee_id={}&confirm=suite&action={}',
+                                application.attendee.id, subject_str.lower())
 
         return {
             'id': application.id,
@@ -329,10 +302,6 @@ class Root:
     @requires_account(LotteryApplication)
     def withdraw_suite(self, session, id=None, **params):
         application = session.lottery_application(id)
-
-        if application.room_group_name and not application.wants_room:
-            raise HTTPRedirect('suite_lottery?id={}&message={}', application.id,
-                               "Room groups must have either a room or suite lottery entry. Enter the room lottery or disband the group first.")
 
         defaults = LotteryApplication().to_dict()
         for attr in ['earliest_suite_checkin_date', 'latest_suite_checkin_date',
@@ -350,7 +319,7 @@ class Root:
             body,
             model=application.to_dict('id'))
         for member in application.group_members:
-            body = render('emails/hotel/group_lottery_entry_withdrawn.html', {
+            body = render('emails/hotel/group_suite_lottery_withdrawn.html', {
                 'application': member, 'room_or_suite': 'suite'}, encoding=None)
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,

@@ -247,7 +247,7 @@
                 <h2>Room Group Information</h2>
                 {% include 'hotel_lottery/room_group_info.html' with context %}
 
-                {% if not application.can_create_group %}
+                {% if not application.wants_room %}
                 <p class="mb-0">
                     <button class="btn btn-primary" onClick="setStep('#join-group')">Continue</button>
                 {% else %}

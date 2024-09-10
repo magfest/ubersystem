@@ -6,14 +6,6 @@
     Thank you for {{ entering_or_updating_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your entry details are below.
     You can <a href="{{ c.URL_BASE }}/hotel_lottery/suite_lottery?id={{ application.id }}" target="_blank">update or withdraw your entry</a> at any time until {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}.
 </p>
-{% if not application.wants_room %}
-<p>
-    Suites are in extremely high demand.
-    We <strong>strongly</strong> recommend anyone entering the suite lottery also 
-    <a href="{{ c.URL_BASE }}/hotel_lottery/room_lottery?id={{ application.id }}" target="_blank">enters the standard room lottery</a>
-    to maximize their chances of getting a hotel room.
-</p>
-{% endif %}
 {% if not application.room_group_name and not application.parent_application %}
 <p>
     If you know who you are rooming with, you can 
