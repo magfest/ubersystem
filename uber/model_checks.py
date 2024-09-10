@@ -311,6 +311,9 @@ def room_meets_requirements(app):
     if app.any_room_dates_different:
         latest_checkin, earliest_checkout = app.shortest_room_check_in_out_dates
         nights = app.build_nights_map(latest_checkin, earliest_checkout)
+        if not nights:
+            # Suppress this error since other validations will tell them their dates are bad
+            return
         if len(nights) > 2:
             for night in nights:
                 if 'Friday' in night or 'Saturday' in night:

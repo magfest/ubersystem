@@ -175,6 +175,7 @@
     <div class="card-body">
         <div id="select-action" class="collapse">
             {% if application.room_group_name or application.parent_application %}
+                {{ form_macros.form_validation('update-group', 'validate_hotel_lottery', form_list=['LotteryRoomGroup']) }}
                 <h2>Your Room Group</h2>
                 {% if application.parent_application %}
                 <p>
@@ -187,7 +188,8 @@
                     
                     <div class="row g-sm-3">
                         <div class="col-12 col-sm-6">
-                            <form method="post" action="save_group">
+                            <form method="post" action="save_group" id="update-group">
+                                {{ csrf_token() }}
                                 <input type="hidden" name="id" value="{{ application.id }}">
                                 {{ form_macros.form_input(lottery_room_group.room_group_name) }}
                                 <button type="submit" class="btn btn-primary mb-3">Update Group Name</button>
@@ -293,13 +295,18 @@
             </div>
         </div>
         <div id="create-group" class="collapse">
+            {% if not application.room_group_name %}
+            {# This div's contents are behind an if-check because otherwise they interfere with group update validations #}
+
+            {{ form_macros.form_validation('create-group-form', 'validate_hotel_lottery', form_list=['LotteryRoomGroup']) }}
             <h2>Create Room Group <button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button></h2>
         
             <p>
                 Please enter a name for your room group below. People joining your room group will be shown this name,
                 plus your first and last initials ({{ application.group_leader_name }}), to help them identify your group.
             </p>
-            <form method="post" action="save_group">
+            <form method="post" action="save_group" id="create-group-form">
+                {{ csrf_token() }}
                 <div class="row g-sm-3">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     <div class="col-12 col-sm-6">
@@ -312,6 +319,7 @@
                     </div>
                 </div>
             </form>
+            {% endif %}
         </div>
         <div id="confirm" class="collapse">
             <h2>Room Group {{ action.title() }}</h2>

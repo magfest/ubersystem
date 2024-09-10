@@ -1,6 +1,6 @@
 from wtforms import (BooleanField, DateField, SelectMultipleField,
                      StringField, validators, TextAreaField)
-from wtforms.validators import ValidationError
+from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
 from uber.forms import (MagForm, CustomValidation, Ranking)
@@ -19,6 +19,13 @@ def date_in_range(field, str, min, max):
         raise ValidationError(f"Your {str} date must be between {html_format_date(min)} and {html_format_date(max)}.")
 
 
+def get_latest_checkout_date(form, room_or_suite='room'):
+    if getattr(form, f"earliest_{room_or_suite}_checkout_date").data:
+        return "acceptable check-out date", getattr(form, f"earliest_{room_or_suite}_checkout_date").data
+    else:
+        return "preferred check-out date", getattr(form, f"latest_{room_or_suite}_checkout_date").data
+
+
 class LotteryInfo(MagForm):
     terms_accepted = BooleanField('I understand, agree to, and will abide by the lottery policies.', default=False,
                                   validators=[validators.InputRequired("You must agree to the room lottery policies to continue.")])
@@ -26,6 +33,7 @@ class LotteryInfo(MagForm):
 
 class LotteryRoomGroup(MagForm):
     field_validation = CustomValidation()
+
     room_group_name = StringField('Room Group Name',
                                   description='This will be shared with anyone you invite to your room group.',
                                   validators=[validators.DataRequired("Please enter a name for your room group.")])
@@ -37,6 +45,11 @@ class LotteryRoomGroup(MagForm):
         locked_fields = super().get_non_admin_locked_fields(app)
         locked_fields.append('invite_code')
         return locked_fields
+    
+    @field_validation.room_group_name
+    def no_dashes(form, field):
+        if '-' in field.data:
+            raise ValidationError("Please do not use dashes ('-') in your room group name.")
 
 
 class RoomLottery(MagForm):
@@ -95,6 +108,23 @@ class RoomLottery(MagForm):
                 'selection_priorities': self.room_selection_priorities}
 
     @field_validation.earliest_room_checkin_date
+    def preferred_dates_not_swapped(form, field):
+        checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
+        
+        if field.data > earliest_checkout_date:
+            raise StopValidation(f"Your preferred check-in date is after your {checkout_label}.")
+    
+    @field_validation.latest_room_checkin_date
+    def acceptable_dates_not_swapped(form, field):
+        if not field.data:
+            return
+        
+        checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
+        
+        if field.data > earliest_checkout_date:
+            raise StopValidation(f"Your acceptable check-in date is after your {checkout_label}.")
+
+    @field_validation.earliest_room_checkin_date
     def earliest_checkin_within_range(form, field):
         date_in_range(field, "preferred check-in", c.HOTEL_LOTTERY_CHECKIN_START, c.HOTEL_LOTTERY_CHECKIN_END)
 
@@ -105,7 +135,7 @@ class RoomLottery(MagForm):
     @field_validation.latest_room_checkin_date
     def after_preferred_checkin(form, field):
         if field.data and field.data < form.earliest_room_checkin_date.data:
-            raise ValidationError("It does not make sense to have your latest acceptable check-in date \
+            raise StopValidation("It does not make sense to have your latest acceptable check-in date \
                                   earlier than your preferred check-in date.")
 
     @field_validation.latest_room_checkout_date
@@ -123,28 +153,9 @@ class RoomLottery(MagForm):
                                   later than your preferred check-out date.")
 
     @field_validation.room_selection_priorities
-    def correct_options_ranked(form, field):
-        include_list = []
-        throw_error = 0
-
-        if len(form.hotel_preference.data) > 1:
-            include_list.append("hotel preference")
-            if c.HOTEL_LOTTERY_HOTEL not in field.data:
-                throw_error += 1
-
-        if form.latest_room_checkin_date.data or form.earliest_room_checkout_date.data:
-            include_list.append("check-in and check-out dates")
-            if c.HOTEL_LOTTERY_DATES not in field.data:
-                throw_error += 1
-        
-        if len(form.room_type_preference.data) > 1:
-            include_list.append("room type preference")
-            if c.HOTEL_LOTTERY_ROOM not in field.data:
-                throw_error += 1
-
-        if throw_error > 1:
-            raise ValidationError(
-                f"Please include {readable_join(include_list)} in your list of ranked priorities for selecting a hotel room.")
+    def all_options_ranked(form, field):
+        if len(field.data) < len(c.HOTEL_LOTTERY_ROOM_PRIORITIES_OPTS):
+            raise ValidationError("Please rank all priorities for selecting a hotel room.")
 
 
 class SuiteLottery(MagForm):
@@ -189,7 +200,24 @@ class SuiteLottery(MagForm):
                 'latest_checkout_date': self.latest_suite_checkout_date,
                 'room_or_suite_type_preference': self.suite_type_preference,
                 'selection_priorities': self.suite_selection_priorities}
+
+    @field_validation.earliest_suite_checkin_date
+    def preferred_dates_not_swapped(form, field):
+        checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
+        
+        if field.data > earliest_checkout_date:
+            raise StopValidation(f"Your preferred check-in date is after your {checkout_label}.")
     
+    @field_validation.latest_suite_checkin_date
+    def acceptable_dates_not_swapped(form, field):
+        if not field.data:
+            return
+        
+        checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
+        
+        if field.data > earliest_checkout_date:
+            raise StopValidation(f"Your acceptable check-in date is after your {checkout_label}.")
+
     @field_validation.earliest_suite_checkin_date
     def earliest_checkin_within_range(form, field):
         date_in_range(field, "preferred check-in", c.HOTEL_LOTTERY_CHECKIN_START, c.HOTEL_LOTTERY_CHECKIN_END)
@@ -219,20 +247,6 @@ class SuiteLottery(MagForm):
                                   later than your preferred check-out date.")
         
     @field_validation.suite_selection_priorities
-    def correct_options_ranked(form, field):
-        include_list = []
-        throw_error = False
-
-        if form.latest_suite_checkin_date.data or form.earliest_suite_checkout_date.data:
-            include_list.append("check-in and check-out dates")
-            if c.HOTEL_LOTTERY_DATES not in field.data:
-                throw_error = True
-        
-        if len(form.room_type_preference.data) > 1:
-            include_list.append("room type preference")
-            if c.HOTEL_LOTTERY_ROOM not in field.data:
-                throw_error = True
-
-        if throw_error:
-            raise ValidationError(
-                f"Please include {readable_join(include_list)} in your list of ranked priorities for selecting a hotel suite.")
+    def all_options_ranked(form, field):
+        if len(field.data) < len(c.HOTEL_LOTTERY_SUITE_PRIORITIES_OPTS):
+            raise ValidationError("Please rank all priorities for selecting a hotel suite.")
