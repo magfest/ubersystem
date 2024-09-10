@@ -674,7 +674,7 @@ class Config(_Overridable):
 
     @property
     def AVAILABLE_MERCH_TIERS(self):
-        return [price for price, name in self.DONATION_TIERS.items() if price not in self.SOLD_OUT_MERCH_TIERS]
+        return sorted([price for price, name in self.DONATION_TIERS.items() if price not in self.SOLD_OUT_MERCH_TIERS])
 
     @property
     def FORMATTED_MERCH_TIERS(self):
