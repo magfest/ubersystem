@@ -95,15 +95,15 @@
             <input type="hidden" name="id" value="{{ application.id }}">
             {{ form_macros.form_input(suite_lottery.wants_suite, force_hidden=True, default="1") }}
         {% endif %}
-            
+        <div class="accordion mb-3" id="suite-lottery-accordion">
             {% include 'hotel_lottery/suite_lottery_form.html' with context %}
-
+        </div>
             <div class="row g-sm-3 mb-3">
                 <div class="col-12">
                     <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">{% if not app_or_parent.wants_suite %}Cancel and {% endif %}Return to Options</a>
-                    {% if not read_only %}
-                    <button type="submit" class="btn btn-primary pull-right">
-                        {% if application.wants_suite %}Update Suite Lottery Entry{% else %}Enter Suite Lottery{% endif %}
+                    {% if not read_only and application.suite_entry_completed %}
+                    <button type="submit" name="suite_step" value="999"  class="btn btn-primary pull-right">
+                        Update Suite Lottery Entry
                     </button>
                     {% endif %}
                 </div>

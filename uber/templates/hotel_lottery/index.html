@@ -8,17 +8,6 @@
 {% set suite_lottery = suite_lottery or forms['suite_lottery'] %}
 
 {% block content %}
-<script src="https://raw.githack.com/SortableJS/Sortable/master/Sortable.js"></script>
-
-<style>
-    .sortable-ghost {
-        opacity: 0.6;
-    }
-    .chosen {
-        opacity: 1;
-    }
-</style>
-
 <script type="text/javascript">
     var setStep = function (selector) {
         $('.collapse').hide();
@@ -46,7 +35,6 @@
         <div id="select-action" class="collapse">
             <p>
                 You currently {{ application.current_status_str }}.
-                {% if not application.parent_application and application.wants_suite and not application.wants_room %}We <strong>strongly</strong> recommend also entering the room lottery.{% endif %}
                 {% if not application.has_any_entry %}Use the buttons below to join a room group or enter the room and/or suite lottery.{% endif %}
             </p>
 

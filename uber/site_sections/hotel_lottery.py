@@ -217,7 +217,7 @@ class Root:
         for attr in ['earliest_room_checkin_date', 'latest_room_checkin_date',
                      'earliest_room_checkout_date', 'latest_room_checkout_date',
                      'hotel_preference', 'room_type_preference', 'room_selection_priorities',
-                     'wants_ada', 'ada_requests', 'wants_room']:
+                     'wants_ada', 'ada_requests', 'room_step', 'wants_room']:
             setattr(application, attr, defaults.get(attr))
 
         body = render('emails/hotel/lottery_entry_withdrawn.html', {
@@ -307,7 +307,7 @@ class Root:
         for attr in ['earliest_suite_checkin_date', 'latest_suite_checkin_date',
                      'earliest_suite_checkout_date', 'latest_suite_checkout_date',
                      'hotel_preference', 'suite_type_preference', 'suite_selection_priorities',
-                     'wants_ada', 'ada_requests', 'wants_suite', 'suite_terms_accepted']:
+                     'wants_ada', 'ada_requests', 'wants_suite', 'suite_step', 'suite_terms_accepted']:
             setattr(application, attr, defaults.get(attr))
 
         body = render('emails/hotel/lottery_entry_withdrawn.html', {
@@ -331,6 +331,10 @@ class Root:
         raise HTTPRedirect('index?attendee_id={}&message={}',
                            application.attendee.id,
                            f"Suite lottery entry canceled. You{extra_str} will receive an email confirming the cancellation.")
+
+    @requires_account(LotteryApplication)
+    def withdraw_entries(self, session, id=None, **params):
+        application = session.lottery_application(id)
 
     @ajax
     def validate_hotel_lottery(self, session, attendee_id=None, form_list=[], **params):
@@ -357,8 +361,16 @@ class Root:
             all_errors[''].append("You must be at least 21 on your preferred check-in date.")
         if all_errors:
             return {"error": all_errors}
+        current_step = params.get('suite_step', params.get('room_step', 0))
 
-        return {"success": True}
+        if current_step:
+            # This is unusual for a validation function, but we want to save at each step of the form
+            for form in forms.values():
+                form.populate_obj(application)
+
+            session.commit()
+
+        return {"success": True, "step_completed": params.get('suite_step', params.get('room_step', 0))}
     
     @requires_account(LotteryApplication)
     def room_group(self, session, id=None, message="", **params):

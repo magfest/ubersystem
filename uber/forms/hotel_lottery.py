@@ -1,4 +1,4 @@
-from wtforms import (BooleanField, DateField, SelectMultipleField,
+from wtforms import (BooleanField, DateField, HiddenField, SelectMultipleField,
                      StringField, validators, TextAreaField)
 from wtforms.validators import ValidationError, StopValidation
 
@@ -29,6 +29,9 @@ def get_latest_checkout_date(form, room_or_suite='room'):
 class LotteryInfo(MagForm):
     terms_accepted = BooleanField('I understand, agree to, and will abide by the lottery policies.', default=False,
                                   validators=[validators.InputRequired("You must agree to the room lottery policies to continue.")])
+    #data_policy_accepted = BooleanField('I understand and agree that my registration information will be used as part of the hotel lottery.',
+    #                                    default=False,
+    #                                    validators=[validators.InputRequired("You must agree to the data policies to continue.")])
 
 
 class LotteryRoomGroup(MagForm):
@@ -56,6 +59,7 @@ class RoomLottery(MagForm):
     field_validation = CustomValidation()
 
     wants_room = BooleanField('I would like to enter the hotel room lottery.', default=False)
+    room_step = HiddenField('Current Step')
     earliest_room_checkin_date = DateField(
         'Preferred Check-In Date',
         validators=[validators.DataRequired("Please enter your preferred check-in date.")],
@@ -89,11 +93,19 @@ class RoomLottery(MagForm):
     ada_requests = TextAreaField('Requested Accommodations',
                                  validators=[validators.DataRequired("Please explain some of the ADA accommodations you will require.")])
     
-    def get_optional_fields(self, attendee, is_admin=False):
-        optional_list = super().get_optional_fields(attendee, is_admin)
+    def get_optional_fields(self, application, is_admin=False):
+        optional_list = super().get_optional_fields(application, is_admin)
 
-        if not attendee.wants_ada:
+        if not application.wants_ada:
             optional_list.append('ada_requests')
+
+        room_step = int(application.room_step) if application.room_step else 99999
+        if room_step < 4:
+            optional_list.append('room_selection_priorities')
+        if room_step < 3:
+            optional_list.append('room_type_preference')
+        if room_step < 2:
+            optional_list.extend(['earliest_room_checkin_date', 'latest_room_checkout_date'])
 
         return optional_list
 
@@ -110,8 +122,8 @@ class RoomLottery(MagForm):
     @field_validation.earliest_room_checkin_date
     def preferred_dates_not_swapped(form, field):
         checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
-        
-        if field.data > earliest_checkout_date:
+
+        if earliest_checkout_date and field.data > earliest_checkout_date:
             raise StopValidation(f"Your preferred check-in date is after your {checkout_label}.")
     
     @field_validation.latest_room_checkin_date
@@ -121,7 +133,7 @@ class RoomLottery(MagForm):
         
         checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
         
-        if field.data > earliest_checkout_date:
+        if earliest_checkout_date and field.data > earliest_checkout_date:
             raise StopValidation(f"Your acceptable check-in date is after your {checkout_label}.")
 
     @field_validation.earliest_room_checkin_date
@@ -154,6 +166,8 @@ class RoomLottery(MagForm):
 
     @field_validation.room_selection_priorities
     def all_options_ranked(form, field):
+        if form.room_step.data and int(form.room_step.data) < 4:
+            return
         if len(field.data) < len(c.HOTEL_LOTTERY_ROOM_PRIORITIES_OPTS):
             raise ValidationError("Please rank all priorities for selecting a hotel room.")
 
@@ -205,7 +219,7 @@ class SuiteLottery(MagForm):
     def preferred_dates_not_swapped(form, field):
         checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
         
-        if field.data > earliest_checkout_date:
+        if earliest_checkout_date and field.data > earliest_checkout_date:
             raise StopValidation(f"Your preferred check-in date is after your {checkout_label}.")
     
     @field_validation.latest_suite_checkin_date
@@ -215,7 +229,7 @@ class SuiteLottery(MagForm):
         
         checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
         
-        if field.data > earliest_checkout_date:
+        if earliest_checkout_date and field.data > earliest_checkout_date:
             raise StopValidation(f"Your acceptable check-in date is after your {checkout_label}.")
 
     @field_validation.earliest_suite_checkin_date

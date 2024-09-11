@@ -45,7 +45,7 @@
 <div class="card">
     <div class="card-body">
         {% if not read_only %}
-        {{ form_macros.form_validation('room-lottery-form', 'validate_hotel_lottery', form_list=['RoomLottery']) }}
+        {{ form_macros.form_validation('room-lottery-form', 'validate_hotel_lottery', form_list=['RoomLottery'], callback="goToNextStep(response)", always_use_callback=False) }}
         {% endif %}
 
         {% if not read_only and application.attendee.age_now_or_at_con and app_or_parent.attendee.age_now_or_at_con < 21 %}
@@ -57,8 +57,11 @@
         {% endif %}
 
         <h2>Standard Room Lottery <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
-        {% if not app_or_parent.wants_room %}
-        <p>Please carefully read the instructions, fill out the fields below, and click "Enter Lottery" to enter the lottery for a standard hotel room.</p>
+        {% if not app_or_parent.room_entry_completed %}
+        <p>
+            Please read the instructions for each step below carefully. Any completed steps (steps with a <i class='fa fa-check'></i>) will be saved if you leave and come back later, but your lottery entry is <strong>NOT</strong> complete until you see the confirmation screen.
+        </p>
+        <p>You can review or edit completed (<i class='fa fa-check'></i>) steps by clicking the name of the step. Changes to completed steps are saved when you click "Save and Continue" (or when you complete your entry, if you are on the last step).</p>
         {% elif read_only %}
         <p>Below are the details for your room group's room lottery entry. Only your group leader can edit this.</p>
         {% else %}
@@ -83,14 +86,15 @@
             <input type="hidden" name="id" value="{{ application.id }}">
             {{ form_macros.form_input(room_lottery.wants_room, force_hidden=True, default="1") }}
         {% endif %}
+        <div class="accordion mb-3" id="room-lottery-accordion">
             {% include 'hotel_lottery/room_lottery_form.html' with context %}
-
+        </div>
             <div class="row g-sm-3 mb-3">
                 <div class="col-12">
                     <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">{% if not app_or_parent.wants_room %}Cancel and {% endif %}Return to Options</a>
-                    {% if not read_only %}
-                    <button type="submit" class="btn btn-primary pull-right">
-                        {% if application.wants_room %}Update Room Lottery Entry{% else %}Enter Room Lottery{% endif %}
+                    {% if not read_only and application.room_entry_completed %}
+                    <button type="submit" name="room_step" value="999" class="btn btn-primary pull-right">
+                        Update Room Lottery Entry
                     </button>
                     {% endif %}
                 </div>

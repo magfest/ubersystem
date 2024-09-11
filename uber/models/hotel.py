@@ -4,7 +4,7 @@ from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Date
+from sqlalchemy.types import Boolean, Date, Integer
 
 from uber.config import c
 from uber.custom_tags import readable_join
@@ -117,8 +117,11 @@ class LotteryApplication(MagModel):
                             cascade='save-update,merge,refresh-expire,expunge',
                             uselist=False)
     invite_code = Column(UnicodeText)
+    legal_first_name = Column(UnicodeText)
+    legal_last_name = Column(UnicodeText)
 
     wants_room = Column(Boolean, default=False)
+    room_step = Column(Integer, default=0)
     earliest_room_checkin_date = Column(Date, nullable=True)
     latest_room_checkin_date = Column(Date, nullable=True)
     earliest_room_checkout_date = Column(Date, nullable=True)
@@ -130,6 +133,7 @@ class LotteryApplication(MagModel):
     ada_requests = Column(UnicodeText)
 
     wants_suite = Column(Boolean, default=False)
+    suite_step = Column(Integer, default=0)
     earliest_suite_checkin_date = Column(Date, nullable=True)
     latest_suite_checkin_date = Column(Date, nullable=True)
     earliest_suite_checkout_date = Column(Date, nullable=True)
@@ -138,6 +142,7 @@ class LotteryApplication(MagModel):
     suite_selection_priorities = Column(MultiChoice(c.HOTEL_LOTTERY_SUITE_PRIORITIES_OPTS))
 
     terms_accepted = Column(Boolean, default=False)
+    data_policy_accepted = Column(Boolean, default=False)
     suite_terms_accepted = Column(Boolean, default=False)
 
     # If this is set then the above values are ignored
@@ -194,10 +199,28 @@ class LotteryApplication(MagModel):
                 'do' if plural else 'does', 'you have' if plural else 'it does')
 
         return have_str
-    
+
     @property
     def has_any_entry(self):
         return self.parent_application or self.wants_room or self.wants_suite
+    
+    @property
+    def room_entry_completed(self):
+        return self.wants_room and self.room_step == 999
+    
+    @property
+    def suite_entry_completed(self):
+        return self.wants_suite and self.suite_step == 999
+
+    @property
+    def homepage_link(self):
+        if not self.suite_entry_completed:
+            return f'suite_lottery?id={self.id}'
+        if not self.room_entry_completed:
+            return f'room_lottery?id={self.id}'
+        if self.has_any_entry:
+            return f'index?id={self.id}'
+        return f'start?attendee_id={self.attendee.id}'
 
     def build_nights_map(self, check_in, check_out):
         if isinstance(check_in, datetime):

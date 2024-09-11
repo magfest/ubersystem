@@ -6,7 +6,9 @@
 {% set room_text = "suite" if 'suite_lottery' in forms else 'room' %}
 
 {# BLOCK NAMES in this form:
-    ranking_header
+    ranking_js
+    form_js
+    last_step_js
     hotel_ranking
     check_in_out_dates
     room_type_ranking
@@ -14,11 +16,14 @@
     terms
 
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+Due to the extra scaffolding involved on this form, each block also has a _desc and _form block inside it for more targeted overrides.
 #}
 
-{% block ranking_header %}
+{% set steps = {'counter': 1} %}
+
+{% block ranking_js %}
 {% if not read_only %}
-<script src="https://raw.githack.com/SortableJS/Sortable/master/Sortable.js"></script>
+{{ "deps/Sortable.js"|serve_static_content }}
 
 <style>
     .sortable-ghost {
@@ -31,77 +36,209 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endif %}
 {% endblock %}
 
-{% block hotel_ranking %}
-<h3>Hotel Preference</h3>
-<p>
-    {% if read_only %}Below are your selected hotels in order of preference.{% else %}
-    Rank your choice of hotel below by clicking and dragging hotels from "Available" to "Selected" in order of preference.
-    At least one selection is required. Not all hotels need be selected. Accordingly, <em>please do not select hotels you do not wish to stay at</em>.
+{% block form_js %}
+{% if not read_only %}
+<script type="text/javascript">
+    var goToNextStep = function(response) {
+        let step = 0;
+        if (response.step_completed != '') {
+            step = parseInt(response.step_completed);
+        }
+        {% block last_step_js %}
+        if (step == 4 || step == 999) {
+            $('#room-lottery-form').submit();
+        }
+        {% endblock %}
+        else {
+            let next_step = step + 1;
+            $('#step-' + step).collapse('hide');
+            $('#step-' + step + '-submit').hide();
+            $('#step-' + step + '-button').html($('#step-' + step + '-button').html() + "&nbsp;<i class='fa fa-check'></i>");
+            $('#step-' + next_step + '-button').prop('disabled', false);
+            $('#step-' + next_step).collapse('show');
+            serverValidationPassed = false;
+        }
+    };
+
+    {% if application.room_step != 0 %}
+    $().ready(function() {
+        $('#step-1').collapse('hide');
+        current_step = parseInt("{{ application.room_step }}");
+        for (let step = 1; step <= current_step; step++) {
+            $('#step-' + step + '-button').prop('disabled', false).html($('#step-' + step + '-button').html() + "&nbsp;<i class='fa fa-check'></i>");
+            $('#step-' + step + '-submit').hide();
+        }
+        let next_step = current_step + 1
+        $('#step-' + next_step).collapse('show');
+        $('#step-' + next_step + '-button').prop('disabled', false)
+    })
     {% endif %}
-    For additional room and amenity information, please see <a href="{{ c.HOTEL_LOTTERY_URL }}" target="_blank">our website</a>.
-</p>
-{{ form_macros.form_input(room_or_suite_lottery.hotel_preference, readonly=read_only) }}
-<hr/>
+</script>
+{% endif %}
+{% endblock %}
+
+{% block hotel_ranking %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: Hotel Preference
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block hotel_ranking_desc %}
+            <p>
+                {% if read_only %}Below are your selected hotels in order of preference.{% else %}
+                Rank your choice of hotel below by clicking and dragging hotels from "Available" to "Selected" in order of preference.
+                At least one selection is required. Not all hotels need be selected. Accordingly, <em>please do not select hotels you do not wish to stay at</em>.
+                {% endif %}
+                For additional room and amenity information, please see <a href="{{ c.HOTEL_LOTTERY_URL }}" target="_blank">our website</a>.
+            </p>
+            {% endblock %}
+            {% block hotel_ranking_form %}
+            {{ form_macros.form_input(room_or_suite_lottery.hotel_preference, readonly=read_only) }}
+
+            {% if not read_only and application.room_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
 
 {% block check_in_out_dates %}
 {% set room_requirements = app_or_parent.suite_requirements_str if 'suite_lottery' in forms else app_or_parent.room_requirements_str %}
 {% set has_acceptable_checkin_date = app_or_parent.latest_suite_checkin_date if 'suite_lottery' in forms else app_or_parent.latest_room_checkin_date %}
 {% set has_acceptable_checkout_date = app_or_parent.earliest_suite_checkout_date if 'suite_lottery' in forms else app_or_parent.earliest_room_checkout_date %}
-<h3>Check-In and Check-Out Dates</h3>
-<p>
-    Rooms are available from {{ c.HOTEL_LOTTERY_CHECKIN_START|full_date_local }} to {{ c.HOTEL_LOTTERY_CHECKOUT_END|full_date_local }}. {{ room_requirements }}
-</p>
-{% if has_acceptable_checkin_date or has_acceptable_checkout_date or not read_only %}
-{% if read_only %}Below are your{% else %}Enter your{% endif %}
-    <strong>preferred dates</strong> and <strong>acceptable dates</strong> for check-in and check-out{% if not read_only %} below{% endif %}. We use the acceptable dates as a backup in case the full range of preferred dates isn't available when your entry is drawn.
-</p>
-{% endif %}
-{% if not read_only %}
-<p>Entering a later acceptable check-in and earlier acceptable check-out date is strongly advised to give you a better chance at a {{ room_text }}, but if your check-in and/or check-out dates are non-negotiable you can leave either or both of the "acceptable" date fields blank.</p>
-{% endif %}
-<p>As a reminder, {{ c.EVENT_NAME_AND_YEAR }} runs from {{ c.EPOCH.date().strftime('%A %m/%d/%Y') }} to {{ c.ESCHATON.date().strftime('%A %m/%d/%Y') }}.</p>
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: Check-In and Check-Out Dates
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block check_in_out_dates_desc %}
+            <p>
+                Rooms are available from {{ c.HOTEL_LOTTERY_CHECKIN_START|full_date_local }} to {{ c.HOTEL_LOTTERY_CHECKOUT_END|full_date_local }}. {{ room_requirements }}
+            </p>
+            {% if has_acceptable_checkin_date or has_acceptable_checkout_date or not read_only %}
+            {% if read_only %}Below are your{% else %}Enter your{% endif %}
+                <strong>preferred dates</strong> and <strong>acceptable dates</strong> for check-in and check-out{% if not read_only %} below{% endif %}. We use the acceptable dates as a backup in case the full range of preferred dates isn't available when your entry is drawn.
+            </p>
+            {% endif %}
+            {% if not read_only %}
+            <p>Entering a later acceptable check-in and earlier acceptable check-out date is strongly advised to give you a better chance at a {{ room_text }}, but if your check-in and/or check-out dates are non-negotiable you can leave either or both of the "acceptable" date fields blank.</p>
+            {% endif %}
+            <p>As a reminder, {{ c.EVENT_NAME_AND_YEAR }} runs from {{ c.EPOCH.date().strftime('%A %m/%d/%Y') }} to {{ c.ESCHATON.date().strftime('%A %m/%d/%Y') }}.</p>
+            {% endblock %}
 
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['earliest_checkin_date'], readonly=read_only) }}</div>
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['latest_checkout_date'], readonly=read_only) }}</div>
+            {% block check_in_out_dates_form %}
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['earliest_checkin_date'], readonly=read_only) }}</div>
+                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['latest_checkout_date'], readonly=read_only) }}</div>
+            </div>
+            {% if has_acceptable_checkin_date or has_acceptable_checkout_date or not read_only %}
+            <div class="row g-sm-3 mb-3">
+                {% if has_acceptable_checkin_date or not read_only %}
+                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['latest_checkin_date'], readonly=read_only) }}</div>
+                {% endif %}
+                {% if has_acceptable_checkout_date or not read_only %}
+                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['earliest_checkout_date'], readonly=read_only) }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if not read_only and application.room_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
 </div>
-{% if has_acceptable_checkin_date or has_acceptable_checkout_date or not read_only %}
-<div class="row g-sm-3 mb-3">
-    {% if has_acceptable_checkin_date or not read_only %}
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['latest_checkin_date'], readonly=read_only) }}</div>
-    {% endif %}
-    {% if has_acceptable_checkout_date or not read_only %}
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.shared_fields['earliest_checkout_date'], readonly=read_only) }}</div>
-    {% endif %}
-</div>
-{% endif %}
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
-<hr/>
 
 {% block room_type_ranking %}
-<h3>{{ room_text.title() }} Type Preference</h3>
-<p>
-{% if read_only %}
-    Below are your selected {{ room_text }} types in order of preference.
-{% else %}
-    Rank your choice of {{ room_text }} type by clicking and dragging rooms from "Available" to "Selected" in order of preference.
-    At least one selection is required. As with hotel types, please do not select room types you will not find acceptable.
-{% endif %}
-</p>
-{% include 'hotel_lottery/ada_info.html' with context %}
-{{ form_macros.form_input(room_or_suite_lottery.shared_fields['room_or_suite_type_preference'], readonly=read_only) }}
-<hr/>
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: {{ room_text.title() }} Type Preference
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block room_type_ranking_desc %}
+            <p>
+            {% if read_only %}
+                Below are your selected {{ room_text }} types in order of preference.
+            {% else %}
+                Rank your choice of {{ room_text }} type by clicking and dragging rooms from "Available" to "Selected" in order of preference.
+                At least one selection is required. As with hotel types, please do not select room types you will not find acceptable.
+            {% endif %}
+            </p>
+            {% include 'hotel_lottery/ada_info.html' with context %}
+            {% endblock %}
+            {% block room_type_ranking_form %}
+            {{ form_macros.form_input(room_or_suite_lottery.shared_fields['room_or_suite_type_preference'], readonly=read_only) }}
+
+            {% if not read_only and application.room_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
 
 {% block priorities %}
-<h3>Preference Priorities</h3>
-<p>
-    {% if read_only %}The list below determines{% else %}Rank the options below to determine{% endif %}
-    how we'll prioritize your ranked choices and preferred dates.
-    This ranking only applies if your entry has multiple options for a given category, as we can only work within the options that {% if application.parent_application %}your group leader specifies{% else %}you specify{% endif %} as acceptable.</p>
-{% include 'hotel_lottery/priorities_example.html' with context %}
-{{ form_macros.form_input(room_or_suite_lottery.shared_fields['selection_priorities'], readonly=read_only) }}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: {{ room_text.title() }} Preference Priorities
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block priorities_desc %}
+            <p>
+                {% if read_only %}The list below determines{% else %}Rank the options below to determine{% endif %}
+                how we'll prioritize your ranked choices and preferred dates.
+                This ranking only applies if your entry has multiple options for a given category, as we can only work within the options that {% if application.parent_application %}your group leader specifies{% else %}you specify{% endif %} as acceptable.
+            </p>
+            <p>We ask that you rank all your priorities even if you haven't selected multiple options for all categories, in case you come back and change your entry later.</p>
+            {% include 'hotel_lottery/priorities_example.html' with context %}
+            {% endblock %}
+            {% block priorities_form %}
+            {{ form_macros.form_input(room_or_suite_lottery.shared_fields['selection_priorities'], readonly=read_only) }}
+
+            {% if not read_only and application.room_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Complete Entry</button>
+                </div>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
 
 {% block terms %}{% endblock %}

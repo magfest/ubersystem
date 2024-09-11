@@ -352,18 +352,22 @@
 </script>
 {%- endmacro %}
 
-{% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false, callback='') %}
+{% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false, callback='', always_use_callback=True) %}
 <div class="alert" role="alert" id="form-validations-{{ form_id }}"><span></span></div>
 
 <script type="text/javascript">
   serverValidationPassed = false;
   
-  var runServerValidations_{{ form_id|replace('-','_') }} = function($form, submit_button_name) {
+  var runServerValidations_{{ form_id|replace('-','_') }} = function($form, submit_button_name, submit_button_val) {
     var form_list = {{ form_list|safe }}.join(',')
+    var submit_param = ''
     if (form_list != '') {
         form_list = '&form_list=' + form_list
     }
-    $.post("{{ page_handler }}", $form.serialize() + form_list, function (response) {
+    if (submit_button_name != '') {
+      submit_param = '&' + submit_button_name + '=' + submit_button_val;
+    }
+    $.post("{{ page_handler }}", $form.serialize() + form_list + submit_param, function (response) {
       $("#form-validations-{{ form_id }}").hide().removeClass().addClass("alert").children('span').html("");
       $(".is-invalid").each(function() {
         var field_id = $(this).attr('id');
@@ -430,7 +434,7 @@
 
   $(function () {
     $("#form-validations-{{ form_id }}").hide();
-    {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal, callback=callback) }}
+    {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal, callback=callback if always_use_callback else '') }}
 });
 </script>
 {%- endmacro %}
@@ -438,13 +442,16 @@
 {% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false, callback='') %}
 $("#{{ form_id }}").submit(function (event) {
   let submit_button_name = '';
+  let submit_button_val = '';
+  let response = '';
   if (event.originalEvent !== undefined) {
     submit_button_name = event.originalEvent.submitter.name;
+    submit_button_val = event.originalEvent.submitter.value;
   }
 
   if(!serverValidationPassed) {
     event.preventDefault();
-    runServerValidations_{{ form_id|replace('-','_') }}($(this), submit_button_name);
+    runServerValidations_{{ form_id|replace('-','_') }}($(this), submit_button_name, submit_button_val);
     return false;
   }
   {% if include_disclaimers_modal %}

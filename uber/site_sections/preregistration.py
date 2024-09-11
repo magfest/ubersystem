@@ -1032,6 +1032,7 @@ class Root:
 
             if model and not txn.charge_id:
                 new_model = model.__class__(**model.to_dict())
+                session.add(model)
                 for item in txn.receipt_items:
                     for col_name in item.revert_change:
                         setattr(new_model, col_name, item.revert_change[col_name])
