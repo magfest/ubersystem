@@ -186,6 +186,7 @@
                 {% else %}
                     <p>Your room group name is "{{ application.room_group_name }}" and your invite code is {{ application.invite_code }}.</p>
                     <p>You can edit your group name or generate a new invite code below. Generating a new invite code invalidates the old code, but does not affect people already in your group.</p>
+                    <p>In order to join your group, group members need both the invite code and your current email address, which is <strong>{{ application.attendee.email }}</strong>.</p>
                     
                     <div class="row g-sm-3">
                         <div class="col-12 col-sm-6">
@@ -250,7 +251,7 @@
                 <h2>Room Group Information</h2>
                 {% include 'hotel_lottery/room_group_info.html' with context %}
 
-                {% if not application.wants_room %}
+                {% if not application.room_entry_completed %}
                 <p class="mb-0">
                     <button class="btn btn-primary" onClick="setStep('#join-group')">Continue</button>
                 {% else %}
@@ -264,7 +265,10 @@
             {% endif %}
         </div>
         <div id="join-group" class="collapse">
-            <h2>Join Room Group <button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button></h2>
+            <h2>Join Room Group
+                {% if application.room_entry_completed %}<button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button>
+                {% else %}<a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>{% endif %}
+            </h2>
             <div class="show" id="group-lookup">
                 <p>Enter a group invite code and email address below to look up a room group.</p>
                 <form method="post" id="group-lookup-form" action="room_group_search">

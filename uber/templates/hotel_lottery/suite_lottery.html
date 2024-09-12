@@ -45,7 +45,7 @@
 <h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
 <div class="card">
     <div class="card-body">
-        {{ form_macros.form_validation('suite-lottery-form', 'validate_hotel_lottery', form_list=['SuiteLottery']) }}
+        {{ form_macros.form_validation('suite-lottery-form', 'validate_hotel_lottery', form_list=['SuiteLottery'], callback="goToNextStep(response)", always_use_callback=False) }}
 
         {% if not read_only and application.attendee.age_now_or_at_con and application.attendee.age_now_or_at_con < 21 %}
         <div class="alert alert-danger">
@@ -56,8 +56,11 @@
         {% endif %}
 
         <h2>Suite Lottery <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
-        {% if not app_or_parent.wants_suite %}
-        <p>Please carefully read the instructions, fill out the fields below, and click "Enter Lottery" to enter the lottery for a suite.</p>
+        {% if not app_or_parent.suite_entry_completed %}
+        <p>
+            Please read the instructions for each step below carefully. Any completed steps (steps with a <i class='fa fa-check'></i>) will be saved if you leave and come back later, but your lottery entry is <strong>NOT</strong> complete until you see the confirmation screen.
+        </p>
+        <p>You can review or edit completed (<i class='fa fa-check'></i>) steps by clicking the name of the step. Changes to completed steps are saved when you click "Save and Continue" (or when you complete your entry, if you are on the last step).</p>
         {% elif read_only %}
         <p>Below are the details for your room group's suite lottery entry. Only your group leader can edit this.</p>
         {% else %}
@@ -65,22 +68,6 @@
             Below are the details for your current suite lottery entry.
             You can change them and click "Update" to update your entry any time before <strong>{{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</strong>.
         </p>
-        {% endif %}
-        {% block suite_policies %}
-        <p>
-            Suite entries are processed first and prioritized above standard room entries in the lottery. Suites are in extremely high demand, and necessitate special policies:
-            <ul>
-                <li>A one night, non-refundable deposit is required and will be invoiced on confirmation of the suite.</li>
-                <li>Cancellations must be received on or prior to {{ c.HOTEL_LOTTERY_SUITE_CUTOFF|datetime_local }}, otherwise all guests in that suite will be ineligible for future year suite lotteries in addition to forfeiting the deposit.</li>
-                <li>All suites are directly managed by {{ c.EVENT_NAME }}. Suite confirmations are issued by the convention, not the hotel.</li>
-                <li>Additional policies apply to suites. It is essential all attendees requesting a suite read and understand these policies, as you are required to comply as a condition of retaining the suite during the event, and for eligibility in future years.</li>
-            </ul>
-        </p>
-        <p>If awarded a suite, you will receive additional information via email regarding your suite.</p>
-
-        <p>Suite policies, floor plans and other details pertaining to suites may be found on the Suite FAQ.</p>
-        {% endblock %}
-        {% if application.wants_suite and not read_only %}
         <p>
             <form id="withdraw-lottery" method="post" action="withdraw_suite">
                 <input type="hidden" name="id" value="{{ application.id }}">
@@ -88,7 +75,7 @@
             </form>
         </p>
         {% endif %}
-        <hr/>
+        
         {% if not read_only %}
         <form novalidate method="post" id="suite-lottery-form" action="suite_lottery">
             {{ csrf_token() }}

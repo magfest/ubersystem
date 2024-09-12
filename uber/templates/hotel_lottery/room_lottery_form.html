@@ -9,11 +9,12 @@
     ranking_js
     form_js
     last_step_js
+    terms
     hotel_ranking
     check_in_out_dates
+    ada_info
     room_type_ranking
     priorities
-    terms
 
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 Due to the extra scaffolding involved on this form, each block also has a _desc and _form block inside it for more targeted overrides.
@@ -45,7 +46,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             step = parseInt(response.step_completed);
         }
         {% block last_step_js %}
-        if (step == 4 || step == 999) {
+        if (step == 5 || step == 999) {
             $('#room-lottery-form').submit();
         }
         {% endblock %}
@@ -60,10 +61,10 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         }
     };
 
-    {% if application.room_step != 0 %}
+    {% if application[room_text ~ '_step'] != 0 %}
     $().ready(function() {
         $('#step-1').collapse('hide');
-        current_step = parseInt("{{ application.room_step }}");
+        current_step = parseInt("{{ application[room_text ~ '_step'] }}");
         for (let step = 1; step <= current_step; step++) {
             $('#step-' + step + '-button').prop('disabled', false).html($('#step-' + step + '-button').html() + "&nbsp;<i class='fa fa-check'></i>");
             $('#step-' + step + '-submit').hide();
@@ -76,6 +77,8 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 </script>
 {% endif %}
 {% endblock %}
+
+{% block terms %}{% endblock %}
 
 {% block hotel_ranking %}
 <div class="accordion-item">
@@ -98,10 +101,10 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             {% block hotel_ranking_form %}
             {{ form_macros.form_input(room_or_suite_lottery.hotel_preference, readonly=read_only) }}
 
-            {% if not read_only and application.room_step <= steps.counter %}
+            {% if not read_only and application[room_text ~ '_step'] <= steps.counter %}
             <div class="row justify-content-end">
                 <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Continue</button>
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and Continue</button>
                 </div>
             </div>
             {% endif %}
@@ -155,10 +158,10 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             </div>
             {% endif %}
 
-            {% if not read_only and application.room_step <= steps.counter %}
+            {% if not read_only and application[room_text ~ '_step'] <= steps.counter %}
             <div class="row justify-content-end">
                 <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Continue</button>
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and Continue</button>
                 </div>
             </div>
             {% endif %}
@@ -167,6 +170,58 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
     </div>
 </div>
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+{% endblock %}
+
+{% block ada_info %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: ADA Room Information
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+        {% block ada_info_desc %}
+        <p>
+            We have a wide variety of ADA-compliant rooms which can accommodate those with mobility, hearing, or visual impairments.
+            Note that {{ c.EVENT_NAME }} will likely receive more ADA requests than available rooms; once ADA rooms are exhausted, standard rooms are awarded.
+        </p>
+        <p>
+            At the conclusion of the lottery, Accessibility Services reaches out to all room awards with an ADA request, regardless of the awarded room type.
+            If an ADA request is made but the available rooms cannot accommodate your needs, your reservation may be canceled without penalty.
+        </p>
+        <p>
+            If you do <strong>not</strong> require an ADA-compliant room, but would like to request an accomodation for medical need(s) (e.g., quiet floor placement, low floor placement, close proximity to elevators/stairs), please leave the checkbox below <strong>unchecked</strong>.
+            Instead, after the lottery's conclusion, please reach out to Accessibility Services to discuss available options if you have been awarded a room. If the available rooms cannot accommodate your needs, the reservation may be canceled without penalty.
+        </p>
+        {% endblock %}
+        {% block ada_info_form %}
+        <div class="row g-sm-3">
+            <div class="col-12"><strong>{{ form_macros.toggle_checkbox(room_or_suite_lottery.wants_ada, [room_or_suite_lottery.ada_requests], toggle_required=True, disabled=read_only) }}</strong></div>
+        </div>
+        <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.ada_requests, readonly=read_only) }}</div>
+            <div class="col-12 col-sm-6 alert alert-info">
+                {% block ada_requests_desc %}
+                Please describe what accommodations may best suit your needs, e.g., "wide doorways" or "roll in shower."
+                This gives us an early idea as to which ADA room will work for you.
+                <strong>Do not include any health or medical condition information.</strong>
+                {% endblock %}
+            </div>
+        </div>
+
+        {% if not read_only and application[room_text ~ '_step'] <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+        {% endblock %}
+        </div>
+    </div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+</div>
 {% endblock %}
 
 {% block room_type_ranking %}
@@ -187,15 +242,14 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
                 At least one selection is required. As with hotel types, please do not select room types you will not find acceptable.
             {% endif %}
             </p>
-            {% include 'hotel_lottery/ada_info.html' with context %}
             {% endblock %}
             {% block room_type_ranking_form %}
             {{ form_macros.form_input(room_or_suite_lottery.shared_fields['room_or_suite_type_preference'], readonly=read_only) }}
 
-            {% if not read_only and application.room_step <= steps.counter %}
+            {% if not read_only and application[room_text ~ '_step'] <= steps.counter %}
             <div class="row justify-content-end">
                 <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Continue</button>
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and Continue</button>
                 </div>
             </div>
             {% endif %}
@@ -227,10 +281,10 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             {% block priorities_form %}
             {{ form_macros.form_input(room_or_suite_lottery.shared_fields['selection_priorities'], readonly=read_only) }}
 
-            {% if not read_only and application.room_step <= steps.counter %}
+            {% if not read_only and application[room_text ~ '_step'] <= steps.counter %}
             <div class="row justify-content-end">
                 <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Complete Entry</button>
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and {% if suite %}Continue to Suite Lottery{% else %}Complete Entry{% endif %}</button>
                 </div>
             </div>
             {% endif %}
@@ -240,5 +294,3 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 </div>
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
-
-{% block terms %}{% endblock %}

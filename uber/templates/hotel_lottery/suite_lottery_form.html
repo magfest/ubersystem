@@ -1,12 +1,13 @@
 {% extends 'hotel_lottery/room_lottery_form.html' %}
 
-{% block hotel_ranking %}{% endblock %}
-
 {% block last_step_js %}
-if (step == 5) {
+if (step == 4) {
     $('#suite-lottery-form').submit();
 }
 {% endblock %}
+
+{% block hotel_ranking %}{% endblock %}
+{% block ada_info %}{% endblock %}
 
 {% block room_type_ranking_desc %}
 <p>
@@ -18,29 +19,30 @@ if (step == 5) {
 </p>
 {% endblock %}
 
-{% block priorities_form %}
-{{ form_macros.form_input(room_or_suite_lottery.shared_fields['selection_priorities'], readonly=read_only) }}
-
-{% if not read_only and application.room_step <= steps.counter %}
-<div class="row justify-content-end">
-    <div class="col col-auto">
-        <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Continue</button>
-    </div>
-</div>
-{% endif %}
-{% endblock %}
-
 {% block terms %}
 {% if not read_only %}
 <div class="accordion-item">
     <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
         <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
-            Step {{ steps.counter }}: {{ room_text.title() }} Agreement
+            Step {{ steps.counter }}: {{ room_text.title() }} Policies
         </button>
     </h3>
     <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
         <div class="accordion-body">
-            {% block terms_desc %}{% endblock %}
+            {% block terms_desc %}
+            <p>
+                Suite entries are processed first and prioritized above standard room entries in the lottery. Suites are in extremely high demand, and necessitate special policies:
+                <ul>
+                    <li>A one night, non-refundable deposit is required and will be invoiced on confirmation of the suite.</li>
+                    <li>Cancellations must be received on or prior to {{ c.HOTEL_LOTTERY_SUITE_CUTOFF|datetime_local }}, otherwise all guests in that suite will be ineligible for future year suite lotteries in addition to forfeiting the deposit.</li>
+                    <li>All suites are directly managed by {{ c.EVENT_NAME }}. Suite confirmations are issued by the convention, not the hotel.</li>
+                    <li>Additional policies apply to suites. It is essential all attendees requesting a suite read and understand these policies, as you are required to comply as a condition of retaining the suite during the event, and for eligibility in future years.</li>
+                </ul>
+            </p>
+            <p>If awarded a suite, you will receive additional information via email regarding your suite.</p>
+    
+            <p>Suite policies, floor plans and other details pertaining to suites may be found on the Suite FAQ.</p>
+            {% endblock %}
             {% block terms_form %}
             <div class="row g-sm-3">
                 <div class="col-12">
@@ -48,10 +50,10 @@ if (step == 5) {
                 </div>
             </div>
 
-            {% if not read_only and application.room_step <= steps.counter %}
+            {% if not read_only and application[room_text ~ '_step'] <= steps.counter %}
             <div class="row justify-content-end">
                 <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="room_step" value="{{ steps.counter }}">Save and Complete Entry</button>
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and Continue</button>
                 </div>
             </div>
             {% endif %}

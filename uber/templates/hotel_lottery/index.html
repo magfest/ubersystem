@@ -61,8 +61,8 @@
                     {{ view_or_edit ~ " Room Lottery Entry" if application.wants_room or application.parent_application else "Enter Room Lottery" }}
                 </a>
                 {% endif %}
-                {% if (not application.parent_application and application.wants_room) or application.parent_application.wants_suite %}
-                <a class="btn btn-success" href="suite_lottery?id={{ application.id }}">
+                {% if not application.parent_application or application.parent_application.wants_suite %}
+                <a class="btn btn-success" href="suite_lottery?id={{ application.id  }}">
                     {{ view_or_edit ~ " Suite Lottery Entry" if application.wants_suite or application.parent_application else "Enter Suite Lottery" }}
                 </a>
                 {% endif %}
@@ -70,7 +70,7 @@
 
             {% if not application.wants_room %}
             <p>
-                You are currently not eligible to create a group or enter the suite lottery. Use the buttons above to create a room lottery entry first.
+                You are currently not eligible to create a group. Use the buttons above to create a room or suite lottery entry first.
             </p>
             {% endif %}
             

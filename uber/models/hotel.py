@@ -214,9 +214,9 @@ class LotteryApplication(MagModel):
 
     @property
     def homepage_link(self):
-        if not self.suite_entry_completed:
+        if self.wants_suite and not self.suite_entry_completed:
             return f'suite_lottery?id={self.id}'
-        if not self.room_entry_completed:
+        if self.wants_room and not self.room_entry_completed:
             return f'room_lottery?id={self.id}'
         if self.has_any_entry:
             return f'index?id={self.id}'

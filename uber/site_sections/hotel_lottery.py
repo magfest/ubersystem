@@ -119,7 +119,7 @@ class Root:
 
         if not application:
             raise HTTPRedirect(f'start?attendee_id={attendee_id}')
-        
+
         forms_list = ["LotteryInfo", "LotteryRoomGroup", "RoomLottery", "SuiteLottery"]
         forms = load_forms(params, application, forms_list)
 
@@ -127,7 +127,16 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
             session.add(application)
-            raise HTTPRedirect(f'index?attendee_id={attendee_id}')
+            session.commit()
+            action = params.get('action')
+            if action == 'group':
+                raise HTTPRedirect(f'room_group?id={application.id}')
+            elif action == 'suite':
+                raise HTTPRedirect(f'room_lottery?id={application.id}&suite=true')
+            elif action == 'room':
+                raise HTTPRedirect(f'room_lottery?id={application.id}')
+            else:
+                raise HTTPRedirect(f'index?attendee_id={attendee_id}')
         elif not application.terms_accepted:
             raise HTTPRedirect(f'terms?attendee_id={attendee_id}')
 
@@ -186,8 +195,13 @@ class Root:
                 c.EVENT_NAME_AND_YEAR + f' Room Lottery {subject_str}',
                 body,
                 model=application.to_dict('id'))
-            raise HTTPRedirect('index?attendee_id={}&confirm=room&action={}',
-                                application.attendee.id, subject_str.lower())
+            
+            if params.get('suite', "None") != "None":
+                application.wants_suite = True
+                raise HTTPRedirect('suite_lottery?id={}', application.id)
+            else:
+                raise HTTPRedirect('index?attendee_id={}&confirm=room&action={}',
+                                   application.attendee.id, subject_str.lower())
 
         return {
             'id': application.id,
@@ -196,6 +210,7 @@ class Root:
             'message': message,
             'application': application,
             'read_only': False,
+            'suite': params.get('suite'),
         }
 
     @requires_account(LotteryApplication)

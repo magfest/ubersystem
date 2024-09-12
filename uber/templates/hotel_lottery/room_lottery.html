@@ -56,12 +56,15 @@
         </div>
         {% endif %}
 
-        <h2>Standard Room Lottery <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
+        <h2>Standard Room{% if suite %} & Suite{% endif %} Lottery <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
         {% if not app_or_parent.room_entry_completed %}
         <p>
             Please read the instructions for each step below carefully. Any completed steps (steps with a <i class='fa fa-check'></i>) will be saved if you leave and come back later, but your lottery entry is <strong>NOT</strong> complete until you see the confirmation screen.
         </p>
         <p>You can review or edit completed (<i class='fa fa-check'></i>) steps by clicking the name of the step. Changes to completed steps are saved when you click "Save and Continue" (or when you complete your entry, if you are on the last step).</p>
+            {% if suite %}
+            <p><strong>Note</strong>: You must enter the standard room lottery BEFORE entering the suite lottery. You will be able to complete your suite lottery entry after completing the room lottery entry below.</p>
+            {% endif %}
         {% elif read_only %}
         <p>Below are the details for your room group's room lottery entry. Only your group leader can edit this.</p>
         {% else %}
@@ -84,6 +87,7 @@
         <form novalidate method="post" id="room-lottery-form" action="room_lottery">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ application.id }}">
+            <input type="hidden" name="suite" value="{{ suite }}">
             {{ form_macros.form_input(room_lottery.wants_room, force_hidden=True, default="1") }}
         {% endif %}
         <div class="accordion mb-3" id="room-lottery-accordion">
