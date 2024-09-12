@@ -18,14 +18,14 @@
         }
     }
 
-    var lookupRoomGroup = function() {
+    var lookupRoomGroup = function(event) {
+        event.preventDefault();
+        hideMessageBox();
         $.ajax({
-              method: 'GET',
+              method: 'POST',
               url: 'room_group_search',
               dataType: 'json',
-              data: {
-                  invite_code: $('#invite_code').val()
-              },
+              data: $(this).serialize(),
               success: function (json) {
                 if (json.success) {
                     $('#group-found').show();
@@ -160,6 +160,7 @@
         $('#select-action').show();
         {% endif %}
 
+        $('#group-lookup-form').submit(lookupRoomGroup);
         $("#remove-member").submit(removeConfirm);
         if($('#disband-group').length) { $("#disband-group").submit(disbandConfirm); }
 
@@ -265,15 +266,24 @@
         <div id="join-group" class="collapse">
             <h2>Join Room Group <button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button></h2>
             <div class="show" id="group-lookup">
-                <p>Enter a group invite code below to look up a room group.</p>
+                <p>Enter a group invite code and email address below to look up a room group.</p>
+                <form method="post" id="group-lookup-form" action="room_group_search">
+                {{ csrf_token() }}
                 <div class="row g-sm-3">
-                    <div class="col-12 col-sm-6">
+                    <div class="col-12 col-sm-4">
+                        <div class="form-text">Invite Code</div>
                         <input type="text" class="form-control" id="invite_code" name="invite_code" placeholder="XXX-XXX-XXX">
                     </div>
-                    <div class="col-12 col-sm-6">
-                        <button type="button" class="btn btn-primary" onClick="lookupRoomGroup()">Search</button>
+                    <div class="col-12 col-sm-4">
+                        <div class="form-text">Group Leader's Email</div>
+                        <input type="text" class="form-control" id="leader_email" name="leader_email" placeholder="x@y.com">
+                    </div>
+                    <div class="col-12 col-sm-4">
+                        <br/>
+                        <button type="submit" class="btn btn-primary">Search</button>
                     </div>
                 </div>
+                </form>
             </div>
             <div class="collapse" id="group-found">
                 <p>

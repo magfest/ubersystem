@@ -10,20 +10,13 @@ from sqlalchemy import func
 from sqlalchemy.sql.expression import literal
 
 from uber.config import c
+from uber.custom_tags import readable_join
 from uber.decorators import all_renderable, ajax, ajax_gettable, csv_file, requires_account, render
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Group
-from uber.tasks.email import send_email
-from uber.utils import localized_now, RegistrationCode
-
-from datetime import datetime
-
-from uber.config import c
-from uber.decorators import ajax, all_renderable, requires_account
-from uber.errors import HTTPRedirect
-from uber.models import Attendee, Room, RoomAssignment, Shift, LotteryApplication
 from uber.forms import load_forms
-from uber.utils import validate_model, get_age_from_birthday
+from uber.models import Attendee, LotteryApplication
+from uber.tasks.email import send_email
+from uber.utils import RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
 
 
 def _prepare_hotel_lottery_headers(attendee_id, attendee_email, token_type="X-SITE"):
@@ -217,7 +210,8 @@ class Root:
         for attr in ['earliest_room_checkin_date', 'latest_room_checkin_date',
                      'earliest_room_checkout_date', 'latest_room_checkout_date',
                      'hotel_preference', 'room_type_preference', 'room_selection_priorities',
-                     'wants_ada', 'ada_requests', 'room_step', 'wants_room']:
+                     'wants_ada', 'ada_requests', 'room_step', 'wants_room',
+                     'legal_first_name', 'legal_last_name', 'terms_accepted', 'data_policy_accepted']:
             setattr(application, attr, defaults.get(attr))
 
         body = render('emails/hotel/lottery_entry_withdrawn.html', {
@@ -457,15 +451,22 @@ class Root:
         raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
                            f"{old_room_group_name} has been disbanded.")
 
-    @ajax_gettable
-    def room_group_search(self, session, invite_code=None):
+    @ajax
+    def room_group_search(self, session, **params):
+        invite_code, leader_email = params.get('invite_code'), params.get('leader_email')
+        errors = []
         if not invite_code:
-            return {'error': "No invite code provided."}
-        
+            errors.append("a group invite code")
+        if not leader_email:
+            errors.append("the room group leader's email address")
+        if errors:
+            return {'error': f"Please enter {readable_join(errors)}."}
+
         room_group = session.lookup_registration_code(invite_code, LotteryApplication)
-        if not room_group:
-            return {'error': "No room group with that code found."}
-        
+
+        if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email):
+            return {'error': "No room group found. Please check the invite code and leader email address."}
+
         return {
             'success': True,
             'invite_code': invite_code,
