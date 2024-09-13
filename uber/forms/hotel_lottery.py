@@ -60,6 +60,14 @@ class RoomLottery(MagForm):
 
     wants_room = BooleanField('I would like to enter the hotel room lottery.', default=False)
     room_step = HiddenField('Current Step')
+    legal_first_name = StringField('First Name on ID',
+                                   validators=[validators.DataRequired("Please enter your first name as it appears on your photo ID.")])
+    legal_last_name = StringField('Last Name on ID',
+                                  validators=[validators.DataRequired("Please enter your last name as it appears on your photo ID.")])
+    hotel_preference = SelectMultipleField(
+        'Hotels', coerce=int, choices=c.HOTEL_LOTTERY_HOTELS_OPTS,
+        widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS),
+        validators=[validators.DataRequired("Please select at least one preferred hotel.")])
     earliest_room_checkin_date = DateField(
         'Preferred Check-In Date',
         validators=[validators.DataRequired("Please enter your preferred check-in date.")],
@@ -78,10 +86,6 @@ class RoomLottery(MagForm):
         validators=[validators.DataRequired("Please enter your preferred check-out date.")],
         render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_START),
                    'max': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_END)})
-    hotel_preference = SelectMultipleField(
-        'Hotels', coerce=int, choices=c.HOTEL_LOTTERY_HOTELS_OPTS,
-        widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS),
-        validators=[validators.DataRequired("Please select at least one preferred hotel.")])
     room_type_preference = SelectMultipleField(
         'Room Types', coerce=int, choices=c.HOTEL_LOTTERY_ROOM_TYPES_OPTS,
         widget=Ranking(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS),
@@ -100,12 +104,14 @@ class RoomLottery(MagForm):
             optional_list.append('ada_requests')
 
         room_step = int(application.room_step) if application.room_step else 0
-        if room_step < 5:
+        if room_step < 6:
             optional_list.append('room_selection_priorities')
-        if room_step < 4:
+        if room_step < 5:
             optional_list.append('room_type_preference')
-        if room_step < 2:
+        if room_step < 3:
             optional_list.extend(['earliest_room_checkin_date', 'latest_room_checkout_date'])
+        if room_step < 2:
+            optional_list.append('hotel_preference')
 
         return optional_list
 

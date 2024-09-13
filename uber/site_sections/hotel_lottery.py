@@ -183,6 +183,7 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
 
+            application.room_step = 999
             session.commit()
             session.refresh(application)
 
@@ -274,6 +275,7 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
 
+            application.suite_step = 999
             session.commit()
             session.refresh(application)
 

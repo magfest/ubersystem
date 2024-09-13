@@ -10,6 +10,7 @@
     form_js
     last_step_js
     terms
+    legal_name
     hotel_ranking
     check_in_out_dates
     ada_info
@@ -46,7 +47,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             step = parseInt(response.step_completed);
         }
         {% block last_step_js %}
-        if (step == 5 || step == 999) {
+        if (step == 6 || step == 999) {
             $('#room-lottery-form').submit();
         }
         {% endblock %}
@@ -79,6 +80,43 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 {% endblock %}
 
 {% block terms %}{% endblock %}
+
+{% block legal_name %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: Check-in Name
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block legal_name_desc %}
+            Hotels require your first and last name to match the photo ID you use during check-in. Please verify your first and last name below.
+            {% endblock %}
+
+            {% block legal_name_form %}
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    {{ form_macros.form_input(room_or_suite_lottery.legal_first_name, readonly=read_only, value=room_or_suite_lottery.legal_first_name.data or application.attendee.legal_first_name) }}
+                </div>
+                <div class="col-12 col-sm-6">
+                    {{ form_macros.form_input(room_or_suite_lottery.legal_last_name, readonly=read_only, value=room_or_suite_lottery.legal_last_name.data or application.attendee.legal_last_name) }}
+                </div>
+            </div>
+
+            {% if not read_only and application[room_text ~ '_step'] <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+{% endblock %}
 
 {% block hotel_ranking %}
 <div class="accordion-item">
