@@ -1,4 +1,4 @@
-input.error {
+input.error, input:invalid {
     background-color: #fff0f0;
     border-color: #d00;
 }
