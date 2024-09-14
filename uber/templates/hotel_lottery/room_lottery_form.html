@@ -34,6 +34,21 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
     .chosen {
         opacity: 1;
     }
+    .placeholder-deselect-opt::after, .placeholder-select-opt::after {
+        content: "Drag an item here.";
+        opacity: 0.33;
+        font-style: italic;
+        display: "block";
+        height: 50px;
+        vertical-align: middle;
+        text-align: center;
+    }
+    .placeholder-deselect-opt::after {
+        content: "Drag an item here to deselect it.";
+    }
+    .placeholder-select-opt::after {
+        content: "Drag an item here to select it.";
+    }
 </style>
 {% endif %}
 {% endblock %}

@@ -161,6 +161,15 @@ class Ranking():
 
         script = f"""
         <script type="text/javascript">
+            var showOrHidePlaceholders_{ id } = function(select_or_deselect) {{
+                let ulOpts = document.getElementById(select_or_deselect + "ed_{ id }");
+                if (ulOpts.children.length == 0) {{
+                    ulOpts.classList.add('placeholder-'+ select_or_deselect +'-opt');
+                }} else {{
+                    ulOpts.classList.remove('placeholder-'+ select_or_deselect +'-opt');
+                }}
+            }}
+
             Sortable.create(deselected_{ id }, {{
                 group: '{ id }',
                 animation: 100
@@ -171,16 +180,23 @@ class Ranking():
                 animation: 100,
                 onSort: function(evt) {{
                     el = document.getElementById("selected_{ id }");
+                    showOrHidePlaceholders_{ id }("select");
                     for (let i=0; i<el.children.length; i++) {{
                         el.children[i].querySelector("input").setAttribute("name", "{ id }");
                     }}
 
                     dl = document.getElementById("deselected_{ id }");
+                    showOrHidePlaceholders_{ id }("deselect");
                     for (let i=0; i<dl.children.length; i++) {{
                         dl.children[i].querySelector("input").removeAttribute("name");
                     }}
                     
                 }}
+            }});
+
+            $().ready(function() {{
+                showOrHidePlaceholders_{ id }("select");
+                showOrHidePlaceholders_{ id }("deselect");
             }});
         </script>"""
 
