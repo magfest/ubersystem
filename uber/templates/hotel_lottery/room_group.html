@@ -206,7 +206,6 @@
                 <form method="post" action="delete_group" id="disband-group">
                 {% endif %}
                     <p class="mb-0 pull-right">
-                        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View Room Group Information</button>
                         <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
                         <input type="hidden" name="id" value="{{ application.id }}">
                             {{ csrf_token() }}
@@ -316,23 +315,11 @@
             {% else %}
                 <p>You have successfully joined group "{{ application.parent_application.room_group_name }}"!</p>
             {% endif %}
-            <button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Back to Options</button>
+            {% if action == 'created' %}
+            <button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Room Group Options</button>
+            {% endif %}
+            <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
         </div>
-    </div>
-</div>
-
-<div class="modal fade" id="room-group-terms" tabindex="-1" role="dialog" aria-labelledby="room-group-terms-title">
-    <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title" id="room-group-terms-title">Room Group Information</h4>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-            {% include 'hotel_lottery/room_group_info.html' with context %}
-        </div>
-        <div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal" aria-label="Close">Close</button></div>
-      </div>
     </div>
 </div>
 {% endblock %}

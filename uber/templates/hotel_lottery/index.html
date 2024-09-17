@@ -116,15 +116,21 @@
             <h2>Your Room Group</h2>
             <p>You {{ application.group_status_str }}.</p>
             <p>
+                <div class="row g-1">
                 {% if application.room_group_name %}
-                    <a class="btn btn-primary" href="room_group?id={{ application.id }}">Manage Room Group</a>
+                    <div class="col col-auto"><a class="btn btn-primary" href="room_group?id={{ application.id }}">Manage Room Group</a></div>
                 {% else %}
-                <form method="post" action="leave_group" id="leave-group">
-                    <input type="hidden" name="id" value="{{ application.id }}">
-                    {{ csrf_token() }}
-                    <button class="btn btn-danger">Leave Group</button>
-                </form>
+                    <div class="col col-auto">
+                    <form method="post" action="leave_group" id="leave-group">
+                        <input type="hidden" name="id" value="{{ application.id }}">
+                        {{ csrf_token() }}
+                        <button class="btn btn-danger">Leave Group</button>
+                    </form>
+                    </div>
                 {% endif %}
+                <div class="col col-auto">
+                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View Room Group Information</button>
+                </div>
             </p>
             {% endif %}
 
@@ -196,7 +202,7 @@
 
             {% if not application.wants_room and not application.parent_application %}
             <p>
-                You are currently not eligible to create a group. Use the buttons above to create a room or suite lottery entry first.
+                You are currently not eligible to create a group. Use the buttons above to create a room lottery entry first.
             </p>
             {% endif %}
             
@@ -234,6 +240,21 @@
         </div>
         <div class="modal-body">
             {% include 'hotel_lottery/lottery_tos.html' with context %}
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal" aria-label="Close">Close</button></div>
+      </div>
+    </div>
+</div>
+
+<div class="modal fade" id="room-group-terms" tabindex="-1" role="dialog" aria-labelledby="room-group-terms-title">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="room-group-terms-title">Room Group Information</h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            {% include 'hotel_lottery/room_group_info.html' with context %}
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal" aria-label="Close">Close</button></div>
       </div>

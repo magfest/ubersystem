@@ -547,5 +547,5 @@ class Root:
                 body,
                 model=room_group.to_dict('id'))
 
-            raise HTTPRedirect('room_group?id={}&message={}', application.id,
+            raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
                                f'Successfully left the room group "{room_group.room_group_name}".')
