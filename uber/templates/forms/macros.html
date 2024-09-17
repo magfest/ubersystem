@@ -427,6 +427,7 @@
           {{ callback|safe }};
         {% else %}
         if (submit_button_name != '') {
+          console.log($("#{{ form_id }}").find($("[name=" + submit_button_name + "]")))
           $("#{{ form_id }}").find($("[name=" + submit_button_name + "]")).click();
         } else {
           $("#{{ form_id }}").submit();

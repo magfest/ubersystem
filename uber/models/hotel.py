@@ -210,7 +210,7 @@ class LotteryApplication(MagModel):
         if self.wants_room and not self.room_entry_completed:
             return f'room_lottery?id={self.id}'
         if self.has_any_entry:
-            return f'index?id={self.id}'
+            return f'index?attendee_id={self.attendee.id}'
         return f'start?attendee_id={self.attendee.id}'
 
     def build_nights_map(self, check_in, check_out):

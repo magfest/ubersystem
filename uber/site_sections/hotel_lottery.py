@@ -126,19 +126,21 @@ class Root:
             raise HTTPRedirect(f'start?attendee_id={attendee_id}')
 
         forms_list = ["LotteryInfo", "LotteryRoomGroup", "RoomLottery", "SuiteLottery"]
-        forms = load_forms(params, application, forms_list)
+        if application.parent_application:
+            forms = load_forms(params, application.parent_application, forms_list)
+        else:
+            forms = load_forms(params, application, forms_list)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
                 form.populate_obj(application)
             session.add(application)
             session.commit()
-            action = params.get('action')
-            if action == 'group':
+            if params.get('group'):
                 raise HTTPRedirect(f'room_group?id={application.id}')
-            elif action == 'suite':
+            elif params.get('suite'):
                 raise HTTPRedirect(f'room_lottery?id={application.id}&suite=true')
-            elif action == 'room':
+            elif params.get('room'):
                 raise HTTPRedirect(f'room_lottery?id={application.id}')
             else:
                 raise HTTPRedirect(f'index?attendee_id={attendee_id}')
@@ -268,6 +270,10 @@ class Root:
                 }
 
         forms = load_forms(params, application, forms_list)
+        if application.suite_step < 2:
+            for attr in ['earliest_{}_checkin_date', 'latest_{}_checkin_date',
+                         'earliest_{}_checkout_date', 'latest_{}_checkout_date']:
+                forms['suite_lottery'][attr.format('suite')].data = getattr(application, attr.format('room'))
 
         if cherrypy.request.method == 'POST':
             if not application.suite_entry_completed:

@@ -194,7 +194,7 @@
                 {% include "hotel_lottery/ro_room_lottery.html" with context %}
             {% endif %}
 
-            {% if not application.wants_room %}
+            {% if not application.wants_room and not application.parent_application %}
             <p>
                 You are currently not eligible to create a group. Use the buttons above to create a room or suite lottery entry first.
             </p>
