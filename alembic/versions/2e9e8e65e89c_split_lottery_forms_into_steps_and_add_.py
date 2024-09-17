@@ -1,7 +1,7 @@
 """Split lottery forms into steps and add info policy
 
 Revision ID: 2e9e8e65e89c
-Revises: 0578795f8d0b
+Revises: 5d8ddcd68f6d
 Create Date: 2024-09-11 00:43:34.369454
 
 """
@@ -9,7 +9,7 @@ Create Date: 2024-09-11 00:43:34.369454
 
 # revision identifiers, used by Alembic.
 revision = '2e9e8e65e89c'
-down_revision = '0578795f8d0b'
+down_revision = '5d8ddcd68f6d'
 branch_labels = None
 depends_on = None
 

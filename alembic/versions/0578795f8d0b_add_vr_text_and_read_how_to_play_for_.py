@@ -52,10 +52,14 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
+    """Remove after migration fix is deployed
     op.add_column('indie_game_review', sa.Column('read_how_to_play', sa.Boolean(), server_default='False', nullable=False))
     op.add_column('indie_judge', sa.Column('vr_text', sa.Unicode(), server_default='', nullable=False))
+    """
 
 
 def downgrade():
+    """Remove after migration fix is deployed
     op.drop_column('indie_judge', 'vr_text')
     op.drop_column('indie_game_review', 'read_how_to_play')
+    """

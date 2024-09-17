@@ -1,7 +1,7 @@
 """Fix deleting groups with leaders
 
 Revision ID: 9fb2b1c462c2
-Revises: f1a8794a398f
+Revises: 72225013a93d
 Create Date: 2024-08-04 18:46:15.939539
 
 """
@@ -9,7 +9,7 @@ Create Date: 2024-08-04 18:46:15.939539
 
 # revision identifiers, used by Alembic.
 revision = '9fb2b1c462c2'
-down_revision = 'f1a8794a398f'
+down_revision = '72225013a93d'
 branch_labels = None
 depends_on = None
 
@@ -52,10 +52,14 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
+    """Remove after migration fix is deployed
     op.drop_constraint('fk_leader', 'group', type_='foreignkey')
     op.create_foreign_key('fk_leader', 'group', 'attendee', ['leader_id'], ['id'], ondelete='SET NULL', use_alter=True)
+    """
 
 
 def downgrade():
+    """Remove after migration fix is deployed
     op.drop_constraint('fk_leader', 'group', type_='foreignkey')
     op.create_foreign_key('fk_leader', 'group', 'attendee', ['leader_id'], ['id'])
+    """

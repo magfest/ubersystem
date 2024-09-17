@@ -1,7 +1,7 @@
 """Adding hotel lottery application
 
 Revision ID: 5d8ddcd68f6d
-Revises: 72225013a93d
+Revises: 0578795f8d0b
 Create Date: 2024-08-15 02:29:39.182464
 
 """
@@ -9,7 +9,7 @@ Create Date: 2024-08-15 02:29:39.182464
 
 # revision identifiers, used by Alembic.
 revision = '5d8ddcd68f6d'
-down_revision = '72225013a93d'
+down_revision = '0578795f8d0b'
 branch_labels = None
 depends_on = None
 
