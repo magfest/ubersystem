@@ -1,9 +1,11 @@
 {% extends 'hotel_lottery/room_lottery_form.html' %}
 
 {% block last_step_js %}
+{% if not read_only %}
 if (step == 4) {
     $('#suite-lottery-form').submit();
 }
+{% endif %}
 {% endblock %}
 
 {% block hotel_ranking %}{% endblock %}

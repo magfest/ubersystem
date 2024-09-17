@@ -174,35 +174,26 @@ class LotteryApplication(MagModel):
 
     @property
     def current_status_str(self):
-        if not self.wants_room and not self.wants_suite and not self.parent_application:
-            return "do NOT have an entry in the hotel room or suite lottery"
-
-        plural = False
-        have_str = ''
         app_or_parent = self.parent_application or self
+        if not app_or_parent.room_entry_completed:
+            return "do NOT have an entry in the hotel room or suite lottery"
+        
+        if app_or_parent.suite_entry_completed:
+            return "are entered into the suite lottery and room lottery"
+        else:
+            return "are entered into the room lottery. You do not have an entry in the suite lottery"
+
+    @property
+    def group_status_str(self):
         if self.parent_application:
             group_leader_name = self.parent_application.group_leader_name
-            have_str = f'are in {group_leader_name}\'s "{self.parent_application.room_group_name}" room group, which '
+            return f'are in {group_leader_name}\'s room group "{self.parent_application.room_group_name}"'
         elif self.room_group_name:
-            have_str = f'are the group leader for "{self.room_group_name}". Your group '
-        else:
-            plural = True
-
-        if app_or_parent.wants_room and app_or_parent.wants_suite:
-            have_str += '{} a room lottery entry and a suite lottery entry'.format(
-                'have' if plural else 'has')
-        elif app_or_parent.wants_room:
-            have_str += '{} a room lottery entry. {} not have a suite lottery entry'.format(
-                'have' if plural else 'has', 'You do' if plural else 'It does')
-        elif app_or_parent.wants_suite:
-            have_str += '{} NOT have a room lottery entry but {} have a suite lottery entry'.format(
-                'do' if plural else 'does', 'you have' if plural else 'it does')
-
-        return have_str
+            return f'are the group leader for "{self.room_group_name}". Your group has {len(self.group_members) + 1} group members, including yourself'
 
     @property
     def has_any_entry(self):
-        return self.parent_application or self.wants_room or self.wants_suite
+        return self.parent_application or self.room_entry_completed or self.suite_entry_completed
     
     @property
     def room_entry_completed(self):

@@ -31,6 +31,11 @@ def _prepare_hotel_lottery_headers(attendee_id, attendee_email, token_type="X-SI
         'EXPIRE': str(int((datetime.now() + expiration_length).timestamp()))
     }
 
+suite_lottery_attrs = ['earliest_suite_checkin_date', 'latest_suite_checkin_date',
+                       'earliest_suite_checkout_date', 'latest_suite_checkout_date',
+                       'suite_type_preference', 'suite_selection_priorities',
+                       'wants_suite', 'suite_step', 'suite_terms_accepted']
+
 @all_renderable(public=True)
 class Root:
     @ajax
@@ -174,7 +179,7 @@ class Root:
         forms = load_forms(params, application, forms_list)
 
         if cherrypy.request.method == 'POST':
-            if not application.wants_room:
+            if not application.room_entry_completed:
                 entering_or_updating_str = "entering the room lottery"
                 subject_str = "Confirmation"
             else:
@@ -227,7 +232,7 @@ class Root:
                      'earliest_room_checkout_date', 'latest_room_checkout_date',
                      'hotel_preference', 'room_type_preference', 'room_selection_priorities',
                      'wants_ada', 'ada_requests', 'room_step', 'wants_room',
-                     'legal_first_name', 'legal_last_name', 'terms_accepted', 'data_policy_accepted']:
+                     'legal_first_name', 'legal_last_name', 'terms_accepted', 'data_policy_accepted'] + suite_lottery_attrs:
             setattr(application, attr, defaults.get(attr))
 
         body = render('emails/hotel/lottery_entry_withdrawn.html', {
@@ -239,9 +244,8 @@ class Root:
             body,
             model=application.to_dict('id'))
 
-        raise HTTPRedirect('index?attendee_id={}&message={}',
-                           application.attendee.id,
-                           f"Room lottery entry canceled. You will receive an email confirming the cancellation.")
+        raise HTTPRedirect('../preregistration/homepage?message={}',
+                           f"You have been removed from the hotel lottery.")
     
     @requires_account(LotteryApplication)
     def suite_lottery(self, session, id=None, message="", **params):
@@ -266,7 +270,7 @@ class Root:
         forms = load_forms(params, application, forms_list)
 
         if cherrypy.request.method == 'POST':
-            if not application.wants_suite:
+            if not application.suite_entry_completed:
                 entering_or_updating_str = "entering the suite lottery"
                 subject_str = "Confirmation"
             else:
@@ -314,12 +318,16 @@ class Root:
     def withdraw_suite(self, session, id=None, **params):
         application = session.lottery_application(id)
 
+        confirm_withdrawal = application.suite_entry_completed
+
         defaults = LotteryApplication().to_dict()
-        for attr in ['earliest_suite_checkin_date', 'latest_suite_checkin_date',
-                     'earliest_suite_checkout_date', 'latest_suite_checkout_date',
-                     'hotel_preference', 'suite_type_preference', 'suite_selection_priorities',
-                     'wants_ada', 'ada_requests', 'wants_suite', 'suite_step', 'suite_terms_accepted']:
+        for attr in suite_lottery_attrs:
             setattr(application, attr, defaults.get(attr))
+
+        if not confirm_withdrawal:
+            raise HTTPRedirect('index?attendee_id={}&message={}',
+                               application.attendee.id,
+                               f"In-progress suite lottery entry cancelled.")
 
         body = render('emails/hotel/lottery_entry_withdrawn.html', {
             'application': application, 'room_or_suite': 'suite'}, encoding=None)
@@ -342,10 +350,6 @@ class Root:
         raise HTTPRedirect('index?attendee_id={}&message={}',
                            application.attendee.id,
                            f"Suite lottery entry canceled. You{extra_str} will receive an email confirming the cancellation.")
-
-    @requires_account(LotteryApplication)
-    def withdraw_entries(self, session, id=None, **params):
-        application = session.lottery_application(id)
 
     @ajax
     def validate_hotel_lottery(self, session, attendee_id=None, form_list=[], **params):

@@ -129,15 +129,14 @@ class Ranking():
             try:
                 choice_item = choice_dict[choice_id]
                 price_subtitle = self.display_price(choice_item)
+                desc = f'<div class="card-text">{choice_item["description"]}</div>' if choice_item.get("description") else ''
                 el = f"""
-                <li class="card card-body border-dark gap-2" value="{choice_id}">
-                    <h4 class="card-title">
+                <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
+                    <h4 class="card-title {'mb-0' if not desc else 'mb-1 mb-sm-2'}">
                         {choice_item["name"]}
                     </h4>
                     {price_subtitle}
-                    <div class="card-text">
-                        {choice_item["description"]}
-                    </div>
+                    {desc}
                     <input type="hidden" name="{id}" value="{choice_id}">
                 </li>"""
                 selected_html.append(el)
@@ -146,15 +145,14 @@ class Ranking():
         for choice_id, choice_item in choices:
             if not choice_id in selected_choices:
                 price_subtitle = self.display_price(choice_item)
+                desc = f'<div class="card-text">{choice_item["description"]}</div>' if choice_item.get("description") else ''
                 el = f"""
-                <li class="card card-body border-dark gap-2" value="{choice_id}">
-                    <h4 class="card-title">
+                <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
+                    <h4 class="card-title {'mb-0' if not desc else 'mb-1 mb-sm-2'}">
                         {choice_item["name"]}
                     </h4>
                     {price_subtitle}
-                    <div class="card-text">
-                        {choice_item["description"]}
-                    </div>
+                    {desc}
                     <input type="hidden" value="{choice_id}">
                 </li>"""
                 deselected_html.append(el)
@@ -200,23 +198,29 @@ class Ranking():
             }});
         </script>"""
 
-        html = ['<div class="row">']
+        if read_only:
+            html = []
+        else:
+            html = ['<div class="row">']
 
         if not read_only:
             html.extend([
-                '<div class="col-md-6">',
+                '<div class="col-sm-6">',
                 f'<span class="form-text">Available {field.label.text}</span>',
-                f'<ul class="card card-body bg-light gap-2" id="deselected_{id}">',
+                f'<ul class="card card-body bg-light gap-2 p-2 p-sm-3" id="deselected_{id}">',
                 *deselected_html,
                 '</ul></div>'
                 ])
         html.extend([
-            '<div class="col-md-6">',
+            '<div class="col-sm-6">',
             f'<span class="form-text">{'' if read_only else 'Selected '}{field.label.text}</span>',
-            f'<ul class="card card-body bg-light gap-2" id="selected_{id}">',
+            f'<ul class="card card-body bg-light gap-2 p-2 p-sm-3" id="selected_{id}">',
             *selected_html,
-            f'</ul></div></div>',
-            script
+            f'</ul></div>',
+            script if not read_only else ''
             ])
-        
+
+        if not read_only:
+            html.append('</div>')
+
         return Markup(''.join(html))

@@ -124,33 +124,6 @@
         });
     }
 
-    leaveConfirm = function(event){
-        var formToSubmit = this;
-        event.preventDefault();
-        bootbox.confirm({
-            title: "Leave Room Group?",
-            message: "<p>This will remove you from the group's lottery entry.</p>" + 
-                     "<p>The group leader will be notified via email. " +
-                     "You will be reverted to any lottery entries you had before joining the group.</p>" +
-                     "<p>Are you sure?</p>",
-            buttons: {
-                confirm: {
-                    label: 'Yes, Leave Group',
-                    className: 'btn-danger'
-                },
-                cancel: {
-                    label: 'Nevermind',
-                    className: 'btn-outline-secondary'
-                }
-            },
-            callback: function (result) {
-                if(result) {
-                    formToSubmit.submit();
-                }
-            }
-        });
-    }
-
     $().ready(function () {
         {% if action %}
         $('#confirm').show();
@@ -167,7 +140,6 @@
         {% if application.wants_room or application.wants_suite %}
         $("#join-group-form").submit(joinConfirm);
         {% endif %}
-        if($('#leave-group').length) { $("#leave-group").submit(leaveConfirm); }
     })
 </script>
 
@@ -232,8 +204,6 @@
                 {% endif %}
                 {% if application.room_group_name %}
                 <form method="post" action="delete_group" id="disband-group">
-                {% else %}
-                <form method="post" action="leave_group" id="leave-group">
                 {% endif %}
                     <p class="mb-0 pull-right">
                         <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View Room Group Information</button>
@@ -242,11 +212,11 @@
                             {{ csrf_token() }}
                             {% if application.room_group_name %}
                             <button class="btn btn-danger" onClick="disbandConfirm()">Disband Group</button>
-                            {% else %}
-                            <button class="btn btn-danger" onClick="leaveConfirm()">Leave Group</button>
                             {% endif %}
                     </p>
+                {% if application.room_group_name %}
                 </form>
+                {% endif %}
             {% else %}
                 <h2>Room Group Information</h2>
                 {% include 'hotel_lottery/room_group_info.html' with context %}

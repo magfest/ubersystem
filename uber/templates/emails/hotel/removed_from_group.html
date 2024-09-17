@@ -6,7 +6,7 @@
     This is notify you that {% if group_disbanded %}the room group you were in, "{{ parent.room_group_name }}", has been disbanded{% else %}you have been removed from the room group "{{ parent.room_group_name }}".{% endif %}
 </p>
 <p>
-    {% if application.wants_room or application.wants_suite %}
+    {% if application.room_entry_completed or application.suite_entry_completed %}
     Since you entered the lottery before joining the room group, we have reverted back to your status before joining. You {{ application.current_status_str }}.
 </p>
 <p>

@@ -3,7 +3,9 @@
 {% set room_lottery = room_lottery or forms['room_lottery'] %}
 {% set suite_lottery = suite_lottery or forms['suite_lottery'] %}
 {% set room_or_suite_lottery = suite_lottery if 'suite_lottery' in forms else room_lottery %}
+{% set room_or_suite_lottery = room_lottery if force_room_lottery else room_or_suite_lottery %}
 {% set room_text = "suite" if 'suite_lottery' in forms else 'room' %}
+{% set app_or_parent = application.parent_application or application %}
 
 {# BLOCK NAMES in this form:
     ranking_js
@@ -33,6 +35,10 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
     }
     .chosen {
         opacity: 1;
+    }
+    input:invalid {
+        background-color: hsl(0, 100%, 97%);
+        border-color: #d00;
     }
     .placeholder-deselect-opt::after, .placeholder-select-opt::after {
         content: "Drag an item here.";
@@ -66,6 +72,9 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         }
         {% endblock %}
         else {
+            if (step == 1) {
+                $('#return-btn').text("Return to Options");
+            }
             let next_step = step + 1;
             $('#step-' + step).collapse('hide');
             $('#step-' + step + '-submit').hide();
