@@ -2168,7 +2168,7 @@ class Root:
             raise HTTPRedirect(page + 'message=Your registration has been confirmed')
         log.error(message)
         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' +
-                           return_to + '&message=There was a problem resetting your receipt')
+                           return_to + '&message=There was a problem resetting your receipt.')
 
     @ajax
     @credit_card
