@@ -464,12 +464,6 @@ def mivs_video_link(game):
 
 
 @validation.IndieGame
-def mivs_submitted(game):
-    if (game.submitted and not game.status == c.ACCEPTED) and not c.HAS_MIVS_ADMIN_ACCESS:
-        return 'You cannot edit a game after it has been submitted'
-
-
-@validation.IndieGame
 def mivs_show_info_required_fields(game):
     if game.confirmed:
         if len(game.brief_description) > 80:
@@ -1093,7 +1087,7 @@ def age_discount_after_paid(attendee):
 
 @prereg_validation.Attendee
 def require_staff_shirt_size(attendee):
-    if attendee.gets_staff_shirt and not attendee.shirt_size_marked:
+    if attendee.gets_staff_shirt and not attendee.shirt_size_marked and not c.STAFF_SHIRTS_OPTIONAL:
         return ('staff_shirt', "Please select a shirt size for your staff shirt.")
 
 

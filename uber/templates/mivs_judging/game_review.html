@@ -129,6 +129,15 @@ for reviewing the game:
     </div>
     {% endif %}
 
+    {% if review.game.build_notes %}
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Build Notes</label>
+        <div class="col-sm-6 game-display">
+            {{ review.game.build_notes }}
+        </div>
+    </div>
+    {% endif %}
+
     <div class="form-group">
         <label class="col-sm-3 control-label">Game Status</label>
         <div class="col-sm-6">

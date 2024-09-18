@@ -1342,9 +1342,6 @@ class ReceiptManager:
         except TypeError as e:
             log.error(str(e))
             return
-        
-        log.error(cost_desc)
-        log.error(cost_change)
 
         old_val = getattr(model, col_name)
         try:

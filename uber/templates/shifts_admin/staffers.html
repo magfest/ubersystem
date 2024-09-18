@@ -35,8 +35,8 @@ Please select a department above to view its staffers.
 
 <br/>
 <span style="font-size:14pt ; font-weight:bold"> Staffers Assigned to This Area</span>
-  (<a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ emails }}">email these staffers</a>
-  or <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ emails_with_shifts }}">email staffers with shifts here</a>)<b>:</b>
+  (<a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ emails }}">email these staffers</a>
+  or <a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ emails_with_shifts }}">email staffers with shifts here</a>)<b>:</b>
 <br/> <br/><a href="#attendee_form?id=None" class="btn btn-primary">Add new volunteer</a><br/><br/>
 
 <table class="table table-striped datatable">

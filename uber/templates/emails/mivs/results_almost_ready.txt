@@ -1,6 +1,12 @@
 {{ game.studio.primary_contact_first_names }},
 
-Thanks again for submitting your game ({{ game.title }}) to the MAGFest Indie Videogame Showcase. In the few coming weeks, our judges are hard at work wrapping up their reviews and staff will be tallying up scores. You can expect to hear whether or not your game has made it into the showcase by {{ c.MIVS_RESULTS_REVEAL|datetime_local }}.
+Thanks again for submitting your game ({{ game.title }}) to the MAGFest Indie Videogame Showcase. In the coming weeks, our judges are hard at work wrapping up their reviews and staff will be tallying up scores. You can expect to hear whether or not your game has made it into the showcase by {{ c.MIVS_RESULTS_REVEAL|datetime_local }}.
+
+BADGES & HOTELS
+Badges for MAGFest go on sale next week, Wedesday, September 18th! If you plan to attend MAGFest regardless of your acceptance into the showcase and wish to book a hotel room, please go ahead and purchase your badge in order qualify for early-bird hotel booking. You must purchase your badge by Wednesday, September 25th at 11:59PM ET in order to be eligible for early-bird hotel booking.
+
+If you game is accepted into the showcase, we will refund the cost of your badge and you will have the ability to book a room at the Gaylord.
+
 
 If you have any questions on the judging process, you can visit https://super.magfest.org/mivs for more information.
 

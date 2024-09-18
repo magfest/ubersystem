@@ -13,8 +13,6 @@ Payment is expected by: {{ c.DEALER_PAYMENT_DUE|datetime_local }} or your applic
     You may do this by <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">clicking here</a>.
 {% endif %}
 
-<br/> <br/>
-
 This registration includes:
 <ul>
     <li> {{ group.tables }} table{{ group.tables|pluralize }}{% if group.auto_recalc %} ({{ group.default_table_cost|format_currency }}){% endif %}</li>
