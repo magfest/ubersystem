@@ -1791,13 +1791,13 @@ c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GRO
 
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
+    {'name': 'bio', 'header': 'Announcement Info Provided'},
+    {'name': 'performer_badges', 'header': 'Performer Badges'},
     {'name': 'panel', 'header': 'Panel'},
     {'name': 'autograph'},
-    {'name': 'bio', 'header': 'Announcement Info Provided'},
     {'name': 'info', 'header': 'Agreement Completed'},
     {'name': 'merch', 'header': 'Merch'},
     {'name': 'interview'},
-    {'name': 'performer_badges', 'header': 'Performer Badges'},
     {'name': 'mc', 'header': 'MC'},
     {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
     {'name': 'rehearsal'},
