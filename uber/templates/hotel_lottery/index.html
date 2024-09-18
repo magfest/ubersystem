@@ -92,11 +92,13 @@
                             </a>
                         </div>
                         {% endif %}
-                        {% if not application.wants_suite and application.room_entry_completed %}
+                        {% if not application.wants_suite %}
                         <div class="col col-auto">
-                        <a class="btn btn-success" href="suite_lottery?id={{ application.id }}">
+                            {% set suite_link = ('suite_lottery?id=' ~ application.id) if application.room_entry_completed else 'room_lottery?id=' ~ application.id ~ '&suite=true' %}
+                        <a class="btn btn-success" href="{{ suite_link }}">
                             Enter Suite Lottery
                         </a>
+                        
                         </div>
                         {% endif %}
                     {% endif %}
@@ -110,7 +112,14 @@
                     {% endif %}
                 </div>
             </p>
+            {% if not application.wants_room and not application.parent_application %}
+            <p>
+                You are currently not eligible to create a group. Use the buttons above to create a room or suite lottery entry first.
+            </p>
+            {% endif %}
+            {% if application.parent_application or application.wants_room %}
             <hr/>
+            {% endif %}
 
             {% if application.parent_application or application.room_group_name %}
             <h2>Your Room Group</h2>
@@ -198,12 +207,10 @@
             {% if app_or_parent.room_entry_completed %}
                 {% set force_room_lottery = True %}
                 {% include "hotel_lottery/ro_room_lottery.html" with context %}
-            {% endif %}
-
-            {% if not application.wants_room and not application.parent_application %}
-            <p>
-                You are currently not eligible to create a group. Use the buttons above to create a room lottery entry first.
-            </p>
+                {% if not application.parent_application %}
+                <br/><strong>An important reminder regarding confirming reservations with a payment guarantee:</strong><br/>
+                {% include 'hotel_lottery/guarantee_info.html' %}
+                {% endif %}
             {% endif %}
             
         </div>
@@ -221,11 +228,13 @@
             <p>You can view your{{ ' updated' if action != 'confirmation' else '' }} lottery entry below.</p>
             
             {% if confirm == 'suite' %}
+            <h3>Suite Entry Details</h3>
             {% include "hotel_lottery/ro_suite_lottery.html" with context %}
-            {% else %}
+            <br/>
+            <h3>Room Entry Details</h3>
+            {% endif %}
             {% set force_room_lottery = True %}
             {% include "hotel_lottery/ro_room_lottery.html" with context %}
-            {% endif %}
             
         </div>
     </div>

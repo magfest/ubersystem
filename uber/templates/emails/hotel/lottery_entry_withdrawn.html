@@ -3,9 +3,9 @@
 <body>
 <p>
     {{ application.attendee.full_name }},<br/>
-    This is notify you that you have withdrawn your entry from the {{ room_or_suite }} lottery.
+    This is to notify you that you have withdrawn your entry from the {{ room_or_suite }} lottery.
     You can <a href="{{ c.URL_BASE }}/hotel_lottery/{{ room_or_suite }}_lottery?id={{ application.id }}" target="_blank">re-enter the {{ room_or_suite }} lottery</a> at any time until {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}.
 </p>
-<p>You can also review the lottery terms and policies{% if not application.room_group_name %}, create or join a room group,{% endif %} or enter the {{ "standard room" if room_or_suite == "suite" else "suite" }} lottery by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
+<p>You can also review the lottery terms and policies{% if not application.room_group_name %} or create or join a room group{% endif %} by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
 </body>
 </html>

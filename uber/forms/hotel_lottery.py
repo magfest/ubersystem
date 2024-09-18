@@ -32,7 +32,11 @@ class LotteryInfo(MagForm):
     data_policy_accepted = BooleanField('I understand and agree that my registration information will be used as part of the hotel lottery.',
                                         default=False,
                                         validators=[validators.InputRequired("You must agree to the data policies to continue.")])
-
+    
+class LotteryConfirm(MagForm):
+    guarantee_policy_accepted = BooleanField('I understand awards are subject to cancellation if no payment guarantee is made.',
+                                             default=False,
+                                             validators=[validators.InputRequired("You must agree to the payment guarantee policy to continue.")])
 
 class LotteryRoomGroup(MagForm):
     field_validation = CustomValidation()

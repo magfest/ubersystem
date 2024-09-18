@@ -2,7 +2,7 @@
 
 {% block last_step_js %}
 {% if not read_only %}
-if (step == 4) {
+if (step == 4 || step == 999) {
     $('#suite-lottery-form').submit();
 }
 {% endif %}

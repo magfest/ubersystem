@@ -36,7 +36,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
     .chosen {
         opacity: 1;
     }
-    input:invalid {
+    input[type=date]:invalid {
         background-color: hsl(0, 100%, 97%);
         border-color: #d00;
     }
@@ -345,7 +345,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             {% if not read_only and application[room_text ~ '_step'] <= steps.counter %}
             <div class="row justify-content-end">
                 <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and {% if suite %}Continue to Suite Lottery{% else %}Complete Entry{% endif %}</button>
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and Continue{% if suite %} to Suite Lottery{% endif %}</button>
                 </div>
             </div>
             {% endif %}

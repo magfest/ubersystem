@@ -144,6 +144,7 @@ class LotteryApplication(MagModel):
     terms_accepted = Column(Boolean, default=False)
     data_policy_accepted = Column(Boolean, default=False)
     suite_terms_accepted = Column(Boolean, default=False)
+    guarantee_policy_accepted = Column(Boolean, default=False)
 
     # If this is set then the above values are ignored
     parent_application_id = Column(UUID, ForeignKey('lottery_application.id'), nullable=True)

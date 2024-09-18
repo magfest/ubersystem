@@ -36,6 +36,26 @@ suite_lottery_attrs = ['earliest_suite_checkin_date', 'latest_suite_checkin_date
                        'suite_type_preference', 'suite_selection_priorities',
                        'wants_suite', 'suite_step', 'suite_terms_accepted']
 
+def _disband_room_group(session, application):
+    old_room_group_name = application.room_group_name
+    application.room_group_name = ''
+    application.invite_code = ''
+
+    for member in application.group_members:
+        member.parent_application = None
+        session.add(member)
+        session.commit()
+        body = render('emails/hotel/removed_from_group.html', {
+            'application': member, 'parent': application, 'old_room_group_name': old_room_group_name}, encoding=None)
+        send_email.delay(
+            c.HOTEL_LOTTERY_EMAIL,
+            member.attendee.email_to_address,
+            f'{c.EVENT_NAME} Lottery Room Group "{old_room_group_name}" Disbanded',
+            body,
+            model=member.to_dict('id'))
+    
+    session.commit()
+
 @all_renderable(public=True)
 class Root:
     @ajax
@@ -124,8 +144,10 @@ class Root:
 
         if not application:
             raise HTTPRedirect(f'start?attendee_id={attendee_id}')
+        elif application.room_entry_completed and not application.guarantee_policy_accepted:
+            raise HTTPRedirect(f'guarantee_confirm?id={application.id}')
 
-        forms_list = ["LotteryInfo", "LotteryRoomGroup", "RoomLottery", "SuiteLottery"]
+        forms_list = ["LotteryInfo", "RoomLottery", "SuiteLottery"]
         if application.parent_application:
             forms = load_forms(params, application.parent_application, forms_list)
         else:
@@ -159,6 +181,52 @@ class Root:
         }
     
     @requires_account(LotteryApplication)
+    def guarantee_confirm(self, session, id=None, message="", **params):
+        application = session.lottery_application(id)
+        forms_list = ["LotteryConfirm"]
+        forms = load_forms(params, application, forms_list)
+
+        if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                form.populate_obj(application)
+
+            session.commit()
+            session.refresh(application)
+
+            room_or_suite = "suite" if application.suite_entry_completed else "room"
+            body = render('emails/hotel/hotel_lottery_entry.html', {
+                'application': application,
+                'action_str': f"entering the {room_or_suite} lottery"}, encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                application.attendee.email_to_address,
+                c.EVENT_NAME_AND_YEAR + f' {room_or_suite.title()} Lottery Confirmation',
+                body,
+                model=application.to_dict('id'))
+            
+            if application.suite_entry_completed:
+                for member in application.group_members:
+                    body = render('emails/hotel/group_lottery_entry_added.html', {
+                        'application': member, 'room_or_suite': 'suite'}, encoding=None)
+                    send_email.delay(
+                        c.HOTEL_LOTTERY_EMAIL,
+                        member.attendee.email_to_address,
+                        c.EVENT_NAME_AND_YEAR + f' Suite Lottery Entered',
+                        body,
+                        model=member.to_dict('id'))
+            
+            raise HTTPRedirect('index?attendee_id={}&confirm={}&action=confirmation',
+                               application.attendee.id,
+                               room_or_suite)
+        return {
+                'id': application.id,
+                'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
+                'forms': forms,
+                'message': message,
+                'application': application,
+            }
+
+    @requires_account(LotteryApplication)
     def room_lottery(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
         forms_list = ["RoomLottery"]
@@ -181,35 +249,31 @@ class Root:
         forms = load_forms(params, application, forms_list)
 
         if cherrypy.request.method == 'POST':
-            if not application.room_entry_completed:
-                entering_or_updating_str = "entering the room lottery"
-                subject_str = "Confirmation"
-            else:
-                entering_or_updating_str = "updating your room lottery entry"
-                subject_str = "Updated"
             for form in forms.values():
                 form.populate_obj(application)
 
             application.room_step = 999
             session.commit()
             session.refresh(application)
-
-            body = render('emails/hotel/room_lottery_entry.html', {
-                'application': application,
-                'entering_or_updating_str': entering_or_updating_str,}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                application.attendee.email_to_address,
-                c.EVENT_NAME_AND_YEAR + f' Room Lottery {subject_str}',
-                body,
-                model=application.to_dict('id'))
             
             if params.get('suite', "None") != "None":
                 application.wants_suite = True
                 raise HTTPRedirect('suite_lottery?id={}', application.id)
+            elif not application.guarantee_policy_accepted:
+                raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
-                raise HTTPRedirect('index?attendee_id={}&confirm=room&action={}',
-                                   application.attendee.id, subject_str.lower())
+                body = render('emails/hotel/hotel_lottery_entry.html', {
+                    'application': application,
+                    'action_str': "updating your room lottery entry"}, encoding=None)
+                send_email.delay(
+                    c.HOTEL_LOTTERY_EMAIL,
+                    application.attendee.email_to_address,
+                    c.EVENT_NAME_AND_YEAR + f' Room Lottery Updated',
+                    body,
+                    model=application.to_dict('id'))
+
+                raise HTTPRedirect('index?attendee_id={}&confirm=room&action=updated',
+                                   application.attendee.id)
 
         return {
             'id': application.id,
@@ -225,29 +289,38 @@ class Root:
     def withdraw_room(self, session, id=None, **params):
         application = session.lottery_application(id)
 
-        if application.room_group_name:
-            raise HTTPRedirect('room_lottery?id={}&message={}', application.id,
-                               "Room groups must have a room lottery entry. You must disband the group first.")
+        has_actually_entered = application.guarantee_policy_accepted
+        had_suite_entry = application.suite_entry_completed
+        was_room_group = application.room_group_name
+
+        if was_room_group:
+            _disband_room_group(session, application)
 
         defaults = LotteryApplication().to_dict()
         for attr in ['earliest_room_checkin_date', 'latest_room_checkin_date',
                      'earliest_room_checkout_date', 'latest_room_checkout_date',
                      'hotel_preference', 'room_type_preference', 'room_selection_priorities',
                      'wants_ada', 'ada_requests', 'room_step', 'wants_room',
-                     'legal_first_name', 'legal_last_name', 'terms_accepted', 'data_policy_accepted'] + suite_lottery_attrs:
+                     'legal_first_name', 'legal_last_name', 'terms_accepted',
+                     'data_policy_accepted', 'guarantee_policy_accepted'] + suite_lottery_attrs:
             setattr(application, attr, defaults.get(attr))
 
-        body = render('emails/hotel/lottery_entry_withdrawn.html', {
-            'application': application, 'room_or_suite': 'standard room'}, encoding=None)
-        send_email.delay(
-            c.HOTEL_LOTTERY_EMAIL,
-            application.attendee.email_to_address,
-            c.EVENT_NAME_AND_YEAR + f' Room Lottery Entry Cancelled',
-            body,
-            model=application.to_dict('id'))
+        if has_actually_entered:
+            body = render('emails/hotel/lottery_entry_cancelled.html', {
+                'application': application,
+                'extra_suite_text': ', including your suite lottery entry' if had_suite_entry else ''},
+                encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                application.attendee.email_to_address,
+                c.EVENT_NAME_AND_YEAR + f' Lottery Entry Cancelled',
+                body,
+                model=application.to_dict('id'))
 
+            raise HTTPRedirect('../preregistration/homepage?message={}',
+                            f"You have been removed from the hotel lottery.{' Your group has been disbanded.' if was_room_group else ''}")
         raise HTTPRedirect('../preregistration/homepage?message={}',
-                           f"You have been removed from the hotel lottery.")
+                            f"Your hotel lottery has been cancelled.")
     
     @requires_account(LotteryApplication)
     def suite_lottery(self, session, id=None, message="", **params):
@@ -276,12 +349,6 @@ class Root:
                 forms['suite_lottery'][attr.format('suite')].data = getattr(application, attr.format('room'))
 
         if cherrypy.request.method == 'POST':
-            if not application.suite_entry_completed:
-                entering_or_updating_str = "entering the suite lottery"
-                subject_str = "Confirmation"
-            else:
-                entering_or_updating_str = "updating your suite lottery entry"
-                subject_str = "Updated"
             for form in forms.values():
                 form.populate_obj(application)
 
@@ -289,27 +356,21 @@ class Root:
             session.commit()
             session.refresh(application)
 
-            body = render('emails/hotel/suite_lottery_entry.html', {
-                'application': application,
-                'entering_or_updating_str': entering_or_updating_str,}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                application.attendee.email_to_address,
-                c.EVENT_NAME_AND_YEAR + f' Suite Lottery {subject_str}',
-                body,
-                model=application.to_dict('id'))
-            if subject_str == "Confirmation":
-                for member in application.group_members:
-                    body = render('emails/hotel/group_lottery_entry_added.html', {
-                        'application': member, 'room_or_suite': 'suite'}, encoding=None)
-                    send_email.delay(
-                        c.HOTEL_LOTTERY_EMAIL,
-                        member.attendee.email_to_address,
-                        c.EVENT_NAME_AND_YEAR + f' Suite Lottery Entered',
-                        body,
-                        model=member.to_dict('id'))
-            raise HTTPRedirect('index?attendee_id={}&confirm=suite&action={}',
-                                application.attendee.id, subject_str.lower())
+            if not application.guarantee_policy_accepted:
+                raise HTTPRedirect('guarantee_confirm?id={}', application.id)
+            else:
+                body = render('emails/hotel/hotel_lottery_entry.html', {
+                    'application': application,
+                    'action_str': "updating your suite lottery entry"}, encoding=None)
+                send_email.delay(
+                    c.HOTEL_LOTTERY_EMAIL,
+                    application.attendee.email_to_address,
+                    c.EVENT_NAME_AND_YEAR + f' Suite Lottery Updated',
+                    body,
+                    model=application.to_dict('id'))
+
+                raise HTTPRedirect('index?attendee_id={}&confirm=suite&action=updated',
+                                   application.attendee.id)
 
         return {
             'id': application.id,
@@ -460,21 +521,8 @@ class Root:
     def delete_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
         old_room_group_name = application.room_group_name
-        application.room_group_name = ''
-        application.invite_code = ''
+        _disband_room_group(session, application)
 
-        for member in application.group_members:
-            member.parent_application = None
-            session.add(member)
-            session.commit()
-            body = render('emails/hotel/removed_from_group.html', {
-                'application': member, 'parent': application, 'group_disbanded': True}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                member.attendee.email_to_address,
-                f'{c.EVENT_NAME} Lottery Room Group "{application.room_group_name}" Disbanded',
-                body,
-                model=member.to_dict('id'))
         raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
                            f"{old_room_group_name} has been disbanded.")
 

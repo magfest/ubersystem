@@ -3,7 +3,7 @@
 <body>
 <p>
     {{ application.attendee.full_name }},<br/>
-    This is notify you that {% if group_disbanded %}the room group you were in, "{{ parent.room_group_name }}", has been disbanded{% else %}you have been removed from the room group "{{ parent.room_group_name }}".{% endif %}
+    This is to notify you that {% if old_room_group_name %}the room group you were in, "{{ old_room_group_name }}", has been disbanded{% else %}you have been removed from the room group "{{ parent.room_group_name }}".{% endif %}
 </p>
 <p>
     {% if application.room_entry_completed or application.suite_entry_completed %}

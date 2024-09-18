@@ -55,6 +55,7 @@ def upgrade():
     op.add_column('lottery_application', sa.Column('room_step', sa.Integer(), server_default='0', nullable=False))
     op.add_column('lottery_application', sa.Column('suite_step', sa.Integer(), server_default='0', nullable=False))
     op.add_column('lottery_application', sa.Column('data_policy_accepted', sa.Boolean(), server_default='False', nullable=False))
+    op.add_column('lottery_application', sa.Column('guarantee_policy_accepted', sa.Boolean(), server_default='False', nullable=False))
     op.add_column('lottery_application', sa.Column('legal_first_name', sa.Unicode(), server_default='', nullable=False))
     op.add_column('lottery_application', sa.Column('legal_last_name', sa.Unicode(), server_default='', nullable=False))
     op.alter_column('lottery_application', 'attendee_id',
@@ -67,6 +68,7 @@ def downgrade():
                existing_type=postgresql.UUID(),
                nullable=True)
     op.drop_column('lottery_application', 'data_policy_accepted')
+    #op.drop_column('lottery_application', 'guarantee_policy_accepted')
     op.drop_column('lottery_application', 'suite_step')
     op.drop_column('lottery_application', 'room_step')
     op.drop_column('lottery_application', 'legal_first_name')

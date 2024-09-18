@@ -3,7 +3,7 @@
 <body>
 <p>
     {{ application.attendee.full_name }},<br/>
-    This is notify you that your room group's leader has withdrawn the group's entry from the suite lottery.
+    This is to notify you that your room group's leader has withdrawn the group's entry from the suite lottery.
     Your group ("{{ application.parent_application.room_group_name }}") still has a standard room lottery entry.
     We will notify you if your group leader disbands the group.
     You can alternatively <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ application.id }}" target="_blank">leave your room group</a> to enter the room and/or suite lottery as an individual.
