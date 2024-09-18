@@ -1,6 +1,7 @@
 from markupsafe import escape, Markup
 from wtforms.widgets import NumberInput, html_params, CheckboxInput, Select
 from uber.config import c
+from uber.custom_tags import linebreaksbr
 
 
 class MultiCheckbox():
@@ -108,13 +109,26 @@ class Ranking():
         self.choices = choices or self.field.choices
         super().__init__(**kwargs)
     
-    def display_price(self, choice_item):
-        if 'price' in choice_item and choice_item['price']:
-            price_str = f"${choice_item['price']}"
-            if c.BEFORE_HOTEL_LOTTERY_FORM_START and 'staff_price' in choice_item and choice_item['staff_price']:
-                price_str = price_str + f"/${choice_item['staff_price']}"
-            return f'<h5 class="card-subtitle mb-2 text-muted">{price_str}</h5>'
-        return ''
+    def extra_info_list(self, choice_item):
+        # Rankings can have a few properties that are displayed differently, but all of them are optional
+        # They can be: price (sub-header), staff_price (sub-header displayed during staff lottery),
+        #              description (text), description_right (right-aligned text), footnote (form-text text)
+        extra_info = []
+        if choice_item.get('price'):
+            price_str = f"{choice_item['price']}"
+            if c.BEFORE_HOTEL_LOTTERY_FORM_START and choice_item.get('staff_price'):
+                price_str = price_str + f"/{choice_item['staff_price']}"
+            extra_info.append(f"""<h5 class="card-subtitle mb-2 text-muted">{price_str}</h5>""")
+        if choice_item.get('description') or choice_item.get('description_right'):
+            extra_info.append("""<div class="card-text">""")
+            if choice_item.get('description'):
+                extra_info.append(linebreaksbr(choice_item["description"]))
+            if choice_item.get('description_right'):
+                extra_info.append(f"""<br/><span class="pull-right text-end">{linebreaksbr(choice_item["description_right"])}</span>""")
+            extra_info.append("""</div>""")
+        if choice_item.get('footnote'):
+            extra_info.append(f"""<div class="form-text">{linebreaksbr(choice_item["footnote"])}</div>""")
+        return extra_info
     
     def __call__(self, field, choices=None, **kwargs):
         choices = choices or self.choices or [('', {"name": "Error", "description": "No choices are configured"})]
@@ -128,34 +142,30 @@ class Ranking():
         for choice_id in selected_choices:
             try:
                 choice_item = choice_dict[choice_id]
-                price_subtitle = self.display_price(choice_item)
-                desc = f'<div class="card-text">{choice_item["description"]}</div>' if choice_item.get("description") else ''
-                el = f"""
+                extra_info = self.extra_info_list(choice_item)
+                selected_html.append(f"""
                 <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
-                    <h4 class="card-title {'mb-0' if not desc else 'mb-1 mb-sm-2'}">
+                    <h4 class="card-title {'mb-0' if not extra_info else 'mb-1 mb-sm-2'}">
                         {choice_item["name"]}
-                    </h4>
-                    {price_subtitle}
-                    {desc}
+                    </h4>""")
+                selected_html.extend(extra_info)
+                selected_html.append(f"""
                     <input type="hidden" name="{id}" value="{choice_id}">
-                </li>"""
-                selected_html.append(el)
+                </li>""")
             except KeyError:
                 continue
         for choice_id, choice_item in choices:
             if not choice_id in selected_choices:
-                price_subtitle = self.display_price(choice_item)
-                desc = f'<div class="card-text">{choice_item["description"]}</div>' if choice_item.get("description") else ''
-                el = f"""
+                extra_info = self.extra_info_list(choice_item)
+                deselected_html.append(f"""
                 <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
-                    <h4 class="card-title {'mb-0' if not desc else 'mb-1 mb-sm-2'}">
+                    <h4 class="card-title {'mb-0' if not extra_info else 'mb-1 mb-sm-2'}">
                         {choice_item["name"]}
-                    </h4>
-                    {price_subtitle}
-                    {desc}
+                    </h4>""")
+                deselected_html.extend(extra_info)
+                deselected_html.append(f"""
                     <input type="hidden" value="{choice_id}">
-                </li>"""
-                deselected_html.append(el)
+                </li>""")
 
         script = f"""
         <script type="text/javascript">
