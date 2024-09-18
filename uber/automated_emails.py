@@ -610,6 +610,16 @@ AutomatedEmailFixture(
     sender=c.MARKETPLACE_EMAIL,
     ident='dealer_info_required')
 
+AutomatedEmailFixture(
+    Attendee,
+    f'Last chance to claim your badge for {c.EVENT_NAME}',
+    'dealers/claim_badge.html',
+    lambda a: a.placeholder and 'converted badge' in a.admin_notes.lower(),
+    sender=c.MARKETPLACE_EMAIL,
+    when=days_before(7, c.PREREG_HOTEL_ELIGIBILITY_CUTOFF),
+    ident='converted_dealer_last_chance',
+)
+
 StopsEmailFixture(
     'Claim your Staff badge for {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/imported_volunteer.txt',

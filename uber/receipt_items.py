@@ -325,6 +325,8 @@ def dealer_badge_credit(attendee, new_attendee=None):
 
     if old_cost == new_cost:
         return
+    if attendee.paid != new_attendee.paid and new_attendee.paid == c.NOT_PAID:
+        return # This cost change will be in the paid status receipt item
     
     if attendee.is_dealer and new_attendee.is_dealer:
         return
@@ -470,6 +472,7 @@ def table_cost(group, new_group=None):
         table_count = int(float(group.tables))
         if table_count:
             return (f"{table_count} Tables", c.get_table_price(table_count) * 100, 'tables')
+        return
     
     old_tables = int(float(group.tables))
     new_tables = int(float(new_group.tables))

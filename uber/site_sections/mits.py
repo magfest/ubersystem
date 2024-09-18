@@ -272,10 +272,12 @@ class Root:
                     new_pic = add_new_image(pic, game)
                     session.add(new_pic)
                 if header_pic:
-                    session.delete(game.guidebook_header)
+                    if game.guidebook_header:
+                        session.delete(game.guidebook_header)
                     session.add(header_pic)
                 if thumbnail_pic:
-                    session.delete(game.guidebook_thumbnail)
+                    if game.guidebook_thumbnail:
+                        session.delete(game.guidebook_thumbnail)
                     session.add(thumbnail_pic)
                 session.add(game)
                 raise HTTPRedirect('index?message={}', 'Game saved')

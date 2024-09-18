@@ -27,6 +27,7 @@
         Staff shirts help make the event a more safe and welcome place to be, and while we strongly prefer you to wear
         a staff shirt while on shift, you are not required to do so.
     </p>
+    <div class="row g-sm-3">
     {% if c.STAFF_EVENT_SHIRT_OPTS %}
     <p>
         As staff, you receive two complimentary shirts, and since you'll be potentially wearing the staff shirt a substantial
@@ -34,20 +35,24 @@
         {% if c.AFTER_VOLUNTEER_SHIRT_DEADLINE %}
             <b>Because we are past the deadline, your choice has been locked in.</b>
         {% endif %}
+    </p>
+    <div class="col-12 col-sm-6">
         <div class="input-group">
         {% for num, label in c.STAFF_EVENT_SHIRT_OPTS|sort %}
             <label class="checkbox-label"><input type="radio" form="shirt_size" name="num_event_shirts" value="{{ num }}" {% if attendee.num_event_shirts == num %}checked{% endif %} {% if c.AFTER_VOLUNTEER_SHIRT_DEADLINE %}disabled{% endif %} /> {{ label }}
             {% if num > 0 %}<i> I can keep a staff shirt fresh through the event.</i>{% endif %}</label><br/>
         {% endfor %}
         </div>
-    </p>
+    </div>
     {% endif %}
 {% endif %}
+<div class="col-12 col-sm-6">
 <form method="post" action="shirt_size" id="shirt_size" class="form-inline">
+    <div class="row g-sm-3 row-cols-auto">
     {{ csrf_token() }}
     {% if c.STAFF_EVENT_SHIRT_OPTS or attendee.num_event_shirts_owed %}
-    <div class="form-group" id="event_shirt">
-        <label class="control-label">
+    <div class="col mb-3" id="event_shirt">
+        <label class="form-text">
             {% if attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS %}Event {% endif %}Shirt Size
         </label>
         <select class="form-select" name="shirt">
@@ -57,8 +62,8 @@
     </div>
     {% endif %}
     {% if attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS %}
-    &nbsp;<div class="form-group" id="staff_shirt">
-        <label class="control-label">
+    <div class="col mb-3" id="staff_shirt">
+        <label class="form-text">
             Staff Shirt Size
         </label>
         <select class="form-select" name="staff_shirt">
@@ -67,8 +72,11 @@
         </select>
     </div>
     {% endif %}
-    <button type="submit" class="btn btn-primary">Save</button>
+    <div class="col mb-3"><br/><button type="submit" class="btn btn-primary">Save</button></div>
+    </div>
 </form>
+</div>
+</div>
 <script type="text/javascript">
 if($.field('num_event_shirts')) {
     showOrHideSizeOpts = function() {

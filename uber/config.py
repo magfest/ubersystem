@@ -674,7 +674,7 @@ class Config(_Overridable):
 
     @property
     def AVAILABLE_MERCH_TIERS(self):
-        return [price for price, name in self.DONATION_TIERS.items() if price not in self.SOLD_OUT_MERCH_TIERS]
+        return sorted([price for price, name in self.DONATION_TIERS.items() if price not in self.SOLD_OUT_MERCH_TIERS])
 
     @property
     def FORMATTED_MERCH_TIERS(self):
@@ -1803,13 +1803,13 @@ c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GRO
 
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
+    {'name': 'bio', 'header': 'Announcement Info Provided'},
+    {'name': 'performer_badges', 'header': 'Performer Badges'},
     {'name': 'panel', 'header': 'Panel'},
     {'name': 'autograph'},
-    {'name': 'bio', 'header': 'Announcement Info Provided'},
     {'name': 'info', 'header': 'Agreement Completed'},
     {'name': 'merch', 'header': 'Merch'},
     {'name': 'interview'},
-    {'name': 'performer_badges', 'header': 'Performer Badges'},
     {'name': 'mc', 'header': 'MC'},
     {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
     {'name': 'rehearsal'},

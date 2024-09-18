@@ -392,7 +392,7 @@
         {% set member_emails = department.member_emails %}
         {% if member_emails %}
           <p>
-            <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ member_emails|join(',') }}">
+            <a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ member_emails|join(',') }}">
               <i class="fa fa-envelope"></i>
               Email all members
             </a>
@@ -401,7 +401,7 @@
         {% set members_with_shifts_emails = department.members_with_shifts_emails %}
         {% if members_with_shifts_emails %}
           <p>
-            <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ members_with_shifts_emails|join(',') }}">
+            <a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ members_with_shifts_emails|join(',') }}">
               <i class="fa fa-envelope"></i>
               Email members with shifts
             </a>
