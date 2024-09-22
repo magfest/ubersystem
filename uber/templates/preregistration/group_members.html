@@ -148,7 +148,7 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee.can_abandon_badge %}
+                {% if not attendee.cannot_abandon_badge_reason %}
                   <form method="post" action="unset_group_member">
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
