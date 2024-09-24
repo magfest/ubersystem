@@ -172,7 +172,12 @@ class MagForm(Form):
             target = cls.find_form_class(form.__name__)
 
         for name in dir(form):
-            if not name.startswith('_'):
+            if name in ['field_validation', 'new_or_changed_validation']:
+                orig_validations = getattr(target, name)
+                for field_name, dict in getattr(form, name).validations.items():
+                    for func_name, func in dict.items():
+                        orig_validations.validations[field_name][func_name] = func
+            elif not name.startswith('_'):
                 if name in ['get_optional_fields', 'get_non_admin_locked_fields']:
                     setattr(target, "super_" + name, getattr(target, name))
                 setattr(target, name, getattr(form, name))

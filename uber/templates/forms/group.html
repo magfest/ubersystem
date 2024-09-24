@@ -98,14 +98,21 @@
           <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
         {% endif %}
         </ul>
-        {% if group.amount_unpaid %}
-          {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
-            <p>Please see the help desk at Registration to complete your payment.</p>
-          {% elif incomplete_txn %}
-            <p>You currently have an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.</p>
-            <p>Click here to complete your payment: {{ stripe_form('finish_pending_group_payment', group, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}</p>
-          {% else %}
-            <p>{{ stripe_form('process_group_payment', group) }}</p>
+        {% if c.SIGNNOW_DEALER_FOLDER_ID and not c.SIGNNOW_DEALER_TEMPLATE_ID %}
+        <p>
+          Your next step will be to sign our terms and conditions for vending at {{ c.EVENT_NAME }}, but we're still preparing them!
+          Sit tight and we'll email them to you when they're ready, after which you can pay for your membership on this page.
+        </p>
+        {% elif not c.SIGNNOW_DEALER_FOLDER_ID or signnow_document and signnow_document.signed %}
+          {% if group.amount_unpaid %}
+            {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
+              <p>Please see the help desk at Registration to complete your payment.</p>
+            {% elif incomplete_txn %}
+              <p>You currently have an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.</p>
+              <p>Click here to complete your payment: {{ stripe_form('finish_pending_group_payment', group, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}</p>
+            {% else %}
+              <p>{{ stripe_form('process_group_payment', group) }}</p>
+            {% endif %}
           {% endif %}
         {% endif %}
     {% endif %}
