@@ -1254,6 +1254,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     @group_name.expression
     def group_name(cls):
         return select([Group.name]).where(Group.id == cls.group_id).label('group_name')
+    
+    @property
+    def group_leader_account(self):
+        if self.group and self.group.leader and self.group.leader.managers:
+            return self.group.leader.managers[0]
 
     @hybrid_property
     def promo_code_group_name(self):
