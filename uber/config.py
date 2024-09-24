@@ -651,7 +651,7 @@ class Config(_Overridable):
                 'desc': Markup(f"Attendees 12 and younger at the start of {c.EVENT_NAME} must be accompanied "
                                "by an adult with a valid Attendee badge. <br/><br/>"
                                "<span class='form-text text-danger'>Price is always half that of the Single "
-                               "Attendee badge price.</span>"),
+                               "Attendee badge price. Badges for attendees 5 and younger are free.</span>"),
                 'value': c.CHILD_BADGE,
                 'price': str(c.BADGE_PRICE - math.ceil(c.BADGE_PRICE / 2)),
             })
