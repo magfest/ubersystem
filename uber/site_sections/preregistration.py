@@ -1362,7 +1362,9 @@ class Root:
                 receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
                 session.add_all(receipt_items)
 
-            if attendee.placeholder:
+            if c.ATTENDEE_ACCOUNTS_ENABLED and session.current_attendee_account():
+                session.add_attendee_to_account(attendee, session.current_attendee_account())
+            elif attendee.placeholder:
                 raise HTTPRedirect('group_members?id={}&message={}', group.id,
                                    f"Thanks! We'll email {attendee.full_name} to finish filling out their badge!")
 
@@ -1370,14 +1372,15 @@ class Root:
             if group.cost == 0:
                 attendee.registered = localized_now()
 
-            if c.ATTENDEE_ACCOUNTS_ENABLED and session.current_attendee_account():
-                session.add_attendee_to_account(attendee, session.current_attendee_account())
-
+            return_to = 'group_members' if c.ATTENDEE_ACCOUNTS_ENABLED else 'confirm' 
             if not receipt:
                 new_receipt = session.get_receipt_by_model(attendee, who='non-admin', create_if_none="DEFAULT")
                 if new_receipt.current_amount_owed and not new_receipt.pending_total:
-                    raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=confirm')
-            raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
+                    raise HTTPRedirect(f'new_badge_payment?id={attendee.id}&return_to={return_to}')
+            raise HTTPRedirect('{}?id={}&message={}', 
+                               'group_members' if c.ATTENDEE_ACCOUNTS_ENABLED else 'badge_updated',
+                               attendee.group.id if c.ATTENDEE_ACCOUNTS_ENABLED else attendee.id,
+                               'Badge registered successfully.')
 
         return {
             'logged_in_account': session.current_attendee_account(),

@@ -802,6 +802,8 @@ class Root:
             elif not account_email:
                 if 'account_id' in params:
                     message = "Please enter an email address."
+                elif attendee.group_leader_account:
+                    account_email = attendee.group_leader_account.email
                 else:
                     account_email = attendee.email
 
@@ -815,7 +817,7 @@ class Root:
 
         return {
             'message': message,
-            'attendees': attendees.options(raiseload('*')).all(),
+            'attendees': attendees.options(joinedload(Attendee.group)).all(),
             'show_all': params.get('show_all', ''),
         }
 
