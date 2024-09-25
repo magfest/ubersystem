@@ -494,10 +494,11 @@ class MagModel:
                 value = int(float(value))
 
             elif isinstance(column.type, UTCDateTime):
-                try:
-                    value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
-                except ValueError:
-                    value = dateparser.parse(value)
+                if isinstance(value, six.string_types):
+                    try:
+                        value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
+                    except ValueError:
+                        value = dateparser.parse(value)
 
                 if not value.tzinfo:
                     return c.EVENT_TIMEZONE.localize(value)
@@ -505,10 +506,11 @@ class MagModel:
                     return value
 
             elif isinstance(column.type, Date):
-                try:
-                    value = datetime.strptime(value, c.DATE_FORMAT)
-                except ValueError:
-                    value = dateparser.parse(value)
+                if isinstance(value, six.string_types):
+                    try:
+                        value = datetime.strptime(value, c.DATE_FORMAT)
+                    except ValueError:
+                        value = dateparser.parse(value)
                 return value.date()
 
             elif isinstance(column.type, JSONB):
