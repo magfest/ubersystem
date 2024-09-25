@@ -29,8 +29,8 @@
 <ul>
     {% if app_or_parent.entry_type == c.ROOM_ENTRY %}{{ basic_entry_details(application, app_or_parent, confirmation=confirmation) }}{% endif %}
     <li><strong>Hotel Preference</strong>: {{ app_or_parent.hotel_preference_labels|readable_join }}</li>
-    <li><strong>Room Type Preference</strong>: {{ app_or_parent.room_type_preference_labels|readable_join }}{% if app_or_parent.wants_ada %} (ADA Room Requested){% endif %}</li>
-    {% if app_or_parent.wants_ada %}
+    <li><strong>Room Type Preference</strong>: {{ app_or_parent.room_type_preference_labels|readable_join }}{% if application.wants_ada and not application.parent_application %} (ADA Room Requested){% endif %}</li>
+    {% if application.wants_ada and not application.parent_application %}
     <li><strong>ADA Room Accommodations Requested</strong>: {{ app_or_parent.ada_requests }}</li>
     {% endif %}
     {% if app_or_parent.entry_type == c.ROOM_ENTRY %}

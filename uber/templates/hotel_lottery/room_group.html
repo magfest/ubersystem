@@ -156,9 +156,9 @@
                     {{ application.parent_application.group_leader_name }} is your group leader.
                 </p>
                 {% else %}
-                    <p>Your room group name is "{{ application.room_group_name }}" and your confirmation number is {{ application.confirmation_num }}.</p>
-                    <p>You can edit your group name below.</p>
-                    <p>In order to join your group, group members need both the confirmation number and your current email address, which is <strong>{{ application.attendee.email }}</strong>.</p>
+                    <p>Your room group name is "{{ application.room_group_name }}" and your group has {{ application.group_members|length + 1 }} group member(s), including yourself. You can edit your group name{% if application.group_members|length > 0 %} and view your group's members{% endif %} below.</p>
+                    <p>In order to join your group, group members need both the confirmation number (<strong>{{ application.confirmation_num }}</strong>) and your current email address (<strong>{{ application.attendee.email }}</strong>).</p>
+                    <p>Room group members will be able to view your initials ({{ application.group_leader_name }}) and most of the details of your lottery entry. They will NOT see your check-in name{% if application.entry_type == c.ROOM_ENTRY %} or any ADA-related requests{% endif %}.</p>
                     
                     <div class="row g-sm-3">
                         <div class="col-12 col-sm-6">
@@ -317,7 +317,9 @@
             
             {% if action == 'created' %}
                 <p>You have successfully created the room group "{{ application.room_group_name }}"!</p>
-                <p>Your group confirmation number is <strong>{{ application.confirmation_num }}</strong>.</p>
+                <p>
+                    Your group confirmation number is <strong>{{ application.confirmation_num }}</strong>.
+                </p>
             {% elif action == 'updated' %}
                 <p>You have updated your room group name to "{{ application.room_group_name }}".</p>
             {% else %}
@@ -334,8 +336,10 @@
             {% endif %}
             {% if action == 'created' %}
             <button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Room Group Options</button>
+            <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
+            {% else %}
+            <a class="btn btn-primary" href="index?attendee_id={{ application.attendee.id }}">View Room Group</a>
             {% endif %}
-            <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">View Room Group</a>
         </div>
     </div>
 </div>

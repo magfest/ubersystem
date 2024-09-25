@@ -296,5 +296,13 @@ class LotteryApplication(MagModel):
     def any_dates_different(self):
         return self.earliest_checkin_date != self.orig_value_of('earliest_checkin_date') or \
             self.latest_checkin_date != self.orig_value_of('latest_checkin_date') or \
-            self.earliest_checkout_date != self.orig_value_of('latest_checkout_date') or \
+            self.earliest_checkout_date != self.orig_value_of('earliest_checkout_date') or \
             self.latest_checkout_date != self.orig_value_of('latest_checkout_date')
+
+    @property
+    def update_group_members(self):
+        # Group members can't see ADA info or check-in name, so we don't want to email them if those are the only changes
+        return self.any_dates_different or self.hotel_preference != self.orig_value_of('hotel_preference') or \
+               self.room_type_preference != self.orig_value_of('room_type_preference') or \
+               self.suite_type_preference != self.orig_value_of('suite_type_preference') or \
+               self.selection_priorities != self.orig_value_of('selection_priorities')

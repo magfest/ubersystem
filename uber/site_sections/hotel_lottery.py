@@ -246,6 +246,7 @@ class Root:
 
             application.current_step = 999
             application.last_submitted = datetime.now()
+            update_group_members = application.update_group_members
             session.commit()
             session.refresh(application)
 
@@ -261,15 +262,16 @@ class Root:
                     c.EVENT_NAME_AND_YEAR + f' Room Lottery Updated',
                     body,
                     model=application.to_dict('id'))
-                for member in application.group_members:
-                    body = render('emails/hotel/group_entry_updated.html', {
-                        'application': member}, encoding=None)
-                    send_email.delay(
-                        c.HOTEL_LOTTERY_EMAIL,
-                        member.attendee.email_to_address,
-                        c.EVENT_NAME_AND_YEAR + f' Room Lottery Updated',
-                        body,
-                        model=application.to_dict('id'))
+                if update_group_members:
+                    for member in application.group_members:
+                        body = render('emails/hotel/group_entry_updated.html', {
+                            'application': member}, encoding=None)
+                        send_email.delay(
+                            c.HOTEL_LOTTERY_EMAIL,
+                            member.attendee.email_to_address,
+                            c.EVENT_NAME_AND_YEAR + f' Room Lottery Updated',
+                            body,
+                            model=application.to_dict('id'))
 
                 raise HTTPRedirect('index?attendee_id={}&confirm=room&action=updated',
                                    application.attendee.id)
@@ -333,6 +335,7 @@ class Root:
 
             application.current_step = 999
             application.last_submitted = datetime.now()
+            update_group_members = application.update_group_members
             session.commit()
             session.refresh(application)
 
@@ -349,15 +352,16 @@ class Root:
                     body,
                     model=application.to_dict('id'))
                 
-                for member in application.group_members:
-                    body = render('emails/hotel/group_entry_updated.html', {
-                        'application': member}, encoding=None)
-                    send_email.delay(
-                        c.HOTEL_LOTTERY_EMAIL,
-                        member.attendee.email_to_address,
-                        c.EVENT_NAME_AND_YEAR + f' Suite Lottery Updated',
-                        body,
-                        model=application.to_dict('id'))
+                if update_group_members:
+                    for member in application.group_members:
+                        body = render('emails/hotel/group_entry_updated.html', {
+                            'application': member}, encoding=None)
+                        send_email.delay(
+                            c.HOTEL_LOTTERY_EMAIL,
+                            member.attendee.email_to_address,
+                            c.EVENT_NAME_AND_YEAR + f' Suite Lottery Updated',
+                            body,
+                            model=application.to_dict('id'))
 
                 raise HTTPRedirect('index?attendee_id={}&confirm=suite&action=updated',
                                    application.attendee.id)
@@ -451,6 +455,7 @@ class Root:
             
             for form in forms.values():
                 form.populate_obj(application)
+                application.last_submitted = datetime.now()
                 raise HTTPRedirect('room_group?id={}&action={}', application.id, action)
 
     @requires_account(LotteryApplication)
