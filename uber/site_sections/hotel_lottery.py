@@ -72,51 +72,6 @@ def _reset_group_member(application):
 
 @all_renderable(public=True)
 class Root:
-    @ajax
-    @requires_account(Attendee)
-    def check_duplicate_emails(self, session, id, **params):
-        attendee = session.attendee(id)
-        attendee_count = session.query(Attendee).filter(Attendee.hotel_lottery_eligible == True
-                                                        ).filter(Attendee.normalized_email == attendee.normalized_email).count()
-        return {'count': max(0, attendee_count - 1)}
-
-    @requires_account(Attendee)
-    def enter(self, session, id, room_owner=''):
-        attendee = session.attendee(id)
-        request_headers = _prepare_hotel_lottery_headers(attendee.id, attendee.email)
-        response = requests.post(c.HOTEL_LOTTERY_API_URL, headers=request_headers, timeout=25)
-        if response.json().get('success', False) == True:
-            raise HTTPRedirect("{}?r={}&t={}{}".format(c.HOTEL_LOTTERY_FORM_LINK,
-                                                       request_headers['REG_ID'],
-                                                       request_headers['TOKEN'],
-                                                       ('&p=' + room_owner) if room_owner else ''))
-        else:
-            log.error(f"We tried to register a token for the room lottery, but got an error: \
-                      {response.json().get('message', response.text)}")
-            raise HTTPRedirect("../preregistration/homepage?message={}", f"Sorry, something went wrong. Please try again in a few minutes.")
-
-    @requires_account(Attendee)
-    def send_link(self, session, id):
-        attendee = session.attendee(id)
-        request_headers = _prepare_hotel_lottery_headers(attendee.id, attendee.email, token_type="MAGIC_LINK")
-        response = requests.post(c.HOTEL_LOTTERY_API_URL, headers=request_headers, timeout=25)
-        if response.json().get('success', False) == True:
-            lottery_link = "{}?r={}&t={}".format(c.HOTEL_LOTTERY_FORM_LINK,
-                                                       request_headers['REG_ID'],
-                                                       request_headers['TOKEN'])
-            send_email.delay(
-                    c.HOTELS_EMAIL,
-                    attendee.email,
-                    f'Entry link for the {c.EVENT_NAME_AND_YEAR} hotel lottery',
-                    render('emails/hotel_lottery/magic_link.html', {'attendee': attendee, 'magic_link': lottery_link}, encoding=None),
-                    'html',
-                    model=attendee.to_dict('id'))
-            raise HTTPRedirect("../preregistration/homepage?message={}", f"Email sent! Please ask {attendee.full_name} to check their email.")
-        else:
-            log.error(f"We tried to register a token for sending a link to the room lottery, but got an error: \
-                      {response.json().get('message', response.text)}")
-            raise HTTPRedirect("../preregistration/homepage?message={}", f"Sorry, the link could not be sent at this time. Please try again in a few minutes.")
-        
     @requires_account(Attendee)
     def start(self, session, attendee_id, message="", **params):
         attendee = session.attendee(attendee_id)
@@ -192,42 +147,38 @@ class Root:
         }
     
     @requires_account(LotteryApplication)
-    def guarantee_confirm(self, session, id=None, message="", **params):
+    def withdraw_entry(self, session, id=None, **params):
         application = session.lottery_application(id)
-        forms_list = ["LotteryConfirm"]
-        forms = load_forms(params, application, forms_list)
 
-        if cherrypy.request.method == 'POST':
-            for form in forms.values():
-                form.populate_obj(application)
-            application.last_submitted = datetime.now()
-            application.status = c.COMPLETE
+        has_actually_entered = application.status == c.COMPLETE
+        was_room_group = application.room_group_name
 
-            session.commit()
-            session.refresh(application)
+        if was_room_group:
+            _disband_room_group(session, application)
 
-            room_or_suite = "suite" if application.entry_type == c.SUITE_ENTRY else "room"
-            body = render('emails/hotel/hotel_lottery_entry.html', {
-                'application': application,
-                'new_conf': False,
-                'action_str': f"entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
+        defaults = LotteryApplication().to_dict()
+        for attr in defaults:
+            if attr not in ['id', 'attendee_id', 'response_id']:
+                setattr(application, attr, defaults.get(attr))
+
+        application.confirmation_num = ''
+        application.status = c.WITHDRAWN
+
+        if has_actually_entered:
+            body = render('emails/hotel/lottery_entry_cancelled.html', {
+                'application': application},
+                encoding=None)
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,
                 application.attendee.email_to_address,
-                c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
+                c.EVENT_NAME_AND_YEAR + f' Lottery Entry Cancelled',
                 body,
                 model=application.to_dict('id'))
 
-            raise HTTPRedirect('index?attendee_id={}&confirm={}&action=confirmation',
-                               application.attendee.id,
-                               room_or_suite)
-        return {
-                'id': application.id,
-                'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
-                'forms': forms,
-                'message': message,
-                'application': application,
-            }
+            raise HTTPRedirect('../preregistration/homepage?message={}',
+                            f"You have been removed from the hotel lottery.{' Your group has been disbanded.' if was_room_group else ''}")
+        raise HTTPRedirect('../preregistration/homepage?message={}',
+                            f"Your hotel lottery entry has been cancelled.")
 
     @requires_account(LotteryApplication)
     def room_lottery(self, session, id=None, message="", **params):
@@ -283,40 +234,6 @@ class Root:
             'message': message,
             'application': application,
         }
-
-    @requires_account(LotteryApplication)
-    def withdraw_entry(self, session, id=None, **params):
-        application = session.lottery_application(id)
-
-        has_actually_entered = application.status == c.COMPLETE
-        was_room_group = application.room_group_name
-
-        if was_room_group:
-            _disband_room_group(session, application)
-
-        defaults = LotteryApplication().to_dict()
-        for attr in defaults:
-            if attr not in ['id', 'attendee_id', 'response_id']:
-                setattr(application, attr, defaults.get(attr))
-
-        application.confirmation_num = ''
-        application.status = c.WITHDRAWN
-
-        if has_actually_entered:
-            body = render('emails/hotel/lottery_entry_cancelled.html', {
-                'application': application},
-                encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                application.attendee.email_to_address,
-                c.EVENT_NAME_AND_YEAR + f' Lottery Entry Cancelled',
-                body,
-                model=application.to_dict('id'))
-
-            raise HTTPRedirect('../preregistration/homepage?message={}',
-                            f"You have been removed from the hotel lottery.{' Your group has been disbanded.' if was_room_group else ''}")
-        raise HTTPRedirect('../preregistration/homepage?message={}',
-                            f"Your hotel lottery entry has been cancelled.")
     
     @requires_account(LotteryApplication)
     def suite_lottery(self, session, id=None, message="", **params):
@@ -417,7 +334,45 @@ class Root:
             session.commit()
 
         return {"success": True, "step_completed": params.get('current_step', 0)}
-    
+
+    @requires_account(LotteryApplication)
+    def guarantee_confirm(self, session, id=None, message="", **params):
+        application = session.lottery_application(id)
+        forms_list = ["LotteryConfirm"]
+        forms = load_forms(params, application, forms_list)
+
+        if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                form.populate_obj(application)
+            application.last_submitted = datetime.now()
+            application.status = c.COMPLETE
+
+            session.commit()
+            session.refresh(application)
+
+            room_or_suite = "suite" if application.entry_type == c.SUITE_ENTRY else "room"
+            body = render('emails/hotel/hotel_lottery_entry.html', {
+                'application': application,
+                'new_conf': False,
+                'action_str': f"entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                application.attendee.email_to_address,
+                c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
+                body,
+                model=application.to_dict('id'))
+
+            raise HTTPRedirect('index?attendee_id={}&confirm={}&action=confirmation',
+                               application.attendee.id,
+                               room_or_suite)
+        return {
+                'id': application.id,
+                'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
+                'forms': forms,
+                'message': message,
+                'application': application,
+            }
+
     @requires_account(LotteryApplication)
     def room_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
