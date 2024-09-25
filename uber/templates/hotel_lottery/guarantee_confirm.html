@@ -11,7 +11,7 @@
     <div class="card-body">
         {{ form_macros.form_validation('lottery-confirm', 'validate_hotel_lottery', form_list=['LotteryConfirm']) }}
 
-        <h2>Reservations and Payment Guarantees <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
+        <h2>Reservations and Payment Guarantees</h2>
         {% include 'hotel_lottery/guarantee_info.html' %}
 
         <div class="row g-sm-1">
@@ -20,14 +20,14 @@
                     <input type="hidden" name="id" value="{{ application.id }}" />
                     {{ csrf_token() }}
                     {{ form_macros.form_input(lottery_confirm.guarantee_policy_accepted) }}
-                    <button type="submit" class="btn btn-success">Confirm and Enter {{ "Suite" if application.suite_entry_completed else "Room" }} Lottery</button>
+                    <button type="submit" class="btn btn-success">Confirm and Enter {{ application.entry_type_label }} Lottery</button>
                 </form>
             </div>
             <div class="col col-auto">
-                <form novalidate method="post" id="withdraw-lottery" action="withdraw_room">
+                <form novalidate method="post" id="withdraw-lottery" action="withdraw_entry">
                     <input type="hidden" name="id" value="{{ application.id }}" />
                     {{ csrf_token() }}
-                    <button type="submit" class="btn btn-danger">Cancel and Delete {{ "Suite" if application.suite_entry_completed else "Room" }} Lottery Entry</button>
+                    <button type="submit" class="btn btn-danger">Cancel and Delete {{ application.entry_type_label }} Lottery Entry</button>
                 </form>
             </div>
         </div>

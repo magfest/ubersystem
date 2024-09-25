@@ -1,26 +1,20 @@
 {% extends 'hotel_lottery/room_lottery_form.html' %}
 
-{% block last_step_js %}
-{% if not read_only %}
-if (step == 4 || step == 999) {
-    $('#suite-lottery-form').submit();
-}
-{% endif %}
+{% block form_js %}
+{{ super() }}
+
+<script type="text/javascript">
+    var showOrHideRoomOpts = function() {
+        $('.hotel_and_room_type_ranking').toggle(!$('#room_opt_out').is(':checked'));
+    }
+    $().ready(function() {
+        showOrHideRoomOpts();
+        $('#room_opt_out').change(showOrHideRoomOpts);
+    });
+</script>
 {% endblock %}
 
-{% block hotel_ranking %}{% endblock %}
-{% block legal_name %}{% endblock %}
 {% block ada_info %}{% endblock %}
-
-{% block room_type_ranking_desc %}
-<p>
-    {% if read_only %}Below are your selected {{ room_text }} types in order of preference.
-    {% else %}
-    Rank your choice of {{ room_text }} type by clicking and dragging rooms from "Available" to "Selected" in order of preference.
-    At least one selection is required.
-    {% endif %}
-</p>
-{% endblock %}
 
 {% block terms %}
 {% if not read_only %}
@@ -49,14 +43,14 @@ if (step == 4 || step == 999) {
             {% block terms_form %}
             <div class="row g-sm-3">
                 <div class="col-12">
-                    <strong>{{ form_macros.form_input(room_or_suite_lottery.suite_terms_accepted) }}</strong>
+                    <strong>{{ form_macros.form_input(suite_lottery.suite_terms_accepted) }}</strong>
                 </div>
             </div>
 
-            {% if not read_only and application[room_text ~ '_step'] <= steps.counter %}
+            {% if not read_only and application.current_step <= steps.counter %}
             <div class="row justify-content-end">
                 <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="{{ room_text }}_step" value="{{ steps.counter }}">Save and Continue</button>
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
                 </div>
             </div>
             {% endif %}
@@ -66,4 +60,46 @@ if (step == 4 || step == 999) {
 </div>
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endif %}
+{% endblock %}
+
+{% block suite_type_ranking %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: Suite Type Preference
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block suite_ranking_desc %}
+            <p>
+                Rank your choice of suite type below by clicking and dragging hotels from "Available" to "Selected" in order of preference.
+                At least one selection is required. Not all suite types need be selected.
+                For additional room and amenity information, please see <a href="{{ c.HOTEL_LOTTERY_URL }}" target="_blank">our website</a>.
+            </p>
+            {% endblock %}
+            {% block suite_ranking_form %}
+            {{ form_macros.form_input(suite_lottery.suite_type_preference, readonly=read_only) }}
+            
+            {% if not read_only and application.current_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+{% endblock %}
+
+{% block room_opt_out %}
+<p>
+    In addition to your suite lottery entry, we <strong>strongly</strong> recommend opting into the standard room lottery
+    by ranking your preferred hotels and standard room types in this step.
+    However, if you want you can opt out of the room lottery using the checkbox below.
+</p>
+{{ form_macros.form_input(room_or_suite_lottery.room_opt_out, readonly=read_only) }}
 {% endblock %}

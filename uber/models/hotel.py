@@ -1,7 +1,14 @@
+import random
+
+import checkdigit.verhoeff as verhoeff
 from datetime import timedelta, datetime
 from markupsafe import Markup
+from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy import Sequence
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Date, Integer
@@ -10,7 +17,7 @@ from uber.config import c
 from uber.custom_tags import readable_join
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
+from uber.models.types import Choice, default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
 from uber.utils import RegistrationCode
 
 
@@ -116,30 +123,34 @@ class LotteryApplication(MagModel):
     attendee = relationship('Attendee', backref=backref('lottery_application', uselist=False),
                             cascade='save-update,merge,refresh-expire,expunge',
                             uselist=False)
-    invite_code = Column(UnicodeText)
+    invite_code = Column(UnicodeText) # Not used for now but we're keeping it for later
+    confirmation_num = Column(UnicodeText)
+
+    response_id_seq = Sequence('lottery_application_response_id_seq')
+    response_id = Column(Integer, response_id_seq, server_default=response_id_seq.next_value(), unique=True)
+    status = Column(Choice(c.HOTEL_LOTTERY_STATUS_OPTS), default=c.PARTIAL, admin_only=True)
+    entry_started = Column(UTCDateTime, nullable=True)
+    entry_metadata = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
+    entry_type = Column(Choice(c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS), nullable=True)
+    current_step = Column(Integer, default=0)
+    last_submitted = Column(UTCDateTime, nullable=True)
+    admin_notes = Column(UnicodeText)
+
     legal_first_name = Column(UnicodeText)
     legal_last_name = Column(UnicodeText)
+    earliest_checkin_date = Column(Date, nullable=True)
+    latest_checkin_date = Column(Date, nullable=True)
+    earliest_checkout_date = Column(Date, nullable=True)
+    latest_checkout_date = Column(Date, nullable=True)
+    selection_priorities = Column(MultiChoice(c.HOTEL_LOTTERY_PRIORITIES_OPTS))
 
-    wants_room = Column(Boolean, default=False)
-    room_step = Column(Integer, default=0)
-    earliest_room_checkin_date = Column(Date, nullable=True)
-    latest_room_checkin_date = Column(Date, nullable=True)
-    earliest_room_checkout_date = Column(Date, nullable=True)
-    latest_room_checkout_date = Column(Date, nullable=True)
     hotel_preference = Column(MultiChoice(c.HOTEL_LOTTERY_HOTELS_OPTS))
     room_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS))
-    room_selection_priorities = Column(MultiChoice(c.HOTEL_LOTTERY_ROOM_PRIORITIES_OPTS))
     wants_ada = Column(Boolean, default=False)
     ada_requests = Column(UnicodeText)
 
-    wants_suite = Column(Boolean, default=False)
-    suite_step = Column(Integer, default=0)
-    earliest_suite_checkin_date = Column(Date, nullable=True)
-    latest_suite_checkin_date = Column(Date, nullable=True)
-    earliest_suite_checkout_date = Column(Date, nullable=True)
-    latest_suite_checkout_date = Column(Date, nullable=True)
+    room_opt_out = Column(Boolean, default=False)
     suite_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS))
-    suite_selection_priorities = Column(MultiChoice(c.HOTEL_LOTTERY_SUITE_PRIORITIES_OPTS))
 
     terms_accepted = Column(Boolean, default=False)
     data_policy_accepted = Column(Boolean, default=False)
@@ -158,6 +169,11 @@ class LotteryApplication(MagModel):
 
     room_group_name = Column(UnicodeText)
 
+    @presave_adjustment
+    def set_confirmation_num(self):
+        if not self.confirmation_num and self.status not in [c.WITHDRAWN, c.DISQUALIFIED]:
+            self.confirmation_num = self.generate_confirmation_num()
+
     @hybrid_property
     def normalized_code(self):
         return RegistrationCode.normalize_code(self.invite_code)
@@ -168,6 +184,38 @@ class LotteryApplication(MagModel):
 
     def generate_new_invite_code(self):
         return RegistrationCode.generate_random_code(LotteryApplication.invite_code)
+    
+    def _generate_conf_num(self, generator):
+        from uber.models import Session
+        with Session() as session:
+            # Kind of inefficient, but doing one big query for all the existing
+            # codes will be faster than a separate query for each new code.
+            old_codes = set(s for (s,) in session.query(LotteryApplication.confirmation_num).all())
+
+        # Set an upper limit on the number of collisions we'll allow,
+        # otherwise this loop could potentially run forever.
+        max_collisions = 10000
+        collisions = 0
+        while 0 < 1:
+            code = generator()
+            if not code:
+                break
+            if code in old_codes:
+                collisions += 1
+                if collisions >= max_collisions:
+                    log.error("WARNING: We couldn't manage to generate a unique hotel lottery confirmation number in 10,000 tries!")
+                    return 0
+            else:
+                return code
+
+    def generate_confirmation_num(self):
+        # The actual generator function, called repeatedly by `_generate_conf_num`
+        def _generate_random_conf():
+            base_num = int(''.join(str(random.randint(0,9)) for _ in range(9)))
+            checkdigit = verhoeff.calculate(str(base_num))
+            return int(f"{base_num}{checkdigit}")
+
+        return self._generate_conf_num(_generate_random_conf)
 
     @property
     def group_leader_name(self):
@@ -176,13 +224,13 @@ class LotteryApplication(MagModel):
     @property
     def current_status_str(self):
         app_or_parent = self.parent_application or self
-        if not app_or_parent.room_entry_completed:
+        if not app_or_parent.entry_type:
             return "do NOT have an entry in the hotel room or suite lottery"
         
-        if app_or_parent.suite_entry_completed:
-            return "are entered into the suite lottery and room lottery"
+        if app_or_parent.entry_type == c.SUITE_ENTRY:
+            return f"are entered into the suite lottery{'' if app_or_parent.room_opt_out else ' and room lottery'}"
         else:
-            return "are entered into the room lottery. You do not have an entry in the suite lottery"
+            return "are entered into the room lottery"
 
     @property
     def group_status_str(self):
@@ -193,26 +241,26 @@ class LotteryApplication(MagModel):
             return f'are the group leader for "{self.room_group_name}". Your group has {len(self.group_members) + 1} group members, including yourself'
 
     @property
-    def has_any_entry(self):
-        return self.parent_application or self.room_entry_completed or self.suite_entry_completed
+    def entry_form_completed(self):
+        return self.current_step >= self.last_step
     
     @property
-    def room_entry_completed(self):
-        return self.wants_room and self.room_step == 999
-    
-    @property
-    def suite_entry_completed(self):
-        return self.wants_suite and self.suite_step == 999
+    def last_step(self):
+        return 6 if self.entry_type and self.entry_type == c.SUITE_ENTRY else 5
 
     @property
     def homepage_link(self):
-        if self.wants_suite and not self.suite_entry_completed:
-            return f'suite_lottery?id={self.id}'
-        if self.wants_room and not self.room_entry_completed:
-            return f'room_lottery?id={self.id}'
-        if self.has_any_entry:
-            return f'index?attendee_id={self.attendee.id}'
-        return f'start?attendee_id={self.attendee.id}'
+        entry_text = 'Suite Lottery Entry' if self.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry'
+        if self.status == c.COMPLETE:
+            button_text = 'View Room Group' if self.parent_application else f'View {entry_text}'
+            return f'index?attendee_id={self.attendee.id}', button_text
+        elif self.entry_form_completed:
+            return f'guarantee_confirm?id={self.id}', f"Finish {entry_text}"
+        elif self.entry_type == c.SUITE_ENTRY:
+            return f'suite_lottery?id={self.id}', f"Finish {entry_text}"
+        elif self.entry_type == c.ROOM_ENTRY:
+            f'room_lottery?id={self.id}', f"Finish {entry_text}"
+        return f'start?attendee_id={self.attendee.id}', "Enter Hotel Lottery"
 
     def build_nights_map(self, check_in, check_out):
         if isinstance(check_in, datetime):
@@ -240,25 +288,13 @@ class LotteryApplication(MagModel):
         return Markup("Suites require a three-night minimum, including <em>both</em> Friday <em>and</em> Saturday.")
 
     @property
-    def shortest_room_check_in_out_dates(self):
-        return (self.latest_room_checkin_date or self.earliest_room_checkin_date), (
-            self.earliest_room_checkout_date or self.latest_room_checkout_date)
+    def shortest_check_in_out_dates(self):
+        return (self.latest_checkin_date or self.earliest_checkin_date), (
+            self.earliest_checkout_date or self.latest_checkout_date)
 
     @property
-    def any_room_dates_different(self):
-        return self.earliest_room_checkin_date != self.orig_value_of('earliest_room_checkin_date') or \
-            self.latest_room_checkin_date != self.orig_value_of('latest_room_checkin_date') or \
-            self.earliest_room_checkout_date != self.orig_value_of('latest_room_checkout_date') or \
-            self.latest_room_checkout_date != self.orig_value_of('latest_room_checkout_date')
-
-    @property
-    def shortest_suite_check_in_out_dates(self):
-        return (self.latest_suite_checkin_date or self.earliest_suite_checkin_date), (
-            self.earliest_suite_checkout_date or self.latest_suite_checkout_date)
-
-    @property
-    def any_suite_dates_different(self):
-        return self.earliest_suite_checkin_date != self.orig_value_of('earliest_suite_checkin_date') or \
-            self.latest_suite_checkin_date != self.orig_value_of('latest_suite_checkin_date') or \
-            self.earliest_suite_checkout_date != self.orig_value_of('latest_suite_checkout_date') or \
-            self.latest_suite_checkout_date != self.orig_value_of('latest_suite_checkout_date')
+    def any_dates_different(self):
+        return self.earliest_checkin_date != self.orig_value_of('earliest_checkin_date') or \
+            self.latest_checkin_date != self.orig_value_of('latest_checkin_date') or \
+            self.earliest_checkout_date != self.orig_value_of('latest_checkout_date') or \
+            self.latest_checkout_date != self.orig_value_of('latest_checkout_date')

@@ -25,8 +25,9 @@
             title: "Leave Room Group?",
             message: "<p>This will remove you from the group's lottery entry.</p>" + 
                      "<p>The group leader will be notified via email. " +
-                     "You will be reverted to any lottery entries you had before joining the group.</p>" +
-                     "<p>Are you sure?</p>",
+                    "You will {% if application.guarantee_policy_accepted %}be reverted to the lottery entry you had before joining the group{% else %}be withdrawn from the hotel lottery{% endif %}.</p>" +
+                    "<p>Are you sure?</p>",
+                        
             buttons: {
                 confirm: {
                     label: 'Yes, Leave Group',
@@ -60,7 +61,7 @@
     <div class="card-body">
         <div id="select-action" class="collapse">
             <p>
-                Welcome {% if application.parent_application or application.wants_room %}back {% endif %} to the {{ c.EVENT_NAME }} hotel lottery!
+                Welcome {% if application.status == c.COMPLETE %}back {% endif %} to the {{ c.EVENT_NAME }} hotel lottery!
                 The hotel lottery form will close at <strong>{{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</strong>.
             </p>
 
@@ -70,145 +71,108 @@
 
             {% block additional_lottery_info %}{% endblock %}
 
-            <p>
-                <div class="row g-1">
+            <div class="row g-1">
+                <div class="col col-auto">
+                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
+                </div>
+                {% if not application.parent_application %}
                     <div class="col col-auto">
-                        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
-                    </div>
-                    {% if not application.parent_application %}
-                        <div class="col col-auto">
-                        <a class="btn btn-primary" href="room_group?id={{ application.id }}">
-                            {% if application.room_group_name %}
-                            Manage Room Group
-                            {% else %}
-                            Join {% if application.room_entry_completed %}or Create {% endif %}Room Group
-                            {% endif %}
-                        </a>
-                        </div>
-                        {% if not application.wants_room %}
-                        <div class="col col-auto">
-                            <a class="btn btn-secondary" href="room_lottery?id={{ application.id }}">
-                                Enter Room Lottery
-                            </a>
-                        </div>
+                    <a class="btn btn-primary" href="room_group?id={{ application.id }}">
+                        {% if application.room_group_name %}
+                        Manage Room Group
+                        {% else %}
+                        Join {% if application.status == c.COMPLETE %}or Create {% endif %}Room Group
                         {% endif %}
-                        {% if not application.wants_suite %}
-                        <div class="col col-auto">
-                            {% set suite_link = ('suite_lottery?id=' ~ application.id) if application.room_entry_completed else 'room_lottery?id=' ~ application.id ~ '&suite=true' %}
-                        <a class="btn btn-success" href="{{ suite_link }}">
+                    </a>
+                    </div>
+                    {% if not application.entry_type %}
+                    <div class="col col-auto">
+                        <a class="btn btn-secondary" href="room_lottery?id={{ application.id }}">
+                            Enter Room Lottery
+                        </a>
+                    </div>
+                    <div class="col col-auto">
+                        <a class="btn btn-success" href="suite_lottery?id={{ application.id }}">
                             Enter Suite Lottery
                         </a>
-                        
-                        </div>
-                        {% endif %}
-                    {% endif %}
-                    {% if application.room_entry_completed %}
-                    <div class="col col-auto">
-                    <form id="withdraw-lottery" method="post" action="withdraw_room">
-                        <input type="hidden" name="id" value="{{ application.id }}">
-                        <button type="submit" class="btn btn-danger">Withdraw From Hotel Lottery</button>
-                    </form>
                     </div>
                     {% endif %}
+                {% endif %}
+                {% if application.status == c.COMPLETE and application.entry_type != c.GROUP_ENTRY %}
+                <div class="col col-auto">
+                <form id="withdraw-lottery" method="post" action="withdraw_entry">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    <button type="submit" class="btn btn-danger">Withdraw From Hotel Lottery</button>
+                </form>
                 </div>
-            </p>
-            {% if not application.wants_room and not application.parent_application %}
+                {% endif %}
+            </div>
+            {% if not application.status == c.COMPLETE and not application.parent_application %}
             <p>
                 You are currently not eligible to create a group. Use the buttons above to create a room or suite lottery entry first.
             </p>
             {% endif %}
-            {% if application.parent_application or application.wants_room %}
+            {% if application.parent_application or application.entry_type %}
             <hr/>
             {% endif %}
 
             {% if application.parent_application or application.room_group_name %}
             <h2>Your Room Group</h2>
             <p>You {{ application.group_status_str }}.</p>
-            <p>
-                <div class="row g-1">
-                {% if application.room_group_name %}
-                    <div class="col col-auto"><a class="btn btn-primary" href="room_group?id={{ application.id }}">Manage Room Group</a></div>
-                {% else %}
-                    <div class="col col-auto">
-                    <form method="post" action="leave_group" id="leave-group">
-                        <input type="hidden" name="id" value="{{ application.id }}">
-                        {{ csrf_token() }}
-                        <button class="btn btn-danger">Leave Group</button>
-                    </form>
-                    </div>
-                {% endif %}
+            <div class="row g-1">
+            {% if application.room_group_name %}
+                <div class="col col-auto"><a class="btn btn-primary" href="room_group?id={{ application.id }}">Manage Room Group</a></div>
+            {% else %}
                 <div class="col col-auto">
-                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View Room Group Information</button>
+                <form method="post" action="leave_group" id="leave-group">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    {{ csrf_token() }}
+                    <button class="btn btn-danger">Leave Group</button>
+                </form>
                 </div>
-            </p>
+            {% endif %}
+            <div class="col col-auto mb-4">
+                <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View Room Group Policies</button>
+            </div>
+            </div>
             {% endif %}
 
-            {% if app_or_parent.wants_room %}
+            {% if app_or_parent.entry_type in [c.ROOM_ENTRY, c.SUITE_ENTRY] %}
                 {% if application.parent_application %}
-                <h2>Your Group's{% if not app_or_parent.suite_entry_completed %} Room{% endif %} Lottery Application</h2>
-                {% elif not app_or_parent.room_entry_completed or app_or_parent.wants_suite and not app_or_parent.suite_entry_completed %}
+                <h2>Your Group's {{ app_or_parent.entry_type_label }} Lottery Application</h2>
+                <div class="h5 text-muted mb-3">Confirmation # {{ app_or_parent.confirmation_num }}</div>
+                {% elif app_or_parent.status != c.COMPLETE %}
                 <h2 class="text-danger">Incomplete Lottery Application</h2>
                 <p>
-                    You have an <span class="text-danger">incomplete</span> {{ 'suite' if app_or_parent.wants_suite else 'room' }} application.
-                    You are <strong>NOT</strong> entered into the {{ 'suite' if app_or_parent.wants_suite else 'hotel' }} lottery until you complete your application.
+                    You have an <span class="text-danger">incomplete</span> {{ app_or_parent.entry_type_label|lower }} application.
+                    You are <strong>NOT</strong> entered into the {{ app_or_parent.entry_type_label|lower }} lottery until you complete your application.
                 </p>
-                {% if not app_or_parent.wants_suite %}
-                <p>Rather than completing or withdrawing your pending lottery entry, you can <a href="room_group?id={{ application.id }}">join a room group</a> and your incomplete entry will be ignored.</p>
-                {% endif %}
-                <p>
-                    {% if app_or_parent.wants_suite %}
-                    <div class="row g-1">
-                        <div class="col col-auto">
-                        <a class="btn btn-success" href="suite_lottery?id={{ application.id }}">Complete Suite Lottery Entry</a>
-                        </div>
-                        <div class="col col-auto">
-                            <form id="withdraw-suite" method="post" action="withdraw_suite">
-                                <input type="hidden" name="id" value="{{ application.id }}">
-                                <button type="submit" class="btn btn-danger">Cancel Suite Lottery Entry</button>
-                            </form>
-                        </div>
+                <div class="row g-1">
+                    <div class="col col-auto">
+                    <a class="btn btn-primary" href="{{ 'suite' if app_or_parent.entry_type == c.SUITE_ENTRY else 'room' }}_lottery?id={{ application.id }}">Complete {{ app_or_parent.entry_type_label }} Lottery Entry</a>
                     </div>
-                    {% else %}
-                    <div class="row g-1">
-                        <div class="col col-auto">
-                        <a class="btn btn-primary" href="room_lottery?id={{ application.id }}">Complete Room Lottery Entry</a>
-                        </div>
-                        <div class="col col-auto">
-                            <form id="withdraw-lottery" method="post" action="withdraw_room">
-                                <input type="hidden" name="id" value="{{ application.id }}">
-                                <button type="submit" class="btn btn-danger">Withdraw From Hotel Lottery</button>
-                            </form>
-                        </div>
+                    <div class="col col-auto">
+                        <form id="withdraw-lottery" method="post" action="withdraw_entry">
+                            <input type="hidden" name="id" value="{{ application.id }}">
+                            <button type="submit" class="btn btn-danger">Withdraw From Hotel Lottery</button>
+                        </form>
                     </div>
-                    {% endif %}
-                </p>
+                </div>
                 {% endif %}
-                {% if not application.parent_application and app_or_parent.room_entry_completed %}
-                <h2 class="mb-3">
-                    Your{% if not app_or_parent.suite_entry_completed %} Room{% endif %} Lottery Application
-                    {% if not app_or_parent.suite_entry_completed %}<a href="room_lottery?id={{ application.id }}" class="btn btn-primary"><i class="fa fa-pencil"></i> Edit</a>{% endif %}
+                {% if not application.parent_application and app_or_parent.status == c.COMPLETE %}
+                <h2>
+                    Your {{ app_or_parent.entry_type_label }} Lottery Application
+                    <a href="{{ 'suite' if app_or_parent.entry_type == c.SUITE_ENTRY else 'room' }}_lottery?id={{ application.id }}" class="btn btn-primary"><i class="fa fa-pencil"></i> Edit</a>
                 </h2>
+                <div class="h5 text-muted">Confirmation # {{ app_or_parent.confirmation_num }}</div>
                 {% endif %}
             {% endif %}
 
-            {% if app_or_parent.suite_entry_completed %}
-                <h3>
-                    Suite Entry Details
-                    {% if not application.parent_application %}<a href="suite_lottery?id={{ application.id }}" class="btn btn-success"><i class="fa fa-pencil"></i> Edit</a>{% endif %}
-                </h3>
-                {% include "hotel_lottery/ro_suite_lottery.html" with context %}
-                <br/>
-                <h3>
-                    Room Entry Details
-                    {% if not application.parent_application %}<a href="room_lottery?id={{ application.id }}" class="btn btn-primary"><i class="fa fa-pencil"></i> Edit</a>{% endif %}
-                </h3>
-            {% endif %}
-
-            {% if app_or_parent.room_entry_completed %}
-                {% set force_room_lottery = True %}
-                {% include "hotel_lottery/ro_room_lottery.html" with context %}
+            {% if app_or_parent.status == c.COMPLETE %}
+                {% set read_only = True %}
+                {% include "hotel_lottery/lottery_entry_ro.html" with context %}
                 {% if not application.parent_application %}
-                <br/><strong>An important reminder regarding confirming reservations with a payment guarantee:</strong><br/>
+                <strong>An important reminder regarding confirming reservations with a payment guarantee:</strong><br/>
                 {% include 'hotel_lottery/guarantee_info.html' %}
                 {% endif %}
             {% endif %}
@@ -216,26 +180,24 @@
         </div>
         <div id="confirm" class="collapse">
             <h2>{{ confirm.title() }} Lottery Entry {{ action.title() }}</h2>
-            <p>
-                {% if action == 'confirmation' %}
-                Thank you for entering the {{ confirm }} lottery for {{ c.EVENT_NAME_AND_YEAR }}!
-                {% else %}
-                Thank you for updating your {{ confirm }} lottery entry!
-                {% endif %}
-            </p>
-            <p>You should receive an email titled "{{ c.EVENT_NAME_AND_YEAR }} {{ confirm.title() }} Lottery {{ action.title() }}" containing details about your lottery entry.</p>
-            <p><button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Back to Options</button></p>
-            <p>You can view your{{ ' updated' if action != 'confirmation' else '' }} lottery entry below.</p>
-            
-            {% if confirm == 'suite' %}
-            <h3>Suite Entry Details</h3>
-            {% include "hotel_lottery/ro_suite_lottery.html" with context %}
-            <br/>
-            <h3>Room Entry Details</h3>
+            {% if action == 'confirmation' %}
+                <p>Thank you for entering the {{ confirm }} lottery for {{ c.EVENT_NAME_AND_YEAR }}!</p>
+            {% elif action == 're-entered' %}
+                <p>You have successfully left your room group and your previous lottery entry is now active.</p>
+                <p>Your previous confirmation number is invalid. Your new confirmation number is below.</p>
+            {% else %}
+                <p>Thank you for updating your {{ confirm }} lottery entry!</p>
             {% endif %}
-            {% set force_room_lottery = True %}
-            {% include "hotel_lottery/ro_room_lottery.html" with context %}
-            
+            <p>
+                <strong>Entry {{ "Received" if action == 'confirmation' else "Updated" }}</strong>: {{ application.last_submitted|datetime_local }}
+                <br/><strong>Confirmation Number</strong>: {{ application.confirmation_num }}
+                <br/><strong>Entry Email Address</strong>: {{ application.attendee.email }}
+                <br/><strong>Lottery Close</strong>: {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}
+            </p>
+            {% set read_only = True %}
+            {% include "hotel_lottery/lottery_entry_ro.html" with context %}
+            <p>We have sent a copy of this information to your entry email address.</p>
+            <p><button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Back to Options</button></p>
         </div>
     </div>
 </div>

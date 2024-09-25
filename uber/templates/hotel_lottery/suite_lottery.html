@@ -21,36 +21,30 @@
         {% endif %}
 
         <h2>Suite Lottery <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
-        {% if not application.suite_entry_completed %}
+        {% if application.status != c.COMPLETE %}
         <p>
             Please read the instructions for each step below carefully. Any completed steps (steps with a <i class='fa fa-check'></i>) will be saved if you leave and come back later, but your lottery entry is <strong>NOT</strong> complete until you see the confirmation screen.
         </p>
         <p>You can review or edit completed (<i class='fa fa-check'></i>) steps by clicking the name of the step. Changes to completed steps are saved when you click "Save and Continue" (or when you complete your entry, if you are on the last step).</p>
         {% else %}
         <p>
-            Below are the details for your current suite lottery entry.
             Click or tap any of the steps below to update that step's information, then click "Update Suite Lottery Entry" to save your changes.
-        </p>
-        <p>
-            <form id="withdraw-suite" method="post" action="withdraw_suite">
-                <input type="hidden" name="id" value="{{ application.id }}">
-                <button type="submit" class="btn btn-danger">Withdraw Suite Lottery Entry</button>
-            </form>
         </p>
         {% endif %}
 
         <form novalidate method="post" id="suite-lottery-form" action="suite_lottery">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ application.id }}">
-            {{ form_macros.form_input(suite_lottery.wants_suite, force_hidden=True, default="1") }}
+            <input type="hidden" name="entry_type" value="{{ c.SUITE_ENTRY }}">
         <div class="accordion mb-3" id="suite-lottery-accordion">
+            {% set read_only = False %}
             {% include 'hotel_lottery/suite_lottery_form.html' with context %}
         </div>
             <div class="row g-sm-3 mb-3">
                 <div class="col-12">
-                    <a id="return-btn" class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">{% if not application.wants_suite %}Cancel and {% endif %}Return to Options</a>
-                    {% if application.suite_entry_completed %}
-                    <button type="submit" name="suite_step" value="999"  class="btn btn-primary pull-right">
+                    <a id="return-btn" class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">{% if not application.entry_type %}Cancel and {% endif %}Return to Options</a>
+                    {% if application.status == c.COMPLETE %}
+                    <button type="submit" name="current_step" value="999"  class="btn btn-primary pull-right">
                         Update Suite Lottery Entry
                     </button>
                     {% endif %}

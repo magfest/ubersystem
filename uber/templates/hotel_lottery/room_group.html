@@ -32,7 +32,7 @@
                     $('#group-lookup').hide();
                     $('.group-name').text(json.room_group_name);
                     $('.leader-name').text(json.leader_name);
-                    $('.invite-code').text(json.invite_code);
+                    $('.conf-num').text(json.invite_code);
                     $('#room_group_id').val(json.room_group_id)
                 } else {
                     showErrorMessage(json.error);
@@ -51,7 +51,7 @@
         bootbox.confirm({
             title: "Remove Group Member?",
             message: "<p>This will remove " + name + " from your room group.</p>" + 
-                     "<p>They will be notified via email. They may be able to join again if you do not generate a new invite code.</p>" +
+                     "<p>They will be notified via email. They may be able to join again unless you disband the group.</p>" +
                      "<p>Are you sure?</p>",
             buttons: {
                 confirm: {
@@ -76,8 +76,8 @@
         event.preventDefault();
         bootbox.confirm({
             title: "Disband Room Group?",
-            message: "<p>This disable your group's invite code and remove all group members.</p>" + 
-                     "<p>They will be notified via email. This will not withdraw you from the lottery.</p>" +
+            message: "<p>This remove all group members from your group. They will be notified via email.</p>" + 
+                     "<p>This will not withdraw you from the lottery, but it WILL generate a new confirmation number for your lottery entry.</p>" +
                      "<p>Are you sure?</p>",
             buttons: {
                 confirm: {
@@ -102,9 +102,9 @@
         event.preventDefault();
         bootbox.confirm({
             title: "Join Room Group?",
-            message: "<p>This will withdraw your current lottery entries.</p>" + 
+            message: "<p>This will withdraw your current lottery entry and generate a new confirmation number.</p>" + 
                      "<p>You will ONLY be entered for the suite and/or room lottery if your group has an entry for it. " +
-                     "You will be able to view your group's lottery entries on your lottery options page.</p>" +
+                     "You will be able to view your group's lottery entries after joining.</p>" +
                      "<p>Are you sure you want to join this group?</p>",
             buttons: {
                 confirm: {
@@ -137,7 +137,7 @@
         $("#remove-member").submit(removeConfirm);
         if($('#disband-group').length) { $("#disband-group").submit(disbandConfirm); }
 
-        {% if application.wants_room or application.wants_suite %}
+        {% if application.status == c.COMPLETE %}
         $("#join-group-form").submit(joinConfirm);
         {% endif %}
     })
@@ -156,9 +156,9 @@
                     {{ application.parent_application.group_leader_name }} is your group leader.
                 </p>
                 {% else %}
-                    <p>Your room group name is "{{ application.room_group_name }}" and your invite code is {{ application.invite_code }}.</p>
-                    <p>You can edit your group name or generate a new invite code below. Generating a new invite code invalidates the old code, but does not affect people already in your group.</p>
-                    <p>In order to join your group, group members need both the invite code and your current email address, which is <strong>{{ application.attendee.email }}</strong>.</p>
+                    <p>Your room group name is "{{ application.room_group_name }}" and your confirmation number is {{ application.confirmation_num }}.</p>
+                    <p>You can edit your group name below.</p>
+                    <p>In order to join your group, group members need both the confirmation number and your current email address, which is <strong>{{ application.attendee.email }}</strong>.</p>
                     
                     <div class="row g-sm-3">
                         <div class="col-12 col-sm-6">
@@ -169,6 +169,7 @@
                                 <button type="submit" class="btn btn-primary mb-3">Update Group Name</button>
                             </form>
                         </div>
+                        {% if False %}
                         <div class="col-12 col-sm-6">
                             <form method="post" action="new_invite_code">
                                 <input type="hidden" name="id" value="{{ application.id }}">
@@ -176,6 +177,7 @@
                                 <button type="submit" class="btn btn-warning mb-3">Generate New Code</button>
                             </form>
                         </div>
+                        {% endif %}
                     </div>
 
                     {% if application.group_members %}
@@ -220,7 +222,7 @@
                 <h2>Room Group Information</h2>
                 {% include 'hotel_lottery/room_group_info.html' with context %}
 
-                {% if not application.room_entry_completed %}
+                {% if not application.status == c.COMPLETE %}
                 <p class="mb-0">
                     <button class="btn btn-primary" onClick="setStep('#join-group')">Continue</button>
                 {% else %}
@@ -235,17 +237,23 @@
         </div>
         <div id="join-group" class="collapse">
             <h2>Join Room Group
-                {% if application.room_entry_completed %}<button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button>
+                {% if application.status == c.COMPLETE %}<button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button>
                 {% else %}<a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>{% endif %}
             </h2>
             <div class="show" id="group-lookup">
-                <p>Enter a group invite code and email address below to look up a room group.</p>
+                <p>Enter a group confirmation number and email address below to look up a room group.</p>
                 <form method="post" id="group-lookup-form" action="room_group_search">
                 {{ csrf_token() }}
                 <div class="row g-sm-3">
+                    {% if False %}
                     <div class="col-12 col-sm-4">
                         <div class="form-text">Invite Code</div>
                         <input type="text" class="form-control" id="invite_code" name="invite_code" placeholder="XXX-XXX-XXX">
+                    </div>
+                    {% endif %}
+                    <div class="col-12 col-sm-4">
+                        <div class="form-text">Confirmation Number</div>
+                        <input type="text" class="form-control" id="confirmation_num" name="confirmation_num" placeholder="##########">
                     </div>
                     <div class="col-12 col-sm-4">
                         <div class="form-text">Group Leader's Email</div>
@@ -260,7 +268,7 @@
             </div>
             <div class="collapse" id="group-found">
                 <p>
-                    We found the group "<span class='group-name'></span>" (invite code <strong><span class='invite-code'></span></strong>).
+                    We found the group "<span class='group-name'></span>" (confirmation number <strong><span class='conf-num'></span></strong>).
                     This group's group leader is <span class='leader-name'></span> They will be able to see your first and last name ({{ application.attendee.full_name }}).
                 </p>
                 <form method="post" action="join_group" id="join-group-form">
@@ -309,16 +317,25 @@
             
             {% if action == 'created' %}
                 <p>You have successfully created the room group "{{ application.room_group_name }}"!</p>
-                <p>Your group invite code is <strong>{{ application.invite_code }}</strong>.</p>
+                <p>Your group confirmation number is <strong>{{ application.confirmation_num }}</strong>.</p>
             {% elif action == 'updated' %}
                 <p>You have updated your room group name to "{{ application.room_group_name }}".</p>
             {% else %}
                 <p>You have successfully joined group "{{ application.parent_application.room_group_name }}"!</p>
+                {% if new_conf %}
+                <p>Your previous confirmation number is now invalid. Your new confirmation number is below.</p>
+                {% endif %}
+                <p>
+                    <strong>Entry Received</strong>: {{ application.last_submitted|datetime_local }}
+                    <br/><strong>Confirmation Number</strong>: {{ application.confirmation_num }}
+                    <br/><strong>Entry Email Address</strong>: {{ application.attendee.email }}
+                    <br/><strong>Lottery Close</strong>: {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}
+                </p>
             {% endif %}
             {% if action == 'created' %}
             <button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Room Group Options</button>
             {% endif %}
-            <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
+            <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">View Room Group</a>
         </div>
     </div>
 </div>

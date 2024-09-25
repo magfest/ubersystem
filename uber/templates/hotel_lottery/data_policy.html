@@ -2,13 +2,13 @@
     Your information from <a href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">your registration</a> will be used in the hotel lottery in the following ways:
     <ul>
         <li>Your current email address (<strong>{{ attendee.email }}</strong>) will be used for all hotel lottery notifications.</li>
-        <li>If you are a room group leader, your group members will be required to enter your email address along with the group invite code to join your group, so you will need to share this email with them.</li>
+        <li>If you are a room group leader, your group members will be required to enter your email address along with your lottery entry's confirmation number to join your group, so you will need to share this email with them.</li>
         <li>If you request an ADA room, our accessibility team will be sent your request details, first and last name (<strong>{{ attendee.full_name }}</strong>), and email address in order to contact you.</li>
         <li>
             When reservations are built for lottery awards, your registration contact information will be used, including legal name, phone number, email, and mailing address.
             <ul>
             <li>Hotels require your legal first and last name to match the photo ID you use during check-in.</li>
-            <li>If you need to update either your email or name after the lottery closes, please contact us at {{ c.HOTELS_EMAIL|email_only|email_to_link }}.</li>
+            <li>Primary guest name and email address changes are generally not permitted. Please ensure this information is correct as part of your lottery entry.</li>
             <li>For more information, please review our <a href="{{ c.PRIVACY_POLICY_URL }}" target="_blank">privacy policy</a>.</li>
             </ul>
         </li>

@@ -1,3 +1,4 @@
+from markupsafe import Markup
 from wtforms import (BooleanField, DateField, HiddenField, SelectMultipleField,
                      StringField, validators, TextAreaField)
 from wtforms.validators import ValidationError, StopValidation
@@ -62,8 +63,8 @@ class LotteryRoomGroup(MagForm):
 class RoomLottery(MagForm):
     field_validation = CustomValidation()
 
-    wants_room = BooleanField('I would like to enter the hotel room lottery.', default=False)
-    room_step = HiddenField('Current Step')
+    current_step = HiddenField('Current Step')
+    entry_type = HiddenField('Entry Type')
     legal_first_name = StringField('First Name on ID',
                                    validators=[validators.DataRequired("Please enter your first name as it appears on your photo ID.")])
     legal_last_name = StringField('Last Name on ID',
@@ -72,20 +73,20 @@ class RoomLottery(MagForm):
         'Hotels', coerce=int, choices=c.HOTEL_LOTTERY_HOTELS_OPTS,
         widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS),
         validators=[validators.DataRequired("Please select at least one preferred hotel.")])
-    earliest_room_checkin_date = DateField(
+    earliest_checkin_date = DateField(
         'Preferred Check-In Date',
         validators=[validators.DataRequired("Please enter your preferred check-in date.")],
         render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKIN_START),
                    'max': html_format_date(c.HOTEL_LOTTERY_CHECKIN_END)})
-    latest_room_checkin_date = DateField('Latest Acceptable Check-In Date',
+    latest_checkin_date = DateField('Latest Acceptable Check-In Date',
                                          validators=[validators.Optional()],
                                          render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKIN_START),
                                                     'max': html_format_date(c.HOTEL_LOTTERY_CHECKIN_END)})
-    earliest_room_checkout_date = DateField('Earliest Acceptable Check-Out Date',
+    earliest_checkout_date = DateField('Earliest Acceptable Check-Out Date',
                                             validators=[validators.Optional()],
                                             render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_START),
                                                        'max': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_END)})
-    latest_room_checkout_date = DateField(
+    latest_checkout_date = DateField(
         'Preferred Check-Out Date',
         validators=[validators.DataRequired("Please enter your preferred check-out date.")],
         render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_START),
@@ -94,9 +95,9 @@ class RoomLottery(MagForm):
         'Room Types', coerce=int, choices=c.HOTEL_LOTTERY_ROOM_TYPES_OPTS,
         widget=Ranking(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS),
         validators=[validators.DataRequired("Please select at least one preferred room type.")])
-    room_selection_priorities = SelectMultipleField(
-        'Preference Priorities', coerce=int, choices=c.HOTEL_LOTTERY_ROOM_PRIORITIES_OPTS,
-        widget=Ranking(c.HOTEL_LOTTERY_ROOM_PRIORITIES_OPTS))
+    selection_priorities = SelectMultipleField(
+        'Preference Priorities', coerce=int, choices=c.HOTEL_LOTTERY_PRIORITIES_OPTS,
+        widget=Ranking(c.HOTEL_LOTTERY_PRIORITIES_OPTS))
     wants_ada = BooleanField('I would like to request an ADA room.', default=False)
     ada_requests = TextAreaField('Requested Accommodations',
                                  validators=[validators.DataRequired("Please explain some of the ADA accommodations you will require.")])
@@ -107,27 +108,16 @@ class RoomLottery(MagForm):
         if not application.wants_ada:
             optional_list.append('ada_requests')
 
-        room_step = int(application.room_step) if application.room_step else 0
-        if room_step < 6:
-            optional_list.append('room_selection_priorities')
+        room_step = int(application.current_step) if application.current_step else 0
+
         if room_step < 5:
-            optional_list.append('room_type_preference')
-        if room_step < 3:
-            optional_list.extend(['earliest_room_checkin_date', 'latest_room_checkout_date'])
+            optional_list.append('selection_priorities')
+        if room_step < 4:
+            optional_list.extend(['room_type_preference', 'hotel_preference'])
         if room_step < 2:
-            optional_list.append('hotel_preference')
+            optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
 
         return optional_list
-
-    @property
-    def shared_fields(self):
-        # This helps us use the same template logic for both room and suite lotteries
-        return {'earliest_checkin_date': self.earliest_room_checkin_date,
-                'latest_checkin_date': self.latest_room_checkin_date,
-                'earliest_checkout_date': self.earliest_room_checkout_date,
-                'latest_checkout_date': self.latest_room_checkout_date,
-                'room_or_suite_type_preference': self.room_type_preference,
-                'selection_priorities': self.room_selection_priorities}
 
     @field_validation.earliest_room_checkin_date
     def preferred_dates_not_swapped(form, field):
@@ -174,117 +164,51 @@ class RoomLottery(MagForm):
             raise ValidationError("It does not make sense to have your earliest acceptable check-out date \
                                   later than your preferred check-out date.")
 
-    @field_validation.room_selection_priorities
+    @field_validation.selection_priorities
     def all_options_ranked(form, field):
-        if form.room_step.data and int(form.room_step.data) < 4:
+        if form.current_step.data and int(form.current_step.data) < 4:
             return
-        if len(field.data) < len(c.HOTEL_LOTTERY_ROOM_PRIORITIES_OPTS):
+        if len(field.data) < len(c.HOTEL_LOTTERY_PRIORITIES_OPTS):
             raise ValidationError("Please rank all priorities for selecting a hotel room.")
 
 
-class SuiteLottery(MagForm):
-    field_validation = CustomValidation()
-
-    wants_suite = BooleanField('I would like to enter the suite lottery.', default=False)
-    suite_step = HiddenField('Current Step')
-    earliest_suite_checkin_date = DateField(
-        'Preferred Check-In Date',
-        validators=[validators.DataRequired("Please enter your preferred check-in date.")],
-        render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKIN_START),
-                   'max': html_format_date(c.HOTEL_LOTTERY_CHECKIN_END)})
-    latest_suite_checkin_date = DateField('Latest Acceptable Check-In Date',
-                                         validators=[validators.Optional()],
-                                         render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKIN_START),
-                                                    'max': html_format_date(c.HOTEL_LOTTERY_CHECKIN_END)})
-    earliest_suite_checkout_date = DateField('Earliest Acceptable Check-Out Date',
-                                            validators=[validators.Optional()],
-                                            render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_START),
-                                                       'max': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_END)})
-    latest_suite_checkout_date = DateField(
-        'Preferred Check-Out Date',
-        validators=[validators.DataRequired("Please enter your preferred check-out date.")],
-        render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_START),
-                   'max': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_END)})
+class SuiteLottery(RoomLottery):
     suite_type_preference = SelectMultipleField(
         'Suite Room Types', coerce=int, choices=c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS,
         widget=Ranking(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS),
         validators=[validators.DataRequired("Please select at least one preferred suite type.")])
-    suite_selection_priorities = SelectMultipleField(
-        'Preference Priorities', coerce=int, choices=c.HOTEL_LOTTERY_SUITE_PRIORITIES_OPTS,
-        widget=Ranking(c.HOTEL_LOTTERY_SUITE_PRIORITIES_OPTS))
     suite_terms_accepted = BooleanField(
         f'I agree, understand and will comply with the {c.EVENT_NAME} suite policies.', default=False,
         validators=[validators.InputRequired("You must agree to the suite lottery policies to enter the suite lottery.")])
+    room_opt_out = BooleanField('I do NOT want to enter the room lottery.')
 
     def get_optional_fields(self, application, is_admin=False):
-        optional_list = super().get_optional_fields(application, is_admin)
+        optional_list = ['ada_requests'] # steps are different for room lottery so we start from scratch
 
-        suite_step = int(application.suite_step) if application.suite_step else 0
+        suite_step = int(application.current_step) if application.current_step else 0
+
+        if suite_step < 6:
+            optional_list.append('selection_priorities')
+        if suite_step < 5 or application.room_opt_out:
+            optional_list.extend(['room_type_preference', 'hotel_preference'])
         if suite_step < 4:
-            optional_list.append('suite_selection_priorities')
-        if suite_step < 3:
             optional_list.append('suite_type_preference')
+        if suite_step < 3:
+            optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
         if suite_step < 2:
-            optional_list.extend(['earliest_suite_checkin_date', 'latest_suite_checkout_date'])
+            optional_list.extend(['legal_first_name', 'legal_last_name'])
 
         return optional_list
-
-    @property
-    def shared_fields(self):
-        # This helps us use the same template logic for both room and suite lotteries
-        return {'earliest_checkin_date': self.earliest_suite_checkin_date,
-                'latest_checkin_date': self.latest_suite_checkin_date,
-                'earliest_checkout_date': self.earliest_suite_checkout_date,
-                'latest_checkout_date': self.latest_suite_checkout_date,
-                'room_or_suite_type_preference': self.suite_type_preference,
-                'selection_priorities': self.suite_selection_priorities}
-
-    @field_validation.earliest_suite_checkin_date
-    def preferred_dates_not_swapped(form, field):
-        checkout_label, earliest_checkout_date = get_latest_checkout_date(form, room_or_suite='suite')
-        
-        if earliest_checkout_date and field.data > earliest_checkout_date:
-            raise StopValidation(f"Your preferred check-in date is after your {checkout_label}.")
     
-    @field_validation.latest_suite_checkin_date
-    def acceptable_dates_not_swapped(form, field):
-        if not field.data:
-            return
-        
-        checkout_label, earliest_checkout_date = get_latest_checkout_date(form, room_or_suite='suite')
-        
-        if earliest_checkout_date and field.data > earliest_checkout_date:
-            raise StopValidation(f"Your acceptable check-in date is after your {checkout_label}.")
+    def room_opt_out_label(self):
+        return Markup('I do NOT want to enter the room lottery. <strong>I understand that this means I will not be eligible for a room award if my entry is not chosen for the suite lottery.</strong>')
 
-    @field_validation.earliest_suite_checkin_date
-    def earliest_checkin_within_range(form, field):
-        date_in_range(field, "preferred check-in", c.HOTEL_LOTTERY_CHECKIN_START, c.HOTEL_LOTTERY_CHECKIN_END)
-
-    @field_validation.latest_suite_checkin_date
-    def latest_checkin_within_range(form, field):
-        date_in_range(field, "latest acceptable check-in", c.HOTEL_LOTTERY_CHECKIN_START, c.HOTEL_LOTTERY_CHECKIN_END)
-
-    @field_validation.latest_suite_checkin_date
-    def after_preferred_checkin(form, field):
-        if field.data and field.data < form.earliest_suite_checkin_date.data:
-            raise ValidationError("It does not make sense to have your latest acceptable check-in date \
-                                  earlier than your preferred check-in date.")
-
-    @field_validation.latest_suite_checkout_date
-    def latest_checkin_within_range(form, field):
-        date_in_range(field, "preferred check-out", c.HOTEL_LOTTERY_CHECKOUT_START, c.HOTEL_LOTTERY_CHECKOUT_END)
-
-    @field_validation.earliest_suite_checkout_date
-    def earliest_checkin_within_range(form, field):
-        date_in_range(field, "earliest acceptable check-out", c.HOTEL_LOTTERY_CHECKOUT_START, c.HOTEL_LOTTERY_CHECKOUT_END)
-
-    @field_validation.earliest_suite_checkout_date
-    def before_preferred_checkout(form, field):
-        if field.data and field.data > form.latest_suite_checkout_date.data:
-            raise ValidationError("It does not make sense to have your earliest acceptable check-out date \
-                                  later than your preferred check-out date.")
-        
-    @field_validation.suite_selection_priorities
-    def all_options_ranked(form, field):
-        if len(field.data) < len(c.HOTEL_LOTTERY_SUITE_PRIORITIES_OPTS):
-            raise ValidationError("Please rank all priorities for selecting a hotel suite.")
+    def hotel_preference_validators(self, field):
+        validator = field.validators[0]
+        validator.message = validator.message[:-1] + " OR opt out of entering the room lottery."
+        return [validator] + field.validators[1:]
+    
+    def room_type_preference_validators(self, field):
+        validator = field.validators[0]
+        validator.message = validator.message[:-1] + " OR opt out of entering the room lottery."
+        return [validator] + field.validators[1:]

@@ -11,8 +11,7 @@
     <div class="card-body">
         {{ form_macros.form_validation('lottery-info-form', 'validate_hotel_lottery', form_list=['LotteryInfo']) }}
 
-        <form novalidate method="post" id="lottery-info-form" action="index">
-            <input type="hidden" name="id" value="{{ application.id }}" />
+        <form novalidate method="post" id="lottery-info-form" action="terms">
             <input type="hidden" name="attendee_id" value="{{ attendee_id }}" />
             {{ csrf_token() }}
 

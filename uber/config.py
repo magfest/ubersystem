@@ -1586,7 +1586,7 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND]
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
 c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
-for key in ["hotels", "room_types", "suite_room_types", "room_priorities", "suite_priorities"]:
+for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
     opts = []
     for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
         if isinstance(item, dict):

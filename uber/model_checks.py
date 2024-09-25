@@ -307,9 +307,10 @@ def attendee_tournament_cellphone(app):
 
 
 @validation.LotteryApplication
-def room_meets_requirements(app):
-    if app.any_room_dates_different:
-        latest_checkin, earliest_checkout = app.shortest_room_check_in_out_dates
+def room_meets_night_requirements(app):
+    if app.any_dates_different and (app.entry_type == c.ROOM_ENTRY or 
+            app.entry_type == c.SUITE_ENTRY and not app.room_opt_out):
+        latest_checkin, earliest_checkout = app.shortest_check_in_out_dates
         nights = app.build_nights_map(latest_checkin, earliest_checkout)
         if not nights:
             # Suppress this error since other validations will tell them their dates are bad
@@ -322,9 +323,9 @@ def room_meets_requirements(app):
 
 
 @validation.LotteryApplication
-def suite_meets_requirements(app):
-    if app.any_suite_dates_different:
-        latest_checkin, earliest_checkout = app.shortest_suite_check_in_out_dates
+def suite_meets_night_requirements(app):
+    if app.any_dates_different and app.entry_type == c.SUITE_ENTRY:
+        latest_checkin, earliest_checkout = app.shortest_check_in_out_dates
         nights = app.build_nights_map(latest_checkin, earliest_checkout)
         night_counter = 0
         if len(nights) > 3:
