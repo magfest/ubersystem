@@ -532,7 +532,8 @@ def staff_import_placeholder(a): return a.placeholder and (a.registered_local <=
                                                                 "staff import".lower() in a.admin_notes.lower()))
 
 
-def volunteer_placeholder(a): return a.staffing and a.placeholder and a.registered_local > c.PREREG_OPEN
+def volunteer_placeholder(a): return a.staffing and a.placeholder and a.registered_local > c.PREREG_OPEN and \
+                                                    a.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]
 
 
 # TODO: Add an email for MIVS judges, an email for non-Guest or Band guest group badges,
