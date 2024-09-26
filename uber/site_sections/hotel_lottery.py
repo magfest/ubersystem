@@ -483,6 +483,8 @@ class Root:
         if cherrypy.request.method == "POST":
             if not params.get('room_group_id'):
                 message = "Group ID invalid!"
+            elif application.group_members:
+                message = "Please disband your own group before joining another group."
             if not message:
                 room_group = session.lottery_application(params.get('room_group_id'))
                 if len(room_group.group_members) == 3:

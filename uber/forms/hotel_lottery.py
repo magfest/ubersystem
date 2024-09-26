@@ -20,11 +20,11 @@ def date_in_range(field, str, min, max):
         raise ValidationError(f"Your {str} date must be between {html_format_date(min)} and {html_format_date(max)}.")
 
 
-def get_latest_checkout_date(form, room_or_suite='room'):
-    if getattr(form, f"earliest_{room_or_suite}_checkout_date").data:
-        return "acceptable check-out date", getattr(form, f"earliest_{room_or_suite}_checkout_date").data
+def get_earliest_checkout_date(form):
+    if getattr(form, f"earliest_checkout_date").data:
+        return "acceptable check-out date", getattr(form, f"earliest_checkout_date").data
     else:
-        return "preferred check-out date", getattr(form, f"latest_{room_or_suite}_checkout_date").data
+        return "preferred check-out date", getattr(form, f"latest_checkout_date").data
 
 
 class LotteryInfo(MagForm):
@@ -119,48 +119,56 @@ class RoomLottery(MagForm):
 
         return optional_list
 
-    @field_validation.earliest_room_checkin_date
+    @field_validation.earliest_checkin_date
     def preferred_dates_not_swapped(form, field):
-        checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
+        checkout_label, earliest_checkout_date = get_earliest_checkout_date(form)
 
+        from pockets.autolog import log
+        log.error(field.data)
+        log.error(earliest_checkout_date)
+
+        if earliest_checkout_date and field.data == earliest_checkout_date:
+            raise StopValidation(f"You cannot check in and out on the same day.")
         if earliest_checkout_date and field.data > earliest_checkout_date:
             raise StopValidation(f"Your preferred check-in date is after your {checkout_label}.")
     
-    @field_validation.latest_room_checkin_date
+    @field_validation.latest_checkin_date
     def acceptable_dates_not_swapped(form, field):
         if not field.data:
             return
         
-        checkout_label, earliest_checkout_date = get_latest_checkout_date(form)
+        checkout_label, earliest_checkout_date = get_earliest_checkout_date(form)
         
+        if earliest_checkout_date and field.data == earliest_checkout_date:
+            raise StopValidation(f"You cannot check in and out on the same day.")
         if earliest_checkout_date and field.data > earliest_checkout_date:
             raise StopValidation(f"Your acceptable check-in date is after your {checkout_label}.")
 
-    @field_validation.earliest_room_checkin_date
+    @field_validation.earliest_checkin_date
     def earliest_checkin_within_range(form, field):
         date_in_range(field, "preferred check-in", c.HOTEL_LOTTERY_CHECKIN_START, c.HOTEL_LOTTERY_CHECKIN_END)
 
-    @field_validation.latest_room_checkin_date
+    @field_validation.latest_checkin_date
     def latest_checkin_within_range(form, field):
         date_in_range(field, "latest acceptable check-in", c.HOTEL_LOTTERY_CHECKIN_START, c.HOTEL_LOTTERY_CHECKIN_END)
 
-    @field_validation.latest_room_checkin_date
+    @field_validation.latest_checkin_date
     def after_preferred_checkin(form, field):
-        if field.data and field.data < form.earliest_room_checkin_date.data:
+        if field.data and field.data < form.earliest_checkin_date.data:
             raise StopValidation("It does not make sense to have your latest acceptable check-in date \
                                   earlier than your preferred check-in date.")
 
-    @field_validation.latest_room_checkout_date
+    @field_validation.latest_checkout_date
     def latest_checkin_within_range(form, field):
         date_in_range(field, "preferred check-out", c.HOTEL_LOTTERY_CHECKOUT_START, c.HOTEL_LOTTERY_CHECKOUT_END)
 
-    @field_validation.earliest_room_checkout_date
+    @field_validation.earliest_checkout_date
     def earliest_checkin_within_range(form, field):
         date_in_range(field, "earliest acceptable check-out", c.HOTEL_LOTTERY_CHECKOUT_START, c.HOTEL_LOTTERY_CHECKOUT_END)
 
-    @field_validation.earliest_room_checkout_date
+    @field_validation.earliest_checkout_date
     def before_preferred_checkout(form, field):
-        if field.data and field.data > form.latest_room_checkout_date.data:
+        if field.data and field.data > form.latest_checkout_date.data:
             raise ValidationError("It does not make sense to have your earliest acceptable check-out date \
                                   later than your preferred check-out date.")
 
@@ -180,6 +188,14 @@ class SuiteLottery(RoomLottery):
     suite_terms_accepted = BooleanField(
         f'I agree, understand and will comply with the {c.EVENT_NAME} suite policies.', default=False,
         validators=[validators.InputRequired("You must agree to the suite lottery policies to enter the suite lottery.")])
+    hotel_preference = SelectMultipleField(
+        'Hotels', coerce=int, choices=c.HOTEL_LOTTERY_HOTELS_OPTS,
+        widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS),
+        validators=[validators.DataRequired("Please select at least one preferred hotel OR opt out of entering the room lottery.")])
+    room_type_preference = SelectMultipleField(
+        'Room Types', coerce=int, choices=c.HOTEL_LOTTERY_ROOM_TYPES_OPTS,
+        widget=Ranking(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS),
+        validators=[validators.DataRequired("Please select at least one preferred room type OR opt out of entering the room lottery.")])
     room_opt_out = BooleanField('I do NOT want to enter the room lottery.')
 
     def get_optional_fields(self, application, is_admin=False):
@@ -202,13 +218,3 @@ class SuiteLottery(RoomLottery):
     
     def room_opt_out_label(self):
         return Markup('I do NOT want to enter the room lottery. <strong>I understand that this means I will not be eligible for a room award if my entry is not chosen for the suite lottery.</strong>')
-
-    def hotel_preference_validators(self, field):
-        validator = field.validators[0]
-        validator.message = validator.message[:-1] + " OR opt out of entering the room lottery."
-        return [validator] + field.validators[1:]
-    
-    def room_type_preference_validators(self, field):
-        validator = field.validators[0]
-        validator.message = validator.message[:-1] + " OR opt out of entering the room lottery."
-        return [validator] + field.validators[1:]
