@@ -1,35 +1,17 @@
 import base64
 import uuid
-import requests
 import cherrypy
-from collections import defaultdict
 from datetime import datetime, timedelta
-from dateutil import parser as dateparser
 from pockets.autolog import log
-from sqlalchemy import func
-from sqlalchemy.sql.expression import literal
 
 from uber.config import c
 from uber.custom_tags import readable_join
-from uber.decorators import all_renderable, ajax, ajax_gettable, csv_file, requires_account, render
+from uber.decorators import all_renderable, ajax, requires_account, render
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication
 from uber.tasks.email import send_email
 from uber.utils import RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
-
-
-def _prepare_hotel_lottery_headers(attendee_id, attendee_email, token_type="X-SITE"):
-    expiration_length = timedelta(minutes=30) if token_type == "MAGIC_LINK" else timedelta(seconds=30)
-    return {
-        'KEY': c.HOTEL_LOTTERY_KEY,
-        'REG_ID': attendee_id,
-        'EMAIL': base64.b64encode(attendee_email.encode()),
-        'TOKEN': str(uuid.uuid4()),
-        'TOKEN_TYPE': token_type,
-        'TIMESTAMP': str(int(datetime.now().timestamp())),
-        'EXPIRE': str(int((datetime.now() + expiration_length).timestamp()))
-    }
 
 
 def _disband_room_group(session, application):

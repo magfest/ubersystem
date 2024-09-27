@@ -170,6 +170,11 @@ class LotteryApplication(MagModel):
     room_group_name = Column(UnicodeText)
 
     @presave_adjustment
+    def unset_entry_type(self):
+        if self.entry_type == 0:
+            self.entry_type = None
+
+    @presave_adjustment
     def set_confirmation_num(self):
         if not self.confirmation_num and self.status not in [c.WITHDRAWN, c.DISQUALIFIED]:
             self.confirmation_num = self.generate_confirmation_num()

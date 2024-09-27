@@ -1,6 +1,6 @@
 from markupsafe import Markup
-from wtforms import (BooleanField, DateField, HiddenField, SelectMultipleField,
-                     StringField, validators, TextAreaField)
+from wtforms import (BooleanField, DateField, HiddenField, SelectField, SelectMultipleField,
+                     IntegerField, StringField, validators, TextAreaField)
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
@@ -8,7 +8,7 @@ from uber.forms import (MagForm, CustomValidation, Ranking)
 from uber.custom_tags import readable_join
 
 
-__all__ = ['LotteryInfo', 'RoomLottery', 'SuiteLottery', 'LotteryRoomGroup']
+__all__ = ['LotteryInfo', 'LotteryConfirm', 'LotteryRoomGroup', 'RoomLottery', 'SuiteLottery', 'LotteryAdminInfo']
 
 
 def html_format_date(dt):
@@ -123,10 +123,6 @@ class RoomLottery(MagForm):
     def preferred_dates_not_swapped(form, field):
         checkout_label, earliest_checkout_date = get_earliest_checkout_date(form)
 
-        from pockets.autolog import log
-        log.error(field.data)
-        log.error(earliest_checkout_date)
-
         if earliest_checkout_date and field.data == earliest_checkout_date:
             raise StopValidation(f"You cannot check in and out on the same day.")
         if earliest_checkout_date and field.data > earliest_checkout_date:
@@ -218,3 +214,19 @@ class SuiteLottery(RoomLottery):
     
     def room_opt_out_label(self):
         return Markup('I do NOT want to enter the room lottery. <strong>I understand that this means I will not be eligible for a room award if my entry is not chosen for the suite lottery.</strong>')
+
+class LotteryAdminInfo(SuiteLottery):
+    response_id = IntegerField('Response ID', render_kw={'readonly': "true"})
+    confirmation_num = StringField('Confirmation Number', render_kw={'readonly': "true"})
+    status = SelectField('Entry Status', coerce=int, choices=c.HOTEL_LOTTERY_STATUS_OPTS)
+    entry_type = SelectField('Entry Type', coerce=int, choices=[(0, "N/A")] + c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS)
+    current_step = IntegerField('Current Step', validators=[
+        validators.NumberRange(min=0, message="A lottery entry cannot be on a step below 0.")
+    ])
+    room_group_name = StringField('Room Group Name')
+    invite_code = StringField('Room Group Invite Code', render_kw={'readonly': "true"})
+    admin_notes = TextAreaField('Admin Notes')
+    terms_accepted = BooleanField('Agreed to Lottery Policies', render_kw={'readonly': "true"})
+    data_policy_accepted = BooleanField('Agreed to Data Policies', render_kw={'readonly': "true"})
+    guarantee_policy_accepted = BooleanField('Acknowledged Payment Guarantee Policy', render_kw={'readonly': "true"})
+    suite_terms_accepted = BooleanField(f'Agreed to Suite Policies', render_kw={'readonly': "true"})
