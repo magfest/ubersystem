@@ -98,7 +98,8 @@ class Root:
             'attendee_id': attendee_id,
             'forms': forms,
             'message': message,
-            'application': application
+            'application': application,
+            'attendee': attendee,
         }
 
     @requires_account(Attendee)
