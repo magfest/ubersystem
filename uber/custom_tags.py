@@ -714,7 +714,12 @@ def pages(page, count):
             else:
                 path += ('&' if '?' in path else '?') + page_qs
             pages.append('<li class="page-item"><a class="page-link" href="{}">{}</a></li>'.format(path, pagenum))
-    return safe_string('<ul class="pagination">' + ' '.join(map(str, pages)) + '</ul>')
+    extra_class = ''
+    if len(pages) == 1:
+        extra_class = ' pagination-lg'
+    elif len(pages) > 100:
+        extra_class = ' pagination-sm'
+    return safe_string(f'<ul class="pagination flex-wrap{extra_class}">{' '.join(map(str, pages))}</ul>')
 
 
 @JinjaEnv.jinja_filter
