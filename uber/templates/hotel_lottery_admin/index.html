@@ -36,6 +36,12 @@
         <span class="ms-2">{{ total_count }} total application{{ total_count|pluralize }}</span>
         <span class="ms-2">{{ complete_count }} completed application{{ complete_count|pluralize }}</span>
     </div>
+    <div class="col col-auto mb-3">
+        <form method="post" action="mark_staff_processed">
+          {{ csrf_token() }}
+          <button type="submit" class="btn btn-primary">Unlock Staff Entries</button>
+        </form>
+    </div>
 </div>
 
 {% if search_results %}
@@ -79,6 +85,7 @@
             <th>Attendee</th>
             <th># Group Members</th>
             <th>Admin Notes</th>
+            <th><a href="index?order={{ order.is_staff_entry }}&page={{ page }}&search_text={{ search_text|urlencode }}">Staff Entry</a></th>
             {% endblock tableheadings %}
           </tr>
         </thead>
@@ -97,6 +104,7 @@
                 <td>{{ app.attendee|form_link }}</td>
                 <td>{{ app.group_members|length if app.room_group_name else "" }}</td>
                 <td>{{ app.admin_notes }}</td>
+                <td>{{ app.is_staff_entry|yesno("Yes,No") }}</td>
               {% endblock tablerows %}
             </tr>
           {% endfor %}

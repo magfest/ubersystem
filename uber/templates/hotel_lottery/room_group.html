@@ -243,6 +243,7 @@
             <div class="show" id="group-lookup">
                 <p>Enter a group confirmation number and email address below to look up a room group.</p>
                 <form method="post" id="group-lookup-form" action="room_group_search">
+                <input type="hidden" name="member_id" value="{{ application.id }}" />
                 {{ csrf_token() }}
                 <div class="row g-sm-3">
                     {% if False %}

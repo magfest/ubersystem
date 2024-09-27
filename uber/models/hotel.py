@@ -135,6 +135,7 @@ class LotteryApplication(MagModel):
     current_step = Column(Integer, default=0)
     last_submitted = Column(UTCDateTime, nullable=True)
     admin_notes = Column(UnicodeText)
+    is_staff_entry = Column(Boolean, default=False)
 
     legal_first_name = Column(UnicodeText)
     legal_last_name = Column(UnicodeText)
@@ -241,7 +242,9 @@ class LotteryApplication(MagModel):
     def group_status_str(self):
         if self.parent_application:
             group_leader_name = self.parent_application.group_leader_name
-            return f'are in {group_leader_name}\'s room group "{self.parent_application.room_group_name}"'
+            text = f'are in {group_leader_name}\'s room group "{self.parent_application.room_group_name}"'
+            if self.parent_application.is_staff_entry and not self.is_staff_entry and not c.STAFF_HOTEL_LOTTERY_OPEN:
+                return f'{text}. Your group leader must re-enter the attendee lottery before your entry becomes valid.'
         elif self.room_group_name:
             return f'are the group leader for "{self.room_group_name}". Your group has {len(self.group_members) + 1} group members, including yourself'
 

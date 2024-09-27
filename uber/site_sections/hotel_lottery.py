@@ -47,6 +47,12 @@ def _reset_group_member(application):
         application.status = c.WITHDRAWN
         application.terms_accepted = False
         application.data_policy_accepted = False
+    
+    if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
+            application.is_staff_entry = True
+    else:
+        application.is_staff_entry = False
+
     application.parent_application = None
     application.confirmation_num = ''
     return application
@@ -60,6 +66,7 @@ class Root:
         return {
             'attendee': attendee,
             'message': message,
+            'homepage_account': session.get_attendee_account_by_attendee(attendee),
         }
 
     @requires_account(Attendee)
@@ -127,6 +134,17 @@ class Root:
             'action': params.get('action', ''),
             'application': application
         }
+
+    @requires_account(LotteryApplication)
+    def enter_attendee_lottery(self, session, id=None, **params):
+        application = session.lottery_application(id)
+        application.is_staff_entry = False
+        application.last_submitted = datetime.now()
+        application.status = c.COMPLETE
+        session.add(application)
+        raise HTTPRedirect('index?attendee_id={}&message={}',
+                           application.attendee.id,
+                           "Your staff lottery entry has been entered into the attendee lottery.")
     
     @requires_account(LotteryApplication)
     def withdraw_entry(self, session, id=None, **params):
@@ -134,6 +152,7 @@ class Root:
 
         has_actually_entered = application.status == c.COMPLETE
         was_room_group = application.room_group_name
+        old_room_group = application.parent_application
 
         if was_room_group:
             _disband_room_group(session, application)
@@ -145,6 +164,16 @@ class Root:
 
         application.confirmation_num = ''
         application.status = c.WITHDRAWN
+
+        if old_room_group:
+            body = render('emails/hotel/group_member_left.html', {
+                'application': old_room_group, 'member': application}, encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                old_room_group.attendee.email_to_address,
+                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery Room Group',
+                body,
+                model=old_room_group.to_dict('id'))
 
         if has_actually_entered:
             body = render('emails/hotel/lottery_entry_cancelled.html', {
@@ -180,6 +209,12 @@ class Root:
             application.current_step = 999
             application.last_submitted = datetime.now()
             update_group_members = application.update_group_members
+
+            if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
+                application.is_staff_entry = True
+            else:
+                application.is_staff_entry = False
+
             session.commit()
             session.refresh(application)
 
@@ -235,6 +270,12 @@ class Root:
             application.current_step = 999
             application.last_submitted = datetime.now()
             update_group_members = application.update_group_members
+
+            if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
+                application.is_staff_entry = True
+            else:
+                application.is_staff_entry = False
+
             session.commit()
             session.refresh(application)
 
@@ -328,6 +369,8 @@ class Root:
                 form.populate_obj(application)
             application.last_submitted = datetime.now()
             application.status = c.COMPLETE
+            if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
+                application.is_staff_entry = True
 
             session.commit()
             session.refresh(application)
@@ -433,7 +476,9 @@ class Root:
                            f"{old_room_group_name} has been disbanded.")
 
     @ajax
-    def room_group_search(self, session, **params):
+    def room_group_search(self, session, member_id, **params):
+        application = session.lottery_application(member_id)
+
         invite_code, leader_email = params.get('confirmation_num'), params.get('leader_email')
         errors = []
         if not invite_code:
@@ -448,6 +493,9 @@ class Root:
 
         if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email):
             return {'error': "No room group found. Please check the confirmation number and leader email address."}
+
+        if room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
+            return {'error': "No valid room group found. Please check the confirmation number and leader email address."}
 
         return {
             'success': True,
@@ -471,6 +519,8 @@ class Root:
                 room_group = session.lottery_application(params.get('room_group_id'))
                 if len(room_group.group_members) == 3:
                     message = "This room group is full."
+                elif room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
+                    message = "This room group is locked."
 
                 if message:
                     raise HTTPRedirect('room_group?id={}&message={}', application.id, message)
@@ -499,6 +549,8 @@ class Root:
                 application.entry_type = c.GROUP_ENTRY
                 application.last_submitted = datetime.now()
                 application.parent_application = room_group
+                if application.is_staff_entry and not application.parent_application.is_staff_entry:
+                    application.is_staff_entry = False
 
                 body = render('emails/hotel/group_member_joined.html', {
                     'application': room_group, 'member': application}, encoding=None)
@@ -542,7 +594,7 @@ class Root:
 
             if application.status == c.WITHDRAWN:
                 raise HTTPRedirect('../preregistration/homepage?message={}',
-                                   f'Successfully left the room group "{room_group.room_group_name}". You are now withdrawn from the hotel lottery.')
+                                   f'You have left the room group "{room_group.room_group_name}" and been removed from the hotel lottery.')
             raise HTTPRedirect('index?attendee_id={}&message={}&confirm={}&action={}',
                                application.attendee.id,
                                f'Successfully left the room group "{room_group.room_group_name}".',

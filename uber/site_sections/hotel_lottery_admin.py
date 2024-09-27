@@ -104,6 +104,16 @@ class Root:
                     Tracking.model == 'LotteryApplication').distinct().order_by(Tracking.who).values(Tracking.who)]
         }
     
+    def mark_staff_processed(self, session, **params):
+        for app in session.query(LotteryApplication).filter(LotteryApplication.is_staff_entry,
+                                                            LotteryApplication.status == c.COMPLETE):
+            app.status = c.PROCESSED
+            session.add(app)
+            session.commit()
+
+        raise HTTPRedirect('index?message={}',
+                           "All complete staff entries marked as processed.")
+    
     @ajax
     def validate_hotel_lottery(self, session, id=None, form_list=[], **params):
         application = session.lottery_application(id)
@@ -213,7 +223,7 @@ class Root:
         
         out.writerow(header_row)
 
-        for app in session.query(LotteryApplication):
+        for app in session.query(LotteryApplication).filter(LotteryApplication.status != c.PROCESSED):
             attendee = app.attendee
             row = []
 
