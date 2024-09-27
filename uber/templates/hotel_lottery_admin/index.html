@@ -84,9 +84,13 @@
         </thead>
         <tbody>
           {% for app in applications %}
-            <tr{% if app.status == c.WITHDRAWN %} class="bg-danger"{% elif app.status != c.COMPLETE %} class="bg-light"{% endif %}>
+            <tr{% if app.status != c.COMPLETE %} class="bg-light"{% endif %}>
                 {% block tablerows scoped %}
-                <td>{{ app.status_label }}</td>
+                <td>
+                  {% if app.status in [c.WITHDRAWN, c.DISQUALIFIED] %}
+                  <span class="text-danger">{{ app.status_label }}</span>
+                  {% else %}{{ app.status_label }}{% endif %}
+                </td>
                 <td>{{ app.entry_type_label }}</td>
                 <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
                 <td>{{ app.room_group_name }}</td>

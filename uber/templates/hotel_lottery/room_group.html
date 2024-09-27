@@ -331,7 +331,12 @@
                     <strong>Entry Received</strong>: {{ application.last_submitted|datetime_local }}
                     <br/><strong>Confirmation Number</strong>: {{ application.confirmation_num }}
                     <br/><strong>Entry Email Address</strong>: {{ application.attendee.email }}
+                    {% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %}
+                    <br/><strong>Staff Lottery Close</strong>: {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local }}
+                    {% endif %}
+                    {% if c.HOTEL_LOTTERY_OPEN %}
                     <br/><strong>Lottery Close</strong>: {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}
+                    {% endif %}
                 </p>
             {% endif %}
             {% if action == 'created' %}

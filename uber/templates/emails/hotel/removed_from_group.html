@@ -17,7 +17,7 @@
     <strong>This means that you have been withdrawn from the {{ c.EVENT_NAME }} hotel lottery.</strong>
     You do NOT have an entry in the lottery and will not be awarded a room.
 </p>
-<p>You can <a href="{{ c.URL_BASE }}/hotel_lottery/start?attendee_id={{ application.attendee.id }}" target="_blank">enter the lottery</a> any time until {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}.
+<p>You can <a href="{{ c.URL_BASE }}/hotel_lottery/start?attendee_id={{ application.attendee.id }}" target="_blank">enter the lottery</a> any time until {{ application.current_lottery_deadline|datetime_local }}.
     {% endif %}
 </p>
 </body>

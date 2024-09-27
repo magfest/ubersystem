@@ -246,6 +246,15 @@ class LotteryApplication(MagModel):
             return f'are the group leader for "{self.room_group_name}". Your group has {len(self.group_members) + 1} group members, including yourself'
 
     @property
+    def qualifies_for_staff_lottery(self):
+        return self.attendee.badge_type == c.STAFF_BADGE
+    
+    @property
+    def current_lottery_deadline(self):
+        return c.HOTEL_LOTTERY_STAFF_DEADLINE if c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery \
+            else c.HOTEL_LOTTERY_FORM_DEADLINE
+
+    @property
     def entry_form_completed(self):
         return self.current_step >= self.last_step
     

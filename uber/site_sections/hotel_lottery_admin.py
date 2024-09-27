@@ -218,7 +218,7 @@ class Root:
             row = []
 
             # Config data and IDs
-            row.extend([datetime_local_filter(c.HOTEL_LOTTERY_FORM_DEADLINE), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
+            row.extend([datetime_local_filter(app.current_lottery_deadline), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
                         c.EVENT_YEAR, app.response_id, app.confirmation_num, app.id, "RAMS_1", app.id])
             
             # Contact data

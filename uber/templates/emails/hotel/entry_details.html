@@ -1,9 +1,14 @@
 {% macro basic_entry_details(application, app_or_parent, confirmation=True) %}
 {% if confirmation %}
-<li><strong>Entry Received</strong>: {{ application.last_submitted|datetime_local }}</li>
-<li><strong>Confirmation Number</strong>: {{ application.confirmation_num }}</li>
-<li><strong>Entry Email Address</strong>: {{ application.attendee.email }}</li>
-<li><strong>Lottery Close</strong>: {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</li>
+    <li><strong>Entry Received</strong>: {{ application.last_submitted|datetime_local }}</li>
+    <li><strong>Confirmation Number</strong>: {{ application.confirmation_num }}</li>
+    <li><strong>Entry Email Address</strong>: {{ application.attendee.email }}</li>
+    {% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %}
+    <li><strong>Staff Lottery Close</strong>: {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local }}</li>
+    {% endif %}
+    {% if c.HOTEL_LOTTERY_OPEN %}
+    <li><strong>Lottery Close</strong>: {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</li>
+    {% endif %}
 {% endif %}
 {% if application.entry_type != c.GROUP_ENTRY %}
 <li><strong>Check-in Name</strong>: {{ application.legal_first_name }} {{ application.legal_last_name }}</li>

@@ -410,6 +410,14 @@ class Config(_Overridable):
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
         return self.BEFORE_REFUND_CUTOFF and (self.AFTER_REFUND_START or not self.REFUND_START)
+    
+    @property
+    def HOTEL_LOTTERY_OPEN(self):
+        return c.AFTER_HOTEL_LOTTERY_FORM_START and c.BEFORE_HOTEL_LOTTERY_FORM_DEADLINE
+    
+    @property
+    def STAFF_HOTEL_LOTTERY_OPEN(self):
+        return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
 
     @request_cached_property
     @dynamic
