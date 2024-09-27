@@ -141,6 +141,7 @@ class Root:
         application.is_staff_entry = False
         application.last_submitted = datetime.now()
         application.status = c.COMPLETE
+        application.confirmation_num = ''
         session.add(application)
         raise HTTPRedirect('index?attendee_id={}&message={}',
                            application.attendee.id,
