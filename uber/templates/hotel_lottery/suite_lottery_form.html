@@ -84,7 +84,7 @@
             </p>
             {% endblock %}
             {% block suite_ranking_form %}
-            {{ form_macros.form_input(suite_lottery.suite_type_preference, readonly=read_only) }}
+            {{ form_macros.form_input(suite_lottery.suite_type_preference, readonly=read_only, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) }}
             
             {% if not read_only and application.current_step <= steps.counter %}
             <div class="row justify-content-end">

@@ -109,14 +109,14 @@ class Ranking():
         self.choices = choices or self.field.choices
         super().__init__(**kwargs)
     
-    def extra_info_list(self, choice_item):
+    def extra_info_list(self, choice_item, show_staff_rates=False):
         # Rankings can have a few properties that are displayed differently, but all of them are optional
         # They can be: price (sub-header), staff_price (sub-header displayed during staff lottery),
         #              description (text), description_right (right-aligned text), footnote (form-text text)
         extra_info = []
         if choice_item.get('price'):
             price_str = f"{choice_item['price']}"
-            if c.BEFORE_HOTEL_LOTTERY_FORM_START and choice_item.get('staff_price'):
+            if show_staff_rates and choice_item.get('staff_price'):
                 price_str = price_str + f"/{choice_item['staff_price']}"
             extra_info.append(f"""<h5 class="card-subtitle mb-2 text-muted">{price_str}</h5>""")
         if choice_item.get('description') or choice_item.get('description_right'):
@@ -130,7 +130,7 @@ class Ranking():
             extra_info.append(f"""<div class="form-text">{linebreaksbr(choice_item["footnote"])}</div>""")
         return extra_info
     
-    def __call__(self, field, choices=None, **kwargs):
+    def __call__(self, field, choices=None, show_staff_rates=False, **kwargs):
         choices = choices or self.choices or [('', {"name": "Error", "description": "No choices are configured"})]
         id = kwargs.pop('id', field.id) or "ranking"
         selected_choices = field.data if isinstance(field.data, list) else [str(field.data)]
@@ -142,7 +142,7 @@ class Ranking():
         for choice_id in selected_choices:
             try:
                 choice_item = choice_dict[choice_id]
-                extra_info = self.extra_info_list(choice_item)
+                extra_info = self.extra_info_list(choice_item, show_staff_rates=show_staff_rates)
                 selected_html.append(f"""
                 <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
                     <h4 class="card-title {'mb-0' if not extra_info else 'mb-1 mb-sm-2'}">
@@ -156,7 +156,7 @@ class Ranking():
                 continue
         for choice_id, choice_item in choices:
             if not choice_id in selected_choices:
-                extra_info = self.extra_info_list(choice_item)
+                extra_info = self.extra_info_list(choice_item, show_staff_rates=show_staff_rates)
                 deselected_html.append(f"""
                 <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
                     <h4 class="card-title {'mb-0' if not extra_info else 'mb-1 mb-sm-2'}">
