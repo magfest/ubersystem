@@ -1780,8 +1780,9 @@ c.GUEST_CHECKLIST_ITEMS = [
 # Generate the possible template prefixes per step
 for item in c.GUEST_CHECKLIST_ITEMS:
     item['deadline_template'] = ['guest_checklist/', item['name'] + '_deadline.html']
-    
-for filename in c.EXTRA_FILES:
+
+extra_files = parse_config("extra_files", pathlib.Path("/app/uber")) 
+for filename in c:
     log.info(f"Writing extra_file {filename}")
     parent_dir = os.path.basename(filename)
     if not os.path.isdir(parent_dir):
