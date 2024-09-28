@@ -117,7 +117,7 @@ for parsed in repo_config:
 
 for filename, content in extra_file_config.items():
     print(f"Writing extra_file {filename}")
-    parent_dir = os.path.basename(filename)
+    parent_dir = os.path.dirname(filename)
     if not os.path.isdir(parent_dir):
         os.makedirs(parent_dir)
     with open(filename, "w") as filehandle:
