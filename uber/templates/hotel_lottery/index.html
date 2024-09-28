@@ -92,7 +92,7 @@
 
             {% block additional_lottery_info %}{% endblock %}
 
-            <div class="row g-1">
+            <div class="row g-1 mb-3">
                 <div class="col col-auto">
                     <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
                 </div>
@@ -124,6 +124,11 @@
                 </div>
                 {% endif %}
             </div>
+            {% if application.status == c.COMPLETE and application.entry_type != c.GROUP_ENTRY and not app_locked %}
+            <p>
+                <strong>Note</strong>: if you wish to enter for a {{ 'suite' if app_or_parent.entry_type == c.ROOM_ENTRY else 'standard room' }} instead of a {{ app_or_parent.entry_type_label|lower }}, please withdraw your current application and start over.
+            </p>
+            {% endif %}
             {% if application.status != c.COMPLETE and not application.parent_application and not app_locked %}
             <p>
                 You are currently not eligible to create a group. Use the buttons above to create a room or suite lottery entry first.
@@ -168,6 +173,7 @@
                     You have an <span class="text-danger">incomplete</span> {{ app_or_parent.entry_type_label|lower }} application.
                     You are <strong>NOT</strong> entered into the {{ app_or_parent.entry_type_label|lower }} lottery until you complete your application.
                 </p>
+                <p><strong>Note</strong>: if you wish to enter for a {{ 'suite' if app_or_parent.entry_type == c.ROOM_ENTRY else 'standard room' }} instead of a {{ app_or_parent.entry_type_label|lower }}, please withdraw your current application and start over.</p>
                 <div class="row g-1">
                     <div class="col col-auto">
                     <a class="btn btn-primary" href="{{ 'suite' if app_or_parent.entry_type == c.SUITE_ENTRY else 'room' }}_lottery?id={{ application.id }}">Complete {{ app_or_parent.entry_type_label }} Lottery Entry</a>

@@ -258,7 +258,8 @@ def ajax(func):
             check_csrf(kwargs.pop('csrf_token', None))
         except Exception:
             traceback.print_exc()
-            message = "There was an issue submitting the form. Please refresh and try again."
+            message = "Your session login may have timed out. Try logging in again." if c.ATTENDEE_ACCOUNTS_ENABLED else \
+                "There was an issue submitting the form. Please refresh and try again."
             return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     returns_json.ajax = True
