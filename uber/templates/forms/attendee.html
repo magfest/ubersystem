@@ -457,8 +457,8 @@ $().ready(function() {
   </div>
   {% endif %}
 {% elif c.AT_THE_CON and attendee.is_new %}
-  <script type="text/javascript">
-      //window.setTimeout($("#message-alert").hide().removeClass().addClass("alert").children("span").html(""), 10000);
+  <script>
+      window.setTimeout($("#message-alert").hide().removeClass().addClass("alert").children("span").html(""), 10000);
       var maybeWarn = function () {
           var types = {{ c.PRESOLD_ONEDAY_BADGE_TYPES|jsonize }};
           var badgeType = $.val('badge_type');
