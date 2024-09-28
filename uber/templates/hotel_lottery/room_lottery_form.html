@@ -73,6 +73,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             let next_step = step + 1;
             $('#step-' + step).collapse('hide');
             $('#step-' + step + '-submit').hide();
+            $('#step-' + step + '-save-reminder').collapse('show');
             $('#step-' + step + '-button').html($('#step-' + step + '-button').html() + "&nbsp;<i class='fa fa-check'></i>");
             $('#step-' + next_step + '-button').prop('disabled', false);
             $('#step-' + next_step).collapse('show');
@@ -88,6 +89,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         for (let step = 1; step <= current_step; step++) {
             $('#step-' + step + '-button').prop('disabled', false).html($('#step-' + step + '-button').html() + "&nbsp;<i class='fa fa-check'></i>");
             $('#step-' + step + '-submit').hide();
+            $('#step-' + step + '-save-reminder').collapse('show');
         }
         let next_step = current_step + 1
         if ($('#step-' + next_step).length) {}
@@ -132,6 +134,11 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
                 <div class="col col-auto">
                     <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
                 </div>
+            </div>
+            {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
             </div>
             {% endif %}
             {% endblock %}
@@ -191,6 +198,11 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
                 </div>
             </div>
             {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
             {% endblock %}
         </div>
     </div>
@@ -242,6 +254,11 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
                     <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
                 </div>
             </div>
+        {% endif %}
+        {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
             {% endif %}
         {% endblock %}
         </div>
@@ -283,6 +300,11 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
                 </div>
             </div>
             {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
             {% endblock %}
         </div>
     </div>
@@ -315,6 +337,11 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
                 <div class="col col-auto">
                     <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue{% if suite %} to Suite Lottery{% endif %}</button>
                 </div>
+            </div>
+            {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
             </div>
             {% endif %}
             {% endblock %}

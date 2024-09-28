@@ -245,6 +245,7 @@ class LotteryApplication(MagModel):
             text = f'are in {group_leader_name}\'s room group "{self.parent_application.room_group_name}"'
             if self.parent_application.is_staff_entry and not self.is_staff_entry and not c.STAFF_HOTEL_LOTTERY_OPEN:
                 return f'{text}. Your group leader must re-enter the attendee lottery before your entry becomes valid.'
+            return text
         elif self.room_group_name:
             return f'are the group leader for "{self.room_group_name}". Your group has {len(self.group_members) + 1} group members, including yourself'
 
@@ -269,8 +270,7 @@ class LotteryApplication(MagModel):
     def homepage_link(self):
         entry_text = 'Suite Lottery Entry' if self.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry'
         if self.status == c.COMPLETE:
-            button_text = 'View Room Group' if self.parent_application else f'View {entry_text}'
-            return f'index?attendee_id={self.attendee.id}', button_text
+            return f'index?attendee_id={self.attendee.id}', f'View {entry_text}'
         elif self.entry_form_completed:
             return f'guarantee_confirm?id={self.id}', f"Finish {entry_text}"
         elif self.entry_type == c.SUITE_ENTRY:

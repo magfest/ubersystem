@@ -68,6 +68,26 @@
     {% endif %}
     {% endfor %}
 
+    {% if c.HOTEL_LOTTERY_OPEN or (account.hotel_eligible_staff and c.STAFF_HOTEL_LOTTERY_OPEN) %}
+    <div class="alert alert-info">
+        <p>
+            The {{ c.EVENT_NAME_AND_YEAR }} hotel lottery is now open!
+        </p>
+        <p>
+            Click the "<strong>Enter Hotel Lottery</strong>" button next to the details for your badge to start your lottery entry.
+        </p>
+        {% if account.hotel_eligible_attendees|length > 1 %}
+        <p>
+            <strong>Each badge must be entered into the lottery individually.</strong>
+            Your badges are NOT automatically entered as a group, so be sure to complete an entry for each eligible badge in your account.
+        </p>
+        {% if c.STAFF_HOTEL_LOTTERY_OPEN and not c.HOTEL_LOTTERY_OPEN %}
+            <p>The lottery is currently only available to staff. The attendee lottery begins {{ c.HOTEL_LOTTERY_FORM_START|datetime_local }}.</p>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if prereg_message %}
         <div class="text-center mt-3 mb-2 text-danger">{{ prereg_message }}</div>
     {% endif %}

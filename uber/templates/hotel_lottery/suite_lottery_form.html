@@ -54,6 +54,11 @@
                 </div>
             </div>
             {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
             {% endblock %}
         </div>
     </div>
@@ -86,6 +91,11 @@
                 <div class="col col-auto">
                     <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
                 </div>
+            </div>
+            {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
             </div>
             {% endif %}
             {% endblock %}

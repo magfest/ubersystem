@@ -86,68 +86,81 @@
             {% endfor %}
         </div>
     </div>
-            
+    
+    {% if attendee.lottery_application and c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN %}
     <div class="row">
-            {% if attendee.badge_status == c.IMPORTED_STATUS and not attendee.current_attendee %}
-                <div class="pull-right">
-                {% if attendee.group and attendee == attendee.group.leader and dealer_reg_open %}
-                <a href="../preregistration/reapply?id={{ attendee.id }}" class="btn btn-success">
-                    Reapply as Dealer &nbsp;<i class="fa fa-plus"></i>
-                </a>
-                {% elif not prereg_message %}
-                <a href="../preregistration/repurchase?id={{ attendee.id }}&skip_confirm=true" class="btn btn-info">
-                    Register With This Info &nbsp;<i class="fa fa-plus"></i>
-                </a>
+        <div class="col col-12 text-end">
+            <em>
+            <strong>Hotel Lottery Status</strong>:
+            {% if attendee.lottery_application.status == c.PARTIAL %}Not Entered
+            {% elif attendee.lottery_application.status == c.COMPLETE %}
+                {% if attendee.lottery_application.entry_type == c.GROUP_ENTRY %}Joined Room Group
+                {% else %}Entered{% if attendee.lottery_application.room_group_name %}, Group Leader{% endif %}
                 {% endif %}
-                </div>
-            {% elif attendee.badge_status == c.PENDING_STATUS %}
-                <div class="pull-right">
-                    <a href="../preregistration/resume_pending?id={{ attendee.id }}" class="btn btn-primary">
-                        Add to Cart &nbsp;<i class="fa fa-plus"></i>
-                    </a>
-                </div>
-            {% elif attendee.is_valid %}
-                <div class="col-sm-3 mt-2">
-                    {% include 'preregistration/badge_refund.html' with context %}
-                </div>
-                <div class="col-sm-9">
-                <div class="btn-group pull-right mt-2" role="group">
-                {% include 'preregistration/card_buttons.html' with context %}
-                {% if attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
-                    <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-success" value="Edit">
-                        <i class="fa fa-address-card-o"></i> Finish Registering
-                    </a>
-                {% elif attendee.badge_status != c.NOT_ATTENDING %}
-                    <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
-                        <i class="fa fa-pencil"></i> Edit Details
-                    </a>
-                {% endif %}
-                {% if c.ART_SHOW_ENABLED %}
-                    {% if not attendee.art_show_applications and c.ART_SHOW_OPEN %}
-                    <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning">
-                        <i class="fa fa-tags"></i>&nbsp; Apply for Art Show
-                    </a>
-                    {% elif attendee.art_show_applications %}
-                    <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
-                        <i class="fa fa-tags"></i>&nbsp; View Art Show App
-                    </a>
-                    {% endif %}
-                {% endif %}
-                {% if c.AFTER_MARKETPLACE_REG_START %}
-                {% if c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
-                <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
-                    <i class="fa fa-shopping-cart"></i> Apply for Marketplace
-                </a>
-                {% elif attendee.marketplace_applications %}
-                <a href="../marketplace/edit?id={{ attendee.marketplace_applications[0].id }}" class="btn btn-sm btn-success">
-                    <i class="fa fa-shopping-cart"></i> View Marketplace App
-                </a>
-                {% endif %}
-                {% endif %}
-                </div>
-                </div>
-            
+            {% else %}{{ attendee.lottery_application.status_label }}
             {% endif %}
-            
-        
+            </em>
+        </div>
+    </div>
+    {% endif %}
+    <div class="row">
+        {% if attendee.badge_status == c.IMPORTED_STATUS and not attendee.current_attendee %}
+            <div class="pull-right">
+            {% if attendee.group and attendee == attendee.group.leader and dealer_reg_open %}
+            <a href="../preregistration/reapply?id={{ attendee.id }}" class="btn btn-success">
+                Reapply as Dealer &nbsp;<i class="fa fa-plus"></i>
+            </a>
+            {% elif not prereg_message %}
+            <a href="../preregistration/repurchase?id={{ attendee.id }}&skip_confirm=true" class="btn btn-info">
+                Register With This Info &nbsp;<i class="fa fa-plus"></i>
+            </a>
+            {% endif %}
+            </div>
+        {% elif attendee.badge_status == c.PENDING_STATUS %}
+            <div class="pull-right">
+                <a href="../preregistration/resume_pending?id={{ attendee.id }}" class="btn btn-primary">
+                    Add to Cart &nbsp;<i class="fa fa-plus"></i>
+                </a>
+            </div>
+        {% elif attendee.is_valid %}
+            <div class="col-sm-3 mt-2">
+                {% include 'preregistration/badge_refund.html' with context %}
+            </div>
+            <div class="col-sm-9">
+            <div class="btn-group pull-right mt-2" role="group">
+            {% include 'preregistration/card_buttons.html' with context %}
+            {% if attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
+                <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-success" value="Edit">
+                    <i class="fa fa-address-card-o"></i> Finish Registering
+                </a>
+            {% elif attendee.badge_status != c.NOT_ATTENDING %}
+                <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
+                    <i class="fa fa-pencil"></i> Edit Details
+                </a>
+            {% endif %}
+            {% if c.ART_SHOW_ENABLED %}
+                {% if not attendee.art_show_applications and c.ART_SHOW_OPEN %}
+                <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning">
+                    <i class="fa fa-tags"></i>&nbsp; Apply for Art Show
+                </a>
+                {% elif attendee.art_show_applications %}
+                <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
+                    <i class="fa fa-tags"></i>&nbsp; View Art Show App
+                </a>
+                {% endif %}
+            {% endif %}
+            {% if c.AFTER_MARKETPLACE_REG_START %}
+            {% if c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
+            <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
+                <i class="fa fa-shopping-cart"></i> Apply for Marketplace
+            </a>
+            {% elif attendee.marketplace_applications %}
+            <a href="../marketplace/edit?id={{ attendee.marketplace_applications[0].id }}" class="btn btn-sm btn-success">
+                <i class="fa fa-shopping-cart"></i> View Marketplace App
+            </a>
+            {% endif %}
+            {% endif %}
+            </div>
+            </div>
+        {% endif %}
     </div>

@@ -96,14 +96,10 @@
                 <div class="col col-auto">
                     <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
                 </div>
-                {% if not application.parent_application and not app_locked %}
+                {% if not application.parent_application and not app_locked and not application.room_group_name %}
                     <div class="col col-auto">
                     <a class="btn btn-primary" href="room_group?id={{ application.id }}">
-                        {% if application.room_group_name %}
-                        Manage Room Group
-                        {% else %}
                         Join {% if application.status == c.COMPLETE %}or Create {% endif %}Room Group
-                        {% endif %}
                     </a>
                     </div>
                     {% if not application.entry_type %}
@@ -128,7 +124,7 @@
                 </div>
                 {% endif %}
             </div>
-            {% if not application.status == c.COMPLETE and not application.parent_application and not app_locked %}
+            {% if application.status != c.COMPLETE and not application.parent_application and not app_locked %}
             <p>
                 You are currently not eligible to create a group. Use the buttons above to create a room or suite lottery entry first.
             </p>
@@ -227,7 +223,14 @@
             {% set read_only = True %}
             {% include "hotel_lottery/lottery_entry_ro.html" with context %}
             <p>We have sent a copy of this information to your entry email address.</p>
-            <p><button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Back to Options</button></p>
+            <p>
+                {% if action == 'confirmation' or action == 're-entered' %}
+                <a class="btn btn-primary" href="room_group?id={{ application.id }}">Create Room Group</a>
+                <button type="button" class="btn btn-outline-secondary" onClick="setStep('#select-action')">Back to Options</button>
+                {% else %}
+                <button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Back to Options</button>
+                {% endif %}
+            </p>
         </div>
     </div>
 </div>

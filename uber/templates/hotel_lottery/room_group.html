@@ -158,6 +158,9 @@
                 {% else %}
                     <p>Your room group name is "{{ application.room_group_name }}" and your group has {{ application.group_members|length + 1 }} group member(s), including yourself. You can edit your group name{% if application.group_members|length > 0 %} and view your group's members{% endif %} below.</p>
                     <p>In order to join your group, group members need both the confirmation number (<strong>{{ application.confirmation_num }}</strong>) and your current email address (<strong>{{ application.attendee.email }}</strong>).</p>
+                    {% if application.attendee.managers and application.attendee.managers[0].hotel_eligible_attendees|length > 1 %}
+                    <p><strong>Other badges on your account are NOT automatically part of your room group.</strong> On your <a href="../preregistration/homepage">homepage</a>, click the "Enter Hotel Lottery" button next to your other badge(s) to enter the lottery as them and have them join your room group.</p>
+                    {% endif %}
                     <p>Room group members will be able to view your initials ({{ application.group_leader_name }}) and most of the details of your lottery entry. They will NOT see your check-in name{% if application.entry_type == c.ROOM_ENTRY %} or any ADA-related requests{% endif %}.</p>
                     
                     <div class="row g-sm-3">
@@ -222,7 +225,7 @@
                 <h2>Room Group Information</h2>
                 {% include 'hotel_lottery/room_group_info.html' with context %}
 
-                {% if not application.status == c.COMPLETE %}
+                {% if application.status != c.COMPLETE %}
                 <p class="mb-0">
                     <button class="btn btn-primary" onClick="setStep('#join-group')">Continue</button>
                 {% else %}
