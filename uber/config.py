@@ -1781,15 +1781,6 @@ c.GUEST_CHECKLIST_ITEMS = [
 for item in c.GUEST_CHECKLIST_ITEMS:
     item['deadline_template'] = ['guest_checklist/', item['name'] + '_deadline.html']
 
-extra_files = parse_config("extra_files", pathlib.Path("/app/uber")) 
-for filename in c:
-    log.info(f"Writing extra_file {filename}")
-    parent_dir = os.path.basename(filename)
-    if not os.path.isdir(parent_dir):
-        os.makedirs(parent_dir)
-    with open(filename, "w") as filehandle:
-        filehandle.write(c.EXTRA_FILES.get(filename))
-
 c.SAML_SETTINGS = {}
 if c.SAML_SP_SETTINGS["privateKey"]:
     sp_settings = {
