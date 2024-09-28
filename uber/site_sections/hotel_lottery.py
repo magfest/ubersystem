@@ -84,6 +84,7 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
             session.add(application)
+            application.status = c.PARTIAL
             session.commit()
 
             if params.get('group'):
