@@ -1780,6 +1780,14 @@ c.GUEST_CHECKLIST_ITEMS = [
 # Generate the possible template prefixes per step
 for item in c.GUEST_CHECKLIST_ITEMS:
     item['deadline_template'] = ['guest_checklist/', item['name'] + '_deadline.html']
+    
+for filename in c.EXTRA_FILES:
+    log.info(f"Writing extra_file {filename}")
+    parent_dir = os.path.basename(filename)
+    if not os.path.isdir(parent_dir:
+        os.makedirs(parent_dir)
+    with open(filename, "r") as filehandle:
+        filehandle.write(c.EXTRA_FILES.get(filename))
 
 c.SAML_SETTINGS = {}
 if c.SAML_SP_SETTINGS["privateKey"]:
