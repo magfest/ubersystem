@@ -87,7 +87,7 @@
         </div>
     </div>
     
-    {% if attendee.lottery_application and c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN %}
+    {% if attendee.lottery_application and (c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN) %}
     <div class="row">
         <div class="col col-12 text-end">
             <em>
@@ -135,7 +135,7 @@
                 </a>
             {% elif attendee.badge_status != c.NOT_ATTENDING %}
                 <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
-                    <i class="fa fa-pencil"></i> Edit Details
+                    <i class="fa fa-pencil"></i> View/Edit Registration
                 </a>
             {% endif %}
             {% if c.ART_SHOW_ENABLED %}

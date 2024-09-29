@@ -62,7 +62,7 @@
     <li>{{ attendee }} owes {{ (money_owed / 100)|format_currency }}</li>
     {% if loop.last %}
     </ul>
-    Please click "Edit Details" on the appropriate attendee below to view and pay for their registration.
+    Please click "View/Edit Registration" on the appropriate attendee below to view and pay for their registration.
     If this doesn't look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
     </div>
     {% endif %}
