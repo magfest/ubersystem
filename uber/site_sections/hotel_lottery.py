@@ -30,6 +30,7 @@ def _disband_room_group(session, application):
             member.attendee.email_to_address,
             f'{c.EVENT_NAME} Lottery Room Group "{old_room_group_name}" Disbanded',
             body,
+            format='html',
             model=member.to_dict('id'))
     
     session.commit()
@@ -176,6 +177,7 @@ class Root:
                 old_room_group.attendee.email_to_address,
                 f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery Room Group',
                 body,
+                format='html',
                 model=old_room_group.to_dict('id'))
 
         if has_actually_entered:
@@ -187,6 +189,7 @@ class Root:
                 application.attendee.email_to_address,
                 c.EVENT_NAME_AND_YEAR + f' Lottery Entry Cancelled',
                 body,
+                format='html',
                 model=application.to_dict('id'))
 
             raise HTTPRedirect('../preregistration/homepage?message={}',
@@ -232,6 +235,7 @@ class Root:
                     application.attendee.email_to_address,
                     c.EVENT_NAME_AND_YEAR + f' Room Lottery Updated',
                     body,
+                    format='html',
                     model=application.to_dict('id'))
                 if update_group_members:
                     for member in application.group_members:
@@ -242,6 +246,7 @@ class Root:
                             member.attendee.email_to_address,
                             c.EVENT_NAME_AND_YEAR + f' Room Lottery Updated',
                             body,
+                            format='html',
                             model=application.to_dict('id'))
 
                 raise HTTPRedirect('index?attendee_id={}&confirm=room&action=updated',
@@ -293,6 +298,7 @@ class Root:
                     application.attendee.email_to_address,
                     c.EVENT_NAME_AND_YEAR + f' Suite Lottery Updated',
                     body,
+                    format='html',
                     model=application.to_dict('id'))
                 
                 if update_group_members:
@@ -304,6 +310,7 @@ class Root:
                             member.attendee.email_to_address,
                             c.EVENT_NAME_AND_YEAR + f' Suite Lottery Updated',
                             body,
+                            format='html',
                             model=application.to_dict('id'))
 
                 raise HTTPRedirect('index?attendee_id={}&confirm=suite&action=updated',
@@ -388,6 +395,7 @@ class Root:
                 application.attendee.email_to_address,
                 c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
                 body,
+                format='html',
                 model=application.to_dict('id'))
 
             raise HTTPRedirect('index?attendee_id={}&confirm={}&action=confirmation',
@@ -463,6 +471,7 @@ class Root:
             member.attendee.email_to_address,
             f'Removed From {c.EVENT_NAME} Lottery Room Group "{application.room_group_name}"',
             body,
+            format='html',
             model=member.to_dict('id'))
         raise HTTPRedirect('room_group?id={}&message={}', application.id,
                            f"{member.attendee.full_name} has been removed from your room group.")
@@ -562,6 +571,7 @@ class Root:
                     room_group.attendee.email_to_address,
                     f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery Room Group',
                     body,
+                    format='html',
                     model=room_group.to_dict('id'))
                 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
@@ -573,6 +583,7 @@ class Root:
                     application.attendee.email_to_address,
                     c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
                     body,
+                    format='html',
                     model=application.to_dict('id'))
 
                 raise HTTPRedirect('room_group?id={}&action={}&new_conf={}', application.id, "joined", got_new_conf_num)
@@ -591,6 +602,7 @@ class Root:
                 room_group.attendee.email_to_address,
                 f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery Room Group',
                 body,
+                format='html',
                 model=room_group.to_dict('id'))
             
             application = _reset_group_member(application)
