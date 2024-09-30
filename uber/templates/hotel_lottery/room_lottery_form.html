@@ -153,8 +153,6 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 
 {% block check_in_out_dates %}
 {% set room_requirements = app_or_parent.suite_requirements_str if 'suite_lottery' in forms else app_or_parent.room_requirements_str %}
-{% set has_acceptable_checkin_date = app_or_parent.latest_suite_checkin_date if 'suite_lottery' in forms else app_or_parent.latest_room_checkin_date %}
-{% set has_acceptable_checkout_date = app_or_parent.earliest_suite_checkout_date if 'suite_lottery' in forms else app_or_parent.earliest_room_checkout_date %}
 <div class="accordion-item">
     <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
         <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
@@ -167,7 +165,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             <p>
                 Rooms are available from {{ c.HOTEL_LOTTERY_CHECKIN_START|full_date_local }} to {{ c.HOTEL_LOTTERY_CHECKOUT_END|full_date_local }}. {{ room_requirements }}
             </p>
-            {% if has_acceptable_checkin_date or has_acceptable_checkout_date or not read_only %}
+            {% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date or not read_only %}
             {% if read_only %}Below are your{% else %}Enter your{% endif %}
                 <strong>preferred dates</strong> and <strong>acceptable dates</strong> for check-in and check-out{% if not read_only %} below{% endif %}. We use the acceptable dates as a backup in case the full range of preferred dates isn't available when your entry is drawn.
             </p>
@@ -183,14 +181,18 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
                 <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.earliest_checkin_date, readonly=read_only) }}</div>
                 <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.latest_checkout_date, readonly=read_only) }}</div>
             </div>
-            {% if has_acceptable_checkin_date or has_acceptable_checkout_date or not read_only %}
+            {% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date or not read_only %}
             <div class="row g-sm-3 mb-3">
-                {% if has_acceptable_checkin_date or not read_only %}
-                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.latest_checkin_date, readonly=read_only) }}</div>
-                {% endif %}
-                {% if has_acceptable_checkout_date or not read_only %}
-                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.earliest_checkout_date, readonly=read_only) }}</div>
-                {% endif %}
+                <div class="col-12 col-sm-6">
+                    {% if app_or_parent.latest_checkin_date or not read_only %}
+                    {{ form_macros.form_input(room_or_suite_lottery.latest_checkin_date, readonly=read_only) }}
+                    {% endif %}
+                </div>
+                <div class="col-12 col-sm-6">
+                    {% if app_or_parent.earliest_checkout_date or not read_only %}
+                    {{ form_macros.form_input(room_or_suite_lottery.earliest_checkout_date, readonly=read_only) }}
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
 
@@ -326,7 +328,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         <div class="accordion-body">
             {% block priorities_desc %}
             <p>
-                Rank the options below to determine how we'll prioritize your ranked choices and preferred dates.
+                Rank the options below from top to bottom to determine how we'll prioritize your ranked choices and preferred dates.
                 This ranking only applies if your entry has multiple options for a given category, as we can only work within the options that you specify as acceptable.
             </p>
             <p>We ask that you rank all priorities even if you haven't selected multiple options for all categories{% if 'suite_lottery' in forms %} or if you are opting out of a standard room entry{% endif %}, in case you come back and change your entry later.</p>

@@ -223,7 +223,7 @@ class Ranking():
                 ])
         html.extend([
             '<div class="col-sm-6">',
-            f'<span class="form-text">{'' if read_only else 'Selected '}{field.label.text}</span>',
+            f'<span class="form-text">{'' if read_only else 'Selected '}{field.label.text} <em>(ranked top to bottom)</em></span>',
             f'<ul class="card card-body bg-light gap-2 p-2 p-sm-3" id="selected_{id}">',
             *selected_html,
             f'</ul></div>',
