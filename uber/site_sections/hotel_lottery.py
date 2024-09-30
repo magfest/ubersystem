@@ -563,6 +563,8 @@ class Root:
                 application.parent_application = room_group
                 if application.is_staff_entry and not application.parent_application.is_staff_entry:
                     application.is_staff_entry = False
+                elif application.parent_application.is_staff_entry:
+                    application.is_staff_entry = True
 
                 body = render('emails/hotel/group_member_joined.html', {
                     'application': room_group, 'member': application}, encoding=None)
