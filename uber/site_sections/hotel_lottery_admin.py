@@ -193,7 +193,7 @@ class Root:
         header_row = []
         # Config data and IDs
         header_row.extend(["Lottery Close", "suite_cutoff", "year", "Response ID", "Confirmation Code",
-                           "Session ID", "Survey ID", "entry_id"])
+                           "Session ID", "Survey ID", "entry_id", "dealer_group_id"])
         
         # Contact data
         header_row.extend(["is_staff", "email", "first_name:contact", "last_name:contact", "Title:contact",
@@ -228,8 +228,11 @@ class Root:
             row = []
 
             # Config data and IDs
+            dealer_id = ''
+            if app.attendee.is_dealer and app.attendee.group and app.attendee.group.status in [c.APPROVED, c.SHARED]:
+                dealer_id = app.attendee.group.id
             row.extend([datetime_local_filter(app.current_lottery_deadline), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
-                        c.EVENT_YEAR, app.response_id, app.confirmation_num, app.id, "RAMS_1", app.id])
+                        c.EVENT_YEAR, app.response_id, app.confirmation_num, app.id, "RAMS_1", app.id, dealer_id])
             
             # Contact data
             row.extend([print_bool(attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints),
