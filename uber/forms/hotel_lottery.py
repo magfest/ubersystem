@@ -230,3 +230,16 @@ class LotteryAdminInfo(SuiteLottery):
     data_policy_accepted = BooleanField('Agreed to Data Policies', render_kw={'readonly': "true"})
     guarantee_policy_accepted = BooleanField('Acknowledged Payment Guarantee Policy', render_kw={'readonly': "true"})
     suite_terms_accepted = BooleanField(f'Agreed to Suite Policies', render_kw={'readonly': "true"})
+
+    def get_optional_fields(self, application, is_admin=False):
+        if not application.entry_type or application.entry_type == c.GROUP_ENTRY:
+            return ['selection_priorities', 'room_type_preference', 'hotel_preference',
+                    'suite_type_preference', 'earliest_checkin_date', 'latest_checkout_date',
+                    'legal_first_name', 'legal_last_name', 'ada_requests']
+
+        if application.entry_type == c.ROOM_ENTRY:
+            optional_list = RoomLottery.get_optional_fields(self, application, is_admin)
+            optional_list.append('suite_type_preference')
+        elif application.entry_type == c.SUITE_ENTRY:
+            optional_list = SuiteLottery.get_optional_fields(self, application, is_admin)
+        return optional_list
