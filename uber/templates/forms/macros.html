@@ -45,11 +45,12 @@
 {% set label_required = kwargs['required'] if 'required' in kwargs else field.flags.required %}
 {% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
 {% if type == 'hidden' or force_hidden %}
+{% set field_data = field.data|yesno("True,False") if force_hidden and type in ['checkbox','switch'] else field.data %}
   {% if hidden_field_text %}
     <div class="form-text">{{ label_text }}</div>
     <div{% if not no_margin %} class="mb-3"{% endif %}>
       {% if force_hidden %}
-        <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data or kwargs['default']|default('') }}" />
+        <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field_data or kwargs['default']|default('') }}" />
       {% else %}
         {{ field(**custom_kwargs) }}
       {% endif %}
@@ -57,7 +58,7 @@
     </div>
   {% else %}
   {% if force_hidden %}
-    <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data or kwargs['default']|default('') }}" />
+    <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field_data or kwargs['default']|default('') }}" />
   {% else %}
     {{ field(**custom_kwargs) }}
   {% endif %}

@@ -164,23 +164,19 @@
 
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">
-        <div class="form-text">{{ lottery_admin_info.terms_accepted.label.text }}</div>
-        <div class="mb-3">{{ "Yes" if lottery_admin_info.terms_accepted.data else "No" }}</div>
+        {{ form_macros.form_input(lottery_admin_info.terms_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.terms_accepted.data else "No") }}
     </div>
     <div class="col-12 col-sm-6">
-        <div class="form-text">{{ lottery_admin_info.data_policy_accepted.label.text }}</div>
-        <div class="mb-3">{{ "Yes" if lottery_admin_info.data_policy_accepted.data else "No" }}</div>
+        {{ form_macros.form_input(lottery_admin_info.data_policy_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.data_policy_accepted.data else "No") }}
     </div>
 </div>
 
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">
-        <div class="form-text">{{ lottery_admin_info.suite_terms_accepted.label.text }}</div>
-        <div class="mb-3">{{ "Yes" if lottery_admin_info.suite_terms_accepted.data else "No" }}</div>
+        {{ form_macros.form_input(lottery_admin_info.suite_terms_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.suite_terms_accepted.data else "No") }}
     </div>
     <div class="col-12 col-sm-6">
-        <div class="form-text">{{ lottery_admin_info.guarantee_policy_accepted.label.text }}</div>
-        <div class="mb-3">{{ "Yes" if lottery_admin_info.guarantee_policy_accepted.data else "No" }}</div>
+        {{ form_macros.form_input(lottery_admin_info.guarantee_policy_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.guarantee_policy_accepted.data else "No") }}
     </div>
 </div>
 
