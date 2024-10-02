@@ -836,7 +836,8 @@ class Root:
                 no_attendee += 1
                 break
             elif not account_email:
-                account_email = attendee.email
+                account_email = attendee.group_leader_account.email if attendee.group_leader_account \
+                    else attendee.email
             if valid_email(account_email):
                 invalid_email += 1
                 break
