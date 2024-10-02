@@ -177,7 +177,7 @@ class Root:
         }
     
     @csv_file
-    def interchange_export(self, out, session):
+    def interchange_export(self, out, session, staff_lottery=False):
         def print_dt(dt):
             if not dt:
                 return ""
@@ -223,7 +223,13 @@ class Root:
         
         out.writerow(header_row)
 
-        for app in session.query(LotteryApplication).filter(LotteryApplication.status != c.PROCESSED):
+        applications = session.query(LotteryApplication).filter(LotteryApplication.status != c.PROCESSED)
+        if staff_lottery:
+            applications = applications.filter(LotteryApplication.is_staff_entry == True)
+        else:
+            applications = applications.filter(LotteryApplication.is_staff_entry == False)
+
+        for app in applications:
             attendee = app.attendee
             row = []
 
