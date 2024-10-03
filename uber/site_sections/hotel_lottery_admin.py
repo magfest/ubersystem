@@ -226,7 +226,9 @@ class Root:
 
         out.writerow(header_row)
 
-        applications = session.query(LotteryApplication).filter(LotteryApplication.status != c.PROCESSED)
+        applications = session.query(LotteryApplication).join(LotteryApplication.attendee
+                                                              ).filter(LotteryApplication.status != c.PROCESSED,
+                                                                       Attendee.hotel_lottery_eligible == True)
         if staff_lottery:
             applications = applications.filter(LotteryApplication.is_staff_entry == True)
         else:
