@@ -1734,15 +1734,19 @@ class Root:
                 paid=attendee.paid)
 
             session.delete_from_group(attendee, attendee.group)
-            raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
+            if page_redirect != 'homepage':
+                raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
+            else:
+                raise HTTPRedirect('{}?message={}', page_redirect, success_message)
         # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
         else:
             attendee.badge_status = c.REFUNDED_STATUS
             for shift in attendee.shifts:
                 session.delete(shift)
-            raise HTTPRedirect('{}?id={}&message={}',
-                               page_redirect,
-                               attendee.id, success_message)
+            if page_redirect != 'homepage':
+                raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
+            else:
+                raise HTTPRedirect('{}?message={}', page_redirect, success_message)
 
     def badge_updated(self, session, id, message=''):
         return {
@@ -1802,7 +1806,7 @@ class Root:
     def homepage(self, session, message='', **params):
         if 'id' in params:
             admin = session.current_admin_account()
-            if admin.full_registration_admin:
+            if admin and admin.full_registration_admin:
                 account = session.attendee_account(params['id'])
             else:
                 raise HTTPRedirect('homepage?message={}', "Only full registration admins can see attendee homepages.")
