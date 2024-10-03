@@ -213,13 +213,13 @@ class Root:
                            "desired_arrival", "latest_arrival", "desired_departure", "earliest_departure"])
 
         for key, val in c.HOTEL_LOTTERY_HOTELS_OPTS:
-            header_row.append(f"{val['name']}:hotel_pref")
+            header_row.append(f"{val['export_name'] or val['name']}:hotel_pref")
         
         for key, val in c.HOTEL_LOTTERY_ROOM_TYPES_OPTS:
-            header_row.append(f"{val['name']}:room_pref")
+            header_row.append(f"{val['export_name'] or val['name']}:room_pref")
         
         for key, val in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS:
-            header_row.append(f"{val['name']}:room_pref")
+            header_row.append(f"{val['export_name'] or val['name']}:room_pref")
         
         out.writerow(header_row)
 
