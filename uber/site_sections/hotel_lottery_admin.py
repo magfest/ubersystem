@@ -200,13 +200,13 @@ class Root:
                            "Company Name:contact", "street_address:contact", "apt_suite_office:contact",
                            "city:contact", "state:contact", "zip:contact", "country:contact", "phone:contact",
                            "Mobile Phone:contact"])
-        
+
         # Entry metadata
         header_row.extend(["Time Started", "Date Submitted", "entry_confirmed", "Status", "edit_link", "I agree:agree",
                            "Comments", "payment_valid", "reg_conf_code", "entry_type", "Referer",
                            "User Agent", "IP Address", "Longitude", "Latitude", "Country", "City", "State/Region",
                            "Postal"])
-        
+
         # Entry data
         header_row.extend(["group_conf", "group_email", "Yes:age_ack", "special_room", "ada_req_text",
                            "I agree, understand and will comply:suite_agree",
@@ -214,10 +214,10 @@ class Root:
 
         for key, val in c.HOTEL_LOTTERY_HOTELS_OPTS:
             header_row.append(f"{val['export_name'] or val['name']}:hotel_pref")
-        
+
         for key, val in c.HOTEL_LOTTERY_ROOM_TYPES_OPTS:
             header_row.append(f"{val['export_name'] or val['name']}:room_pref")
-        
+
         for key, val in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS:
             header_row.append(f"{val['export_name'] or val['name']}:suite_type")
 
@@ -242,14 +242,14 @@ class Root:
                 dealer_id = app.attendee.group.id
             row.extend([datetime_local_filter(app.current_lottery_deadline), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
                         c.EVENT_YEAR, app.response_id, app.confirmation_num, app.id, "RAMS_1", app.id, dealer_id])
-            
+
             # Contact data
             row.extend([print_bool(attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints),
                         attendee.email, app.legal_first_name or attendee.legal_first_name,
                         app.legal_last_name or attendee.legal_last_name, "", "", attendee.address1,
                         attendee.address2, attendee.city, attendee.region, attendee.zip_code, attendee.country,
                         int(''.join(filter(str.isdigit, attendee.cellphone))) if attendee.cellphone else "", ""])
-            
+
             # Entry metadata
             if app.entry_type:
                 type_str = "I am entering as a roommate" if app.entry_type == c.GROUP_ENTRY else "I am requesting a room"
@@ -278,7 +278,7 @@ class Root:
                     else:
                         row.extend(['Standard Rooms with no Special Requests', '', ''])
                 elif entry_type_base == c.SUITE_ENTRY:
-                    row.extend(['Hyatt Regeny O\'Hare Suites', '', print_bool(app.suite_terms_accepted)])
+                    row.extend(['Hyatt Regency O\'Hare Suites', '', print_bool(app.suite_terms_accepted)])
                 
                 row.extend([print_dt(app.earliest_checkin_date), print_dt(app.latest_checkin_date),
                             print_dt(app.latest_checkout_date), print_dt(app.earliest_checkout_date)])
@@ -315,7 +315,7 @@ class Root:
 
                 for key, val in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS:
                     row.append(suite_types_ranking.get(str(key), ''))
-            
+
             if app.parent_application or not app.selection_priorities:
                 row.extend(['' for _ in range(len(c.HOTEL_LOTTERY_PRIORITIES_OPTS))])
             else:
