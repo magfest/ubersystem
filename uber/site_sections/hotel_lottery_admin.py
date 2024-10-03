@@ -193,7 +193,7 @@ class Root:
         header_row = []
         # Config data and IDs
         header_row.extend(["Lottery Close", "suite_cutoff", "year", "Response ID", "Confirmation Code",
-                           "Session ID", "Survey ID", "entry_id", "dealer_group_id"])
+                           "SessionID", "Survey ID", "entry_id", "dealer_group_id"])
         
         # Contact data
         header_row.extend(["is_staff", "email", "first_name:contact", "last_name:contact", "Title:contact",
@@ -219,8 +219,11 @@ class Root:
             header_row.append(f"{val['export_name'] or val['name']}:room_pref")
         
         for key, val in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS:
-            header_row.append(f"{val['export_name'] or val['name']}:room_pref")
-        
+            header_row.append(f"{val['export_name'] or val['name']}:suite_type")
+
+        for key, val in c.HOTEL_LOTTERY_PRIORITIES_OPTS:
+            header_row.append(f"{val['export_name'] or val['name']}:priority_pref")
+
         out.writerow(header_row)
 
         applications = session.query(LotteryApplication).filter(LotteryApplication.status != c.PROCESSED)
@@ -312,6 +315,16 @@ class Root:
 
                 for key, val in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS:
                     row.append(suite_types_ranking.get(str(key), ''))
+            
+            if app.parent_application or not app.selection_priorities:
+                row.extend(['' for _ in range(len(c.HOTEL_LOTTERY_PRIORITIES_OPTS))])
+            else:
+                priority_ranking = {}
+                for index, item in enumerate(app.selection_priorities.split(','), start=1):
+                    priority_ranking[item] = index
+
+                for key, val in c.HOTEL_LOTTERY_PRIORITIES_OPTS:
+                    row.append(priority_ranking.get(str(key), ''))
             
             out.writerow(row)
  
