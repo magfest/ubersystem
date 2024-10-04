@@ -250,7 +250,7 @@ class Root:
                         attendee.email, app.legal_first_name or attendee.legal_first_name,
                         app.legal_last_name or attendee.legal_last_name, "", "", attendee.address1,
                         attendee.address2, attendee.city, attendee.region, attendee.zip_code, attendee.country,
-                        int(''.join(filter(str.isdigit, attendee.cellphone))) if attendee.cellphone else "", ""])
+                        ''.join(filter(str.isdigit, attendee.cellphone)) if attendee.cellphone else "", ""])
 
             # Entry metadata
             if app.entry_type:
