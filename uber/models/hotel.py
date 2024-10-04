@@ -219,7 +219,7 @@ class LotteryApplication(MagModel):
         def _generate_random_conf():
             base_num = ''.join(str(random.randint(0,9)) for _ in range(9))
             checkdigit = verhoeff.calculate(base_num)
-            return int(f"{base_num}{checkdigit}")
+            return f"{base_num}{checkdigit}"
 
         return self._generate_conf_num(_generate_random_conf)
 
