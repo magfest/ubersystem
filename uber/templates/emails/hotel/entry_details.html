@@ -12,6 +12,7 @@
 {% endif %}
 {% if application.entry_type != c.GROUP_ENTRY %}
 <li><strong>Check-in Name</strong>: {{ application.legal_first_name }} {{ application.legal_last_name }}</li>
+<li><strong>Contact Phone #</strong>: {{ application.cellphone }}</li>
 {% endif %}
 <li><strong>Preferred Check-In/Out Dates</strong>: {{ app_or_parent.earliest_checkin_date.strftime('%m/%d/%Y') }} to {{ app_or_parent.latest_checkout_date.strftime('%m/%d/%Y') }}</li>
 {% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date %}

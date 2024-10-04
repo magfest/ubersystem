@@ -246,11 +246,12 @@ class Root:
                         c.EVENT_YEAR, app.response_id, app.confirmation_num, app.id, "RAMS_1", app.id, dealer_id])
 
             # Contact data
+            base_cellphone = app.cellphone or app.attendee.cellphone
             row.extend([print_bool(attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints),
                         attendee.email, app.legal_first_name or attendee.legal_first_name,
                         app.legal_last_name or attendee.legal_last_name, "", "", attendee.address1,
                         attendee.address2, attendee.city, attendee.region, attendee.zip_code, attendee.country,
-                        ''.join(filter(str.isdigit, attendee.cellphone)) if attendee.cellphone else "", ""])
+                        ''.join(filter(str.isdigit, base_cellphone)) if attendee.cellphone else "", ""])
 
             # Entry metadata
             if app.entry_type:

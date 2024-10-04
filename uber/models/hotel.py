@@ -139,6 +139,7 @@ class LotteryApplication(MagModel):
 
     legal_first_name = Column(UnicodeText)
     legal_last_name = Column(UnicodeText)
+    cellphone = Column(UnicodeText)
     earliest_checkin_date = Column(Date, nullable=True)
     latest_checkin_date = Column(Date, nullable=True)
     earliest_checkout_date = Column(Date, nullable=True)

@@ -113,13 +113,16 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 <div class="accordion-item">
     <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
         <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
-            Step {{ steps.counter }}: Check-in Name
+            Step {{ steps.counter }}: Check-in Name & Phone Number
         </button>
     </h3>
     <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
         <div class="accordion-body">
             {% block legal_name_desc %}
-            Hotels require your first and last name to match the photo ID you use during check-in. Please verify your first and last name below.
+            <p>
+                Hotels require your first and last name to match the photo ID you use during check-in, plus a phone number they can contact you at.
+                Please verify your first name, last name, and phone number below.
+            </p>
             {% endblock %}
 
             {% block legal_name_form %}
@@ -129,6 +132,11 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
                 </div>
                 <div class="col-12 col-sm-6">
                     {{ form_macros.form_input(room_or_suite_lottery.legal_last_name, readonly=read_only, value=room_or_suite_lottery.legal_last_name.data or application.attendee.legal_last_name) }}
+                </div>
+            </div>
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    {{ form_macros.form_input(room_or_suite_lottery.cellphone, readonly=read_only, value=room_or_suite_lottery.cellphone.data or application.attendee.cellphone) }}
                 </div>
             </div>
 

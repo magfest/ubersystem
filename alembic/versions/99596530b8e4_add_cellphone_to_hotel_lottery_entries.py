@@ -1,15 +1,15 @@
-"""Add tracking for staff lottery entries
+"""Add cellphone to hotel lottery entries
 
-Revision ID: ac9076825067
-Revises: 8aa4a42a6744
-Create Date: 2024-09-27 20:20:26.610277
+Revision ID: 99596530b8e4
+Revises: ac9076825067
+Create Date: 2024-10-04 22:59:09.255511
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'ac9076825067'
-down_revision = '8aa4a42a6744'
+revision = '99596530b8e4'
+down_revision = 'ac9076825067'
 branch_labels = None
 depends_on = None
 
@@ -52,8 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('lottery_application', sa.Column('is_staff_entry', sa.Boolean(), server_default='False', nullable=False))
+    op.add_column('lottery_application', sa.Column('cellphone', sa.Unicode(), server_default='', nullable=False))
 
 
 def downgrade():
-    op.drop_column('lottery_application', 'is_staff_entry')
+    op.drop_column('lottery_application', 'cellphone')

@@ -1,11 +1,12 @@
 from markupsafe import Markup
 from wtforms import (BooleanField, DateField, HiddenField, SelectField, SelectMultipleField,
-                     IntegerField, StringField, validators, TextAreaField)
+                     IntegerField, StringField, validators, TextAreaField, TelField)
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
 from uber.forms import (MagForm, CustomValidation, Ranking)
 from uber.custom_tags import readable_join
+from uber.model_checks import invalid_phone_number
 
 
 __all__ = ['LotteryInfo', 'LotteryConfirm', 'LotteryRoomGroup', 'RoomLottery', 'SuiteLottery', 'LotteryAdminInfo']
@@ -25,6 +26,12 @@ def get_earliest_checkout_date(form):
         return "acceptable check-out date", getattr(form, f"earliest_checkout_date").data
     else:
         return "preferred check-out date", getattr(form, f"latest_checkout_date").data
+
+
+def valid_cellphone(form, field):
+    if field.data and invalid_phone_number(field.data):
+        raise ValidationError('Please provide a valid 10-digit US phone number or '
+                              'include a country code (e.g. +44) for international numbers.')
 
 
 class LotteryInfo(MagForm):
@@ -69,6 +76,10 @@ class RoomLottery(MagForm):
                                    validators=[validators.DataRequired("Please enter your first name as it appears on your photo ID.")])
     legal_last_name = StringField('Last Name on ID',
                                   validators=[validators.DataRequired("Please enter your last name as it appears on your photo ID.")])
+    cellphone = TelField('Phone Number', validators=[
+        validators.DataRequired("Please provide a phone number for the hotel to contact you."),
+        valid_cellphone
+        ], render_kw={'placeholder': 'A phone number for the hotel to contact you.'})
     hotel_preference = SelectMultipleField(
         'Hotels', coerce=int, choices=c.HOTEL_LOTTERY_HOTELS_OPTS,
         widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS),
