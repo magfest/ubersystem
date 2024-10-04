@@ -154,6 +154,7 @@
                 <p>
                     You are in room group "{{ application.parent_application.room_group_name }}".
                     {{ application.parent_application.group_leader_name }} is your group leader.
+                    Your confirmation number is <strong>{{ application.confirmation_num }}</strong>.
                 </p>
                 {% else %}
                     <p>Your room group name is "{{ application.room_group_name }}" and your group has {{ application.group_members|length + 1 }} group member(s), including yourself. You can edit your group name{% if application.group_members|length > 0 %} and view your group's members{% endif %} below.</p>
