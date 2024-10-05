@@ -134,12 +134,15 @@
 </div>
 {% endif %}
 
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">
+<div class="row g-sm-3 row-cols-sm-3">
+    <div class="col">
         {{ form_macros.form_input(lottery_admin_info.legal_first_name) }}
     </div>
-    <div class="col-12 col-sm-6">
+    <div class="col">
         {{ form_macros.form_input(lottery_admin_info.legal_last_name) }}
+    </div>
+    <div class="col">
+        {{ form_macros.form_input(lottery_admin_info.cellphone) }}
     </div>
 </div>
 
