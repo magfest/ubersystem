@@ -170,6 +170,7 @@ class LotteryApplication(MagModel):
         single_parent=True)
 
     room_group_name = Column(UnicodeText)
+    email_model_name = 'app'
 
     @presave_adjustment
     def unset_entry_type(self):
@@ -227,6 +228,11 @@ class LotteryApplication(MagModel):
     @property
     def group_leader_name(self):
         return f"{self.attendee.first_name[:1]}. {self.attendee.last_name[:1]}."
+    
+    @property
+    def email(self):
+        if self.attendee:
+            return self.attendee.email
 
     @property
     def current_status_str(self):
