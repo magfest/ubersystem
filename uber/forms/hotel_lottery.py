@@ -219,7 +219,7 @@ class SuiteLottery(RoomLottery):
         if suite_step < 3:
             optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
         if suite_step < 2:
-            optional_list.extend(['legal_first_name', 'legal_last_name'])
+            optional_list.extend(['legal_first_name', 'legal_last_name', 'cellphone'])
 
         return optional_list
     
@@ -246,7 +246,7 @@ class LotteryAdminInfo(SuiteLottery):
         if not application.entry_type or application.entry_type == c.GROUP_ENTRY:
             return ['selection_priorities', 'room_type_preference', 'hotel_preference',
                     'suite_type_preference', 'earliest_checkin_date', 'latest_checkout_date',
-                    'legal_first_name', 'legal_last_name', 'ada_requests']
+                    'legal_first_name', 'legal_last_name', 'cellphone', 'ada_requests']
 
         if application.entry_type == c.ROOM_ENTRY:
             optional_list = RoomLottery.get_optional_fields(self, application, is_admin)
