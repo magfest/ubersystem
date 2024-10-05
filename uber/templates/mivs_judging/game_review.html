@@ -114,6 +114,30 @@ for reviewing the game:
         </div>
     {% endif %}
 
+    {% if review.game.how_to_play %}
+    <div class="form-group">
+        <label class="col-sm-3 control-label">How to Play</label>
+        <div class="col-sm-6 game-display">
+            {{ review.game.how_to_play }}
+        </div>
+        <div class="clearfix"></div>
+        <div class="checkbox col-sm-9 col-sm-offset-3">
+            <label class="checkbox">
+                <input type="checkbox" name="read_how_to_play" value="1"{% if review.read_how_to_play %} checked{% endif %}> I have reviewed these instructions for playing {{ review.game.title }}.
+            </label>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if review.game.build_notes %}
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Build Notes</label>
+        <div class="col-sm-6 game-display">
+            {{ review.game.build_notes }}
+        </div>
+    </div>
+    {% endif %}
+
     <div class="form-group">
         <label class="col-sm-3 control-label">Game Status</label>
         <div class="col-sm-6">

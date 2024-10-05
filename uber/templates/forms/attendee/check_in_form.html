@@ -55,7 +55,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
             {{ form_macros.form_input(check_in_form.birthdate) }}
         </div>
     {% endif %}
-    {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
+    {% if attendee.has_personalized_badge %}
         <div class="col">{{ form_macros.form_input(check_in_form.badge_printed_name) }}</div>
     {% endif %}
 </div>

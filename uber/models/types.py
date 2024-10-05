@@ -153,7 +153,7 @@ class utcnow(FunctionElement):
     can set a timestamp based on when the row was inserted rather than when
     the model was instantiated::
 
-        created = Column(UTCDateTime, server_default=utcnow())
+        created = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
 
     The pg_utcnow and sqlite_utcnow functions below define the implementation
     for postgres and sqlite, and new functions will need to be written if/when

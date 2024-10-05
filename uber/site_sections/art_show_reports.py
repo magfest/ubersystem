@@ -280,7 +280,7 @@ class Root:
                       "Type",
                       "Media",
                       "Minimum Bid",
-                      "QuickSale Price",
+                      c.QS_PRICE_TERM,
                       "Sale Price",
                       ])
 
@@ -289,10 +289,12 @@ class Root:
                 piece_type = "{} ({} of {})".format(piece.type_label, piece.print_run_num, piece.print_run_total)
             else:
                 piece_type = piece.type_label
+            
+            artist_code, piece_id = piece.artist_and_piece_id.split('-')
 
-            out.writerow([piece.app.display_name,
-                          piece.app.artist_id,
-                          piece.piece_id,
+            out.writerow([piece.app_display_name,
+                          artist_code,
+                          piece_id,
                           piece.name,
                           piece.status_label,
                           piece_type,

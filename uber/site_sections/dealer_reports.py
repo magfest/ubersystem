@@ -11,7 +11,7 @@ class Root:
     @log_pageview
     def dealer_receipt_discrepancies(self, session):
         filters = [Group.cost_cents != ModelReceipt.item_total, Group.is_dealer == True,  # noqa: E712
-                   Group.status == c.APPROVED]
+                   Group.status.in_([c.APPROVED, c.SHARED])]
 
         return {
             'groups': session.query(Group).join(Group.active_receipt).filter(*filters),
@@ -29,7 +29,7 @@ class Root:
                 ModelReceipt.current_receipt_amount != 0)
 
         return {
-            'groups': groups.filter(Group.is_dealer == True, Group.status == c.APPROVED),  # noqa: E712
+            'groups': groups.filter(Group.is_dealer == True, Group.status.in_([c.APPROVED, c.SHARED])),  # noqa: E712
             'include_no_receipts': include_no_receipts,
         }
 
@@ -77,7 +77,7 @@ class Root:
         ])
         dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()  # noqa: E712
         for group in dealer_groups:
-            if group.status == c.APPROVED:
+            if group.status in [c.APPROVED, c.SHARED]:
                 full_name = group.leader.full_name if group.leader else ''
                 out.writerow([
                     group.name,
@@ -153,7 +153,7 @@ class Root:
         dealer_groups = session.query(Group).filter(Group.tables > 0).all()
         rows = []
         for group in dealer_groups:
-            if group.status == c.APPROVED and group.is_dealer:
+            if group.status in [c.APPROVED, c.SHARED] and group.is_dealer:
                 rows.append([
                     group.name,
                     group.email,
@@ -223,7 +223,7 @@ class Root:
 
     @xlsx_file
     def seller_tax_info(self, out, session):
-        approved_groups = session.query(Group).filter(Group.status == c.APPROVED).all()
+        approved_groups = session.query(Group).filter(Group.status.in_([c.APPROVED, c.SHARED])).all()
         rows = []
         for group in approved_groups:
             if group.is_dealer:

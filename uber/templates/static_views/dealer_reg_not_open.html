@@ -2,7 +2,9 @@
     {{ c.DEALER_APP_TERM|capitalize }}s for {{ c.EVENT_NAME_AND_YEAR }} ({{ c.EVENT_MONTH }} {{ c.EVENT_YEAR }}) are not yet open.
     Please check back on {{ c.DEALER_REG_START|datetime_local }}.<br/>
     <br/>
+    {% if c.ATTENDEE_BADGE_AVAILABLE and (c.AFTER_PREREG_OPEN and c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON) %}
     To register as a non-vendor attendee for {{ c.EVENT_NAME_AND_YEAR }}, click <a href="../preregistration/">here</a>.<br/>
     <br/>
+    {% endif %}
     Please <a href="{{ c.CONTACT_URL }}">contact us</a> if you have any questions.
 </body></html>

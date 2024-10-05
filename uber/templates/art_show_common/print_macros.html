@@ -53,7 +53,7 @@
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr><td width="25%"><strong>Artist Name</strong></td><td>{{ app.display_name }}</td></tr>
   <tr><td><strong>Legal Name</strong></td><td>{{ app.attendee.legal_first_name }} {{ app.attendee.legal_last_name }}</td></tr>
-    {% set address_model = app if app.delivery_method == c.BY_MAIL else app.attendee %}
+    {% set address_model = app if app.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW else app.attendee %}
   <tr><td><strong>Address</strong></td><td>{{ address_model.address1 }}</td></tr>
   {% if address_model.address2 %}
   <tr><td></td><td>{{ address_model.address2 }}</td></tr>

@@ -19,10 +19,11 @@ from urllib.request import urlopen
 import cherrypy
 import phonenumbers
 from pockets.autolog import log
+from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
 from uber.config import c
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, readable_join
 from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
                          AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event,
@@ -368,22 +369,36 @@ IndieGameCode.required = [
     ('code', 'Game Code')
 ]
 
+
 IndieJudge.required = [
-    ('genres', 'Genres')
+    ('platforms', 'Platforms'),
+    ('genres', 'Genres'),
 ]
+
+
+@validation.IndieJudge
+def must_have_pc(judge):
+    if c.PC not in judge.platforms_ints and c.PCGAMEPAD not in judge.platforms_ints:
+        return 'You must have a PC to judge for MIVS.'
+
+
+@validation.IndieJudge
+def vr_text(judge):
+    if c.VR in judge.platforms_ints and not judge.vr_text:
+        return 'Please tell us what VR/AR platforms you own.'
 
 
 @validation.IndieStudio
 def mivs_new_studio_deadline(studio):
     if studio.is_new and not c.CAN_SUBMIT_MIVS:
-        return 'Sorry, but the deadline has already passed, so no new studios may be registered'
+        return 'Sorry, but the deadline has already passed, so no new studios may be registered.'
 
 
 @validation.IndieStudio
 def mivs_valid_url(studio):
     if studio.website and _is_invalid_url(studio.website_href):
         return 'We cannot contact that website; please enter a valid url ' \
-            'or leave the website field blank until your website goes online'
+            'or leave the website field blank until your website goes online.'
 
 
 @validation.IndieStudio
@@ -449,12 +464,6 @@ def mivs_video_link(game):
 
 
 @validation.IndieGame
-def mivs_submitted(game):
-    if (game.submitted and not game.status == c.ACCEPTED) and not c.HAS_MIVS_ADMIN_ACCESS:
-        return 'You cannot edit a game after it has been submitted'
-
-
-@validation.IndieGame
 def mivs_show_info_required_fields(game):
     if game.confirmed:
         if len(game.brief_description) > 80:
@@ -475,7 +484,7 @@ def mivs_description(image):
 
 @validation.IndieGameImage
 def mivs_valid_type(screenshot):
-    if screenshot.extension not in c.MIVS_ALLOWED_SCREENSHOT_TYPES:
+    if screenshot.extension not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
         return 'Our server did not recognize your upload as a valid image'
 
 
@@ -487,6 +496,7 @@ MITSTeam.required = [
     ('name', 'Production Team Name')
 ]
 
+
 MITSApplicant.required = [
     ('first_name', 'First Name'),
     ('last_name', 'Last Name'),
@@ -494,14 +504,12 @@ MITSApplicant.required = [
     ('cellphone', 'Cellphone Number')
 ]
 
+
 MITSGame.required = [
     ('name', 'Name'),
     ('description', 'Description')
 ]
 
-MITSPicture.required = [
-    ('description', 'Description')
-]
 
 MITSDocument.required = [
     ('description', 'Description')
@@ -532,8 +540,8 @@ def address_required_for_sellers(team):
 def min_num_days_hours(team):
     if team.days_available is not None and team.days_available < 3:
         return 'You must be available at least 3 days to present at MITS.'
-    if team.hours_available is not None and team.hours_available < 4:
-        return 'You must be able to show at least 4 hours per day to present at MITS.'
+    if team.hours_available is not None and team.hours_available < 8:
+        return 'You must be able to show at least 8 hours per day to present at MITS.'
 
 
 @validation.MITSTeam
@@ -635,6 +643,19 @@ def specify_other_time(app):
 def specify_nonstandard_time(app):
     if app.length != c.SIXTY_MIN and not app.length_reason and not app.poc_id:
         return 'Please explain why your panel needs to be longer than sixty minutes.'
+
+
+@validation.PanelApplication
+def select_livestream_opt(app):
+    if not app.livestream:
+        return 'Please select your preference for recording/livestreaming.' \
+            if len(c.LIVESTREAM_OPTS) > 2 else 'Please tell us if we can livestream your panel.'
+    
+
+@validation.PanelApplication
+def select_record_opt(app):
+    if not app.record and len(c.LIVESTREAM_OPTS) <= 2:
+        return 'Please tell us if we can record your panel.'
 
 
 @validation.PanelApplication
@@ -807,26 +828,63 @@ ArtShowApplication.required = [('description', 'Description'), ('website', 'Webs
 
 @prereg_validation.ArtShowApplication
 def max_panels(app):
-    if app.panels > c.MAX_ART_PANELS and app.panels != app.orig_value_of('panels'):
+    if app.panels > c.MAX_ART_PANELS and app.panels != app.orig_value_of('panels') or \
+        app.panels_ad > c.MAX_ART_PANELS and app.panels_ad != app.orig_value_of('panels_ad'):
         return 'You cannot have more than {} panels.'.format(c.MAX_ART_PANELS)
 
 
 @prereg_validation.ArtShowApplication
 def min_panels(app):
-    if app.panels < 0:
+    if app.panels < 0 or app.panels_ad < 0:
         return 'You cannot have fewer than 0 panels.'
 
 
 @prereg_validation.ArtShowApplication
 def max_tables(app):
-    if app.tables > c.MAX_ART_TABLES and app.tables != app.orig_value_of('tables'):
+    if app.tables > c.MAX_ART_TABLES and app.tables != app.orig_value_of('tables') or \
+        app.tables_ad > c.MAX_ART_TABLES and app.tables_ad != app.orig_value_of('tables_ad'):
         return 'You cannot have more than {} tables.'.format(c.MAX_ART_TABLES)
 
 
 @prereg_validation.ArtShowApplication
 def min_tables(app):
-    if app.tables < 0:
+    if app.tables < 0 or app.tables_ad < 0:
         return 'You cannot have fewer than 0 tables.'
+
+
+@prereg_validation.ArtShowApplication
+def invalid_mature_banner(app):
+    if app.banner_name_ad and not app.has_mature_space:
+        return "You cannot enter a banner name for the mature gallery without any space in the mature gallery."
+
+
+@prereg_validation.ArtShowApplication
+def contact_at_con(app):
+    if not app.contact_at_con:
+        return "Please tell us the best way to get a hold of you at the event, e.g., " \
+        "your mobile number or your hotel and room number."
+
+
+@validation.ArtShowApplication
+def artist_id_dupe(app):
+    if app.artist_id and (app.is_new or app.artist_id != app.orig_value_of('artist_id')):
+        with Session() as session:
+            dupe = session.query(ArtShowApplication).filter(or_(ArtShowApplication.artist_id == app.artist_id,
+                                                                ArtShowApplication.artist_id_ad == app.artist_id),
+                                                            ArtShowApplication.id != app.id).first()
+            if dupe:
+                return f"{dupe.display_name}'s {c.ART_SHOW_APP_TERM} already has the code {app.artist_id}!"
+
+
+@validation.ArtShowApplication
+def artist_id_ad_dupe(app):
+    if app.artist_id and (app.is_new or app.artist_id_ad != app.orig_value_of('artist_id_ad')):
+        with Session() as session:
+            dupe = session.query(ArtShowApplication).filter(or_(ArtShowApplication.artist_id == app.artist_id_ad,
+                                                                ArtShowApplication.artist_id_ad == app.artist_id_ad),
+                                                            ArtShowApplication.id != app.id).first()
+            if dupe:
+                return f"{dupe.display_name}'s {c.ART_SHOW_APP_TERM} already has the mature code {app.artist_id_ad}!"
 
 
 @validation.ArtShowApplication
@@ -837,7 +895,7 @@ def us_only(app):
 
 @validation.ArtShowApplication
 def cant_ghost_art_show(app):
-    if app.attendee and app.delivery_method == c.BRINGING_IN \
+    if not c.INDEPENDENT_ART_SHOW and app.attendee and app.delivery_method == c.BRINGING_IN \
             and app.attendee.badge_status == c.NOT_ATTENDING:
         return 'You cannot bring your own art if you are not attending.'
 
@@ -938,14 +996,14 @@ def price_checks_if_for_sale(piece):
 
         if not piece.no_quick_sale:
             if not piece.quick_sale_price:
-                "Please enter a quick sale price"
+                "Please enter a " + c.QS_PRICE_TERM
 
             try:
                 price = int(piece.quick_sale_price)
                 if price <= 0:
                     return "A piece must cost more than $0, even after bidding ends"
             except Exception:
-                return f"What you entered for the quick sale price ({piece.quick_sale_price}) isn't even a number"
+                return f"What you entered for the {c.QS_PRICE_TERM} ({piece.quick_sale_price}) isn't even a number"
 
 
 @validation.ArtShowPiece
@@ -1029,7 +1087,7 @@ def age_discount_after_paid(attendee):
 
 @prereg_validation.Attendee
 def require_staff_shirt_size(attendee):
-    if attendee.gets_staff_shirt and not attendee.shirt_size_marked:
+    if attendee.gets_staff_shirt and not attendee.shirt_size_marked and not c.STAFF_SHIRTS_OPTIONAL:
         return ('staff_shirt', "Please select a shirt size for your staff shirt.")
 
 
@@ -1045,11 +1103,9 @@ def volunteers_cellphone_or_checkbox(attendee):
 def promo_code_is_useful(attendee):
     if attendee.promo_code:
         with Session() as session:
-            if session.lookup_agent_code(attendee.promo_code.code):
-                return
-            code = session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCode)
-            group = code.group if code and code.group else session.lookup_promo_or_group_code(attendee.promo_code.code,
-                                                                                              PromoCodeGroup)
+            code = session.lookup_registration_code(attendee.promo_code.code, PromoCode)
+            group = code.group if code and code.group else session.lookup_registration_code(attendee.promo_code.code,
+                                                                                            PromoCodeGroup)
             if group and group.total_cost == 0:
                 return
 
@@ -1101,18 +1157,6 @@ def banned_volunteer(attendee):
         return ('staffing', "We've declined to invite {} back as a volunteer, ".format(attendee.full_name) + (
                     'talk to STOPS to override if necessary' if c.AT_THE_CON else
                     'Please contact us via {} if you believe this is in error'.format(c.CONTACT_URL)))
-
-
-@validation.Attendee
-def agent_code_already_used(attendee):
-    if attendee.promo_code:
-        with Session() as session:
-            apps_with_code = session.lookup_agent_code(attendee.promo_code.code)
-            if apps_with_code:
-                for app in apps_with_code:
-                    if not app.agent_id or app.agent_id == attendee.id:
-                        return
-                return ('promo_code', "That agent code has already been used.")
 
 
 @validation.Attendee

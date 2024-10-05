@@ -23,7 +23,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% if c.BADGE_TYPE_PRICES and (not receipt or upgrade_modal) %}
     <div class="row g-sm-3">
     {{ form_macros.card_select(badge_extras.badge_type,
-                                attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES,
+                                attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES[1:] if attendee.badge_type in c.SOLD_OUT_BADGE_TYPES else c.SOLD_OUT_BADGE_TYPES,
                                 target_field_id=id_upgrade_prepend ~ "badge_type") }}
     </div>
 {% elif not is_prereg_attendee %}
@@ -48,7 +48,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
                                 attendee.available_amount_extra_opts, disabled_opts=c.SOLD_OUT_MERCH_TIERS,
                                 target_field_id=id_upgrade_prepend ~ "amount_extra") }}
     </div>
-    {% if not attendee.gets_staff_shirt or c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
+    {% if not attendee.gets_staff_shirt or c.STAFF_SHIRTS_OPTIONAL or c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
         {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True, 
                                         closest_hide_selector='.row' if not attendee.gets_staff_shirt else '.form-floating',
                                         source_field_id=id_upgrade_prepend ~ "amount_extra") }}
@@ -65,8 +65,8 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 {% block perk_info %}
 {% if (c.DONATIONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt or admin_area %}
-<div class="row g-sm-3">
-    {% if attendee.gets_staff_shirt and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
+<div class="row g-sm-3{% if c.STAFF_SHIRTS_OPTIONAL %} mb-3{% endif %}">
+    {% if attendee.gets_staff_shirt and not c.STAFF_SHIRTS_OPTIONAL and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
         <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.staff_shirt, required=True) }}</div>
     {% endif %}
     {% if (c.DONATIONS_ENABLED and (not receipt or upgrade_modal)) or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS) or admin_area %}

@@ -1,17 +1,37 @@
 import shutil
 from datetime import datetime, timedelta
+from PIL import Image
 
 import cherrypy
 from cherrypy.lib.static import serve_file
 from pockets import listify
+from pockets.autolog import log
 from pytz import UTC
 
 from uber.config import c
+from uber.custom_tags import format_image_size, readable_join
 from uber.decorators import ajax, all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
 from uber.models import Email, MITSDocument, MITSPicture, MITSTeam
 from uber.tasks.email import send_email
-from uber.utils import check, localized_now
+from uber.utils import check, check_image_size, localized_now
+
+
+def _check_pic_filetype(pic):
+    if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
+        return f'Image {pic.filename} is not one of the allowed extensions: '\
+            f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
+    return ''
+
+
+def add_new_image(pic, game):
+    new_pic = MITSPicture(game_id=game.id,
+                            filename=pic.filename,
+                            content_type=pic.content_type.value,
+                            extension=pic.filename.split('.')[-1].lower())
+    with open(new_pic.filepath, 'wb') as f:
+        shutil.copyfileobj(pic.file, f)
+    return new_pic
 
 
 @all_renderable(public=True)
@@ -194,36 +214,77 @@ class Root:
         return "Document deleted"
 
     def game(self, session, message='', **params):
+        header_pic, thumbnail_pic = None, None
         game = session.mits_game(params, applicant=True)
+        header_image = params.get('header_image')
+        thumbnail_image = params.get('thumbnail_image')
+
         if cherrypy.request.method == 'POST':
             documents = params.get('upload_documents', [])
             documents = documents if isinstance(documents, list) else [documents]
             if not documents[0].filename and not game.documents:
                 message = "You must upload at least one rulesbook or other document."
-            else:
+
+            if not message:
+                # Once you access .file, it's gone, so we need to create
+                # MITSPicture objects BEFORE checking image size
+
+                if header_image and header_image.filename:
+                    message = _check_pic_filetype(header_image)
+                    if not message:
+                        header_pic = add_new_image(header_image, game)
+                        header_pic.is_header = True
+                        if not check_image_size(header_pic.filepath, c.GUIDEBOOK_HEADER_SIZE):
+                            message = f"Your header image must be {format_image_size(c.GUIDEBOOK_HEADER_SIZE)}."
+                elif not game.guidebook_header:
+                    message = f"You must upload a {format_image_size(c.GUIDEBOOK_HEADER_SIZE)} header image."
+
+            if not message:
+                if thumbnail_image and thumbnail_image.filename:
+                    message = _check_pic_filetype(thumbnail_image)
+                    if not message:
+                        thumbnail_pic = add_new_image(thumbnail_image, game)
+                        thumbnail_pic.is_thumbnail = True
+                        if not check_image_size(thumbnail_pic.filepath, c.GUIDEBOOK_THUMBNAIL_SIZE):
+                            message = f"Your thumbnail image must be {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)}."
+                elif not game.guidebook_thumbnail:
+                    message = f"You must upload a {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)} thumbnail image."
+
+            if not message:
                 message = check(game)
+
+            if not message:
+                pictures = params.get('upload_pictures', [])
+                pictures = pictures if isinstance(pictures, list) else [pictures]
+                for pic in [p for p in pictures if p.filename]:
+                    if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
+                        message = f'Image {pic.filename} is not one of the allowed extensions: '\
+                            f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
+
             if not message:
                 for doc in [d for d in documents if d.filename]:
                     new_doc = MITSDocument(game_id=game.id, filename=doc.filename)
                     with open(new_doc.filepath, 'wb') as f:
                         shutil.copyfileobj(doc.file, f)
                     session.add(new_doc)
-
-                pictures = params.get('upload_pictures', [])
-                pictures = pictures if isinstance(pictures, list) else [pictures]
+                
                 for pic in [p for p in pictures if p.filename]:
-                    new_pic = MITSPicture(game_id=game.id,
-                                          filename=pic.filename,
-                                          content_type=pic.content_type.value,
-                                          extension=pic.filename.split('.')[-1].lower())
-                    with open(new_pic.filepath, 'wb') as f:
-                        shutil.copyfileobj(pic.file, f)
+                    new_pic = add_new_image(pic, game)
                     session.add(new_pic)
+                if header_pic:
+                    if game.guidebook_header:
+                        session.delete(game.guidebook_header)
+                    session.add(header_pic)
+                if thumbnail_pic:
+                    if game.guidebook_thumbnail:
+                        session.delete(game.guidebook_thumbnail)
+                    session.add(thumbnail_pic)
                 session.add(game)
                 raise HTTPRedirect('index?message={}', 'Game saved')
 
         return {
             'game': game,
+            'header_image': params.get('header_image', ''),
             'message': message
         }
 

@@ -23,12 +23,12 @@
       {% elif signnow_last_emailed %}
       <div class="col text-end">
       <em>This dealer was last emailed their SignNow document at {{ signnow_last_emailed|datetime_local }}.</em>
-      <a class="btn btn-warning" href="../group_admin/resend_signnow_link?id={{ group.id }}">Resend SignNow Link</a>
+      <a class="btn btn-warning" href="../dealer_admin/resend_signnow_link?id={{ group.id }}">Resend SignNow Link</a>
       </div>
-      {% elif c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED %}
+      {% elif c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status in [c.APPROVED, c.SHARED] %}
       <div class="col text-end">
       <em>This dealer has not been emailed a SignNow document yet.</em>
-      <a class="btn btn-success" href="../group_admin/resend_signnow_link?id={{ group.id }}">Send SignNow Link</a>
+      <a class="btn btn-success" href="../dealer_admin/resend_signnow_link?id={{ group.id }}">Send SignNow Link</a>
       </div>
       {% endif %}
     </div>
@@ -171,8 +171,8 @@
           {% if c.AT_THE_CON and attendee.checked_in %}
             <td><b>Checked-in {{ attendee.checked_in_local|datetime("%-I:%M%p")|lower }} {{ attendee.checked_in_local|datetime("%a") }}</b></td>
           {% elif c.AT_THE_CON %}
-            {% if attendee.is_not_ready_to_checkin %}
-              <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+            {% if attendee.cannot_check_in_reason %}
+              <td>Can't checkin ({{ attendee.cannot_check_in_reason }})</td>
             {% else %}
               <td id="cin_{{ attendee.id }}">
                 <button class="attendee-checkin btn btn-sm btn-success" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>

@@ -1,5 +1,7 @@
 import cherrypy
+from datetime import datetime
 from pockets.autolog import log
+from pytz import UTC
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
@@ -9,7 +11,7 @@ from uber.errors import HTTPRedirect
 from uber.models import Attendee, Group
 from uber.payments import ReceiptManager
 from uber.tasks.email import send_email
-from uber.utils import remove_opt
+from uber.utils import remove_opt, SignNowRequest
 
 
 def convert_dealer_badge(session, attendee, admin_note=''):
@@ -22,17 +24,22 @@ def convert_dealer_badge(session, attendee, admin_note=''):
 
     receipt = session.get_receipt_by_model(attendee)
     receipt_items = []
-    attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
-    attendee.badge_cost = None  # Triggers re-calculating the base badge price on save
-    session.add(attendee)
+    params = {
+        'ribbon': remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON),
+        'badge_cost': None,
+    }
 
     if attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY]:
-        receipt_item = ReceiptManager.process_receipt_credit_change(attendee, 'paid', c.NOT_PAID, receipt)
-        receipt_items += [receipt_item] if receipt_item else []
-        attendee.paid = c.NOT_PAID
-        attendee.badge_status = c.NEW_STATUS
-        session.add(attendee)
-        session.commit()
+        params['paid'] = c.NOT_PAID
+        params['badge_status'] = c.NEW_STATUS
+
+    receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+
+    for key, val in params.items():
+        setattr(attendee, key, val)
+
+    session.add(attendee)
+    session.commit()
 
     if admin_note:
         attendee.append_admin_note(admin_note)
@@ -188,6 +195,10 @@ class Root:
         group.status = old_status
 
         return {'group': group, 'example_attendee': example_attendee, 'example': example}
+    
+    def dealer_statuses(self, session, id, **params):
+        group = session.group(id)
+        return {'group': group}
 
     @ajax
     def unapprove(self, session, id, action, email_text, message=''):
@@ -209,3 +220,49 @@ class Root:
         session.commit()
         return {'success': True,
                 'message': message}
+    
+    def resend_signnow_link(self, session, id):
+        group = session.group(id)
+
+        signnow_request = SignNowRequest(session=session, group=group)
+        if not signnow_request.document:
+            raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
+
+        signnow_request.send_dealer_signing_invite()
+        if signnow_request.error_message:
+            log.error(signnow_request.error_message)
+            raise HTTPRedirect("form?id={}&message={}", id,
+                               f"Error sending SignNow link: {signnow_request.error_message}")
+        else:
+            signnow_request.document.last_emailed = datetime.now(UTC)
+            session.add(signnow_request.document)
+            raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
+
+    @ajax
+    def set_table_shared(self, session, id, shared_group_name, **params):
+        group = session.group(id)
+
+        group.status = c.SHARED
+        if shared_group_name:
+            try:
+                group.set_shared_with_name(shared_group_name)
+            except ValueError as e:
+                return {'error': str(e)}
+            
+        group.convert_to_shared(session)
+        session.commit()
+
+        send_email.delay(
+            c.MARKETPLACE_EMAIL,
+            group.leader.email_to_address,
+            f"Your {c.DEALER_APP_TERM} is now shared",
+            render('emails/dealers/table_shared.html', {
+                'group': group,}, encoding=None),
+            format='html',
+            model=group.to_dict('id'))
+
+        return {
+            'success': True,
+            'message': f"This {c.DEALER_APP_TERM} is now sharing a table with {shared_group_name}."
+                if shared_group_name else "Group marked as Shared."
+        }

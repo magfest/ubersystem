@@ -38,6 +38,7 @@ class IndieJudge(MagModel, ReviewMixin):
     genres = Column(MultiChoice(c.MIVS_INDIE_JUDGE_GENRE_OPTS))
     platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
+    vr_text = Column(UnicodeText)
     staff_notes = Column(UnicodeText)
 
     codes = relationship('IndieGameCode', backref='judge')
@@ -80,7 +81,7 @@ class IndieStudio(MagModel):
     status = Column(
         Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW, admin_only=True)
     staff_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
 
     accepted_core_hours = Column(Boolean, default=False)
     discussion_emails = Column(UnicodeText)
@@ -278,8 +279,13 @@ class IndieGame(MagModel, ReviewMixin):
     title = Column(UnicodeText)
     brief_description = Column(UnicodeText)       # 140 max
     genres = Column(MultiChoice(c.MIVS_INDIE_GENRE_OPTS))
+    is_multiplayer = Column(Boolean, default=False)
+    player_count = Column(UnicodeText)
     platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
+    content_warning = Column(Boolean, default=False)
+    warning_desc = Column(UnicodeText)
+    photosensitive_warning = Column(Boolean, default=False)
     description = Column(UnicodeText)  # 500 max
     how_to_play = Column(UnicodeText)  # 1000 max
     link_to_video = Column(UnicodeText)
@@ -317,7 +323,7 @@ class IndieGame(MagModel, ReviewMixin):
     status = Column(
         Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW, admin_only=True)
     judge_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     waitlisted = Column(UTCDateTime, nullable=True)
     accepted = Column(UTCDateTime, nullable=True)
 
@@ -547,6 +553,7 @@ class IndieGameReview(MagModel):
     game_status = Column(
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_content_bad = Column(Boolean, default=False)
+    read_how_to_play = Column(Boolean, default=False)
 
     # 0 = not reviewed, 1-10 score (10 is best)
     readiness_score = Column(Integer, default=0)

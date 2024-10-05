@@ -19,12 +19,12 @@ try:
             Attendee.email == 'magfest@example.com'
         ).order_by(AdminAccount.id).first()
 
-    if admin:
-        # Make it easier to do site section testing at the command line
-        cherrypy.session = {'account_id': admin.id}
-        print('Logged in as {} <{}>'.format(admin.attendee.full_name, admin.attendee.email))
-    elif c.DEV_BOX:
-        print('INFO: Could not find Test Developer admin account')
+        if admin:
+            # Make it easier to do site section testing at the command line
+            cherrypy.session = {'account_id': admin.id}
+            print('Logged in as {} <{}>'.format(admin.attendee.full_name, admin.attendee.email))
+        else:
+            print('INFO: Could not find Test Developer admin account')
 
 except Exception as ex:
     print('ERROR: Could not initialize ubersystem environment')

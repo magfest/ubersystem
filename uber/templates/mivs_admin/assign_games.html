@@ -26,7 +26,7 @@
             {% for review in judge.reviews %}
                 <tr>
                     <td>{{ review.game.title }}</td>
-                    <td>({{ review.game.studio.name }})</td>
+                    <td>{{ review.game.studio.name }}</td>
                     <td>{{ review.video_status_label }}</td>
                     <td>{{ review.game_status_label }}</td>
                     <td><input type="checkbox" name="game_id" value="{{ review.game.id }}" /></td>

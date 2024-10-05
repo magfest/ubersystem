@@ -148,7 +148,7 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee.can_abandon_badge %}
+                {% if not attendee.cannot_abandon_badge_reason %}
                   <form method="post" action="unset_group_member">
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -173,7 +173,7 @@
 
         <br/>{% if group.is_dealer and group.min_badges_addable %}
         You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional {{ c.DEALER_HELPER_TERM }} badges.<br/><br/>
-        {% elif group.is_dealer %}
+        {% elif group.is_dealer and group.status != c.SHARED %}
         Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional {{ c.DEALER_HELPER_TERM }} badges.
         {% endif %}
 

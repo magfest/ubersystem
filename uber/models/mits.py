@@ -1,8 +1,9 @@
 import os
 import cherrypy
 from functools import wraps
+from datetime import datetime
 
-from PIL import Image
+from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_
 from sqlalchemy.schema import ForeignKey
@@ -30,7 +31,7 @@ class MITSTeam(MagModel):
     waiver_signature = Column(UnicodeText)
     waiver_signed = Column(UTCDateTime, nullable=True)
 
-    applied = Column(UTCDateTime, server_default=utcnow())
+    applied = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     status = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
 
     applicants = relationship('MITSApplicant', backref='team')
@@ -202,22 +203,18 @@ class MITSGame(MagModel):
         return ''
 
     @property
-    def guidebook_image(self):
-        if not self.pictures:
-            return ''
+    def guidebook_header(self):
         for image in self.pictures:
             if image.is_header:
-                return image.filename
-        return self.pictures[0].filename
+                return image
+        return ''
 
     @property
     def guidebook_thumbnail(self):
-        if not self.pictures:
-            return ''
         for image in self.pictures:
             if image.is_thumbnail:
-                return image.filename
-        return self.pictures[1].filename if len(self.pictures) > 1 else self.pictures[0].filename
+                return image
+        return ''
 
     @property
     def guidebook_images(self):
@@ -249,6 +246,8 @@ class MITSPicture(MagModel):
     content_type = Column(UnicodeText)
     extension = Column(UnicodeText)
     description = Column(UnicodeText)
+    is_header = Column(Boolean, default=False)
+    is_thumbnail = Column(Boolean, default=False)
 
     @property
     def url(self):
@@ -257,22 +256,6 @@ class MITSPicture(MagModel):
     @property
     def filepath(self):
         return os.path.join(c.MITS_PICTURE_DIR, str(self.id))
-
-    @property
-    def is_header(self):
-        try:
-            return Image.open(self.filepath).size == tuple(map(int, c.MITS_HEADER_SIZE))
-        except OSError:
-            # This probably isn't an image, so it's not a header image
-            return
-
-    @property
-    def is_thumbnail(self):
-        try:
-            return Image.open(self.filepath).size == tuple(map(int, c.MITS_THUMBNAIL_SIZE))
-        except OSError:
-            # This probably isn't an image, so it's not a thumbnail image
-            return
 
 
 class MITSDocument(MagModel):

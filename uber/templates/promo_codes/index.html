@@ -47,14 +47,18 @@ $(document).ready(function() {
   Promo Codes
   <small><a href="generate_promo_codes">Generate new promo codes</a></small>
   <button class="btn btn-sm btn-danger pull-right" data-bs-toggle="modal" data-bs-target="#modal-delete-unused">
-    Delete Unused
+    Delete Unused Codes
   </button>
+  <a class="btn btn-sm btn-info pull-right me-2" href="export_promo_codes">
+    Download All Codes
+  </a>
 </h1>
-  <ul class="nav nav-tabs" role="tablist">
-  <li class="nav-item" role="presentation" {% if show == "admin" %}class="active"{% endif %}><a href="index?show=admin">Discount Codes</a></li>
-  <li class="nav-item" role="presentation" {% if show == "group" %}class="active"{% endif %}><a href="index?show=group">Promo Code Group Codes</a></li>
-  <li class="nav-item" role="presentation" {% if show == "overused" %}class="active"{% endif %}><a href="index?show=overused">Overused</a></li>
-  <li class="nav-item" role="presentation" {% if show == "all" %}class="active"{% endif %}><a href="index?show=all">All</a></li>
+<div class="card card-body">
+  <ul class="nav nav-tabs">
+  <li class="nav-item"><a class="nav-link{% if show == "admin" %} active{% endif %}" href="index?show=admin">Discount Codes</a></li>
+  <li class="nav-item"><a class="nav-link{% if show == "group" %} active{% endif %}" href="index?show=group">Promo Code Group Codes</a></li>
+  <li class="nav-item"><a class="nav-link{% if show == "overused" %} active{% endif %}" href="index?show=overused">Overused</a></li>
+  <li class="nav-item"><a class="nav-link{% if show == "all" %} active{% endif %}" href="index?show=all">All</a></li>
 </ul>
 <br/>
 <div id="modal-delete-unused" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="title-delete-unused">
@@ -84,7 +88,9 @@ $(document).ready(function() {
         <th>Discount</th>
         <th>Allowed Uses</th>
         <th>Number of Uses</th>
-        {% if show != 'admin' %}
+        {% if show == 'admin' %}
+        <th>Admin Notes</th>
+        {% else %}
         <th>Promo Code Group</th>
         {% endif %}
         <th></th>
@@ -125,7 +131,9 @@ $(document).ready(function() {
           <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}
           {% endfor %}
         </td>
-        {% if show != 'admin' %}
+        {% if show == 'admin' %}
+        <td>{{ promo_code.admin_notes }}</td>
+        {% else %}
         <td>
           <a href="promo_code_group_form?id={{ promo_code.group.id }}" target="_blank">{{ promo_code.group.name }}</a>
         </td>
@@ -156,5 +164,6 @@ $(document).ready(function() {
       {% endfor %}
     </tbody>
   </table>
+</div>
 </div>
 {% endblock %}

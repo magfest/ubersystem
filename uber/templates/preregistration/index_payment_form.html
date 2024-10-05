@@ -4,13 +4,15 @@
       <a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
       or
     {% if cart.total_cost > 0 %}
-    {% if c.AT_THE_CON %}
-        {% if c.SPIN_TERMINAL_AUTH_KEY %}
-            <a href="at_door_confirmation" class="btn btn-success">Confirm Registrations and Get Check-in Barcode</a>
+        {% if c.AT_THE_CON %}
+            {% if c.SPIN_TERMINAL_AUTH_KEY %}
+                <a href="at_door_confirmation" class="btn btn-success">Confirm Registrations and Get Check-in Barcode</a>
+            {% else %}
+                {{ stripe_form('prereg_payment') }}
+            {% endif %}
         {% else %}
             {{ stripe_form('prereg_payment') }}
         {% endif %}
-    {% endif %}
     {% else %}
         <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
     {% endif %}

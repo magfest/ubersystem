@@ -77,7 +77,7 @@ class Room(MagModel, NightsMixin):
     message = Column(UnicodeText)
     locked_in = Column(Boolean, default=False)
     nights = Column(MultiChoice(c.NIGHT_OPTS))
-    created = Column(UTCDateTime, server_default=utcnow())
+    created = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     assignments = relationship('RoomAssignment', backref='room')
 
     @property

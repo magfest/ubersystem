@@ -4,7 +4,7 @@
 
 <h2> Confirm Deletion of {{ group.name }} </h2>
 
-This group still has unassigned badges:
+This group still has assigned badges:
 <ul>
     {% for attendee in group.attendees %}
         {% if not attendee.is_unassigned %}

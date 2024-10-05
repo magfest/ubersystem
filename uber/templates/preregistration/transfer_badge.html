@@ -35,7 +35,7 @@
 
       <p>If you have any questions then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.</p>
 
-      {% if duplicate.group and duplicate.group.is_dealer and duplicate.group.status != c.APPROVED %}
+      {% if duplicate.group and duplicate.group.is_dealer and duplicate.group.status not in [c.APPROVED, c.SHARED] %}
         <p>
           It looks like your {{ c.DEALER_REG_TERM }} application has not been approved yet. If your application
           is not approved, you will be able to purchase badges for yourself and the number of assistants on the application

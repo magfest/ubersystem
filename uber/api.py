@@ -19,14 +19,15 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.types import Boolean, Date
+from sqlalchemy.sql.elements import not_
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership,
-                         DeptMembershipRequest, Event, IndieStudio, Job, Session, Shift, Group, GuestGroup, Room,
-                         HotelRequests, RoomAssignment)
+                         DeptMembershipRequest, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
+                         GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email, normalize_newlines
@@ -487,6 +488,38 @@ class MivsLookup:
                 query = session.query(IndieStudio)
             return [mivs.to_dict(self.fields) for mivs in query]
 
+    def export_judges(self):
+        """
+        Returns a set of tuples of MIVS judges and their corresponding attendees.
+        Excludes judges that were disqualified or opted out of judging.
+
+        Results are returned in the format expected by
+        <a href="../mivs_admin/import_judges">the MIVS judge importer</a>.
+        """
+        judges_list = []
+        with Session() as session:
+            judges = session.query(IndieJudge).filter(not_(IndieJudge.status.in_([c.CANCELLED, c.DISQUALIFIED])))
+
+
+            for judge in judges:
+                fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
+                judges_list.append((judge.to_dict(), judge.attendee.to_dict(fields)))
+
+            return judges_list
+    
+    def lookup_judge(self, id):
+        try:
+            str(uuid.UUID(id))
+        except Exception as e:
+            raise HTTPError(400, f"Invalid ID: {str(e)}")
+
+        with Session() as session:
+            judge = session.query(IndieJudge).filter(IndieJudge.id == id).first()
+            if judge:
+                return judge.to_dict()
+            else:
+                raise HTTPError(404, f'No judge found with ID {id}.')
+
 
 @all_api_auth('api_read')
 class AttendeeLookup:
@@ -801,7 +834,7 @@ class AttendeeLookup:
                     and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints and 'paid' not in params:
                 attendee.paid = c.NEED_NOT_PAY
 
-        return attendee.id
+            return attendee.id
 
 
 @all_api_auth('api_read')
@@ -1447,7 +1480,7 @@ class ScheduleLookup:
                     'start_unix': int(mktime(event.start_time.utctimetuple())),
                     'end_unix': int(mktime(event.end_time.utctimetuple())),
                     'duration': event.minutes,
-                    'description': event.description,
+                    'description': event.public_description or event.description,
                     'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
                 }
                 for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])

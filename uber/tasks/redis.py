@@ -1,10 +1,14 @@
+
+import json
+import re
 from datetime import datetime, timedelta
+from sqlalchemy import any_
 
 from uber.config import c
 from uber.tasks import celery
 
 
-__all__ = ['expire_processed_saml_assertions', 'update_shirt_counts']
+__all__ = ['expire_processed_saml_assertions', 'update_shirt_counts', 'update_problem_names']
 
 
 @celery.schedule(timedelta(minutes=30))
@@ -37,5 +41,53 @@ def update_shirt_counts():
             rsession.sadd(c.REDIS_PREFIX + 'sold_out_shirt_sizes', shirt_enum_key)
         else:
             rsession.srem(c.REDIS_PREFIX + 'sold_out_shirt_sizes', shirt_enum_key)
+
+    rsession.execute()
+
+@celery.schedule(timedelta(minutes=15))
+def update_problem_names():
+    from uber.models import Attendee, Session
+
+    posix_regex_list = []
+    python_regex_dict = {}
+
+    # We want to generally match against word boundaries, but this excludes some creative forms of profanity
+    # from being matched, so we also check against whitespace (or beginning/end of string) manually
+    for word in c.PROBLEM_NAMES:
+        posix_regex_list.append(f"(\\s|^){word}(\\s|$)")
+        posix_regex_list.append(f"\\y{word}\\y")
+        python_regex_dict[f"(\\s|^){word}(\\s|$)"] = word
+        python_regex_dict[f"\\b{word}\\b"] = word
+
+    rsession = c.REDIS_STORE.pipeline()
+
+    with Session() as session:
+        attendees = session.query(Attendee).filter(Attendee.badge_printed_name.regexp_match(any_(posix_regex_list),
+                                                                                            flags="i")).all()
+
+        attendee_ids = [attendee.id for attendee in attendees]
+        current_problem_names = c.REDIS_STORE.hkeys(c.REDIS_PREFIX + 'problem_name_ids')
+        no_longer_problems = set(current_problem_names) - set(attendee_ids)
+        for id in no_longer_problems:
+            rsession.hdel(c.REDIS_PREFIX + 'word_matches', id)
+            rsession.hdel(c.REDIS_PREFIX + 'origin_words', id)
+
+        for id in attendee_ids:
+            rsession.sadd(c.REDIS_PREFIX + 'problem_name_ids', id)
+
+        for attendee in attendees:
+            word_match_list = []
+            origin_match_list = []
+            for regex in python_regex_dict:
+                if re.search(re.compile(regex, re.IGNORECASE), attendee.badge_printed_name):
+                    found_word = python_regex_dict[regex]
+                    if found_word not in word_match_list:
+                        word_match_list.append(found_word)
+                    for origin_word in c.PROBLEM_NAMES[found_word]:
+                        if origin_word not in origin_match_list:
+                            origin_match_list.append(origin_word)
+
+            rsession.hset(c.REDIS_PREFIX + 'word_matches', attendee.id, json.dumps(word_match_list))
+            rsession.hset(c.REDIS_PREFIX + 'origin_words', attendee.id, json.dumps(origin_match_list))
 
     rsession.execute()

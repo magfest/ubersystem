@@ -10,11 +10,11 @@
         <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="app_title_{{ app.id }}">Check-{{ checkout|yesno("Out, In") }} Artist</h4>
       </div>
-
-      <form target="upload_frame" method="post" action="../art_show_admin/save_and_check_in_out" role="form" class="form-horizontal">
-        <div class="modal-body">
-          {% if not printable %}{{ csrf_token() }}{% endif %}
-          {{ check_in_form(app) }}
+      <div class="modal-body">
+        <div class="alert alert-dismissible" role="alert" id="artist-message-alert-{{ app.id }}"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('artist-message-alert-{{ app.id }}')" aria-label="Close"></button></div>
+        <form target="upload_frame" method="post" action="../art_show_admin/save_and_check_in_out" role="form" class="form-horizontal">
+            {% if not printable %}{{ csrf_token() }}{% endif %}
+            {{ check_in_form(app) }}
         </div>
         <div class="modal-footer">
           {% set print_invoice = checkout and app.total_sales %}
@@ -141,7 +141,9 @@
     {% else %}
       {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name, is_readonly=printable, use_bs5=True) }}
     {% endif %}
-  {{ macros.address_form(app, label_prefix="Mailing", is_readonly=printable) }}
+  {% endif %}
+  {% if app.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW %}
+  {{ macros.address_form(app, label_prefix="Mailing" if app.delivery_method == c.BY_MAIL else "", is_readonly=printable, use_bs5=True) }}
   {% endif %}
 
   <div class="col">
@@ -184,6 +186,22 @@
   {{ macros.form_group(app, 'check_payable', label="Name on Check", placeholder=app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name, is_readonly=printable, use_bs5=True) }}
 {% endif %}
 </div>
+
+{% if app.check_in_notes or not printable %}
+<div class="col-12">
+  <label class="form-text">Check-In Notes</label>
+  <div class="mb-3">
+    {% if printable %}
+      <div class="form-control-static">
+        {{ app.check_in_notes }}
+      </div>
+    {% else %}
+      <textarea name="check_in_notes" class="form-control" rows="4">{{ app.check_in_notes }}</textarea>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <div class="table-responsive">
   <table class="table table-striped"{% if not printable %} id="datatable_{{ app.id }}" {% endif %}>
     <thead>
@@ -223,10 +241,7 @@
 {% elif not printable and not app.checked_out %}<em>NOTE: All "Hung" pieces will become "Return to Artist" upon clicking "Save & Check-Out"</em>{% endif %}
   {% if printable and not checkout %}
 <span class="text-center pagebreak">
-<strong><p>I understand that I am giving Midwest Furfest the right to sell my art at the above prices.  I also understand that I will be charged a commission of 10% on all sales and that the convention will collect sales tax on my sales. I also have read and agree to the art show rules.</p>
-<p>MFF reserves the right to remove works for sale that, in our sole discretion, do not conform to our rules and policies. MFF will have no liability for any loss, including but not limited to lost revenue, resulting from the removal of works from the Furfest Art Show for violation of MFF's rules and/or policies.</p>
-<p>If I have chosen an Agent I understand that they have the rights to act as myself and make decisions on my behalf.</p>
-<p>I understand that all unsold art must be picked up between Noon and 5PM on Sunday.</p></strong><br/>
+<strong>{% include "art_show_applications/checkin_agreement.html" %}</strong><br/>
 </span>
 
 <div class="row g-sm-3">

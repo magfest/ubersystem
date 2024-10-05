@@ -13,6 +13,8 @@
       {% else %}
         {{ email.to }}
       {% endif %}
+      {% if email.cc %}<br/>CC: {{ email.cc }}{% endif %}
+      {% if email.bcc %}<br/>BCC: {{ email.bcc }}{% endif %}
     </h4>
     {{ macros.preview_email(email) }}
     <form method="post" action="resend_email" id="resend_email_{{ email.id }}">

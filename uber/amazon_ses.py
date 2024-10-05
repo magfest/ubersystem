@@ -50,6 +50,7 @@ class AmazonSES:
                         'Data': message['subject'],
                     },
                 },
+                ReplyToAddresses=replyToAddresses,
                 ReturnPath=returnPath or source,
             )
             log.info("Sent email. Response: " + str(response))

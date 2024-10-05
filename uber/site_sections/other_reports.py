@@ -21,7 +21,7 @@ class Root:
                 c.FOOD_RESTRICTIONS[getattr(c, category)]: len([fr for fr in all_fr if getattr(fr, category)])
                 for category in c.FOOD_RESTRICTION_VARS
             },
-            'sandwich_prefs': {~
+            'sandwich_prefs': {
                 desc: len([fr for fr in all_fr if val in fr.sandwich_pref_ints])
                 for val, desc in c.SANDWICH_OPTS
             }

@@ -18,11 +18,13 @@ import sqlalchemy
 from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
+from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sqlalchemy import and_, func, or_
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
@@ -33,9 +35,9 @@ import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
-    valid_email, valid_password
+    RegistrationCode, valid_email, valid_password
 from uber.payments import ReceiptManager
 
 
@@ -86,6 +88,18 @@ metadata = MetaData(naming_convention=immutabledict(naming_convention))
 @declarative_base(metadata=metadata)
 class MagModel:
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
+    created = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+    last_updated = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+
+    """
+    The two columns below allow tracking any object in external sources,
+    e.g., a CRM. Both columns are dictionaries where the keys are idents
+    for the external services, e.g., 'hubspot'. The values can be either a
+    dictionary (if there are multiple objects to track in the external service)
+    or just strings and datetime objects, respectively.
+    """
+    external_id = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
+    last_synced = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
 
     required = ()
     is_actually_old = False  # Set to true to force preview models to return False for `is_new`
@@ -128,6 +142,14 @@ class MagModel:
         automated emails -- override this instead.
         """
         return self.email
+    
+    def cc_emails_for_ident(self, ident=''):
+        # A list of emails to carbon-copy for an automated email with a particular ident
+        return
+    
+    def bcc_emails_for_ident(self, ident=''):
+        # A list of emails to blind-carbon-copy for an automated email with a particular ident
+        return
 
     @property
     def gets_emails(self):
@@ -267,6 +289,10 @@ class MagModel:
             self.session.set_relation_ids(self, relation, ModelClass, ids)
         setattr(self, '_relation_ids', {})
 
+    @presave_adjustment
+    def update_last_updated(self):
+        self.last_updated = datetime.now(UTC)
+
     @property
     def session(self):
         """
@@ -301,11 +327,11 @@ class MagModel:
         return not instance_state(self).persistent
 
     @property
-    def created(self):
+    def created_info(self):
         return self.get_tracking_by_instance(self, action=c.CREATED, last_only=True)
 
     @property
-    def last_updated(self):
+    def last_update_info(self):
         return self.get_tracking_by_instance(self, action=c.UPDATED, last_only=True)
 
     @property
@@ -406,7 +432,7 @@ class MagModel:
                 log.debug('Cost property {} was called for object {}, \
                           which has an active receipt. This may cause problems.'.format(name, self))
 
-        receipt_items = uber.receipt_items.cost_calculation.items
+        receipt_items = uber.receipt_items.receipt_calculation.items
         try:
             cost_calc = receipt_items[self.__class__.__name__][name[8:]](self)
             if not cost_calc:
@@ -468,10 +494,11 @@ class MagModel:
                 value = int(float(value))
 
             elif isinstance(column.type, UTCDateTime):
-                try:
-                    value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
-                except ValueError:
-                    value = dateparser.parse(value)
+                if isinstance(value, six.string_types):
+                    try:
+                        value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
+                    except ValueError:
+                        value = dateparser.parse(value)
 
                 if not value.tzinfo:
                     return c.EVENT_TIMEZONE.localize(value)
@@ -479,14 +506,18 @@ class MagModel:
                     return value
 
             elif isinstance(column.type, Date):
-                try:
-                    value = datetime.strptime(value, c.DATE_FORMAT)
-                except ValueError:
-                    value = dateparser.parse(value)
+                if isinstance(value, six.string_types):
+                    try:
+                        value = datetime.strptime(value, c.DATE_FORMAT)
+                    except ValueError:
+                        value = dateparser.parse(value)
                 return value.date()
 
-            elif isinstance(column.type, JSONB) and isinstance(value, str):
-                return json.loads(value)
+            elif isinstance(column.type, JSONB):
+                if isinstance(value, str):
+                    return json.loads(value)
+                elif isinstance(value, (datetime, date)):
+                    return value.isoformat()
 
         except Exception as error:
             log.debug(
@@ -857,13 +888,15 @@ class Session(SessionManager):
             return_dict['art_show_admin'] = self.query(Attendee
                                                        ).outerjoin(
                                                            ArtShowApplication,
-                                                           or_(ArtShowApplication.attendee_id == Attendee.id,
-                                                               ArtShowApplication.agent_id == Attendee.id)
+                                                           or_(ArtShowApplication.attendee_id == Attendee.id)
                                                         ).outerjoin(ArtShowBidder).filter(
                                                             or_(Attendee.art_show_bidder != None,  # noqa: E711
                                                                 Attendee.art_show_purchases != None,  # noqa: E711
                                                                 Attendee.art_show_applications != None,  # noqa: E711
-                                                                Attendee.art_agent_applications != None)  # noqa: E711
+                                                                Attendee.art_agent_apps != None)  # noqa: E711
+                                                        ).outerjoin(ArtShowAgentCode).filter(
+                                                            ArtShowAgentCode.attendee_id == Attendee.id,
+                                                            ArtShowAgentCode.cancelled == None  # noqa: E711
                                                         )
             return return_dict
 
@@ -1297,16 +1330,16 @@ class Session(SessionManager):
                 PromoCode: A PromoCode object, either matching
                 the given code or found in the matching PromoCodeGroup.
             """
-            promo_code = self.lookup_promo_or_group_code(code, PromoCode)
+            promo_code = self.lookup_registration_code(code, PromoCode)
             if promo_code:
                 return promo_code
 
-            group = self.lookup_promo_or_group_code(code, PromoCodeGroup)
+            group = self.lookup_registration_code(code, PromoCodeGroup)
             if group:
                 unused_valid_codes = [code for code in group.valid_codes if code.code not in used_codes]
                 return unused_valid_codes[0] if unused_valid_codes else None
 
-        def lookup_promo_or_group_code(self, code, model=PromoCode):
+        def lookup_registration_code(self, code, model=PromoCode):
             """
             Convenience method for finding a promo code by id or code.
 
@@ -1321,11 +1354,11 @@ class Session(SessionManager):
             if isinstance(code, uuid.UUID):
                 code = code.hex
 
-            normalized_code = PromoCode.normalize_code(code)
+            normalized_code = RegistrationCode.normalize_code(code)
             if not normalized_code:
                 return None
 
-            unambiguous_code = PromoCode.disambiguate_code(code)
+            unambiguous_code = RegistrationCode.disambiguate_code(code)
             clause = or_(model.normalized_code == normalized_code, model.normalized_code == unambiguous_code)
 
             # Make sure that code is a valid UUID before adding
@@ -1476,6 +1509,12 @@ class Session(SessionManager):
             for attendee in [m for m in all_models if isinstance(m, Attendee)]:
                 if attendee.badge_num is not None and lower_bound <= attendee.badge_num <= upper_bound:
                     new_badge_num = max(new_badge_num, 1 + attendee.badge_num)
+                    # Make sure we didn't just run into the end of a badge number gap
+                    while new_badge_num <= upper_bound:
+                        if self.badge_num_in_use(new_badge_num):
+                            new_badge_num += 1
+                        else:
+                            break
 
             assert new_badge_num < upper_bound, 'There are no more badge numbers available in this range!'
 
@@ -1547,6 +1586,16 @@ class Session(SessionManager):
 
                 if needs_badge_num(attendee):
                     attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
+        
+        def badge_num_in_use(self, badge_num):
+            """
+            This is a last resort for assigning a non-duplicate badge number. It should only be needed
+            in the case where multiple badge numbers are being assigned inside one session commit, as it's
+            possible for them to run into duplicate numbers if there's a gap in assigned badge numbers
+            that is smaller than the quantity of badges getting assigned numbers.
+            """
+            dupe_num = self.query(Attendee.badge_num).filter(Attendee.badge_num == badge_num)
+            return bool(dupe_num.first())
 
         def auto_badge_num(self, badge_type):
             """
@@ -2106,7 +2155,7 @@ class Session(SessionManager):
             try:
                 return self.indie_studio(cherrypy.session.get('studio_id'))
             except Exception:
-                raise HTTPRedirect('../mivs/studio')
+                raise HTTPRedirect('../mivs/login_explanation')
 
         def logged_in_judge(self):
             judge = self.admin_attendee().admin_account.judge
@@ -2231,7 +2280,7 @@ class Session(SessionManager):
                     attr.key = attr.key or name
                     attr.name = attr.name or name
                     attr.table = target.__table__
-                    target.__table__.c.replace(attr)
+                    target.__table__.append_column(attr, replace_existing=True)
                 else:
                     setattr(target, name, attr)
         return target

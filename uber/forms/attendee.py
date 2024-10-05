@@ -102,7 +102,7 @@ class PersonalInfo(AddressForm, MagForm):
 
     def get_optional_fields(self, attendee, is_admin=False):
         if attendee.valid_placeholder and (is_admin or cherrypy.request.method == 'POST'):
-            return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone']
+            return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone', 'confirm_email']
         if is_admin and attendee.unassigned_group_reg:
             return ['first_name', 'last_name', 'email', 'badge_printed_name',
                     'cellphone', 'confirm_email'] + self.placeholder_optional_field_names()
@@ -112,8 +112,8 @@ class PersonalInfo(AddressForm, MagForm):
         if is_admin or not attendee.needs_pii_consent and attendee.badge_status != c.PENDING_STATUS:
             optional_list.append('confirm_email')
 
-        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE
-                                                                    and c.AFTER_PRINTED_BADGE_DEADLINE):
+        if not attendee.has_personalized_badge or (c.PRINTED_BADGE_DEADLINE
+                                                   and c.AFTER_PRINTED_BADGE_DEADLINE):
             optional_list.append('badge_printed_name')
 
         if self.same_legal_name.data:
@@ -301,7 +301,7 @@ class OtherInfo(MagForm):
             with Session() as session:
                 code = session.lookup_promo_code(field.data)
                 if not code:
-                    group = session.lookup_promo_or_group_code(field.data, PromoCodeGroup)
+                    group = session.lookup_registration_code(field.data, PromoCodeGroup)
                     if not group:
                         raise ValidationError("The promo code you entered is invalid.")
                     elif not group.valid_codes:
@@ -502,8 +502,8 @@ class CheckInForm(MagForm):
     def get_optional_fields(self, attendee, is_admin=False):
         optional_list = super().get_optional_fields(attendee, is_admin)
 
-        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE and
-                                                                    c.AFTER_PRINTED_BADGE_DEADLINE):
+        if not attendee.has_personalized_badge or (c.PRINTED_BADGE_DEADLINE and
+                                                   c.AFTER_PRINTED_BADGE_DEADLINE):
             optional_list.append('badge_printed_name')
 
         return optional_list

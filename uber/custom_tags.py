@@ -223,6 +223,14 @@ def format_phone(val, country='US'):
 
 
 @JinjaEnv.jinja_filter
+def format_image_size(val):
+    if not val or len(val) != 2:
+        return
+    
+    return f"{val[0]}x{val[1]}px"
+
+
+@JinjaEnv.jinja_filter
 def jsonize(x):
     is_empty = x is None or isinstance(x, jinja2.runtime.Undefined)
     return safe_string('{}' if is_empty else html.escape(json.dumps(x, cls=serializer), quote=False))
@@ -343,7 +351,7 @@ form_link_site_sections = {}
 
 
 @JinjaEnv.jinja_filter
-def form_link(model, new_window=False):
+def form_link(model, new_window=False, prepend=''):
     if not model:
         return ''
 
@@ -379,7 +387,7 @@ def form_link(model, new_window=False):
                                                            page,
                                                            model.id,
                                                            ' target="_blank"' if new_window else '',
-                                                           escape(name)))
+                                                           prepend + escape(name)))
     return name
 
 

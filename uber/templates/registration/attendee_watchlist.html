@@ -65,7 +65,7 @@ $("form[name='confirm_entry']").submit(function (event) {
       </form>
     </div>
   {% else %}
-  <p>{{ attendee.full_name }} currently has a badge status of {{ attendee.badge_status_label }} and is{% if attendee.is_not_ready_to_checkin %} NOT{% endif %} ready to check in.</p>
+  <p>{{ attendee.full_name }} currently has a badge status of {{ attendee.badge_status_label }} and is{% if attendee.cannot_check_in_reason %} NOT{% endif %} ready to check in.</p>
   {% endif %}
 
   {% if attendee.watchlist_id %}
