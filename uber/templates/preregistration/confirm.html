@@ -26,7 +26,7 @@
     Registration Information
   </div>
   <div class="card-body">
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications or attendee.is_group_leader %}
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_application or attendee.is_group_leader %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
 

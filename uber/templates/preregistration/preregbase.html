@@ -6,8 +6,12 @@
     <a class="btn btn-outline-secondary" href="../registration/form?id={{ attendee.id }}">Admin Form</a>
     {% elif c.HAS_GROUP_ADMIN_ACCESS and group and not group.is_new %}
     <a class="btn btn-outline-secondary" href="../group_admin/form?id={{ group.id }}">Admin Form</a>
+    {% elif c.HAS_MARKETPLACE_ADMIN_ACCESS and app and not app.is_new and 'marketplace' in c.PAGE_PATH %}
+    <a class="btn btn-outline-secondary" href="../marketplace_admin/form?id={{ app.id }}">Admin Form</a>
     {% elif c.HAS_ART_SHOW_ADMIN_ACCESS and app and not app.is_new %}
     <a class="btn btn-outline-secondary" href="../art_show_admin/form?id={{ app.id }}">Admin Form</a>
+    {% elif c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS and application and not application.is_new and 'hotel_lottery' in c.PAGE_PATH %}
+    <a class="btn btn-outline-secondary" href="../hotel_lottery_admin/form?id={{ application.id }}">Admin Form</a>
     {% elif c.CURRENT_ADMIN %}
     <a href="../accounts/homepage" class="btn btn-outline-secondary">Admin Area</a>
     {% endif %}

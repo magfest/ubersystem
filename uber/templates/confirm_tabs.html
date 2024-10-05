@@ -51,13 +51,13 @@
     </a>
   </li>
 {% endfor %}
-{% for marketplace_app in attendee.marketplace_applications %}
+{% if attendee.marketplace_application %}
   <li class="nav-item" role="presentation">
-    <a href="../marketplace/edit?id={{ marketplace_app.id }}" class="nav-link{% if 'marketplace' in c.PAGE_PATH %} active{% endif %}">
-      <i class="fa fa-shopping-cart"></i> Marketplace Application{% if marketplace_app.business_name %} ({{ marketplace_app.business_name }}){% endif %}
+    <a href="../marketplace/edit?id={{ attendee.marketplace_application.id }}" class="nav-link{% if 'marketplace' in c.PAGE_PATH %} active{% endif %}">
+      <i class="fa fa-shopping-cart"></i> Marketplace Application
     </a>
   </li>
-{% endfor %}
+{% endif %}
 {% if c.ATTRACTIONS_ENABLED and attractions %}
   <li class="nav-item" role="presentation">
     <a href="../attractions/manage?id={{ attendee.id }}" class="nav-link{% if 'manage' in c.PAGE_PATH %} active{% endif %}">

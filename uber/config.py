@@ -406,6 +406,10 @@ class Config(_Overridable):
     @property
     def ART_SHOW_HAS_FEES(self):
         return c.COST_PER_PANEL or c.COST_PER_TABLE or c.ART_MAILING_FEE
+    
+    @property
+    def MARKETPLACE_CANCEL_DEADLINE(self):
+        return min(self.EPOCH, self.PREREG_TAKEDOWN) if self.PREREG_TAKEDOWN else self.EPOCH
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):

@@ -24,8 +24,8 @@ from uber.config import c
 from uber import decorators
 from uber.jinja import JinjaEnv
 from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department,
-                         Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, RoomAssignment,
-                         MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, Room, LotteryApplication, Shift)
+                         Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, ArtistMarketplaceApplication, MITSTeam,
+                         MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, Room, RoomAssignment, LotteryApplication, Shift)
 from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 
@@ -356,51 +356,58 @@ if c.ART_SHOW_ENABLED:
 # marketplace
 # =============================
 AutomatedEmailFixture.queries.update({
-    MarketplaceApplication:
-        lambda session: session.query(MarketplaceApplication).options(subqueryload(MarketplaceApplication.attendee))
+    ArtistMarketplaceApplication:
+        lambda session: session.query(ArtistMarketplaceApplication).options(subqueryload(ArtistMarketplaceApplication.attendee))
 })
 
 
-class MarketplaceAppEmailFixture(AutomatedEmailFixture):
+class ArtistMarketplaceEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
-        AutomatedEmailFixture.__init__(self, MarketplaceApplication, subject,
+        AutomatedEmailFixture.__init__(self, ArtistMarketplaceApplication, subject,
                                        template,
                                        lambda app: True and filter(app),
                                        ident,
-                                       sender=c.MARKETPLACE_APP_EMAIL, **kwargs)
+                                       sender=c.ARTIST_MARKETPLACE_EMAIL, **kwargs)
 
 
 if c.MARKETPLACE_REG_START:
-    MarketplaceAppEmailFixture(
-        '{EVENT_NAME} Marketplace Application Confirmation',
+    ArtistMarketplaceEmailFixture(
+        '{EVENT_NAME} Artist Marketplace Application Confirmation',
         'marketplace/application.html',
-        lambda a: a.status == c.UNAPPROVED,
+        lambda a: a.status == c.PENDING,
         ident='marketplace_confirm')
 
-    MarketplaceAppEmailFixture(
-        'Your {EVENT_NAME} Marketplace application has been approved',
+    ArtistMarketplaceEmailFixture(
+        'Your {EVENT_NAME} Artist Marketplace application has been accepted',
         'marketplace/approved.html',
-        lambda a: a.status == c.APPROVED,
+        lambda a: a.status == c.ACCEPTED,
         ident='marketplace_approved')
 
-    MarketplaceAppEmailFixture(
-        'Your {EVENT_NAME} Marketplace application has been waitlisted',
+    ArtistMarketplaceEmailFixture(
+        'Your {EVENT_NAME} Artist Marketplace application has been waitlisted',
         'marketplace/waitlisted.txt',
         lambda a: a.status == c.WAITLISTED,
         ident='marketplace_waitlisted')
 
-    MarketplaceAppEmailFixture(
-        'Your {EVENT_NAME} Marketplace application has been declined',
+    ArtistMarketplaceEmailFixture(
+        'Your {EVENT_NAME} Artist Marketplace application has been declined',
         'marketplace/declined.txt',
         lambda a: a.status == c.DECLINED,
         ident='marketplace_declined')
 
-    MarketplaceAppEmailFixture(
-        'Reminder to pay for your {EVENT_NAME} Marketplace application',
+    ArtistMarketplaceEmailFixture(
+        'Reminder to pay for your {EVENT_NAME} Artist Marketplace application',
         'marketplace/payment_reminder.txt',
-        lambda a: a.status == c.APPROVED and a.amount_unpaid,
+        lambda a: a.status == c.ACCEPTED and a.amount_unpaid,
         when=days_before(14, c.MARKETPLACE_PAYMENT_DUE),
         ident='marketplace_payment_reminder')
+
+    ArtistMarketplaceEmailFixture(
+        'Your {EVENT_NAME} Artist Marketplace payment has been received',
+        'marketplace/payment_confirmation.txt',
+        lambda a: a.status == c.ACCEPTED and a.amount_paid,
+        ident='marketplace_payment_received'
+    )
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,

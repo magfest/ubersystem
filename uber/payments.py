@@ -262,7 +262,7 @@ class PreregCart:
 class TransactionRequest:
     # TODO: Split out Stripe and AuthNet logic into their own subclasses, like SpinTerminalRequest
     def __init__(self, receipt=None, receipt_email='', description='', amount=0,
-                 method=c.STRIPE, customer_id=None, create_receipt_item=False, **kwargs):
+                 method=c.STRIPE, customer_id=None, **kwargs):
         self.amount = int(amount)
         self.receipt_email = receipt_email[0] if isinstance(receipt_email, list) else receipt_email
         self.description = description
@@ -285,8 +285,6 @@ class TransactionRequest:
 
             if not self.amount:
                 self.amount = receipt.current_amount_owed
-            if create_receipt_item:
-                self.receipt_manager.create_receipt_item(receipt, self.description, self.amount)
 
         if c.AUTHORIZENET_LOGIN_ID:
             self.merchant_auth = apicontractsv1.merchantAuthenticationType(
@@ -404,18 +402,18 @@ class TransactionRequest:
                     subject='ERROR: MAGFest Stripe invalid request error')
                 return 'An unexpected problem occurred: ' + str(e)
 
-    def refund_or_cancel(self, txn):
+    def refund_or_cancel(self, txn, department=None):
         if not self.amount:
             return "You must enter an amount to refund."
 
         error = self._pre_process_refund(txn)
         if not error:
-            error = self._process_refund(txn)
+            error = self._process_refund(txn, department=department)
 
         if error:
             return error
 
-    def refund_or_skip(self, txn):
+    def refund_or_skip(self, txn, department=None):
         if not self.amount:
             return "You must enter an amount to refund."
 
@@ -423,7 +421,7 @@ class TransactionRequest:
         if error:
             return
 
-        error = self._process_refund(txn)
+        error = self._process_refund(txn, department=department)
 
         if error:
             return error
@@ -455,7 +453,7 @@ class TransactionRequest:
         if txn.amount - already_refunded < refund_amount:
             return "There is not enough left on this transaction to refund {format_currency(refund_amount / 100)}."
 
-    def _process_refund(self, txn):
+    def _process_refund(self, txn, department=None):
         """
         Attempts to refund a given Stripe transaction and add/update the relevant transactions on the receipt.
         Returns an error message or sets the object's response property if the refund was successful.
@@ -478,10 +476,11 @@ class TransactionRequest:
                                                        "Automatic refund of transaction " + txn.stripe_id,
                                                        str(self.response_id),
                                                        self.amount,
-                                                       method=self.method)
+                                                       method=self.method,
+                                                       department=department)
         self.receipt_manager.update_transaction_refund(txn, self.amount)
 
-    def prepare_payment(self, intent_id='', payment_method=c.STRIPE):
+    def prepare_payment(self, intent_id='', payment_method=c.STRIPE, department=None):
         """
         Creates the stripe intent and receipt transaction for a given payment processor object.
         Most methods should call this instead of calling create_stripe_intent and
@@ -495,7 +494,8 @@ class TransactionRequest:
         message = self.create_stripe_intent(intent_id)
         if not message:
             message = self.receipt_manager.create_payment_transaction(self.description, self.intent,
-                                                                      method=payment_method)
+                                                                      method=payment_method,
+                                                                      department=department)
 
         if message:
             return message
@@ -1019,7 +1019,7 @@ class SpinTerminalRequest(TransactionRequest):
         response = requests.post(spin_rest_utils.get_call_url(self.api_url, 'settle'), data=self.base_request)
         return response
 
-    def _process_refund(self, txn):
+    def _process_refund(self, txn, department=None):
         from uber.models import TxnRequestTracking, AdminAccount, Session
         from uber.tasks.registration import process_terminal_sale
 
@@ -1050,7 +1050,8 @@ class SpinTerminalRequest(TransactionRequest):
                                                                     "Automatic refund of transaction " + txn.stripe_id,
                                                                     self.intent_id_from_txn_tracker(self.tracker),
                                                                     refund_amount,
-                                                                    method=self.method)
+                                                                    method=self.method,
+                                                                    department=department)
 
         with Session() as session:
             model = session.get_model_by_receipt(txn.receipt)
@@ -1170,7 +1171,7 @@ class ReceiptManager:
         self.items_to_add = []
         self.who = ''
 
-    def create_payment_transaction(self, desc='', intent=None, amount=0, txn_total=0, method=c.STRIPE):
+    def create_payment_transaction(self, desc='', intent=None, amount=0, txn_total=0, method=c.STRIPE, department=None):
         from uber.models import AdminAccount, ReceiptTransaction
 
         if intent:
@@ -1186,7 +1187,7 @@ class ReceiptManager:
         self.items_to_add.append(ReceiptTransaction(receipt_id=self.receipt.id,
                                                     intent_id=intent.id if intent else '',
                                                     method=method,
-                                                    department=self.receipt.default_department,
+                                                    department=department or self.receipt.default_department,
                                                     amount=amount,
                                                     txn_total=txn_total or amount,
                                                     receipt_items=self.receipt.open_receipt_items,
@@ -1198,13 +1199,13 @@ class ReceiptManager:
                 item.closed = datetime.now()
                 self.items_to_add.append(item)
 
-    def create_refund_transaction(self, receipt, desc, refund_id, amount, method=c.STRIPE):
+    def create_refund_transaction(self, receipt, desc, refund_id, amount, method=c.STRIPE, department=None):
         from uber.models import AdminAccount, ReceiptTransaction
 
         receipt_txn = ReceiptTransaction(receipt_id=receipt.id,
                                          refund_id=refund_id,
                                          method=method,
-                                         department=receipt.default_department,
+                                         department=department or receipt.default_department,
                                          amount=amount * -1,
                                          receipt_items=receipt.open_receipt_items,
                                          desc=desc,
@@ -1516,7 +1517,7 @@ class ReceiptManager:
 
     @staticmethod
     def mark_paid_from_ids(intent_id, charge_id):
-        from uber.models import Attendee, ArtShowApplication, MarketplaceApplication, Group, ReceiptTransaction, Session
+        from uber.models import Attendee, ArtShowApplication, ArtistMarketplaceApplication, Group, ReceiptTransaction, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
 
@@ -1577,15 +1578,15 @@ class ReceiptManager:
                         model=model.to_dict('id'))
                 except Exception:
                     log.error('Unable to send Art Show payment confirmation email', exc_info=True)
-            if model and isinstance(model, MarketplaceApplication) and not txn.receipt.open_receipt_items:
+            if model and isinstance(model, ArtistMarketplaceApplication) and not txn.receipt.open_receipt_items:
                 send_email.delay(
-                    c.MARKETPLACE_APP_EMAIL,
-                    c.MARKETPLACE_APP_EMAIL,
+                    c.ARTIST_MARKETPLACE_EMAIL,
+                    c.ARTIST_MARKETPLACE_EMAIL,
                     'Marketplace Payment Received',
                     render('emails/marketplace/payment_notification.txt', {'app': model}, encoding=None),
                     model=model.to_dict('id'))
                 send_email.delay(
-                    c.MARKETPLACE_APP_EMAIL,
+                    c.ARTIST_MARKETPLACE_EMAIL,
                     model.email_to_address,
                     'Marketplace Payment Received',
                     render('emails/marketplace/payment_confirmation.txt', {'app': model}, encoding=None),

@@ -1,10 +1,9 @@
 {{ app.attendee.first_name }},
 
-Thanks again for applying to present in the Marketplace for this year's {{ c.EVENT_NAME }}.  Our records indicate that your
-Marketplace application is still unpaid, and if we do not receive payment by {{ c.MARKETPLACE_PAYMENT_DUE|datetime_local }} then it will be
-deleted.
+Thanks again for applying to be in the Artist Marketplace for this year's {{ c.EVENT_NAME }}! Our records indicate that your application "{{ app.name }}" was accepted into the marketplace but is still unpaid, and if we do not receive payment by {{ c.MARKETPLACE_PAYMENT_DUE|datetime_local }} then it will be deleted.
 
-You can use the credit card button on your application's page to pay the {{ app.attendee.amount_unpaid|format_currency }} that you owe:
-{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}
+You can use the "Pay with Card" button on your application's page to pay the {{ app.attendee.amount_unpaid|format_currency }} that you owe: {{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}
 
-{{ c.MARKETPLACE_APP_SIGNATURE }}
+If your plans have changed, you can instead use the "Cancel Application" button at the link above to let us know that you do not need your space anymore. We fill spots as they are cancelled, so please don't delay cancelling if you know you won't need your spot!
+
+{{ c.ARTIST_MARKETPLACE_SIGNATURE }}

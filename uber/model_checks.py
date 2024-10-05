@@ -28,7 +28,7 @@ from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
                          AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event,
                          GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
-                         Job, MarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
+                         Job, ArtistMarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
                          PanelApplicant, PanelApplication, PromoCode, PromoCodeGroup, Sale, Session, WatchList)
 from uber.utils import localized_now, valid_email, get_age_from_birthday
 from uber.payments import PreregCart
@@ -336,17 +336,6 @@ def suite_meets_night_requirements(app):
                     return
         return ('', "Suites require a three-night minimum with both Friday night and Saturday night.")
 
-
-# =============================
-# marketplace
-# =============================
-MarketplaceApplication.required = [('description', 'Description'), ('categories', 'Categories')]
-
-
-@validation.MarketplaceApplication
-def marketplace_other_category(app):
-    if app.categories and c.OTHER in app.categories_ints and not app.categories_text:
-        return "Please describe what 'other' things you are planning to sell."
 
 # =============================
 # mivs

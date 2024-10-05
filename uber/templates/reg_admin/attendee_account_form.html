@@ -77,8 +77,8 @@
                 {% endfor %}
             </td>
             <td>
-                {% for app in attendee.marketplace_applications %}
-                <a href="../marketplace_admin/form?id={{ app.id }}" target="_blank">View Application</a>
+                {% if attendee.marketplace_application %}
+                <a href="../marketplace_admin/form?id={{ artist_marketplace_application.id }}" target="_blank">View Application</a>
                 {% else %}
                     N/A
                 {% endfor %}

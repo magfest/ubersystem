@@ -1038,7 +1038,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @has_or_will_have_badge.expression
     def has_or_will_have_badge(cls):
         return and_(cls.is_valid,
-                    not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING, c.UNAPPROVED_DEALER_STATUS])
+                    not_(cls.badge_status.in_([c.NOT_ATTENDING, c.UNAPPROVED_DEALER_STATUS])
                          ))
 
     @hybrid_property

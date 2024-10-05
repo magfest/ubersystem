@@ -78,7 +78,7 @@ def calc_multiplied_cost_change(app, col_name, col_str, price_per, new_app=None)
         return (f"{label} {col_str}", price_per * 100 * cost_mod, col_name, abs(diff))
 
 
-@receipt_calculation.MarketplaceApplication
+@receipt_calculation.ArtistMarketplaceApplication
 def app_cost(app):
     if app.status == c.APPROVED:
         return ("Marketplace Application Fee", app.overridden_price * 100 or c.MARKETPLACE_FEE * 100 or 0, None)
@@ -310,6 +310,26 @@ def amount_extra_cost(attendee, new_attendee=None):
 
 
 @receipt_calculation.Attendee
+def promo_code_group_cost(attendee, new_attendee=None):
+    if new_attendee:
+        return
+
+    cost_table = defaultdict(int)
+
+    if getattr(attendee, 'badges', None):
+        # During prereg we set the number of promo code badges on the attendee model
+        cost_table[c.get_group_price() * 100] = int(attendee.badges)
+    elif attendee.promo_code_groups:
+        for code in attendee.promo_code_groups[0].promo_codes:
+            cost_table[code.cost * 100] += 1
+    else:
+        return
+
+    return ("Group Badge ({})".format(attendee.promo_code_groups[0].name if attendee.promo_code_groups
+                                      else getattr(attendee, 'name', 'Unknown')), cost_table, c.GROUP_BADGE)
+
+
+@receipt_calculation.Attendee
 def dealer_badge_credit(attendee, new_attendee=None):
     if not new_attendee:
         # This is rolled into base_badge_cost, since it's just what dealer badges cost
@@ -426,26 +446,6 @@ def promo_code_credit(attendee, new_attendee=None):
         if not new_cost:
             return ("Add Badge Comp (Promo Code)", old_cost * -1, c.ITEM_COMP)
         return ("Add Promo Code", new_cost - old_cost, c.BADGE_DISCOUNT)
-    
-
-@receipt_calculation.Attendee
-def promo_code_group_cost(attendee, new_attendee=None):
-    if new_attendee:
-        return
-
-    cost_table = defaultdict(int)
-
-    if getattr(attendee, 'badges', None):
-        # During prereg we set the number of promo code badges on the attendee model
-        cost_table[c.get_group_price() * 100] = int(attendee.badges)
-    elif attendee.promo_code_groups:
-        for code in attendee.promo_code_groups[0].promo_codes:
-            cost_table[code.cost * 100] += 1
-    else:
-        return
-
-    return ("Group Badge ({})".format(attendee.promo_code_groups[0].name if attendee.promo_code_groups
-                                      else getattr(attendee, 'name', 'Unknown')), cost_table, c.GROUP_BADGE)
 
 
 Attendee.receipt_changes = {

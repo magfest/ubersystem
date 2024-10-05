@@ -150,12 +150,12 @@
                 {% endif %}
             {% endif %}
             {% if c.AFTER_MARKETPLACE_REG_START %}
-            {% if c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
-            <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
+            {% if c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_application and (attendee.has_badge or attendee.badge_status == c.UNAPPROVED_DEALER_STATUS) %}
+            <a href="../marketplace/apply?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
                 <i class="fa fa-shopping-cart"></i> Apply for Marketplace
             </a>
-            {% elif attendee.marketplace_applications %}
-            <a href="../marketplace/edit?id={{ attendee.marketplace_applications[0].id }}" class="btn btn-sm btn-success">
+            {% elif attendee.marketplace_application %}
+            <a href="../marketplace/edit?id={{ attendee.marketplace_application.id }}" class="btn btn-sm btn-success">
                 <i class="fa fa-shopping-cart"></i> View Marketplace App
             </a>
             {% endif %}

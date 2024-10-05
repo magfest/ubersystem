@@ -2,20 +2,18 @@
 <head></head>
 <body>
 
-You have updated your application for the Marketplace.
-<a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}">Click here</a> to see
-the changes.
+<p>"{{ old_app['name'] }}"{% if old_app['display_name'] %} ({{ old_app['display_name'] }}){% endif %} has updated their application for the Artist Marketplace.</p>
 
-<br/><br/>Below is the new application:
-
+<p>Below is the new application:
 <ul>
-    {% if app.business_name %}<li><strong>Business Name</strong>: {{ app.business_name }}</li>{% endif %}
-    <li><strong>Total Price</strong>: {{ app.potential_cost|format_currency }}</li>
-    <li><strong>Description</strong>: {{ app.description }}</li>
-    <li><strong>Categories</strong>: {{ app.categories_labels|join(', ') }}{% if app.categories_text %}{% if app.categories_labels%} / {% endif %}Other: {{ app.categories_text }}{% endif %}</li>
+    <li><strong>Business Name</strong>: {{ app.name }}</li>
+    {% if app.display_name %}<li><strong>Display Name</strong>: {{ app.display_name }}</li>{% endif %}
+    <li><strong>Email</strong>: {{ app.email_address }}</li>
+    {% if app.website %}<li><strong>Website</strong>: {{ app.website }}</li>{% endif %}
     {% if app.tax_number %}<li><strong>Illinois Business Tax Number</strong>: {{ app.tax_number }}</li>{% endif %}
-    {% if app.special_needs %}<li><strong>Special Requests</strong>: {{ app.special_needs }}</li>{% endif %}
-</ul>
+    {% if app.seating_requests %}<li><strong>Seating Requests</strong>: {{ app.seating_requests }}</li>{% endif %}
+    {% if app.accessibility_requests %}<li><strong>Accessibility Requests</strong>: {{ app.accessibility_requests }}</li>{% endif %}
+</ul></p>
 
 </body>
 </html>

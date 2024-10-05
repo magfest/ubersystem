@@ -1258,7 +1258,7 @@ class Session(SessionManager):
             attendee, message = self.create_or_find_attendee_by_id(**params)
             if message:
                 return attendee, message
-            elif attendee.marketplace_applications:
+            elif attendee.marketplace_application:
                 return attendee, \
                        'There is already a marketplace application ' \
                        'for that badge!'
