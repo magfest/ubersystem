@@ -197,9 +197,11 @@
                                         {{ csrf_token() }}
                                         <input type="hidden" name="member_id" value="{{ member.id }}">
                                         <input type="hidden" name="member_name" value="{{ member.attendee.full_name }}">
+                                        {% if c.HOTEL_LOTTERY_OPEN %}
                                         <button type="submit" class="btn btn-sm btn-danger">
                                             Remove
                                         </button>
+                                        {% endif %}
                                     </form>
                                 </td>
                             </tr>

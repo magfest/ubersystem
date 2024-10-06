@@ -2051,15 +2051,16 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def hotel_lottery_eligible(self):
-        return self.is_valid and self.badge_status not in [c.REFUNDED_STATUS,
-                                                           c.NOT_ATTENDING,
-                                                           c.DEFERRED_STATUS] and not self.placeholder
+        return (self.is_valid and not self.placeholder and not self.is_unassigned
+                and self.badge_status not in [c.REFUNDED_STATUS,
+                                              c.NOT_ATTENDING,
+                                              c.DEFERRED_STATUS])
+                                                           
 
     @hotel_lottery_eligible.expression
     def hotel_lottery_eligible(cls):
-        return and_(cls.is_valid,
-                    not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING, c.DEFERRED_STATUS])),
-                    cls.placeholder == False)
+        return and_(cls.is_valid == True, cls.is_unassigned == False, cls.placeholder == False,
+                    not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING, c.DEFERRED_STATUS])))
 
     @property
     def legal_first_name(self):
