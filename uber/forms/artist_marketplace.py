@@ -24,6 +24,7 @@ class ArtistMarketplaceForm(MagForm):
         render_kw={'placeholder': 'test@example.com'})
     website = StringField('Gallery Link')
     tax_number = StringField('Illinois Business Tax Number', validators=[
+        validators.DataRequired("Please enter your Illinois Business Tax number."),
         validators.Regexp("^[0-9-]*$", message="Please use only numbers and hyphens for your IBT number.")
         ], description="""
                     If you have an Illinois Business license please provide the number here. Note that this 
