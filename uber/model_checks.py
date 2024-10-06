@@ -881,8 +881,7 @@ def invalid_mature_banner(app):
 @prereg_validation.ArtShowApplication
 def contact_at_con(app):
     if not app.contact_at_con:
-        return "Please tell us the best way to get a hold of you at the event, e.g., " \
-        "your mobile number or your hotel and room number."
+        return "Please tell us the best way to get a hold of you at the event, e.g., your mobile number or your hotel and room number."
 
 
 @validation.ArtShowApplication
