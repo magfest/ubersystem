@@ -52,14 +52,10 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    """Remove after migration fix is deployed
     op.drop_constraint('fk_leader', 'group', type_='foreignkey')
     op.create_foreign_key('fk_leader', 'group', 'attendee', ['leader_id'], ['id'], ondelete='SET NULL', use_alter=True)
-    """
 
 
 def downgrade():
-    """Remove after migration fix is deployed
     op.drop_constraint('fk_leader', 'group', type_='foreignkey')
     op.create_foreign_key('fk_leader', 'group', 'attendee', ['leader_id'], ['id'])
-    """
