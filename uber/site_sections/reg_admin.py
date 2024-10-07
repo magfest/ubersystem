@@ -315,7 +315,7 @@ class Root:
             session.commit()
             session.refresh(item.receipt)
 
-            error = refund.refund_or_cancel(item.receipt_txn)
+            error = refund.refund_or_cancel(item.receipt_txn, department=item.receipt_txn.department)
             if error:
                 return {'error': error}
 
@@ -387,7 +387,7 @@ class Root:
             else:
                 refund = TransactionRequest(receipt=item.receipt, amount=refund_amount, method=item.receipt_txn.method)
 
-            error = refund.refund_or_cancel(item.receipt_txn)
+            error = refund.refund_or_cancel(item.receipt_txn, department=item.receipt_txn.department)
             if error:
                 return {'error': error}
 
@@ -575,7 +575,7 @@ class Root:
         else:
             refund = TransactionRequest(receipt=txn.receipt, amount=refund_amount, method=txn.method)
 
-        error = refund.refund_or_cancel(txn)
+        error = refund.refund_or_cancel(txn, department=txn.department)
         if error:
             raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
                                session.get_model_by_receipt(receipt).id, error)
@@ -705,7 +705,7 @@ class Root:
             else:
                 refund = TransactionRequest(receipt=txn.receipt, amount=group_refund_amount, method=txn.method)
 
-            error = refund.refund_or_cancel(txn)
+            error = refund.refund_or_cancel(txn, department=txn.department)
             if error:
                 message = f"{error_start} group leader could not be refunded: {error}"
                 raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, message)
@@ -802,6 +802,8 @@ class Root:
             elif not account_email:
                 if 'account_id' in params:
                     message = "Please enter an email address."
+                elif attendee.group_leader_account:
+                    account_email = attendee.group_leader_account.email
                 else:
                     account_email = attendee.email
 
@@ -815,7 +817,7 @@ class Root:
 
         return {
             'message': message,
-            'attendees': attendees.options(raiseload('*')).all(),
+            'attendees': attendees.options(joinedload(Attendee.group)).all(),
             'show_all': params.get('show_all', ''),
         }
 
@@ -834,7 +836,8 @@ class Root:
                 no_attendee += 1
                 break
             elif not account_email:
-                account_email = attendee.email
+                account_email = attendee.group_leader_account.email if attendee.group_leader_account \
+                    else attendee.email
             if valid_email(account_email):
                 invalid_email += 1
                 break

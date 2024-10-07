@@ -3,31 +3,42 @@ from uber.models import MagModel
 from uber.decorators import presave_adjustment
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship, MultiChoice, utcnow
 
+from datetime import datetime
+from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
-from sqlalchemy.types import Integer
+from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.schema import ForeignKey
 
 
-__all__ = ['MarketplaceApplication']
+__all__ = ['ArtistMarketplaceApplication']
 
 
-class MarketplaceApplication(MagModel):
-    MATCHING_DEALER_FIELDS = ['categories', 'categories_text', 'description', 'special_needs']
+class ArtistMarketplaceApplication(MagModel):
+    MATCHING_DEALER_FIELDS = ['email_address', 'website', 'name']
 
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'),
-                         nullable=True)
-    attendee = relationship('Attendee', foreign_keys=attendee_id, cascade='save-update, merge',
-                            backref=backref('marketplace_applications', cascade='save-update, merge'))
-    business_name = Column(UnicodeText)
-    status = Column(Choice(c.MARKETPLACE_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee = relationship('Attendee', backref=backref('marketplace_application', uselist=False),
+                            cascade='save-update,merge,refresh-expire,expunge',
+                            uselist=False)
+    name = Column(UnicodeText)
+    display_name = Column(UnicodeText)
+    email_address = Column(UnicodeText)
+    website = Column(UnicodeText)
+    tax_number = Column(UnicodeText)
+    terms_accepted = Column(Boolean, default=False)
+    seating_requests = Column(UnicodeText)
+    accessibility_requests = Column(UnicodeText)
+
+    status = Column(Choice(c.MARKETPLACE_STATUS_OPTS), default=c.PENDING, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    approved = Column(UTCDateTime, nullable=True)
-
-    categories = Column(MultiChoice(c.DEALER_WARES_OPTS))
-    categories_text = Column(UnicodeText)
-    description = Column(UnicodeText)
-    special_needs = Column(UnicodeText)
+    accepted = Column(UTCDateTime, nullable=True)
+    receipt_items = relationship('ReceiptItem',
+                                 primaryjoin='and_('
+                                             'ReceiptItem.fk_model == "ArtistMarketplaceApplication", '
+                                             'remote(ReceiptItem.fk_id) == foreign(ArtistMarketplaceApplication.id))',
+                                 viewonly=True,
+                                 uselist=True)
 
     admin_notes = Column(UnicodeText, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
@@ -40,16 +51,37 @@ class MarketplaceApplication(MagModel):
             self.overridden_price = None
 
     @property
-    def incomplete_reason(self):
-        if self.status not in [c.APPROVED, c.PAID]:
-            return self.status_label
-        if self.attendee.placeholder:
-            return "Missing registration info"
-
-    @property
     def email(self):
-        return self.attendee.email
+        return self.email_address or self.attendee.email
+    
+    @property
+    def default_cost(self):
+        return (self.overridden_price or c.ARTIST_MARKETPLACE_FEE) * 100
 
     @property
-    def is_unpaid(self):
-        return self.status == c.APPROVED
+    def total_cost(self):
+        if self.receipt_items:
+            return sum([item.amount for item in self.receipt_items])
+        return self.default_cost
+
+    @property
+    def amount_unpaid(self):
+        if self.status != c.ACCEPTED:
+            return 0
+        elif not self.receipt_items or self.was_refunded:
+            return self.default_cost
+
+        return sum([item.amount for item in self.receipt_items if not item.closed])
+
+    @property
+    def was_refunded(self):
+        if not self.receipt_items:
+            return False
+        return all([item.receipt_txn and item.receipt_txn.refunded for item in self.receipt_items])
+
+    @property
+    def amount_paid(self):
+        if self.receipt_items:
+            return sum([item.amount for item in self.receipt_items if item.closed and (
+                not item.receipt_txn or not item.receipt_txn.refunded)])
+        return 0

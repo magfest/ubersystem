@@ -81,7 +81,7 @@ def send_email(
             log.error('Error while sending email: {}'.format(str(error)))
         sleep(0.1)  # Avoid hitting rate limit
     else:
-        log.error('Email sending turned off, so unable to send {}', locals())
+        log.error(f'Email sending turned off, so unable to send {locals()}')
         record_email = True if c.DEV_BOX else False
 
     if original_to:

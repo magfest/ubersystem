@@ -1,0 +1,66 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'macros.html' as macros with context %}
+{% block title %}Lottery Application History for {{ application.attendee.full_name }}{% endblock %}
+{% block content %}
+{{ macros.nav_menu(
+    application, c.PAGE_PATH,
+    "../hotel_lottery_admin/form?id={id}", "Application Data", True,
+    "../hotel_lottery_admin/history?id={id}", "History", True,
+    "../hotel_lottery_admin/index", "Return to Application List", True)
+}}
+
+<div class="card card-body">
+  <h2>Changelog for {{ application.attendee.full_name }}'s Lottery Application</h2>
+
+  <table class="table table-striped table-bordered table-sm">
+    <thead><tr>
+      <th>Which</th>
+      <th>What</th>
+      <th>When</th>
+      <th>Who</th>
+      <th>Changes</th>
+    </tr></thead>
+    {% for tracked in changes %}
+      <tr>
+        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top">{{ tracked.data }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  <h2>Page View History for {{ application.attendee.full_name }}'s Lottery Application</h2>
+
+  <table class="table table-striped table-bordered table-sm">
+    <thead><tr>
+      <th>When</th>
+      <th>Who</th>
+      <th>Page Path</th>
+    </tr></thead>
+    {% for view in pageviews %}
+      <tr>
+        <td valign="top" style="white-space:nowrap">{{ view.when|full_datetime_local }}</td>
+        <td valign="top" style="white-space:nowrap">{{ view.who }}</td>
+        <td valign="top">{{ view.page }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  {% for email in emails  %}
+    {% if loop.first %}<h2> Automated Emails </h2>{% endif %}
+    <h3> {{ email.subject }} ({{ email.when|full_datetime_local }}) </h3>
+    {{ macros.preview_email(email) }}
+    {% if not read_only %}
+      <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ email.id }}" />
+        <button class="btn btn-primary" type="submit">Resend Email</button>
+      </form>
+    {% endif %}
+    <hr/>
+  {% endfor %}
+{{ "js/resend-email-form.js"|serve_static_content }}
+</div>
+{% endblock %}

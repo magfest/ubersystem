@@ -410,7 +410,10 @@ class MagModel:
     def _labels(self, name, val):
         ints = getattr(self, name + '_ints')
         labels = dict(self.get_field(name).type.choices)
-        return sorted(labels[i] for i in ints)
+        if len(ints) > 0 and isinstance(labels[ints[0]], dict):
+            return [labels[i].get('name', '') for i in ints]
+        else:
+            return sorted(labels[i] for i in ints)
 
     def __getattr__(self, name):
         suffixed = suffix_property.check(self, name)
@@ -619,6 +622,7 @@ from uber.models.department import Job, Shift, Department, DeptRole  # noqa: E40
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
 from uber.models.guests import GuestGroup  # noqa: E402
+from uber.models.hotel import LotteryApplication
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
@@ -1161,14 +1165,14 @@ class Session(SessionManager):
 
             return "", c.TERMINAL_ID_TABLE[lookup_key]
 
-        def get_receipt_by_model(self, model, include_closed=False, create_if_none=""):
+        def get_receipt_by_model(self, model, include_closed=False, who='', create_if_none=""):
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
                 receipt_select = receipt_select.filter(ModelReceipt.closed == None)  # noqa: E711
             receipt = receipt_select.first()
 
             if not receipt and create_if_none:
-                receipt, receipt_items = ReceiptManager.create_new_receipt(model, create_model=True)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(model, who=who, create_model=True)
 
                 self.add(receipt)
                 if create_if_none != "BLANK":
@@ -1256,7 +1260,7 @@ class Session(SessionManager):
             attendee, message = self.create_or_find_attendee_by_id(**params)
             if message:
                 return attendee, message
-            elif attendee.marketplace_applications:
+            elif attendee.marketplace_application:
                 return attendee, \
                        'There is already a marketplace application ' \
                        'for that badge!'

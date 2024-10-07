@@ -1,6 +1,7 @@
 {% import "forms/account.html" as account_fields with context %}
-<div class="row g-sm-3">
+<div class="row">
     <div class="col-4">
+        <div class="form-text text-start">Logged in as: {{ homepage_account.email }}</div>
         {% if not homepage_account.is_sso_account %}
         <button class="btn btn-info pull-left" type="button" data-bs-toggle="collapse" data-bs-target="#update-account" aria-expanded="false" aria-controls="update-account">
             <i class="fa fa-cog"></i> Account Settings
@@ -8,11 +9,13 @@
         {% endif %}
     </div>
     <div class="col-4">
+        <br/>
         {% if c.PAGE_PATH != '/preregistration/homepage' %}
         <a href="../preregistration/homepage" class="btn btn-primary">Go to Homepage</a>
         {% endif %}
     </div>
     <div class="col-4">
+        <br/>
         <a href="../preregistration/logout" class="btn btn-danger pull-right">
             <i class="fa fa-log-out"></i> Log Out
         </a>

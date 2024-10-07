@@ -10,8 +10,7 @@
 </div>
 </h2>
 
-<br/>
-
+<div class="card card-body">
 <form method="get" action="feed" style="text-align:center">
   <input type="hidden" name="tracking_type" value="{{ tracking_type }}" />
     Search by who did it:
@@ -89,5 +88,6 @@
         {% endif %}
     </tr>
 {% endfor %}
-
+</table>
+</div>
 {% endblock %}

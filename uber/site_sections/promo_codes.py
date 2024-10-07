@@ -157,7 +157,7 @@ class Root:
                         segment_length = int(params['segment_length'])
                     except Exception:
                         segment_length = 3
-                    codes = RegistrationCode.generate_random_code(PromoCode, params['count'],
+                    codes = RegistrationCode.generate_random_code(PromoCode.code, params['count'],
                                                                   length, segment_length)
 
             promo_codes = []
@@ -185,6 +185,26 @@ class Root:
 
         result.update(defaults)
         return result
+    
+    @ajax
+    def update_all(self, session, message='', **params):
+        if 'id' in params:
+            for id in params.get('id'):
+                code_params = {key.replace(f'_{id}', ''): val for key, val in params.items() if f'_{id}' in key}
+                code_params['id'] = id
+                from pockets.autolog import log
+                log.error(code_params)
+                promo_code = session.promo_code(code_params)
+                message = check(promo_code)
+                if message:
+                    session.rollback()
+                    return {'success': False,
+                            'message': f"Could not save promo code {promo_code.code}: {message}"}
+                else:
+                    session.commit()
+            return {'success': True,
+                    'message': "Promo codes updated!"}
+
 
     def update_promo_code(self, session, message='', **params):
         if 'id' in params:

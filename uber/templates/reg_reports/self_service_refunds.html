@@ -1,49 +1,59 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}View Promo Codes{% endblock %}
+{% block title %}Self-Service Refunds{% endblock %}
 {% block content %}
 
 <h1>
-  Attendee Stripe Refunds
+  Self-Service {{ c.PAYMENT_METHODS[c.STRIPE] }} Refunds
 </h1>
-  Please note, these are only the refunded stripe transactions that were performed by the system. This does NOT cover refunds processed manually by an admin.
-<div class="table-responsive">
-  <table class="table table-striped datatable form-horizontal">
-    <thead>
-      <tr>
-        <th>Stripe Txn ID</th>
-        <th>Attendee</th>
-        <th>Refunded Date</th>
-        <th>Amount</th>
-        <th>Who</th>
-        <th>Desc</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for refund in refunds %}
-      <tr>
-        <td>
-          {{ refund.stripe_id }}
-        </td>
-        {% if refund_attendees[refund.id] %}
-        <td data-order="{{ refund_attendees[refund.id].full_name }}" data-search="{{ refund_attendees[refund.id].full_name }}">
-          {{ refund_attendees[refund.id]|form_link }}
-        </td>
-        {% else %}
-        <td>N/A</td>
-        {% endif %}
-        <td>
-          {{ refund.created_info.when|datetime_local }}
-        </td>
-        <td>{{ (refund.amount / 100)|format_currency }}</td>
-        <td>
-          {{ refund.who }}
-        </td>
-        <td>
-          {{ refund.desc }}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<p>
+  Below is a list of all refunds that were processed by non-admins. Note that if someone paid multiple times (e.g., buying a badge, then later buying an upgrade), they will have a refund transaction for each payment.
+</p>
+
+{% for cls in refund_models.keys() %}
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title mb-0">{{ cls }} Refunds</h2>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-striped datatable">
+        <thead>
+          <tr>
+            <th>Transaction ID</th>
+            <th>{{ cls }}</th>
+            <th>Refunded Date</th>
+            <th>Amount</th>
+            <th>Desc</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for refund, model in refund_models[cls].items() %}
+          <tr>
+            <td>
+              {{ refund.refund_id }}
+            </td>
+            {% if cls == 'Attendee' %}
+            <td data-order="{{ model.full_name }}" data-search="{{ model.full_name }}">
+            {% elif cls == 'Group' %}
+            <td data-order="{{ model.name }}" data-search="{{ model.name }}">
+            {% elif model.attendee %}
+            <td data-order="{{ model.attendee.full_name }}" data-search="{{ model.attendee.full_name }}">
+            {% endif %}
+              {{ model|form_link(new_window=True) }}
+            </td>
+            <td>
+              {{ refund.added|datetime_local }}
+            </td>
+            <td>{{ (refund.amount * -1 / 100)|format_currency }}</td>
+            <td>
+              {{ refund.desc }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
+{% endfor %}
 {% endblock %}

@@ -8,7 +8,7 @@ import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError
 from pockets.autolog import log
 from uber.config import c
-from uber.forms.widgets import CountrySelect, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput
+from uber.forms.widgets import CountrySelect, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking
 from uber.model_checks import invalid_zip_code
 
 
@@ -172,7 +172,12 @@ class MagForm(Form):
             target = cls.find_form_class(form.__name__)
 
         for name in dir(form):
-            if not name.startswith('_'):
+            if name in ['field_validation', 'new_or_changed_validation']:
+                orig_validations = getattr(target, name)
+                for field_name, dict in getattr(form, name).validations.items():
+                    for func_name, func in dict.items():
+                        orig_validations.validations[field_name][func_name] = func
+            elif not name.startswith('_'):
                 if name in ['get_optional_fields', 'get_non_admin_locked_fields']:
                     setattr(target, "super_" + name, getattr(target, name))
                 setattr(target, name, getattr(form, name))
@@ -275,6 +280,8 @@ class MagForm(Form):
                 return 'customselect'
             elif isinstance(widget, wtforms_widgets.HiddenInput):
                 return 'hidden'
+            elif isinstance(widget, Ranking):
+                return 'ranking'
             else:
                 return 'text'
 
@@ -461,4 +468,6 @@ class DictWrapper(dict):
 
 from uber.forms.attendee import *  # noqa: F401,E402,F403
 from uber.forms.group import *  # noqa: F401,E402,F403
+from uber.forms.artist_marketplace import *  # noqa: F401,E402,F403
 from uber.forms.security import *  # noqa: F401,E402,F403
+from uber.forms.hotel_lottery import *  # noqa: F401,E402,F403

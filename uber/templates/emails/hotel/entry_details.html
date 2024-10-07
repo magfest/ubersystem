@@ -1,0 +1,45 @@
+{% macro basic_entry_details(application, app_or_parent, confirmation=True) %}
+{% if confirmation %}
+    <li><strong>Entry Received</strong>: {{ application.last_submitted|datetime_local }}</li>
+    <li><strong>Confirmation Number</strong>: {{ application.confirmation_num }}</li>
+    <li><strong>Entry Email Address</strong>: {{ application.attendee.email }}</li>
+    {% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %}
+    <li><strong>Staff Lottery Close</strong>: {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local }}</li>
+    {% endif %}
+    {% if c.HOTEL_LOTTERY_OPEN %}
+    <li><strong>Lottery Close</strong>: {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</li>
+    {% endif %}
+{% endif %}
+{% if application.entry_type != c.GROUP_ENTRY %}
+<li><strong>Check-in Name</strong>: {{ application.legal_first_name }} {{ application.legal_last_name }}</li>
+<li><strong>Contact Phone #</strong>: {{ application.cellphone }}</li>
+{% endif %}
+<li><strong>Preferred Check-In/Out Dates</strong>: {{ app_or_parent.earliest_checkin_date.strftime('%m/%d/%Y') }} to {{ app_or_parent.latest_checkout_date.strftime('%m/%d/%Y') }}</li>
+{% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date %}
+{% set acceptable_check_in_date, acceptable_check_out_date = app_or_parent.shortest_check_in_out_dates %}
+<li><strong>Acceptable Check-In/Out Dates</strong>: {{ acceptable_check_in_date.strftime('%m/%d/%Y') }} to {{ acceptable_check_out_date.strftime('%m/%d/%Y') }}</li>
+{% endif %}
+{% endmacro %}
+
+{% if app_or_parent.entry_type == c.SUITE_ENTRY %}
+<u>Suite Entry Details</u>
+<ul>
+    {{ basic_entry_details(application, app_or_parent, confirmation=confirmation) }}
+    <li><strong>Suite Type Preference</strong>: {{ app_or_parent.suite_type_preference_labels|readable_join }}</li>
+    <li><strong>Preference Priorities</strong>: {{ app_or_parent.selection_priorities_labels|readable_join }}</li>
+</ul>
+{% if not app_or_parent.room_opt_out %}
+<u>Room Entry Details</u>
+{% endif %}
+{% endif %}
+<ul>
+    {% if app_or_parent.entry_type == c.ROOM_ENTRY %}{{ basic_entry_details(application, app_or_parent, confirmation=confirmation) }}{% endif %}
+    <li><strong>Hotel Preference</strong>: {{ app_or_parent.hotel_preference_labels|readable_join }}</li>
+    <li><strong>Room Type Preference</strong>: {{ app_or_parent.room_type_preference_labels|readable_join }}{% if application.wants_ada and not application.parent_application %} (ADA Room Requested){% endif %}</li>
+    {% if application.wants_ada and not application.parent_application %}
+    <li><strong>ADA Room Accommodations Requested</strong>: {{ app_or_parent.ada_requests }}</li>
+    {% endif %}
+    {% if app_or_parent.entry_type == c.ROOM_ENTRY %}
+    <li><strong>Preference Priorities</strong>: {{ app_or_parent.selection_priorities_labels|readable_join }}</li>
+    {% endif %}
+</ul>

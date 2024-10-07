@@ -406,10 +406,22 @@ class Config(_Overridable):
     @property
     def ART_SHOW_HAS_FEES(self):
         return c.COST_PER_PANEL or c.COST_PER_TABLE or c.ART_MAILING_FEE
+    
+    @property
+    def MARKETPLACE_CANCEL_DEADLINE(self):
+        return min(self.EPOCH, self.PREREG_TAKEDOWN) if self.PREREG_TAKEDOWN else self.EPOCH
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
         return self.BEFORE_REFUND_CUTOFF and (self.AFTER_REFUND_START or not self.REFUND_START)
+    
+    @property
+    def HOTEL_LOTTERY_OPEN(self):
+        return c.AFTER_HOTEL_LOTTERY_FORM_START and c.BEFORE_HOTEL_LOTTERY_FORM_DEADLINE
+    
+    @property
+    def STAFF_HOTEL_LOTTERY_OPEN(self):
+        return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
 
     @request_cached_property
     @dynamic
@@ -1584,6 +1596,18 @@ c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]
 c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND], c.WRISTBAND_COLORS)
 
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
+
+c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
+for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
+    opts = []
+    for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
+        if isinstance(item, dict):
+            item.__hash__ = lambda x: hash(x.name + x.description)
+            base_key = f"HOTEL_LOTTERY_{name.upper()}"
+            dict_key = int(sha512(base_key.encode()).hexdigest()[:7], 16)
+            setattr(c, base_key, dict_key)
+            opts.append((dict_key, item))
+    setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'

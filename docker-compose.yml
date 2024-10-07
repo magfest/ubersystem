@@ -18,6 +18,8 @@ x-uber: &uber
     - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber
     - uber_hostname=localhost
     - uber_dev_box=True
+    - UBER_CONFIG_FILES=uber.ini
+    - LOG_CONFIG=true
   volumes:
     - .:/app/
     - ${PLUGIN_DIR_SRC:-./README.md}:${PLUGIN_DIR_TARGET:-/tmp/README.md}

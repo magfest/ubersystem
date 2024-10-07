@@ -16,7 +16,7 @@ from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
-                        Attendee, Tracking, ArbitraryCharge, ReceiptItem, ReceiptTransaction, WorkstationAssignment
+                        Attendee, Email, Tracking, PageViewTracking, ArbitraryCharge, ReceiptItem, ReceiptTransaction, WorkstationAssignment
 from uber.utils import check, get_static_file_path, localized_now, Order
 from uber.payments import TransactionRequest, ReceiptManager
 
@@ -93,10 +93,12 @@ class Root:
         app = session.art_show_application(id)
         return {
             'app': app,
+            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.when).all(),
             'changes': session.query(Tracking).filter(
                 or_(Tracking.links.like('%art_show_application({})%'.format(id)),
                     and_(Tracking.model == 'ArtShowApplication', Tracking.fk_id == id))
-                    ).order_by(Tracking.when).all()
+                    ).order_by(Tracking.when).all(),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(app)),
         }
 
     def ops(self, session, message=''):
@@ -834,7 +836,7 @@ class Root:
                                                     'P' if int(float(amount)) == receipt.total else 'Partial p',
                                                     attendee.full_name),
                                     amount=int(float(amount)))
-        message = charge.prepare_payment()
+        message = charge.prepare_payment(department=c.ART_SHOW_RECEIPT_ITEM)
         if message:
             return {'error': message}
         else:

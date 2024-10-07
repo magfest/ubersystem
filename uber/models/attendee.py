@@ -1038,7 +1038,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @has_or_will_have_badge.expression
     def has_or_will_have_badge(cls):
         return and_(cls.is_valid,
-                    not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING, c.UNAPPROVED_DEALER_STATUS])
+                    not_(cls.badge_status.in_([c.NOT_ATTENDING, c.UNAPPROVED_DEALER_STATUS])
                          ))
 
     @hybrid_property
@@ -1254,6 +1254,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     @group_name.expression
     def group_name(cls):
         return select([Group.name]).where(Group.id == cls.group_id).label('group_name')
+    
+    @property
+    def group_leader_account(self):
+        if self.group and self.group.leader and self.group.leader.managers:
+            return self.group.leader.managers[0]
 
     @hybrid_property
     def promo_code_group_name(self):
@@ -2033,6 +2038,29 @@ class Attendee(MagModel, TakesPaymentMixin):
             return 'Hotel nights: {} ({})'.format(hr.nights_display, 'approved' if hr.approved else 'not yet approved')
         else:
             return 'Hotel nights: ' + hr.nights_display
+        
+    @property
+    def hotel_lottery_ineligible_reason(self):
+        if not self.is_valid:
+            return "This badge is invalid and cannot enter the hotel lottery."
+        elif self.badge_status in [c.REFUNDED_STATUS, c.NOT_ATTENDING, c.DEFERRED_STATUS]:
+            return f'You cannot enter the hotel lottery with a badge status of "{self.badge_status_label}".'
+        else:
+            return "Please finish registering to enter the hotel lottery."
+            
+
+    @hybrid_property
+    def hotel_lottery_eligible(self):
+        return (self.is_valid and not self.placeholder and not self.is_unassigned
+                and self.badge_status not in [c.REFUNDED_STATUS,
+                                              c.NOT_ATTENDING,
+                                              c.DEFERRED_STATUS])
+                                                           
+
+    @hotel_lottery_eligible.expression
+    def hotel_lottery_eligible(cls):
+        return and_(cls.is_valid == True, cls.is_unassigned == False, cls.placeholder == False,
+                    not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING, c.DEFERRED_STATUS])))
 
     @property
     def legal_first_name(self):
@@ -2225,7 +2253,15 @@ class AttendeeAccount(MagModel):
 
     @property
     def has_dealer(self):
-        return any([a.is_dealer for a in self.valid_attendees + self.imported_attendees])
+        return any([a.is_dealer for a in self.valid_attendees])
+
+    @property
+    def hotel_eligible_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.hotel_lottery_eligible]
+    
+    @property
+    def hotel_eligible_staff(self):
+        return any([a.badge_type == c.STAFF_BADGE for a in self.hotel_eligible_attendees])
 
     @property
     def valid_attendees(self):

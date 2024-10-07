@@ -1,51 +1,72 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Marketplace Admin{% endblock %}
+{% set title_text = "Artist Marketplace Admin" %}
 {% block content %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="../accounts/homepage">Home</a></li>
-    <li class="breadcrumb-item">Marketplace</li>
+    <li class="breadcrumb-item">Artist Marketplace</li>
     <li class="breadcrumb-item active">Admin</li>
   </ol>
 </nav>
 
 <div class="card">
   <div class="card-header">
-    <h3 class="card-title">Marketplace Applications</h3>
+    <h3 class="card-title">Artist Marketplace Applications</h3>
   </div>
   <div class="card-body">
-    <a class="btn btn-outline-secondary" href="form?new_app=True">Add an application</a>
-    <div class="pull-right form-inline">
-      <div class="form-group">
-        <div class="control-label">Status</div> <div class="input-group" id="status_filter"></div>
+    <div class="row mb-3">
+      <div class="col flex-grow-1 text-end">
+        <a href="all_applications"><i class="fa fa-download"></i> Download Application XLSX</a>
       </div>
     </div>
+    <div class="row mb-3 justify-content-between">
+      <div class="col col-auto"><a class="btn btn-outline-secondary" href="form?new_app=True">Add an application</a></div>
+      <div class="col col-auto">
+        <form method="post" action="set_status" id="set-status-form">
+          {{ csrf_token() }}
+          <div class="input-group">
+            <select class="form-select" id="status" name="status" required="true">
+              <option value="" selected="selected">Select a status</option>
+              {{ options(c.MARKETPLACE_STATUS_OPTS) }}
+            </select>
+            <button type="submit" class="btn btn-primary">Set Status for Checked Applications</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <table class="table table-hover datatable">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Business/Display Name</th>
+          <th>Attendee</th>
+          <th>Status</th>
+          <th>Website</th>
+          <th>IBT Number</th>
+          <th>Admin Notes</th>
+          <th>Paid</th>
+        </tr>
+      </thead>
+      {% for app in applications %}
+        <tr>
+          <td>
+            <label class="d-block">
+              <input type="checkbox" form="set-status-form" class="form-check-input" name="selected" value="{{ app.id }}">
+            </label>
+          </td>
+          <td> <a href="form?id={{ app.id }}">{{ app.name }}{% if app.display_name %} ({{ app.display_name }}){% endif %}</a> </td>
+          <td>{{ app.attendee|form_link }}</td>
+          <td>{{ app.status_label }}</td>
+          <td>{{ app.website|url_to_link(target="_blank", is_relative=False) }}</td>
+          <td>{{ app.tax_number }}</td>
+          <td>{{ app.admin_notes }}</td>
+          <td>{{ app.amount_paid|format_currency }}</td>
+        </tr>
+      {% endfor %}
+      <caption align="bottom">
+        <ul class="pagination"></ul>
+      </caption>
+    </table>
   </div>
-<table class="table table-striped datatable">
-<thead><tr>
-    <th>Name</th>
-    <th>Status</th>
-    <th>Categories</th>
-    <th>Description</th>
-    <th>Special Needs</th>
-    <th>Illinois Business Tax Number</th>
-    <th>Admin Notes</th>
-    <th>Paid</th>
-</tr></thead>
-{% for app in applications %}
-    <tr>
-        <td style="text-align:left" data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}"> <a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}{% if app.business_name %} ({{ app.business_name }}){% endif %}</a> </td>
-        <td>{{ app.status_label }}</td>
-        <td>{{ app.categories_labels|join(', ') }}{% if app.categories_text %}: {{ app.categories_text }}{% endif %}</td>
-        <td>{{ app.description }}</td>
-        <td>{{ app.special_needs }}</td>
-        <td>{{ app.tax_number }}</td>
-        <td>{{ app.admin_notes }}</td>
-        <td>{{ app.amount_paid|format_currency }}</td>
-    </tr>
-{% endfor %}
-	<caption align="bottom">
-		<ul class="pagination"></ul>
-	</caption>
-</table>
+</div>
 {% endblock %}

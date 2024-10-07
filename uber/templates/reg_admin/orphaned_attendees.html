@@ -62,7 +62,7 @@
                 {{ csrf_token() }}
                 <div class="row">
                 <div class="input-group col-sm-12">
-                    <input type="email" name="account_email" class="form-control" placeholder="{{ attendee.email }}" />
+                    <input type="email" name="account_email" class="form-control" placeholder="{{ attendee.group_leader_account.email if attendee.group_leader_account else attendee.email }}" />
                     <button type="submit" class="btn btn-primary">
                         <i class="fa fa-plus"></i> Add Account
                     </button>

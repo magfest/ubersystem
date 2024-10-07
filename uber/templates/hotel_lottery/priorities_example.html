@@ -1,0 +1,41 @@
+<script type="text/javascript">
+    var openCloseExample = function () {
+        $('#example-priorities').toggle();
+        if($('#example-priorities').is(":visible")) {
+            $('#example-icon').removeClass('fa-angle-down').addClass('fa-angle-up');
+        } else {
+            $('#example-icon').removeClass('fa-angle-up').addClass('fa-angle-down');
+        }
+    }
+</script>
+
+<p>
+    <a data-bs-toggle="collapse" href="#example-priorities" role="button" aria-expanded="false" aria-controls="example-priorities">
+    <i class="fa fa-question-circle" aria-hidden="true"></i> How are priorities used in the lottery?
+    </a>
+</p>
+<div class="collapse" id="example-priorities">
+    {% block example_info %}
+    <p>
+        Let's say you have the following example entry:
+        <ul>
+            <li><strong>Hotel Preferences</strong>: Hyatt Regency O'Hare, Aloft</li>
+            <li><strong>Check-in/out Dates</strong>: 12/1 to 12/5 (desired); 12/2 to 12/4 (acceptable)</li>
+            <li><strong>Room Type Preference</strong>: Double, King</li>
+            <li><strong>Preference Priorities</strong>: Room Type, Dates, Hotels</li>
+        </ul>
+    </p>
+    <p>
+        When this entry is drawn, if a double room in the Hyatt Regency O'Hare for 12/1 to 12/5 is available, a reservation will be awarded with those preferences.
+        However, if any of the hotel, room type or dates are not available, we'll look at each category in the preference order given:
+        <ul class="list-group">
+            <li class="list-group-item">If all Hyatt doubles are sold out on 12/1 to 12/5, but a double is available in the Aloft for those dates, the award will be for an Aloft Double for 12/1 to 12/5.</li>
+            <li class="list-group-item">If doubles are sold out in both Hyatt and Aloft on the desired dates, but <em>are</em> available in either hotel from 12/2 to 12/5, then the award will be a Hyatt double for 12/2 to 12/5.</li>
+            <li class="list-group-item">If doubles are sold out entirely on all dates in both the Hyatt and Aloft, then we'll look to see if kings are available in the Hyatt for 12/1 to 12/5, then the Aloft for 12/1 to 12/5, then back to the Hyatt for 12/2 to 12/5, and so forth until we either find a room to award or move on to the next entry.</li>
+        </ul>
+    </p>
+    <p>
+        Again, if only one choice is made in a category, then only that choice will be considered for that category. For example, if you only choose double rooms for room type, but multiple options are chosen in other categories such as hotels, we'll look for just double rooms in all hotels you indicate you're willing to stay in.
+    </p>
+    {% endblock %}
+</div>

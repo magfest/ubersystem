@@ -1,4 +1,6 @@
+from collections import defaultdict
 from sqlalchemy import or_
+from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview
@@ -72,13 +74,16 @@ class Root:
 
     @log_pageview
     def self_service_refunds(self, session):
-        refunds = session.query(ReceiptTransaction).filter(ReceiptTransaction.amount < 0)
+        refunds = session.query(ReceiptTransaction).filter(ReceiptTransaction.amount < 0,
+                                                           ReceiptTransaction.who == 'non-admin').all()
 
-        refund_attendees = {}
+        refund_models = defaultdict(dict)
         for refund in refunds:
-            refund_attendees[refund.id] = refund.attendees[0].attendee if refund.attendees else None
+            model = session.get_model_by_receipt(refund.receipt)
+            model_name = ''.join(' ' + char if char.isupper() else
+                                 char.strip() for char in model.__class__.__name__).strip()
+            refund_models[model_name][refund] = model
 
         return {
-            'refunds': refunds,
-            'refund_attendees': refund_attendees,
+            'refund_models': refund_models,
         }

@@ -62,49 +62,49 @@
   </tr>
   <tr></tr>
   <tr>
-    <td colspan="2"><strong>Total Panels</strong></td><td>{{ general_panels_count + mature_panels_count }}</td>
+    <td colspan="2"><strong>Total Panels</strong></td><td>{{ total_panels }} ({{ panels['general']['free'] + panels['mature']['free'] }} comped panels)</td>
   </tr>
   <tr>
-    <td></td><td>General</td><td>{{ general_panels_count }}</td>
+    <td></td><td>General</td><td>{{ panels['general']['free'] + panels['general']['paid'] }}</td>
   </tr>
   <tr>
-    <td></td><td>Mature</td><td>{{ mature_panels_count }}</td>
+    <td></td><td>Mature</td><td>{{ panels['mature']['free'] + panels['mature']['paid'] }}</td>
   </tr>
   <tr></tr>
   <tr>
     <td colspan="2"><strong>Panel Fee</strong></td><td>{{ c.COST_PER_PANEL|format_currency }}</td>
   </tr>
   <tr>
-    <td colspan="2"><strong>Total Panel Fees</strong></td><td>{{ ((general_panels_count + mature_panels_count) * c.COST_PER_PANEL)|format_currency }}</td>
+    <td colspan="2"><strong>Total Panel Fees</strong></td><td>{{ (panels['fee']['general'] + panels['fee']['mature'])|format_currency }}</td>
   </tr>
   <tr>
-    <td></td><td>General</td><td>{{ (general_panels_count * c.COST_PER_PANEL)|format_currency }}</td>
+    <td></td><td>General</td><td>{{ panels['fee']['general']|format_currency }}</td>
   </tr>
   <tr>
-    <td></td><td>Mature</td><td>{{ (mature_panels_count * c.COST_PER_PANEL)|format_currency }}</td>
-  </tr>
-  <tr></tr>
-  <tr>
-    <td colspan="2"><strong>Total Tables</strong></td><td>{{ general_tables_count + mature_tables_count }}</td>
-  </tr>
-  <tr>
-    <td></td><td>General</td><td>{{ general_tables_count }}</td>
-  </tr>
-  <tr>
-    <td></td><td>Mature</td><td>{{ mature_tables_count }}</td>
+    <td></td><td>Mature</td><td>{{ panels['fee']['mature']|format_currency }}</td>
   </tr>
   <tr></tr>
   <tr>
-    <td colspan="2"><strong>Table Fee</strong></td><td>{{ c.COST_PER_TABLE|format_currency }}</td>
+    <td colspan="2"><strong>Total Tables</strong></td><td>{{ total_tables }} ({{ tables['general']['free'] + tables['mature']['free'] }} comped tables)</td>
   </tr>
   <tr>
-    <td colspan="2"><strong>Total Table Fees</strong></td><td>{{ ((general_tables_count + mature_tables_count) * c.COST_PER_TABLE)|format_currency }}</td>
+    <td></td><td>General</td><td>{{ tables['general']['free'] + tables['general']['paid'] }}</td>
   </tr>
   <tr>
-    <td></td><td>General</td><td>{{ (general_tables_count * c.COST_PER_TABLE)|format_currency }}</td>
+    <td></td><td>Mature</td><td>{{ tables['mature']['free'] + tables['mature']['paid'] }}</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Table Fee</strong></td><td>{{ c.COST_PER_PANEL|format_currency }}</td>
   </tr>
   <tr>
-    <td></td><td>Mature</td><td>{{ (mature_tables_count * c.COST_PER_TABLE)|format_currency }}</td>
+    <td colspan="2"><strong>Total Table Fees</strong></td><td>{{ (tables['fee']['general'] + tables['fee']['mature'])|format_currency }}</td>
+  </tr>
+  <tr>
+    <td></td><td>General</td><td>{{ tables['fee']['general']|format_currency }}</td>
+  </tr>
+  <tr>
+    <td></td><td>Mature</td><td>{{ tables['fee']['mature']|format_currency }}</td>
   </tr>
 </table>
 {% endblock %}

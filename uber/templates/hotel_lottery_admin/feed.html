@@ -1,0 +1,58 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Recent Changes to Lottery Applications{% endblock %}
+{% block content %}
+
+<h2>Feed of Database Changes to Lottery Applications <a href="index" class="btn btn-primary">Back to Application List</a></h2>
+
+<div class="card card-body">
+<form method="get" action="feed" style="text-align:center">
+    Search by who did it:
+    <select name="who" onChange="$(this).parents('form').submit()">
+        <option value="">{% if who %}Show all{% else %}Choose an admin{% endif %}</option>
+        {{ options(who_opts,who) }}
+    </select>
+
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    <i>and/or</i>
+    &nbsp;&nbsp;&nbsp;&nbsp;
+
+    Search by action:
+    <select name="action" onChange="$(this).parents('form').submit()">
+        <option value="">{% if action %}Show all{% else %}Choose an action{% endif %}</option>
+        {{ options(action_opts,action) }}
+    </select>
+
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    <i>and/or</i>
+    &nbsp;&nbsp;&nbsp;&nbsp;
+
+    Search by keyword:
+    <input class="focus" type="text" name="what" value="{{ what }}" />
+</form>
+
+<br/>
+
+{{ pages(page,count) }}
+
+<table class="table table-striped table-bordered table-sm">
+<thead><tr>
+    <th>When</th>
+    <th>Who</th>
+    <th>Page</th>
+    <th>Which</th>
+    <th>Action</th>
+    <th>Changes</th>
+</tr></thead>
+{% for tracked in feed %}
+    <tr>
+        <td class="text-nowrap">{{ tracked.when|full_datetime_local }}</td>
+        <td class="text-nowrap">{{ tracked.who }}</td>
+        <td>{{ tracked.page }}</td>
+        <td>{{ tracked.which or 'N/A' }}</td>
+        <td style="white-space:nowrap; width:10%">{{ tracked.action_label }}</td>
+        <td>{{ tracked.data }}</td>
+    </tr>
+{% endfor %}
+</table>
+</div>
+{% endblock %}

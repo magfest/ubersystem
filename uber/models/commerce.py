@@ -479,6 +479,9 @@ class ReceiptItem(MagModel):
     receipt_txn = relationship('ReceiptTransaction', foreign_keys=txn_id,
                                cascade='save-update, merge',
                                backref=backref('receipt_items', cascade='save-update, merge'))
+    # TODO: Add a view-only "refund_txns" relationship to ReceiptTransaction so credit items can track their associated refunds
+    fk_id = Column(UUID, index=True, nullable=True)
+    fk_model = Column(UnicodeText)
     department = Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS), default=c.OTHER_RECEIPT_ITEM)
     category = Column(Choice(c.RECEIPT_CATEGORY_OPTS), default=c.OTHER)
     amount = Column(Integer)

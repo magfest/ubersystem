@@ -38,3 +38,4 @@ uber.ini
 .venv/
 ssl-cert.pem
 ssl-key.pem
+celerybeat-schedule

@@ -1,6 +1,7 @@
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, log_pageview
 
+from collections import defaultdict
 from sqlalchemy import or_, and_
 
 from uber.custom_tags import format_currency
@@ -107,7 +108,29 @@ class Root:
         artists_with_pieces = session.query(ArtShowApplication).filter(
             ArtShowApplication.art_show_pieces != None, ArtShowApplication.status == c.APPROVED)  # noqa: E711
 
-        all_apps = session.query(ArtShowApplication).all()
+        approved_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED)
+
+        panels, tables = {}, {}
+        for key in 'general', 'mature', 'fee':
+            panels[key] = defaultdict(int)
+            tables[key] = defaultdict(int)
+
+        for app in approved_apps:
+            if app.overridden_price == 0:
+                panels['general']['free'] += app.panels
+                panels['mature']['free'] += app.panels_ad
+                tables['general']['free'] += app.tables
+                tables['mature']['free'] += app.tables_ad
+            else:
+                panels['general']['paid'] += app.panels
+                panels['mature']['paid'] += app.panels_ad
+                tables['general']['paid'] += app.tables
+                tables['mature']['paid'] += app.tables_ad
+                
+                panels['fee']['general'] += app.panels * c.COST_PER_PANEL
+                panels['fee']['mature'] += app.panels_ad * c.COST_PER_PANEL
+                tables['fee']['general'] += app.tables * c.COST_PER_TABLE
+                tables['fee']['mature'] += app.tables_ad * c.COST_PER_TABLE
 
         return {
             'message': message,
@@ -120,10 +143,12 @@ class Root:
             'general_auctioned_count': general_auctioned.count(),
             'mature_auctioned_count': mature_auctioned.count(),
             'artist_count': artists_with_pieces.count(),
-            'general_panels_count': sum([app.panels for app in all_apps]),
-            'mature_panels_count': sum([app.panels_ad for app in all_apps]),
-            'general_tables_count': sum([app.tables for app in all_apps]),
-            'mature_tables_count': sum([app.tables_ad for app in all_apps]),
+            'panels': panels,
+            'total_panels': sum([count for key, count in panels['general'].items()]) + sum(
+                [count for key, count in panels['mature'].items()]),
+            'tables': tables,
+            'total_tables': sum([count for key, count in tables['general'].items()]) + sum(
+                [count for key, count in tables['mature'].items()]),
             'now': localized_now(),
         }
 
@@ -195,8 +220,8 @@ class Root:
                           app.attendee.legal_first_name + " " + app.attendee.legal_last_name,
                           app.check_payable or (app.attendee.legal_first_name + " " + app.attendee.legal_last_name),
                           app.email,
-                          app.agent.full_name if app.agent else '',
-                          app.agent.email if app.agent else '',
+                          app.single_agent.full_name if app.current_agents else '',
+                          app.single_agent.email if app.current_agents else '',
                           ])
 
     @csv_file

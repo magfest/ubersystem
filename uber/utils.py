@@ -314,6 +314,10 @@ def get_age_from_birthday(birthdate, today=None):
         birthdate_col = Attendee.__table__.columns.get('birthdate')
         birthdate = Attendee().coerce_column_data(birthdate_col, birthdate)
 
+    if isinstance(today, str):
+        birthdate_col = Attendee.__table__.columns.get('birthdate')
+        today = Attendee().coerce_column_data(birthdate_col, today)
+
     # int(True) == 1 and int(False) == 0
     upcoming_birthday = int(
         (today.month, today.day) < (birthdate.month, birthdate.day))
@@ -846,7 +850,7 @@ class RegistrationCode():
         return func.replace(func.replace(func.lower(code), '-', ''), ' ', '')
     
     @classmethod
-    def _generate_code(cls, generator, model, count=None):
+    def _generate_code(cls, generator, code_col, count=None):
         """
         Helper method to limit collisions for the other generate() methods.
 
@@ -864,7 +868,7 @@ class RegistrationCode():
         with Session() as session:
             # Kind of inefficient, but doing one big query for all the existing
             # codes will be faster than a separate query for each new code.
-            old_codes = set(s for (s,) in session.query(model.code).all())
+            old_codes = set(s for (s,) in session.query(code_col).all())
 
         # Set an upper limit on the number of collisions we'll allow,
         # otherwise this loop could potentially run forever.
@@ -884,7 +888,7 @@ class RegistrationCode():
         return (codes.pop() if codes else None) if count is None else codes
 
     @classmethod
-    def generate_random_code(cls, model, count=None, length=9, segment_length=3):
+    def generate_random_code(cls, code_col, count=None, length=9, segment_length=3):
         """
         Generates a random promo code.
 
@@ -913,7 +917,7 @@ class RegistrationCode():
             letters = ''.join(random.choice(cls._UNAMBIGUOUS_CHARS) for _ in range(length))
             return '-'.join(textwrap.wrap(letters, segment_length))
 
-        return cls._generate_code(_generate_random_code, model, count=count)
+        return cls._generate_code(_generate_random_code, code_col, count=count)
 
     @classmethod
     def generate_word_code(cls, count=None):

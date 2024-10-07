@@ -23,12 +23,12 @@ from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
 from uber.config import c
-from uber.custom_tags import format_currency, readable_join
+from uber.custom_tags import format_currency, full_date_local
 from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
                          AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event,
                          GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
-                         Job, MarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
+                         Job, ArtistMarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
                          PanelApplicant, PanelApplication, PromoCode, PromoCodeGroup, Sale, Session, WatchList)
 from uber.utils import localized_now, valid_email, get_age_from_birthday
 from uber.payments import PreregCart
@@ -306,16 +306,36 @@ def attendee_tournament_cellphone(app):
         return 'You did not enter a valid cellphone number'
 
 
-# =============================
-# marketplace
-# =============================
-MarketplaceApplication.required = [('description', 'Description'), ('categories', 'Categories')]
+@validation.LotteryApplication
+def room_meets_night_requirements(app):
+    if app.any_dates_different and (app.entry_type == c.ROOM_ENTRY or 
+            app.entry_type == c.SUITE_ENTRY and not app.room_opt_out):
+        latest_checkin, earliest_checkout = app.shortest_check_in_out_dates
+        nights = app.build_nights_map(latest_checkin, earliest_checkout)
+        if not nights:
+            # Suppress this error since other validations will tell them their dates are bad
+            return
+        if len(nights) > 2:
+            for night in nights:
+                if 'Friday' in night or 'Saturday' in night:
+                    return
+        return ('', "Standard rooms require a two-night minimum with at least one night on Friday or Saturday.")
 
 
-@validation.MarketplaceApplication
-def marketplace_other_category(app):
-    if app.categories and c.OTHER in app.categories_ints and not app.categories_text:
-        return "Please describe what 'other' things you are planning to sell."
+@validation.LotteryApplication
+def suite_meets_night_requirements(app):
+    if app.any_dates_different and app.entry_type == c.SUITE_ENTRY:
+        latest_checkin, earliest_checkout = app.shortest_check_in_out_dates
+        nights = app.build_nights_map(latest_checkin, earliest_checkout)
+        night_counter = 0
+        if len(nights) > 3:
+            for night in nights:
+                if 'Friday' in night or 'Saturday' in night:
+                    night_counter += 1
+                if night_counter == 2:
+                    return
+        return ('', "Suites require a three-night minimum with both Friday night and Saturday night.")
+
 
 # =============================
 # mivs
@@ -861,8 +881,7 @@ def invalid_mature_banner(app):
 @prereg_validation.ArtShowApplication
 def contact_at_con(app):
     if not app.contact_at_con:
-        return "Please tell us the best way to get a hold of you at the event, e.g., " \
-        "your mobile number or your hotel and room number."
+        return "Please tell us the best way to get a hold of you at the event, e.g., your mobile number or your hotel and room number."
 
 
 @validation.ArtShowApplication

@@ -5,7 +5,7 @@ from wtforms import (BooleanField, DecimalField, EmailField,
 from wtforms.validators import ValidationError
 
 from uber.config import c
-from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, NumberInputGroup
+from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, NumberInputGroup, Ranking
 from uber.forms.attendee import valid_cellphone
 from uber.custom_tags import format_currency, pluralize
 from uber.model_checks import invalid_phone_number

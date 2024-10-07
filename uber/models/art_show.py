@@ -154,7 +154,7 @@ class ArtShowApplication(MagModel):
         from uber.utils import RegistrationCode
         return ArtShowAgentCode(
             app_id = self.id,
-            code=RegistrationCode.generate_random_code(ArtShowAgentCode)
+            code=RegistrationCode.generate_random_code(ArtShowAgentCode.code)
             )
 
     @property
@@ -165,6 +165,10 @@ class ArtShowApplication(MagModel):
     @property
     def current_agents(self):
         return [code.attendee for code in self.valid_agent_codes if code.attendee is not None]
+    
+    @property
+    def single_agent(self):
+        return self.current_agents[0] if self.current_agents else None
 
     @property
     def display_name(self):

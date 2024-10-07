@@ -50,8 +50,10 @@
       <td>{% if app.delivery_method == c.BRINGING_IN %}Attending
         {% elif app.delivery_method == c.BY_MAIL %}Mailing In
         {% elif app.delivery_method == c.AGENT %}Agenting{% endif %}</td>
-      <td>{% if app.incomplete_reason or app.is_unpaid %}{{ app.incomplete_reason|default("Unpaid") }}{% else %}
-      {{ app.art_show_pieces|length }} (<a href="pieces?id={{ app.id }}">View</a>){% endif %}</td>
+      <td data-order="{{ app.art_show_pieces|length if app.art_show_pieces else '0' }}">
+        {% if app.art_show_pieces %}{{ app.art_show_pieces|length }} (<a href="pieces?id={{ app.id }}">View</a>)
+        {% elif app.incomplete_reason or app.is_unpaid %}{{ app.incomplete_reason|default("Unpaid", true) }}{% else %}0{% endif %}
+      </td>
       <td>{{ app.status_label }}</td>
       <td>{{ app.panels }}</td>
       <td>{{ app.tables }}</td>
