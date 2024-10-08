@@ -462,6 +462,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         # Kludgey fix for SQLAlchemy breaking our stuff
         d = super().to_dict(*args, **kwargs)
         d.pop('attraction_event_signups', None)
+        d.pop('receipt_changes', None)
         return d
 
     @predelete_adjustment

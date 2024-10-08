@@ -61,6 +61,9 @@
     $altSignupBModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
     $doneBModal = bootstrap.Modal.getOrCreateInstance($doneModal);
 
+    $('#badge-signup-alert').hide();
+    $('#nonbadge-signup-alert').hide();
+
     $btnShowSoldout.on('click', function(event) {
       var isShowing = $btnShowSoldout.hasClass('btn-plain');
       $btnShowSoldout.toggleClass('btn-outline-secondary', isShowing);
@@ -109,12 +112,12 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            showErrorMessage(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            showErrorMessage(response['error'] || 'Unknown error signing up for event.', 'nonbadge-signup-alert');
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          showErrorMessage('Error signing up for event', '', {timeOut: 3000});
+          showErrorMessage('Error signing up for event: could not contact server. Please try again.', 'nonbadge-signup-alert');
           callback(false);
         }
       });
@@ -142,7 +145,7 @@
           if (response['remaining_slots'] === response['old_remaining_slots']) {
             message = ' was already signed up for ';
           }
-          $("#message-alert").addClass("alert-info").show().children('span').html($attendee.html() + message + $eventLabel.html());
+          $("#badge-signup-alert").addClass("alert-info").show().children('span').html($attendee.html() + message + $eventLabel.html());
           hideBadgeNumConfirm($doneModal, true);
         } else {
           hideBadgeNumConfirm($doneModal, false);
@@ -245,6 +248,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
+        <div class="alert alert-dismissible" role="alert" id="badge-signup-alert"><span></span>{% if bootstrap5 %}<button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button>{% else %}<button type="button" class="close" onClick="hideMessageBox()" aria-label="Close"><span aria-hidden="true">&times;</span></button>{% endif %}</div>
         <p>
           Sign up for
           <span class="text-hilite">{{ feature.attraction.name }} –</span>
@@ -289,6 +293,7 @@
       </div>
       <form id="alt_signup_form" method="post" action="sign" role="form">
         <div class="modal-body">
+          <div class="alert alert-dismissible" role="alert" id="nonbadge-signup-alert"><span></span>{% if bootstrap5 %}<button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button>{% else %}<button type="button" class="close" onClick="hideMessageBox()" aria-label="Close"><span aria-hidden="true">&times;</span></button>{% endif %}</div>
           <p>Enter your personal information to sign up. You must already be registered to sign up for this event.</p>
           <div class="row g-sm-3">
             <div class="col-12 col-sm-6">
