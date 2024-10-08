@@ -18,11 +18,11 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, cs
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, \
-                        ReceiptTransaction, Tracking
+                        ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday
-from uber.payments import PreregCart, TransactionRequest, ReceiptManager
+from uber.payments import PreregCart, TransactionRequest, ReceiptManager, SpinTerminalRequest
 
 
 def check_if_can_reg(is_dealer_reg=False):
@@ -1685,20 +1685,17 @@ class Root:
     def abandon_badge(self, session, id):
         from uber.custom_tags import format_currency
         attendee = session.attendee(id)
-        page_redirect = ''
         if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
                 .format(email_only(c.REGDESK_EMAIL))
-            page_redirect = 'repurchase'
         else:
             success_message = "Your badge has been successfully cancelled. Sorry you can't make it! We hope to see you next year!"
-            page_redirect = '../landing/index'
             if attendee.is_group_leader:
                 failure_message = "You cannot abandon your badge because you are the leader of a group."
             else:
                 failure_message = "You cannot abandon your badge for some reason. Please contact us at {}."\
                     .format(email_only(c.REGDESK_EMAIL))
-        page_redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else page_redirect
+        page_redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
 
         if (not attendee.amount_paid and attendee.cannot_abandon_badge_reason)\
                 or (attendee.amount_paid and attendee.cannot_self_service_refund_reason):
@@ -1706,20 +1703,50 @@ class Root:
 
         if attendee.amount_paid:
             receipt = session.get_receipt_by_model(attendee)
-            total_refunded = 0
-            for txn in receipt.receipt_txns:
-                refund = TransactionRequest(receipt, amount=txn.amount_left, who='non-admin')
-                error = refund.refund_or_skip(txn)
-                if error:
-                    raise HTTPRedirect('confirm?id={}&message={}', id, error)
-                session.add_all(refund.get_receipt_items_to_add())
-                total_refunded += refund.amount
+            refund_total = 0
+            session.add(ReceiptItem(
+                receipt_id=receipt.id,
+                department=c.REG_RECEIPT_ITEM,
+                category=c.CANCEL_ITEM,
+                desc=f"Refunding and Cancelling {attendee.full_name}'s Badge",
+                amount=-(receipt.payment_total - receipt.refund_total),
+                who='non-admin',
+            ))
+            session.commit()
+            session.refresh(receipt)
+            for txn in receipt.refundable_txns:
+                if txn.department == getattr(attendee, 'department', c.OTHER_RECEIPT_ITEM):
+                    refund_amount = txn.amount_left
+                    if not c.AUTHORIZENET_LOGIN_ID and c.EXCLUDE_FEES_FROM_REFUNDS:
+                        processing_fees = txn.calc_processing_fee(refund_amount)
+                        session.add(ReceiptItem(
+                            receipt_id=txn.receipt.id,
+                            department=c.OTHER_RECEIPT_ITEM,
+                            category=c.PROCESSING_FEES,
+                            desc=f"Processing Fees for Full Refund of {txn.desc}",
+                            amount=processing_fees,
+                            who='non-admin',
+                        ))
+                        refund_amount -= processing_fees
+                        session.commit()
+                        session.refresh(receipt)
+
+                    if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
+                        refund = SpinTerminalRequest(receipt=receipt, amount=refund_amount, method=txn.method)
+                    else:
+                        refund = TransactionRequest(receipt=receipt, amount=refund_amount, method=txn.method)
+
+                    error = refund.refund_or_skip(txn)
+                    if error:
+                        raise HTTPRedirect('confirm?id={}&message={}', id, error)
+                    session.add_all(refund.get_receipt_items_to_add())
+                    refund_total += refund.amount
 
             receipt.closed = datetime.now()
             session.add(receipt)
 
             success_message = "Your badge has been successfully cancelled. Your refund of {} should appear on your credit card in 7-10 days."\
-                .format(format_currency(total_refunded / 100))
+                .format(format_currency(refund_total / 100))
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
 
@@ -1734,19 +1761,13 @@ class Root:
                 paid=attendee.paid)
 
             session.delete_from_group(attendee, attendee.group)
-            if page_redirect != 'homepage':
-                raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
-            else:
-                raise HTTPRedirect('{}?message={}', page_redirect, success_message)
+            raise HTTPRedirect('{}?message={}', page_redirect, success_message)
         # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
         else:
             attendee.badge_status = c.REFUNDED_STATUS
             for shift in attendee.shifts:
                 session.delete(shift)
-            if page_redirect != 'homepage':
-                raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
-            else:
-                raise HTTPRedirect('{}?message={}', page_redirect, success_message)
+            raise HTTPRedirect('{}?message={}', page_redirect, success_message)
 
     def badge_updated(self, session, id, message=''):
         return {
