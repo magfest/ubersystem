@@ -737,8 +737,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('mivs_admin')
         if self.art_show_applications or self.art_show_bidder or self.art_show_purchases or self.art_agent_apps:
             section_list.append('art_show_admin')
-        if self.marketplace_applications:
+        if self.marketplace_application:
             section_list.append('marketplace_admin')
+        if self.lottery_application:
+            section_list.append('hotel_lottery_admin')
         return section_list
 
     def admin_read_access(self):

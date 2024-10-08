@@ -902,6 +902,8 @@ class Session(SessionManager):
                                                             ArtShowAgentCode.attendee_id == Attendee.id,
                                                             ArtShowAgentCode.cancelled == None  # noqa: E711
                                                         )
+            return_dict['marketplace_admin'] = self.query(Attendee).join(ArtistMarketplaceApplication)
+            return_dict['hotel_lottery_admin'] = self.query(Attendee).join(LotteryApplication)
             return return_dict
 
         def viewable_attendees(self):
