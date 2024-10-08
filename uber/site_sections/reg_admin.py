@@ -590,7 +590,6 @@ class Root:
     def process_full_refund(self, session, id='', attendee_id='', group_id='', exclude_fees=False):
         receipt = session.model_receipt(id)
         refund_total = 0
-        processing_fee_total = 0
         group_leader_receipt = None
         group_refund_amount = 0
 
@@ -603,7 +602,7 @@ class Root:
             model = session.group(group_id)
 
         if session.get_receipt_by_model(model) == receipt:
-            refund_desc = "Full Refund for {model.id}"
+            refund_desc = f"Full Refund for {model.id}"
             if isinstance(model, Attendee):
                 refund_desc = f"Refunding and Cancelling {model.full_name}'s Badge",
             elif isinstance(model, Group):
@@ -614,7 +613,7 @@ class Root:
                 department=receipt.default_department,
                 category=c.CANCEL_ITEM,
                 desc=refund_desc,
-                amount=-(refund_total + processing_fee_total),
+                amount=-(receipt.payment_total - receipt.refund_total),
                 who=AdminAccount.admin_name() or 'non-admin',
             ))
             session.commit()
@@ -624,7 +623,7 @@ class Root:
                 if txn.department == getattr(model, 'department', c.OTHER_RECEIPT_ITEM):
                     refund_amount = txn.amount_left
                     if exclude_fees:
-                        processing_fees = txn.calc_processing_fee(txn.amount_left)
+                        processing_fees = txn.calc_processing_fee(refund_amount)
                         session.add(ReceiptItem(
                             receipt_id=txn.receipt.id,
                             department=c.OTHER_RECEIPT_ITEM,
@@ -634,7 +633,6 @@ class Root:
                             who=AdminAccount.admin_name() or 'non-admin',
                         ))
                         refund_amount -= processing_fees
-                        processing_fee_total += processing_fees
                         session.commit()
                         session.refresh(receipt)
 
@@ -678,7 +676,7 @@ class Root:
 
             session.add(ReceiptItem(
                 receipt_id=txn.receipt.id,
-                department=department,
+                department=c.REG_RECEIPT_ITEM,
                 category=c.REFUND,
                 desc=f"Refunding {model.full_name}'s Promo Code",
                 amount=-group_refund_amount,
