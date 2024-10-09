@@ -209,7 +209,7 @@ class Group(MagModel, TakesPaymentMixin):
         care specifically about paid-by-group badges rather than all unassigned
         badges.
         """
-        return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
+        return [a for a in self.attendees if a.is_unassigned and a.paid in [c.PAID_BY_GROUP, c.NEED_NOT_PAY]]
 
     @hybrid_property
     def normalized_name(self):
