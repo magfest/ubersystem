@@ -804,17 +804,6 @@ class Session(SessionManager):
                 return max([admin.max_level_access(section,
                                                    read_only=read_only) for section in attendee.access_sections])
 
-        def admin_can_create_attendee(self, attendee):
-            admin = self.current_admin_account()
-            if not admin:
-                return
-
-            if admin.full_registration_admin:
-                return True
-
-            return admin.full_shifts_admin if attendee.badge_type == c.STAFF_BADGE else \
-                self.admin_attendee_max_access(attendee) >= AccessGroup.DEPT
-
         def viewable_groups(self):
             from uber.models import Group, GuestGroup
             admin = self.current_admin_account()

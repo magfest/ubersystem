@@ -139,10 +139,10 @@ class Root:
                 group.auto_recalc = False
 
             if group.is_new or group.badges != group_info_form.badges.data:
-                test_permissions = Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbons,
-                                            paid=c.PAID_BY_GROUP)
-                new_badge_status = c.PENDING_STATUS if not session.admin_can_create_attendee(test_permissions)\
-                    else c.NEW_STATUS
+                if c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
+                    new_badge_status = c.PENDING_STATUS
+                else:
+                    new_badge_status = c.NEW_STATUS
                 message = session.assign_badges(
                     group,
                     group_info_form.badges.data or int(bool(group.leader_first_name)),

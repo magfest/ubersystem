@@ -228,7 +228,11 @@ class Root:
             message = save_attendee(session, attendee, params)
 
             if not message:
-                message = '{} has been saved.'.format(attendee.full_name)
+                message = '{} has been saved'.format(attendee.full_name)
+                if attendee.is_new and c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
+                    attendee.badge_status = c.PENDING_STATUS
+                    message += ' as a pending badge'
+
                 stay_on_form = params.get('save_return_to_search', False) is False
                 session.add(attendee)
                 session.commit()
@@ -1424,9 +1428,7 @@ class Root:
             success = True
             message = '{} has been saved'.format(attendee.full_name)
 
-            if (attendee.is_new or attendee.badge_type != attendee.orig_value_of('badge_type')
-                    or attendee.group_id != attendee.orig_value_of('group_id'))\
-                    and not session.admin_can_create_attendee(attendee):
+            if attendee.is_new and c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
                 attendee.badge_status = c.PENDING_STATUS
                 message += ' as a pending badge'
 

@@ -541,8 +541,9 @@ class Config(_Overridable):
         if c.AT_THE_CON and self.ONE_DAYS_ENABLED and self.ONE_DAY_BADGE_AVAILABLE:
             badge_types.append({
                 'name': 'Single Day',
-                'desc': 'Can be upgrated to a weekend badge later.',
-                'value': c.ONE_DAY_BADGE
+                'desc': 'Can be upgraded to a weekend badge later.',
+                'value': c.ONE_DAY_BADGE,
+                'price': c.ONEDAY_BADGE_PRICE
             })
         badge_types.append({
             'name': 'Attendee',
