@@ -752,6 +752,20 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models import Session
         with Session() as session:
             return session.admin_attendee_max_access(self, read_only=False)
+        
+    @property
+    def cannot_edit_badge_status_reason(self):
+        full_reg_admin = False
+        from uber.models import Session
+        with Session() as session:
+            full_reg_admin = bool(session.current_admin_account().full_registration_admin)
+        if c.ADMIN_BADGES_NEED_APPROVAL and not full_reg_admin and self.badge_status == c.PENDING_STATUS:
+            return "This badge must be approved by an admin."
+        if self.badge_status == c.WATCHED_STATUS and not c.HAS_SECURITY_ADMIN_ACCESS:
+            return "Please escalate this case to someone with access to the watchlist."
+        if c.AT_THE_CON and not c.HAS_REG_ADMIN_ACCESS:
+            return "Altering the badge status is disabled during the event. The system will update it automatically."
+        return ''
 
     @property
     def ribbon_and_or_badge(self):

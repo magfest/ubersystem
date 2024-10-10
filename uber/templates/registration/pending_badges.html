@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Panelist Badges{% endblock %}}
+{% block title %}Pending Badges{% endblock %}
 {% block content %}
   <script>
       var hideRows = function (id) {
@@ -17,7 +17,8 @@
       };
   </script>
 
-  <h3>Pending badges</h3>
+<div class="card card-body">
+  <h3>Pending Badges</h3>
 
   The following is a list of badges that have been submitted for creation.
 
@@ -25,6 +26,7 @@
     <thead>
     <tr>
       <th>Name</th>
+      <th>Group</th>
       <th>Email</th>
       <th>Badge Type</th>
       <th>Ribbons</th>
@@ -38,13 +40,14 @@
     {% for badge in pending_badges %}
       <tr id="{{ badge.id }}">
         <td>
-          <a href="#attendee_form?id={{ badge.id }}" target="_blank">{{ badge.full_name }}</a>
+          <a href="#attendee_form?id={{ badge.id }}">{{ badge.full_name }}</a>
           {% if badge.legal_name %}(Name on Photo ID: {{ badge.legal_name }}){% endif %}
         </td>
+        <td>{{ badge.group.name if badge.group else '' }}</td>
         <td>{{ badge.email|email_to_link }}</td>
         <td>{{ badge.badge_type_label }}</td>
         <td>{{ badge.ribbon_labels|join(", ") }}</td>
-        <td>{{ "Need Not Pay" if badge.paid == c.NEED_NOT_PAY else badge.badge_cost }}</td>
+        <td>{{ "Need Not Pay" if badge.paid == c.NEED_NOT_PAY else badge.badge_cost|format_currency }}</td>
         <td>{{ badge.created_info.who }}</td>
         <td>{{ badge.admin_notes }}</td>
         <td><button class="btn btn-primary" onClick="approve('{{ badge.id }}')">Approve Badge</button></td>
@@ -52,5 +55,6 @@
     {% endfor %}
     </tbody>
   </table>
+</div>
 
 {% endblock %}
