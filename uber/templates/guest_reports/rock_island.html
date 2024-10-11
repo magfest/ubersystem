@@ -37,7 +37,7 @@
   </div>
   <div class="col header-group meet-and-greet">
     <div class="form-text">Meet N Greet Requested</div>
-    <div>{{ guest_merch.guest.autograph.rock_island_autographs|yesno("Yes, No") if guest_merch.guest.autograph else 'N/A' }}</div>
+    <div>{{ guest_merch.guest.autograph.rock_island_autographs|yesno("Yes, No") if guest_merch.guest.autograph else 'Not Selected' }}</div>
   </div>
   <div class="col header-group delivery-method">
     <div class="form-text">Delivery Method</div>
@@ -155,7 +155,7 @@
       <div class="card inventory-table-panel">
         <div class="card-body">
           <h2>
-            <span>Inventory for <a href="../guest_admin/checklist_info?id={{ guest.id }}">{{ guest.group.name }}</a></span>
+            <span>Inventory for <a href="../guest_reports/rock_island?id={{ guest.id }}">{{ guest.group.name }}</a></span>
             {% if guest_merch.inventory -%}
               <small>
                 Download <a href="{{ guest_merch.rock_island_csv_url }}">CSV</a> or <a href="{{ guest_merch.rock_island_square_export_url }}">Square Export</a>
@@ -168,13 +168,14 @@
         </div>
         {{ guests_macros.inventory_table_with_err('card-body', suppress_preview=True) }}
       </div>
+      <br/>
     {%- endfor %}
   {% elif guest_groups|length > 0 %}
     {%- set guest = guest_groups|first -%}
     {%- set guest_merch = guest.merch -%}
     {%- import 'guests_macros.html' as guests_macros with context -%}
     <h1>
-      <span>Rock Island Inventory for <a href="../guest_admin/checklist_info?id={{ guest.id }}">{{ guest.group.name }}</a></span>
+      <span>Rock Island Inventory for <a href="../guest_reports/rock_island?id={{ guest.id }}">{{ guest.group.name }}</a></span>
       {% if guest_merch.inventory -%}
       <small>
         Download <a href="{{ guest_merch.rock_island_csv_url }}">CSV</a> or <a href="{{ guest_merch.rock_island_square_export_url }}">Square Export</a>
