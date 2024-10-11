@@ -8,7 +8,7 @@ from uber.config import c
 from uber.decorators import all_renderable, csrf_protected
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Group, GuestGroup, IndieDeveloper, IndieStudio
-from uber.utils import check, check_csrf
+from uber.utils import add_opt, check, check_csrf
 
 
 @all_renderable(public=True)
@@ -219,20 +219,24 @@ class Root:
                 session.commit()
                 for dev in developers:
                     if dev.matching_attendee:
+                        add_opt(dev.matching_attendee.ribbon_ints, c.MIVS)
                         if not dev.matching_attendee.group_id:
                             group.attendees.append(dev.matching_attendee)
                             if dev.leader:
                                 group.leader_id = dev.matching_attendee.id
+                        dev.matching_attendee.indie_developer = dev
                     else:
                         attendee = Attendee(
                             placeholder=True,
                             badge_type=c.ATTENDEE_BADGE,
+                            ribbon=c.MIVS,
                             paid=c.NEED_NOT_PAY if dev.comped else c.PAID_BY_GROUP,
                             first_name=dev.first_name,
                             last_name=dev.last_name,
                             cellphone=dev.cellphone,
                             email=dev.email
                         )
+                        attendee.indie_developer = dev
                         group.attendees.append(attendee)
                         session.commit()
                         if dev.leader:

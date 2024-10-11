@@ -497,10 +497,11 @@ class MagModel:
                 value = int(float(value))
 
             elif isinstance(column.type, UTCDateTime):
-                try:
-                    value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
-                except ValueError:
-                    value = dateparser.parse(value)
+                if isinstance(value, six.string_types):
+                    try:
+                        value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
+                    except ValueError:
+                        value = dateparser.parse(value)
 
                 if not value.tzinfo:
                     return c.EVENT_TIMEZONE.localize(value)
@@ -508,10 +509,11 @@ class MagModel:
                     return value
 
             elif isinstance(column.type, Date):
-                try:
-                    value = datetime.strptime(value, c.DATE_FORMAT)
-                except ValueError:
-                    value = dateparser.parse(value)
+                if isinstance(value, six.string_types):
+                    try:
+                        value = datetime.strptime(value, c.DATE_FORMAT)
+                    except ValueError:
+                        value = dateparser.parse(value)
                 return value.date()
 
             elif isinstance(column.type, JSONB):
@@ -802,17 +804,6 @@ class Session(SessionManager):
                 return max([admin.max_level_access(section,
                                                    read_only=read_only) for section in attendee.access_sections])
 
-        def admin_can_create_attendee(self, attendee):
-            admin = self.current_admin_account()
-            if not admin:
-                return
-
-            if admin.full_registration_admin:
-                return True
-
-            return admin.full_shifts_admin if attendee.badge_type == c.STAFF_BADGE else \
-                self.admin_attendee_max_access(attendee) >= AccessGroup.DEPT
-
         def viewable_groups(self):
             from uber.models import Group, GuestGroup
             admin = self.current_admin_account()
@@ -900,6 +891,8 @@ class Session(SessionManager):
                                                             ArtShowAgentCode.attendee_id == Attendee.id,
                                                             ArtShowAgentCode.cancelled == None  # noqa: E711
                                                         )
+            return_dict['marketplace_admin'] = self.query(Attendee).join(ArtistMarketplaceApplication)
+            return_dict['hotel_lottery_admin'] = self.query(Attendee).join(LotteryApplication)
             return return_dict
 
         def viewable_attendees(self):

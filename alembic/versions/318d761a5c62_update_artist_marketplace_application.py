@@ -83,9 +83,9 @@ def upgrade():
 
 
 def downgrade():
+    op.drop_index(op.f('ix_receipt_item_fk_id'), table_name='receipt_item')
     op.drop_column('receipt_item', 'fk_model')
     op.drop_column('receipt_item', 'fk_id')
-    op.drop_index(op.f('ix_receipt_item_fk_id'), table_name='receipt_item')
     op.create_table('marketplace_application',
     sa.Column('id', postgresql.UUID(), autoincrement=False, nullable=False),
     sa.Column('attendee_id', postgresql.UUID(), autoincrement=False, nullable=True),

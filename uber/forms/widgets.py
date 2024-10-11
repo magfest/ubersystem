@@ -106,7 +106,7 @@ class CountrySelect(Select):
 
 class Ranking():
     def __init__(self, choices=None, **kwargs):
-        self.choices = choices or self.field.choices
+        self.choices = choices
         super().__init__(**kwargs)
     
     def extra_info_list(self, choice_item, show_staff_rates=False):

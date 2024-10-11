@@ -231,12 +231,13 @@ class IndieStudio(MagModel):
     @property
     def unclaimed_badges(self):
         claimed_count = len(
-            [d for d in self.developers if not d.matching_attendee])
+            [d for d in self.developers if not d.attendee])
         return max(0, self.comped_badges - claimed_count)
 
 
 class IndieDeveloper(MagModel):
     studio_id = Column(UUID, ForeignKey('indie_studio.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 
     # primary_contact == True just means they receive emails
     primary_contact = Column(Boolean, default=False)
@@ -249,17 +250,11 @@ class IndieDeveloper(MagModel):
 
     @property
     def email_to_address(self):
-        # Note: this doesn't actually do what we want right now
-        # because the IndieDeveloper and attendee are not properly linked
-        if self.matching_attendee:
-            return self.matching_attendee.email
-        return self.email
+        return self.attendee.email if self.attendee else self.email
 
     @property
     def cellphone_num(self):
-        if self.matching_attendee:
-            return self.matching_attendee.cellphone
-        return self.cellphone
+        return self.attendee.cellphone if self.attendee else self.cellphone
 
     @property
     def full_name(self):

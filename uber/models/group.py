@@ -72,7 +72,7 @@ class Group(MagModel, TakesPaymentMixin):
         remote_side='Attendee.id',
         single_parent=True)
     leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
-    studio = relationship('IndieStudio', uselist=False, backref='group')
+    studio = relationship('IndieStudio', uselist=False, backref='group', cascade='save-update,merge,refresh-expire,expunge')
     guest = relationship('GuestGroup', backref='group', uselist=False)
     active_receipt = relationship(
         'ModelReceipt',
@@ -209,7 +209,7 @@ class Group(MagModel, TakesPaymentMixin):
         care specifically about paid-by-group badges rather than all unassigned
         badges.
         """
-        return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
+        return [a for a in self.attendees if a.is_unassigned and a.paid in [c.PAID_BY_GROUP, c.NEED_NOT_PAY]]
 
     @hybrid_property
     def normalized_name(self):

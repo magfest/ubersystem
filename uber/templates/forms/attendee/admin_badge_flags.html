@@ -126,11 +126,10 @@
 
 
 {% block badge_info %}
-{% set admin_can_change_status = not c.AT_THE_CON or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS %}
 <div class="row g-sm-3">
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_status,
-            help_text='' if admin_can_change_status else "Altering the badge status is disabled during the event. The system will update it automatically.",
-            disabled=not admin_can_change_status) }}</div>
+            admin_text=attendee.cannot_edit_badge_status_reason,
+            disabled=(attendee.cannot_edit_badge_status_reason != '')) }}</div>
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_type) }}</div>
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_num,
             extra_field=form_macros.toggle_checkbox(badge_flags.no_badge_num, [badge_flags.badge_num], hide_on_checked=True, prop="readonly", checked=not attendee.badge_num)) }}</div>

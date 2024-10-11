@@ -1,21 +1,21 @@
-"""Add vr_text and read_how_to_play for MIVS
+"""Add MIVS to attendee relationship
 
-Revision ID: 0578795f8d0b
-Revises: 9fb2b1c462c2
-Create Date: 2024-08-22 12:27:03.579185
+Revision ID: 9b657ae4c4ac
+Revises: 318d761a5c62
+Create Date: 2024-10-07 20:53:07.005134
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = '0578795f8d0b'
-down_revision = '9fb2b1c462c2'
+revision = '9b657ae4c4ac'
+down_revision = '318d761a5c62'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-
+import residue
 
 
 try:
@@ -52,10 +52,12 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('indie_game_review', sa.Column('read_how_to_play', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('indie_judge', sa.Column('vr_text', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('indie_developer', sa.Column('attendee_id', residue.UUID(), nullable=True))
+    op.create_unique_constraint(op.f('uq_indie_developer_attendee_id'), 'indie_developer', ['attendee_id'])
+    op.create_foreign_key(op.f('fk_indie_developer_attendee_id_attendee'), 'indie_developer', 'attendee', ['attendee_id'], ['id'])
 
 
 def downgrade():
-    op.drop_column('indie_judge', 'vr_text')
-    op.drop_column('indie_game_review', 'read_how_to_play')
+    op.drop_constraint(op.f('fk_indie_developer_attendee_id_attendee'), 'indie_developer', type_='foreignkey')
+    op.drop_constraint(op.f('uq_indie_developer_attendee_id'), 'indie_developer', type_='unique')
+    op.drop_column('indie_developer', 'attendee_id')

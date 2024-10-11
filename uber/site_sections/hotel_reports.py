@@ -564,19 +564,9 @@ class Root:
 
         hotel_results = sorted(hotel_query.all(), key=lambda a: a.legal_name or a.full_name)
 
-        matching_attendees = defaultdict(list)
-        for a in hotel_results:
-            matching_attendees[a.first_name, a.last_name, a.email].append(a)
-
         for a in hotel_results:
             row = [a.legal_first_name, a.legal_last_name, a.email, a.hotel_pin]
 
             if a.hotel_pin not in added:
                 added.add(a.hotel_pin)
-
-                for matching_attendee in matching_attendees[a.first_name, a.last_name, a.email]:
-                    if matching_attendee.id != a.id:
-                        row.append(matching_attendee.hotel_pin)
-                        added.add(matching_attendee.hotel_pin)
-
                 out.writerow(row)

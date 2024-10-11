@@ -380,6 +380,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
     dept_checklist_items = relationship('DeptChecklistItem', backref=backref('attendee', lazy='subquery'))
 
+    indie_developer = relationship(
+        'IndieDeveloper', backref=backref('attendee', load_on_pending=True), uselist=False)
+
     hotel_eligible = Column(Boolean, default=False, admin_only=True)
     hotel_requests = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False)
     room_assignments = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True))
@@ -459,6 +462,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         # Kludgey fix for SQLAlchemy breaking our stuff
         d = super().to_dict(*args, **kwargs)
         d.pop('attraction_event_signups', None)
+        d.pop('receipt_changes', None)
         return d
 
     @predelete_adjustment
@@ -733,8 +737,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('mivs_admin')
         if self.art_show_applications or self.art_show_bidder or self.art_show_purchases or self.art_agent_apps:
             section_list.append('art_show_admin')
-        if self.marketplace_applications:
+        if self.marketplace_application:
             section_list.append('marketplace_admin')
+        if self.lottery_application:
+            section_list.append('hotel_lottery_admin')
         return section_list
 
     def admin_read_access(self):
@@ -746,6 +752,20 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models import Session
         with Session() as session:
             return session.admin_attendee_max_access(self, read_only=False)
+        
+    @property
+    def cannot_edit_badge_status_reason(self):
+        full_reg_admin = False
+        from uber.models import Session
+        with Session() as session:
+            full_reg_admin = bool(session.current_admin_account().full_registration_admin)
+        if c.ADMIN_BADGES_NEED_APPROVAL and not full_reg_admin and self.badge_status == c.PENDING_STATUS:
+            return "This badge must be approved by an admin."
+        if self.badge_status == c.WATCHED_STATUS and not c.HAS_SECURITY_ADMIN_ACCESS:
+            return "Please escalate this case to someone with access to the watchlist."
+        if c.AT_THE_CON and not c.HAS_REG_ADMIN_ACCESS:
+            return "Altering the badge status is disabled during the event. The system will update it automatically."
+        return ''
 
     @property
     def ribbon_and_or_badge(self):

@@ -26,8 +26,8 @@
       <a href="../mivs/continue_app?id={{ studio.id }}" target="_blank">{{ studio.name }}</a>
     </td>
     <td>
-      {%- if studio.primary_contacts[0].matching_attendee -%}
-        <a href="#attendee_form?id={{ studio.primary_contacts[0].matching_attendee.id }}">{{ studio.primary_contacts[0].full_name }}</a>
+      {%- if studio.primary_contacts[0].attendee -%}
+        <a href="#attendee_form?id={{ studio.primary_contacts[0].attendee.id }}">{{ studio.primary_contacts[0].full_name }}</a>
       {%- else -%}
         {{ studio.primary_contacts[0].full_name }}
       {%- endif %}

@@ -87,7 +87,7 @@ def serialize_config(config, depth=1):
             doc += serialize_config(val, depth=depth+1)
     return doc
                 
-            
+
 
 for plugin, configs in plugin_configs.items():
     print(f"Saving {plugin} config to {plugin}.ini")
@@ -109,3 +109,17 @@ if args.environment:
                 file.write(f'export {plugin.upper()}_CONFIG_FILES="{path};{existing}"\n')
             else:
                 file.write(f'export {plugin.upper()}_CONFIG_FILES="{path}"\n')
+
+extra_file_config = {}
+for parsed in repo_config:
+    extra_files = parsed.get("extra_files", {})
+    extra_file_config.update(extra_files)
+
+for filename, content in extra_file_config.items():
+    print(f"Writing extra_file {filename}")
+    parent_dir = os.path.dirname(filename)
+    if not os.path.isdir(parent_dir):
+        os.makedirs(parent_dir)
+    with open(filename, "w") as filehandle:
+        filehandle.write(content)
+            
