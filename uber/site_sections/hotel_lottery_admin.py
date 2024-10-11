@@ -12,7 +12,7 @@ from uber.custom_tags import datetime_local_filter
 from uber.decorators import all_renderable, log_pageview, ajax, ajax_gettable, csv_file, requires_account, render
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, LotteryApplication, Email, Tracking, PageViewTracking
+from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, PageViewTracking
 from uber.tasks.email import send_email
 from uber.utils import Order, get_page, RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
 
@@ -175,7 +175,15 @@ class Root:
                                                       ).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application))
         }
-    
+
+    @csv_file
+    def accepted_dealers(self, out, session):
+        out.writerow(['Group Name', 'Group ID', 'Reg ID'])
+
+        for dealer in session.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(
+            Group.is_dealer, Group.status in [c.APPROVED, c.SHARED]):
+            out.writerow([dealer.group.name, dealer.group.id, dealer.id])
+
     @csv_file
     def interchange_export(self, out, session, staff_lottery=False):
         def print_dt(dt):
