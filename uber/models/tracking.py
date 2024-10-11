@@ -129,7 +129,8 @@ class Tracking(MagModel):
     def differences(cls, instance):
         diff = {}
         for attr, column in instance.__table__.columns.items():
-            if attr in ['currently_sending', 'last_send_time', 'unapproved_count', 'last_updated', 'last_synced']:
+            if attr in ['currently_sending', 'last_send_time',
+                        'unapproved_count', 'last_updated', 'last_synced', 'inventory_updated']:
                 continue
 
             new_val = getattr(instance, attr)

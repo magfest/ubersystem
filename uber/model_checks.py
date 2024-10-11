@@ -769,6 +769,26 @@ def is_merch_checklist_complete(guest_merch):
                 and guest_merch.poc_region
                 and guest_merch.poc_country):
             return 'You must tell us your complete mailing address'
+        
+        elif not guest_merch.delivery_method:
+            return 'Please tell us how you will bring us your inventory'
+        elif not guest_merch.payout_method:
+            return 'Please tell us how you would like to be paid for your merch'
+        elif guest_merch.payout_method == c.PAYPAL and not guest_merch.paypal_email:
+            return 'We need your PayPal email address to pay you via PayPal'
+        elif guest_merch.payout_method == c.CHECK:
+            if not guest_merch.check_payable:
+                return 'Please include the name that should go on your check'
+            if not (
+                guest_merch.check_zip_code
+                and guest_merch.check_address1
+                and guest_merch.check_city
+                and guest_merch.check_region
+                and guest_merch.check_country
+            ):
+                return 'Please include the mailing address to send a check to.'
+        elif not guest_merch.arrival_plans:
+            return 'Please tell us your estimated arrival to Rock Island to check in your inventory'
 
 
 @validation.GuestTravelPlans

@@ -1,0 +1,15 @@
+<html>
+<head></head>
+<body>
+    <h3>{{ updated_ri_inventories.count() }} groups updated their Rock Island inventory</h3>
+    <p> The following guests have updated their Rock Island inventories in the last 24 hours:
+    {% for guest in updated_ri_inventories %}
+    <ul style="margin-top:0px ; margin-bottom:10px">
+        <li>
+            <strong>{{ guest.group.name }}</strong>: Last Updated {{ guest.merch.inventory_updated|datetime_local }} (<a href="{{ c.URL_BASE }}/guest_reports/rock_island?id={{ guest.id }}" target="_blank">View</a> or <a href="{{ guest.merch.rock_island_square_export_url }}" target="_blank">Download Square Export</a>)
+        </li>
+    </ul>
+    {% endfor %}
+    </p>
+</body>
+</html>

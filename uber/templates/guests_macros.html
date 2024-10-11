@@ -79,7 +79,7 @@
       class="form-control"
       value="{{ travel_plan.arrival_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if travel_plan.arrival_time and not is_class else '' }}"
       required="required">
-      <span class="input-group-text">
+      <span class="input-group-addon">
         <span class="glyphicon glyphicon-calendar"></span>
       </span>
     </div>
@@ -108,7 +108,7 @@
       class="form-control"
       value="{{ travel_plan.departure_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if travel_plan.departure_time and not is_class else '' }}"
       required="required">
-      <span class="input-group-text">
+      <span class="input-group-addon">
         <span class="glyphicon glyphicon-calendar"></span>
       </span>
     </div>
@@ -230,7 +230,7 @@
     <label class="col-sm-3 control-label">Price</label>
     <div class="col-sm-6">
       <div class="input-group">
-        <span class="input-group-text">$</span>
+        <span class="input-group-addon">$</span>
         <input class="form-control" type="number" step="any" name="inventory_price{{ suffix }}" value="{{ item.price }}" placeholder="How much do you want to charge?" min="0" required />
       </div>
     </div>
@@ -311,7 +311,7 @@
     <div class="form-group">
       <label class="col-sm-3 control-label">Medium</label>
       <div class="col-sm-6">
-        <select class="form-select" name="inventory_media{{ suffix }}" required>
+        <select class="form-control" name="inventory_media{{ suffix }}" required>
           <option value="">Select an option...</option>
           {{ options(c.ALBUM_MEDIA_OPTS, item.media) }}
         </select>
