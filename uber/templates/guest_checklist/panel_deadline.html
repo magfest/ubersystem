@@ -7,11 +7,11 @@
   <tr>
     <td colspan="3">
       {% block deadline_text %}
-        {% if not guest.group.leader.panel_applications %}
+        {% if not guest.group.leader.submitted_panels %}
           What panels and/or events are you putting on at {{ c.EVENT_NAME }}? Please use the above link to submit each panel.
         {% else %}
-          You have already submitted {{ guest.group.leader.panel_applications|length }} panel
-          idea{{ guest.group.leader.panel_applications|length|pluralize }}.
+          You have already submitted {{ guest.group.leader.submitted_panels|length }} panel
+          idea{{ guest.group.leader.submitted_panels|length|pluralize }}.
           {% if c.APP_LIMIT %}
             You may submit up to {{ c.APP_LIMIT }} panels for review.
           {% endif %}

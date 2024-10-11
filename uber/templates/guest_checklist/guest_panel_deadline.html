@@ -3,11 +3,11 @@
 {% block deadline_headline %}Add Your Panels{% endblock %}
 
 {% block deadline_text %}
-    {% if not guest.group.leader.panel_applications %}
+    {% if not guest.group.leader.submitted_panels %}
         What panels and/or events are you hosting at {{ c.EVENT_NAME }}? Please submit an application for each.
     {% else %}
-        You have already submitted {{ guest.group.leader.panel_applications|length }} panel/event
-        idea{{ guest.group.leader.panel_applications|length|pluralize }}.
+        You have already submitted {{ guest.group.leader.submitted_panels|length }} panel/event
+        idea{{ guest.group.leader.submitted_panels|length|pluralize }}.
         {% if c.APP_LIMIT %}
         You may submit up to {{ c.APP_LIMIT }} applications for review.
         {% endif %}

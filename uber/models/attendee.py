@@ -402,6 +402,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     panel_applicants = relationship('PanelApplicant', backref='attendee')
     panel_applications = relationship('PanelApplication', backref='poc')
     panel_feedback = relationship('EventFeedback', backref='attendee')
+    submitted_panels = relationship(
+        'PanelApplication',
+        secondary='panel_applicant',
+        secondaryjoin='and_(PanelApplicant.app_id == PanelApplication.id)',
+        primaryjoin='and_(Attendee.id == PanelApplicant.attendee_id, PanelApplicant.submitter == True)',
+        viewonly=True
+        )
 
     # =========================
     # attractions
