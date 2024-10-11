@@ -140,9 +140,9 @@ class GuestGroup(MagModel):
 
     @property
     def panel_status(self):
-        application_count = len(self.group.leader.panel_applications)
+        application_count = len(self.group.leader.submitted_panels)
         return '{} Panel Application(s)'.format(application_count) \
-            if self.group.leader.panel_applications else self.status('panel')
+            if self.group.leader.submitted_panels else self.status('panel')
 
     @property
     def mc_status(self):
