@@ -1,0 +1,8 @@
+{{ guest.group.name }},
+
+Thanks for opting into selling merch at Rock Island! {% if not guest.merch.inventory %}You have not uploaded any inventory yet! Y{% else %}This is just a friendly reminder that y{% endif %}ou have until {{ c.ROCK_ISLAND_DEADLINE|datetime_local }} to finalize your Rock Island inventory, which you can do here: {{ c.URL_BASE }}/guests/merch?guest_id={{ guest.id }}
+
+{% if not guest.merch.inventory %}Failure to submit this information on time may result in forfeiture of the opportunity to sell merchandise at Rock Island.
+
+{% endif %}- Rock Island
+rockisland@magfest.org

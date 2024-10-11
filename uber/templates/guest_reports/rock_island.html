@@ -14,10 +14,11 @@
 
 
 {% macro guest_merch_contact_info(guest_merch) -%}
-<div class="contact-info row">
-  <div class="col-sm-3 header-group poc">
+<div class="contact-info row row-cols-sm-4">
+  <div class="col header-group poc">
+    <div class="form-text">Point of Contact Info</div>
     {% if guest_merch.full_name -%}
-      <label>{{ guest_merch.full_name }}</label>
+      <div>{{ guest_merch.full_name }}</div>
       <div>{{ guest_merch.phone }}</div>
       <div>{{ guest_merch.email|email_to_link }}</div>
       {%- for attrs in [['poc_address1'], ['poc_address2'], ['poc_city', 'poc_region', 'poc_country', 'poc_zip_code']] -%}
@@ -34,24 +35,53 @@
       <div class="text-danger"><b>Merch POC not set!</b></div>
     {% endif %}
   </div>
+  <div class="col header-group meet-and-greet">
+    <div class="form-text">Meet N Greet Requested</div>
+    <div>{{ guest_merch.guest.autograph.rock_island_autographs|yesno("Yes, No") if guest_merch.guest.autograph else 'N/A' }}</div>
+  </div>
+  <div class="col header-group delivery-method">
+    <div class="form-text">Delivery Method</div>
+    <div>{{ guest_merch.delivery_method_label }}</div>
+  </div>
+  <div class="col header-group payout-method">
+    <div class="form-text">Preferred Payout Method</div>
+    <div>{{ guest_merch.payout_method_label }}</div>
+    {% if guest_merch.payout_method == c.PAYPAL %}
+    <div>{{ guest_merch.paypal_email }}</div>
+    {% elif guest_merch.payout_method == c.CHECK %}
+    <div>Payable to: {{ guest_merch.check_payable }}</div>
+    {%- for attrs in [['check_address1'], ['check_address2'], ['check_city', 'check_region', 'check_country', 'check_zip_code']] -%}
+        <div>
+        {%- set comma = joiner(', ') -%}
+        {%- for attr in attrs -%}
+          {%- if guest_merch[attr] and (attr != 'check_country' or guest_merch[attr] != 'United States') -%}
+            {{ comma() }}{{ guest_merch[attr] }}
+          {%- endif -%}
+        {%- endfor -%}
+        </div>
+      {%- endfor -%}
+    {% endif %}
+  </div>
+</div>
+<div class="contact-info row">
   {% if guest_merch.handlers -%}
     <div class="col-sm-3 header-group handlers">
-      <label>Trusted Handlers</label>
+      <div class="form-text">Trusted Handlers</div>
       {% for handler in guest_merch.handlers -%}
         {%- if not loop.first %}<span class="comma">, </span>{% endif -%}
         <span class="text-nowrap">{{ handler.first_name }} {{ handler.last_name }}</span>
       {%- endfor %}
     </div>
   {% endif %}
-  {% if guest_merch.bringing_boxes -%}
-    <div class="col-sm-3 header-group boxes">
-      <label>Bringing Boxes</label>
-      <div>{{ guest_merch.bringing_boxes|linebreaksbr }}</div>
+  {% if guest_merch.merch_events -%}
+    <div class="col-sm-3 header-group events">
+      <div class="form-text">Performance Dates/Times</div>
+      <div>{{ guest_merch.merch_events|linebreaksbr }}</div>
     </div>
   {% endif %}
   {% if guest_merch.extra_info -%}
     <div class="col-sm-3 header-group info">
-      <label>Extra Info</label>
+      <div class="form-text">Extra Info</div>
       <div>{{ guest_merch.extra_info|linebreaksbr }}</div>
     </div>
   {% endif %}
@@ -106,7 +136,10 @@
   {% if guest_groups|length > 1 %}
     <h1>
       <span>Rock Island</span>
-      <small><a href="../guest_admin/rock_island_csv">Download CSV for all groups</a></small>
+      <small>
+        Download <a href="../guest_reports/rock_island_csv">CSV</a> or <a href="../guest_reports/rock_island_square_xlsx">Square Export</a>
+        for all groups
+      </small>
       <div class="clearfix"></div>
       {{ empty_filter(only_empty) }}
     </h1>
@@ -124,7 +157,10 @@
           <h2>
             <span>Inventory for <a href="../guest_admin/checklist_info?id={{ guest.id }}">{{ guest.group.name }}</a></span>
             {% if guest_merch.inventory -%}
-              <small><a href="{{ guest_merch.rock_island_csv_url }}">Download CSV for {{ guest.group.name }}</a></small>
+              <small>
+                Download <a href="{{ guest_merch.rock_island_csv_url }}">CSV</a> or <a href="{{ guest_merch.rock_island_square_export_url }}">Square Export</a>
+                for {{ guest.group.name }}
+              </small>
             {%- endif %}
             <div class="clearfix"></div>
           </h2>
@@ -140,7 +176,10 @@
     <h1>
       <span>Rock Island Inventory for <a href="../guest_admin/checklist_info?id={{ guest.id }}">{{ guest.group.name }}</a></span>
       {% if guest_merch.inventory -%}
-        <small><a href="{{ guest_merch.rock_island_csv_url }}">Download CSV for {{ guest.group.name }}</a></small>
+      <small>
+        Download <a href="{{ guest_merch.rock_island_csv_url }}">CSV</a> or <a href="{{ guest_merch.rock_island_square_export_url }}">Square Export</a>
+        for {{ guest.group.name }}
+      </small>
       {%- endif %}
       <div class="clearfix"></div>
       {{ empty_filter(only_empty) }}

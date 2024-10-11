@@ -3,7 +3,7 @@ import re
 import shutil
 import uuid
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from pockets import uniquify, classproperty
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
@@ -343,8 +343,21 @@ class GuestMerch(MagModel):
 
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
     selling_merch = Column(Choice(c.GUEST_MERCH_OPTS), nullable=True)
+    delivery_method = Column(Choice(c.GUEST_MERCH_DELIVERY_OPTS), nullable=True)
+    payout_method = Column(Choice(c.GUEST_MERCH_PAYOUT_METHOD_OPTS), nullable=True)
+    paypal_email = Column(UnicodeText)
+    check_payable = Column(UnicodeText)
+    check_zip_code = Column(UnicodeText)
+    check_address1 = Column(UnicodeText)
+    check_address2 = Column(UnicodeText)
+    check_city = Column(UnicodeText)
+    check_region = Column(UnicodeText)
+    check_country = Column(UnicodeText)
+
+    arrival_plans = Column(UnicodeText)
+    merch_events = Column(UnicodeText)
     inventory = Column(JSON, default={}, server_default='{}')
-    bringing_boxes = Column(UnicodeText)
+    inventory_updated = Column(UTCDateTime, nullable=True)
     extra_info = Column(UnicodeText)
     tax_phone = Column(UnicodeText)
 
@@ -402,6 +415,10 @@ class GuestMerch(MagModel):
     @property
     def rock_island_csv_url(self):
         return '../guest_reports/rock_island_csv?id={}'.format(self.guest_id)
+    
+    @property
+    def rock_island_square_export_url(self):
+        return f'../guest_reports/rock_island_square_xlsx?id={self.guest_id}'
 
     @property
     def status(self):
@@ -592,6 +609,7 @@ class GuestMerch(MagModel):
             if persist_files:
                 self._prune_inventory_file(item, inventory, prune_missing=True)
             self.inventory = inventory
+            self.inventory_updated = datetime.now()
         return item
 
     def set_inventory(self, inventory, *, persist_files=True):
@@ -599,12 +617,14 @@ class GuestMerch(MagModel):
             self._save_inventory_files(inventory)
             self._prune_inventory_files(inventory, prune_missing=True)
         self.inventory = inventory
+        self.inventory_updated = datetime.now()
 
     def update_inventory(self, inventory, *, persist_files=True):
         if persist_files:
             self._save_inventory_files(inventory)
             self._prune_inventory_files(inventory, prune_missing=False)
         self.inventory = dict(self.inventory, **inventory)
+        self.inventory_updated = datetime.now()
 
 
 class GuestCharity(MagModel):

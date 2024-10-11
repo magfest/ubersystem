@@ -3,7 +3,7 @@
 {% block deadline_text %}
 {% if guest.autograph_status %}
     You have already indicated
-    {% if not guest.autograph.num %}
+    {% if not guest.autograph.num and not guest.autograph.rock_island_autographs %}
         that you do not wish to hold any autograph sessions,
     {% else %}
         that you would like 

@@ -473,68 +473,67 @@
   {%- set country_attr = model_prefix ~ 'country' -%}
 
   <script type="text/javascript">
-      var regionChange{{ suffix }} = function() {
+      var {{ name_prefix }}regionChange{{ suffix }} = function() {
           {% if update_international %}setInternational();{% endif %}
-          var regionopts = $('#region{{ suffix }}');
-          var whichCountry = $('#country{{ suffix }}').find(':selected').text();
+          var regionopts = $('#{{ name_prefix }}region{{ suffix }}');
+          var whichCountry = $('#{{ name_prefix }}country{{ suffix }}').find(':selected').text();
           switch(whichCountry) {
             case 'United States':
-                regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="{{ "form-select" if use_bs5 else "form-control" }}"></select>');
-                $('#region{{ suffix }}').html(regionsforUS);
+                regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ name_prefix }}region{{ suffix }}" class="{{ "form-select" if use_bs5 else "form-control" }}"></select>');
+                $('#{{ name_prefix }}region{{ suffix }}').html(regionsforUS);
                 break;
             case 'Canada':
-                regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="{{ "form-select" if use_bs5 else "form-control" }}"></select>');
-                $('#region{{ suffix }}').html(regionsforCanada);
+                regionopts.replaceWith('<select name="{{ name_prefix }}region" id="{{ name_prefix }}region{{ suffix }}" class="{{ "form-select" if use_bs5 else "form-control" }}"></select>');
+                $('#{{ name_prefix }}region{{ suffix }}').html(regionsforCanada);
                 break;
             }
-          var optionToSelect{{ suffix }} = $('#region{{ suffix }} option[value="{{ model[region_attr] }}"]');
-          if (optionToSelect{{ suffix }}.length) {
-              optionToSelect{{ suffix }}.prop('selected', true);
-              console.log("{{ suffix }} now set to " + optionToSelect{{ suffix }}.text())
+          var {{ name_prefix }}optionToSelect{{ suffix }} = $('#{{ name_prefix }}region{{ suffix }} option[value="{{ model[region_attr] }}"]');
+          if ({{ name_prefix }}optionToSelect{{ suffix }}.length) {
+            {{ name_prefix }}optionToSelect{{ suffix }}.prop('selected', true);
           }
       };
 
       $(function() {
           {% if update_international %}setInternational();{% endif %}
           
-          if ($('#country{{ suffix }}').closest('.modal').find('.modal-content').length) {
+          if ($('#{{ name_prefix }}country{{ suffix }}').closest('.modal').find('.modal-content').length) {
             {% if use_bs5 %}
-            $('#country{{ suffix }}').removeClass('form-control').addClass('form-select');
+            $('#{{ name_prefix }}country{{ suffix }}').removeClass('form-control').addClass('form-select');
             {% endif %}
             // selectToAutocomplete is broken in modals
-            var countryToSelect{{ suffix }} = $('#country{{ suffix }} option[value="{{ model[country_attr] }}"]');
-            countryToSelect{{ suffix }}.prop('selected', true);
+            var {{ name_prefix }}countryToSelect{{ suffix }} = $('#{{ name_prefix }}country{{ suffix }} option[value="{{ model[country_attr] }}"]');
+            {{ name_prefix }}countryToSelect{{ suffix }}.prop('selected', true);
           } else {
-            $('#country{{ suffix }}').val('{{ model[country_attr] }}');
-            $('#country{{ suffix }}').selectToAutocomplete();
+            $('#{{ name_prefix }}country{{ suffix }}').val('{{ model[country_attr] }}');
+            $('#{{ name_prefix }}country{{ suffix }}').selectToAutocomplete();
           }
-          $('#country{{ suffix }}').change(function() {
-              $('#region{{ suffix }}').replaceWith('<input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" value="{{ model[region_attr] }}" class="form-control" placeholder="State/Province">');
-              regionChange{{ suffix }}();
+          $('#{{ name_prefix }}country{{ suffix }}').change(function() {
+              $('#{{ name_prefix }}region{{ suffix }}').replaceWith('<input type="text" name="{{ name_prefix }}region" id="{{ name_prefix }}region{{ suffix }}" value="{{ model[region_attr] }}" class="form-control" placeholder="State/Province">');
+              {{ name_prefix }}regionChange{{ suffix }}();
           });
 
-          $('#region{{ suffix }}').val('{{ model[region_attr] }}');
-          regionChange{{ suffix }}();
+          $('#{{ name_prefix }}region{{ suffix }}').val('{{ model[region_attr] }}');
+          {{ name_prefix }}regionChange{{ suffix }}();
           
       });
   </script>
   <input type="hidden" class="address_suffixes" value="{{ suffix }}" />
   {% if use_bs5 %}
   <div class="row g-sm-3">
-    <div class="col address_details{{ suffix }}">
-      <label for="country{{ suffix }}" class="form-text">{{ label_prefix }} Country</label>
+    <div class="col {{ name_prefix }}address_details{{ suffix }}">
+      <label for="{{ name_prefix }}country{{ suffix }}" class="form-text">{{ label_prefix }} Country</label>
       <div class="mb-3">
         {%- if is_readonly -%}
             {{ model[country_attr]|linebreaksbr }}
         {%- else -%}
-        <select name="{{ name_prefix }}country" id="country{{ suffix }}" class="form-control" placeholder="Country" autocorrect="off" autocomplete="country" {% if is_required %}required="required"{% endif %}>
+        <select name="{{ name_prefix }}country" id="{{ name_prefix }}country{{ suffix }}" class="form-control" placeholder="Country" autocorrect="off" autocomplete="country" {% if is_required %}required="required"{% endif %}>
           {% include "country_opts.html" %}
         </select>
         {%- endif -%}
       </div>
     </div>
-    <div class="col address_details{{ suffix }}">
-      <label for="address1{{ suffix }}" class="form-text">{{ label_prefix }} Street</label>
+    <div class="col {{ name_prefix }}address_details{{ suffix }}">
+      <label for="{{ name_prefix }}address1{{ suffix }}" class="form-text">{{ label_prefix }} Street</label>
       <div class="mb-3">
         {%- if is_readonly -%}
             {{ model[address1_attr]|linebreaksbr }}
@@ -544,8 +543,8 @@
       </div>
     </div>
   {%- if not is_readonly or model[address2_attr] -%}
-    <div class="col address_details{{ suffix }}">
-      <label for="address2{{ suffix }}" class="form-text invisible">{{ label_prefix }} Street 2</label>
+    <div class="col {{ name_prefix }}address_details{{ suffix }}">
+      <label for="{{ name_prefix }}address2{{ suffix }}" class="form-text invisible">{{ label_prefix }} Street 2</label>
       <div class="mb-3">
         {%- if is_readonly -%}
           {{ model[address2_attr]|linebreaksbr }}
@@ -557,8 +556,8 @@
   {%- endif -%}
   </div>
   <div class="row g-sm-3">
-    <div class="col address_details{{ suffix }}">
-      <label for="city{{ suffix }}" class="form-text">{{ label_prefix }} City</label>
+    <div class="col {{ name_prefix }}address_details{{ suffix }}">
+      <label for="{{ name_prefix }}city{{ suffix }}" class="form-text">{{ label_prefix }} City</label>
       <div class="mb-3">
         {%- if is_readonly -%}
           {{ model[city_attr]|linebreaksbr }}
@@ -567,19 +566,18 @@
         {%- endif -%}
       </div>
     </div>
-    <div class="col address_details{{ suffix }}">
-      <label for="region{{ suffix }}" class="form-text">{{ label_prefix }} State/Region</label>
+    <div class="col {{ name_prefix }}address_details{{ suffix }}">
+      <label for="{{ name_prefix }}region{{ suffix }}" class="form-text">{{ label_prefix }} State/Region</label>
       <div class="mb-3">
         {%- if is_readonly -%}
           {{ model[region_attr]|linebreaksbr }}
         {%- else -%}
-        <input type="hidden" name="{{ name_prefix }}region" value="{{ model[region_attr] }}" id="hidden_region{{ suffix }}" disabled />
-        <input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control" placeholder="State/Province" value="{{ model[region_attr] }}" autocomplete="address-level1" {% if is_required %}required="required"{% endif %}/>
+        <input type="text" name="{{ name_prefix }}region" id="{{ name_prefix }}region{{ suffix }}" class="form-control" placeholder="State/Province" value="{{ model[region_attr] }}" {% if is_required %}required="required"{% endif %}/>
         {%- endif -%}
       </div>
     </div>
-    <div class="col address_details{{ suffix }}">
-      <label for="zip_code{{ suffix }}" class="form-text">{{ label_prefix }} ZIP/Postal Code</label>
+    <div class="col {{ name_prefix }}address_details{{ suffix }}">
+      <label for="{{ name_prefix }}zip_code{{ suffix }}" class="form-text">{{ label_prefix }} ZIP/Postal Code</label>
       <div class="mb-3">
         {%- if is_readonly -%}
           {{  model[zip_code_attr]|linebreaksbr }}
@@ -590,22 +588,22 @@
     </div>
   </div>
   {% else %}
-  <div class="form-group address_details{{ suffix }}">
-    <label for="country{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} Country</label>
+  <div class="form-group {{ name_prefix }}address_details{{ suffix }}">
+    <label for="{{ name_prefix }}country{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} Country</label>
     <div class="col-sm-6">
       {%- if is_readonly -%}
         <div class="form-control-static">
             {{ model[country_attr]|linebreaksbr }}
         </div>
       {%- else -%}
-      <select name="{{ name_prefix }}country" id="country{{ suffix }}" class="form-control" placeholder="Country" autocorrect="off" autocomplete="country" {% if is_required %}required="required"{% endif %}>
+      <select name="{{ name_prefix }}country" id="{{ name_prefix }}country{{ suffix }}" class="form-control" placeholder="Country" autocorrect="off" autocomplete="country" {% if is_required %}required="required"{% endif %}>
         {% include "country_opts.html" %}
       </select>
       {%- endif -%}
     </div>
   </div>
-  <div class="form-group address_details{{ suffix }}">
-    <label for="address1{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} Street</label>
+  <div class="form-group {{ name_prefix }}address_details{{ suffix }}">
+    <label for="{{ name_prefix }}address1{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} Street</label>
     <div class="col-sm-6">
       {%- if is_readonly -%}
         <div class="form-control-static">
@@ -617,7 +615,7 @@
     </div>
   </div>
 {%- if not is_readonly or model[address2_attr] -%}
-  <div class="form-group address_details{{ suffix }}">
+  <div class="form-group {{ name_prefix }}address_details{{ suffix }}">
     <div class="col-sm-6 col-sm-offset-3">
       {%- if is_readonly -%}
         <div class="form-control-static">
@@ -629,8 +627,8 @@
     </div>
   </div>
 {%- endif -%}
-  <div class="form-group address_details{{ suffix }}">
-    <label for="city{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} City</label>
+  <div class="form-group {{ name_prefix }}address_details{{ suffix }}">
+    <label for="{{ name_prefix }}city{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} City</label>
     <div class="col-sm-6">
       {%- if is_readonly -%}
         <div class="form-control-static">
@@ -641,21 +639,20 @@
       {%- endif -%}
     </div>
   </div>
-  <div class="form-group address_details{{ suffix }}">
-    <label for="region{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} State/Region</label>
+  <div class="form-group {{ name_prefix }}address_details{{ suffix }}">
+    <label for="{{ name_prefix }}region{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} State/Region</label>
     <div class="col-sm-6">
       {%- if is_readonly -%}
         <div class="form-control-static">
             {{ model[region_attr]|linebreaksbr }}
         </div>
       {%- else -%}
-      <input type="hidden" name="{{ name_prefix }}region" value="{{ model[region_attr] }}" id="hidden_region{{ suffix }}" disabled />
-      <input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control" placeholder="State/Province" value="{{ model[region_attr] }}" autocomplete="address-level1" {% if is_required %}required="required"{% endif %}/>
+      <input type="text" name="{{ name_prefix }}region" id="{{ name_prefix }}region{{ suffix }}" class="form-control" placeholder="State/Province" value="{{ model[region_attr] }}" {% if is_required %}required="required"{% endif %}/>
       {%- endif -%}
     </div>
   </div>
-  <div class="form-group address_details{{ suffix }}">
-    <label for="zip_code{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} ZIP/Postal Code</label>
+  <div class="form-group {{ name_prefix }}address_details{{ suffix }}">
+    <label for="{{ name_prefix }}zip_code{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} ZIP/Postal Code</label>
     <div class="col-sm-6">
       {%- if is_readonly -%}
         <div class="form-control-static">

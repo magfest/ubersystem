@@ -3,7 +3,7 @@ from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.custom_tags import time_day_local
-from uber.decorators import all_renderable, csv_file, site_mappable
+from uber.decorators import all_renderable, csv_file, site_mappable, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import Group, GuestAutograph, GuestGroup, GuestMerch, GuestTravelPlans
 from uber.utils import convert_to_absolute_url
@@ -101,6 +101,73 @@ class Root:
             'guest_groups': [guest for guest in guest_groups if session.admin_can_see_guest_group(guest)],
             'only_empty': only_empty
         }
+    
+    @site_mappable(download=True)
+    @xlsx_file
+    def rock_island_square_xlsx(self, out, session, id=None, **params):
+        header_row = [
+            'Token', 'Item Name', 'Variation Name', 'Unit and Precision', 'SKU', 'Description', 'Category',
+            'SEO Title', 'SEO Description', 'Permalink', 'Square Online Item Visibility', 'Weight (lb)', 'Shipping Enabled',
+            'Self-serve Ordering Enabled', 'Delivery Enabled', 'Pickup Enabled', 'Price', 'Sellable', 'Stockable',
+            'Skip Detail Screen in POS', 'Option Name 1', 'Option Value 1', 'Current Quantity MAGFest Rock Island',
+            'New Quantity MAGFest Rock Island'
+            ]
+        
+        query = session.query(GuestGroup).options(
+                subqueryload(GuestGroup.group)).options(
+                subqueryload(GuestGroup.merch))
+        
+        if id:
+            guest_groups = [query.get(id)]
+        else:
+            guest_groups = query.filter(
+                GuestGroup.id == GuestMerch.guest_id,
+                GuestMerch.selling_merch == c.ROCK_ISLAND,
+                GuestGroup.group_id == Group.id).order_by(
+                Group.name).all()
+        
+        rows = []
+        item_type_square_name = {
+            c.CD: "MUSIC",
+            c.TSHIRT: "APPAREL",
+            c.APPAREL: "APPAREL",
+            c.PIN: "PIN",
+            c.STICKER: "STICKER",
+            c.POSTER: "POSTER",
+            c.BUTTON: "BUTTON",
+            c.PATCH: "PATCH",
+            c.MISCELLANEOUS: "MISC",
+        }
+
+        def _inventory_sort_key(item):
+            return ' '.join([
+                c.MERCH_TYPES[int(item['type'])],
+                item['name']
+            ])
+
+        def _generate_row(item, guest, variation_name='Regular'):
+            item_type = int(item['type'])
+            item_name = f'{item_type_square_name[item_type]} {guest.group.name} {item['name']}'
+            if item_type == c.CD:
+                item_name = f'{item_name} {c.ALBUM_MEDIAS[int(item['media'])]}'
+            elif item_type == c.TSHIRT:
+                item_name = f'{item_name} T-shirt'
+
+            return [
+                '', item_name, variation_name, '', '', '', guest.group.name, '', '', '',
+                'hidden', '', 'N', '', 'N', 'N', '{:.2f}'.format(float(item['price'])),
+                '', '', 'N', '', '', '', ''
+            ]
+
+        for guest in guest_groups:
+            for item in sorted(guest.merch.inventory.values(), key=_inventory_sort_key):
+                merch_type = int(item['type'])
+                if merch_type in (c.TSHIRT, c.APPAREL):
+                    for line_item in guest.merch.line_items(item):
+                        rows.append(_generate_row(item, guest, guest.merch.line_item_to_string(item, line_item)))
+                else:
+                    rows.append(_generate_row(item, guest))
+        out.writerows(header_row, rows)
 
     @site_mappable(download=True)
     @csv_file
@@ -127,7 +194,7 @@ class Root:
                 item['price']
             ])
 
-        for guest in [guest for guest in guest_groups if session.admin_can_see_guest_group(guest)]:
+        for guest in guest_groups:
             for item in sorted(guest.merch.inventory.values(), key=_inventory_sort_key):
                 merch_type = int(item['type'])
                 if merch_type in (c.TSHIRT, c.APPAREL):
