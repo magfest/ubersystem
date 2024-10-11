@@ -181,7 +181,7 @@ class Root:
         out.writerow(['Group Name', 'Group ID', 'Reg ID'])
 
         for dealer in session.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(
-            Group.is_dealer, Group.status in [c.APPROVED, c.SHARED]):
+            Group.is_dealer, Group.status.in_([c.APPROVED, c.SHARED])):
             out.writerow([dealer.group.name, dealer.group.id, dealer.id])
 
     @csv_file
