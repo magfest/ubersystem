@@ -1465,9 +1465,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif key == c.ALL_OPT_OUT and (not self.could_get_staff_shirt or not c.STAFF_EVENT_SHIRT_OPTS):
                 continue
             else:
-                if self.shirt_opt_out != c.OPT_IN and key == c.OPT_IN:
-                    # Changes the text to make the form a little clearer
-                    val = f"I would like to receive my {'staff' if self.could_get_staff_shirt else 'free'} shirt!"
+                if key == c.OPT_IN:
+                    val = f"I would like {'a staff' if self.could_get_staff_shirt else 'an event'} shirt for this year!"
                 opt_list.append((key, val))
         return opt_list
 
