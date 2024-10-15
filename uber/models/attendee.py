@@ -230,6 +230,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
     staff_shirt = Column(Choice(c.STAFF_SHIRT_OPTS), default=c.NO_SHIRT)
     num_event_shirts = Column(Choice(c.STAFF_EVENT_SHIRT_OPTS, allow_unspecified=True), default=-1)
+    shirt_opt_out = Column(Choice(c.SHIRT_OPT_OUT_OPTS), default=c.OPT_IN)
     can_spam = Column(Boolean, default=False)
     regdesk_info = Column(UnicodeText, admin_only=True)
     extra_merch = Column(UnicodeText, admin_only=True)
@@ -1225,7 +1226,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def shirt_size_marked(self):
         if c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS:
-            return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
+            return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN] or (
+                not self.gets_staff_shirt and not self.num_event_shirts_owed)
         else:
             return (not self.num_event_shirts_owed or self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]) and (
                     not self.gets_staff_shirt or self.staff_shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN])
@@ -1236,6 +1238,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return (self.num_event_shirts != -1 or not c.STAFF_EVENT_SHIRT_OPTS) and self.shirt_size_marked
         elif self.volunteer_event_shirt_eligible:
             return self.shirt_size_marked
+        return self.shirt_opt_out != c.OPT_IN
 
     @property
     def is_group_leader(self):
@@ -1401,9 +1404,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def paid_for_a_shirt(self):
         return self.amount_extra >= c.SHIRT_LEVEL
-
+    
     @property
-    def num_free_event_shirts(self):
+    def num_potential_free_event_shirts(self):
         """
         If someone is staff-shirt-eligible, we use the number of event shirts they have selected (if any).
         Volunteers also get a free event shirt. Staff get an event shirt if staff shirts are turned off for the event.
@@ -1411,6 +1414,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         """
         return max(0, self.num_event_shirts) if self.gets_staff_shirt else bool(
             self.volunteer_event_shirt_eligible or (self.badge_type == c.STAFF_BADGE and c.HOURS_FOR_SHIRT))
+
+    @property
+    def num_free_event_shirts(self):
+        if self.shirt_opt_out in [c.EVENT_OPT_OUT, c.ALL_OPT_OUT]:
+            return 0
+        return self.num_potential_free_event_shirts
 
     @property
     def volunteer_event_shirt_eligible(self):
@@ -1426,10 +1435,16 @@ class Attendee(MagModel, TakesPaymentMixin):
             int(self.paid_for_a_shirt),
             self.num_free_event_shirts
         ])
+    
+    @property
+    def could_get_staff_shirt(self):
+        return bool(self.badge_type == c.STAFF_BADGE and c.SHIRTS_PER_STAFFER > 0)
 
     @property
     def gets_staff_shirt(self):
-        return bool(self.badge_type == c.STAFF_BADGE and c.SHIRTS_PER_STAFFER > 0)
+        if self.shirt_opt_out in [c.STAFF_OPT_OUT, c.ALL_OPT_OUT]:
+            return False
+        return self.could_get_staff_shirt
 
     @property
     def num_staff_shirts_owed(self):
@@ -1438,6 +1453,23 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def gets_any_kind_of_shirt(self):
         return self.gets_staff_shirt or self.num_event_shirts_owed > 0
+    
+    @property
+    def shirt_opt_out_opts(self):
+        opt_list = []
+        for key, val in c.SHIRT_OPT_OUT_OPTS:
+            if key == c.STAFF_OPT_OUT and not self.could_get_staff_shirt:
+                continue
+            elif key == c.EVENT_OPT_OUT and self.num_potential_free_event_shirts == 0:
+                continue
+            elif key == c.ALL_OPT_OUT and (not self.could_get_staff_shirt or not c.STAFF_EVENT_SHIRT_OPTS):
+                continue
+            else:
+                if self.shirt_opt_out != c.OPT_IN and key == c.OPT_IN:
+                    # Changes the text to make the form a little clearer
+                    val = f"I would like to receive my {'staff' if self.could_get_staff_shirt else 'free'} shirt!"
+                opt_list.append((key, val))
+        return opt_list
 
     @property
     def has_personalized_badge(self):

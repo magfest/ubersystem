@@ -1,5 +1,5 @@
 {% import 'macros.html' as macros %}
-{% if (c.HOURS_FOR_SHIRT and attendee.gets_any_kind_of_shirt or attendee.gets_staff_shirt) and c.PRE_CON %}
+{% if c.PRE_CON and (c.HOURS_FOR_SHIRT and attendee.num_potential_free_event_shirts) or attendee.could_get_staff_shirt %}
 <li>
     {{ macros.checklist_image(attendee.shirt_info_marked) }}
     {% if not attendee.placeholder %}
@@ -8,7 +8,7 @@
         Let us know
     {% endif %}
     your shirt size
-    {% if c.STAFF_EVENT_SHIRT_OPTS and attendee.gets_staff_shirt %}
+    {% if c.STAFF_EVENT_SHIRT_OPTS and attendee.could_get_staff_shirt %}
         and your preference of staff or event shirt
     {% endif %}
     {% if c.VOLUNTEER_SHIRT_DEADLINE %}

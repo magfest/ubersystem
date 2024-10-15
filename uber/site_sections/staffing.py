@@ -1,11 +1,13 @@
 import cherrypy
 from datetime import datetime, timedelta
+from pockets.autolog import log
 import ics
 
 from uber.config import c
 from uber.custom_tags import safe_string
 from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, public
 from uber.errors import HTTPRedirect
+from uber.models import Attendee
 from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now
 
 
@@ -42,21 +44,23 @@ class Root:
         }
 
     @check_shutdown
-    def shirt_size(self, session, message='', shirt=None, staff_shirt=None, num_event_shirts=None, csrf_token=None):
+    def shirt_size(self, session, message='', **params):
         attendee = session.logged_in_volunteer()
-        if shirt is not None or staff_shirt is not None:
-            check_csrf(csrf_token)
-            if (shirt and not int(shirt)) or (attendee.gets_staff_shirt and
-                                              c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
-                message = 'You must select a shirt size'
-            else:
-                if shirt:
-                    attendee.shirt = int(shirt)
-                if staff_shirt:
-                    attendee.staff_shirt = int(staff_shirt)
-                if c.STAFF_EVENT_SHIRT_OPTS and c.BEFORE_VOLUNTEER_SHIRT_DEADLINE and num_event_shirts:
-                    attendee.num_event_shirts = int(num_event_shirts)
-                raise HTTPRedirect('index?message={}', 'Shirt info uploaded')
+        if cherrypy.request.method == "POST":
+            check_csrf(params.get('csrf_token'))
+            test_attendee = Attendee(**attendee.to_dict())
+            test_attendee.apply(params)
+
+            if c.STAFF_EVENT_SHIRT_OPTS and test_attendee.gets_staff_shirt and test_attendee.num_event_shirts == -1:
+                message = "Please indicate your preference for shirt type."
+            elif not test_attendee.shirt_size_marked:
+                message = "Please select a shirt size."
+
+            if not message:
+                for attr in ['shirt', 'staff_shirt', 'num_event_shirts', 'shirt_opt_out']:
+                    if params.get(attr):
+                        setattr(attendee, attr, int(params.get(attr)))
+                raise HTTPRedirect('index?message={}', 'Shirt info uploaded.')
 
         return {
             'message': message,
