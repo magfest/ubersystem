@@ -53,7 +53,7 @@ def log_pageview(func):
     def with_check(*args, **kwargs):
         with uber.models.Session() as session:
             try:
-                session.admin_account(cherrypy.session.get('account_id'))
+                session.current_admin_account()
             except Exception:
                 pass  # no tracking for non-admins yet
             else:
@@ -579,9 +579,11 @@ def render(template_name_list, data=None, encoding='utf-8'):
     data = renderable_data(data)
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
-    rendered = template.render(data)
+    cherrypy.response.stream = True
+    rendered = template.generate(data)
     if encoding:
-        return rendered.encode(encoding)
+        for idx, chunk in enumerate(rendered):
+            yield chunk.encode(encoding)
     return rendered
 
 
