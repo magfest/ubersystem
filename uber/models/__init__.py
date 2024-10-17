@@ -32,7 +32,7 @@ from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
 from sqlalchemy.util import immutabledict
 
 import uber
-from uber.config import c, create_namespace_uuid
+from uber.config import c, create_namespace_uuid, threadlocal
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
@@ -44,7 +44,6 @@ from uber.payments import ReceiptManager
 def _make_getter(model):
     def getter(
             self, params=None, *, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False, **query):
-
         if query:
             return self.query(model).filter_by(**query).one()
         elif isinstance(params, str):
@@ -630,6 +629,26 @@ from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 
 
+import sqlalchemy.event
+import traceback
+import os
+
+base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+def catch_queries_callback(connection, cursor, query, *_):
+    stacktrace = [
+        (file_path, val1, val2, line_contents)
+        for (file_path, val1, val2, line_contents) in traceback.extract_stack()
+        if file_path.startswith(base_path)
+    ]
+
+    print("\n\n")
+    for i in stacktrace:
+        print(f"\t{i}")
+    print()
+    
+
+
 class Session(SessionManager):
     # This looks strange, but `sqlalchemy.create_engine` will throw an error
     # if it's passed arguments that aren't supported by the given DB engine.
@@ -642,6 +661,7 @@ class Session(SessionManager):
         ('pool_pre_ping', True),
         ('pool_recycle', c.SQLALCHEMY_POOL_RECYCLE)] if v > -1)
     engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, **_engine_kwargs)
+    sqlalchemy.event.listen(engine, "before_cursor_execute", catch_queries_callback)
 
     @classmethod
     def initialize_db(cls, modify_tables=False, drop=False, initialize=False):
@@ -747,8 +767,14 @@ class Session(SessionManager):
 
     class SessionMixin:
         def current_admin_account(self):
-            if getattr(cherrypy, 'session', {}).get('account_id'):
-                return self.admin_account(cherrypy.session.get('account_id'))
+            admin_account = threadlocal.get("current_admin_account")
+            if admin_account is None:
+                if getattr(cherrypy, 'session', {}).get('account_id'):
+                    admin_account = self.admin_account(cherrypy.session.get('account_id'))
+                    threadlocal.set("current_admin_account", admin_account)
+            else:
+                self.add(admin_account)
+            return admin_account
 
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
