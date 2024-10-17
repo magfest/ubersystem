@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import cherrypy
+import functools
 from pockets import classproperty, listify
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
@@ -10,7 +11,7 @@ from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date, Integer
 
-from uber.config import c
+from uber.config import c, threadlocal
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column
@@ -29,7 +30,6 @@ admin_access_group = Table(
     Index('ix_admin_access_group_admin_account_id', 'admin_account_id'),
     Index('ix_admin_access_group_access_group_id', 'access_group_id'),
 )
-
 
 class AdminAccount(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
@@ -75,14 +75,23 @@ class AdminAccount(MagModel):
 
     @staticmethod
     def get_access_set(id=None, include_read_only=False):
+        cache_key = f"get_access_list({id}, {include_read_only})"
+        cached = threadlocal.get(cache_key)
+        if cached is not None:
+            return cached
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session.get('account_id')
-                account = session.admin_account(id)
+                if id:
+                    account = session.admin_account(id)
+                else:
+                    account = session.current_admin_account()
                 if include_read_only:
-                    return account.read_or_write_access_set
-                return account.write_access_set
+                    access_set = account.read_or_write_access_set
+                else:
+                    access_set = account.write_access_set
+            threadlocal.set(cache_key, access_set)
+            return access_set
         except Exception:
             return set()
 
