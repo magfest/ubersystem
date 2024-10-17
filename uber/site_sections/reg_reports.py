@@ -60,6 +60,7 @@ class Root:
             'attendees': receipt_query.limit(50).offset(offset),
             'include_pending': include_pending,
         }
+    attendee_receipt_discrepancies._cp_config = {'response.stream': True}
 
     @log_pageview
     def attendees_nonzero_balance(self, session, include_no_receipts=False):
