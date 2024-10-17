@@ -3,7 +3,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import all_renderable, log_pageview
+from uber.decorators import all_renderable, log_pageview, streamable
 from uber.models import Attendee, Group, PromoCode, ReceiptTransaction, ModelReceipt
 
 
@@ -38,6 +38,7 @@ class Root:
             key=lambda s: s.lower())}
 
     @log_pageview
+    @streamable
     def attendee_receipt_discrepancies(self, session, include_pending=False, page=1):
         filters = [Attendee.default_cost_cents != ModelReceipt.item_total]
         if include_pending:
@@ -60,7 +61,6 @@ class Root:
             'attendees': receipt_query.limit(50).offset(offset),
             'include_pending': include_pending,
         }
-    attendee_receipt_discrepancies._cp_config = {'response.stream': True}
 
     @log_pageview
     def attendees_nonzero_balance(self, session, include_no_receipts=False):

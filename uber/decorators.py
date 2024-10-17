@@ -574,7 +574,8 @@ def renderable_data(data=None):
 
 
 # render using the first template that actually exists in template_name_list
-def render(template_name_list, data=None, encoding='utf-8'):
+# Returns a generator that streams the template result to the client
+def render_stream(template_name_list, data=None, encoding='utf-8'):
     data = renderable_data(data)
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
@@ -582,6 +583,17 @@ def render(template_name_list, data=None, encoding='utf-8'):
     if encoding:
         for chunk in rendered:
             yield chunk.encode(encoding)
+    return rendered
+
+
+# render using the first template that actually exists in template_name_list
+def render(template_name_list, data=None, encoding='utf-8'):
+    data = renderable_data(data)
+    env = JinjaEnv.env()
+    template = env.get_or_select_template(template_name_list)
+    rendered = template.render(data)
+    if encoding:
+            return rendered.encode(encoding)
     return rendered
 
 
@@ -653,12 +665,19 @@ def renderable(func):
             if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
                 return render('closed.html')
             elif isinstance(result, dict):
+                cp_config = getattr(func, "_cp_config", {})
+                if cp_config.get("response.stream", False):
+                    return render_stream(_get_template_filename(func), result)
                 return render(_get_template_filename(func), result)
             else:
                 return result
 
     return with_rendering
 
+def streamable(func):
+    func._cp_config = getattr(func, "_cp_config", {})
+    func._cp_config['response.stream'] = True
+    return func
 
 def public(func):
     func.public = True
