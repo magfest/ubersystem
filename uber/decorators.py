@@ -53,7 +53,7 @@ def log_pageview(func):
     def with_check(*args, **kwargs):
         with uber.models.Session() as session:
             try:
-                session.current_admin_account()
+                session.admin_account(cherrypy.session.get('account_id'))
             except Exception:
                 pass  # no tracking for non-admins yet
             else:
@@ -559,7 +559,6 @@ def sessionized(func):
         with uber.models.Session() as session:
             try:
                 retval = func(*args, session=session, **kwargs)
-                session.expunge_all()
                 return retval
             except HTTPRedirect:
                 session.commit()
@@ -579,10 +578,9 @@ def render(template_name_list, data=None, encoding='utf-8'):
     data = renderable_data(data)
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
-    cherrypy.response.stream = True
     rendered = template.generate(data)
     if encoding:
-        for idx, chunk in enumerate(rendered):
+        for chunk in rendered:
             yield chunk.encode(encoding)
     return rendered
 
