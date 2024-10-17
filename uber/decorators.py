@@ -53,7 +53,7 @@ def log_pageview(func):
     def with_check(*args, **kwargs):
         with uber.models.Session() as session:
             try:
-                session.current_admin_account()
+                session.admin_account(cherrypy.session.get('account_id'))
             except Exception:
                 pass  # no tracking for non-admins yet
             else:
