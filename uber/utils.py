@@ -1371,12 +1371,10 @@ class SignNowRequest:
                 "Accept": "application/json"
             }
 
-    def set_access_token(self, refresh=False):
-        from uber.config import aws_secrets_client
+    def set_access_token(self):
+        self.access_token = c.REDIS_STORE.get(c.REDIS_PREFIX + 'signnow_access_token')
 
-        self.access_token = c.SIGNNOW_ACCESS_TOKEN
-
-        if self.access_token and not refresh:
+        if self.access_token:
             return
 
         if c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
@@ -1387,22 +1385,15 @@ class SignNowRequest:
             else:
                 self.access_token = access_request['access_token']
                 return
-        elif not aws_secrets_client:
-            self.error_message = ("Couldn't get a SignNow access token because there was no AWS Secrets client. "
-                                  "If you're on a development box, you can instead use a username and password.")
         elif not c.AWS_SIGNNOW_SECRET_NAME:
             self.error_message = ("Couldn't get a SignNow access token because the secret name is not set. "
                                   "If you're on a development box, you can instead use a username and password.")
-        else:
-            aws_secrets_client.get_signnow_secret()
-            self.access_token = c.SIGNNOW_ACCESS_TOKEN
-            return
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import put
         from json import dumps, loads
 
-        self.set_access_token(refresh=True)
+        self.set_access_token()
         if not self.error_message:
             document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
 

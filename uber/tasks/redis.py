@@ -1,14 +1,16 @@
 
 import json
 import re
+from dateutil import parser as dateparser
 from datetime import datetime, timedelta
+from pockets.autolog import log
 from sqlalchemy import any_
 
-from uber.config import c
+from uber.config import c, AWSSecretFetcher
 from uber.tasks import celery
 
 
-__all__ = ['expire_processed_saml_assertions', 'update_shirt_counts', 'update_problem_names']
+__all__ = ['expire_processed_saml_assertions', 'set_signnow_key', 'update_shirt_counts', 'update_problem_names']
 
 
 @celery.schedule(timedelta(minutes=30))
@@ -23,6 +25,21 @@ def expire_processed_saml_assertions():
             rsession.hdel(c.REDIS_PREFIX + 'processed_saml_assertions', key)
 
     rsession.execute()
+
+
+@celery.schedule(timedelta(15))
+def set_signnow_key():
+    if not c.AWS_SIGNNOW_SECRET_NAME or not c.SIGNNOW_DEALER_TEMPLATE_ID:
+        return
+
+    signnow_access_key = c.REDIS_STORE.get(c.REDIS_PREFIX + 'signnow_access_token')
+    if not signnow_access_key:
+        signnow_secret = AWSSecretFetcher().get_signnow_secret()
+        if not signnow_secret:
+            log.error("Attempted to update our SignNow token but we didn't get a secret back from AWS!")
+        c.REDIS_STORE.set(c.REDIS_PREFIX + 'signnow_access_token', signnow_secret.get('ACCESS_TOKEN', ''))
+        expire_date = dateparser.parse(signnow_secret.get('LAST_UPDATE', '')[:-6]) + timedelta(hours=23)
+        c.REDIS_STORE.expireat(c.REDIS_PREFIX + 'signnow_access_token', expire_date.timestamp())
 
 
 @celery.schedule(timedelta(seconds=30))
