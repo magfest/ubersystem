@@ -559,6 +559,7 @@ def sessionized(func):
         with uber.models.Session() as session:
             try:
                 retval = func(*args, session=session, **kwargs)
+                session.expunge_all()
                 return retval
             except HTTPRedirect:
                 session.commit()
@@ -593,7 +594,7 @@ def render(template_name_list, data=None, encoding='utf-8'):
     template = env.get_or_select_template(template_name_list)
     rendered = template.render(data)
     if encoding:
-            return rendered.encode(encoding)
+        return rendered.encode(encoding)
     return rendered
 
 
