@@ -38,7 +38,6 @@ class Root:
             key=lambda s: s.lower())}
 
     @log_pageview
-    @streamable
     def attendee_receipt_discrepancies(self, session, include_pending=False, page=1):
         '''
         select model_receipt.owner_id

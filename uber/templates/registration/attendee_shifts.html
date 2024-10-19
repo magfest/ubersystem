@@ -61,7 +61,7 @@
     });
 </script>
 
-<h2>{{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+<h2>{{ attendee.full_name }} {% if c.AT_THE_CON and attendee.badge_num %}({{ attendee.badge }}){% endif %}</h2>
 
 <table width="100%">
 <tr>
@@ -93,7 +93,7 @@
 {% if attendee.shifts %}
     <b>
         Shifts signed up for by {{ attendee.full_name }}
-        {% if c.AT_THE_CON %}
+        {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
             {% if attendee.checked_in %}
                 <i>[checked in]</i>
             {% else %}

@@ -499,7 +499,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
 
-        if c.AT_THE_CON and self.badge_num and not self.checked_in and self.is_new \
+        if (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and self.badge_num and not self.checked_in and self.is_new \
                 and self.badge_type not in c.PREASSIGNED_BADGE_TYPES:
             self.checked_in = datetime.now(UTC)
 
@@ -771,7 +771,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "This badge must be approved by an admin."
         if self.badge_status == c.WATCHED_STATUS and not c.HAS_SECURITY_ADMIN_ACCESS:
             return "Please escalate this case to someone with access to the watchlist."
-        if c.AT_THE_CON and not c.HAS_REG_ADMIN_ACCESS:
+        if (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and not c.HAS_REG_ADMIN_ACCESS:
             return "Altering the badge status is disabled during the event. The system will update it automatically."
         return ''
 

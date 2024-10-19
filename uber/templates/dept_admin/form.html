@@ -424,7 +424,7 @@
                 {% if c.AT_OR_POST_CON %}
                   <th>Worked</th>
                 {% endif %}
-                {% if c.AT_THE_CON %}
+                {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
                   <th>Checked In</th>
                 {% endif %}
                 {% if can_admin_dept -%}
@@ -453,7 +453,7 @@
                       <a href="#attendee_form?id={{ attendee.id }}&tab_view=Shifts">{{ attendee.worked_hours }}</a>
                     </td>
                   {% endif %}
-                  {% if c.AT_THE_CON %}
+                  {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
                     <td>{{ attendee.checked_in|yesno("Checked In, Not Checked In") }}</td>
                   {% endif %}
                   {% if can_admin_dept -%}
