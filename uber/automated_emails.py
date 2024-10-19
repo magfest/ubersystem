@@ -169,7 +169,7 @@ AutomatedEmailFixture(
     '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
     lambda a: (a.paid == c.HAS_PAID and not a.promo_code_groups) or
-              (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id)),
+              (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id or a.age_discount)),
     # query=Attendee.paid == c.HAS_PAID,
     needs_approval=False,
     allow_at_the_con=True,
