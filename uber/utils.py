@@ -1372,6 +1372,7 @@ class SignNowRequest:
             }
 
     def set_access_token(self):
+        from uber.tasks.redis import set_signnow_key
         self.access_token = c.REDIS_STORE.get(c.REDIS_PREFIX + 'signnow_access_token')
 
         if self.access_token:
@@ -1388,21 +1389,47 @@ class SignNowRequest:
         elif not c.AWS_SIGNNOW_SECRET_NAME:
             self.error_message = ("Couldn't get a SignNow access token because the secret name is not set. "
                                   "If you're on a development box, you can instead use a username and password.")
+        else:
+            set_signnow_key.delay()
+            self.access_token = c.REDIS_STORE.get(c.REDIS_PREFIX + 'signnow_access_token')
+            if not self.access_token:
+                self.error_message = "Couldn't set the SignNow key. Check the redis task for errors."
+
+        if self.error_message:
+            log.error(self.error_message)
+
+    def invalid_request(self, msg, check_group=False):
+        if check_group:
+            if not self.group:
+                self.error_message = f"{msg} without a group attached to the request!"
+        elif not self.document:
+            self.error_message = f"{msg} without a document attached to the request!"
+        else:
+            self.check_access_token(msg)
+        return bool(self.error_message)
+
+    def check_access_token(self, msg):
+        if not self.access_token:
+            self.set_access_token()
+            if not self.access_token:
+                self.error_message = f"{msg} but access token is not set!"        
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import put
         from json import dumps, loads
+        if self.invalid_request("Tried to create a document"):
+            log.error(self.error_message)
+            return
 
-        self.set_access_token()
-        if not self.error_message:
-            document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
+        document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
 
-            if 'error' in document_request:
-                self.error_message = (f"Error creating document from template with token {self.access_token}: " +
-                                      document_request['error'])
+        if 'error' in document_request:
+            self.error_message = (f"Error creating document from template with token {self.access_token}: " +
+                                    document_request['error'])
 
         if self.error_message:
-            return None
+            log.error(self.error_message)
+            return
 
         if uneditable_texts_list:
             response = put(signnow_sdk.Config().get_base_url() + '/document/' +
@@ -1415,6 +1442,7 @@ class SignNowRequest:
             if 'errors' in edit_request:
                 self.error_message = "Error setting up uneditable text fields: " + '; '.join(
                     [e['message'] for e in edit_request['errors']])
+                log.error(self.error_message)
                 return None
 
         if fields:
@@ -1430,6 +1458,7 @@ class SignNowRequest:
                 if 'errors' in fields_request:
                     self.error_message = "Error setting up fields: " + '; '.join(
                         [e['message'] for e in fields_request['errors']])
+                    log.error(self.error_message)
                     return None
 
         if folder_id:
@@ -1438,13 +1467,14 @@ class SignNowRequest:
                                                folder_id)
             if 'error' in result:
                 self.error_message = "Error moving document into folder: " + result['error']
+                log.error(self.error_message)
                 # Give the document request back anyway
 
         return document_request.get('id')
 
     def get_doc_signed_timestamp(self):
-        if not self.document:
-            self.error_message = "Tried to get a signed timestamp without a document attached to the request!"
+        if self.invalid_request("Tried to get a signed timestamp"):
+            log.error(self.error_message)
             return
 
         details = self.get_document_details()
@@ -1452,11 +1482,8 @@ class SignNowRequest:
             return details['signatures'][0].get('created')
 
     def create_dealer_signing_link(self):
-        if not self.group:
-            self.error_message = "Tried to send a dealer signing link without a group attached to the request!"
-            return
-        if not self.document:
-            self.error_message = "Tried to send a dealer signing link without a document attached to the request!"
+        if self.invalid_request("Tried to send a dealer signing link", check_group=True):
+            log.error(self.error_message)
             return
 
         first_name = self.group.leader.first_name if self.group.leader else ''
@@ -1483,8 +1510,8 @@ class SignNowRequest:
             dict: A dictionary representing the JSON response containing the signing links for the document.
         """
 
-        if not self.document:
-            self.error_message = "Tried to send a signing link without a document attached to the request!"
+        if self.invalid_request("Tried to send a signing link"):
+            log.error(self.error_message)
             return
 
         response = post(signnow_sdk.Config().get_base_url() + '/link', headers=self.api_call_headers,
@@ -1498,13 +1525,15 @@ class SignNowRequest:
         if 'errors' in signing_request:
             self.error_message = "Error getting signing link: " + '; '.join(
                 [e['message'] for e in signing_request['errors']])
+            log.error(self.error_message)
         else:
             return signing_request.get('url_no_signup')
 
     def send_dealer_signing_invite(self):
         from uber.custom_tags import email_only
-        if not self.group:
-            self.error_message = "Tried to send a dealer signing invite without a group attached to the request!"
+
+        if self.invalid_request("Tried to send a dealer signing invite", check_group=True):
+            log.error(self.error_message)
             return
 
         invite_payload = {
@@ -1526,30 +1555,33 @@ class SignNowRequest:
 
         if 'error' in invite_request:
             self.error_message = "Error sending invite to sign: " + invite_request['error']
+            log.error(self.error_message)
         else:
             return invite_request
 
     def get_download_link(self):
-        if not self.document:
-            self.error_message = "Tried to get a download link from a request without a document!"
+        if self.invalid_request("Tried to get a download link"):
+            log.error(self.error_message)
             return
 
         download_request = signnow_sdk.Document.download_link(self.access_token, self.document.document_id)
 
         if 'error' in download_request:
             self.error_message = "Error getting download link: " + download_request['error']
+            log.error(self.error_message)
         else:
             return download_request.get('link')
 
     def get_document_details(self):
-        if not self.document:
-            self.error_message = "Tried to get document details from a request without a document!"
+        if self.invalid_request("Tried to get document details from a request"):
+            log.error(self.error_message)
             return
 
         document_request = signnow_sdk.Document.get(self.access_token, self.document.document_id)
 
         if 'error' in document_request:
             self.error_message = "Error getting document: " + document_request['error']
+            log.error(self.error_message)
         else:
             return document_request
 

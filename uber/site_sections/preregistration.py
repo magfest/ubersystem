@@ -1233,9 +1233,7 @@ class Root:
             signnow_request = SignNowRequest(session=session, group=group, ident="terms_and_conditions",
                                              create_if_none=True)
 
-            if signnow_request.error_message:
-                log.error(signnow_request.error_message)
-            else:
+            if not signnow_request.error_message:
                 signnow_document = signnow_request.document
                 session.add(signnow_document)
 
@@ -1249,9 +1247,7 @@ class Root:
                         signnow_document.link = signnow_link
                     elif not signnow_link:
                         signnow_link = signnow_request.create_dealer_signing_link()
-                        if signnow_request.error_message:
-                            log.error(signnow_request.error_message)
-                        else:
+                        if not signnow_request.error_message:
                             signnow_document.link = signnow_link
 
                 session.commit()
@@ -1294,15 +1290,12 @@ class Root:
         group = session.group(id)
         signnow_request = SignNowRequest(session=session, group=group)
         if signnow_request.error_message:
-            log.error(signnow_request.error_message)
             raise HTTPRedirect(return_to + "?id={}&message={}", id,
                                "We're having an issue fetching this document link. Please try again later!")
         elif signnow_request.document:
             if signnow_request.document.signed:
                 download_link = signnow_request.get_download_link()
-                if signnow_request.error_message:
-                    log.error(signnow_request.error_message)
-                else:
+                if not signnow_request.error_message:
                     raise HTTPRedirect(download_link)
             raise HTTPRedirect(return_to + "?id={}&message={}", id,
                                "We don't have a record of this document being signed.")

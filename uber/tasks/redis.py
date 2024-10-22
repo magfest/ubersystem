@@ -39,7 +39,7 @@ def set_signnow_key():
             log.error("Attempted to update our SignNow token but we didn't get a secret back from AWS!")
         c.REDIS_STORE.set(c.REDIS_PREFIX + 'signnow_access_token', signnow_secret.get('ACCESS_TOKEN', ''))
         expire_date = dateparser.parse(signnow_secret.get('LAST_UPDATE', '')[:-6]) + timedelta(hours=23)
-        c.REDIS_STORE.expireat(c.REDIS_PREFIX + 'signnow_access_token', expire_date.timestamp())
+        c.REDIS_STORE.expireat(c.REDIS_PREFIX + 'signnow_access_token', int(expire_date.timestamp()))
 
 
 @celery.schedule(timedelta(seconds=30))

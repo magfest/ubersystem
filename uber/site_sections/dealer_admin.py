@@ -230,7 +230,6 @@ class Root:
 
         signnow_request.send_dealer_signing_invite()
         if signnow_request.error_message:
-            log.error(signnow_request.error_message)
             raise HTTPRedirect("form?id={}&message={}", id,
                                f"Error sending SignNow link: {signnow_request.error_message}")
         else:
@@ -248,7 +247,7 @@ class Root:
                 group.set_shared_with_name(shared_group_name)
             except ValueError as e:
                 return {'error': str(e)}
-            
+
         group.convert_to_shared(session)
         session.commit()
 
