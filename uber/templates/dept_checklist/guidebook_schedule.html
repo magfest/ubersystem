@@ -9,7 +9,7 @@
 <form method="post" action="guidebook_schedule">
 {{ csrf_token() }}
 <input type="hidden" name="department_id" value="{{ department.id }}" />
-Make sure your public-facing events or open hours are on our Uber schedule so they can be exported to Guidebook.
+{{ conf.full_description|default(conf.description, true)|safe }}
 <br/>
 <input type="submit" name="submitted" value="I have added my department's events to the schedule" />
 </form>
