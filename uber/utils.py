@@ -1373,6 +1373,8 @@ class SignNowRequest:
 
     def set_access_token(self):
         from uber.tasks.redis import set_signnow_key
+
+        set_signnow_key.delay()
         self.access_token = c.REDIS_STORE.get(c.REDIS_PREFIX + 'signnow_access_token')
 
         if self.access_token:
@@ -1389,11 +1391,7 @@ class SignNowRequest:
         elif not c.AWS_SIGNNOW_SECRET_NAME:
             self.error_message = ("Couldn't get a SignNow access token because the secret name is not set. "
                                   "If you're on a development box, you can instead use a username and password.")
-        else:
-            set_signnow_key.delay()
-            self.access_token = c.REDIS_STORE.get(c.REDIS_PREFIX + 'signnow_access_token')
-            if not self.access_token:
-                self.error_message = "Couldn't set the SignNow key. Check the redis task for errors."
+        self.error_message = "Couldn't set the SignNow key. Check the redis task for errors."
 
         if self.error_message:
             log.error(self.error_message)

@@ -33,7 +33,8 @@ def set_signnow_key():
         return
 
     signnow_access_key = c.REDIS_STORE.get(c.REDIS_PREFIX + 'signnow_access_token')
-    if not signnow_access_key:
+    expired = c.REDIS_STORE.expiretime(c.REDIS_PREFIX + 'signnow_access_token')
+    if not signnow_access_key or expired == -1:
         signnow_secret = AWSSecretFetcher().get_signnow_secret()
         if not signnow_secret:
             log.error("Attempted to update our SignNow token but we didn't get a secret back from AWS!")
