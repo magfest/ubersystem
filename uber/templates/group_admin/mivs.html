@@ -17,8 +17,8 @@
                 {% if group.guest -%}
                   &nbsp;
                   <div class="btn-group" role="group" aria-label="...">
-                  <a href="checklist_info?id={{ group.guest.id }}" class="btn btn-xs btn-outline-secondary"><i class="fa fa-cog" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></i></a>
-                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-xs btn-primary"><i class="fa fa-check" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></i></a>
+                  <a href="checklist_info?id={{ group.guest.id }}" class="btn btn-sm btn-outline-secondary"><i class="fa fa-cog" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></i></a>
+                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-sm btn-primary"><i class="fa fa-check" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></i></a>
                   </div>
                 {% endif %}
             </span>

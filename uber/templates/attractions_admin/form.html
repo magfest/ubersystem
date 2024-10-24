@@ -652,7 +652,7 @@
       <input type="hidden" name="id" value="{{ attraction.id }}">
       <button
           type="submit"
-          class="btn btn-xs btn-danger"
+          class="btn btn-sm btn-danger"
           {% if attraction.features %}disabled="disabled"{% endif %}>
         <i class="fa fa-remove"></i>
         Delete Attraction
@@ -663,14 +663,14 @@
   {% if can_admin_attraction -%}
     <button
         type="button"
-        class="btn btn-xs btn-primary"
+        class="btn btn-sm btn-primary"
         data-bs-toggle="modal"
         data-bs-target="#edit_attraction"
         title="Edit the {{ attraction.name }} Attraction">
       <i class="fa fa-cog"></i>
     </button>
   {%- endif %}
-  <a href="checkin?id={{ attraction.slug }}" class="btn btn-xs btn-primary">
+  <a href="checkin?id={{ attraction.slug }}" class="btn btn-sm btn-primary">
     <i class="fa fa-check"></i>
     Check In Attendees
   </a>
@@ -726,7 +726,7 @@
 <h2>
   {{ attraction.name }} Features
   {% if can_admin_attraction -%}
-    <a class="btn btn-xs btn-primary"
+    <a class="btn btn-sm btn-primary"
         title="Add a new feature"
         href="feature?attraction_id={{ attraction.id }}">
       <i class="fa fa-plus"></i>
@@ -760,13 +760,13 @@
               <h3 class="feature-title">
                 {% if can_admin_attraction -%}
                   <div class="controls pull-right">
-                    <a class="btn btn-xs btn-primary btn-fade"
+                    <a class="btn btn-sm btn-primary btn-fade"
                         title="Export signup list for {{ feature.name }}"
                         href="export_feature?id={{ feature.id }}"
                         download="download">
                       <i class="fa fa-download-alt"></i>
                     </a>
-                    <a class="btn btn-xs btn-primary btn-fade"
+                    <a class="btn btn-sm btn-primary btn-fade"
                         title="Edit the {{ feature.name }} feature"
                         href="feature?id={{ feature.id }}">
                       <i class="fa fa-cog"></i>
@@ -779,7 +779,7 @@
                         title="Delete the {{ feature.name }} feature">
                       {{ csrf_token() }}
                       <input type="hidden" name="id" value="{{ feature.id }}">
-                      <button type="submit" class="btn btn-xs btn-danger btn-fade">
+                      <button type="submit" class="btn btn-sm btn-danger btn-fade">
                         <i class="fa fa-remove"></i>
                       </button>
                     </form>
@@ -787,7 +787,7 @@
                 {%- endif %}
                 <span>{{ feature.name }}</span>
                 {% if can_admin_attraction -%}
-                  <a class="btn btn-xs btn-primary"
+                  <a class="btn btn-sm btn-primary"
                       title="Schedule a new {{ feature.name }} event"
                       href="event?feature_id={{ feature.id }}">
                     <i class="fa fa-time"></i>
@@ -865,12 +865,12 @@
                                   style="min-height: {{ (event.duration // 90) - 6 }}px">
                                 {% if can_admin_attraction -%}
                                   <div class="controls pull-right">
-                                    <a class="btn btn-xs btn-primary btn-fade"
+                                    <a class="btn btn-sm btn-primary btn-fade"
                                         title="Edit this event"
                                         href="event?id={{ event.id }}">
                                       <i class="fa fa-cog"></i>
                                     </a>
-                                    <button type="submit" class="btn btn-xs btn-danger btn-fade delete-event" data-event-id="{{ event.id }}" data-event-label="{{ feature.name }} at {{ event.start_time_label }}">
+                                    <button type="submit" class="btn btn-sm btn-danger btn-fade delete-event" data-event-id="{{ event.id }}" data-event-label="{{ feature.name }} at {{ event.start_time_label }}">
                                       <i class="fa fa-remove"></i>
                                     </button>
                                   </div>

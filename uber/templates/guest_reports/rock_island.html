@@ -5,7 +5,7 @@
 
 {% macro empty_filter(only_empty) %}
   <a
-      class="filter btn btn-xs btn-{% if only_empty %}plain{% else %}default{% endif %}"
+      class="filter btn btn-sm btn-{% if only_empty %}plain{% else %}default{% endif %}"
       href="../guest_reports/rock_island{% if not only_empty %}?only_empty=1{% endif %}">
     <i class="fa fa-filter"></i>
     Show Only Empty Inventory
