@@ -76,7 +76,8 @@
           if (result.error) {
             showErrorMessage(result.error);
           } else {
-            $btn.toggleClass('btn-outline-secondary')
+            $btn.toggleClass('btn-secondary');
+            $btn.toggleClass('btn-outline-secondary');
           }
       }, 'json');
     });
@@ -100,7 +101,7 @@
       {%- if is_admin_dept_head -%}
       <button
           type="button"
-          class="btn btn-xs btn-inherent_role btn-{% if is_dept_head %}plain{% else %}default{% endif %}"
+          class="btn btn-sm btn-inherent_role btn-{% if not is_dept_head %}outline-{% endif %}secondary"
           data-role="dept_head"
           {% if is_dept_head %}
             title="Remove {{ attendee.full_name }} as a department head of the {{ department.name }} department"
@@ -111,7 +112,7 @@
       </button>{%- endif -%}
       <button
           type="button"
-          class="btn btn-xs btn-inherent_role btn-{% if is_poc %}plain{% else %}default{% endif %}"
+          class="btn btn-sm btn-inherent_role btn-{% if not is_poc %}outline-{% endif %}secondary"
           data-role="poc"
           {% if is_poc %}
             title="Remove {{ attendee.full_name }} as a point of contact of the {{ department.name }} department"
@@ -122,7 +123,7 @@
       </button>{#- strip whitespace -#}
       <button
           type="button"
-          class="btn btn-xs btn-inherent_role btn-{% if is_checklist_admin %}plain{% else %}default{% endif %}"
+          class="btn btn-sm btn-inherent_role btn-{% if not is_checklist_admin %}outline-{% endif %}secondary"
           data-role="checklist_admin"
           {% if is_checklist_admin %}
             title="Remove {{ attendee.full_name }} as a checklist admin of the {{ department.name }} department"
@@ -247,7 +248,7 @@
 <h1>
   {{ department.name }} Department
   {% if is_admin_dept_head -%}
-    <button type="button" class="btn btn-xs btn-primary" data-bs-toggle="modal" data-bs-target="#edit_department">
+    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#edit_department">
       <i class="fa fa-cog"></i>
     </button>
     <form
@@ -264,7 +265,7 @@
       <input
           type="submit"
           value="Delete Department"
-          class="btn btn-xs btn-danger"
+          class="btn btn-sm btn-danger"
           {% if department.member_count > 1 %}disabled="disabled"{% endif %}>
     </form>
   {%- endif %}
@@ -315,7 +316,7 @@
         Roles
         {% if can_admin_dept -%}
           <a
-              class="btn btn-xs btn-primary"
+              class="btn btn-sm btn-primary"
               title="Create a new department role"
               href="role?department_id={{ department.id }}">
             <i class="fa fa-plus"></i>
@@ -350,7 +351,7 @@
                   {% if can_admin_dept -%}
                     <td class="controls">
                       <a
-                          class="btn btn-xs btn-primary"
+                          class="btn btn-sm btn-primary"
                           title="Edit the {{ role.name }} department role"
                           href="role?id={{ role.id }}">
                         <i class="fa fa-cog"></i>
@@ -363,7 +364,7 @@
                           title="Delete the {{ role.name }} department role">
                         {{ csrf_token() }}
                         <input type="hidden" name="id" value="{{ role.id }}">
-                        <button type="submit" class="btn btn-xs btn-danger">
+                        <button type="submit" class="btn btn-sm btn-danger">
                           <i class="fa fa-remove"></i>
                         </button>
                       </form>
@@ -468,7 +469,7 @@
                         {{ csrf_token() }}
                         <input type="hidden" name="department_id" value="{{ department.id }}" />
                         <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
-                        <button type="submit" class="btn btn-xs btn-danger">
+                        <button type="submit" class="btn btn-sm btn-danger">
                           <i class="fa fa-remove"></i>
                         </button>
                       </form>

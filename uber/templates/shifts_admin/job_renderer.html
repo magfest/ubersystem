@@ -81,7 +81,7 @@
                 ))
             .append(
                 $('<td class="text-end"></td>').append(
-                    $('<button class="btn btn-xs btn-warning">Unassign</button>').click(function() {
+                    $('<button class="btn btn-sm btn-warning">Unassign</button>').click(function() {
                         $.post('unassign', {
                             csrf_token: csrf_token,
                             id: shift.id
@@ -134,7 +134,7 @@
                     .append('<td><span class="text-nowrap">(' + job.shifts.length + '/' + job.slots + ' slots filled)</span></td>')
                     .append(
                         $('<td class="text-end"></td>').append(
-                            jobIsFull ? '' : $('<button class="btn btn-xs btn-success">Assign</button>').click(function() {
+                            jobIsFull ? '' : $('<button class="btn btn-sm btn-success">Assign</button>').click(function() {
                                 var attendee = $('#attendee').val();
                                 if (attendee) {
                                     $.post('assign', {

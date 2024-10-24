@@ -16,20 +16,20 @@ Please select a department above to view its unfilled shifts.
 </style>
 
 <p>
-  <a href="unfilled_shifts?department_id={{ department_id }}&toggle_filter=unfilled_show_past_shifts" class="btn btn-xs 
-          {% if show_past_shifts %}btn-plain{% else %}btn-outline-secondary{% endif %}">
+  <a href="unfilled_shifts?department_id={{ department_id }}&toggle_filter=unfilled_show_past_shifts" class="btn btn-sm 
+          {% if show_past_shifts %}btn-outline-secondary{% else %}btn-outline-secondary{% endif %}">
     <i class="fa fa-filter"></i>
     Show Past Shifts
   </a>
 
-  <a href="unfilled_shifts?department_id={{ department_id }}&toggle_filter=unfilled_show_restricted" class="btn btn-xs 
-          {% if show_restricted %}btn-plain{% else %}btn-outline-secondary{% endif %}">
+  <a href="unfilled_shifts?department_id={{ department_id }}&toggle_filter=unfilled_show_restricted" class="btn btn-sm 
+          {% if show_restricted %}btn-outline-secondary{% else %}btn-outline-secondary{% endif %}">
     <i class="fa fa-filter"></i>
     Show Restricted
   </a>
 
-  <a href="unfilled_shifts?department_id={{ department_id }}&toggle_filter=unfilled_show_nonpublic" class="btn btn-xs 
-          {% if show_nonpublic %}btn-plain{% else %}btn-outline-secondary{% endif %}">
+  <a href="unfilled_shifts?department_id={{ department_id }}&toggle_filter=unfilled_show_nonpublic" class="btn btn-sm 
+          {% if show_nonpublic %}btn-outline-secondary{% else %}btn-outline-secondary{% endif %}">
     <i class="fa fa-filter"></i>
     Show Non Public
   </a>

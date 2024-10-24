@@ -73,7 +73,7 @@
         <select name="job_id" {% if not jobs %}disabled="disabled"{% endif %}>
             {{ options(jobs) }}
         </select>
-        <input type="submit" value="Assign" class="btn btn-xs btn-success" {% if not jobs %}disabled="disabled"{% endif %}/>
+        <input type="submit" value="Assign" class="btn btn-sm btn-success" {% if not jobs %}disabled="disabled"{% endif %}/>
       </form>
     </td>
     <td width="50%" align="right">
@@ -82,7 +82,7 @@
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
         <input type="text" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_minutes / 60 }}" style="width:3.5em" />
-        <input type="submit" value="Update" class="btn btn-xs btn-primary"/>
+        <input type="submit" value="Update" class="btn btn-sm btn-primary"/>
       </form>
     </td>
 </tr>
@@ -136,7 +136,7 @@
               <form method="post" action="../shifts_admin/unassign_shift">
                 {{ csrf_token() }}
                 <input type="hidden" name="shift_id" value="{{ shift.id }}" />
-                <input type="submit" value="Unassign" class="btn btn-xs btn-warning"/>
+                <input type="submit" value="Unassign" class="btn btn-sm btn-warning"/>
               </form>
             </td>
           </tr>
