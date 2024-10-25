@@ -218,7 +218,8 @@ class Root:
             dept_filter = [] if department_id == None else [  # noqa: E711
                 Attendee.dept_memberships.any(department_id=department_id)]
             attendees = session.staffers(pending=True).filter(*dept_filter).all()
-            requested_count = len([a for a in department.unassigned_explicitly_requesting_attendees if a.is_valid])
+            requested_count = None if not department_id else len(
+                [a for a in department.unassigned_explicitly_requesting_attendees if a.is_valid])
             for attendee in attendees:
                 if session.admin_has_staffer_access(attendee) or department_id:
                     attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
