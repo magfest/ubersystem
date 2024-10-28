@@ -226,16 +226,16 @@ class Root:
 
         signnow_request = SignNowRequest(session=session, group=group)
         if not signnow_request.document:
-            raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
+            raise HTTPRedirect("../group_admin/form?id={}&message={}".format(id, "SignNow document not found."))
 
         signnow_request.send_dealer_signing_invite()
         if signnow_request.error_message:
-            raise HTTPRedirect("form?id={}&message={}", id,
+            raise HTTPRedirect("../group_admin/form?id={}&message={}", id,
                                f"Error sending SignNow link: {signnow_request.error_message}")
         else:
             signnow_request.document.last_emailed = datetime.now(UTC)
             session.add(signnow_request.document)
-            raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
+            raise HTTPRedirect("../group_admin/form?id={}&message={}", id, "SignNow link sent!")
 
     @ajax
     def set_table_shared(self, session, id, shared_group_name, **params):

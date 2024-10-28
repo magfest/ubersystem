@@ -13,7 +13,7 @@
   </span>
   <script type="text/javascript">
     $(function() {
-      $('#tc-link').insertAfter($("button[form='cancel_dealer']"));
+      $('#tc-link').appendTo($("#dealer-actions"));
     });
   </script>
   {% elif signnow_link %}
@@ -22,7 +22,7 @@
     <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
       Review and Sign
     </a></p>
-    <p>Make sure to click "Finish" in the top right to confirm your signature.</p>
+    <p>Make sure to click "Finish" at the bottom of the page to confirm your signature.</p>
   </div>
   {% endif %}
 {% endif %}
