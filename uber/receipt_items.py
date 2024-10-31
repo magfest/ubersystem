@@ -519,11 +519,11 @@ def badge_cost(group, new_group=None):
         cost_table = defaultdict(int)
         ordered_badges = sorted(group.floating, key=lambda a: a.badge_cost, reverse=True)
 
-        if len(ordered_badges) <= badge_diff:
+        if len(ordered_badges) < badge_diff:
             log.error("We tried to compute a group reducing its badges to below its floating badges, "
                       "but that shouldn't be possible!")
             return
-        
+
         for count in range(badge_diff):
             attendee = ordered_badges[count]
             cost_table[attendee.badge_cost * 100 * -1] += 1
