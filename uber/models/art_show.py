@@ -165,7 +165,7 @@ class ArtShowApplication(MagModel):
     @property
     def current_agents(self):
         return [code.attendee for code in self.valid_agent_codes if code.attendee is not None]
-    
+
     @property
     def single_agent(self):
         return self.current_agents[0] if self.current_agents else None

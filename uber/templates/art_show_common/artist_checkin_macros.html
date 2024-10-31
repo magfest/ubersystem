@@ -165,7 +165,7 @@
     <label class="form-text">Agent</label>
     <div class="mb-3">
       <select name="agent_id" class="form-control">
-        {{ options(all_attendees, app.agent.id) }}
+        {{ options(all_attendees, app.single_agent.id) }}
       </select>
     </div>
   </div>
@@ -265,7 +265,7 @@
   <div class="col-12 col-sm-6">
     <label class="form-text">Agent Name</label>
     <div class="mb-3 mt-3">
-        {{ app.agent.legal_first_name }} {{ app.agent.legal_last_name }}
+        {{ app.single_agent.legal_first_name }} {{ app.single_agent.legal_last_name }}
     </div>
   </div>
 
