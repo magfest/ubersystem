@@ -125,7 +125,7 @@ class Root:
         page = int(page)
         if search_text:
             page = page or 1
-            if count == 1 and not c.AT_THE_CON:
+            if count == 1 and not c.AT_THE_CON and not c.BADGE_PICKUP_ENABLED:
                 raise HTTPRedirect(
                     'form?id={}&message={}', attendees.one().id,
                     'This attendee was the only{} search result'.format('' if invalid else ' valid'))
@@ -262,7 +262,8 @@ class Root:
                             'index?uploaded_id={}&message={}&search_text={}',
                             attendee.id,
                             message,
-                            '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
+                            '{} {}'.format(attendee.first_name, attendee.last_name
+                                           ) if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED else '')
         receipt = session.refresh_receipt_and_model(attendee)
         session.commit()
         forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',

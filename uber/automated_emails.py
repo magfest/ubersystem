@@ -169,7 +169,7 @@ AutomatedEmailFixture(
     '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
     lambda a: (a.paid == c.HAS_PAID and not a.promo_code_groups) or
-              (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id)),
+              (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id or a.age_discount)),
     # query=Attendee.paid == c.HAS_PAID,
     needs_approval=False,
     allow_at_the_con=True,
@@ -577,7 +577,7 @@ AutomatedEmailFixture(
     Attendee,
     'Claim your deferred badge for {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/deferred.html',
-     deferred_attendee_placeholder,
+    deferred_attendee_placeholder,
     when=after(c.PREREG_OPEN),
     ident='claim_deferred_badge')
 
@@ -864,13 +864,14 @@ if c.HOTELS_ENABLED:
         when=days_before(7, c.FINAL_EMAIL_DEADLINE),
         ident='hotel_requirements_reminder_last_chance')
 
-    AutomatedEmailFixture(
-        Room,
-        '{EVENT_NAME} Hotel Room Assignment',
-        'hotel/room_assignment.txt',
-        lambda r: r.locked_in,
-        sender=c.ROOM_EMAIL_SENDER,
-        ident='hotel_room_assignment')
+    if not c.HOTEL_REQUESTS_URL:
+        AutomatedEmailFixture(
+            Room,
+            '{EVENT_NAME} Hotel Room Assignment',
+            'hotel/room_assignment.txt',
+            lambda r: r.locked_in,
+            sender=c.ROOM_EMAIL_SENDER,
+            ident='hotel_room_assignment')
 
 
 # =============================
@@ -1264,7 +1265,6 @@ class PanelAppEmailFixture(AutomatedEmailFixture):
 
 
 if c.PANELS_ENABLED:
-
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
         'panels/application.html',
@@ -1344,11 +1344,10 @@ class GuestEmailFixture(AutomatedEmailFixture):
             **kwargs)
 
 
-AutomatedEmailFixture(
-    GuestGroup,
+BandEmailFixture(
     '{EVENT_NAME} Performer Checklist',
     'guests/band_notification.txt',
-    lambda b: b.group_type == c.BAND, sender=c.BAND_EMAIL,
+    lambda b: True,
     ident='band_checklist_inquiry')
 
 BandEmailFixture(
@@ -1468,3 +1467,20 @@ GuestEmailFixture(
     lambda g: not g.checklist_completed,
     when=days_after(7, c.GUEST_INFO_DEADLINE),
     ident='guest_reminder_2')
+
+AutomatedEmailFixture(
+    GuestGroup,
+    f'Sign up to sell merch at {c.EVENT_NAME} Rock Island',
+    'guests/rock_island_intro.txt',
+    lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.deadline_from_model('merch') and not g.group_type == c.BAND,
+    ident='rock_island_intro',
+    sender=c.ROCK_ISLAND_EMAIL)
+
+AutomatedEmailFixture(
+    GuestGroup,
+    f'Last chance to finalize your {c.EVENT_NAME} Rock Island Inventory',
+    'guests/rock_island_inventory_reminder.txt',
+    lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.merch and g.merch.selling_merch == c.ROCK_ISLAND,
+    ident='ri_inventory_reminder',
+    when=days_before(7, c.ROCK_ISLAND_DEADLINE),
+    sender=c.ROCK_ISLAND_EMAIL)

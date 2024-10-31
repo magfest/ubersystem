@@ -137,7 +137,7 @@
         {% if workstation_assignment and workstation_assignment.printer_id %}Re-a{% else %}A{% endif %}ssign Printers
       </button>
     {% endif %}
-    {% if c.AT_THE_CON %}
+    {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
     <form method="post" action="set_reg_station">
       <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
       <div class="row g-sm-2 row-cols-auto">
@@ -186,7 +186,7 @@
         {% endif %}
     </div>
     <div class="col col-auto">
-        {% if c.AT_THE_CON %}Workstation #: {{ reg_station_id|default("None",true) }}<br/>{% endif %}
+        {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}Workstation #: {{ reg_station_id|default("None",true) }}<br/>{% endif %}
         {% if c.BADGE_PRINTING_ENABLED %}
           {% set printer_text = "Standard Printer" if workstation_assignment and workstation_assignment.separate_printers else "Printer" %}
           {{ printer_text }}: {{ workstation_assignment.printer_id|default("None") if workstation_assignment else "None" }}
@@ -246,7 +246,7 @@
             {% if c.DONATION_TIER_OPTS|length > 1 %}<th> <a href="index?order={{ order.amount_extra }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Upgrade</a></th>{% endif %}
             <th> <a href="index?order={{ order.paid }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Paid</a> </th>
             <th>{% if c.COLLECT_EXACT_BIRTHDATE %}<a href="index?order={{ order.birthdate }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{% endif%}Age{% if c.COLLECT_EXACT_BIRTHDATE %}</a>{% endif %}</th>
-            {% if c.AT_THE_CON %}
+            {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED or c.AFTER_EPOCH %}
                 <th> <a href="index?order={{ order.checked_in }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}"><nobr>Checked In</nobr></a> </th>
             {% endif %}
             {% endblock tableheadings %}
@@ -287,7 +287,7 @@
                 {% if c.DONATION_TIER_OPTS|length > 1 %}<td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>{% endif %}
                 <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
                 <td> <nobr>{{ attendee.age_group_conf.desc }}</nobr> </td>
-                {% if c.AT_THE_CON %}
+                {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
                     {% if attendee.checked_in %}
                             <td>
                                 {% if attendee.paid == c.LOST_BADGE %}

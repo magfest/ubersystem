@@ -228,7 +228,7 @@
       </form>
     </div>
 
-    {% if c.REMAINING_BADGES > 50 and (not c.AT_THE_CON or not c.SPIN_TERMINAL_AUTH_KEY) %}
+    {% if c.REMAINING_BADGES > 50 and (not c.AT_THE_CON and not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY) %}
     <script type="text/javascript">
         {% if receipt and receipt.current_amount_owed %}
             $(function(){

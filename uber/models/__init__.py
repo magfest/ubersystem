@@ -865,7 +865,7 @@ class Session(SessionManager):
 
             return_dict['panels_admin'] = self.query(Attendee).outerjoin(PanelApplicant).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
-                                                     Attendee.panel_applications != None,  # noqa: E711
+                                                     Attendee.submitted_panels != None,  # noqa: E711
                                                      Attendee.assigned_panelists != None,  # noqa: E711
                                                      Attendee.panel_applicants != None,  # noqa: E711
                                                      Attendee.panel_feedback != None))  # noqa: E711

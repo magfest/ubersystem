@@ -1,12 +1,12 @@
 {% extends "guest_checklist/panel_deadline.html" %}
 
 {% block deadline_text %}
-    {% if not guest.group.leader.panel_applications %}
+    {% if not guest.group.leader.submitted_panels %}
     Are you interested in running a panel at MAGFest? Please tell us what you would like to plan and 
     our panels department will get in touch with more details.
     {% else %}
-        You have already submitted {{ guest.group.leader.panel_applications|length }} panel
-        idea{{ guest.group.leader.panel_applications|length|pluralize }}.
+        You have already submitted {{ guest.group.leader.submitted_panels|length }} panel
+        idea{{ guest.group.leader.submitted_panels|length|pluralize }}.
         {% if c.APP_LIMIT %}
         You may submit up to {{ c.APP_LIMIT }} panels for review.
         {% endif %}

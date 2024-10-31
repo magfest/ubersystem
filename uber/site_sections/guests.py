@@ -189,11 +189,22 @@ class Root:
         guest = session.guest_group(guest_id)
         guest_merch = session.guest_merch(params, checkgroups=GuestMerch.all_checkgroups, bools=GuestMerch.all_bools)
         guest_merch.handlers = guest_merch.extract_handlers(params)
+
+        autograph_params = params.copy()
+        autograph_params.pop('id', None)
+        if guest.autograph:
+            autograph_params['id'] = guest.autograph.id
+        guest_autograph = session.guest_autograph(autograph_params)
+        
         group_params = dict()
+
         if cherrypy.request.method == 'POST':
             message = check(guest_merch)
+            
             if not message:
-                if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE \
+                if not guest.deadline_from_model('autograph') and params.get('rock_island_autographs', '') == '':
+                    message = 'Please select whether you would like to have a Meet N Greet at Rock Island.'
+                elif c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE \
                         and guest_merch.selling_merch == c.OWN_TABLE \
                         and guest.group_type == c.BAND \
                         and not all([coverage, warning]):
@@ -214,6 +225,17 @@ class Root:
                     else:
                         guest.group.apply(group_params, restricted=True)
             if not message:
+                if not guest.deadline_from_model('autograph'):
+                    guest.autograph = guest_autograph
+                    session.add(guest_autograph)
+                    if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
+                        guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
+                        send_email.delay(
+                            c.ROCK_ISLAND_EMAIL,
+                            c.ROCK_ISLAND_EMAIL,
+                            '{} Meet & Greet Notification'.format(guest.group.name),
+                            render('emails/guests/meetgreet_notification.txt', {'guest': guest}, encoding=None),
+                            model=guest.to_dict('id'))
                 guest.merch = guest_merch
                 session.add(guest_merch)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your merchandise preferences have been saved')
@@ -223,9 +245,10 @@ class Root:
         return {
             'guest': guest,
             'guest_merch': guest_merch,
+            'guest_autograph': guest.autograph or guest_autograph,
             'group': group_params or guest.group,
             'message': message,
-            'agreed_to_ri_faq': guest.group_type == c.BAND and guest_merch and
+            'agreed_to_ri_faq': guest.group_type in c.ROCK_ISLAND_GROUPS and guest_merch and
             guest_merch.orig_value_of('selling_merch') != c.NO_MERCH and guest_merch.poc_address1,
         }
 
@@ -303,7 +326,7 @@ class Root:
             guest_autograph.length = 60 * int(params.get('length'), 0)
             guest_autograph.rock_island_length = 60 * int(params.get('rock_island_length', 0))
 
-            if guest_autograph.rock_island_autographs or \
+            if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
                     guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
                 send_email.delay(
                     c.ROCK_ISLAND_EMAIL,

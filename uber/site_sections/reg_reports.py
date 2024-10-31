@@ -1,10 +1,10 @@
 from collections import defaultdict
-from sqlalchemy import or_
-from sqlalchemy.orm import subqueryload
+from sqlalchemy import or_, and_
+from sqlalchemy.sql import func
 
 from uber.config import c
-from uber.decorators import all_renderable, log_pageview
-from uber.models import Attendee, Group, PromoCode, ReceiptTransaction, ModelReceipt
+from uber.decorators import all_renderable, log_pageview, streamable
+from uber.models import Attendee, Group, PromoCode, ReceiptTransaction, ModelReceipt, ReceiptItem
 
 
 @all_renderable()
@@ -39,14 +39,19 @@ class Root:
 
     @log_pageview
     def attendee_receipt_discrepancies(self, session, include_pending=False, page=1):
-        filters = [Attendee.default_cost_cents != ModelReceipt.item_total]
-        if include_pending:
-            filters.append(or_(Attendee.badge_status.in_([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]),
-                               Attendee.is_valid == True))  # noqa: E712
-        else:
-            filters.append(Attendee.is_valid == True)  # noqa: E712
-
-        receipt_query = session.query(Attendee).join(Attendee.active_receipt).filter(*filters)
+        '''
+        select model_receipt.owner_id
+        from model_receipt
+        join receipt_item on receipt_item.receipt_id = model_receipt.id
+        join attendee on attendee.id = model_receipt.owner_id
+        where
+            model_receipt.closed is null
+            and model_receipt.owner_model = 'Attendee'
+        group by attendee.id, attendee.default_cost, attendee.badge_status
+        having
+            attendee.default_cost * 100 != sum(receipt_item.amount * receipt_item.count)
+            and (attendee.badge_status NOT IN (175104371, 192297957, 229301191, 169050145, 91398854, 177900276));
+        '''
 
         page = int(page)
         if page <= 0:
@@ -54,10 +59,41 @@ class Root:
         else:
             offset = (page - 1) * 50
 
+        if include_pending:
+            filter = or_(Attendee.badge_status.in_([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]),
+                               Attendee.is_valid == True)  # noqa: E712
+        else:
+            filter = Attendee.is_valid == True  # noqa: E712
+                
+        receipt_query = (
+            session.query(
+                ModelReceipt.owner_id
+            )
+            .join(ReceiptItem, ReceiptItem.receipt_id == ModelReceipt.id)
+            .join(Attendee, Attendee.id == ModelReceipt.owner_id)
+            .filter(
+                ModelReceipt.closed.is_(None),
+                ModelReceipt.owner_model == 'Attendee'
+            )
+            .group_by(Attendee.id, Attendee.default_cost, Attendee.badge_status, ModelReceipt.id)
+            .having(
+                and_(
+                    Attendee.default_cost_cents != func.sum(ReceiptItem.amount * ReceiptItem.count),
+                    filter
+                )
+            )
+        )
+        
+        count = receipt_query.count()
+        
+        receipt_owners = [x[0] for x in receipt_query.limit(50).offset(offset)]
+
+        receipt_query = session.query(Attendee).join(Attendee.active_receipt).filter(Attendee.id.in_(receipt_owners))
+
         return {
             'current_page': page,
-            'pages': (receipt_query.count() // 100) + 1,
-            'attendees': receipt_query.limit(50).offset(offset),
+            'pages': (count // 50) + 1,
+            'attendees': receipt_query,
             'include_pending': include_pending,
         }
 

@@ -998,7 +998,7 @@ class DeptChecklistConf(Registry):
     instances = OrderedDict()
 
     def __init__(self, slug, description, deadline, full_description='', name=None, path=None,
-                 email_post_con=False, external_form_url=''):
+                 email_post_con=False, external_form_url='', **kwargs):
         assert re.match('^[a-z0-9_]+$', slug), \
             'Dept Head checklist item sections must have separated_by_underscore names'
 
@@ -1019,8 +1019,8 @@ class DeptChecklistConf(Registry):
                 pass
         raise KeyError('department_id')
 
-
-for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
+deadline_sorted_checklist_items = sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline'])
+for _slug, _conf in sorted(deadline_sorted_checklist_items, key=lambda tup: tup[1]['order']):
     DeptChecklistConf.register(_slug, _conf)
 
 

@@ -285,7 +285,7 @@ class Root:
             out.writerow([
                 app.name,
                 app.description,
-                app.length,
+                app.length_label,
                 app.unavailable,
                 app.past_attendance,
                 app.affiliations,

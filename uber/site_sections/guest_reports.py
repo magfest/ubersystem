@@ -3,7 +3,7 @@ from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.custom_tags import time_day_local
-from uber.decorators import all_renderable, csv_file, site_mappable
+from uber.decorators import all_renderable, csv_file, site_mappable, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import Group, GuestAutograph, GuestGroup, GuestMerch, GuestTravelPlans
 from uber.utils import convert_to_absolute_url
@@ -25,8 +25,7 @@ class Root:
             'Arrival Time', 'Bio',
             'Website', 'Facebook',
             'Twitter', 'Instagram', 'Twitch', 'Bandcamp', 'Discord', 'Other Social Media', 'Bio Pic', 'Bio Pic Link',
-            'Wants Panel', 'Panel Name',
-            'Panel Length', 'Panel Description', 'Panel Tech Needs',
+            '# Panel Applications',
             '# of Autograph Sessions', 'Autograph Session Length (Minutes)',
             'Wants RI Meet & Greet', 'Meet & Greet Length (Minutes)',
             'Completed W9', 'Stage Plot',
@@ -38,6 +37,9 @@ class Root:
         for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
             absolute_pic_url = convert_to_absolute_url(getattr(guest.bio, 'pic_url', ''))
             absolute_stageplot_url = convert_to_absolute_url(getattr(guest.stage_plot, 'url', ''))
+            num_panels = 0 if not guest.group or not guest.group.leader or not guest.group.leader.submitted_panels \
+                else len(guest.group.leader.submitted_panels)
+
             out.writerow([
                 guest.group_type_label, guest.group.name, guest.email,
                 guest.payment, guest.vehicles, guest.num_hotel_rooms,
@@ -49,10 +51,7 @@ class Root:
                 getattr(guest.bio, 'twitter', ''), getattr(guest.bio, 'instagram', ''),
                 getattr(guest.bio, 'twitch', ''), getattr(guest.bio, 'bandcamp', ''),
                 getattr(guest.bio, 'discord', ''), getattr(guest.bio, 'other_social_media', ''),
-                getattr(guest.bio, 'pic_filename', ''), absolute_pic_url,
-                getattr(guest.panel, 'wants_panel', ''), getattr(guest.panel, 'name', ''),
-                getattr(guest.panel, 'length', ''), getattr(guest.panel, 'desc', ''),
-                ' / '.join(getattr(guest.panel, 'panel_tech_needs_labels', '')),
+                getattr(guest.bio, 'pic_filename', ''), absolute_pic_url, num_panels,
                 getattr(guest.autograph, 'num', ''), getattr(guest.autograph, 'length', ''),
                 getattr(guest.autograph, 'rock_island_autographs', ''), getattr(guest.autograph,
                                                                                 'rock_island_length', ''),
@@ -69,7 +68,7 @@ class Root:
         out.writerow(['Guest Type', 'Group Name', 'Travel Mode', 'Travel Mode Text', 'Traveller', 'Companions',
                       'Luggage Needs', 'Contact Email', 'Contact Phone', 'Arrival Time',
                       'Arrival Details', 'Departure Time', 'Departure Details', 'Extra Details'])
-        for travel_plan in session.query(GuestTravelPlans):
+        for travel_plan in [plan for plan in session.query(GuestTravelPlans).all() if session.admin_can_see_guest_group(plan.guest)]:
             for plan in travel_plan.detailed_travel_plans:
                 content_row = [travel_plan.guest.group_type_label, travel_plan.guest.group.name]
                 content_row.extend([plan.mode_label, plan.mode_text, plan.traveller, plan.companions,
@@ -78,6 +77,26 @@ class Root:
                                     time_day_local(plan.departure_time), plan.departure_details,
                                     plan.extra_details])
                 out.writerow(content_row)
+    
+    @csv_file
+    def panel_info_csv(self, out, session):
+        out.writerow(['Guest', 'App Status', 'Name', 'Description', 'Schedule Description', 'Length',
+                      'Department', 'Type of Panel', 'Location', 'Date/Time'])
+        for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
+            if guest.group and guest.group.leader:
+                for app in guest.group.leader.submitted_panels:
+                    out.writerow([
+                        guest.group.name, app.status_label,
+                        getattr(app.event, 'name', app.name),
+                        getattr(app.event, 'description', app.description),
+                        getattr(app.event, 'public_description', app.public_description),
+                        f"{app.event.minutes} minutes" if app.event else f"{app.length_label} (expected)",
+                        app.department_label,
+                        app.other_presentation if app.presentation == c.OTHER else app.presentation_label,
+                        getattr(app.event, 'location_label', '(not scheduled)'),
+                        app.event.timespan(minute_increment=30) if app.event else '(not scheduled)',
+                    ])
+
 
     @site_mappable
     def rock_island(self, session, message='', only_empty=None, id=None, **params):
@@ -101,6 +120,73 @@ class Root:
             'guest_groups': [guest for guest in guest_groups if session.admin_can_see_guest_group(guest)],
             'only_empty': only_empty
         }
+    
+    @site_mappable(download=True)
+    @xlsx_file
+    def rock_island_square_xlsx(self, out, session, id=None, **params):
+        header_row = [
+            'Token', 'Item Name', 'Variation Name', 'Unit and Precision', 'SKU', 'Description', 'Category',
+            'SEO Title', 'SEO Description', 'Permalink', 'Square Online Item Visibility', 'Weight (lb)', 'Shipping Enabled',
+            'Self-serve Ordering Enabled', 'Delivery Enabled', 'Pickup Enabled', 'Price', 'Sellable', 'Stockable',
+            'Skip Detail Screen in POS', 'Option Name 1', 'Option Value 1', 'Current Quantity MAGFest Rock Island',
+            'New Quantity MAGFest Rock Island'
+            ]
+        
+        query = session.query(GuestGroup).options(
+                subqueryload(GuestGroup.group)).options(
+                subqueryload(GuestGroup.merch))
+        
+        if id:
+            guest_groups = [query.get(id)]
+        else:
+            guest_groups = query.filter(
+                GuestGroup.id == GuestMerch.guest_id,
+                GuestMerch.selling_merch == c.ROCK_ISLAND,
+                GuestGroup.group_id == Group.id).order_by(
+                Group.name).all()
+        
+        rows = []
+        item_type_square_name = {
+            c.CD: "MUSIC",
+            c.TSHIRT: "APPAREL",
+            c.APPAREL: "APPAREL",
+            c.PIN: "PIN",
+            c.STICKER: "STICKER",
+            c.POSTER: "POSTER",
+            c.BUTTON: "BUTTON",
+            c.PATCH: "PATCH",
+            c.MISCELLANEOUS: "MISC",
+        }
+
+        def _inventory_sort_key(item):
+            return ' '.join([
+                c.MERCH_TYPES[int(item['type'])],
+                item['name']
+            ])
+
+        def _generate_row(item, guest, variation_name='Regular'):
+            item_type = int(item['type'])
+            item_name = f'{item_type_square_name[item_type]} {guest.group.name} {item['name']}'
+            if item_type == c.CD:
+                item_name = f'{item_name} {c.ALBUM_MEDIAS[int(item['media'])]}'
+            elif item_type == c.TSHIRT:
+                item_name = f'{item_name} T-shirt'
+
+            return [
+                '', item_name, variation_name, '', '', '', guest.group.name, '', '', '',
+                'hidden', '', 'N', '', 'N', 'N', '{:.2f}'.format(float(item['price'])),
+                '', '', 'N', '', '', '', ''
+            ]
+
+        for guest in guest_groups:
+            for item in sorted(guest.merch.inventory.values(), key=_inventory_sort_key):
+                merch_type = int(item['type'])
+                if merch_type in (c.TSHIRT, c.APPAREL):
+                    for line_item in guest.merch.line_items(item):
+                        rows.append(_generate_row(item, guest, guest.merch.line_item_to_string(item, line_item)))
+                else:
+                    rows.append(_generate_row(item, guest))
+        out.writerows(header_row, rows)
 
     @site_mappable(download=True)
     @csv_file
@@ -127,7 +213,7 @@ class Root:
                 item['price']
             ])
 
-        for guest in [guest for guest in guest_groups if session.admin_can_see_guest_group(guest)]:
+        for guest in guest_groups:
             for item in sorted(guest.merch.inventory.values(), key=_inventory_sort_key):
                 merch_type = int(item['type'])
                 if merch_type in (c.TSHIRT, c.APPAREL):

@@ -32,7 +32,7 @@
       </div>
       {% endif %}
     </div>
-    {% if c.AT_THE_CON and group.amount_unpaid %}
+    {% if (c.AT_THE_CON or c.AFTER_PREREG_TAKEDOWN) and group.amount_unpaid %}
       <div class="alert alert-warning center" role="alert">
         <h4>{{ group.name }} currently owes <strong>{{ group.amount_unpaid|format_currency }}</strong>.</h4>
         {% if payment_enabled %}
@@ -133,7 +133,7 @@
       <th>Amount Extra</th>
       <th>Leader</th>
       <th>Unassign</th>
-      {% if c.AT_THE_CON %}<th>Check In</th>{% endif %}
+      {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}<th>Check In</th>{% endif %}
     </tr>
     </thead>
     <tbody>
@@ -168,9 +168,9 @@
               </form>
             {% endif %}
           </td>
-          {% if c.AT_THE_CON and attendee.checked_in %}
+          {% if (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and attendee.checked_in %}
             <td><b>Checked-in {{ attendee.checked_in_local|datetime("%-I:%M%p")|lower }} {{ attendee.checked_in_local|datetime("%a") }}</b></td>
-          {% elif c.AT_THE_CON %}
+          {% elif c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
             {% if attendee.cannot_check_in_reason %}
               <td>Can't checkin ({{ attendee.cannot_check_in_reason }})</td>
             {% else %}
