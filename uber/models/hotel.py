@@ -119,7 +119,7 @@ class RoomAssignment(MagModel):
 
 
 class LotteryApplication(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True, nullable=True)
     attendee = relationship('Attendee', backref=backref('lottery_application', uselist=False),
                             cascade='save-update,merge,refresh-expire,expunge',
                             uselist=False)
@@ -233,6 +233,10 @@ class LotteryApplication(MagModel):
     def email(self):
         if self.attendee:
             return self.attendee.email
+        
+    @property
+    def attendee_name(self):
+        return self.attendee.full_name if self.attendee else "[DISASSOCIATED]"
 
     @property
     def current_status_str(self):

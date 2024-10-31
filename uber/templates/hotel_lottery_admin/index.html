@@ -104,7 +104,7 @@
                 <td>{{ app.entry_type_label }}</td>
                 <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
                 <td>{{ app.room_group_name }}</td>
-                <td>{{ app.attendee|form_link }}</td>
+                <td>{{ app.attendee|form_link if app.attendee else 'Dissociated/No Attendee' }}</td>
                 <td>{{ app.group_members|length if app.room_group_name else "" }}</td>
                 <td>{{ app.admin_notes }}</td>
                 <td>{{ app.is_staff_entry|yesno("Yes,No") }}</td>

@@ -144,7 +144,7 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application, is_admin=True)
             
-            message = '{}\'s entry (conf # {}) has been saved.'.format(application.attendee.full_name,
+            message = '{}\'s entry (conf # {}) has been saved.'.format(application.attendee_name,
                                                                        application.confirmation_num)
             stay_on_form = params.get('save_return_to_search', False) is False
             session.add(application)
@@ -277,7 +277,7 @@ class Root:
 
             # Entry data
             if app.parent_application:
-                row.extend([app.parent_application.confirmation_num, app.parent_application.attendee.email,
+                row.extend([app.parent_application.confirmation_num, app.parent_application.email,
                             '', '', '', '', '', '', '', ''])
             else:
                 row.extend(['', '', print_bool(app.entry_form_completed)])

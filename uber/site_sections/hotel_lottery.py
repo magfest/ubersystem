@@ -104,7 +104,7 @@ class Root:
             'attendee': attendee,
         }
 
-    @requires_account(Attendee)
+    @requires_account([Attendee, LotteryApplication])
     def index(self, session, attendee_id=None, message="", **params):
         if 'id' in params:
             application = session.lottery_application(params['id'])
@@ -146,8 +146,8 @@ class Root:
         application.status = c.COMPLETE
         application.confirmation_num = ''
         session.add(application)
-        raise HTTPRedirect('index?attendee_id={}&message={}',
-                           application.attendee.id,
+        raise HTTPRedirect('index?id={}&message={}',
+                           application.id,
                            "Your staff lottery entry has been entered into the attendee lottery.")
     
     @requires_account(LotteryApplication)
@@ -204,7 +204,7 @@ class Root:
 
         if application.parent_application:
             message = "You cannot edit your room group's application."
-            raise HTTPRedirect(f'index?attendee_id={application.attendee.id}&messsage={message}')
+            raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
         
         forms = load_forms(params, application, forms_list)
 
@@ -249,8 +249,8 @@ class Root:
                             format='html',
                             model=application.to_dict('id'))
 
-                raise HTTPRedirect('index?attendee_id={}&confirm=room&action=updated',
-                                   application.attendee.id)
+                raise HTTPRedirect('index?id={}&confirm=room&action=updated',
+                                   application.id)
 
         return {
             'id': application.id,
@@ -267,7 +267,7 @@ class Root:
 
         if application.parent_application:
             message = "You cannot edit your room group's application."
-            raise HTTPRedirect(f'index?attendee_id={application.attendee.id}&messsage={message}')
+            raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
 
         forms = load_forms(params, application, forms_list)
 
@@ -313,8 +313,8 @@ class Root:
                             format='html',
                             model=application.to_dict('id'))
 
-                raise HTTPRedirect('index?attendee_id={}&confirm=suite&action=updated',
-                                   application.attendee.id)
+                raise HTTPRedirect('index?id={}&confirm=suite&action=updated',
+                                   application.id)
 
         return {
             'id': application.id,
@@ -398,8 +398,8 @@ class Root:
                 format='html',
                 model=application.to_dict('id'))
 
-            raise HTTPRedirect('index?attendee_id={}&confirm={}&action=confirmation',
-                               application.attendee.id,
+            raise HTTPRedirect('index?id={}&confirm={}&action=confirmation',
+                               application.id,
                                room_or_suite)
         return {
                 'id': application.id,
@@ -484,7 +484,7 @@ class Root:
 
         application.confirmation_num = ''
 
-        raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
+        raise HTTPRedirect('index?id={}&message={}', application.id,
                            f"{old_room_group_name} has been disbanded.")
 
     @ajax
@@ -615,8 +615,8 @@ class Root:
             if application.status == c.WITHDRAWN:
                 raise HTTPRedirect('../preregistration/homepage?message={}',
                                    f'You have left the room group "{room_group.room_group_name}" and been removed from the hotel lottery.')
-            raise HTTPRedirect('index?attendee_id={}&message={}&confirm={}&action={}',
-                               application.attendee.id,
+            raise HTTPRedirect('index?id={}&message={}&confirm={}&action={}',
+                               application.id,
                                f'Successfully left the room group "{room_group.room_group_name}".',
                                "suite" if application.entry_type == c.SUITE_ENTRY else "room",
                                're-entered')

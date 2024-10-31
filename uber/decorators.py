@@ -159,7 +159,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
     return check_can_edit_dept(session, department_id, inherent_role, override_access='full_dept_admin')
 
 
-def requires_account(model=None):
+def requires_account(models=None):
     from uber.models import Attendee, AttendeeAccount, Group
 
     def model_requires_account(func):
@@ -171,7 +171,7 @@ def requires_account(model=None):
                 admin_account_id = cherrypy.session.get('account_id')
                 attendee_account_id = cherrypy.session.get('attendee_account_id')
                 message = ''
-                if not model and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
+                if not models and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
                     # These should all be pages like the prereg form
                     if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']:
                         message_add = 'register'
@@ -182,16 +182,28 @@ def requires_account(model=None):
                 elif attendee_account_id is None and admin_account_id is None or \
                         attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
                     message = 'You must log in to view this page.'
-                elif kwargs.get('id') and model:
-                    if model == Attendee:
-                        check_id_for_model(model, alt_id='attendee_id', **kwargs)
-                        attendee = session.attendee(kwargs.get('attendee_id', kwargs.get('id')), allow_invalid=True)
-                    elif model == Group:
-                        check_id_for_model(model, alt_id='group_id', **kwargs)
-                        attendee = session.query(model).filter_by(id=kwargs.get('group_id',
-                                                                                kwargs.get('id'))).first().leader
-                    else:
-                        attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
+                elif kwargs.get('id') and models:
+                    model_list = [models] if not isinstance(models, list) else models
+                    attendee, error, model_id = None, None, None
+                    for model in model_list:
+                        if model == Attendee:
+                            error, model_id = check_id_for_model(model, alt_id='attendee_id', **kwargs)
+                            if not error:
+                                attendee = session.attendee(model_id, allow_invalid=True)
+                        elif model == Group:
+                            error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
+                            if not error:
+                                attendee = session.query(model).filter_by(id=model_id).first().leader
+                        else:
+                            other_model = session.query(model).filter_by(id=kwargs.get('id')).first()
+                            if other_model:
+                                attendee = other_model.attendee
+
+                        if attendee:
+                            break
+
+                    if error and not attendee:
+                        raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, error)
 
                     # Admin account override
                     if session.admin_attendee_max_access(attendee):
@@ -901,7 +913,9 @@ def id_required(model):
     def model_id_required(func):
         @wraps(func)
         def check_id(*args, **params):
-            check_id_for_model(model=model, **params)
+            error, model_id = check_id_for_model(model=model, **params)
+            if error:
+                raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, error)
             return func(*args, **params)
         return check_id
     return model_id_required
@@ -932,4 +946,4 @@ def check_id_for_model(model, alt_id=None, **params):
 
     if message:
         log.error("check_id {} error: {}: id={}".format(model.__name__, message, model_id))
-        raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, message)
+    return message, model_id
