@@ -161,8 +161,8 @@ def process_panel_app(session, app, panelist, other_panelists_compiled, **params
 
     message = check(app) or check_other_panelists(other_panelists_compiled) or ''
     if not message:
-        for panelist in other_panelists_compiled:
-            panelist.app_id = app.id
+        for other_panelist in other_panelists_compiled:
+            other_panelist.app_id = app.id
         session.add_all([app, panelist] + other_panelists_compiled)
 
     return message
