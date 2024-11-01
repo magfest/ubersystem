@@ -732,7 +732,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if (self.group and self.group.guest and self.group.guest.group_type == c.BAND) \
                 or (self.badge_type == c.GUEST_BADGE and c.BAND in self.ribbon_ints):
             section_list.append('band_admin')
-        if (self.group and self.group.guest and self.group.guest.group_type == c.GUEST) \
+        if (self.group and self.group.guest and self.group.guest.group_type not in [c.BAND, c.MIVS]) \
                 or (self.badge_type == c.GUEST_BADGE and c.BAND not in self.ribbon_ints):
             section_list.append('guest_admin')
         if c.PANELIST_RIBBON in self.ribbon_ints:

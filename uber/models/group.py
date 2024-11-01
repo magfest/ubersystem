@@ -237,6 +237,30 @@ class Group(MagModel, TakesPaymentMixin):
                     or_(cls.is_dealer == False, cls.status.in_([c.APPROVED, c.SHARED])))  # noqa: E712
 
     @property
+    def access_sections(self):
+        """
+        Returns what site sections a group 'belongs' to based on their properties.
+        We use this list to determine which admins can view the group.
+        In some cases, we rely on the group's leader to tell us what kind of group this is.
+        """
+        section_list = []
+        if self.leader:
+            if self.leader.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
+                section_list.append('shifts_admin')
+            if c.PANELIST_RIBBON in self.leader.ribbon_ints:
+                section_list.append('panels_admin')
+        if self.is_dealer:
+            section_list.append('dealer_admin')
+        if self.guest:
+            if self.guest.group_type == c.BAND:
+                section_list.append('band_admin')
+            elif self.guest.group_type == c.MIVS:
+                section_list.append('mivs_admin')
+            else:
+                section_list.append('guest_admin')
+        return section_list
+
+    @property
     def new_ribbon(self):
         return c.DEALER_RIBBON if self.is_dealer else ''
 

@@ -803,6 +803,19 @@ class Session(SessionManager):
             if attendee.access_sections:
                 return max([admin.max_level_access(section,
                                                    read_only=read_only) for section in attendee.access_sections])
+            
+        def admin_group_max_access(self, group, read_only=True):
+            admin = self.current_admin_account()
+            if not admin:
+                return 0
+
+            if admin.full_registration_admin or group.creator == admin.attendee or \
+                    (admin.attendee.group and admin.attendee.group == group) or group.is_new:
+                return AccessGroup.FULL
+            
+            if group.access_sections:
+                return max([admin.max_level_access(section,
+                                                   read_only=read_only) for section in group.access_sections])
 
         def viewable_groups(self):
             from uber.models import Group, GuestGroup
@@ -821,14 +834,22 @@ class Session(SessionManager):
                 if val.lower() + '_admin' in admin.read_or_write_access_set:
                     subqueries.append(
                         self.query(Group).join(
-                            GuestGroup, Group.id == GuestGroup.group_id).filter(GuestGroup.group_type == key
-                                                                                )
-                    )
+                            GuestGroup, Group.id == GuestGroup.group_id).filter(
+                                GuestGroup.group_type == key))
 
             if 'dealer_admin' in admin.read_or_write_access_set:
-                subqueries.append(
-                    self.query(Group).filter(Group.is_dealer)
-                )
+                subqueries.append(self.query(Group).filter(Group.is_dealer))
+
+            if 'shifts_admin' in admin.read_or_write_access_set:
+                subqueries.append(self.query(Group).join(Group.leader).filter(
+                    Attendee.badge_type == c.CONTRACTOR_BADGE))
+                staff_groups = self.query(Group).join(Group.leader).filter(Attendee.badge_type == c.STAFF_BADGE)
+                if admin.full_shifts_admin:
+                    subqueries.append(staff_groups)
+                else:
+                    for dept_membership in admin.attendee.dept_memberships_with_inherent_role:
+                        subqueries.append(staff_groups.filter(
+                            Attendee.dept_memberships.any(department_id=dept_membership.department_id)))
 
             return subqueries[0].union(*subqueries[1:])
 
