@@ -242,24 +242,10 @@ class Root:
         session.execute(text('SELECT 1'))
         db_read_time += time.perf_counter()
 
-        if os.environ.get("ENABLE_CELERY", "true").lower() == "true":
-            payload = random.randrange(1024)
-            task_run_time = -time.perf_counter()
-            response = ping.delay(payload).wait(timeout=2)
-            task_run_time += time.perf_counter()
-        else:
-            task_run_time = 0
-            payload = "Not Run, ENABLE_CELERY != true"
-            response = "Not Run, ENABLE_CELERY != true"
-
         return json.dumps({
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'session_read_count': read_count,
             'session_commit_time': session_commit_time,
             'db_read_time': db_read_time,
             'db_status': Session.engine.pool.status(),
-            'task_run_time': task_run_time,
-            'task_response_correct': payload == response,
-            'task_payload': payload,
-            'task_response': response,
         })
