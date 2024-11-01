@@ -316,6 +316,8 @@
             $.field('check_{{ field_name }}').prop('required', $.val('payout_method') == "{{ c.CHECK }}");
             $("label[for='check_{{ field_name }}']").toggleClass('optional-field', $.val('payout_method') != "{{ c.CHECK }}");
             {% endfor %}
+            // I STILL hate Select2Autocomplete
+            $.field('check_country').next().prop('required', $.val('payout_method') == "{{ c.CHECK }}");
           }
 
             var showOrHideRockIsland = function() {
