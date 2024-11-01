@@ -1,6 +1,7 @@
 import os
 import shutil
 
+from pockets.autolog import log
 import cherrypy
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
@@ -117,13 +118,17 @@ class Root:
         guest = session.guest_group(guest_id)
         guest_stage_plot = session.guest_stage_plot(params, restricted=True)
         if cherrypy.request.method == 'POST':
-            guest_stage_plot.filename = plot.filename
-            guest_stage_plot.content_type = plot.content_type.value
-            if guest_stage_plot.stage_plot_extension not in c.ALLOWED_STAGE_PLOT_EXTENSIONS:
-                message = 'Uploaded file type must be one of ' + ', '.join(c.ALLOWED_STAGE_PLOT_EXTENSIONS)
-            else:
-                with open(guest_stage_plot.fpath, 'wb') as f:
-                    shutil.copyfileobj(plot.file, f)
+            if plot.filename:
+                guest_stage_plot.filename = plot.filename
+                guest_stage_plot.content_type = plot.content_type.value
+                if guest_stage_plot.stage_plot_extension not in c.ALLOWED_STAGE_PLOT_EXTENSIONS:
+                    message = 'Uploaded file type must be one of ' + ', '.join(c.ALLOWED_STAGE_PLOT_EXTENSIONS)
+                else:
+                    with open(guest_stage_plot.fpath, 'wb') as f:
+                        shutil.copyfileobj(plot.file, f)
+            elif not params.get('notes'):
+                message = "Please either upload a stage layout or explain your inputs and stage gear needs in the Additional Notes section."
+            if not message:
                 guest.stage_plot = guest_stage_plot
                 session.add(guest_stage_plot)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Stage directions uploaded')
