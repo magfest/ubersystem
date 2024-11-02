@@ -55,7 +55,7 @@ def upgrade():
     op.alter_column('lottery_application', 'attendee_id',
                existing_type=postgresql.UUID(),
                nullable=True)
-    op.create_unique_constraint(op.f('uq_lottery_application_attendee_id'), 'lottery_application', ['attendee_id'])
+    #op.create_unique_constraint(op.f('uq_lottery_application_attendee_id'), 'lottery_application', ['attendee_id'])
 
 
 def downgrade():
