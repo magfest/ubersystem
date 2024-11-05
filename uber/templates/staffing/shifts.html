@@ -5,6 +5,37 @@
   .ec-day.ec-highlight {
     background-color: #f8f9fa !important;
   }
+  @media (max-width: 576px) {
+    /* Force vertical button group at smaller sizes */
+    .ec-button-group {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      position: relative;
+      display: inline-flex !important;
+      vertical-align: middle;
+    }
+   
+    .ec-button-group>.ec-button:not(:first-child):not(:last-child) {
+    border-radius: 0;
+    }
+    .ec-button-group>.ec-button:last-child {
+      border-top-right-radius: 0;
+      border-bottom-left-radius: .25rem !important;
+    }
+    .ec-button-group>.ec-button:first-child {
+      border-bottom-left-radius: 0 !important;
+      border-top-right-radius: .25rem !important;
+      margin-top: 0px;
+    }
+    .ec-button-group>.ec-button {
+    width: 100%;
+    position: relative;
+    flex: 1 1 auto;
+    margin-left: 0 !important;
+    margin-top: -1px;
+    }
+  }
 </style>
 {% endblock %}
 
@@ -496,7 +527,7 @@
   }
 
   const ec = new EventCalendar(document.getElementById('shift_cal'), {
-        view: 'timeGridWeek',
+        view: window.matchMedia('(max-width: 576px)') ? 'listWeek' : 'timeGridWeek',
         date: '{{ c.EPOCH.date() }}',
         allDaySlot: false,
         highlightedDates: {{ highlighted_dates|safe }},
