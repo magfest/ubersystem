@@ -961,20 +961,15 @@ class Session(SessionManager):
                 }
 
         def jobs_for_signups(self, all=False):
-            fields = [
-                'name', 'department_id', 'department_name', 'description',
-                'weight', 'start_time_local', 'end_time_local', 'duration',
-                'weighted_hours', 'restricted', 'extra15', 'taken',
-                'visibility', 'is_public', 'is_setup', 'is_teardown']
-            jobs = self.logged_in_volunteer().possible_and_current
+            jobs = self.logged_in_volunteer().possible
             restricted_minutes = set()
             for job in jobs:
                 if job.required_roles:
                     restricted_minutes.add(frozenset(job.minutes))
             if all:
-                return [job.to_dict(fields) for job in jobs]
+                return jobs
             return [
-                job.to_dict(fields)
+                job
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
         def possible_match_list(self):
