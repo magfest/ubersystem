@@ -10,6 +10,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans
+from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check
 from uber.tasks.email import send_email
 
@@ -563,6 +564,19 @@ class Root:
             if guest.group.studio:
                 if not params.get('show_info_updated'):
                     message = "Please confirm you have updated your studio's and game's information."
+
+                if not message and not guest.group.studio.contact_phone:
+                    message = 'Please update your show information to enter a contact phone number for MIVS staff.'
+
+                if not message:
+                    for game in guest.group.studio.games:
+                        if not game.guidebook_header or not game.guidebook_thumbnail:
+                            message = "Please upload a Guidebook header and thumbnail."
+                        else:
+                            message = mivs_show_info_required_fields(game)
+                        if message:
+                            message = f"{game.title} show info is missing something: {message}"
+                            break
 
                 if not message:
                     guest.group.studio.show_info_updated = True

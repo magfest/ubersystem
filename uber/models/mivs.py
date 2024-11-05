@@ -491,23 +491,41 @@ class IndieGame(MagModel, ReviewMixin):
         return ''
 
     @property
-    def guidebook_image(self):
-        return self.best_screenshot_download_filenames()[0]
+    def guidebook_header(self):
+        for image in self.images:
+            if image.is_header:
+                return image
+        return ''
 
     @property
     def guidebook_thumbnail(self):
-        return self.best_screenshot_download_filenames()[1] \
-            if len(self.best_screenshot_download_filenames()) > 1 else self.best_screenshot_download_filenames()[0]
+        for image in self.images:
+            if image.is_thumbnail:
+                return image
+        return ''
 
     @property
     def guidebook_images(self):
-        image_filenames = [self.best_screenshot_download_filenames()[0]]
-        images = [self.best_screenshot_downloads()[0]]
-        if self.guidebook_image != self.guidebook_thumbnail:
-            image_filenames.append(self.guidebook_thumbnail)
-            images.append(self.best_screenshot_downloads()[1])
+        if not self.images:
+            return ['', '']
 
-        return image_filenames, images
+        header = None
+        thumbnail = None
+        for image in self.images:
+            if image.is_header and not header:
+                header = image
+            if image.is_thumbnail and not thumbnail:
+                thumbnail = image
+
+        if not header:
+            header = self.images[0]
+        if not thumbnail:
+            thumbnail = self.images[1] if len(self.images) > 1 else self.images[0]
+
+        if header == thumbnail:
+            return [header.filename], [header]
+        else:
+            return [header.filename, thumbnail.filename], [header, thumbnail]
 
 
 class IndieGameImage(MagModel):
@@ -518,6 +536,8 @@ class IndieGameImage(MagModel):
     description = Column(UnicodeText)
     use_in_promo = Column(Boolean, default=False)
     is_screenshot = Column(Boolean, default=True)
+    is_header = Column(Boolean, default=False)
+    is_thumbnail = Column(Boolean, default=False)
 
     @property
     def url(self):
