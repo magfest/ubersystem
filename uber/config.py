@@ -902,6 +902,17 @@ class Config(_Overridable):
 
     @request_cached_property
     @dynamic
+    def CURRENT_VOLUNTEER(self):
+        try:
+            from uber.models import Session
+            with Session() as session:
+                attendee = session.logged_in_volunteer()
+                return attendee.to_dict()
+        except Exception:
+            return {}
+
+    @request_cached_property
+    @dynamic
     def DEPARTMENTS(self):
         return dict(self.DEPARTMENT_OPTS)
 
