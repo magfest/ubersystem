@@ -15,7 +15,7 @@ class Root:
         active_entries = session.query(WatchList).filter(WatchList.active == True  # noqa: E712
                                                          ).order_by(WatchList.last_name).all()
         for entry in active_entries:
-            entry.attendees_and_guesses = entry.attendees
+            entry.attendees_and_guesses = entry.attendees.copy()
             for attendee in session.guess_watchentry_attendees(entry):
                 if attendee not in entry.attendees_and_guesses:
                     entry.attendees_and_guesses.append(attendee)
