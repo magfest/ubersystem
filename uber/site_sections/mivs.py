@@ -5,10 +5,21 @@ import cherrypy
 from cherrypy.lib.static import serve_file
 
 from uber.config import c
+from uber.custom_tags import format_image_size
 from uber.decorators import all_renderable, csrf_protected
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Group, GuestGroup, IndieDeveloper, IndieStudio
-from uber.utils import add_opt, check, check_csrf
+from uber.models import Attendee, Group, GuestGroup, IndieDeveloper, IndieGameImage
+from uber.utils import add_opt, check, check_csrf, check_image_size, check_guidebook_image_filetype
+
+
+def add_new_image(pic, game):
+    new_pic = IndieGameImage(game_id=game.id,
+                             filename=pic.filename,
+                             content_type=pic.content_type.value,
+                             extension=pic.filename.split('.')[-1].lower())
+    with open(new_pic.filepath, 'wb') as f:
+        shutil.copyfileobj(pic.file, f)
+    return new_pic
 
 
 @all_renderable(public=True)
@@ -253,30 +264,56 @@ class Root:
             'developers': developers
         }
 
-    def show_info(self, session, id, message='', promo_image=None, **params):
+    def show_info(self, session, id, message='', **params):
         game = session.indie_game(id=id)
+        header_pic, thumbnail_pic = None, None
         cherrypy.session['studio_id'] = game.studio.id
         if cherrypy.request.method == 'POST':
+            header_image = params.get('header_image')
+            thumbnail_image = params.get('thumbnail_image')
             game.apply(params, bools=['tournament_at_event', 'has_multiplayer', 'leaderboard_challenge'],
                        restricted=False)  # Setting restricted to false lets us define custom bools and checkgroups
             game.studio.name = params.get('studio_name', '')
+
             if not params.get('contact_phone', ''):
                 message = "Please enter a phone number for MIVS staff to contact your studio."
             else:
                 game.studio.contact_phone = params.get('contact_phone', '')
-            if promo_image:
-                image = session.indie_game_image(params)
-                image.game = game
-                image.content_type = promo_image.content_type.value
-                image.extension = promo_image.filename.split('.')[-1].lower()
-                image.is_screenshot = False
-                message = check(image)
+
+            if header_image and header_image.filename:
+                message = check_guidebook_image_filetype(header_image)
                 if not message:
-                    with open(image.filepath, 'wb') as f:
-                        shutil.copyfileobj(promo_image.file, f)
-            message = check(game) or check(game.studio)
+                    header_pic = add_new_image(header_image, game)
+                    header_pic.is_header = True
+                    if not check_image_size(header_pic.filepath, c.GUIDEBOOK_HEADER_SIZE):
+                        message = f"Your header image must be {format_image_size(c.GUIDEBOOK_HEADER_SIZE)}."
+            elif not game.guidebook_header:
+                message = f"You must upload a {format_image_size(c.GUIDEBOOK_HEADER_SIZE)} header image."
+            
+            if not message:
+                if thumbnail_image and thumbnail_image.filename:
+                    message = check_guidebook_image_filetype(thumbnail_image)
+                    if not message:
+                        thumbnail_pic = add_new_image(thumbnail_image, game)
+                        thumbnail_pic.is_thumbnail = True
+                        if not check_image_size(thumbnail_pic.filepath, c.GUIDEBOOK_THUMBNAIL_SIZE):
+                            message = f"Your thumbnail image must be {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)}."
+                elif not game.guidebook_thumbnail:
+                    message = f"You must upload a {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)} thumbnail image."
+
+            if not message:
+                message = check(game) or check(game.studio)
             if not message:
                 session.add(game)
+                if header_pic:
+                    if game.guidebook_header:
+                        session.delete(game.guidebook_header)
+                    session.add(header_pic)
+                if thumbnail_pic:
+                    if game.guidebook_thumbnail:
+                        session.delete(game.guidebook_thumbnail)
+                    session.add(thumbnail_pic)
+
                 if game.studio.group.guest:
                     raise HTTPRedirect('../guests/mivs_show_info?guest_id={}&message={}',
                                        game.studio.group.guest.id, 'Game information uploaded')

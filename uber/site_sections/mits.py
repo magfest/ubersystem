@@ -14,21 +14,14 @@ from uber.decorators import ajax, all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
 from uber.models import Email, MITSDocument, MITSPicture, MITSTeam
 from uber.tasks.email import send_email
-from uber.utils import check, check_image_size, localized_now
-
-
-def _check_pic_filetype(pic):
-    if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
-        return f'Image {pic.filename} is not one of the allowed extensions: '\
-            f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
-    return ''
+from uber.utils import check, check_image_size, localized_now, check_guidebook_image_filetype
 
 
 def add_new_image(pic, game):
     new_pic = MITSPicture(game_id=game.id,
-                            filename=pic.filename,
-                            content_type=pic.content_type.value,
-                            extension=pic.filename.split('.')[-1].lower())
+                          filename=pic.filename,
+                          content_type=pic.content_type.value,
+                          extension=pic.filename.split('.')[-1].lower())
     with open(new_pic.filepath, 'wb') as f:
         shutil.copyfileobj(pic.file, f)
     return new_pic
@@ -230,7 +223,7 @@ class Root:
                 # MITSPicture objects BEFORE checking image size
 
                 if header_image and header_image.filename:
-                    message = _check_pic_filetype(header_image)
+                    message = check_guidebook_image_filetype(header_image)
                     if not message:
                         header_pic = add_new_image(header_image, game)
                         header_pic.is_header = True
@@ -241,7 +234,7 @@ class Root:
 
             if not message:
                 if thumbnail_image and thumbnail_image.filename:
-                    message = _check_pic_filetype(thumbnail_image)
+                    message = check_guidebook_image_filetype(thumbnail_image)
                     if not message:
                         thumbnail_pic = add_new_image(thumbnail_image, game)
                         thumbnail_pic.is_thumbnail = True
