@@ -171,6 +171,7 @@ def email_pending_attendees():
     with Session() as session:
         four_days_old = datetime.now(pytz.UTC) - timedelta(hours=96)
         pending_badges = session.query(Attendee).filter(
+            Attendee.paid == c.PENDING,
             Attendee.badge_status == c.PENDING_STATUS,
             Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)).order_by(Attendee.registered)
         for badge in pending_badges:
