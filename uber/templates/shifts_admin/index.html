@@ -28,12 +28,12 @@ Please select a department above to view its shifts.
 <div clas="row">
 {% if checklist.relevant %}
     {% if checklist.completed %}
-        You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  If that's not the case, please email {{ 'stops@magfest.org'|email_to_link }}.
+        You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  If that's not the case, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
     {% else %}
         {% if department.is_shiftless %}
-            This department is on record as not needing any shifts.  Please click the following link to confirm this so we know we don't need to make any shifts.  If this is in error and you'd like shifts for your people, please email {{ 'stops@magfest.org'|email_to_link }}.
+            This department is on record as not needing any shifts.  Please click the following link to confirm this so we know we don't need to make any shifts.  If this is in error and you'd like shifts for your people, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
         {% else %}
-            <p>We are able to import shifts from last year. If you want us to import last year's shifts, please email {{ 'stops@magfest.org'|email_to_link }}.
+            <p>We are able to import shifts from last year. If you want us to import last year's shifts, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
                 You will still be able to edit those shifts, add slots for additional volunteers, and create new shifts. If you choose to import last year’s shifts, please take the time to look them over and make any needed changes. After the import, you will need to return to this page and approve that they are correct by clicking "I Don’t Need To Do Anything Else Here."</p>
 
             <p>If you want any shifts to be restricted to certain staffers, <strong>including setup or teardown shifts</strong>, please use the "roles" function when creating shifts. Shifts with specific roles will only be visible to staff that you have assigned to ALL of those roles.</p>
