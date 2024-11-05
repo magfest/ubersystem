@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% import "forms/macros.html" as form_macros with context %}
 {% set lottery_admin_info = lottery_admin_info or forms['lottery_admin_info'] %}
-{% block title %}Lottery Application{% if id != "None" %} for {{ application.attendee.full_name }}{% endif %}{% endblock %}
+{% block title %}Lottery Application{% if id != "None" and application.attendee %} for {{ application.attendee_name }}{% endif %}{% endblock %}
 {% block content %}
 
 {{ macros.nav_menu(
@@ -40,12 +40,12 @@
     }
 </style>
 
-{% if not application.is_new %}
+{% if not application.is_new and application.attendee %}
 {% set edit_link = "suite_lottery" if application.entry_type == c.SUITE_ENTRY else "room_lottery" %}
 <div class="row mb-3">
     <div class="col">
         {% if application.parent_application %}
-        <a class="btn btn-primary" href="../hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">View as Attendee</a>
+        <a class="btn btn-primary" href="../hotel_lottery/index?id={{ application.id }}" target="_blank">View as Attendee</a>
         {% else %}
         <a class="btn btn-primary" href="../hotel_lottery/{{ edit_link }}?id={{ application.id }}" target="_blank">View as Attendee</a>
         {% endif %}
@@ -65,7 +65,11 @@
 
 <div class="row mb-3 align-items-end">
     <div class="col flex-grow-1">
+        {% if application.attendee %}
         This lottery application is for <strong>{{ application.attendee|form_link }}</strong>.
+        {% else %}
+        This lottery application is not associated with any attendee.
+        {% endif %}
     </div>
     <div class="col col-auto">
         <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
@@ -116,7 +120,7 @@
 
 {% if application.parent_application %}
 <div class="alert alert-warning">
-    This application is a group member of <a href="form?id={{ application.parent_application.id }}" target="_blank">{{ application.parent_application.attendee.full_name }}'s entry (conf # {{ application.parent_application.confirmation_num }})</a>.
+    This application is a group member of <a href="form?id={{ application.parent_application.id }}" target="_blank">{{ application.parent_application.attendee_name }}'s entry (conf # {{ application.parent_application.confirmation_num }})</a>.
     The details below are INACTIVE and will not be included in the lottery export. They will become active again if this attendee leaves the group, at which point a new confirmation number will be generated.
 </div>
 {% else %}

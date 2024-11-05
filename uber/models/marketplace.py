@@ -1,9 +1,11 @@
 from uber.config import c
+from uber.custom_tags import email_only, email_to_link
 from uber.models import MagModel
 from uber.decorators import presave_adjustment
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship, MultiChoice, utcnow
 
 from datetime import datetime
+from markupsafe import Markup
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
@@ -85,3 +87,18 @@ class ArtistMarketplaceApplication(MagModel):
             return sum([item.amount for item in self.receipt_items if item.closed and (
                 not item.receipt_txn or not item.receipt_txn.refunded)])
         return 0
+    
+    @property
+    def incomplete_reason(self):
+        if self.attendee.badge_status == c.UNAPPROVED_DEALER_STATUS:
+            if self.attendee.group.status == c.UNAPPROVED:
+                return Markup(f"Your registration is still pending as part of your {self.attendee.group.status_label} "
+                        f"{c.DEALER_APP_TERM}. Please contact us at {email_to_link(email_only(c.MARKETPLACE_EMAIL))}.")
+            return Markup(f"Your registration is still pending as part of your {self.attendee.group.status_label} "
+                          f"{c.DEALER_APP_TERM}. Please <a href='../preregistration/confirm?id={self.attendee.id}' "
+                          "target='_blank'>purchase your badge here</a> and return to this page to complete your "
+                          "artist marketplace application.")
+        elif not self.attendee.has_badge:
+            return Markup("You cannot complete your marketplace application because your badge status is "
+                          f"{self.attendee.badge_status_label}. Please contact us at {email_to_link(email_only(c.REGDESK_EMAIL))} "
+                          "for more information.")

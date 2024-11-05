@@ -1553,7 +1553,12 @@ class ReceiptManager:
                 if model.paid in [c.NOT_PAID, c.PENDING]:
                     model.paid = c.HAS_PAID
             if isinstance(model, Group) and model.is_paid:
-                model.paid = c.HAS_PAID
+                for attendee in model.attendees:
+                    if attendee.paid == c.PAID_BY_GROUP and attendee.badge_status == c.NEW_STATUS and \
+                                                            not attendee.placeholder and \
+                                                                attendee.first_name:
+                        attendee.badge_status = c.COMPLETED_STATUS
+                        session.add(attendee)
             session.add(model)
 
             session.commit()

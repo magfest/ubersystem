@@ -1201,6 +1201,9 @@ class AWSSecretFetcher:
     """
 
     def __init__(self):
+        self.start_session()
+
+    def start_session(self):
         import boto3
 
         aws_session = boto3.session.Session(
@@ -1213,9 +1216,14 @@ class AWSSecretFetcher:
             region_name=c.AWS_REGION
         )
 
+        self.session_expiration = datetime.now() + timedelta(hours=6)
+
     def get_secret(self, secret_name):
         import json
         from botocore.exceptions import ClientError
+
+        if not self.client:
+            self.start_session()
 
         try:
             get_secret_value_response = self.client.get_secret_value(
@@ -1262,9 +1270,9 @@ class AWSSecretFetcher:
 
         signnow_secret = self.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
         if signnow_secret:
-            c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('ACCESS_TOKEN', '') or c.SIGNNOW_ACCESS_TOKEN
             c.SIGNNOW_CLIENT_ID = signnow_secret.get('CLIENT_ID', '') or c.SIGNNOW_CLIENT_ID
             c.SIGNNOW_CLIENT_SECRET = signnow_secret.get('CLIENT_SECRET', '') or c.SIGNNOW_CLIENT_SECRET
+            return signnow_secret
 
 def get_config_files(plugin_name, module_dir):
     config_files_str = os.environ.get(f"{plugin_name.upper()}_CONFIG_FILES", "")
@@ -1372,10 +1380,7 @@ for conf, val in _config['secret'].items():
         setattr(c, conf.upper(), val)
 
 if c.AWS_SECRET_SERVICE_NAME:
-    aws_secrets_client = AWSSecretFetcher()
-    aws_secrets_client.get_all_secrets()
-else:
-    aws_secrets_client = None
+    AWSSecretFetcher().get_all_secrets()
 
 signnow_python_sdk.Config(client_id=c.SIGNNOW_CLIENT_ID,
                           client_secret=c.SIGNNOW_CLIENT_SECRET,
@@ -1870,33 +1875,3 @@ if c.SAML_SP_SETTINGS["privateKey"]:
         c.SAML_SETTINGS["debug"] = True
     else:
         c.SAML_SETTINGS["strict"] = True
-
-logging.config.dictConfig({
-    'version': 1,
-    'root': {
-        'handlers': ['default'],
-        'level': "INFO",
-        'propagate': False
-    },
-    'loggers': {
-        name: {
-            'handlers': ['default'],
-            'level': level,
-            'propagate': False
-        }
-        for name, level in _config['loggers'].items() if name != 'root'
-    },
-    'handlers': {
-        'default': {
-            'level': 'INFO',
-            'formatter': 'standard',
-            'class': 'logging.StreamHandler',
-            'stream': 'ext://sys.stdout'
-        }
-    },
-    'formatters': {
-        'standard': {
-            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-        }
-    }
-})

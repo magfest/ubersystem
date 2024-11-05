@@ -112,9 +112,7 @@ class Root:
             else:
                 signnow_request = SignNowRequest(session=session, group=group)
 
-            if signnow_request.error_message:
-                log.error(signnow_request.error_message)
-            elif signnow_request.document:
+            if not signnow_request.error_message and signnow_request.document:
                 session.add(signnow_request.document)
 
                 signnow_signed = signnow_request.document.signed

@@ -54,7 +54,7 @@
               {{ stripe_form('process_marketplace_payment', app) }}
             {% endif %}
           </div>
-        {% endif %}
+        {% else %}<p>{{ app.incomplete_reason }}</p>{% endif %}
       {% elif app.status in [c.DECLINED, c.CANCELLED] %}
       Unfortunately, since your application has been {{ app.status_label|lower }}, you may no longer edit it. However,
       you may still view the details of your application below.

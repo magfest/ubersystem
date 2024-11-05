@@ -766,7 +766,7 @@ class Session(SessionManager):
 
         def get_attendee_account_by_attendee(self, attendee):
             logged_in_account = self.current_attendee_account()
-            if not logged_in_account:
+            if not logged_in_account or not attendee:
                 return
 
             attendee_accounts = attendee.managers
