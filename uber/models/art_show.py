@@ -418,10 +418,10 @@ class ArtShowPiece(MagModel):
         pdf.set_font(normal_font_name, size=8)
         pdf.set_xy(242 + xplus, 90 + yplus)
         # Note: we want the prices on the PDF to always have a trailing .00
-        pdf.cell(53, 14, txt=('${:,.2f}'.format(self.opening_bid)) if self.valid_for_sale else 'N/A', ln=1)
+        pdf.cell(53, 14, txt=('${:,.2f}'.format(self.opening_bid)) if self.valid_for_sale else 'NFS', ln=1)
         pdf.set_xy(242 + xplus, 116 + yplus)
         pdf.cell(
-            53, 14, txt=('${:,.2f}'.format(self.quick_sale_price)) if self.valid_quick_sale else 'N/A', ln=1)
+            53, 14, txt=('${:,.2f}'.format(self.quick_sale_price)) if self.valid_quick_sale else 'NFS', ln=1)
 
 
 class ArtShowPayment(MagModel):
