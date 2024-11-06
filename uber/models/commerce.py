@@ -109,7 +109,7 @@ class ModelReceipt(MagModel):
                     latest_txn = self.sorted_txns[-1]
                 else:
                     latest_txn = sorted([txn for txn in self.receipt_txns if txn.amount > 0],
-                                        key=lambda x: x.added, reverse=True)
+                                        key=lambda x: x.added, reverse=True)[0]
                 
                 item.receipt_txn = latest_txn
                 item.closed = datetime.now()

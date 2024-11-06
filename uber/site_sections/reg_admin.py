@@ -444,7 +444,7 @@ class Root:
 
         session.refresh(receipt)
         if receipt.current_amount_owed == 0:
-            for item in receipt.open_purchase_items + receipt.open_credit_items:
+            for item in receipt.open_receipt_items:
                 if item.receipt_txn:
                     item.closed = item.receipt_txn.added
                 else:
