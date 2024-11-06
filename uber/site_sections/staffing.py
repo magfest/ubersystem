@@ -247,7 +247,7 @@ class Root:
                 event_dates.append(day.strftime('%Y-%m-%d'))
             day += timedelta(days=1)
 
-        default_filters = []
+        default_filters = [{'id': 'public_assigned', 'title': "Assigned Shifts (Public)"}]
         for department in volunteer.assigned_depts:
             default_filters.append({
                 'id': department.id,
@@ -321,9 +321,13 @@ class Root:
 
         for shift in volunteer.shifts:
             job = shift.job
+            if job.is_public and job.department_id not in set(volunteer.assigned_depts_ids):
+                resource_id = "public_assigned"
+            else:
+                resource_id = job.department_id
             event_list.append({
                 'id': shift.id,
-                'resourceIds': [job.department_id],
+                'resourceIds': [resource_id],
                 'allDay': False,
                 'start': job.start_time_local.isoformat(),
                 'end': job.end_time_local.isoformat(),
