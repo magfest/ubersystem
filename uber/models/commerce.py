@@ -107,6 +107,10 @@ class ModelReceipt(MagModel):
     @property
     def sorted_txns(self):
         return sorted([txn for txn in self.receipt_txns], key=lambda x: x.added)
+    
+    @property
+    def sorted_items(self):
+        return sorted([item for item in self.receipt_items], key=lambda x: x.added)
 
     @property
     def total_processing_fees(self):

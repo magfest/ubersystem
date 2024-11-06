@@ -1,121 +1,203 @@
 {% extends 'signup_base.html' %}
 
-{% block page_style %}
+{% block page_styles %}
 <style>
-.fc-toolbar.fc-header-toolbar {
-  margin-left:15px;
-  margin-right:15px;
-}
-#shift_cal {
-  margin-top: 15px;
-}
-.shift_icon {
-  border-radius:15px;
-  width:30px;
-  height:30px;
-  display:inline-block;
-}
-.shift_taken {
-  background-color:#239875;
-}
-.shift_available {
-  background-color:#305fc9;
-}
-.fc-list-event-title .btn.shift_button {
-  margin-top: -20px;
-  color:white;
-}
-.fc-event-title .btn.shift_button {
-  margin-top: -15px;
-  margin-right: 5px;
-}
-.text-public {
-  color: #40c000;
-}
-</style> {% endblock %} {% block main_content %} <div class="d-none csrf_token"> {{ csrf_token() }} </div>
+  .ec-day.ec-highlight {
+    background-color: #f8f9fa !important;
+  }
+  @media (max-width: 576px) {
+    /* Force vertical button group at smaller sizes */
+    .ec-button-group {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      position: relative;
+      display: inline-flex !important;
+      vertical-align: middle;
+    }
+   
+    .ec-button-group>.ec-button:not(:first-child):not(:last-child) {
+    border-radius: 0;
+    }
+    .ec-button-group>.ec-button:last-child {
+      border-top-right-radius: 0;
+      border-bottom-left-radius: .25rem !important;
+    }
+    .ec-button-group>.ec-button:first-child {
+      border-bottom-left-radius: 0 !important;
+      border-top-right-radius: .25rem !important;
+      margin-top: 0px;
+    }
+    .ec-button-group>.ec-button {
+    width: 100%;
+    position: relative;
+    flex: 1 1 auto;
+    margin-left: 0 !important;
+    margin-top: -1px;
+    }
+  }
+</style>
+{% endblock %}
 
+{% block content %} <div class="d-none csrf_token"> {{ csrf_token() }} </div>
+<div class="row justify-content-center">
+<div class="col-12 col-md-10 text-center">
+  <h2>{{ c.CURRENT_VOLUNTEER.first_name }} {{ c.CURRENT_VOLUNTEER.last_name }}'s Available Shifts</h2>
+  {% if c.BEFORE_SHIFTS_CREATED %}
+  <p>Shifts will be available starting {{ c.SHIFTS_CREATED.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}.</p>
+  {% else %}
+  {% if not c.HIDE_SCHEDULE %}
+    <p><a target="_blank" href="../schedule/">View the {{ c.EVENT_NAME }} Schedule here</a>.</p>
+  {% endif %}
+  <p><a href="shifts_ical">Click Here</a> to download your shifts in ical format.</p>
+  <div class="accordion mb-3 text-start" id="shifts-info">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="shifts-info-details-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#shifts-info-details" aria-expanded="true" aria-controls="shifts-info-details">
+          Shifts Information
+        </button>
+      </h2>
+      <div id="shifts-info-details" class="accordion-collapse collapse show" aria-labelledby="shifts-info-details-header">
+        <div class="accordion-body">
+          <p>
+            You are currently signed up for {{ hours }} weighted hours worth of shifts.
+          </p>
+          <p>
+            Shifts that will overlap with your existing shifts will be hidden, and you will need to drop a shift to view them.
+            <br/>
+            {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
+            After {{ c.DROP_SHIFTS_DEADLINE|datetime_local }}, you must contact {{ c.STAFF_EMAIL|email_only|email_to_link }} to drop shifts. You may continue to add shifts through the event.
+            {% else %}
+            You can drop shifts until <b>{{ c.DROP_SHIFTS_DEADLINE|datetime_local }}</b>.
+            {% endif %}
+          </p>
+          <p>
+            You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
+          </p>
+        </div>
+      </div>
+    </div>
+    {% if has_public_jobs %}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="public-jobs-info-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#public-jobs-info" aria-controls="public-jobs-info">
+          Public Shifts
+        </button>
+      </h2>
+      <div id="public-jobs-info" class="accordion-collapse collapse" aria-labelledby="public-jobs-info-header">
+        <div class="accordion-body">
+          <p>Select "Show Public Shifts" to see and sign up for shifts outside of your assigned departments.</p>
+          <p>
+            {% if c.MAX_DEPTS_WHERE_WORKING > 0 %}
+                You'll be prevented from working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
+                department{{ c.MAX_DEPTS_WHERE_WORKING|pluralize }}.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% if depts_with_roles %}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="restricted-jobs-info-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#restricted-jobs-info" aria-controls="restricted-jobs-info">
+          Restricted Shifts and Roles
+        </button>
+      </h2>
+      <div id="restricted-jobs-info" class="accordion-collapse collapse" aria-labelledby="restricted-jobs-info-header">
+        <div class="accordion-body">
+          <p>You have been assigned special roles in the following departments: {{ depts_with_roles|join(", ") }}.</p>
+          <p>As a result, <strong>some shifts without required roles are hidden by default</strong>.</p>
+          <p>You can toggle this behavior with the "Prioritize Restricted Shifts" button below.</p>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
 
-<div class="row">
-  <div class="col-md-12 text-center">
-  <span style="font-size:16pt ; font-weight:bold" class="ng-binding">{{ name }}'s available shifts</span>
-  <h4><a href="printable" target="_blank">View Printable Schedule</a></h4>
-  </div>
-</div>
-<div class="row">
-  <div class="col-md-12 text-center">
-      <span style="font-size:12pt ; font-style:italic" class="ng-binding">(If you are not {{ name }}, <a href="login">log in here</a>.)</span>
-  </div>
-</div>
-<div class="row">
-  <div class="col-md-12 text-center">
-    <span style="margin-right: 15px;">
-      {{ macros.popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?") }}
-    </span>
-    {% if not c.HIDE_SCHEDULE %}
-      <span style="margin-left: 15px;">
-        <a target="_blank" href="../schedule/">View the {{ c.EVENT_NAME }} Schedule</a>
-      </span>
-    {% endif %}
-    <br><br>
-    You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
-    <br>
-    {% if c.AFTER_SHIFTS_CREATED %}
-      {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
-      After {{ c.DROP_SHIFTS_DEADLINE|datetime_local }}, you must contact {{ c.STAFF_EMAIL|email_only|email_to_link }} to drop shifts. You may continue to add shifts through the event.
-      <br/>
-      {% else %}
-      You can drop shifts until <b>{{ c.DROP_SHIFTS_DEADLINE|datetime_local }}</b>. <br/>
-      {% endif %}
-      {% if has_public_jobs %}
-        <br>
-        Some of the listed jobs are in departments you are not assigned to
-        (marked like this <sup class="text-public">public</sup>).
-        <br>
-        {% if c.MAX_DEPTS_WHERE_WORKING > 0 %}
-          You may sign up any of the listed jobs, but you'll be prevented from
-          working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
-          department{{ c.MAX_DEPTS_WHERE_WORKING|pluralize }}.
-          <br>
+  <div class="card mb-3">
+    <div class="card-header text-start">Shift View Options</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col col-auto">
+          <button type="button" class="btn btn-primary" id="available-btn-on" onClick="removeEvents('available')">Available</button>
+          <button type="button" class="btn btn-outline-primary" id="available-btn-off" onClick="addEvents('available')">Available</button>
+        </div>
+        <div class="col col-auto">
+          <button type="button" class="btn btn-outline-success" id="assigned-btn-off" onClick="addEvents('assigned')">Signed Up</button>
+          <button type="button" class="btn btn-success" id="assigned-btn-on" onClick="removeEvents('assigned')">Signed Up</button>
+        </div>
+        <div class="col flex-grow-1"></div>
+        <div class="col col-auto">
+          <button type="button" class="btn btn-outline-danger" id="highlight-btn-off" onClick="highlightEmpty('highlight')">Highlight Empty Shifts</button>
+          <button type="button" class="btn btn-danger" id="highlight-btn-on" onClick="unhighlightEmpty('highlight')">Turn Off Highlights</button>
+        </div>
+        {% if has_public_jobs %}
+        <div class="col col-auto">
+          <div class="input-group" id="public-btn-off">
+            <button type="button" class="btn btn-outline-info" onClick="addFilter('public')">Show Public Shifts</button>
+            <button type="button" class="btn btn-outline-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Show or hide public jobs in departments you are not assigned to.">
+              <i class="fa fa-question-circle" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="input-group" id="public-btn-on">
+            <button type="button" class="btn btn-info" onClick="removeFilter('public')">Hide Public Shifts</button>
+            <button type="button" class="btn btn-outline-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Show or hide public jobs in departments you are not assigned to.">
+              <i class="fa fa-question-circle" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
         {% endif %}
-      {% endif %}
-      <br>
-      <div class="state-text">
-        <a href="#" class="toggle-is_public" state="nonpublic">Click Here</a>
-        <span class="nonpublic-state-text is_public-state-text">
-          to <b>show</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
-        </span>
-        <span class="public-state-text d-none is_public-state-text">
-          to <b>hide</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
-        </span>
-        <br/>
-      </div>
-      {% if depts_with_roles %}
-      <br/>
-      <div>
-        You have been assigned special roles in the following departments: {{ depts_with_roles|join(", ") }}.<br/>
-        {% if show_all %}
-        <strong>All available shifts are currently shown regardless of required role.</strong><br/> You can instead 
-        <a href="shifts">prioritize shifts</a> with required roles.
-        {% else %}
-        As a result, <strong>some shifts without required roles may be hidden</strong>.<br/> You can opt to
-        <a href="shifts?all=True">show all shifts</a> regardless of required roles.
+        {% if depts_with_roles %}
+        <div class="col col-auto">
+          <div class="input-group" id="roles-btn-on">
+            <button type="button" class="btn btn-secondary" onClick="showAllShifts('roles')">Unprioritize Restricted Shifts</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="tooltip" data-bs-placement="top" title="Prioritize shifts restricted to special roles or show all shifts regardless of role.">
+              <i class="fa fa-question-circle" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="input-group" id="roles-btn-off">
+            <button type="button" class="btn btn-outline-secondary" onClick="showRoleShifts('roles')">Prioritize Restricted Shifts</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="tooltip" data-bs-placement="top" title="Prioritize shifts restricted to special roles or show all shifts regardless of role.">
+              <i class="fa fa-question-circle" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
         {% endif %}
-        <br/><br/>
+        {% if assigned_depts_list|length >= 1 %}
+        <div class="col col-auto">
+          <select class="form-select" id="dept_filter" onChange="setFilters('dept_filter')">
+            <option value="">Filter By Department...</option>
+            <option value="all">All</option>
+            {% for opt, label in assigned_depts_list %}
+            <option value="{{ opt }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
       </div>
-      {% endif %}
-      <a href="#" class="toggle-cal" state="all">Click Here</a>
-      <span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
-      <span class="shift-state-text d-none state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
-      <br>
-    {% else %}
-    Shifts will be available starting {{ c.SHIFTS_CREATED.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}.
-    <br/><br/>
-    {% endif %}
-    <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.<br/>
-    <a href="shifts_ical">Click Here</a> to download your shifts in ical format
+    </div>
   </div>
+  {% endif %}
+</div>
 </div>
 {% if c.AFTER_SHIFTS_CREATED %}
+<div class="toast position-absolute bg-light" id="shift-details" role="alert" aria-live="polite" aria-atomic="true" style="z-index: -1;">
+  <div class="toast-header bg-primary text-white">
+    <strong class="me-auto" id="shift-title"></strong>
+    <small id="shift-dept"></small>
+  </div>
+  <div class="toast-body">
+    <div class="d-flex fst-italic mb-1">
+      <div><span id="shift-slots"></span> slots filled</div><div class="ms-auto">x<span id="shift-weight"></span> weighting</div>
+    </div>
+    <div id="shift-desc"></div>
+  </div>
+  <div class="p-1 mt-2 pt-2 border-top text-end">
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="toast">Close</button>
+    <span id="shift-button"></span>
+  </div>
+</div>
 <div class="row justify-content-center">
   <div class="col-12 col-md-10">
     <div id="shift_cal"></div>
@@ -123,215 +205,403 @@
 </div>
 {% endif %}
 {% endblock %}
-{% block page_script %}
+{% block scripts %}
+{{ super() }}
 {% if c.AFTER_SHIFTS_CREATED %}
-{{ "deps/combined.min.js"|serve_static_content }}
-<script src="../angular/magfest.js"></script>
-
-{{ "js/moment.js"|serve_static_content }}
-
-{{ "fullcalendar-5.3.2/lib/main.min.js"|serve_static_content }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@event-calendar/build@3.6.1/event-calendar.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@event-calendar/build@3.6.1/event-calendar.min.js"></script>
 
 <script type="text/javascript">
-  var eventList = new Array();
-  var shiftList = new Array();
-  var publicEventList = new Array();
-
-  removeEventSources = function(array) {
-    var len = array.length;
-    for (var i = 0; i < len; i++) { 
-        array[i].remove(); 
-    } 
+  let signUp = function (id, title, department_name, date) {
+    bootbox.confirm({
+        backdrop: true,
+        title: `Sign up for ${title}?`,
+        message: `Are you sure you want to sign up for ${title} in ${department_name}, starting at ${date}?`,
+        buttons: {
+          confirm: { label: 'Yes, sign me up!', className: 'btn-success' },
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+        },
+        callback: function (result) {
+          if (result) {
+            $.ajax({
+              method: 'POST',
+              url: 'sign_up',
+              dataType: 'json',
+              data: {
+                job_id: id,
+                csrf_token: csrf_token
+              },
+              success: function (json) {
+                hideMessageBox();
+                var message = json.message;
+                if (json.success) {
+                  $("#message-alert").addClass("alert-success").show().children('span').html(message);
+                  shiftDetails.hide();
+                  ec.refetchEvents();
+                } else {
+                  showErrorMessage(json.message);
+                }
+              },
+              error: function () {
+                showErrorMessage('Unable to connect to server, please try again.');
+              }
+            });
+          }
+        }
+    });
+  }
+  let dropShift = function (id, title, department_name, date) {
+    bootbox.confirm({
+        backdrop: true,
+        title: `Drop shift ${title}?`,
+        message: `Are you sure you want to drop this shift for ${title} in ${department_name}, starting at ${date}?`,
+        buttons: {
+          confirm: { label: 'Yes, drop this shift', className: 'btn-danger' },
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+        },
+        callback: function (result) {
+          if (result) {
+            $.ajax({
+              method: 'POST',
+              url: 'drop',
+              dataType: 'json',
+              data: {
+                shift_id: id,
+                csrf_token: csrf_token
+              },
+              success: function (json) {
+                hideMessageBox();
+                var message = json.message;
+                if (json.success) {
+                  $("#message-alert").addClass("alert-success").show().children('span').html(message);
+                  shiftDetails.hide();
+                  ec.refetchEvents();
+                } else {
+                  showErrorMessage(json.message);
+                }
+              },
+              error: function () {
+                showErrorMessage('Unable to connect to server, please try again.');
+              }
+            });
+          }
+        }
+    });
   }
 
-    $(document).ready(function() {
-        {% for job in jobs %}
-            {% if job.taken %}
-                var takenShift = {
-                    title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
-                    start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                    end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                    id : "{{ job.id }}",
-                    is_public: {{ job.is_public|string|lower }},
-                    is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
-                    description: "{{ job.description|linebreaksbr }}",
-                    extra15: {{ job.extra15|string|lower }},
-                    backgroundColor: "#239875",
-                    taken: true
-                };
-                shiftList.push(takenShift);
-            {% endif %}
-            var shift = {
-                title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
-                start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                id : "{{ job.id }}",
-                is_public: {{ job.is_public|string|lower }},
-                is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
-                description: "{{ job.description|linebreaksbr }}",
-                extra15: {{ job.extra15|string|lower }},
-                {% if job.taken %}
-                    backgroundColor: "#239875",
-                    taken: true
-                {% else %}
-                    backgroundColor: "#305fc9",
-                    taken: false
-                {% endif %}
-            };
-            publicEventList.push(shift);
-            if (shift.taken || !shift.is_public_to_volunteer) {
-              eventList.push(shift);
-            }
-        {% endfor %}
+  let getActiveButton = function () {
+    customButtons = ec.getOption('customButtons');
+    for (const [key, value] of Object.entries(customButtons)) {
+      if (value['active'] == true) { return key; }
+    }
+    return '';
+  }
 
-        shiftCal = new FullCalendar.Calendar(document.getElementById('shift_cal'), {
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'agendaDay,agendaConWeek,agendaConDays,listConDuration'
+  let setActiveButton = function(whichButton) {
+    customButtons = ec.getOption('customButtons');
+    for (const [key, value] of Object.entries(customButtons)) {
+      if (key == whichButton) {
+        value['active'] = true;
+      } else {
+        value['active'] = false;
+      }
+    }
+    ec.setOption('customButtons', customButtons);
+  }
+
+  let showWeekCal = function (startDay, newDuration, whichButton) {
+    currentViews = ec.getOption('views');
+    currentViews['timeGridWeek']['duration']['days'] = newDuration;
+    ec.setOption('views', currentViews);
+
+    setActiveButton(whichButton);
+
+    ec.setOption('date', startDay);
+    ec.setOption('view', '');
+    ec.setOption('view', 'timeGridWeek');
+  }
+
+  let showOtherView = function (info) {
+    shiftDetails.hide();
+    if (info['type'] == 'timeGridWeek' && getActiveButton() == '') {
+      setActiveButton('eventView');
+    } else if (info['type'] != 'timeGridWeek') {
+      customButtons = ec.getOption('customButtons');
+      for (const [key, value] of Object.entries(customButtons)) { value['active'] = false; }
+      ec.setOption('customButtons', customButtons);
+      if (info['type'] == 'listWeek') {
+        ec.setOption('date', '{{ start }}');
+      }
+    }
+  }
+
+  let toggleButton = function(id, onOrOff) {
+    if ($('#' + id + '-btn-on').length == 0) { return; }
+
+    if (onOrOff == 'on') {
+      $('#' + id + '-btn-off').hide();
+      $('#' + id + '-btn-on').show();
+    } else {
+      $('#' + id + '-btn-on').hide();
+      $('#' + id + '-btn-off').show();
+    }
+  }
+
+  let addEvents = function(id) {
+    let eventSources = ec.getOption('eventSources');
+    eventSources.push(possibleEventSources[id]);
+    ec.setOption('eventSources', eventSources);
+    ec.refetchEvents();
+    toggleButton(id, 'on');
+  }
+
+  let removeEvents = function(id) {
+    let eventSources = ec.getOption('eventSources');
+    updatedEventSources = eventSources.filter(function(el) { return el.url != possibleEventSources[id]['url']; });
+    ec.setOption('eventSources', updatedEventSources);
+    ec.refetchEvents();
+    toggleButton(id, 'off');
+  }
+
+  let setFilters = function (dropdown_name) {
+    let choice = $('#' + dropdown_name).val();
+    if (choice == "" || choice == "all") {
+      ec.setOption('resources', {{ default_filters|safe }})
+    } else {
+      ec.setOption('resources', []);
+      addFilter(choice);
+    }
+  }
+
+  let addFilter = function (filter_name) {
+    let resources = ec.getOption('resources');
+    resources.push(allFilters.filter(function(el) { return el.id == filter_name; })[0]);
+    ec.setOption('resources', resources);
+    toggleButton(filter_name, 'on');
+  }
+
+  let removeFilter = function (filter_name) {
+    let resources = ec.getOption('resources');
+    updatedResources = resources.filter(function(el) { return el.id != filter_name; });
+    ec.setOption('resources', updatedResources);
+    toggleButton(filter_name, 'off');
+  }
+
+  let setFetchParams = function (paramChanges) {
+    currentParams = possibleEventSources['available']['extraParams'];
+    for (const [key, value] of Object.entries(paramChanges)) {
+      possibleEventSources['available']['extraParams'][key] = value;
+    }
+    let eventSources = ec.getOption('eventSources');
+    if (eventSources.filter(function(el) { return el.url == possibleEventSources['available']['url']; })) {
+      removeEvents('available');
+      addEvents('available');
+    }
+  }
+
+  let showAllShifts = function (id) {
+    setFetchParams({'all': true});
+    toggleButton(id, 'off');
+  }
+
+  let showRoleShifts = function (id) {
+    setFetchParams({'all': ''});
+    toggleButton(id, 'on');
+  }
+
+  let highlightEmpty = function (id) {
+    setFetchParams({'highlight': true});
+    toggleButton(id, 'on');
+  }
+
+  let unhighlightEmpty = function (id) {
+    setFetchParams({'highlight': ''});
+    toggleButton(id, 'off');
+  }
+
+  let showEventDetails = function (info) {
+    if (info.view.type == 'listWeek') { return; }
+    shiftDetails.hide();
+    let eventInfo = info.event;
+    $('#shift-title').text(eventInfo.title);
+    $('#shift-dept').text(eventInfo.extendedProps.department_name);
+    $('#shift-slots').text(eventInfo.extendedProps.slots);
+    $('#shift-weight').text(eventInfo.extendedProps.weight);
+    $('#shift-desc').html(eventInfo.extendedProps.desc);
+
+    let button = '';
+    let dropDeadlinePassed = {{ c.AFTER_DROP_SHIFTS_DEADLINE|yesno('true,false') }};
+    if (eventInfo.extendedProps.assigned == false) {
+      button = `<button type="button" class="btn btn-sm btn-success"
+                onClick="signUp('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
+                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")})')">Sign Up</button>`
+    } else if (dropDeadlinePassed) {
+      button = `<span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"
+      title="You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.STAFF_EMAIL|email_only }}.">
+      <button type="button" class="btn btn-sm btn-warning" disabled>Drop</button></span>`
+    } else {
+      button = `<button type="button" class="btn btn-sm btn-warning" 
+                onClick="dropShift('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
+                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Drop</button>`;
+    }
+
+    $('#shift-button').html(button);
+
+    let toastDiv = document.getElementById("shift-details");
+    toastDiv.style.zIndex = 1055;
+    shiftDetails.show(); // clientWidth and clientHeight are always 0 for hidden elements
+    
+    let widthOffset = toastDiv.clientWidth / 2;
+    let heightOffset = toastDiv.clientHeight + 20;
+    toastDiv.style.left = Math.max(10, info.jsEvent.pageX - widthOffset) + "px";
+    toastDiv.style.top = Math.max(10, info.jsEvent.pageY - heightOffset) + "px";
+  }
+
+  let renderEvent = function (info) {
+    let eventInfo = info.event;
+    if (eventInfo.display == 'pointer') {
+      return;
+    }
+    let extraClasses = {}
+    if (info.view.type == 'listWeek') {
+      extraClasses['titleSize'] = 'h5';
+    } else {
+      extraClasses['deptClass'] = ' class="ms-auto"';
+      extraClasses['titleSize'] = 'h6';
+      extraClasses['fullHeight'] = ' h-100';
+    }
+
+    let button = ''
+    let dropDeadlinePassed = {{ c.AFTER_DROP_SHIFTS_DEADLINE|yesno('true,false') }};
+    if (eventInfo.extendedProps.assigned == false) {
+      button = `<button type="button" class="btn btn-success"
+                onClick="signUp('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
+                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Sign Up</button>`
+    } else if (dropDeadlinePassed) {
+      button = `<span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"
+      title="You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.STAFF_EMAIL|email_only }}.">
+      <button type="button" class="btn btn-warning" disabled>Drop</button></span>`
+    } else {
+      button = `<button type="button" class="btn btn-warning"
+                onClick="dropShift('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
+                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Drop</button>`;
+    }
+
+    let html = `<div class="overflow-hidden d-flex flex-column h-100"><div class="p-1 d-flex flex-wrap">
+      <div><time class="ec-event-time text-wrap" datetime="${eventInfo.start}">
+      ${info.timeText}&nbsp;</time></div><div${(extraClasses['deptClass'] ?? '')}>
+      <em>@ ${eventInfo.extendedProps.department_name}</em></div></div>`;
+    
+    html = html + `<div class="d-flex flex-column${(extraClasses['fullHeight'] ?? '')} 
+      p-1"><h2 class="${extraClasses['titleSize']} mb-0 text-truncate">${eventInfo.title}`;
+    if (info.view.type == 'listWeek') {
+      html = html + `</h2><p class="mt-1 mb-1 fs-6"><em>${eventInfo.extendedProps.slots} slots filled</em> &nbsp;|&nbsp; 
+        <em>x${eventInfo.extendedProps.weight} weighting</em></p>
+        <p class="fs-5 pt-1 mb-1">${eventInfo.extendedProps.desc}</p>
+        <p class="mb-0 mt-2">${button}</p>`;
+    } else {
+      html = html + ` (${eventInfo.extendedProps.slots}) x${eventInfo.extendedProps.weight}</h2>
+        <p class="flex-grow-1 mt-1 text-truncate mb-0">${eventInfo.extendedProps.desc_text}</p>
+        <p class="fst-italic mb-1 text-truncate">Click for details & options</p>`;''
+    }
+    html = html + '</div></div>';
+    return {
+      html: html,
+    }
+  }
+
+  const allFilters = {{ all_filters|safe }}
+  let possibleEventSources = {
+    'available': {
+          url: 'get_available_jobs',
+          method: 'GET',
+          extraParams: {
+            'all': '',
+            'highlight': '',
+          }
+        },
+    'assigned': {
+      url: 'get_assigned_jobs',
+      method: 'GET',
+    }
+  }
+
+  const ec = new EventCalendar(document.getElementById('shift_cal'), {
+        view: window.matchMedia('(max-width: 576px)') ? 'listWeek' : 'timeGridWeek',
+        date: '{{ c.EPOCH.date() }}',
+        allDaySlot: false,
+        highlightedDates: {{ highlighted_dates|safe }},
+        headerToolbar: {
+            start: 'prev,next timeGridDay',
+            center: 'title',
+            end: '{% if setup_duration %}setupView,{% endif %}eventView{% if teardown_duration %},teardownView{% endif %}{% if setup_duration or teardown_duration %},allView{% endif %} listWeek'
+        },
+        buttonText: {close: 'Close', listWeek: 'List', timeGridDay: 'Day'},
+        noEventsContent: '<em>No shifts available with your current shift view options and dates.</em>',
+        customButtons: {
+          setupView: {
+            text: 'Setup',
+            click: function() { showWeekCal('{{ c.SETUP_JOB_START.date() }}', {{ setup_duration }}, 'setupView'); },
+            active: false,
+          },
+          eventView: {
+            text: 'Event',
+            click: function() { showWeekCal('{{ c.EPOCH.date() }}', {{ highlighted_dates|length }}, 'eventView'); },
+            active: false,
+          },
+          teardownView: {
+            text: 'Teardown',
+            click: function() { showWeekCal('{{ c.ESCHATON.date() }}', {{ teardown_duration + 1 }}, 'teardownView'); },
+            active: false,
+          },
+          allView: {
+            text: 'All',
+            click: function() { showWeekCal('{{ start }}', {{ setup_duration + highlighted_dates|length + teardown_duration }}, 'allView'); },
+            active: false,
+          },
+        },
+        scrollTime: '09:00:00',
+        views: {
+            timeGridWeek: {
+              pointer: true,
+              duration: {days: {{ highlighted_dates|length }}},
             },
-            views: {
-                agendaDay: {
-                  type: 'timeGridDay',
-                  buttonText: 'Day',
-                  eventMaxStack: true, // allow "more" link when too many events
-                },
-                agendaConWeek: {
-                    type: 'timeGrid',
-                    visibleRange: { start: '{{ start }}', end: '{{ end }}'},
-                    buttonText: 'Calendar',
-                    eventMaxStack: true, // allow "more" link when too many events
-                },
-                {% if start != c.EPOCH or end != c.ESCHATON %}
-                agendaConDays: {
-                    type: 'timeGrid',
-                    visibleRange: { start: '{{ c.EPOCH }}', end: '{{ c.ESCHATON }}'},
-                    buttonText: 'Event Calendar',
-                    eventMaxStack: true, // allow "more" link when too many events
-                },
-                {% endif %}
-                listConDuration: {
-                    type: 'list',
-                    visibleRange: { start: '{{ start }}', end: '{{ end }}'},
-                    buttonText: 'List',
-                    listDaySideFormat: { weekday: 'long' }
-                }
-            },
-            initialView: 'listConDuration',
-            initialDate: '{{ start_day.strftime('%Y-%m-%d') }}',
-            slotDuration: '00:30:00',
-            allDaySlot: false,
-            slotEventOverlap: false,
-            events: eventList,
-            eventDidMount: function(arg) {
-                var event = arg.event;
-                var element = $(arg.el);
-                var view = arg.view;
-                var eventDesc = "";
-                if (event.extendedProps.description) {
-                    eventDesc += "<br/>" + event.extendedProps.description;
-                }
-                if (event.extendedProps.extra15) {
-                    eventDesc += " + 15 minute end-time."
-                }
-                var buttonTag = '<div class="text-end"><a class="btn shift_button ';
-                if (view.type !== 'listConDuration') {
-                    buttonTag += 'btn-xs ';
-                }
-                if (event.extendedProps.taken) {
-                    buttonTag += 'btn-warning"';
-                } else {
-                    buttonTag += 'btn-primary"';
-                }
-
-                buttonTag += "onclick=\"click_shift('" + event.extendedProps.taken + "','" + event.id + "','" +
-                moment(event.start).toISOString() + "','" + $('<div/>').text(event.title).html() + "')\"";
-
-                buttonTag += '>';
-                if(event.extendedProps.taken) {
-                    buttonTag += 'Drop';
-                } else {
-                    buttonTag += 'Sign up';
-                }
-                buttonTag += '</a></div>';
-
-                {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
-                if (event.extendedProps.taken) {
-                  buttonTag = ''
-                }
-                {% endif %}
-
-                if(event.extendedProps.is_public_to_volunteer) {
-                  element.find('.fc-list-event-title').append($('<sup class="text-public"> public</sup>'));
-                  element.find('.fc-title').append($('<sup class="text-public"> public</sup>'));
-                }
-                element.find('.fc-list-event-title').append(eventDesc + buttonTag);
-                element.find('.fc-event-title').append(eventDesc + buttonTag);
-                element.find('.fc-title').append(" " + buttonTag + '<br/>' + eventDesc);
+            listWeek: {
+              duration: {days: {{ total_duration }}},
             }
-        });
-        {% if view %}
-            // Keep the view they were on when they added or dropped a shift
-            shiftCal.changeView('{{ view }}');
-            {% if start %}
-                shiftCal.gotoDate('{{ start }}');
-            {% endif %}
-        {% endif %}
-
-      $(".toggle-cal").click(function() {
-        removeEventSources(shiftCal.getEventSources());
-        if ($(this).attr('state')=='all') {
-          shiftCal.addEventSource(shiftList);
-          $(this).attr('state', 'shift');
-        } else {
-          var isPublic = $(".toggle-is_public").attr('state') == 'public';
-          shiftCal.addEventSource(isPublic ? publicEventList : eventList);
-          $(this).attr('state', 'all');
-        }
-        shiftCal.refetchEvents();
-        $(".state-text").toggleClass('d-none');
-      });
-
-      $(".toggle-is_public").click(function() {
-        var isShifts = $(".toggle-cal").attr('state') == 'shift';
-        removeEventSources(shiftCal.getEventSources());
-        if ($(this).attr('state')=='public') {
-          shiftCal.addEventSource(isShifts ? shiftList: eventList);
-          $(this).attr('state', 'nonpublic');
-        } else {
-          shiftCal.addEventSource(isShifts ? shiftList: publicEventList);
-          $(this).attr('state', 'public');
-        }
-        shiftCal.refetchEvents();
-        $(".is_public-state-text").toggleClass('d-none');
-      });
-      shiftCal.render();
+        },
+        viewDidMount: showOtherView,
+        eventSources: [possibleEventSources['available'], possibleEventSources['assigned']],
+        eventContent: renderEvent,
+        eventClick: showEventDetails,
+        filterEventsWithResources: true,
+        resources: {{ default_filters|safe }},
+        dayMaxEvents: true,
+        nowIndicator: true,
+        selectable: false,
+        eventStartEditable: false,
+        eventDurationEditable: false,
     });
 
-    function click_shift(taken,id,start,title) {
-        var postData = {};
-        var time = moment(start).format("h:mma");
-        var date = moment(start).format("dddd, MMM Do");
-        postData['csrf_token'] =  $("div.csrf_token input").attr('value');
-        var confirmStr = "Do you want to ";
-        if (taken=='true') {
-          confirmStr += "drop ";
-        } else {
-            confirmStr += "sign up for ";
-        }
-        confirmStr += title + " at " + time + " on " + date + "?";
-        var r = confirm(confirmStr);
-        if (r == true) {
-          var tgtShiftURL = "sign_up?job_id="+ id + "&all={{ show_all }}";
-            if(taken=='true') {
-                tgtShiftURL = "drop?job_id=" + id + "&all={{ show_all }}";
-            }
-            $.post( tgtShiftURL,postData,function( data,status ) {
-                var view = shiftCal.view;
-                window.location.href = window.location.pathname + "?view=" + view.type + "&start=" + view.currentStart.toISOString() + "&all={{ show_all }}";
-            });
-        }
-    }
+    var shiftDetails = new bootstrap.Toast($('#shift-details')[0], {'animation': false, 'autohide': false, 'delay': 0});
+
+    $().ready(function() {
+      toggleButton('available', 'on');
+      toggleButton('assigned', 'on');
+      toggleButton('highlight', 'off');
+      {% if has_public_jobs %}toggleButton('public', 'off');{% endif %}
+      {% if depts_with_roles %}toggleButton('roles', 'on');{% endif %}
+
+      shiftDetails.hide();
+    })
+
+    $(document).click(function(event) { 
+      var $target = $(event.target);
+      if(!$target.closest('#shift-details').length && !$target.closest('#shift_cal').length && $('#shift-details').is(":visible")) {
+        shiftDetails.hide();
+      }
+    });
+
 </script>
 {% endif %}
 {% endblock %}

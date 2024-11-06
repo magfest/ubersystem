@@ -637,8 +637,17 @@ def check_image_size(image, size_list):
     try:
         return Image.open(image).size == tuple(map(int, size_list))
     except OSError:
-        # This probably isn't an image, so it's not a header image
+        # This probably isn't an image at all
         return
+
+
+def check_guidebook_image_filetype(pic):
+    from uber.custom_tags import readable_join
+
+    if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
+        return f'Image {pic.filename} is not one of the allowed extensions: '\
+            f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
+    return ''
 
 
 def validate_model(forms, model, preview_model=None, is_admin=False):

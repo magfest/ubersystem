@@ -2,13 +2,22 @@ import cherrypy
 from datetime import datetime, timedelta
 from pockets.autolog import log
 import ics
+from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import safe_string
 from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, public
 from uber.errors import HTTPRedirect
-from uber.models import Attendee
-from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now
+from uber.models import Attendee, Job
+from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now, extract_urls
+
+
+def _convert_urls(desc):
+    urls = extract_urls(desc)
+    log.error(urls)
+    for url in urls:
+        desc = desc.replace(url, f'<a href="{url}" target="_blank">{url}</a>')
+    return desc
 
 
 @all_renderable()
@@ -208,8 +217,7 @@ class Root:
         assigned_dept_ids = set(volunteer.assigned_depts_ids)
         has_public_jobs = False
         for job in joblist:
-            job['is_public_to_volunteer'] = job['is_public'] and job['department_id'] not in assigned_dept_ids
-            if job['is_public_to_volunteer']:
+            if job.is_public and job.department_id not in assigned_dept_ids:
                 has_public_jobs = True
 
         has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
@@ -226,28 +234,111 @@ class Root:
             else:
                 start = datetime.strptime(start, '%Y-%m-%dT%H:%M:%S.%f')
 
-        if has_setup and has_teardown:
-            cal_length = c.CON_TOTAL_DAYS
-        elif has_setup:
-            cal_length = con_days + c.SETUP_SHIFT_DAYS
-        elif has_teardown:
-            cal_length = con_days + 2  # There's no specific config for # of shift signup days
-        else:
-            cal_length = con_days
+        end = c.TEARDOWN_JOB_END if has_teardown else c.ESCHATON
+
+        total_duration = 0
+        event_dates = []
+        day = start
+        while day <= end:
+            total_duration += 1
+            if c.EPOCH <= day and day <= c.ESCHATON:
+                event_dates.append(day.strftime('%Y-%m-%d'))
+            day += timedelta(days=1)
+
+        default_filters = []
+        for department in volunteer.assigned_depts:
+            default_filters.append({
+                'id': department.id,
+                'title': department.name,
+            })
+        other_filters = [
+            {'id': 'public', 'title': "Public Shifts",},
+            ]
 
         return {
             'jobs': joblist,
-            'has_public_jobs': has_public_jobs,
+            'has_public_jobs': session.query(Job).filter(Job.is_public == True).count(),
             'depts_with_roles': [membership.department.name for membership in volunteer.dept_memberships_with_role],
+            'assigned_depts_list': [(dept.id, dept.name) for dept in volunteer.assigned_depts],
             'name': volunteer.full_name,
             'hours': volunteer.weighted_hours,
             'assigned_depts_labels': volunteer.assigned_depts_labels,
+            'default_filters': default_filters,
+            'all_filters': default_filters + other_filters,
             'view': view,
-            'start': start,
-            'end': start + timedelta(days=cal_length),
+            'start': start.date(),
+            'end': end.date(),
+            'total_duration': total_duration,
+            'highlighted_dates': event_dates,
+            'setup_duration': 0 if not has_setup else (c.EPOCH - c.SETUP_JOB_START).days,
+            'teardown_duration': 0 if not has_teardown else (c.TEARDOWN_JOB_END - c.ESCHATON).days,
             'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
             'show_all': all,
         }
+    
+    @ajax_gettable
+    def get_available_jobs(self, session, all=False, highlight=False, **params):
+        joblist = session.jobs_for_signups(all=all)
+
+        volunteer = session.logged_in_volunteer()
+        assigned_dept_ids = set(volunteer.assigned_depts_ids)
+        event_list = []
+
+        for job in joblist:
+            resource_id = job.department_id
+            bg_color = "#0d6efd"
+            if job.is_public and job.department_id not in assigned_dept_ids:
+                resource_id = "public"
+                bg_color = "#0dcaf0"
+            if highlight and len(job.shifts) == 0:
+                bg_color = "#dc3545"
+            event_list.append({
+                'id': job.id,
+                'resourceIds': [resource_id],
+                'allDay': False,
+                'start': job.start_time_local.isoformat(),
+                'end': job.end_time_local.isoformat(),
+                'title': f"{job.name}",
+                'backgroundColor': bg_color,
+                'extendedProps': {
+                    'department_name': job.department_name,
+                    'desc': _convert_urls(job.description),
+                    'desc_text': job.description,
+                    'weight': job.weight,
+                    'slots': f"{len(job.shifts)}/{job.slots}",
+                    'is_public': job.is_public,
+                    'assigned': False,
+                    }
+            })
+        return event_list
+    
+    @ajax_gettable
+    def get_assigned_jobs(self, session, **params):
+        volunteer = session.logged_in_volunteer()
+        event_list = []
+
+        for shift in volunteer.shifts:
+            job = shift.job
+            event_list.append({
+                'id': shift.id,
+                'resourceIds': [job.department_id],
+                'allDay': False,
+                'start': job.start_time_local.isoformat(),
+                'end': job.end_time_local.isoformat(),
+                'title': f"{job.name}",
+                'backgroundColor': '#198754',
+                'extendedProps': {
+                    'department_name': job.department_name,
+                    'desc': _convert_urls(job.description),
+                    'desc_text': job.description,
+                    'weight': job.weight,
+                    'slots': f"{len(job.shifts)}/{job.slots}",
+                    'is_public': job.is_public,
+                    'assigned': True,
+                    }
+            })
+        return event_list
+
 
     def shifts_ical(self, session, **params):
         attendee = session.logged_in_volunteer()
@@ -277,28 +368,31 @@ class Root:
 
     @check_shutdown
     @ajax
-    def sign_up(self, session, job_id, all=False):
-        return {
-            'error': session.assign(session.logged_in_volunteer().id, job_id),
-            'jobs': session.jobs_for_signups(all=all)
-        }
+    def sign_up(self, session, job_id, **params):
+        message = session.assign(session.logged_in_volunteer().id, job_id)
+        if message:
+            return {'success': False, 'message': message}
+        return {'success': True, 'message': "Signup complete!"}
 
     @check_shutdown
     @ajax
-    def drop(self, session, job_id, all=False):
+    def drop(self, session, shift_id, all=False):
         if c.AFTER_DROP_SHIFTS_DEADLINE:
             return {
-                'error': "You can no longer drop shifts.",
-                'jobs': session.jobs_for_signups(all=all)
+                'success': False,
+                'message': "You can no longer drop shifts."
             }
         try:
-            shift = session.shift(job_id=job_id, attendee_id=session.logged_in_volunteer().id)
+            shift = session.shift(shift_id)
             session.delete(shift)
             session.commit()
-        except Exception:
-            pass
+        except NoResultFound:
+            return {
+                'success': True,
+                'message': "You've already dropped or have been unassigned from this shift."
+            }
         finally:
-            return {'jobs': session.jobs_for_signups(all=all)}
+            return {'success': True, 'message': "Shift dropped."}
 
     @public
     def login(self, session, message='', first_name='', last_name='', email='', zip_code='', original_location=None):
