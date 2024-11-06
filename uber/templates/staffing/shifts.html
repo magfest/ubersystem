@@ -527,7 +527,7 @@
   }
 
   const ec = new EventCalendar(document.getElementById('shift_cal'), {
-        view: window.matchMedia('(max-width: 576px)') ? 'listWeek' : 'timeGridWeek',
+        view: window.matchMedia('(max-width: 576px)').matches ? 'listWeek' : 'timeGridWeek',
         date: '{{ c.EPOCH.date() }}',
         allDaySlot: false,
         highlightedDates: {{ highlighted_dates|safe }},
