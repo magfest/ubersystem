@@ -356,6 +356,31 @@ class Root:
             'success': success,
         }
 
+    @ajax
+    def update_location(self, session, message='', **params):
+        app = session.art_show_application(params)
+        session.commit()
+        return {'success': True,
+                'message': f"Updated {app.artist_or_full_name}'s location."}
+
+    @ajax
+    def update_all(self, session, message='', **params):
+        if 'id' in params:
+            app_list = []
+            for id in params.get('id'):
+                app_params = {key.replace(f'_{id}', ''): val for key, val in params.items() if f'_{id}' in key}
+                app_params['id'] = id
+                app = session.art_show_application(app_params)
+                if app.locations != app.orig_value_of('locations'):
+                    app_list.append(app.artist_or_full_name)
+
+            session.commit()
+            message = "No locations to update." if not app_list \
+                else f"Updated the following applications: {readable_join(app_list)}"
+
+            return {'success': True,
+                    'message': message}
+
     def assign_locations(self, session, message='', **params):
         valid_apps = session.query(ArtShowApplication).filter_by(status=c.APPROVED)
 
