@@ -1,21 +1,21 @@
-"""Add header/thumbnail flag to MIVS images
+"""Add list of refund txns to receipt txns
 
-Revision ID: f01a2ad10d79
-Revises: 58756e2dfe4d
-Create Date: 2024-11-05 15:23:12.065060
+Revision ID: 9c23621e5e12
+Revises: f01a2ad10d79
+Create Date: 2024-11-06 17:59:12.695586
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'f01a2ad10d79'
-down_revision = '58756e2dfe4d'
+revision = '9c23621e5e12'
+down_revision = 'f01a2ad10d79'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-
+import residue
 
 
 try:
@@ -52,10 +52,12 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('indie_game_image', sa.Column('is_header', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('indie_game_image', sa.Column('is_thumbnail', sa.Boolean(), server_default='False', nullable=False))
+    op.create_index(op.f('ix_receipt_item_fk_id'), 'receipt_item', ['fk_id'], unique=False)
+    op.add_column('receipt_transaction', sa.Column('refunded_txn_id', residue.UUID(), nullable=True))
+    op.create_foreign_key(op.f('fk_receipt_transaction_refunded_txn_id_receipt_transaction'), 'receipt_transaction', 'receipt_transaction', ['refunded_txn_id'], ['id'], ondelete='SET NULL')
 
 
 def downgrade():
-    op.drop_column('indie_game_image', 'is_thumbnail')
-    op.drop_column('indie_game_image', 'is_header')
+    op.drop_constraint(op.f('fk_receipt_transaction_refunded_txn_id_receipt_transaction'), 'receipt_transaction', type_='foreignkey')
+    op.drop_column('receipt_transaction', 'refunded_txn_id')
+    op.drop_index(op.f('ix_receipt_item_fk_id'), table_name='receipt_item')

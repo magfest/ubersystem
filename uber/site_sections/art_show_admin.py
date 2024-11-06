@@ -957,6 +957,7 @@ class Root:
 
         session.add_all(receipt_manager.items_to_add)
         session.commit()
+        session.check_receipt_closed(receipt)
         raise HTTPRedirect('form?id={}&message={}', id,
                            f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
 

@@ -2046,7 +2046,7 @@ class Root:
         except Exception:
             return {'error': "Cannot find your receipt, please contact registration"}
 
-        if receipt.open_receipt_items and receipt.current_amount_owed:
+        if receipt.open_purchase_items and receipt.current_amount_owed:
             return {'error': "You already have an outstanding balance, please refresh the page to pay \
                     for your current items or contact {}".format(email_only(c.REGDESK_EMAIL))}
 

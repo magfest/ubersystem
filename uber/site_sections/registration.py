@@ -1096,6 +1096,7 @@ class Root:
 
                 attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
+        session.check_receipt_closed(receipt)
         return {
             'success': True,
             'message': 'Attendee{} marked as paid.'.format('s' if account else ''),

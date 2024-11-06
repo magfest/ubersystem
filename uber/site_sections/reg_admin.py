@@ -332,7 +332,7 @@ class Root:
                     session.add(txn)
                     txn.refunded = txn.amount
                     refund_id = str(refund.response_id) or getattr(refund, 'ref_id')
-                    refund.receipt_manager.create_refund_transaction(txn.receipt,
+                    refund.receipt_manager.create_refund_transaction(txn,
                                                                      "Automatic void of transaction " +
                                                                      txn.stripe_id, refund_id,
                                                                      txn.amount, method=refund.method)
@@ -351,6 +351,7 @@ class Root:
 
         item.comped = True
         session.commit()
+        session.check_receipt_closed(item.receipt)
 
         return {'message': "Item comped{}".format(message_add)}
 
@@ -403,6 +404,7 @@ class Root:
 
         item.reverted = True
         session.commit()
+        session.check_receipt_closed(item.receipt)
 
         return {'message': "Item reverted{}".format(message_add)}
 
@@ -442,7 +444,7 @@ class Root:
 
         session.refresh(receipt)
         if receipt.current_amount_owed == 0:
-            for item in receipt.open_receipt_items:
+            for item in receipt.open_purchase_items + receipt.open_credit_items:
                 if item.receipt_txn:
                     item.closed = item.receipt_txn.added
                 else:
@@ -508,11 +510,11 @@ class Root:
                         refund_id=last_refund_id,
                         department=txn.receipt.default_department,
                         amount=(new_amount - prior_amount) * -1,
-                        receipt_items=txn.receipt.open_receipt_items,
+                        receipt_items=txn.receipt.open_credit_items,
                         desc="Automatic refund of Stripe transaction " + txn.stripe_id,
                         who=AdminAccount.admin_name() or 'non-admin'
                     ))
-                    for item in txn.receipt.open_receipt_items:
+                    for item in txn.receipt.open_credit_items:
                         item.closed = datetime.now()
 
             session.commit()
@@ -522,23 +524,6 @@ class Root:
         return {
             'refresh': bool(messages),
             'message': ' '.join(messages) if messages else "Transaction already up-to-date.",
-        }
-
-    @ajax
-    def refund_receipt_txn(self, session, id, amount, **params):
-        txn = session.receipt_transaction(id)
-        return {'error': float(params.get('amount', 0)) * 100}
-
-        refund = TransactionRequest(txn.receipt, amount=Decimal(amount) * 100)
-        error = refund.refund_or_cancel(txn)
-        if error:
-            return {'error': error}
-
-        return {
-            'refunded': id,
-            'message': "Successfully refunded {}".format(format_currency(txn.refunded)),
-            'refund_total': txn.refunded,
-            'new_total': txn.receipt.total_str,
         }
 
     @ajax
@@ -582,6 +567,8 @@ class Root:
 
         session.add_all(refund.get_receipt_items_to_add())
         session.commit()
+        session.check_receipt_closed(receipt)
+
         raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
                            session.get_model_by_receipt(receipt).id,
                            f"{format_currency(refund_amount / 100)} refunded.")
@@ -709,6 +696,7 @@ class Root:
                 raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, message)
             session.add_all(refund.get_receipt_items_to_add())
             session.commit()
+            session.check_receipt_closed(receipt)
 
         message_end = f" Their group leader was refunded {format_currency(group_refund_amount / 100)}."\
             if group_refund_amount else ""

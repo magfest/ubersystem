@@ -615,12 +615,14 @@
               {% endif %}
             </div>
           </div>
+          {% if txn.paid %}
           <div class="col-12 col-sm-6">
             <div class="form-text">Refunded</div>
             <div class="mb-3">
               {{ (txn.refunded / 100)|format_currency }} Refunded{% if txn.refund_id %} via {{ processors[txn.method] }} ID {{ txn.refund_id }}{% endif %}{% if txn.amount_left %} ({{ (txn.amount_left / 100)|format_currency }} Remaining){% endif %}
             </div>
           </div>
+          {% endif %}
         </div>
         {% endif %}
         <div class="row g-sm-3">
@@ -859,7 +861,7 @@ See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> fo
           {% elif item.cancelled %}
             <em>Cancelled {{ item.cancelled|datetime_local }}</em>
           {% elif item.closed %}
-            <em>{{ "Paid" if item.paid else "Refunded" }} {{ item.closed|datetime_local }}</em>
+            <em>{{ item.closed_type }} {{ item.closed|datetime_local }}</em>
           {% endif %}
           {% if item.refunded %}
           <em>{{ (item.refunded / 100)|format_currency }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ (item.amount_left / 100)|format_currency }} left){% endif %}

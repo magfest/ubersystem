@@ -472,7 +472,7 @@ class TransactionRequest:
         if message:
             return message
 
-        self.receipt_manager.create_refund_transaction(txn.receipt,
+        self.receipt_manager.create_refund_transaction(txn,
                                                        "Automatic refund of transaction " + txn.stripe_id,
                                                        str(self.response_id),
                                                        self.amount,
@@ -1046,7 +1046,7 @@ class SpinTerminalRequest(TransactionRequest):
 
         self.receipt_manager.items_to_add.append(self.tracker)
 
-        refund_txn = self.receipt_manager.create_refund_transaction(txn.receipt,
+        refund_txn = self.receipt_manager.create_refund_transaction(txn,
                                                                     "Automatic refund of transaction " + txn.stripe_id,
                                                                     self.intent_id_from_txn_tracker(self.tracker),
                                                                     refund_amount,
@@ -1190,29 +1190,30 @@ class ReceiptManager:
                                                     department=department or self.receipt.default_department,
                                                     amount=amount,
                                                     txn_total=txn_total or amount,
-                                                    receipt_items=self.receipt.open_receipt_items,
+                                                    receipt_items=self.receipt.open_purchase_items,
                                                     desc=desc,
                                                     who=self.who or AdminAccount.admin_name() or 'non-admin'
                                                     ))
         if not intent:
-            for item in self.receipt.open_receipt_items:
+            for item in self.receipt.open_purchase_items:
                 item.closed = datetime.now()
                 self.items_to_add.append(item)
 
-    def create_refund_transaction(self, receipt, desc, refund_id, amount, method=c.STRIPE, department=None):
+    def create_refund_transaction(self, refunded_txn, desc, refund_id, amount, method=c.STRIPE, department=None):
         from uber.models import AdminAccount, ReceiptTransaction
 
-        receipt_txn = ReceiptTransaction(receipt_id=receipt.id,
+        receipt_txn = ReceiptTransaction(receipt_id=refunded_txn.receipt.id,
                                          refund_id=refund_id,
+                                         refunded_txn_id=refunded_txn.id,
                                          method=method,
-                                         department=department or receipt.default_department,
+                                         department=department or refunded_txn.receipt.default_department,
                                          amount=amount * -1,
-                                         receipt_items=receipt.open_receipt_items,
+                                         receipt_items=refunded_txn.receipt.open_credit_items,
                                          desc=desc,
                                          who=self.who or AdminAccount.admin_name() or 'non-admin'
                                          )
 
-        for item in receipt.open_receipt_items:
+        for item in refunded_txn.receipt.open_credit_items:
             self.items_to_add.append(item)
             item.closed = datetime.now()
 
@@ -1562,8 +1563,9 @@ class ReceiptManager:
             session.add(model)
 
             session.commit()
+            session.check_receipt_closed(txn_receipt)
 
-            if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_receipt_items:
+            if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_purchase_items:
                 try:
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
@@ -1573,7 +1575,7 @@ class ReceiptManager:
                         model=model.to_dict('id'))
                 except Exception:
                     log.error('Unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
-            if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_receipt_items:
+            if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_purchase_items:
                 try:
                     send_email.delay(
                         c.ART_SHOW_EMAIL,
@@ -1583,7 +1585,7 @@ class ReceiptManager:
                         model=model.to_dict('id'))
                 except Exception:
                     log.error('Unable to send Art Show payment confirmation email', exc_info=True)
-            if model and isinstance(model, ArtistMarketplaceApplication) and not txn.receipt.open_receipt_items:
+            if model and isinstance(model, ArtistMarketplaceApplication) and not txn.receipt.open_purchase_items:
                 send_email.delay(
                     c.ARTIST_MARKETPLACE_EMAIL,
                     c.ARTIST_MARKETPLACE_EMAIL,

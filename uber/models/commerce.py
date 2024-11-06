@@ -100,6 +100,22 @@ class ModelReceipt(MagModel):
     owner_model = Column(UnicodeText)
     closed = Column(UTCDateTime, nullable=True)
 
+    def close_all_items(self, session):
+        for item in self.open_receipt_items:
+            if item.receipt_txn:
+                item.closed = item.receipt_txn.added
+            else:
+                if item.amount < 0:
+                    latest_txn = self.sorted_txns[-1]
+                else:
+                    latest_txn = sorted([txn for txn in self.receipt_txns if txn.amount > 0],
+                                        key=lambda x: x.added, reverse=True)
+                
+                item.receipt_txn = latest_txn
+                item.closed = datetime.now()
+            session.add(item)
+        session.commit()
+
     @property
     def all_sorted_items_and_txns(self):
         return sorted(self.receipt_items + self.receipt_txns, key=lambda x: x.added)
@@ -125,12 +141,16 @@ class ModelReceipt(MagModel):
         return [item for item in self.receipt_items if not item.closed]
 
     @property
-    def closed_receipt_items(self):
-        return [item for item in self.receipt_items if item.closed]
+    def open_purchase_items(self):
+        return [item for item in self.open_receipt_items if item.amount >= 0]
+    
+    @property
+    def open_credit_items(self):
+        return [item for item in self.open_receipt_items if item.amount < 0]
 
     @property
     def charge_description_list(self):
-        return ", ".join([item.desc + " x" + str(item.count) for item in self.open_receipt_items if item.amount > 0])
+        return ", ".join([item.desc + " x" + str(item.count) for item in self.open_purchase_items])
 
     @property
     def cancelled_txns(self):
@@ -283,6 +303,13 @@ class ReceiptTransaction(MagModel):
     receipt_info = relationship('ReceiptInfo', foreign_keys=receipt_info_id,
                                 cascade='save-update, merge',
                                 backref=backref('receipt_txns', cascade='save-update, merge'))
+    refunded_txn_id = Column(UUID, ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True)
+    refunded_txn = relationship('ReceiptTransaction', foreign_keys='ReceiptTransaction.refunded_txn_id',
+                                backref=backref('refund_txns', order_by='ReceiptTransaction.added'),
+                                cascade='save-update,merge,refresh-expire,expunge',
+                                remote_side='ReceiptTransaction.id',
+                                single_parent=True)
+    refunded = Column(Integer, default=0)
     intent_id = Column(UnicodeText)
     charge_id = Column(UnicodeText)
     refund_id = Column(UnicodeText)
@@ -291,7 +318,6 @@ class ReceiptTransaction(MagModel):
     amount = Column(Integer)
     txn_total = Column(Integer, default=0)
     processing_fee = Column(Integer, default=0)
-    refunded = Column(Integer, default=0)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     cancelled = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
@@ -483,7 +509,6 @@ class ReceiptItem(MagModel):
     receipt_txn = relationship('ReceiptTransaction', foreign_keys=txn_id,
                                cascade='save-update, merge',
                                backref=backref('receipt_items', cascade='save-update, merge'))
-    # TODO: Add a view-only "refund_txns" relationship to ReceiptTransaction so credit items can track their associated refunds
     fk_id = Column(UUID, index=True, nullable=True)
     fk_model = Column(UnicodeText)
     department = Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS), default=c.OTHER_RECEIPT_ITEM)
@@ -507,6 +532,16 @@ class ReceiptItem(MagModel):
         if not self.closed:
             return
         return self.receipt_txn.added and self.receipt_txn.amount > 0
+    
+    @property
+    def closed_type(self):
+        if not self.closed:
+            return ""
+        if self.amount > 0 and self.receipt_txn.amount > 0:
+            return "Paid"
+        if self.amount < 0 and self.receipt_txn.amount < 0:
+            return "Refunded"
+        return "Closed"
 
     @property
     def available_actions(self):

@@ -1224,6 +1224,11 @@ class Session(SessionManager):
                 pass
 
             return receipt
+        
+        def check_receipt_closed(self, receipt):
+            self.refresh(receipt)
+            if receipt.current_receipt_amount == 0:
+                receipt.close_all_items(self)
 
         def get_terminal_settlements(self):
             from uber.models import TerminalSettlement
