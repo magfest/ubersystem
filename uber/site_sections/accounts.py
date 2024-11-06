@@ -42,6 +42,7 @@ class Root:
                          .join(Attendee)
                          .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
+            'attendee_labels': sorted([label for val, label in attendees]),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
         }
 
