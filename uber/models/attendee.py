@@ -1238,7 +1238,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return (self.num_event_shirts != -1 or not c.STAFF_EVENT_SHIRT_OPTS) and self.shirt_size_marked
         elif self.volunteer_event_shirt_eligible:
             return self.shirt_size_marked
-        return self.shirt_opt_out != c.OPT_IN
+        return True
 
     @property
     def is_group_leader(self):
