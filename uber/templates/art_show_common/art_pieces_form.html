@@ -24,7 +24,7 @@
         <div class="modal-body">
           <input type="hidden" name="id" value="{{ real_piece.id or 'None' }}" />
           <input type="hidden" name="app_id" value="{{ app.id }}" />
-          <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
+          <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
           {{ csrf_token() }}
           <div class="row g-sm-3">
             <div class="col-12 col-sm-6">
@@ -129,8 +129,21 @@
   <h3 class="card-title">Art Show Information</h3>
   <form method="post" action="../art_show_applications/edit" role="form">
     <input type="hidden" name="id" value="{{ app.id }}" />
-    <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
+    <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
     {{ csrf_token() }}
+    {% if admin_area %}
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        <label for="banner_name" class="form-text">Locations</label>
+        {% if readonly %}
+          {{ app.locations }}
+        {% else %}
+          <input type="text" class="form-control" name="locations" id="locations" value="{{ app.locations }}"/>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     <div class="row g-sm-3">
       <div class="col-12 col-sm-6">
         <label for="banner_name" class="form-text">Banner Name</label>
@@ -221,7 +234,7 @@
     <div class="col-4">
       <form method="post" action="../art_show_applications/confirm_pieces" class="form-inline">
         <input type="hidden" name="id" value="{{ app.id }}" />
-        <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
+        <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
         {{ csrf_token() }}
         <button type="submit" class="btn btn-outline-secondary" id="confirm_pieces">Confirm Current Pieces</button>
       </form>
@@ -277,7 +290,7 @@
           <form method="post" action="../art_show_applications/save_art_show_piece" role="form">
             <input type="hidden" name="app_id" value="{{ app.id }}" />
             <input type="hidden" name="id" value="{{ piece.id }}" />
-            <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
+            <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
             {% if piece.for_sale %}<input type="hidden" name="for_sale" value=1 />{% endif %}
             {% if piece.no_quick_sale %}<input type="hidden" name="no_quick_sale" value=1 />{% endif %}
             {{ csrf_token() }}
@@ -310,7 +323,7 @@
           <form method="post" action="../art_show_applications/remove_art_show_piece">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ piece.id }}" />
-            <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
+            <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
             <button type="button" class="btn btn-danger remove_piece" data-name="{{ piece.name }}">
               <i class="fa fa-remove"></i>
             </button>
