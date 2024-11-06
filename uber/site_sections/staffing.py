@@ -14,7 +14,9 @@ from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensu
 
 def _convert_urls(desc):
     urls = extract_urls(desc)
-    log.error(urls)
+    if not urls:
+        return desc
+
     for url in urls:
         desc = desc.replace(url, f'<a href="{url}" target="_blank">{url}</a>')
     return desc
