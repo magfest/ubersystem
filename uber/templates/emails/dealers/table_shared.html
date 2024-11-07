@@ -1,12 +1,17 @@
 <html>
 <head></head>
 <body>
-{{ group.leader.first_name }},
+<p>{{ group.leader.first_name }},
 
-<br/><br/>
-This space intentionally left blank.
+<br/>
+You have been set as a Shared Dealer. This does still require that you purchase your badge if you have not yet done so, which you can do using the credit card button <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">on this page</a>.
+This will also mean that you are required to meet the same rules as other dealers, and your information will be provided for tax purposes. Please insure that if you do have an Illinois tax ID, that it has been provided either via email or your application.
+</p>
 
-<br/><br/>-----
-<br/><br/>{{ c.MARKETPLACE_EMAIL_SIGNATURE }}
+<u>Dealer Rules and Information</u>
+{% include "static_views/dealerRules.html" %}
+
+<br />Sincerely,<br />
+{{ c.MARKETPLACE_EMAIL_SIGNATURE }}
 </body>
 </html>
