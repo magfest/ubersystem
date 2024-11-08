@@ -19,12 +19,12 @@ RUN --mount=type=cache,target=/var/cache/apk \
     sed -i 's/v3.19/edge/' /etc/apk/repositories && \
     apk --update-cache upgrade && \
     apk add git libxml2 xmlsec-dev build-base jq curl && \
-    sh UV_INSTALL_DIR=/usr /tmp/install-uv.sh && \
+    sh /tmp/install-uv.sh UV_INSTALL_DIR=/usr && \
     rm /tmp/install-uv.sh
 
 ADD requirements.txt /app/
 #RUN --mount=type=cache,target=/root/.cache \
-RUN    uv pip install --system -r requirements.txt;
+RUN /usr/uv pip install --system -r requirements.txt;
 
 ADD uber-wrapper.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/uber-wrapper.sh
@@ -39,7 +39,7 @@ ENV uber_plugins=$PLUGIN_NAMES
 FROM build as test
 ADD requirements_test.txt /app/
 #RUN --mount=type=cache,target=/root/.cache \
-RUN uv pip install --system -r requirements_test.txt
+RUN /usr/uv pip install --system -r requirements_test.txt
 CMD python -m pytest
 ADD . /app
 
