@@ -569,7 +569,7 @@ class Root:
                     message = 'Please update your show information to enter a contact phone number for MIVS staff.'
 
                 if not message:
-                    for game in guest.group.studio.games:
+                    for game in guest.group.studio.confirmed_games:
                         if not game.guidebook_header or not game.guidebook_thumbnail:
                             message = "Please upload a Guidebook header and thumbnail."
                         else:
