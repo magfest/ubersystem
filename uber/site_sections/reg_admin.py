@@ -101,7 +101,7 @@ def assign_account_by_email(session, attendee, account_email):
 
 @all_renderable()
 class Root:
-    def receipt_items(self, session, id, message=''):
+    def receipt_items(self, session, id, message='', highlight_id=''):
         group_leader_receipt = None
         group_processing_fee = 0
         refund_txn_candidates = []
@@ -158,6 +158,7 @@ class Root:
                                                                   ModelReceipt.owner_model == model.__class__.__name__,
                                                                   ModelReceipt.closed != None).all(),  # noqa: E711
             'message': message,
+            'highlight_id': highlight_id,
             'processors': {
                 c.STRIPE: "Authorize.net" if c.AUTHORIZENET_LOGIN_ID else "Stripe",
                 c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",

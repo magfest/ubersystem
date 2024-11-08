@@ -1,0 +1,165 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title = "Automated Transactions" %}
+{% block content %}
+<script type="text/javascript">
+  var invertShowAll = function() {
+    {% if closed %}
+    $('#search_closed').val('');
+    {% else %}
+    $('#search_closed').val('1');
+    {% endif %}
+    $('#search_form').submit();
+  }
+  </script>
+
+  <div class="row g-sm-1 row-cols-auto">
+    <div class="col-12 col-sm-6 col-md-5">
+      <form role="form" method="get" action="automated_transactions" id="search_form">
+        <div class="row g-sm-1 row-cols-auto">
+          <div class="col flex-grow-1">
+            <input type="hidden" name="order" value="{{ order }}" />
+            <input type="hidden" name="closed" id="search_closed" value="{{ closed }}" />
+            <div class="input-group">
+                <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="fa fa-search"></i>
+                </button>
+            </div>
+          </div>
+          <div class="col col-auto">
+            <button type="button" class="btn btn-info" onClick="invertShowAll()">
+              {% if closed %}
+                Hide Closed Receipts
+              {% else %}
+                Show Closed Receipts
+              {% endif %}
+            </button>
+          </div>
+        </div>
+        </form>
+    </div>
+  </div>
+  <div class="d-flex"><div class="flex-grow-1 form-text">
+    Search by transaction ID, receipt ID, receipt owner ID, terminal ID, intent/charge/refund ID, receipt #, or admin name.
+  </div></div>
+
+<div class="row mt-3 justify-content-between">
+    <div class="col col-auto">
+        <span class="ms-2">{{ total_count }} total automated transaction{{ total_count|pluralize }}</span>
+        <span class="ms-2">{{ payment_count }} automated payment transaction{{ payment_count|pluralize }}</span>
+        <span class="ms-2">{{ refund_count }} automated refund transaction{{ refund_count|pluralize }}</span>
+    </div>
+    <div class="col col-auto mb-3">
+    </div>
+</div>
+
+{% if search_results %}
+    <div class="card mt-3 mb-3">
+      <div class="card-body">
+        <a href="automated_transactions?order={{ order }}&page=1">Click here</a> to view full transaction list instead of only search results.
+      </div>
+    </div>
+{% endif %}
+
+{% block table %}
+<div class="card card-body">
+<ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+  <li class="page-item{% if page == 1 %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == 1 %}#{% else %}automated_transactions?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&closed={{ closed }}{% endif %}">Previous</a>
+  </li>
+{% for pagenum in pages %}
+    {% if pagenum == page %}
+    <li class="page-item active">
+        <a class="page-link" href="#">{{ pagenum }}</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+        <a class="page-link" href="automated_transactions?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&closed={{ closed }}">{{ pagenum }}</a>
+    </li>
+    {% endif %}
+{% endfor %}
+  <li class="page-item{% if page == pages|length %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == pages|length %}#{% else %}automated_transactions?order={{ order }}&page={{ pages|length }}&search_text={{ search_text|urlencode }}&closed={{ closed }}{% endif %}">Next</a>
+  </li>
+</ul>
+    {% if page %}
+      <table class="table table-hover" data-page-size="9999999">
+        <thead>
+          <tr>
+            {% block tableheadings %}
+            <th>Receipt Type</th>
+            <th>Transaction ID</th>
+            <th><a href="automated_transactions?order={{ order.method }}&page={{ page }}&search_text={{ search_text|urlencode }}&closed={{ closed }}">Method</a></th>
+            <th><a href="automated_transactions?order={{ order.department }}&page={{ page }}&search_text={{ search_text|urlencode }}&closed={{ closed }}">Department</a></th>
+            <th><a href="automated_transactions?order={{ order.amount }}&page={{ page }}&search_text={{ search_text|urlencode }}&closed={{ closed }}">Amount</a></th>
+            <th><a href="automated_transactions?order={{ order.added }}&page={{ page }}&search_text={{ search_text|urlencode }}&closed={{ closed }}">Added</a></th>
+            <th><a href="automated_transactions?order={{ order.cancelled }}&page={{ page }}&search_text={{ search_text|urlencode }}&closed={{ closed }}">Cancelled</a></th>
+            <th><a href="automated_transactions?order={{ order.who }}&page={{ page }}&search_text={{ search_text|urlencode }}&closed={{ closed }}">Admin</a></th>
+            <th></th>
+            {% endblock tableheadings %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for txn in receipt_txns %}
+            <tr{% if txn.is_pending_charge %} class="bg-light"{% endif %}>
+                {% block tablerows scoped %}
+                <td data-order="{{ txn.receipt_id }}">
+                  {{ txn.receipt.owner_model }}
+                  {% if c.HAS_REG_ADMIN_ACCESS %}
+                  <a href="../reg_admin/receipt_items?id={{ txn.receipt.owner_id }}&highlight_id={{ txn.id }}" target="_blank"> (View)</a>
+                  {% endif %}
+                </td>
+                <td>{% if txn.refund_id %}Refund{% elif txn.charge_id %}Charge{% else %}Intent{% endif %} ID: {{ txn.stripe_id }}</td>
+                <td>{{ txn.method_label }}</td>
+                <td>{{ txn.department_label }}</td>
+                <td data-order="{{ txn.amount }}">
+                  {{ (txn.amount / 100)|format_currency }}{% if txn.txn_total and txn.txn_total != txn.amount %} ({{ (txn.txn_total / 100)|format_currency }} Total){% endif %}
+                </td>
+                <td data-order="{{ txn.added }}">{{ txn.added|datetime_local('%-I:%M%p %A, %b %-e') }}</td>
+                <td data-order="{{ txn.cancelled|default('', true) }}">{{ txn.cancelled|datetime_local('%-I:%M%p %A, %b %-e') if txn.cancelled else "N/A" }}</td>
+                <td>{{ txn.who }}</td>
+                <td>
+                  {% set stripe_url = txn.stripe_url %}
+                  {% if stripe_url %}
+                  <a class="btn btn-sm btn-info" href="{{ stripe_url }}" target="_blank">View in {{ processors[txn.method] }} <i class="fa fa-external-link"></i></a>
+                  {% endif %}
+                </td>
+              {% endblock tablerows %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="lead text-center">
+        <em>Use the search box above to filter transactions or select a page to browse all transactions.</em>
+      </div>
+    {% endif %}
+{% if receipt_txns %}
+{% set start_txn_num = (page * 100) - 100 + 1 %}
+<div>Showing {{ start_txn_num }} to {{ start_txn_num + receipt_txns|length - 1 }} out of {{ search_count }} transactions</div>
+{% endif %}
+{% if receipt_txns|length > 15 %}
+<ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+  <li class="page-item{% if page == 1 %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == 1 %}#{% else %}automated_transactions?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&closed={{ closed }}{% endif %}">Previous</a>
+  </li>
+{% for pagenum in pages %}
+    {% if pagenum == page %}
+    <li class="page-item active">
+        <a class="page-link" href="#">{{ pagenum }}</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+        <a class="page-link" href="automated_transactions?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&closed={{ closed }}">{{ pagenum }}</a>
+    </li>
+    {% endif %}
+{% endfor %}
+  <li class="page-item{% if page == pages|length %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == pages|length %}#{% else %}automated_transactions?order={{ order }}&page={{ pages|length }}&search_text={{ search_text|urlencode }}&closed={{ closed }}{% endif %}">Next</a>
+  </li>
+</ul>
+{% endif %}
+</div>
+
+{% endblock table %}
+{% endblock content %}

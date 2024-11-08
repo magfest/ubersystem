@@ -873,7 +873,7 @@ See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> fo
       <th></th>
     </tr></thead>
     {% for item in items %}
-      <tr id="{{ item.id }}">
+      <tr id="{{ item.id }}"{% if highlight_id and item.id == highlight_id %} class="table-warning"{% endif %}>
         <td>{{ item.added|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td>{{ item.who }}</td>
         <td>
