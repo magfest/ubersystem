@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/var/cache/apk \
 
 ADD requirements.txt /app/
 #RUN --mount=type=cache,target=/root/.cache \
-RUN /usr/uv pip install --system -r requirements.txt;
+RUN uv pip install --system -r requirements.txt;
 
 ADD uber-wrapper.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/uber-wrapper.sh
@@ -39,7 +39,7 @@ ENV uber_plugins=$PLUGIN_NAMES
 FROM build as test
 ADD requirements_test.txt /app/
 #RUN --mount=type=cache,target=/root/.cache \
-RUN /usr/uv pip install --system -r requirements_test.txt
+RUN uv pip install --system -r requirements_test.txt
 CMD python -m pytest
 ADD . /app
 
