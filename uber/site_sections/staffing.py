@@ -18,9 +18,10 @@ def _convert_urls(desc):
         return desc
 
     for url in urls:
+        new_url = url
         if not url.startswith('http'):
-            url = 'https://' + url
-        desc = desc.replace(url, f'<a href="{url}" target="_blank">{url}</a>')
+            new_url = 'https://' + url
+        desc = desc.replace(url, f'<a href="{new_url}" target="_blank">{url}</a>')
     return desc
 
 
