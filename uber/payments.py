@@ -730,39 +730,79 @@ class TransactionRequest:
 
         response = transactionController.getresponse()
 
+        txn_info = {}
+        card_info = {}
+        txn_info['fraud_info'] = {}
+        txn_info['response'] = {}
+
         if response is not None:
             if response.messages.resultCode == "Ok":
+                txn_response_dict = response.transactionResponse.__dict__
+
+                txn_info['txn_id'] = str(txn_response_dict.get("transId", ''))
+                txn_info['response']['response_code'] = txn_response_dict.get('responseCode', '')
+                txn_info['response']['auth_code'] = txn_response_dict.get("authCode", '')
+                txn_info['fraud_info']['avs'] = txn_response_dict.get("avsResultCode", '')
+                txn_info['fraud_info']['cvv'] = txn_response_dict.get("cvvResultCode", '')
+                txn_info['fraud_info']['cavv'] = txn_response_dict.get("cavvResultCode", '')
+
+                card_info['CardType'] = str(txn_response_dict.get("accountType", ''))
+                card_info['Last4'] = str(txn_response_dict.get('accountNumber', ''))
+
+                if card_info['Last4']:
+                    card_info['Last4'] = card_info['Last4'][4:]
+
                 if hasattr(response.transactionResponse, 'messages') is True:
                     self.response = response.transactionResponse
                     auth_txn_id = str(self.response.transId)
+
+                    txn_info['response']['message_code'] = str(response.transactionResponse.messages.message[0].code)
+                    txn_info['response']['message'] = str(response.transactionResponse.messages.message[0].description)
 
                     log.debug(f"Transaction {self.tracking_id} request successful. Transaction ID: {auth_txn_id}")
 
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
                         ReceiptManager.mark_paid_from_ids(params.get('intent_id'), auth_txn_id)
                 else:
-                    error_code = str(response.transactionResponse.errors.error[0].errorCode)
-                    error_msg = str(response.transactionResponse.errors.error[0].errorText)
+                    txn_info['response']['message_code'] = str(response.transactionResponse.errors.error[0].errorCode)
+                    txn_info['response']['message'] = str(response.transactionResponse.errors.error[0].errorText)
                     log.debug(f"Transaction {self.tracking_id} declined! "
-                              f"{error_code}: {error_msg}")
+                              f"{txn_info['response']['message_code']}: {txn_info['response']['message']}")
 
-                    return "Transaction declined. Please ensure you are entering the correct " + \
-                        "expiration date, card CVV/CVC, and ZIP Code."
+                    return "Transaction declined. Please ensure you are entering the correct expiration date, card CVV/CVC, and ZIP Code."
             else:
                 if hasattr(response, 'transactionResponse') is True \
                         and hasattr(response.transactionResponse, 'errors') is True:
-                    error_code = str(response.transactionResponse.errors.error[0].errorCode)
-                    error_msg = str(response.transactionResponse.errors.error[0].errorText)
+                    txn_info['response']['message_code'] = str(response.transactionResponse.errors.error[0].errorCode)
+                    txn_info['response']['message'] = str(response.transactionResponse.errors.error[0].errorText)
                 else:
-                    error_code = str(response.messages.message[0]['code'].text)
-                    error_msg = str(response.messages.message[0]['text'].text)
+                    txn_info['response']['message_code'] = str(response.messages.message[0]['code'].text)
+                    txn_info['response']['message'] = str(response.messages.message[0]['text'].text)
 
-                log.error(f"Transaction {self.tracking_id} request failed! {error_code}: {error_msg}")
+                log.error(f"Transaction {self.tracking_id} request failed! {txn_info['response']['message_code']}: {txn_info['response']['message']}")
 
                 return "Transaction failed. Please refresh the page and try again, " + \
                     f"or contact us at {email_only(c.REGDESK_EMAIL)}."
         else:
             log.error(f"Transaction {self.tracking_id} request to AuthNet failed: no response received.")
+        
+        if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
+            from uber.models import ReceiptInfo, ReceiptTransaction, Session
+            intent_id = params.get('intent_id')
+            session = Session().session
+            matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
+
+            # AuthNet returns "StringElement" but we want strings
+            txn_info['response'] = {key: str(val) for key, val in txn_info['response'].items()}
+            txn_info['fraud_info'] = {key: str(val) for key, val in txn_info['fraud_info'].items()}
+
+            if not matching_txns:
+                log.debug(f"Tried to save receipt info for intent ID {intent_id} but we couldn't find any matching payments!")
+            
+            for txn in matching_txns:
+                txn.receipt_info = ReceiptInfo(txn_info=txn_info, card_data=card_info, charged=datetime.now())
+                session.add(txn.receipt_info)
+            session.commit()
 
 
 class SpinTerminalRequest(TransactionRequest):

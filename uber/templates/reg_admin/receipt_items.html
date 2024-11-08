@@ -581,12 +581,88 @@
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h4 class="modal-title" id="receiptModal-{{ txn.id }}-title">View Receipt Transaction</h4>
+        <h4 class="modal-title d-flex w-100" id="receiptModal-{{ txn.id }}-title">
+          <div class="flex-grow-1">View Receipt Transaction</div>
+          {% set stripe_url = txn.stripe_url %}
+          <div class="me-2">{% if stripe_url %}<a class="btn btn-sm btn-info" href="{{ stripe_url }}" target="_blank">View in {{ processors[txn.method] }} <i class="fa fa-external-link"></i></a>{% endif %}</div>
+        </h4>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        {% set stripe_url = txn.stripe_url %}
-        {% if stripe_url %}<a class="btn btn-sm btn-info" href="{{ stripe_url }}" target="_blank">View in {{ processors[txn.method] }} <i class="fa fa-external-link"></i></a><br/>{% endif %}
+        {% if txn.receipt_info %}
+        <ul class="nav nav-tabs mb-3" role="tablist" id="tabs-{{ txn.id }}">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="txn-tab-{{ txn.id }}" data-bs-toggle="tab" data-bs-target="#txn-{{ txn.id }}" type="button" role="tab" aria-controls="txn-{{ txn.id }}">
+              Transaction Info
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="response-tab-{{ txn.id }}" data-bs-toggle="tab" data-bs-target="#response-{{ txn.id }}" type="button" role="tab" aria-controls="response-{{ txn.id }}">
+              {{ processors[txn.method] }} Response Info
+            </button>
+        </ul>
+        <div class="tab-content">
+          <div role="tabpanel" class="tab-pane" id="response-{{ txn.id }}">
+            {% set response = txn.receipt_info.txn_info.response %}
+            {% if response %}
+            <div class="d-flex">
+              {% if response.response_code %}
+              <div class="flex-fill">
+                <div class="form-text">Response Code</div>
+                <div class="mb-3">{{ txn.receipt_info.response_code_str }}</div>
+              </div>
+              {% endif %}
+              {% if response.auth_code %}
+              <div class="flex-fill">
+                <div class="form-text">Auth Code</div>
+                <div class="mb-3">{{ response.auth_code }}</div>
+              </div>
+              {% endif %}
+              {% if response.message %}
+              <div class="flex-fill">
+                <div class="form-text">Message</div>
+                <div class="mb-3">{{ response.message }}</div>
+              </div>
+              {% endif %}
+              {% if response.message_code %}
+              <div class="flex-fill">
+                <div class="form-text">Message Code</div>
+                <div class="mb-3">
+                  {{ response.message_code }}
+                  {% if txn.method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID %}
+                  (<a href="https://developer.authorize.net/api/reference/responseCodes.html#search={{ response.message_code }}" target="_blank">look up</a>)
+                  {% endif %}
+                </div>
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% set fraud_info = txn.receipt_info.txn_info.fraud_info %}
+            {% if fraud_info %}
+            <div class="row">
+              {% if fraud_info.avs %}
+              <div class="col-12 col-sm-4">
+                <div class="form-text">AVS Code</div>
+                <div class="mb-3">{{ txn.receipt_info.avs_str }} ({{ fraud_info.avs }})</div>
+              </div>
+              {% endif %}
+              {% if fraud_info.cvv %}
+              <div class="col-12 col-sm-4">
+                <div class="form-text">CVV Code</div>
+                <div class="mb-3">{{ txn.receipt_info.cvv_str }} ({{ fraud_info.cvv }})</div>
+              </div>
+              {% endif %}
+              {% if fraud_info.cavv %}
+              <div class="col-12 col-sm-4">
+                <div class="form-text">CAVV Code</div>
+                <div class="mb-3">{{ txn.receipt_info.cavv_str }} ({{ fraud_info.cavv }})</div>
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+          <div role="tabpanel" class="tab-pane active" id="txn-{{ txn.id }}">
+        {% endif %}
         <div class="row g-sm-3">
           <div class="col-12 col-sm-6">
             <div class="form-text">Added</div>
@@ -650,6 +726,10 @@
             <div class="mb-3">{{ txn.department_label }}</div>
           </div>
         </div>
+        {% if txn.receipt_info %}
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
