@@ -237,8 +237,9 @@
                 if (json.success) {
                   $("#message-alert").addClass("alert-success").show().children('span').html(message);
                   shiftDetails.hide();
-                  $("#weighted-hours").text(json.hours);
-                  $("#weighted-hours").fadeOut(500).fadeIn(500);
+                  $("#weighted-hours").fadeOut(function() {
+                    $(this).text(json.hours)
+                  }).fadeIn();
                   fetchedEventList.length = 0;
                   ec.refetchEvents();
                 } else {
@@ -278,6 +279,9 @@
                 if (json.success) {
                   $("#message-alert").addClass("alert-success").show().children('span').html(message);
                   shiftDetails.hide();
+                  $("#weighted-hours").fadeOut(function() {
+                    $(this).text(json.hours)
+                  }).fadeIn();
                   fetchedEventList.length = 0;
                   ec.refetchEvents();
                 } else {
@@ -357,31 +361,22 @@
   }
   var possibleEventURLS = {'available': 'get_available_jobs', 'assigned': 'get_assigned_jobs'};
   var fetchEventsURLS = ['get_available_jobs', 'get_assigned_jobs'];
-  var fetchedEventList = new Array();
-  let fetchEvents = function(fetchInfo, successCallback, failureCallback) {
-    if (fetchedEventList.length != 0) {
-      successCallback(fetchedEventList);
-    }
-    for (const url of fetchEventsURLS) {
-      $.ajax({
-        method: 'GET',
-        url: url,
-        dataType: 'json',
-        data: fetchEventsParams,
-        success: function (eventList) {
-          fetchedEventList.push(...eventList);
-        },
-        error: function () {}
-      });   
-    }
+  var fetchedEventList = [];
 
-    console.log(fetchedEventList);
-
-    if (fetchedEventList.length != 0) {
-      successCallback(fetchedEventList);
-    } else {
-      failureCallback('Unable to connect to server, please try again.');
-    }
+  let fetchEvents = async function() {
+      if (fetchedEventList.length > 0) {
+          return fetchedEventList;
+      }
+      let eventParams = new URLSearchParams(fetchEventsParams);
+      try {
+          const responses = await Promise.all(fetchEventsURLS.map(url => fetch(url + "?" + eventParams)));
+          const eventLists = await Promise.all(responses.map((response) => response.json()));
+          let allNewEvents = [].concat(...eventLists);
+          fetchedEventList.push(...allNewEvents);
+          return fetchedEventList;
+      } catch (e) {
+          showErrorMessage('Unable to connect to server, please try again.')
+      }
   }
 
   let addEvents = function(id) {
@@ -427,7 +422,7 @@
       fetchEventsParams[key] = value;
     }
 
-    if ('get_available_jobs' in fetchEventsURLS) {
+    if (fetchEventsURLS.includes('get_available_jobs')) {
       fetchedEventList.length = 0;
       ec.refetchEvents();
     }
