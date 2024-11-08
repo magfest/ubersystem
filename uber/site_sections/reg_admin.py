@@ -3,12 +3,14 @@ from uber.models.attendee import AttendeeAccount
 
 import cherrypy
 import json
+import math
 import re
 from datetime import datetime
 from decimal import Decimal
 from pockets import groupify
 from pockets.autolog import log
-from sqlalchemy import and_, or_, func
+from residue import CoerceUTF8 as UnicodeText
+from sqlalchemy import or_, func, not_, and_
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -17,11 +19,41 @@ from uber.custom_tags import datetime_local_filter, pluralize, format_currency, 
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, \
-    ReceiptTransaction, Tracking, WorkstationAssignment
+    ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
-    TaskUtils
+    TaskUtils, Order
 from uber.payments import ReceiptManager, TransactionRequest, SpinTerminalRequest
+
+
+def _search(all_processor_txns, text):
+    receipt_txns = all_processor_txns.outerjoin(ReceiptTransaction.receipt_info)
+    check_list = []
+    
+    terms = text.split()
+    if len(terms) == 1 \
+                    and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
+        id_list = [ReceiptTransaction.id == terms[0],
+                   ReceiptTransaction.receipt_id == terms[0],
+                   ReceiptTransaction.receipt_info_id == terms[0],
+                   ReceiptTransaction.refunded_txn_id == terms[0],
+                   ModelReceipt.owner_id == terms[0]
+                   ]
+
+        return receipt_txns.filter(or_(*id_list)), ''
+    
+    for attr in [col for col in ReceiptTransaction().__table__.columns if isinstance(col.type, UnicodeText)]:
+        if attr != ReceiptTransaction.desc:
+            check_list.append(attr.ilike('%' + text + '%'))
+
+    check_list.append(ModelReceipt.owner_model == text)
+    if terms[0].isdigit() and len(terms[0]) < 5:
+        check_list.append(ModelReceipt.invoice_num == text)
+
+    for attr in [ReceiptInfo.terminal_id, ReceiptInfo.reference_id]:
+        check_list.append(and_(ReceiptTransaction.receipt_info_id != None, attr.ilike('%' + text + '%')))
+
+    return receipt_txns.filter(or_(*check_list)), ''
 
 
 def check_custom_receipt_item_txn(params, is_txn=False):
@@ -101,6 +133,62 @@ def assign_account_by_email(session, attendee, account_email):
 
 @all_renderable()
 class Root:
+    def automated_transactions(self, session, message='', page='0', search_text='', order='added', closed=''):
+        if c.DEV_BOX and not int(page):
+            page = 1
+
+        all_processor_txns = session.query(ReceiptTransaction).filter(or_(
+            ReceiptTransaction.intent_id != '',
+            ReceiptTransaction.charge_id != '',
+            ReceiptTransaction.refund_id != ''))
+        if not closed:
+            all_processor_txns = all_processor_txns.join(ModelReceipt).filter(ModelReceipt.closed == None)
+        total_count = all_processor_txns.count()
+        payment_count = all_processor_txns.filter(ReceiptTransaction.amount > 0).count()
+        refund_count = all_processor_txns.filter(ReceiptTransaction.amount < 0).count()
+        count = 0
+        search_text = search_text.strip()
+        if search_text:
+            search_results, message = _search(all_processor_txns, search_text)
+            if search_results and search_results.count():
+                receipt_txns = search_results
+                count = receipt_txns.count()
+                if count == total_count:
+                    message = 'Every transaction matched this search.'
+            elif not message:
+                message = 'No matches found.'
+        if not count:
+            receipt_txns = all_processor_txns.outerjoin(ReceiptTransaction.receipt_info)
+            count = receipt_txns.count()
+
+        receipt_txns = receipt_txns.order(order)
+
+        page = int(page)
+        if search_text:
+            page = page or 1
+
+        pages = range(1, int(math.ceil(count / 100)) + 1)
+        receipt_txns = receipt_txns[-100 + 100*page: 100*page] if page else []
+
+        return {
+            'message':        message if isinstance(message, str) else message[-1],
+            'page':           page,
+            'pages':          pages,
+            'closed': closed,
+            'search_text':    search_text,
+            'search_results': bool(search_text),
+            'receipt_txns':   receipt_txns,
+            'order':          Order(order),
+            'search_count':   count,
+            'total_count':    total_count,
+            'payment_count': payment_count,
+            'refund_count': refund_count,
+            'processors': {
+                c.STRIPE: "Authorize.net" if c.AUTHORIZENET_LOGIN_ID else "Stripe",
+                c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
+                c.MANUAL: "Stripe"},
+        }
+    
     def receipt_items(self, session, id, message='', highlight_id=''):
         group_leader_receipt = None
         group_processing_fee = 0
