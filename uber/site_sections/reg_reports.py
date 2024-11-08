@@ -112,14 +112,21 @@ class Root:
     def self_service_refunds(self, session):
         refunds = session.query(ReceiptTransaction).filter(ReceiptTransaction.amount < 0,
                                                            ReceiptTransaction.who == 'non-admin').all()
-
+        
+        counts = defaultdict(int)
         refund_models = defaultdict(dict)
         for refund in refunds:
             model = session.get_model_by_receipt(refund.receipt)
             model_name = ''.join(' ' + char if char.isupper() else
                                  char.strip() for char in model.__class__.__name__).strip()
             refund_models[model_name][refund] = model
+            if c.BADGE_TYPE_PRICES and isinstance(model, Attendee):
+                if model.badge_type in c.BADGE_TYPE_PRICES:
+                    counts[model.badge_type] += 1
+                else:
+                    counts[c.ATTENDEE_BADGE] += 1
 
         return {
             'refund_models': refund_models,
+            'counts': counts,
         }

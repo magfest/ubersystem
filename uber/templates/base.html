@@ -223,6 +223,8 @@
         }
 
         $(function() {
+            {% set message = message if message is string else message|join(' ') %}
+            {% set error_message = error_message if error_message is string else error_message|join(' ') %}
             // This nonsense is so we can have line breaks AND unescaped quotes in our messages
             var message = '{{ message|sanitize_html|tojson if message else "" }}';
             var error_message = '{{ error_message|sanitize_html|tojson if error_message else "" }}';

@@ -170,7 +170,7 @@ $(document).ready(function() {
           {% endfor %}
         </td>
         {% if show == 'admin' %}
-        <td>
+        <td data-search="{{ promo_code.admin_notes }}">
           <input type="text" form="update_promo_code_{{ promo_code.id }}" name="admin_notes" class="form-control" size="30" placeholder="E.g., intended usage, department" value="{{ promo_code.admin_notes }}">
         </td>
         {% else %}
@@ -204,8 +204,9 @@ $(document).ready(function() {
       {% endfor %}
     </tbody>
   </table>
-<div class="row g-sm-3 justify-content-end mt-1">
-  <div class="col col-auto">
+<div class="d-flex justify-content-end mt-3">
+  <div class="flex-grow-1"></div>
+  <div>
     <button type="button" class="btn btn-primary" onClick="updateAll()">Update All</button>
   </div>
 </div>

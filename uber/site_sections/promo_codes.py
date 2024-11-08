@@ -192,8 +192,7 @@ class Root:
             for id in params.get('id'):
                 code_params = {key.replace(f'_{id}', ''): val for key, val in params.items() if f'_{id}' in key}
                 code_params['id'] = id
-                from pockets.autolog import log
-                log.error(code_params)
+
                 promo_code = session.promo_code(code_params)
                 message = check(promo_code)
                 if message:

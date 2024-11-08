@@ -2,7 +2,7 @@
 {% set max_tables = c.MAX_ART_TABLES if not admin_area else 30 %}
 {% set max_panels = c.MAX_ART_PANELS if not admin_area else 30 %}
 
-{% if app.delivery_method == c.AGENT and not app.current_agents and not app.is_new %}
+{% if app.delivery_method == c.AGENT and not app.current_agents and app.valid_agent_codes %}
   <div class="alert alert-warning">
     <p>Your art show {{ c.ART_SHOW_APP_TERM }} does not have an agent assigned to bring and hang art.
     {% if app.valid_agent_codes|length == 1 %}
@@ -101,7 +101,7 @@
   {% endif %}
 </div>
 
-{% if app.delivery_method == c.AGENT and not app.is_new %}
+{% if app.delivery_method == c.AGENT and app.valid_agent_codes %}
   {% if not c.ONE_AGENT_PER_APP %}
     <input type="hidden" form="add_agent_code" name="id" value="{{ app.id }}" />
     <button type="submit" form="add_agent_code" class="btn btn-primary">Generate Another Agent Code</button>

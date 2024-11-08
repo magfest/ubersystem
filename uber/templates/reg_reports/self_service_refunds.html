@@ -15,6 +15,14 @@
     <h2 class="card-title mb-0">{{ cls }} Refunds</h2>
   </div>
   <div class="card-body">
+    {% if c.BADGE_TYPE_PRICES and cls == 'Attendee' %}
+    <p>
+      {% for badge_type, total in counts.items() %}
+      {{ c.BADGES[badge_type] }} Refunds: {{ total }}<br/>
+      {% endfor %}
+    </p>
+    {% endif %}
+    <p></p>
     <div class="table-responsive">
       <table class="table table-striped datatable">
         <thead>
@@ -41,7 +49,7 @@
             {% endif %}
               {{ model|form_link(new_window=True) }}
             </td>
-            <td>
+            <td data-order="{{ refund.added }}">
               {{ refund.added|datetime_local }}
             </td>
             <td>{{ (refund.amount * -1 / 100)|format_currency }}</td>

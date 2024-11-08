@@ -164,7 +164,7 @@
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <input type="hidden" name="return_to" value="../group_admin/form?id={{ group.id }}" />
-                <input type="submit" value="Unassign" />
+                <input type="submit" value="Unassign" class="btn btn-warning" />
               </form>
             {% endif %}
           </td>

@@ -131,6 +131,19 @@
     <input type="hidden" name="id" value="{{ app.id }}" />
     <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
     {{ csrf_token() }}
+    {% if admin_area %}
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        <label for="banner_name" class="form-text">Locations</label>
+        {% if readonly %}
+          {{ app.locations }}
+        {% else %}
+          <input type="text" class="form-control" name="locations" id="locations" value="{{ app.locations }}"/>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     <div class="row g-sm-3">
       <div class="col-12 col-sm-6">
         <label for="banner_name" class="form-text">Banner Name</label>
