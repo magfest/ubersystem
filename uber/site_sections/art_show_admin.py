@@ -800,10 +800,10 @@ class Root:
         raise HTTPRedirect('pieces_bought?id={}&message={}', payment.receipt.attendee.id,
                            payment_or_refund + " deleted")
 
-    def print_receipt(self, session, id, **params):
+    def print_receipt(self, session, id, close=False, **params):
         receipt = session.art_show_receipt(id)
 
-        if not receipt.closed:
+        if close and not receipt.closed:
             receipt.closed = localized_now()
             for piece in receipt.pieces:
                 piece.status = c.PAID
