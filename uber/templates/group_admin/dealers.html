@@ -38,7 +38,7 @@
     </tr>
   </thead>
   <tbody>
-{% for group in dealer_groups %}
+{% for group in all_groups|selectattr("is_dealer") %}
     <tr{% if c.SIGNNOW_DEALER_TEMPLATE_ID and not group.signnow_document_signed or group.status in [c.DECLINED, c.CANCELLED] %} class="danger"{% endif %}>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> 
           <a href="form?id={{ group.id }}">{{ group.name|default('?????', boolean=True) }}</a></td>
