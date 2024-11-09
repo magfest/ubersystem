@@ -513,6 +513,8 @@ class ArtShowBidder(MagModel):
 
     @classmethod
     def strip_bidder_num(cls, num):
+        if not num:
+            return 0
         return int(num[2:])
 
     @hybrid_property

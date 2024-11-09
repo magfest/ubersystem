@@ -101,7 +101,7 @@
         </thead>
         <tbody>
           {% for txn in receipt_txns %}
-            <tr{% if txn.is_pending_charge %} class="bg-light"{% endif %}>
+            <tr>
                 {% block tablerows scoped %}
                 <td data-order="{{ txn.receipt_id }}">
                   {{ txn.receipt.owner_model }}

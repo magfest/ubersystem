@@ -47,7 +47,7 @@
   <div class="col{% if not c.INDEPENDENT_ART_SHOW %} text-end{% endif %}">
     <label class="form-text">Bidder Number</label>
     <div class="mb-3">
-    {% if c.INDEPENDENT_ART_SHOW and not printable %}
+    {% if not printable %}
     <input type="text" class="form-control" name="bidder_num" value="{{ attendee.art_show_bidder.bidder_num }}" />
     {% else %}
     <span class="bidder_num">{{ attendee.art_show_bidder.bidder_num }}</span>

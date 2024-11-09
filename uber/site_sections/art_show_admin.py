@@ -547,7 +547,7 @@ class Root:
             if params.get(field_name, None):
                 if hasattr(attendee, field_name) and not hasattr(ArtShowBidder(), field_name):
                     setattr(attendee, field_name, params.pop(field_name))
-            elif c.INDEPENDENT_ART_SHOW and field_name in ArtShowBidder.required_fields.keys():
+            elif field_name in ArtShowBidder.required_fields.keys():
                 missing_fields.append(ArtShowBidder.required_fields[field_name])
 
         if missing_fields:

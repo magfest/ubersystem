@@ -45,12 +45,6 @@
 {% if not receipt.attendee.art_show_receipt %}
 <p><a href="pieces_bought?id={{ receipt.attendee.id }}">[Start New Invoice]</a></p>
 {% endif %}
-{% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
-{% include 'registration/spin_terminal_form.html' with context %}
-<div class="row justify-content-center">
-  <div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div>
-</div>
-{% endif %}
 {% set receipt_open = (receipt.id == receipt.attendee.art_show_receipt.id) %}
   {% if receipt_open %}
     <div class="row text-center">
@@ -221,6 +215,12 @@
   <input type="hidden" name="id" value="{{ receipt.id }}" />
   {{ csrf_token() }}
 </form>
+{% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
+{% include 'registration/spin_terminal_form.html' with context %}
+<div class="row justify-content-center">
+  <div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8">sdfs</div>
+</div>
+{% endif %}
 </div>
 </div>
 <script type="text/javascript">
