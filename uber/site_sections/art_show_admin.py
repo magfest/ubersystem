@@ -197,6 +197,7 @@ class Root:
             if not message:
                 piece.winning_bidder = attendee.art_show_bidder
                 piece.receipt = receipt
+                session.add(piece)
 
         if message:
             session.rollback()

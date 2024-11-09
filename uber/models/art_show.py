@@ -1,6 +1,7 @@
 import random
 import string
 
+from collections import defaultdict
 from pockets import classproperty
 from sqlalchemy import func, case
 from datetime import datetime
@@ -504,6 +505,8 @@ class ArtShowBidder(MagModel):
     admin_notes = Column(UnicodeText)
     signed_up = Column(UTCDateTime, nullable=True)
 
+    email_model_name = 'bidder'
+
     @presave_adjustment
     def zfill_bidder_num(self):
         if not self.bidder_num:
@@ -524,6 +527,22 @@ class ArtShowBidder(MagModel):
     @bidder_num_stripped.expression
     def bidder_num_stripped(cls):
         return func.cast("0" + func.substr(cls.bidder_num, 3, func.length(cls.bidder_num)), Integer)
+    
+    @property
+    def email(self):
+        if self.attendee:
+            return self.attendee.email
+
+    @property
+    def won_pieces_by_gallery(self):
+        pieces_dict = defaultdict(list)
+        for piece in sorted(self.art_show_pieces, key=lambda p: p.artist_and_piece_id):
+            pieces_dict[piece.gallery_label].append(piece)
+        return pieces_dict
+
+    @property
+    def won_pieces_total(self):
+        return sum([piece.winning_bid for piece in self.art_show_pieces])
     
     @classproperty
     def required_fields(cls):

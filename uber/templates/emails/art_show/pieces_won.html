@@ -1,0 +1,24 @@
+<html>
+<head></head>
+<body>
+    <p>
+        {{ bidder.attendee.full_name }},
+        <br/>Congratulations! You are the high bidder for the following pieces in the {{ c.EVENT_NAME_AND_YEAR }} art show:
+    </p>
+    <p>
+        {% for gallery, pieces in bidder.won_pieces_by_gallery.items() %}
+        <strong>{{ gallery }} Gallery Pieces</strong>
+        <ul>
+            {% for piece in pieces %}
+            <li>
+                <strong>{{ piece.name }}</strong> by {{ piece.app.display_name if piece.gallery == c.GENERAL else piece.app.mature_display_name }}:
+                {{ piece.winning_bid|format_currency }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endfor %}
+        Your total for all pieces is {{ bidder.won_pieces_total|format_currency }}.
+    </p>
+
+</body>
+</html>
