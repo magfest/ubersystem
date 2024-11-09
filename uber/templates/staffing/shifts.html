@@ -60,7 +60,7 @@
       <div id="shifts-info-details" class="accordion-collapse collapse show" aria-labelledby="shifts-info-details-header">
         <div class="accordion-body">
           <p>
-            You are currently signed up for {{ hours }} weighted hours worth of shifts.
+            You are currently signed up for <span id="weighted-hours">{{ hours }}</span> weighted hours worth of shifts.
           </p>
           <p>
             Shifts that will overlap with your existing shifts will be hidden, and you will need to drop a shift to view them.
@@ -237,6 +237,10 @@
                 if (json.success) {
                   $("#message-alert").addClass("alert-success").show().children('span').html(message);
                   shiftDetails.hide();
+                  $("#weighted-hours").fadeOut(function() {
+                    $(this).text(json.hours)
+                  }).fadeIn();
+                  fetchedEventList.length = 0;
                   ec.refetchEvents();
                 } else {
                   showErrorMessage(json.message);
@@ -266,7 +270,7 @@
               url: 'drop',
               dataType: 'json',
               data: {
-                shift_id: id,
+                job_id: id,
                 csrf_token: csrf_token
               },
               success: function (json) {
@@ -275,6 +279,10 @@
                 if (json.success) {
                   $("#message-alert").addClass("alert-success").show().children('span').html(message);
                   shiftDetails.hide();
+                  $("#weighted-hours").fadeOut(function() {
+                    $(this).text(json.hours)
+                  }).fadeIn();
+                  fetchedEventList.length = 0;
                   ec.refetchEvents();
                 } else {
                   showErrorMessage(json.message);
@@ -347,18 +355,40 @@
     }
   }
 
+  var fetchEventsParams = {
+    all: '',
+    highlight: '',
+  }
+  var possibleEventURLS = {'available': 'get_available_jobs', 'assigned': 'get_assigned_jobs'};
+  var fetchEventsURLS = ['get_available_jobs', 'get_assigned_jobs'];
+  var fetchedEventList = [];
+
+  let fetchEvents = async function() {
+      if (fetchedEventList.length > 0) {
+          return fetchedEventList;
+      }
+      let eventParams = new URLSearchParams(fetchEventsParams);
+      try {
+          const responses = await Promise.all(fetchEventsURLS.map(url => fetch(url + "?" + eventParams)));
+          const eventLists = await Promise.all(responses.map((response) => response.json()));
+          let allNewEvents = [].concat(...eventLists);
+          fetchedEventList.push(...allNewEvents);
+          return fetchedEventList;
+      } catch (e) {
+          showErrorMessage('Unable to connect to server, please try again.')
+      }
+  }
+
   let addEvents = function(id) {
-    let eventSources = ec.getOption('eventSources');
-    eventSources.push(possibleEventSources[id]);
-    ec.setOption('eventSources', eventSources);
+    fetchEventsURLS.push(possibleEventURLS[id]);
+    fetchedEventList.length = 0;
     ec.refetchEvents();
     toggleButton(id, 'on');
   }
 
   let removeEvents = function(id) {
-    let eventSources = ec.getOption('eventSources');
-    updatedEventSources = eventSources.filter(function(el) { return el.url != possibleEventSources[id]['url']; });
-    ec.setOption('eventSources', updatedEventSources);
+    fetchEventsURLS = fetchEventsURLS.filter(function(el) { return el != possibleEventURLS[id]; });
+    fetchedEventList.length = 0;
     ec.refetchEvents();
     toggleButton(id, 'off');
   }
@@ -366,7 +396,7 @@
   let setFilters = function (dropdown_name) {
     let choice = $('#' + dropdown_name).val();
     if (choice == "" || choice == "all") {
-      ec.setOption('resources', {{ default_filters|safe }})
+      ec.setOption('resources', {{ default_filters|safe }});
     } else {
       ec.setOption('resources', []);
       addFilter(choice);
@@ -388,14 +418,13 @@
   }
 
   let setFetchParams = function (paramChanges) {
-    currentParams = possibleEventSources['available']['extraParams'];
     for (const [key, value] of Object.entries(paramChanges)) {
-      possibleEventSources['available']['extraParams'][key] = value;
+      fetchEventsParams[key] = value;
     }
-    let eventSources = ec.getOption('eventSources');
-    if (eventSources.filter(function(el) { return el.url == possibleEventSources['available']['url']; })) {
-      removeEvents('available');
-      addEvents('available');
+
+    if (fetchEventsURLS.includes('get_available_jobs')) {
+      fetchedEventList.length = 0;
+      ec.refetchEvents();
     }
   }
 
@@ -511,20 +540,6 @@
   }
 
   const allFilters = {{ all_filters|safe }}
-  let possibleEventSources = {
-    'available': {
-          url: 'get_available_jobs',
-          method: 'GET',
-          extraParams: {
-            'all': '',
-            'highlight': '',
-          }
-        },
-    'assigned': {
-      url: 'get_assigned_jobs',
-      method: 'GET',
-    }
-  }
 
   const ec = new EventCalendar(document.getElementById('shift_cal'), {
         view: window.matchMedia('(max-width: 576px)').matches ? 'listWeek' : 'timeGridWeek',
@@ -571,7 +586,7 @@
             }
         },
         viewDidMount: showOtherView,
-        eventSources: [possibleEventSources['available'], possibleEventSources['assigned']],
+        eventSources: [{events: fetchEvents}],
         eventContent: renderEvent,
         eventClick: showEventDetails,
         filterEventsWithResources: true,
