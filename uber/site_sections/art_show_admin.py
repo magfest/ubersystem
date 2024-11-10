@@ -188,7 +188,7 @@ class Root:
                             bidder_name = f"{found_bidder.attendee.badge_printed_name} ({found_bidder.attendee.full_name})"
                         else:
                             bidder_name = f"{found_bidder.attendee.full_name}"
-                        message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for {format_currency(winning_bid)} to {bidder_name}."
+                        message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for {format_currency(winning_bid)} to {bidder_num}, {bidder_name}."
                         session.commit()
 
             if not message:

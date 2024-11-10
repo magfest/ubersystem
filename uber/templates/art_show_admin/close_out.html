@@ -83,6 +83,14 @@
         <div class="mb-3">{{ piece.artist_and_piece_id }}</div>
       </div>
       <div class="col">
+        <div class="form-text">Piece Title</div>
+        <div class="mb-3">{{ piece.name }}</div>
+      </div>
+      <div class="col">
+        <div class="form-text">Gallery</div>
+        <div class="mb-3">{{ piece.gallery_label }}</div>
+      </div>
+      <div class="col">
         <div class="form-text">Artist</div>
         <div class="mb-3"><a href="../art_show_admin/form?id={{ piece.app.id }}" target="_blank">{{ piece.app.artist_or_full_name }}</a></div>
       </div>
