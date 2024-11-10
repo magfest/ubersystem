@@ -458,7 +458,7 @@ class ArtShowReceipt(MagModel):
     def subtotal(self):
         cost = 0
         for piece in self.pieces:
-            cost += piece.sale_price * 100
+            cost += piece.sale_price * 100 if piece.sale_price else 0
         return cost
 
     @property
