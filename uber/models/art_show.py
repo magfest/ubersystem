@@ -537,12 +537,13 @@ class ArtShowBidder(MagModel):
     def won_pieces_by_gallery(self):
         pieces_dict = defaultdict(list)
         for piece in sorted(self.art_show_pieces, key=lambda p: p.artist_and_piece_id):
-            pieces_dict[piece.gallery_label].append(piece)
+            if piece.winning_bid:
+                pieces_dict[piece.gallery_label].append(piece)
         return pieces_dict
 
     @property
     def won_pieces_total(self):
-        return sum([piece.winning_bid for piece in self.art_show_pieces])
+        return sum([piece.winning_bid for piece in self.art_show_pieces if piece.winning_bid])
     
     @classproperty
     def required_fields(cls):
