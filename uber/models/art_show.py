@@ -124,7 +124,7 @@ class ArtShowApplication(MagModel):
             # Kind of inefficient, but doing one big query for all the existing
             # codes will be faster than a separate query for each new code.
             old_codes = set(
-                s for (s,) in session.query(ArtShowApplication.artist_id).all())
+                a for tup in session.query(ArtShowApplication.artist_id, ArtShowApplication.artist_id_ad).all() for a in tup)
 
         code_candidate = self._get_code_from_name(banner_name, old_codes) \
             or self._get_code_from_name(self.artist_name, old_codes) \

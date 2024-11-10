@@ -122,7 +122,8 @@ class Root:
 
             if not message:
                 piece = session.query(ArtShowPiece).join(ArtShowPiece.app).filter(
-                    ArtShowApplication.artist_id == artist_id.upper(),
+                    or_(ArtShowApplication.artist_id == artist_id.upper(),
+                        ArtShowApplication.artist_id_ad == artist_id.upper()),
                     ArtShowPiece.piece_id == piece_id
                 )
                 if not piece.count():
@@ -682,7 +683,8 @@ class Root:
                 artist_id, piece_id = search_text.split('-')
                 pieces = session.query(ArtShowPiece).join(ArtShowPiece.app).filter(
                     ArtShowPiece.piece_id == int(piece_id),
-                    ArtShowApplication.artist_id == artist_id.upper()
+                    or_(ArtShowApplication.artist_id == artist_id.upper(),
+                        ArtShowApplication.artist_id_ad == artist_id.upper())
                 )
             else:
                 pieces = session.query(ArtShowPiece).filter(ArtShowPiece.name.ilike('%{}%'.format(search_text)))
