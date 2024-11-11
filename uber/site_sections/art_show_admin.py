@@ -137,6 +137,8 @@ class Root:
             action = params.get('action', '')
             if action in ['set_winner', 'voice_auction'] and not found_piece.valid_for_sale:
                 message = "This piece is not for sale and cannot have any bids."
+            elif action != 'get_info' and found_piece.status in [c.PAID, c.RETURN]:
+                message = "You cannot close out a piece that has been marked as paid for or returned to artist."
             elif action == 'voice_auction':
                 found_piece.status = c.VOICE_AUCTION
                 session.add(found_piece)
