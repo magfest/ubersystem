@@ -205,12 +205,15 @@ class Root:
             'piece': found_piece if params.get('action', '') == 'get_info' else None,
         }
 
-    def artist_check_in_out(self, session, checkout=False, message='', page=1, search_text='', order='first_name'):
+    def artist_check_in_out(self, session, checkout=False, hanging=False, message='', page=1, search_text='', order='first_name'):
         filters = [ArtShowApplication.status == c.APPROVED]
         if checkout:
             filters.append(ArtShowApplication.checked_in != None)  # noqa: E711
         else:
             filters.append(ArtShowApplication.checked_out == None)  # noqa: E711
+
+        if hanging:
+            filters.append(ArtShowApplication.art_show_pieces.any(ArtShowPiece.status == c.HANGING))
 
         search_text = search_text.strip()
         search_filters = []
@@ -224,7 +227,8 @@ class Root:
 
         applications = session.query(ArtShowApplication).join(ArtShowApplication.attendee)\
             .filter(*filters).filter(or_(*search_filters))\
-            .order_by(Attendee.first_name.desc() if '-' in str(order) else Attendee.first_name)
+            .order_by(Attendee.first_name.desc() if '-' in str(order) else Attendee.first_name).options(
+                joinedload(ArtShowApplication.art_show_pieces))
 
         count = applications.count()
         page = int(page) or 1
@@ -244,6 +248,7 @@ class Root:
             'applications': applications,
             'order': Order(order),
             'checkout': checkout,
+            'hanging': hanging,
         }
 
     @public
@@ -276,12 +281,14 @@ class Root:
             session.rollback()
             return {'error': message, 'app_id': app.id}
         else:
-            if 'check_in' in params and params['check_in']:
+            if params.get('check_in', ''):
                 app.checked_in = localized_now()
                 success = 'Artist successfully checked-in'
-            if 'check_out' in params and params['check_out']:
+            if params.get('check_out', ''):
                 app.checked_out = localized_now()
                 success = 'Artist successfully checked-out'
+            if params.get('hanging', ''):
+                success = 'Art marked as Hanging'
             session.commit()
 
         if 'check_in' in params:
@@ -338,9 +345,11 @@ class Root:
                     session.rollback()
                     break
                 else:
-                    if 'check_in' in params and params['check_in'] and piece.status == c.EXPECTED:
+                    if params.get('hanging', '') and piece.status == c.EXPECTED:
+                        piece.status = c.HANGING
+                    elif params.get('check_in', '') and piece.status in [c.EXPECTED, c.HANGING]:
                         piece.status = c.HUNG
-                    elif 'check_out' in params and params['check_out']:
+                    elif params.get('check_out', ''):
                         if piece.orig_value_of('status') == c.PAID:
                             # Accounts for the surprisingly-common situation where an
                             # artist checks out WHILE their pieces are actively being paid for

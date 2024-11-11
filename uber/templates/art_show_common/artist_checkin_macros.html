@@ -4,7 +4,7 @@
 {% set datatable_page_view = -1 %}
 {% set printable = not admin_area if not printable else printable %}
 <div class="modal fade" id="app_{{ app.id }}" role="dialog" tabindex="-1">
-  <div class="modal-dialog modal-lg" style="width:75%" role="document">
+  <div class="modal-dialog modal-xl" style="width:75%" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -18,6 +18,9 @@
         </div>
         <div class="modal-footer">
           {% set print_invoice = checkout and app.total_sales %}
+          {% if not app.checked_in %}
+          <button type="submit" class="btn btn-info save_app" name="hanging" value="1">Artist Hanging</button>
+          {% endif %}
           <button type="submit" class="btn btn-primary save_app print">
             Save & Print Form
           </button>
@@ -237,7 +240,7 @@
     </tbody>
   </table>
 </div>
-{% if not printable and not app.checked_in %}<em>NOTE: All "Expected" pieces will become "Hung" upon clicking "Save & Check-In"</em>
+{% if not printable and not app.checked_in %}<em>NOTE: All "Expected" and "Hanging" pieces will become "Hung" upon clicking "Save & Check-In"</em>
 {% elif not printable and not app.checked_out %}<em>NOTE: All "Hung" pieces will become "Return to Artist" upon clicking "Save & Check-Out"</em>{% endif %}
   {% if printable and not checkout %}
 <span class="text-center pagebreak">
