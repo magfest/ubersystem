@@ -500,11 +500,11 @@
             </div>
           </div>
           <div class="row g-sm-3">
-            <div class="col-12 col-sm-6">
+            <div class="col-12 col-sm-4">
               <div class="form-text">Description</div>
               <div class="mb-3">{{ item.desc }}</div>
             </div>
-            <div class="col-12 col-sm-6">
+            <div class="col-12 col-sm-4">
               <div class="form-text">Quantity/Amount</div>
               <div class="mb-3">
                 {{ (item.amount / 100)|format_currency(true) }}
@@ -512,6 +512,10 @@
                   x{{ item.count }}: {{ (item.count * item.amount / 100)|format_currency }}
                 {% endif %}
               </div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <div class="form-text">Admin Notes</div>
+              <div class="mb-3">{{ item.admin_notes }}</div>
             </div>
           </div>
           <div class="row g-sm-3">

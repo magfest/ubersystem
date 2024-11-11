@@ -801,7 +801,7 @@ class Root:
     def print_receipt(self, session, id, close=False, **params):
         receipt = session.art_show_receipt(id)
 
-        if close and not receipt.closed:
+        if close and True:
             receipt.closed = localized_now()
             for piece in receipt.pieces:
                 piece.status = c.PAID
@@ -811,32 +811,61 @@ class Root:
 
             # Now that we're not changing the receipt anymore, record the item total and the cash sum
             attendee_receipt = session.get_receipt_by_model(receipt.attendee, create_if_none="BLANK")
-            sales_item = ReceiptItem(
-                receipt_id=attendee_receipt.id,
-                department=c.ART_SHOW_RECEIPT_ITEM,
-                category=c.PURCHASE,
-                desc=f"Art Show Receipt #{receipt.invoice_num}",
-                amount=receipt.total,
-                who=AdminAccount.admin_name() or 'non-admin',
-            )
-            session.add(sales_item)
-
             total_cash = receipt.cash_total
             if total_cash != 0:
                 cash_txn = ReceiptTransaction(
                     receipt_id=attendee_receipt.id,
                     method=c.CASH,
                     department=c.ART_SHOW_RECEIPT_ITEM,
-                    desc="{} Art Show Receipt #{}".format(
+                    desc="{} Art Show Invoice #{}".format(
                         "Payment for" if total_cash > 0 else "Refund for", receipt.invoice_num),
                     amount=total_cash,
                     who=AdminAccount.admin_name() or 'non-admin',
                 )
                 session.add(cash_txn)
-                if total_cash == receipt.total: # TODO: Fix this when items can have multiple txns
-                    sales_item.receipt_txn = cash_txn
-                    sales_item.closed = datetime.now()
+            session.commit()
+            session.refresh(attendee_receipt)
 
+            sales_item = ReceiptItem(
+                receipt_id=attendee_receipt.id,
+                fk_id=receipt.id,
+                fk_model="ArtShowReceipt",
+                department=c.ART_SHOW_RECEIPT_ITEM,
+                category=c.PURCHASE,
+                desc=f"Art Show Receipt #{receipt.invoice_num}",
+                amount=receipt.total,
+                who=AdminAccount.admin_name() or 'non-admin',
+            )
+
+            main_txn = None
+            cash_total, credit_total, credit_num = 0, 0, 0
+            for txn in [txn for txn in attendee_receipt.receipt_txns if f"Art Show Invoice #{receipt.invoice_num}" in txn.desc]:
+                if not main_txn or txn.amount > main_txn.amount:
+                    main_txn = txn
+                if txn.method == c.CASH:
+                    cash_total += txn.amount
+                else:
+                    credit_num += 1
+                    credit_total += txn.amount
+
+            log.error(main_txn)
+
+            admin_notes = []
+            if cash_total:
+                admin_notes.append(f"Cash: {format_currency(cash_total / 100)}")
+            if credit_total:
+                credit_note = f"Credit: {format_currency(credit_total / 100)}"
+                if credit_num > 1:
+                    credit_note += f" ({credit_num} payments)"
+                admin_notes.append(credit_note)
+            
+            log.error(admin_notes)
+            log.error(sales_item)
+
+            sales_item.receipt_txn = main_txn
+            sales_item.admin_notes = "; ".join(admin_notes)
+            sales_item.closed = datetime.now()
+            session.add(sales_item)
             session.commit()
 
         return {
@@ -860,9 +889,9 @@ class Root:
         attendee_receipt = session.get_receipt_by_model(attendee, create_if_none="BLANK")
         charge = TransactionRequest(attendee_receipt,
                                     receipt_email=attendee.email,
-                                    description='{}ayment for {}\'s art show purchases'.format(
+                                    description='{}ayment for Art Show Invoice #{}'.format(
                                                     'P' if int(float(amount)) == receipt.total else 'Partial p',
-                                                    attendee.full_name),
+                                                    receipt.invoice_num),
                                     amount=int(float(amount)))
         message = charge.prepare_payment(department=c.ART_SHOW_RECEIPT_ITEM)
         if message:

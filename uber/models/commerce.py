@@ -521,6 +521,7 @@ class ReceiptItem(MagModel):
     closed = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
+    admin_notes = Column(UnicodeText)
     revert_change = Column(JSON, default={}, server_default='{}')
 
     @property
