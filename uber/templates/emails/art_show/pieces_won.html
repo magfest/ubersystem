@@ -1,13 +1,14 @@
+{% set galleries = bidder.won_pieces_by_gallery.keys() %}
 <html>
 <head></head>
 <body>
     <p>
-        {{ bidder.attendee.full_name }},
-        <br/>Congratulations! You are the high bidder for the following pieces in the {{ c.EVENT_NAME_AND_YEAR }} art show:
+        Congratulations {{ bidder.attendee.first_name }},
+        <br/>You are the winning high bidder on the following items -
     </p>
     <p>
         {% for gallery, pieces in bidder.won_pieces_by_gallery.items() %}
-        <strong>{{ gallery }} Gallery Pieces</strong>
+        <strong>{{ c.ART_PIECE_GALLERYS[gallery] }} Gallery Pieces</strong>
         <ul>
             {% for piece in pieces %}
             <li>
@@ -17,8 +18,22 @@
             {% endfor %}
         </ul>
         {% endfor %}
-        Your total for all pieces is {{ bidder.won_pieces_total|format_currency }}.
     </p>
-
+    <p>
+        This list does not include items going to the voice auction(s) as they had a full bid sheet of 8 bids. Please attend the
+        {% if c.GENERAL in galleries %}
+        General Auction - Convention Center Room 4 on Sunday starting at 9:30 AM{% if c.MATURE in galleries %}, and the{% endif %}
+        {% endif %}
+        {% if c.MATURE in galleries %}Mature Auction - Convention Center Room 4 on Saturday starting at 9:00 PM. Please bring a photo ID for entrance{% endif %}.
+    </p>
+    <p>
+        Art MUST be picked up between 10AM and 4PM on Sunday.
+        Failure to do so can result in your not being able to attend the convention in future years.
+    </p>
+<p>
+    Thank you,
+<br/>Hugmonster
+<br/>Art Show Director
+</p>
 </body>
 </html>

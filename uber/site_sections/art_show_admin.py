@@ -568,13 +568,13 @@ class Root:
                     'attendee_id': attendee.id}
 
         if params['id']:
-            bidder = session.art_show_bidder(params)
+            bidder = session.art_show_bidder(params, bools=['email_won_bids'])
         else:
             params.pop('id')
             bidder = ArtShowBidder()
             attendee.art_show_bidder = bidder
 
-        bidder.apply(params, restricted=False)
+        bidder.apply(params, restricted=False, bools=['email_won_bids'])
 
         bidder_num_dupe = session.query(ArtShowBidder).filter(
             ArtShowBidder.id != bidder.id,

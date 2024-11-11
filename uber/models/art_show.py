@@ -504,6 +504,7 @@ class ArtShowBidder(MagModel):
     hotel_room_num = Column(UnicodeText)
     admin_notes = Column(UnicodeText)
     signed_up = Column(UTCDateTime, nullable=True)
+    email_won_bids = Column(Boolean, default=False)
 
     email_model_name = 'bidder'
 
@@ -538,13 +539,9 @@ class ArtShowBidder(MagModel):
         pieces_dict = defaultdict(list)
         for piece in sorted(self.art_show_pieces, key=lambda p: p.artist_and_piece_id):
             if piece.winning_bid and piece.status == c.SOLD:
-                pieces_dict[piece.gallery_label].append(piece)
+                pieces_dict[piece.gallery].append(piece)
         return pieces_dict
 
-    @property
-    def won_pieces_total(self):
-        return sum([piece.winning_bid for piece in self.art_show_pieces if piece.winning_bid and piece.status == c.SOLD])
-    
     @classproperty
     def required_fields(cls):
         # Override for independent art shows to force attendee fields to be filled out
