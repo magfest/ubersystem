@@ -662,6 +662,7 @@ class TransactionRequest:
 
         payment_profile = None
         order = None
+        intent_id = params.get('intent_id')
 
         params_str = [f"{name}: {params[name]}" for name in params]
         log.debug(f"Transaction {self.tracking_id} building an AuthNet transaction request, request type "
@@ -760,6 +761,7 @@ class TransactionRequest:
                     txn_info['response']['message'] = str(response.transactionResponse.messages.message[0].description)
 
                     log.debug(f"Transaction {self.tracking_id} request successful. Transaction ID: {auth_txn_id}")
+                    self.log_authorizenet_response(intent_id, txn_info, card_info)
 
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
                         ReceiptManager.mark_paid_from_ids(params.get('intent_id'), auth_txn_id)
@@ -768,6 +770,7 @@ class TransactionRequest:
                     txn_info['response']['message'] = str(response.transactionResponse.errors.error[0].errorText)
                     log.debug(f"Transaction {self.tracking_id} declined! "
                               f"{txn_info['response']['message_code']}: {txn_info['response']['message']}")
+                    self.log_authorizenet_response(intent_id, txn_info, card_info)
 
                     return "Transaction declined. Please ensure you are entering the correct expiration date, card CVV/CVC, and ZIP Code."
             else:
@@ -780,29 +783,30 @@ class TransactionRequest:
                     txn_info['response']['message'] = str(response.messages.message[0]['text'].text)
 
                 log.error(f"Transaction {self.tracking_id} request failed! {txn_info['response']['message_code']}: {txn_info['response']['message']}")
+                self.log_authorizenet_response(intent_id, txn_info, card_info)
 
                 return "Transaction failed. Please refresh the page and try again, " + \
                     f"or contact us at {email_only(c.REGDESK_EMAIL)}."
         else:
             log.error(f"Transaction {self.tracking_id} request to AuthNet failed: no response received.")
+
+    def log_authorizenet_response(self, intent_id, txn_info, card_info):
+        from uber.models import ReceiptInfo, ReceiptTransaction, Session
         
-        if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
-            from uber.models import ReceiptInfo, ReceiptTransaction, Session
-            intent_id = params.get('intent_id')
-            session = Session().session
-            matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
+        session = Session().session
+        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
 
-            # AuthNet returns "StringElement" but we want strings
-            txn_info['response'] = {key: str(val) for key, val in txn_info['response'].items()}
-            txn_info['fraud_info'] = {key: str(val) for key, val in txn_info['fraud_info'].items()}
+        # AuthNet returns "StringElement" but we want strings
+        txn_info['response'] = {key: str(val) for key, val in txn_info['response'].items()}
+        txn_info['fraud_info'] = {key: str(val) for key, val in txn_info['fraud_info'].items()}
 
-            if not matching_txns:
-                log.debug(f"Tried to save receipt info for intent ID {intent_id} but we couldn't find any matching payments!")
-            
-            for txn in matching_txns:
-                txn.receipt_info = ReceiptInfo(txn_info=txn_info, card_data=card_info, charged=datetime.now())
-                session.add(txn.receipt_info)
-            session.commit()
+        if not matching_txns:
+            log.debug(f"Tried to save receipt info for intent ID {intent_id} but we couldn't find any matching payments!")
+        
+        for txn in matching_txns:
+            txn.receipt_info = ReceiptInfo(txn_info=txn_info, card_data=card_info, charged=datetime.now())
+            session.add(txn.receipt_info)
+        session.commit()
 
 
 class SpinTerminalRequest(TransactionRequest):

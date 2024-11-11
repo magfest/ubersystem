@@ -133,7 +133,7 @@ def assign_account_by_email(session, attendee, account_email):
 
 @all_renderable()
 class Root:
-    def automated_transactions(self, session, message='', page='0', search_text='', order='added', closed=''):
+    def automated_transactions(self, session, message='', page='0', search_text='', order='-added', closed=''):
         if c.DEV_BOX and not int(page):
             page = 1
 
@@ -209,7 +209,10 @@ class Root:
             except NoResultFound:
                 model = session.art_show_application(id)
 
-        receipt = session.get_receipt_by_model(model)
+        options = [joinedload(ModelReceipt.receipt_items),
+                   joinedload(ModelReceipt.receipt_txns).joinedload(ReceiptTransaction.receipt_info)]
+
+        receipt = session.get_receipt_by_model(model, options=options)
         if receipt:
             receipt.changes = session.query(Tracking).filter(
                 or_(Tracking.links.like('%model_receipt({})%'
@@ -225,7 +228,7 @@ class Root:
         other_receipts = set()
         if isinstance(model, Attendee):
             for app in model.art_show_applications:
-                other_receipt = session.get_receipt_by_model(app)
+                other_receipt = session.get_receipt_by_model(app, options=options)
                 if other_receipt:
                     other_receipt.changes = session.query(Tracking).filter(
                         or_(Tracking.links.like('%model_receipt({})%'
@@ -238,13 +241,13 @@ class Root:
             'attendee': model if isinstance(model, Attendee) else None,
             'group': model if isinstance(model, Group) else None,
             'art_show_app': model if isinstance(model, ArtShowApplication) else None,
-            'group_leader_receipt': group_leader_receipt,
+            'group_leader_receipt_id': group_leader_receipt.id if group_leader_receipt else None,
             'group_processing_fee': group_processing_fee,
             'receipt': receipt,
             'other_receipts': other_receipts,
             'closed_receipts': session.query(ModelReceipt).filter(ModelReceipt.owner_id == id,
                                                                   ModelReceipt.owner_model == model.__class__.__name__,
-                                                                  ModelReceipt.closed != None).all(),  # noqa: E711
+                                                                  ModelReceipt.closed != None).options(*options).all(),  # noqa: E711
             'message': message,
             'highlight_id': highlight_id,
             'processors': {
