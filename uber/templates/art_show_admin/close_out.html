@@ -95,6 +95,10 @@
         <div class="mb-3"><a href="../art_show_admin/form?id={{ piece.app.id }}" target="_blank">{{ piece.app.artist_or_full_name }}</a></div>
       </div>
       <div class="col">
+        <div class="form-text">Artist Location(s)</div>
+        <div class="mb-3">{{ piece.app.locations }}</div>
+      </div>
+      <div class="col">
         <div class="form-text">Piece Status</div>
         <div class="mb-3">{{ piece.status_label }}</div>
       </div>

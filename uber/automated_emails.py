@@ -286,7 +286,7 @@ AutomatedEmailFixture(
     ArtShowBidder,
     'Bidding Winner Notification for the {EVENT_NAME} Art Show',
     'art_show/pieces_won.html',
-    lambda a: len([piece for piece in a.art_show_pieces if piece.winning_bid]) > 0,
+    lambda a: len([piece for piece in a.art_show_pieces if piece.winning_bid and piece.status == c.SOLD]) > 0,
     needs_approval=True,
     allow_at_the_con=True,
     sender=c.ART_SHOW_EMAIL,
