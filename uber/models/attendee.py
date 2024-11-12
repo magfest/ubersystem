@@ -1130,7 +1130,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.WATCHED_STATUS:
             if self.banned or not self.regdesk_info:
                 regdesk_info_append = " [{}]".format(self.regdesk_info) if self.regdesk_info else ""
-                return "MUST TALK TO SECURITY before picking up badge{}".format(regdesk_info_append)
+                return "MUST TALK TO MANAGER before picking up badge{}".format(regdesk_info_append)
             return self.regdesk_info or "Badge status is {}".format(self.badge_status_label)
 
         if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS, c.AT_DOOR_PENDING_STATUS]:
