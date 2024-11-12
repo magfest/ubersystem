@@ -316,7 +316,7 @@ class WatchList(MagModel):
     action = Column(UnicodeText)
     expiration = Column(Date, nullable=True, default=None)
     active = Column(Boolean, default=True)
-    attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True))
+    attendees = relationship('Attendee',  backref=backref('watch_list'), cascade='save-update,merge,refresh-expire,expunge')
 
     @property
     def full_name(self):
