@@ -211,7 +211,7 @@ class Root:
 
         for app in session.query(ArtShowApplication
                                  ).join(Attendee, ArtShowApplication.attendee_id == Attendee.id
-                                        ).filter(ArtShowApplication.status == c.approved,
+                                        ).filter(ArtShowApplication.status == c.APPROVED,
                                                  or_(and_(ArtShowApplication.country != '',
                                                           ArtShowApplication.country != 'United States'),
                                                      and_(Attendee.country != '',
