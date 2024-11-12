@@ -591,6 +591,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _badge_adjustments(self):
         from uber.badge_funcs import needs_badge_num
+        from uber.tasks.registration import assign_badge_num
+
         if self.badge_type == c.PSEUDO_DEALER_BADGE:
             self.ribbon = add_opt(self.ribbon_ints, c.DEALER_RIBBON)
 
@@ -602,7 +604,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if old_type != self.badge_type or old_num != self.badge_num:
             self.session.update_badge(self, old_type, old_num)
         elif needs_badge_num(self) and not self.badge_num:
-            self.badge_num = self.session.get_next_badge_num(self.badge_type)
+            assign_badge_num.delay(self.id)
 
     @presave_adjustment
     def _use_promo_code(self):

@@ -22,7 +22,16 @@ from uber.payments import ReceiptManager
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
            'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue',
-           'process_terminal_sale', 'send_receipt_email']
+           'process_terminal_sale', 'send_receipt_email', 'assign_badge_num']
+
+
+@celery.task
+def assign_badge_num(attendee_id):
+    with Session() as session:
+        attendee = session.query(Attendee).filter_by(id=attendee_id).first()
+        attendee.badge_num = session.get_next_badge_num(attendee.badge_type)
+        session.add(attendee)
+        session.commit()
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
