@@ -83,7 +83,7 @@
   <div class="form-text">Email List of Won Pieces?</div>
   <label class="form-check-label">
     <input type="checkbox" class="form-check-input" name="email_won_bids" value="1"{% if attendee.art_show_bidder.email_won_bids %} checked{% endif %}>
-    <strong>Yes</strong>, email this bidder about pieces they won in the art show.
+    <strong>Yes</strong>, email this bidder at {{ attendee.email }} about pieces they won in the art show.
   </label>
 </div>
 </div>
