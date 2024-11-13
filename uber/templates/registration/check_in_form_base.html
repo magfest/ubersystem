@@ -6,7 +6,7 @@
   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 <div class="modal-body">
-{% if attendee.amount_unpaid or attendee.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] and attendee.amount_unpaid_if_valid %}
+{% if attendee.amount_unpaid or attendee.badge_status == c.PENDING_STATUS and attendee.amount_unpaid_if_valid %}
 <div class="center text-center check-in">
 <h4>{{ attendee.full_name }} currently owes <strong>{{ attendee.amount_unpaid_if_valid|format_currency }}</strong>.</h4>
 {% if c.SPIN_TERMINAL_AUTH_KEY %}

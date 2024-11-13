@@ -60,8 +60,7 @@ class Root:
             offset = (page - 1) * 50
 
         if include_pending:
-            filter = or_(Attendee.badge_status.in_([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]),
-                               Attendee.is_valid == True)  # noqa: E712
+            filter = or_(Attendee.badge_status == c.PENDING_STATUS, Attendee.is_valid == True)  # noqa: E712
         else:
             filter = Attendee.is_valid == True  # noqa: E712
                 

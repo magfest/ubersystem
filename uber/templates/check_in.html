@@ -20,8 +20,8 @@ var loadCheckInFormModal = function (attendeeID) {
     });
 }
 
-var loadCheckInCartModal = function (accountId) {
-    $('#checkin_modal .modal-content').load('../registration/check_in_cart_form?id=' + accountId, function() {
+var loadCheckInGroupModal = function (badgePickupGroupId) {
+    $('#checkin_modal .modal-content').load('../registration/check_in_group_form?id=' + badgePickupGroupId, function() {
         if ($('.check-in').length) {
             $('#checkin_modal').on('hidden.bs.modal', function (e) {
                 $('#stripeModal').remove();

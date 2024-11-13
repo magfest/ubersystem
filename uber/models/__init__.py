@@ -1700,7 +1700,7 @@ class Session(SessionManager):
 
             badge_statuses = [c.NEW_STATUS, c.COMPLETED_STATUS]
             if pending:
-                badge_statuses.extend([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS])
+                badge_statuses.append(c.PENDING_STATUS)
 
             badge_filter = Attendee.badge_status.in_(badge_statuses)
 
