@@ -2390,19 +2390,20 @@ class BadgePickupGroup(MagModel):
 
     @property
     def pending_paid_attendees(self):
-        return [attendee for attendee in self.attendees if attendee.paid == c.PENDING]
+        return [attendee for attendee in self.attendees if attendee.paid == c.PENDING and
+                not attendee.checked_in and not attendee.cannot_check_in_reason]
 
     @property
     def checked_in_attendees(self):
         return [attendee for attendee in self.attendees if attendee.checked_in]
 
     @property
-    def unchecked_in_attendees(self):
-        return [attendee for attendee in self.attendees if attendee.checked_in is None]
+    def check_inable_attendees(self):
+        return [attendee for attendee in self.attendees if not attendee.checked_in and not attendee.cannot_check_in_reason]
 
     @property
     def under_18_badges(self):
-        return [attendee for attendee in self.attendees if attendee.checked_in is None and attendee.age_now_or_at_con < 18]
+        return [attendee for attendee in self.check_inable_attendees if attendee.age_now_or_at_con < 18]
 
 
 class FoodRestrictions(MagModel):

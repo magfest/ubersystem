@@ -310,7 +310,7 @@
                       {% else %}
                         <td id="cin_{{ attendee.id }}">
                             <button class="attendee-checkin btn btn-sm btn-success" data-attendee-id="{{ attendee.id }}" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>
-                            {% if attendee.badge_pickup_group %}
+                            {% if attendee.badge_pickup_group and attendee.badge_pickup_group.check_inable_attendees|length > 1 %}
                             <button class="cart-checkin btn btn-sm btn-primary" data-attendee-id="{{ attendee.id }}" onClick="loadCheckInGroupModal('{{ attendee.badge_pickup_group.id }}')">Check In Group</button>
                             {% endif %}
                         </td>

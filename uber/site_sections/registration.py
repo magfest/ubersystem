@@ -611,7 +611,7 @@ class Root:
         if not printer_id and not minor_printer_id:
             return {'success': False, 'message': 'You must set a printer ID.'}
 
-        if len(pickup_group.under_18_badges) != len(pickup_group.unchecked_in_attendees) and not printer_id:
+        if len(pickup_group.under_18_badges) != len(pickup_group.check_inable_attendees) and not printer_id:
             return {'success': False,
                     'message': 'You must set a printer ID for the adult badges that are being checked in.'}
 
@@ -622,7 +622,7 @@ class Root:
         cherrypy.session['cart_success_list'] = []
         cherrypy.session['cart_printer_error_list'] = []
 
-        for attendee in pickup_group.unchecked_in_attendees:
+        for attendee in pickup_group.check_inable_attendees:
             success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
             if not success:

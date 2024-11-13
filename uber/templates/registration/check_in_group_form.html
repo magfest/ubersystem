@@ -59,7 +59,7 @@
             <th></th>
         </thead>
         <tbody>
-        {% for attendee in pickup_group.unchecked_in_attendees %}
+        {% for attendee in pickup_group.check_inable_attendees %}
         <tr id="{{ attendee.id }}">
             <td>
                 <button class="btn btn-sm btn-danger" id="invalidate-{{ attendee.id }}" data-bs-toggle="tooltip" title="Invalidate" onClick="removeAttendeeFromPickupGroupConfirm('{{ attendee.id }}', '{{ pickup_group.id }}')">
