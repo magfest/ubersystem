@@ -1,6 +1,15 @@
 {% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
+<script type="text/javascript">
+    $().ready(function() {
+        $("#print-badge-form").bind("keypress", function (e) {
+    if (e.keyCode == 13) {
+        e.preventDefault();
+    }
+    });
+    })
+</script>
 <div class="row g-sm-3">
-<form class="print-badge d-inline" action="../badge_printing/add_job_to_queue" method="post">
+<form class="print-badge d-inline" id="print-badge-form" action="../badge_printing/add_job_to_queue" method="post">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}">
     <div class="col">
