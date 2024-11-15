@@ -49,6 +49,7 @@
 
     <table class="table table-hover text-reset">
         <thead>
+            <th class="escalate-ticket collapse">Escalate</th>
             <th></th>
             <th>Name</th>
             <th>Birthdate</th>
@@ -61,6 +62,9 @@
         <tbody>
         {% for attendee in pickup_group.check_inable_attendees %}
         <tr id="{{ attendee.id }}">
+            <td class="escalate-ticket collapse">
+                <label class="d-block"><input type="checkbox" class="form-check-input" name="escalate-attendee-ids" value="{{ attendee.id }}" /></label>
+            </td>
             <td>
                 <button class="btn btn-sm btn-danger" id="invalidate-{{ attendee.id }}" data-bs-toggle="tooltip" title="Invalidate" onClick="removeAttendeeFromPickupGroupConfirm('{{ attendee.id }}', '{{ pickup_group.id }}')">
                     <i class="fa fa-remove"></i>
@@ -104,13 +108,19 @@
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ pickup_group.id }}"/>
     {% if c.BADGE_PRINTING_ENABLED %}
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-6">
+    <div class="d-flex gap-3 text-start">
+        <div class="flex-fill">
+            <div class="form-text">&nbsp;</div>
+            <div>
+                <p><a href="#" class="btn btn-warning" data-bs-toggle="collapse" data-bs-target=".escalate-ticket" aria-expanded="false" aria-controls="escalate-ticket">Escalate to Manager</a></p>
+            </div>
+        </div>
+        <div class="flex-fill">
             <label for="printer_id" class="form-text">Printer ID</label>
             <div class="mb-3"><input type="text" class="form-control" name="printer_id" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" /></div>
         </div>
         {% if pickup_group.under_18_badges %}
-        <div class="col-12 col-sm-6">
+        <div class="flex-fill">
             <label for="printer_id" class="form-text">Minor Printer ID</label>
             <div class="mb-3"><input type="text" class="form-control" name="minor_printer_id" value="{{ workstation_assignment.minor_or_adult_printer_id if workstation_assignment else '' }}"/></div>
         </div>
@@ -118,18 +128,42 @@
     </div>
     {% endif %}
     </form>
-</div>
+    <div class="row g-sm-3 text-start">
+        <div class="escalate-ticket col-12 collapse bg-light card card-body">
+            <p>
+                Attendees with an escalation ticket will not be able to check in before a manager
+                clears their ticket(s). Use the checkboxes above
+                to select the attendees you want to include in the ticket, then describe the problem below and click
+                "Create Escalation Ticket".
+            </p>
+            <div class="row">
+            <div class="col-12 col-lg-6 text-end">
+                <div class="form-text text-start">Escalation Note</div>
+                <textarea name="description" id="escalation-ticket-desc" class="form-control mb-3" rows="4"></textarea>
+                <button class="btn btn-warning" type="button" onClick="createEscalationTicket()">Create Escalation Ticket</button>
+                <a href="#" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target=".escalate-ticket">Cancel</a>
+            </div>
+            </div>
+        </div>
+    </div>
+</div></div>
 <div class="modal-footer">
     {% set print_and_checkin = c.BADGE_PRINTING_ENABLED %}
-    <button class='btn btn-outline-secondary btn-sm' onClick="loadCheckInGroupModal('{{ pickup_group.id }}')">
-        <i class="fa fa-refresh"></i>
-    </button>
-    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-    {% if not total_cost %}
-    <button type="button" class="btn btn-success check-in" onClick="printAndOrCheckIn('{{ pickup_group.id }}', '{{ print_and_checkin }}')">
-        {% if print_and_checkin %}Print Badges{% else %}Save{% endif %} & Check In
-    </button>
-    {% endif %}
+    <div class="d-flex gap-1 w-100">
+        <div class="me-auto">
+        <button class='btn btn-outline-secondary btn-sm' onClick="loadCheckInGroupModal('{{ pickup_group.id }}')">
+            <i class="fa fa-refresh"></i>
+        </button>
+        </div>
+        <div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            {% if not total_cost %}
+            <button type="button" class="btn btn-success check-in" onClick="printAndOrCheckIn('{{ pickup_group.id }}', '{{ print_and_checkin }}')">
+                {% if print_and_checkin %}Print Badges{% else %}Save{% endif %} & Check In
+            </button>
+            {% endif %}
+        </div>
+    </div>
 </div>
 <script type="text/javascript">
     var toggleMarkButton = function (dropdown) {

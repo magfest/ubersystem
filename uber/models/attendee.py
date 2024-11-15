@@ -1158,6 +1158,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.is_presold_oneday:
             if self.badge_type_label != localized_now().strftime('%A'):
                 return "Wrong day"
+        
+        if self.active_escalation_tickets:
+            return "Must be cleared for check-in by manager"
 
         message = uber.utils.check(self)
         return message
@@ -1611,6 +1614,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             notes.append(f"Please check this attendee in {self.accoutrements}.")
 
         return "<br/><br/>".join(notes)
+    
+    @property
+    def active_escalation_tickets(self):
+        return [ticket for ticket in self.escalation_tickets if ticket.resolved == None]
 
     @property
     def multiply_assigned(self):

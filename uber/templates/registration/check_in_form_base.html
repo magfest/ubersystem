@@ -41,8 +41,7 @@
 <iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
 </div>
 <div class="modal-footer">
-  <div class="form-group">
-  <div class="pull-right">
+    <div class="d-flex justify-content-end">
 <script type="text/javascript">
 var toggleMarkButton = function (dropdown) {
     var $button = $(dropdown).parent().parent().find(':submit');
@@ -187,19 +186,21 @@ $().ready(function() {
 </form>
 </div>
 <div class="modal-footer">
-    <button class='btn btn-outline-secondary btn-sm pull-left' onClick="loadCheckInFormModal('{{ attendee.id }}')">
-        <i class="fa fa-refresh"></i>
-    </button>
-  <div class="form-group">
-  <div class="pull-right">
-      <button type="submit" id="printAndOrCheckIn" form="check_in_form_{{ attendee.id }}" class="btn btn-primary">
-        {% if print_and_checkin %}Print Badge{% else %}Save{% endif %} & Check In
-      </button>
+    <div class="d-flex gap-1 w-100">
+        <div class="me-auto">
+            <button class='btn btn-outline-secondary btn-sm' onClick="loadCheckInFormModal('{{ attendee.id }}')">
+                <i class="fa fa-refresh"></i>
+            </button>
+        </div>
+        <div>
+            <button type="submit" id="printAndOrCheckIn" form="check_in_form_{{ attendee.id }}" class="btn btn-primary">
+                {% if print_and_checkin %}Print Badge{% else %}Save{% endif %} & Check In
+            </button>
+        </div>
 {% endif %}
    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
-  </div>
-  </div>
+</div>
  
 </div>
 <script type="text/javascript">

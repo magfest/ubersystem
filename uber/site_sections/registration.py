@@ -23,9 +23,9 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
     requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, AttendeeAccount, AdminAccount, Email, Group, Job, PageViewTracking, PrintJob, \
-    PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction, \
-    WorkstationAssignment
+from uber.models import (Attendee, AttendeeAccount, AdminAccount, Email, EscalationTicket, Group, Job, PageViewTracking,
+                         PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
+                         WorkstationAssignment)
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, validate_model
@@ -838,6 +838,28 @@ class Root:
         session.add(attendee)
         session.commit()
         return 'Attendee successfully un-checked-in'
+
+    @ajax
+    def create_escalation_ticket(self, session, attendee_ids='', description='', **params):
+        if not attendee_ids:
+            return {'success': False, 'message': "Please select at least one person to make an escalation ticket for."}
+        if not description:
+            return {'success': False, 'message': "Please enter a description for the escalation ticket."}
+
+        attendee_ids = json.loads(attendee_ids)
+
+        ticket = EscalationTicket(description=description)
+        for id in attendee_ids:
+            try:
+                attendee = session.attendee(id)
+            except NoResultFound:
+                return {'success': False, 'message': f"Cannot find attendee for ID {id}! Please refresh and try again."}
+            ticket.attendees.append(attendee)
+        
+        session.add(ticket)
+        session.commit()
+
+        return {'success': True, 'message': "Escalation ticket created."}
 
     def recent(self, session):
         return {'attendees': session.query(Attendee)

@@ -43,7 +43,26 @@
 
 <div class="card">
 <div class="card-body">
-{% if (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and receipt and receipt.current_amount_owed and not attendee.is_new %}
+{% if attendee.active_escalation_tickets %}
+<div class="alert alert-warning center pb-0" role="alert">
+    {% if c.HAS_REG_ADMIN_ACCESS %}
+    {% set one_ticket = attendee.active_escalation_tickets|length == 1 %}
+    <p>
+        This attendee has {% if one_ticket %}an outstanding escalation ticket with the note: {{ attendee.active_escalation_tickets[0].description }}
+        {% else %}the following open escalation tickets:
+        <ul>
+            {% for ticket in attendee.active_escalation_tickets %}
+            <li>{{ ticket.description }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </p>
+    <p>Please review and resolve their ticket{% if not one_ticket %}s{% endif %} on the <a href="escalation_tickets" target="_blank">Escalation Tickets</a> page.</p>
+    {% else %}
+    <p>This attendee cannot check in because they have at least one outstanding escalation ticket. Please ask them to go to the manager station.</p>
+    {% endif %}
+</div>
+{% elif (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and receipt and receipt.current_amount_owed and not attendee.is_new %}
     <div class="alert alert-warning center" role="alert">
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>
     {% if payment_enabled %}

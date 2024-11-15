@@ -15,11 +15,11 @@ from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.custom_tags import datetime_local_filter, pluralize, format_currency, readable_join
+from uber.custom_tags import datetime_local_filter, time_day_local, pluralize, format_currency, readable_join
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, \
-    ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment
+    ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment, EscalationTicket
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
     TaskUtils, Order
@@ -188,6 +188,52 @@ class Root:
                 c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
                 c.MANUAL: "Stripe"},
         }
+    
+    def escalation_tickets(self, session, message='', closed=''):
+        escalation_tickets = session.query(EscalationTicket)
+        if not closed:
+            escalation_tickets = escalation_tickets.filter(EscalationTicket.resolved == None)
+        return {
+            'message': message,
+            'closed': closed,
+            'total_count': escalation_tickets.count(),
+            'tickets': escalation_tickets.options(joinedload(EscalationTicket.attendees))
+        }
+
+    @ajax
+    def update_escalation_ticket(self, session, id, resolve=None, unresolve=None, **params):
+        try:
+            ticket = session.escalation_ticket(id)
+        except NoResultFound:
+            return {'success': False, 'message': "Ticket not found!"}
+        
+        ticket.apply(params)
+        message = "Ticket updated"
+        if resolve:
+            ticket.resolved = datetime.now()
+            message = message + " and resolved"
+        elif unresolve:
+            ticket.resolved = None
+            message = message + " and marked as unresolved"
+
+        session.commit()
+
+        return {
+            'success': True,
+            'message': message + ".",
+            'resolved': '' if not ticket.resolved else f"Resolved {time_day_local(ticket.resolved)}"
+            }
+    
+    @ajax
+    def delete_escalation_ticket(self, session, id, **params):
+        try:
+            ticket = session.escalation_ticket(id)
+        except NoResultFound:
+            return {'success': False, 'message': "Ticket not found!"}
+        
+        session.delete(ticket)
+        session.commit()
+        return {'success': True, 'message': "Ticket deleted."}
     
     def receipt_items(self, session, id, message='', highlight_id=''):
         group_leader_receipt = None
