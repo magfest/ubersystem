@@ -243,7 +243,7 @@
   </div>
   {% if show_quantity %}
     <div class="form-group">
-      <label class="col-sm-3 control-label">Quantity</label>
+      <label class="col-sm-3 control-label">Estimated Quantity</label>
       <div class="col-sm-6">
         <input class="form-control" type="number" name="inventory_quantity{{ suffix }}" value="{{ item.quantity }}" placeholder="How many do you have for sale?" min="0" required />
       </div>
@@ -422,7 +422,7 @@
           <dd>{{ item.price|format_currency }}</dd>
         </div>
         <div class="inventory-item-quantity data-item">
-          <dt>Quantity</dt>
+          <dt>Estimated Quantity</dt>
           <dd>{{ quantity }}</dd>
         </div>
       </dl>
