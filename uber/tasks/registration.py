@@ -28,8 +28,15 @@ __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', '
 
 @celery.task
 def assign_badge_num(attendee_id):
+    time.sleep(1) # Allow some time to save to DB
     with Session() as session:
         attendee = session.query(Attendee).filter_by(id=attendee_id).first()
+        if not attendee:
+            time.sleep(60)
+            attendee = session.query(Attendee).filter_by(id=attendee_id).first()
+            if not attendee:
+                log.error(f"Timed out when trying to assign a badge number to attendee {attendee_id}!")
+                return
         attendee.badge_num = session.get_next_badge_num(attendee.badge_type)
         session.add(attendee)
         session.commit()
