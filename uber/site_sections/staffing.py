@@ -215,16 +215,8 @@ class Root:
         }
 
     @check_shutdown
-    def shifts(self, session, view='', start='', all=''):
-        joblist = session.jobs_for_signups(all=all)
-        con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
-
+    def shifts(self, session, start=''):
         volunteer = session.logged_in_volunteer()
-        assigned_dept_ids = set(volunteer.assigned_depts_ids)
-        has_public_jobs = False
-        for job in joblist:
-            if job.is_public and job.department_id not in assigned_dept_ids:
-                has_public_jobs = True
 
         has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
         has_teardown = volunteer.can_work_teardown or any(
@@ -260,26 +252,24 @@ class Root:
         other_filters = [
             {'id': 'public', 'title': "Public Shifts",},
             ]
+        
+        requested_hotel_nights = volunteer.hotel_requests.nights_ints if volunteer.hotel_requests else []
 
         return {
-            'jobs': joblist,
             'has_public_jobs': session.query(Job).filter(Job.is_public == True).count(),
             'depts_with_roles': [membership.department.name for membership in volunteer.dept_memberships_with_role],
             'assigned_depts_list': [(dept.id, dept.name) for dept in volunteer.assigned_depts],
-            'name': volunteer.full_name,
             'hours': volunteer.weighted_hours,
             'assigned_depts_labels': volunteer.assigned_depts_labels,
             'default_filters': default_filters,
             'all_filters': default_filters + other_filters,
-            'view': view,
             'start': start.date(),
-            'end': end.date(),
             'total_duration': total_duration,
             'highlighted_dates': event_dates,
             'setup_duration': 0 if not has_setup else (c.EPOCH - c.SETUP_JOB_START).days,
             'teardown_duration': 0 if not has_teardown else (c.TEARDOWN_JOB_END - c.ESCHATON).days,
-            'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
-            'show_all': all,
+            'requested_setup_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.SETUP_NIGHTS],
+            'requested_teardown_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.TEARDOWN_NIGHTS],
         }
     
     @ajax_gettable
@@ -344,6 +334,8 @@ class Root:
                     'weight': job.weight,
                     'slots': f"{job.slots_taken}/{job.slots}",
                     'is_public': job.is_public,
+                    'is_setup': job.is_setup,
+                    'is_teardown': job.is_teardown,
                     'assigned': True,
                     }
             })
