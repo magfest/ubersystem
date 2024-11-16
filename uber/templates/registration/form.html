@@ -49,7 +49,7 @@
     {% set one_ticket = attendee.active_escalation_tickets|length == 1 %}
     <p>
         This attendee has {% if one_ticket %}an outstanding escalation ticket with the note: {{ attendee.active_escalation_tickets[0].description }}
-        {% else %}the following open escalation tickets:
+        {% else %}the following outstanding escalation tickets:
         <ul>
             {% for ticket in attendee.active_escalation_tickets %}
             <li>{{ ticket.description }}</li>
@@ -57,7 +57,7 @@
         </ul>
         {% endif %}
     </p>
-    <p>Please review and resolve their ticket{% if not one_ticket %}s{% endif %} on the <a href="escalation_tickets" target="_blank">Escalation Tickets</a> page.</p>
+    <p>Please review and resolve their ticket{% if not one_ticket %}s{% endif %} on the <a href="../reg_admin/escalation_tickets" target="_blank">Escalation Tickets</a> page.</p>
     {% else %}
     <p>This attendee cannot check in because they have at least one outstanding escalation ticket. Please ask them to go to the manager station.</p>
     {% endif %}
