@@ -107,6 +107,9 @@
     <form novalidate action="/" id="check_in_form_{{ pickup_group.id }}" role="form" class="check-in">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ pickup_group.id }}"/>
+    <div class="d-flex gap-3 justify-content-end">
+        <div><button type="button" class="btn btn-primary" onClick="updateAll()">Update All</button></div>
+    </div>
     {% if c.BADGE_PRINTING_ENABLED %}
     <div class="d-flex gap-3 text-start">
         <div class="flex-fill">
@@ -226,6 +229,44 @@
             $("#form-validations").show();
         });
     };
+    
+    var updateAll = function() {
+        let bigData = ''
+        $('[id^=update-form]').each(function() {
+            let serializedData = new URLSearchParams($(this).serialize());
+
+            if (bigData == '') {
+                bigData = 'csrf_token=' + serializedData.get('csrf_token')
+            }
+
+            bigData = bigData + '&id=' + serializedData.get('id')
+
+            for (const [key, value] of serializedData) {
+                if (key != 'csrf_token' && key != 'id') {
+                bigData = bigData + '&' + key + '_' + serializedData.get('id') + '=' + value
+                }
+            }
+            })
+            $.ajax({
+            method: 'POST',
+            url: 'save_no_check_in_all',
+            dataType: 'json',
+            data: bigData,
+            success: function (json) {
+                hideMessageBox('form-validations');
+                var message = json.message;
+                if (json.success) {
+                $("#form-validations").addClass("alert-info").show().children('span').html(message);
+                } else {
+                showErrorMessage(message, 'form-validations');
+                }
+            },
+            error: function () {
+                showErrorMessage('Unable to connect to server, please try again.', 'form-validations');
+            }
+        });
+    }
+    
     $("form[action='mark_as_paid']").submit(function (e) {
         e.preventDefault();
 

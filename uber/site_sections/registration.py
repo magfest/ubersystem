@@ -798,6 +798,28 @@ class Root:
 
     @check_for_encrypted_badge_num
     @ajax
+    def save_no_check_in_all(self, session, message='', **params):
+        if 'id' in params:
+            for id in params.get('id'):
+                attendee_params = {key.replace(f'_{id}', ''): val for key, val in params.items() if f'_{id}' in key}
+                attendee_params['id'] = id
+
+                attendee = session.attendee(id)
+
+                validations = json.loads(self.validate_attendee(form_list=['CheckInForm'], **attendee_params))
+                if 'error' in validations:
+                    session.rollback()
+                    message = ' '.join([item for sublist in validations['error'].values() for item in sublist])
+                    return {'success': False,
+                            'message': f"Could not save attendee {attendee.full_name}: {message}"}
+                else:
+                    save_attendee(session, attendee, attendee_params)
+                    session.commit()
+            return {'success': True,
+                    'message': "Attendees updated!"}
+
+    @check_for_encrypted_badge_num
+    @ajax
     def check_in(self, session, message='', **params):
         id = params.get('id', None)
 
