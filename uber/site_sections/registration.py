@@ -334,7 +334,7 @@ class Root:
 
     @ajax
     def poll_terminal_payment(self, session, **params):
-        from spin_rest_utils import utils as spin_rest_utils
+        import uber.spin_rest_utils as spin_rest_utils
         error, terminal_id = session.get_assigned_terminal_id()
 
         if error:
