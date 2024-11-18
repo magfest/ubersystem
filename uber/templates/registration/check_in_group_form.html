@@ -86,7 +86,7 @@
                 {% endif %}
             </td>
             <td>
-                <input class="form-control" form="update-form-{{ attendee.id }}" id="badge_printed_name-{{ attendee.id }}" maxlength="20" name="badge_printed_name" type="text" value="{{ attendee.badge_printed_name }}">
+                <input class="form-control" form="update-form-{{ attendee.id }}" id="badge_printed_name-{{ attendee.id }}" maxlength="30" name="badge_printed_name" type="text" value="{{ attendee.badge_printed_name }}">
             </td>
             <td>
                 {{ attendee.amount_unpaid_if_valid|format_currency }}
