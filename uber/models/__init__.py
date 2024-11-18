@@ -514,7 +514,10 @@ class MagModel:
                         value = datetime.strptime(value, c.DATE_FORMAT)
                     except ValueError:
                         value = dateparser.parse(value)
-                return value.date()
+                try:
+                    return value.date()
+                except AttributeError:
+                    return value
 
             elif isinstance(column.type, JSONB):
                 if isinstance(value, str):
