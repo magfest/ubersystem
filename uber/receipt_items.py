@@ -266,7 +266,8 @@ def needs_badge_change_calc(attendee):
 def one_day_or_upgraded_badge_cost(attendee):
     if attendee.badge_type in c.BADGE_TYPE_PRICES:
         return c.BADGE_TYPE_PRICES[attendee.badge_type]
-    return attendee.new_badge_cost
+    if attendee.qualifies_for_discounts:
+        return attendee.new_badge_cost - min(attendee.new_badge_cost, abs(attendee.age_discount))
 
 
 @receipt_calculation.Attendee
@@ -404,6 +405,10 @@ def age_discount_credit(attendee, new_attendee=None):
         else:
             diff = attendee.age_discount * 100
         return ("Age Discount", diff, c.BADGE_DISCOUNT)
+    
+    if needs_badge_change_calc(attendee) or needs_badge_change_calc(new_attendee):
+        # Age discount is included in the badge upgrade/downgrade function
+        return
     
     old_credit = attendee.age_discount if attendee.qualifies_for_discounts else 0
     new_credit = new_attendee.age_discount if new_attendee.qualifies_for_discounts else 0
