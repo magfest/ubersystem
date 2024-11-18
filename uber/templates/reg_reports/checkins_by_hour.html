@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title_text = "Checkins By Hour" %}
+{% block content %}
+<h2>Checkins By Hour -- {{ now()|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
+
+<div class="row mt-3 justify-content-between">
+    <div class="col col-auto">
+        <p>
+        {% for day, count in daily_checkins.items() %}
+        Checkins on {{ day }}: {{ count }}{% if not loop.last %}<br/>{% endif %}
+        {% endfor %}
+        </p>
+    </div>
+    <div class="col col-auto mb-3">
+        <a href="checkins_by_hour_csv">
+            <i class="fa fa-download"></i> Download CSV
+        </a>
+    </div>
+</div>
+
+{% block table %}
+<div class="card card-body">
+    <table class="table table-hover datatable" data-order='[[ 2, "desc" ]]'>
+    <thead>
+        <tr>
+        {% block tableheadings %}
+        <th>Event Day</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th># Checkins</th>
+        {% endblock tableheadings %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for time, count in checkins.items() %}
+        <tr>
+            {% block tablerows scoped %}
+            <td data-order="{{ time|datetime('%Y-%m-%d') if time not in outside_event_checkins else '' }}">
+                {{ time|datetime('%A') if time not in outside_event_checkins else "N/A" }}
+            </td>
+            <td>{{ time|datetime('%Y-%m-%d') }}</td>
+            <td data-order="{{ time }}">{{ time|datetime('%-I:%M%p') }}-{{ time|timedelta(hours=1)|datetime('%-I:%M%p') }}</td>
+            <td>{{ count }}</td>
+            {% endblock tablerows %}
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+</div>
+
+{% endblock table %}
+{% endblock content %}

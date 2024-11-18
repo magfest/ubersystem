@@ -1031,6 +1031,7 @@ class Root:
 
         return {'invalidated': id}
 
+    @site_mappable
     def manage_workstations(self, session, message='', **params):
         if cherrypy.request.method == 'POST':
             skipped_reg_stations = []
@@ -1116,22 +1117,6 @@ class Root:
         workstation.minor_printer_id = params.get('minor_printer_id', '')
         session.commit()
         return {'success': True, 'message': "Workstation assignment updated."}
-
-    def close_out_check(self, session):
-        closeout_requests = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'closeout_requests')
-        processed_list = []
-
-        for request_timestamp, terminal_ids in closeout_requests.items():
-            closeout_report = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'completed_closeout_requests', request_timestamp)
-            if closeout_report:
-                # TODO: Finish the report part of this
-                report_dict = json.loads(closeout_report)
-                log.debug(report_dict)
-                return "All terminals have been closed out!"
-            for terminal_id in terminal_ids:
-                if c.REDIS_STORE.hget(c.REDIS_PREFIX + 'spin_terminal_closeout:' + terminal_id,
-                                      'last_request_timestamp'):
-                    processed_list.append(terminal_id)
 
     def close_out_terminals(self, session, **params):
         from uber.tasks.registration import close_out_terminals
