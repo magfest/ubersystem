@@ -259,32 +259,40 @@ def overridden_badge_cost(attendee, new_attendee=None):
     return (f"{label} Custom Badge Price", new_cost - old_cost, 'overridden_price')
 
 
+def needs_badge_change_calc(attendee):
+    return attendee.is_presold_oneday or attendee.badge_type == c.ONE_DAY_BADGE or attendee.badge_type in c.BADGE_TYPE_PRICES
+
+
+def one_day_or_upgraded_badge_cost(attendee):
+    if attendee.badge_type in c.BADGE_TYPE_PRICES:
+        return c.BADGE_TYPE_PRICES[attendee.badge_type]
+    return attendee.new_badge_cost
+
+
 @receipt_calculation.Attendee
 def badge_upgrade_cost(attendee, new_attendee=None):
-    if not new_attendee and attendee.badge_type not in c.BADGE_TYPE_PRICES:
+    if not new_attendee and not needs_badge_change_calc(attendee):
         return
     elif not new_attendee:
         old_cost = attendee.new_badge_cost if attendee.overridden_price is None else attendee.overridden_price
-        diff = (c.BADGE_TYPE_PRICES[attendee.badge_type] - old_cost) * 100
+        diff = (one_day_or_upgraded_badge_cost(attendee) - old_cost) * 100
         return (f"{attendee.badge_type_label} Badge Upgrade", diff, 'badge_type')
     
-    if attendee.badge_type not in c.BADGE_TYPE_PRICES and new_attendee.badge_type not in c.BADGE_TYPE_PRICES:
+    if not needs_badge_change_calc(attendee) and not needs_badge_change_calc(new_attendee):
         return
 
     old_cost = attendee.base_badge_prices_cost * 100
     new_cost = new_attendee.base_badge_prices_cost * 100
 
-    if attendee.badge_type in c.BADGE_TYPE_PRICES and new_attendee.badge_type in c.BADGE_TYPE_PRICES:
-        old_cost = c.BADGE_TYPE_PRICES[attendee.badge_type] * 100
-        new_cost = c.BADGE_TYPE_PRICES[new_attendee.badge_type] * 100
-        label = "Upgrade" if new_cost > old_cost else "Downgrade"
-    elif attendee.badge_type in c.BADGE_TYPE_PRICES:
-        old_cost = c.BADGE_TYPE_PRICES[attendee.badge_type] * 100
-        label = "Downgrade"
-    elif new_attendee.badge_type in c.BADGE_TYPE_PRICES:
-        new_cost = c.BADGE_TYPE_PRICES[new_attendee.badge_type] * 100
-        label = "Upgrade"
-    
+    if needs_badge_change_calc(attendee) and needs_badge_change_calc(new_attendee):
+        old_cost = one_day_or_upgraded_badge_cost(attendee) * 100
+        new_cost = one_day_or_upgraded_badge_cost(new_attendee) * 100
+    elif needs_badge_change_calc(attendee):
+        old_cost = one_day_or_upgraded_badge_cost(attendee) * 100
+    elif needs_badge_change_calc(new_attendee):
+        new_cost = one_day_or_upgraded_badge_cost(new_attendee) * 100
+    label = "Upgrade" if new_cost > old_cost else "Downgrade"
+
     if old_cost == new_cost:
         return
     
