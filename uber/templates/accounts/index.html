@@ -9,9 +9,13 @@ table form {
 </style>
 
 <script type="text/javascript">
+  const results = {{ attendee_labels|jsonize }};
+
   const handleInput = () => {
     const inputValue = $('#attendee-select-search').val();
-    const results = {{ attendee_labels|jsonize }};
+    if (inputValue && inputValue.length < 3) {
+      return;
+    }
 
     $("#attendee-select-list li").hide();
 
