@@ -19,6 +19,14 @@ def date_trunc_hour(*args, **kwargs):
         return func.date_trunc(literal('hour'), *args, **kwargs)
 
 
+def checkins_by_hour_query(session):
+    return session.query(date_trunc_hour(Attendee.checked_in),
+                         func.count(date_trunc_hour(Attendee.checked_in))) \
+            .filter(Attendee.checked_in.isnot(None)) \
+            .group_by(date_trunc_hour(Attendee.checked_in)) \
+            .order_by(date_trunc_hour(Attendee.checked_in))
+
+
 @all_renderable()
 class Root:
     def comped_badges(self, session, message='', show='all'):
@@ -143,13 +151,7 @@ class Root:
         }
     
     def checkins_by_hour(self, session):
-        query_result = session.query(
-            date_trunc_hour(Attendee.checked_in),
-            func.count(date_trunc_hour(Attendee.checked_in))
-        ) \
-            .filter(Attendee.checked_in.isnot(None)) \
-            .group_by(date_trunc_hour(Attendee.checked_in)) \
-            .order_by(date_trunc_hour(Attendee.checked_in))
+        query_result = checkins_by_hour_query(session).all()
 
         hourly_checkins = dict()
         daily_checkins = defaultdict(int)
@@ -171,14 +173,7 @@ class Root:
     @csv_file
     def checkins_by_hour_csv(self, out, session):
         out.writerow(["Time", "# Checked In"])
-        query_result = session.query(
-            date_trunc_hour(Attendee.checked_in),
-            func.count(date_trunc_hour(Attendee.checked_in))
-        ) \
-            .filter(Attendee.checked_in.isnot(None)) \
-            .group_by(date_trunc_hour(Attendee.checked_in)) \
-            .order_by(date_trunc_hour(Attendee.checked_in)) \
-            .all()
+        query_result = checkins_by_hour_query(session).all()
 
         for result in query_result:
             hour = localize_datetime(result[0])
@@ -200,27 +195,21 @@ class Root:
 
         out.writerow(header)
 
-        query_result = session.query(
-            date_trunc_hour(Attendee.checked_in),
-            func.count(date_trunc_hour(Attendee.checked_in))
-        ) \
-            .filter(Attendee.checked_in.isnot(None)) \
-            .group_by(date_trunc_hour(Attendee.checked_in)) \
-            .order_by(date_trunc_hour(Attendee.checked_in)) \
-            .all()
+        query_result = checkins_by_hour_query(session).all()
 
         for result in query_result:
             hour = localize_datetime(result[0])
             count = result[1]
             row = [hour, count]
-            for admin in admins:
-                if not isinstance(admin, six.string_types):
-                    admin = admin[0]  # SQLAlchemy quirk
-                admin_count = session.query(Tracking.which).filter(
+
+            hour_admins = session.query(
+                Tracking.who,
+                func.count(Tracking.who)).filter(
                     date_trunc_hour(Tracking.when) == result[0],
-                    Tracking.who == admin,
                     Tracking.action == c.UPDATED,
                     Tracking.model == "Attendee",
-                    Tracking.data.contains("checked_in='None -> datetime")).group_by(Tracking.which).count()
+                    Tracking.data.contains("checked_in='None -> datetime")
+                    ).group_by(Tracking.who).order_by(Tracking.who)
+            for admin, admin_count in hour_admins:
                 row.append(admin_count)
             out.writerow(row)
