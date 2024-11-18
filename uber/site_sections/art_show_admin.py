@@ -1003,39 +1003,3 @@ class Root:
         session.check_receipt_closed(receipt)
         raise HTTPRedirect('form?id={}&message={}', id,
                            f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
-
-    @public
-    def sales_charge_form(self, message='', amount=None, description='',
-                          sale_id=None):
-        charge = False
-        if amount is not None:
-            if not description:
-                message = "You must enter a brief description " \
-                          "of what's being sold"
-            else:
-                charge = True
-
-        return {
-            'message': message,
-            'amount': amount,
-            'description': description,
-            'sale_id': sale_id,
-            'charge': charge,
-        }
-
-    @public
-    @ajax
-    @credit_card
-    def sales_charge(self, session, id, amount, description):
-        charge = TransactionRequest(amount=100 * float(amount), description=description)
-        message = charge.create_stripe_intent()
-        if message:
-            return {'error': message}
-        else:
-            session.add(ArbitraryCharge(
-                amount=int(charge.dollar_amount),
-                what=charge.description,
-            ))
-            return {'stripe_intent': charge.intent,
-                    'success_url': 'sales_charge_form?message={}'.format('Charge successfully processed'),
-                    'cancel_url': '../merch_admin/cancel_arbitrary_charge'}

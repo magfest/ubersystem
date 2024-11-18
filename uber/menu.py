@@ -174,5 +174,4 @@ if c.ART_SHOW_ENABLED:
         MenuItem(name='Link to Apply', href='../art_show_applications/', access_override='art_show_admin'),
         MenuItem(name='At-Con Operations', href='../art_show_admin/ops'),
         MenuItem(name='Reports', href='../art_show_reports/index'),
-        MenuItem(name='Sales Charge Form', href='../art_show_admin/sales_charge_form'),
         ]))
