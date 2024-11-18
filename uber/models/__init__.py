@@ -25,7 +25,7 @@ from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
+from sqlalchemy.orm import Query, joinedload, subqueryload
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
@@ -1805,33 +1805,21 @@ class Session(SessionManager):
 
         def index_attendees(self):
             # Returns a base attendee query with extra joins for the index page
-            attendees = self.query(Attendee).outerjoin(Attendee.group) \
-                                            .outerjoin(Attendee.promo_code) \
-                                            .outerjoin(PromoCodeGroup, PromoCode.group) \
-                                            .options(
-                                                joinedload(Attendee.group),
-                                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
-                                                )
+            attendees = self.query(Attendee).outerjoin(Group,
+                                                       Attendee.group_id == Group.id
+                                                       ).outerjoin(BadgePickupGroup
+                                                       ).outerjoin(PromoCode).outerjoin(PromoCodeGroup)
             if c.ATTENDEE_ACCOUNTS_ENABLED:
-                attendees = attendees.outerjoin(Attendee.managers).options(joinedload(Attendee.managers))
+                attendees = attendees.outerjoin(AttendeeAccount, Attendee.managers)
             return attendees
 
         def search(self, text, *filters):
-            # We need to both outerjoin on the PromoCodeGroup table and also
-            # query it.  In order to do this we need to alias it so that the
-            # reference to PromoCodeGroup in the joinedload doesn't conflict
-            # with the outerjoin.  See https://docs.sqlalchemy.org/en/13/orm/query.html#sqlalchemy.orm.query.Query.join
-            aliased_pcg = aliased(PromoCodeGroup)
-
-            attendees = self.query(Attendee).outerjoin(Attendee.group) \
-                                            .outerjoin(Attendee.promo_code) \
-                                            .outerjoin(aliased_pcg, PromoCode.group) \
-                                            .options(
-                                                joinedload(Attendee.group),
-                                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
-                                                )
+            attendees = self.query(Attendee).outerjoin(Group,
+                                                       Attendee.group_id == Group.id
+                                                       ).outerjoin(BadgePickupGroup
+                                                       ).outerjoin(PromoCode).outerjoin(PromoCodeGroup)
             if c.ATTENDEE_ACCOUNTS_ENABLED:
-                attendees = attendees.outerjoin(Attendee.managers).options(joinedload(Attendee.managers))
+                attendees = attendees.outerjoin(AttendeeAccount, Attendee.managers)
 
             attendees = attendees.filter(*filters)
 
@@ -1868,9 +1856,11 @@ class Session(SessionManager):
                 id_list = [
                     Attendee.id == terms[0],
                     Attendee.public_id == terms[0],
-                    aliased_pcg.id == terms[0],
+                    PromoCodeGroup.id == terms[0],
                     Group.id == terms[0],
-                    Group.public_id == terms[0]]
+                    Group.public_id == terms[0],
+                    BadgePickupGroup.id == terms[0],
+                    BadgePickupGroup.public_id == terms[0]]
 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     id_list.extend([AttendeeAccount.id == terms[0], AttendeeAccount.public_id == terms[0]])
@@ -1890,7 +1880,7 @@ class Session(SessionManager):
             def check_text_fields(search_text):
                 check_list = [
                     Group.name.ilike('%' + search_text + '%'),
-                    aliased_pcg.name.ilike('%' + search_text + '%'),
+                    PromoCodeGroup.name.ilike('%' + search_text + '%'),
                 ]
 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:

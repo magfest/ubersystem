@@ -156,7 +156,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     badge_pickup_group_id = Column(UUID, ForeignKey('badge_pickup_group.id', ondelete='SET NULL'), nullable=True)
     badge_pickup_group = relationship(
         'BadgePickupGroup', backref=backref('attendees', order_by='Attendee.full_name'), foreign_keys=badge_pickup_group_id,
-        cascade='save-update,merge,refresh-expire,expunge')
+        cascade='save-update,merge,refresh-expire,expunge', single_parent=True)
 
     creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
     creator = relationship(
