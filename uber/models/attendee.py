@@ -2223,6 +2223,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def attractions(self):
         return list({e.feature.attraction for e in self.attraction_events})
+    
+    @property
+    def name_and_badge_info(self):
+        return f'{self.badge_or_masked_name} ({self.badge})'
+
+    @property
+    def badge_or_masked_name(self):
+        return self.badge_printed_name or self.masked_name
 
     @property
     def masked_name(self):

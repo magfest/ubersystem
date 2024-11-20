@@ -1,5 +1,7 @@
 import cherrypy
+import re
 from pockets import listify
+from sqlalchemy import or_
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, credit_card, public
@@ -7,6 +9,29 @@ from uber.models import ArbitraryCharge, Attendee, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange
 from uber.utils import check, check_csrf
 from uber.payments import TransactionRequest
+
+
+def attendee_from_id_or_badge_num(session, badge_num_or_qr_code):
+    attendee, id = None, None
+    message = ''
+
+    if not badge_num_or_qr_code:
+        message = 'Please enter or scan a badge number or check-in QR code.'
+    elif re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', badge_num_or_qr_code):
+        id = badge_num_or_qr_code
+    elif not badge_num_or_qr_code.isdigit():
+        message = 'Invalid badge number'
+
+    if id:
+        attendee = session.query(Attendee).filter(or_(Attendee.id == id, Attendee.public_id == id)).first()
+        if not attendee:
+            message = f"No attendee found with ID {id}."
+    elif not message:
+        attendee = session.query(Attendee).filter_by(badge_num=badge_num_or_qr_code).first()
+        if not attendee:
+            message = f'No attendee has badge number {badge_num_or_qr_code}.'
+
+    return attendee, message
 
 
 @all_renderable()
@@ -77,13 +102,13 @@ class Root:
                         else:
                             if attendee.got_merch:
                                 picked_up.append(
-                                    '{a.full_name} (badge {a.badge_num}) already got their merch'.format(a=attendee))
+                                    '{a.name_and_badge_info} already got their merch'.format(a=attendee))
                             else:
                                 attendee.got_merch = True
                                 shirt_key = 'shirt_{}'.format(attendee.badge_num)
                                 if shirt_key in shirt_sizes:
                                     attendee.shirt = int(listify(shirt_sizes.get(shirt_key, c.SIZE_UNKNOWN))[0])
-                                picked_up.append('{a.full_name} (badge {a.badge_num}): {a.merch}'.format(a=attendee))
+                                picked_up.append('{a.name_and_badge_info}: {a.merch}'.format(a=attendee))
                                 session.add(MerchPickup(picked_up_by=picker_upper, picked_up_for=attendee))
                 session.commit()
 
@@ -94,68 +119,64 @@ class Root:
         }
 
     @ajax
-    def check_merch(self, session, badge_num, staff_merch=''):
+    def check_merch(self, session, badge_num_or_qr_code, staff_merch=''):
         id = shirt = gets_swadge = None
         merch_items = []
-        if not (badge_num.isdigit() and 0 < int(badge_num) < 99999):
-            message = 'Invalid badge number'
-        else:
-            attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
-            if not attendee:
-                message = 'No attendee has badge number {}'.format(badge_num)
+
+        attendee, message = attendee_from_id_or_badge_num(session, badge_num_or_qr_code.strip())
+
+        if not message:
+            if staff_merch:
+                merch = attendee.staff_merch
+                got_merch = attendee.got_staff_merch
             else:
-                if staff_merch:
-                    merch = attendee.staff_merch
-                    got_merch = attendee.got_staff_merch
-                else:
-                    merch, got_merch = attendee.merch, attendee.got_merch
+                merch, got_merch = attendee.merch, attendee.got_merch
 
-                if staff_merch and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
-                    shirt_size = c.STAFF_SHIRTS[attendee.staff_shirt]
-                else:
-                    shirt_size = c.SHIRTS[attendee.shirt]
+            if staff_merch and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
+                shirt_size = c.STAFF_SHIRTS[attendee.staff_shirt]
+            else:
+                shirt_size = c.SHIRTS[attendee.shirt]
 
-                if not merch:
-                    message = '{a.full_name} ({a.badge}) has no merch'.format(a=attendee)
-                elif got_merch:
-                    if not (not staff_merch and attendee.gets_swadge
-                            and not attendee.got_swadge):
-                        message = '{a.full_name} ({a.badge}) already got {merch}. Their shirt size is {shirt}'.format(
-                            a=attendee, merch=merch, shirt=shirt_size)
-                    else:
-                        id = attendee.id
-                        gets_swadge = True
-                        shirt = c.NO_SHIRT
-                        message = '{a.full_name} has received all of their merch except for their swadge. ' \
-                            'Click the "Give Merch" button below to mark them as receiving that.'.format(a=attendee)
+            if not merch:
+                message = f'{attendee.name_and_badge_info} has no merch!'
+            elif got_merch:
+                if not (not staff_merch and attendee.gets_swadge and not attendee.got_swadge):
+                    message = f'{attendee.name_and_badge_info} already got {merch}. Their shirt size is {shirt_size}.'
                 else:
                     id = attendee.id
+                    gets_swadge = True
+                    shirt = c.NO_SHIRT
+                    message = f'{attendee.name_and_badge_info} has received all of their merch except for their swadge. ' \
+                        'Click the "Give Merch" button below to mark them as receiving it.'
+            else:
+                id = attendee.id
 
-                    if staff_merch:
-                        merch_items = attendee.staff_merch_items
+                if staff_merch:
+                    merch_items = attendee.staff_merch_items
+                else:
+                    merch_items = attendee.merch_items
+                    gets_swadge = attendee.gets_swadge
+
+                if (staff_merch and attendee.num_staff_shirts_owed) or \
+                        (not staff_merch and attendee.num_event_shirts_owed):
+                    if staff_merch and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
+                        shirt = attendee.staff_shirt or c.SIZE_UNKNOWN
                     else:
-                        merch_items = attendee.merch_items
-                        gets_swadge = attendee.gets_swadge
+                        shirt = attendee.shirt or c.SIZE_UNKNOWN
+                else:
+                    shirt = c.NO_SHIRT
 
-                    if (staff_merch and attendee.num_staff_shirts_owed) or \
-                            (not staff_merch and attendee.num_event_shirts_owed):
-                        if staff_merch and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
-                            shirt = attendee.staff_shirt or c.SIZE_UNKNOWN
-                        else:
-                            shirt = attendee.shirt or c.SIZE_UNKNOWN
-                    else:
-                        shirt = c.NO_SHIRT
-
-                    message = '{a.full_name} ({a.badge}) has not yet received their merch.'.format(a=attendee)
-                    if attendee.amount_unpaid and not staff_merch:
-                        merch_items.insert(0,
-                                           'WARNING: Attendee is not fully paid up and may not have paid for their '
-                                           'merch. Please contact Registration.')
+                message = f'{attendee.name_and_badge_info} has not yet received their merch.'
+                if attendee.amount_unpaid and not staff_merch:
+                    merch_items.insert(0,
+                                        'WARNING: Attendee is not fully paid up and may not have paid for their '
+                                        'merch. Please contact Registration.')
 
         return {
             'id': id,
             'shirt': shirt,
             'message': message,
+            'display_name': '' if not attendee else attendee.name_and_badge_info,
             'merch_items': merch_items,
             'gets_swadge': gets_swadge,
         }
@@ -172,23 +193,23 @@ class Root:
         merch = attendee.staff_merch if staff_merch else attendee.merch
         got = attendee.got_staff_merch if staff_merch else attendee.got_merch
         if not merch:
-            message = '{} has no merch'.format(attendee.full_name)
+            message = '{} has no merch.'.format(attendee.name_and_badge_info)
         elif got and give_swadge and not attendee.got_swadge:
-            message = '{a.full_name} marked as receiving their swadge'.format(
+            message = '{a.name_and_badge_info} marked as receiving their swadge.'.format(
                 a=attendee)
             success = True
             attendee.got_swadge = True
             session.commit()
         elif got:
-            message = '{} already got {}'.format(attendee.full_name, merch)
-        elif shirt_size == c.SIZE_UNKNOWN:
-            message = 'You must select a shirt size'
+            message = '{} already got {}.'.format(attendee.name_and_badge_info, merch)
+        elif shirt_size in [c.NO_SHIRT, c.SIZE_UNKNOWN]:
+            message = 'You must select a shirt size.'
         else:
             if no_shirt:
-                message = '{} is now marked as having received all of the following (EXCEPT FOR THE SHIRT): {}'
+                message = '{} is now marked as having received all of the following (EXCEPT FOR THE SHIRT): {}.'
             else:
-                message = '{} is now marked as having received {}'
-            message = message.format(attendee.full_name, merch)
+                message = '{} is now marked as having received {}.'
+            message = message.format(attendee.name_and_badge_info, merch)
             setattr(attendee,
                     'got_staff_merch' if staff_merch else 'got_merch', True)
             if give_swadge:
@@ -219,14 +240,13 @@ class Root:
         if attendee.no_shirt:
             session.delete(attendee.no_shirt)
         session.commit()
-        return '{a.full_name} ({a.badge}) merch handout canceled'.format(a=attendee)
+        return '{a.name_and_badge_info} merch handout cancelled.'.format(a=attendee)
 
     @ajax
-    def redeem_merch_discount(self, session, badge_num, apply=''):
-        try:
-            attendee = session.query(Attendee).filter_by(badge_num=badge_num).one()
-        except Exception:
-            return {'error': 'No attendee exists with that badge number.'}
+    def redeem_merch_discount(self, session, badge_num_or_qr_code, apply=''):
+        attendee, message = attendee_from_id_or_badge_num(session, badge_num_or_qr_code)
+        if message:
+            return {'error': message}
 
         if attendee.badge_type != c.STAFF_BADGE:
             return {'error': 'Only staff badges are eligible for discount.'}
@@ -236,7 +256,7 @@ class Root:
             if discount:
                 return {
                     'warning': True,
-                    'message': 'This staffer has already redeemed their discount {} time{}'.format(
+                    'message': 'This staffer has already redeemed their discount {} time{}.'.format(
                         discount.uses, 's' if discount.uses > 1 else '')
                 }
             else:
@@ -247,14 +267,13 @@ class Root:
         discount.uses += 1
         session.add(discount)
         session.commit()
-        return {'success': True, 'message': 'Discount on badge #{} has been marked as redeemed.'.format(badge_num)}
+        return {'success': True, 'message': 'Discount for {} has been marked as redeemed.'.format(attendee.name_and_badge_info)}
 
     @ajax
-    def record_mpoint_cashout(self, session, badge_num, amount):
-        try:
-            attendee = session.attendee(badge_num=badge_num)
-        except Exception:
-            return {'success': False, 'message': 'No one has badge number {}'.format(badge_num)}
+    def record_mpoint_cashout(self, session, badge_num_or_qr_code, amount):
+        attendee, message = attendee_from_id_or_badge_num(session, badge_num_or_qr_code)
+        if message:
+            return {'success': False, 'message': message}
 
         mfc = MPointsForCash(attendee=attendee, amount=amount)
         message = check(mfc)
@@ -263,7 +282,7 @@ class Root:
         else:
             session.add(mfc)
             session.commit()
-            message = '{mfc.attendee.full_name} exchanged {mfc.amount} MPoints for cash'.format(mfc=mfc)
+            message = '{mfc.attendee.name_and_badge_info} exchanged {mfc.amount} MPoints for cash.'.format(mfc=mfc)
             return {'id': mfc.id, 'success': True, 'message': message}
 
     @ajax
@@ -272,11 +291,10 @@ class Root:
         return 'MPoint usage deleted'
 
     @ajax
-    def record_old_mpoint_exchange(self, session, badge_num, amount):
-        try:
-            attendee = session.attendee(badge_num=badge_num)
-        except Exception:
-            return {'success': False, 'message': 'No one has badge number {}'.format(badge_num)}
+    def record_old_mpoint_exchange(self, session, badge_num_or_qr_code, amount):
+        attendee, message = attendee_from_id_or_badge_num(session, badge_num_or_qr_code)
+        if message:
+            return {'success': False, 'message': message}
 
         ome = OldMPointExchange(attendee=attendee, amount=amount)
         message = check(ome)
@@ -285,7 +303,7 @@ class Root:
         else:
             session.add(ome)
             session.commit()
-            message = "{ome.attendee.full_name} exchanged {ome.amount} of last year's MPoints".format(ome=ome)
+            message = "{ome.attendee.name_and_badge_info} marked as having exchanged {ome.amount} of last year's MPoints.".format(ome=ome)
             return {'id': ome.id, 'success': True, 'message': message}
 
     @ajax
@@ -312,8 +330,8 @@ class Root:
             session.commit()
             message = '{sale.what} sold{to} for ${sale.cash}{mpoints}' \
                       .format(sale=sale,
-                              to=(' to ' + sale.attendee.full_name) if sale.attendee else '',
-                              mpoints=' and {} MPoints'.format(sale.mpoints) if sale.mpoints else '')
+                              to=(' to ' + sale.attendee.name_and_badge_info) if sale.attendee else '',
+                              mpoints=' and {} MPoints.'.format(sale.mpoints) if sale.mpoints else '')
             return {'id': sale.id, 'success': True, 'message': message}
 
     @ajax
