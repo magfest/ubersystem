@@ -9,30 +9,33 @@ table form {
 </style>
 
 <script type="text/javascript">
-  const results = {{ attendee_labels|jsonize }};
-
   const handleInput = () => {
     const inputValue = $('#attendee-select-search').val();
     if (inputValue && inputValue.length < 3) {
       return;
     }
 
-    $("#attendee-select-list li").hide();
+    $("#attendee-select-list li").remove();
 
     if (inputValue) {
-        const matchingWords = results.filter(word => word.includes(inputValue));
+        const matchingEls = selectList.filter((key, val) => val.innerText.trim().includes(inputValue));
 
-        matchingWords.forEach(word => {
-          $(`li:contains("${word}")`).show();
+        matchingEls.each((key, val) => {
+          $('#attendee-select-list').append(val);
         });
     } else {
-      $("#attendee-select-list li").show();
+      selectList.each((key, val) => {
+          $('#attendee-select-list').append(val);
+        });
     }
 }
   let setAttendeeId = function (val, label) {
     $('#attendee_id').val(val);
     $('#attendee-select').text(label);
   }
+  $().ready(function () {
+    const selectList = $("#attendee-select-list li");
+  })
 </script>
 
 <div class="card">
