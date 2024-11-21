@@ -268,13 +268,13 @@
 {% endblock adminheader %}
 {% block admin_controls %}
 
-<h3>Merch Booth Ops</h3>
+<h2>Merch Booth</h2>
 <div class="card">
+    <div class="card-header">At-Con Operations</div>
   <div class="card-body">
-    <div class="center mb-3 fst-italic">
-        Square not working?  In a pinch, you can create arbitrary charges <a href="arbitrary_charge_form">here</a>.
-        <br/>See outstanding t-shirt counts <a href="../merch_reports/shirt_counts">here</a>.
-        <br/>To have one person pick up merch for others, <a href="multi_merch_pickup">click here</a>.
+    <div class="d-flex justify-content-end">
+        {% if not c.SPIN_TERMINAL_AUTH_KEY %}<a href="arbitrary_charge_form" target="_blank" class="btn btn-success">Create Arbitrary Charge</a>{% endif %}
+    <a href="multi_merch_pickup" target="_blank" class="btn btn-primary">Multi-Merch Pickup</a>
     </div>
     Enter or scan the badge number or check-in QR code and select an action.
     {{ csrf_token() }}
@@ -362,4 +362,15 @@
   </div>
 </div>
 {% endblock admin_controls %}
+<br/>
+{% if c.HAS_MERCH_REPORTS_ACCESS %}
+<div class="card">
+    <div class="card-header">Merch Reports</div>
+  <div class="card-body">
+    <a href="../merch_reports/shirt_counts" target="_blank" class="btn btn-outline-primary">Outstanding Shirt Counts</a>
+    <a href="../merch_reports/owed_merch" target="_blank" class="btn btn-outline-primary">Attendees Owed Merch</a>
+
+  </div>
+</div>
+{% endif %}
 {% endblock %}
