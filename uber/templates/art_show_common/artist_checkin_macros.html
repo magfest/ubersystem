@@ -220,7 +220,7 @@
     <tbody>
     {% for piece in app.art_show_pieces|sort(attribute='piece_id')|sort(attribute='gallery_label') %}
     <tr class="piece-row" data-piece_id="{{ piece.piece_id }}">
-      <td data-order="{{ piece.piece_id|int }}"> {{ piece.artist_and_piece_id }} <input type="hidden" name="piece_ids{{ app.id }}" value="{{ piece.id }}" /> </td>
+      <td data-order="{{ piece.piece_id }}"> {{ piece.artist_and_piece_id }} <input type="hidden" name="piece_ids{{ app.id }}" value="{{ piece.id }}" /> </td>
       <td data-order="{{ piece.status_label }}">
         {% if printable %}{{ piece.status_label }} {% else %}
         <select name="status{{ piece.id }}" class="form-select">
