@@ -1100,7 +1100,7 @@ class Root:
 
             for prereg in preregs:
                 receipt = session.get_receipt_by_model(prereg)
-                if isinstance(prereg, Attendee):
+                if isinstance(prereg, Attendee) and receipt:
                     session.refresh_receipt_and_model(prereg, is_prereg=True)
                     session.update_paid_from_receipt(prereg, receipt)
 
