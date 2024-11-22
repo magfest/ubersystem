@@ -63,7 +63,7 @@ class Root:
         if include_discrepancies:
             filter = True
         else:
-            filter = Attendee.default_cost_cents != item_subquery.c.item_total
+            filter = Attendee.default_cost_cents == item_subquery.c.item_total
 
         attendees_and_totals = session.query(
             Attendee, ModelReceipt.payment_total_sql, ModelReceipt.refund_total_sql, item_subquery.c.item_total
