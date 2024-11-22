@@ -1,6 +1,7 @@
 from collections import defaultdict
 from sqlalchemy import or_, and_
 from sqlalchemy.sql import func
+from sqlalchemy.sql.functions import coalesce
 
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview, streamable
@@ -38,74 +39,43 @@ class Root:
             key=lambda s: s.lower())}
 
     @log_pageview
-    def attendee_receipt_discrepancies(self, session, include_pending=False, page=1):
-        '''
-        select model_receipt.owner_id
-        from model_receipt
-        join receipt_item on receipt_item.receipt_id = model_receipt.id
-        join attendee on attendee.id = model_receipt.owner_id
-        where
-            model_receipt.closed is null
-            and model_receipt.owner_model = 'Attendee'
-        group by attendee.id, attendee.default_cost, attendee.badge_status
-        having
-            attendee.default_cost * 100 != sum(receipt_item.amount * receipt_item.count)
-            and (attendee.badge_status NOT IN (175104371, 192297957, 229301191, 169050145, 91398854, 177900276));
-        '''
-
-        page = int(page)
-        if page <= 0:
-            offset = 0
-        else:
-            offset = (page - 1) * 50
-
+    def attendee_receipt_discrepancies(self, session, include_pending=False):
         if include_pending:
             filter = or_(Attendee.badge_status.in_([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]),
                                Attendee.is_valid == True)  # noqa: E712
         else:
             filter = Attendee.is_valid == True  # noqa: E712
-                
-        receipt_query = (
-            session.query(
-                ModelReceipt.owner_id
-            )
-            .join(ReceiptItem, ReceiptItem.receipt_id == ModelReceipt.id)
-            .join(Attendee, Attendee.id == ModelReceipt.owner_id)
-            .filter(
-                ModelReceipt.closed.is_(None),
-                ModelReceipt.owner_model == 'Attendee'
-            )
-            .group_by(Attendee.id, Attendee.default_cost, Attendee.badge_status, ModelReceipt.id)
-            .having(
-                and_(
-                    Attendee.default_cost_cents != func.sum(ReceiptItem.amount * ReceiptItem.count),
-                    filter
-                )
-            )
-        )
-        
-        count = receipt_query.count()
-        
-        receipt_owners = [x[0] for x in receipt_query.limit(50).offset(offset)]
 
-        receipt_query = session.query(Attendee).join(Attendee.active_receipt).filter(Attendee.id.in_(receipt_owners))
+        attendees = session.query(Attendee).filter(filter).join(  # noqa: E712
+                Attendee.active_receipt).outerjoin(ModelReceipt.receipt_items).group_by(
+                    ModelReceipt.id).group_by(Attendee.id).having(Attendee.default_cost_cents != ModelReceipt.item_total_sql)
 
         return {
-            'current_page': page,
-            'pages': (count // 50) + 1,
-            'attendees': receipt_query,
+            'attendees': attendees,
             'include_pending': include_pending,
         }
 
     @log_pageview
-    def attendees_nonzero_balance(self, session, include_no_receipts=False):
-        attendees = session.query(Attendee,
-                                  ModelReceipt).join(Attendee.active_receipt
-                                                     ).filter(Attendee.default_cost_cents == ModelReceipt.item_total,
-                                                              ModelReceipt.current_receipt_amount != 0)
+    def attendees_nonzero_balance(self, session, include_discrepancies=False):
+        item_subquery = session.query(ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
+                                      ).join(ModelReceipt.receipt_items).group_by(ModelReceipt.owner_id).subquery()
+
+        if include_discrepancies:
+            filter = True
+        else:
+            filter = Attendee.default_cost_cents != item_subquery.c.item_total
+
+        attendees_and_totals = session.query(
+            Attendee, ModelReceipt.payment_total_sql, ModelReceipt.refund_total_sql, item_subquery.c.item_total
+            ).filter(Attendee.is_valid == True).join(Attendee.active_receipt).outerjoin(
+                ModelReceipt.receipt_txns).join(item_subquery, Attendee.id == item_subquery.c.owner_id).group_by(
+                    ModelReceipt.id).group_by(Attendee.id).group_by(item_subquery.c.item_total).having(
+                        and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
+                             filter))
 
         return {
-            'attendees': attendees.filter(Attendee.is_valid == True)  # noqa: E712
+            'attendees_and_totals': attendees_and_totals,
+            'include_discrepancies': include_discrepancies,
         }
 
     @log_pageview

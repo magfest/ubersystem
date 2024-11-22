@@ -962,23 +962,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_pending(self):
         return self.active_receipt.pending_total if self.active_receipt else 0
 
-    @hybrid_property
+    @property
     def is_paid(self):
         return self.active_receipt and self.active_receipt.current_amount_owed == 0
-
-    @is_paid.expression
-    def is_paid(cls):
-        from uber.models import ModelReceipt, Group
-
-        return case([(cls.paid == c.PAID_BY_GROUP,
-                      exists().select_from(Group).where(
-                          and_(cls.group_id == Group.id,
-                               Group.is_paid == True)))],  # noqa: E712
-                    else_=(exists().select_from(ModelReceipt).where(
-                            and_(ModelReceipt.owner_id == cls.id,
-                                 ModelReceipt.owner_model == "Attendee",
-                                 ModelReceipt.closed == None,  # noqa: E711
-                                 ModelReceipt.current_amount_owed == 0))))
 
     @hybrid_property
     def amount_paid(self):
@@ -988,7 +974,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_paid(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.payment_total]).where(
+        return select([ModelReceipt.payment_total_sql]).outerjoin(ModelReceipt.receipt_txns).where(
             and_(ModelReceipt.owner_id == cls.id,
                  ModelReceipt.owner_model == "Attendee",
                  ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
@@ -1001,7 +987,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_refunded(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.refund_total]).where(
+        return select([ModelReceipt.refund_total_sql]).outerjoin(ModelReceipt.receipt_txns).where(
             and_(ModelReceipt.owner_id == cls.id,
                  ModelReceipt.owner_model == "Attendee")).label('amount_refunded')
 
