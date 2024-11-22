@@ -178,6 +178,12 @@ class ModelReceipt(MagModel):
     def item_total_sql(cls):
         return coalesce(func.sum(ReceiptItem.amount * ReceiptItem.count), 0)
     
+    @classproperty
+    def fkless_item_total_sql(cls):
+        return coalesce(func.sum(ReceiptItem.amount * ReceiptItem.count).filter(
+            ReceiptItem.fk_id == None
+        ), 0)
+    
     @property
     def txn_total(self):
         return self.payment_total - self.refund_total
