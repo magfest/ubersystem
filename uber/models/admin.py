@@ -64,6 +64,31 @@ class AdminAccount(MagModel):
                 return session.admin_attendee().full_name
         except Exception:
             return None
+        
+    @staticmethod
+    def admin_or_volunteer_name():
+        try:
+            from uber.models import Session
+            with Session() as session:
+                admin = session.admin_attendee()
+                volunteer = session.kiosk_operator_attendee()
+                if volunteer and not admin:
+                    return volunteer.full_name + " (Volunteer)"
+                elif not admin:
+                    return session.current_supervisor_admin().attendee.full_name
+                else:
+                    return admin.full_name
+        except Exception:
+            return None
+        
+    @staticmethod
+    def supervisor_name():
+        try:
+            from uber.models import Session
+            with Session() as session:
+                return session.current_supervisor_admin().attendee.full_name
+        except Exception:
+            return None
 
     @staticmethod
     def admin_email():

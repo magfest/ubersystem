@@ -16,7 +16,7 @@
         <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
-        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>
         <td valign="top">{{ tracked.data }}</td>
       </tr>
     {% endfor %}
@@ -33,7 +33,7 @@
     {% for view in pageviews %}
       <tr>
         <td valign="top" style="white-space:nowrap">{{ view.when|full_datetime_local }}</td>
-        <td valign="top" style="white-space:nowrap">{{ view.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ view.who_repr }}</td>
         <td valign="top">{{ view.page }}</td>
       </tr>
     {% endfor %}

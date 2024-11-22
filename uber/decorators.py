@@ -178,7 +178,7 @@ def requires_account(models=None):
                     else:
                         message_add = 'fill out this application'
                     message = 'Please log in or create an account to {}!'.format(message_add)
-                    raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
+                    ajax_or_redirect('../landing/index?message=', message, True)
                 elif attendee_account_id is None and admin_account_id is None or \
                         attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
                     message = 'You must log in to view this page.'
@@ -203,7 +203,7 @@ def requires_account(models=None):
                             break
 
                     if error and not attendee:
-                        raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, error)
+                        ajax_or_redirect(f'../preregistration/not_found?id={model_id}&message=', error)
 
                     # Admin account override
                     if session.admin_attendee_max_access(attendee):
@@ -216,8 +216,8 @@ def requires_account(models=None):
 
                 if message:
                     if admin_account_id:
-                        raise HTTPRedirect('../accounts/homepage?message={}'.format(message))
-                    raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
+                        ajax_or_redirect('../accounts/homepage?message=', message)
+                    ajax_or_redirect('../landing/index?message=', message, True)
             return func(*args, **kwargs)
         return protected
     return model_requires_account
@@ -234,7 +234,7 @@ def requires_admin(func=None, inherent_role=None, override_access=None):
                 with uber.models.Session() as session:
                     message = check_can_edit_dept(session, department_id, inherent_role, override_access)
                     if message:
-                        raise HTTPRedirect('../accounts/homepage?message={}'.format(message), save_location=True)
+                        ajax_or_redirect('../accounts/homepage?message=', message, True)
             return func(*args, **kwargs)
         return _protected
 
@@ -411,7 +411,7 @@ def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
         if c.UBER_SHUT_DOWN:
-            raise HTTPRedirect('index?message={}', 'The page you requested is only available pre-event.')
+            ajax_or_redirect('index?message=', 'The page you requested is only available pre-event.')
         else:
             return func(self, *args, **kwargs)
     return with_check
@@ -643,12 +643,12 @@ def renderable(func):
             message = "Your CSRF token is invalid. Please go back and try again."
             uber.server.log_exception_with_verbose_context(msg=str(e))
             if not c.DEV_BOX:
-                raise HTTPRedirect("../landing/invalid?message={}", message)
+                ajax_or_redirect('../landing/invalid?message=', message)
         except (AssertionError, ValueError) as e:
             message = str(e)
             uber.server.log_exception_with_verbose_context(msg=message)
             if not c.DEV_BOX:
-                raise HTTPRedirect("../landing/invalid?message={}", message)
+                ajax_or_redirect('../landing/invalid?message=', message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
             pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
@@ -657,7 +657,7 @@ def renderable(func):
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
                 if not c.DEV_BOX:
-                    raise HTTPRedirect("../landing/invalid?message={}", message)
+                    ajax_or_redirect('../landing/invalid?message=', message)
             else:
                 raise
 
@@ -692,24 +692,23 @@ def streamable(func):
     func._cp_config['response.stream'] = True
     return func
 
+
 def public(func):
     func.public = True
     return func
 
 
-def any_admin_access(func):
-    func.public = True
+def kiosk_login(login_url='index'):
+    def kiosk_decorator(func):
+        func.kiosk_login = login_url
+        return func
 
-    @wraps(func)
-    def with_check(*args, **kwargs):
-        if cherrypy.session.get('account_id') is None:
-            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
-        with uber.models.Session() as session:
-            account = session.admin_account(cherrypy.session.get('account_id'))
-            if not account.access_groups:
-                return "You do not have any admin accesses."
-        return func(*args, **kwargs)
-    return with_check
+    return kiosk_decorator
+
+
+def any_admin_access(func):
+    func.any_admin_access = True
+    return func
 
 
 def attendee_view(func):
@@ -718,7 +717,7 @@ def attendee_view(func):
     @wraps(func)
     def with_check(*args, **kwargs):
         if cherrypy.session.get('account_id') is None:
-            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+            ajax_or_redirect('../accounts/login?message=', "You are not logged in.", True)
 
         if kwargs.get('id') and str(kwargs.get('id')) != "None":
             with uber.models.Session() as session:
@@ -743,24 +742,49 @@ def schedule_view(func):
     return with_check
 
 
+def ajax_or_redirect(func, redirect_url, message, save_location=False):
+    # Make sure redirect_url ends with 'message=' so we can append the message
+
+    if getattr(func, 'ajax', None):
+        return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
+    raise HTTPRedirect(redirect_url, message, save_location=save_location)
+
+
 def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
-        if not func.public:
-            if '/staffing/' in c.PAGE_PATH:
-                if not cherrypy.session.get('staffer_id'):
-                    raise HTTPRedirect('../staffing/login?message=You+are+not+logged+in', save_location=True)
+        if func.public:
+            return func(*args, **kwargs)
 
-            elif cherrypy.session.get('account_id') is None:
-                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+        if '/staffing/' in c.PAGE_PATH:
+            if not cherrypy.session.get('staffer_id'):
+                ajax_or_redirect(func, '../staffing/login?message=', "You are not logged in.", True)
 
-            elif '/mivs_judging/' in c.PAGE_PATH:
-                if not uber.models.AdminAccount.is_mivs_judge_or_admin:
-                    return f'You need to be a MIVS Judge or have access to {c.PAGE_PATH}'
+        elif cherrypy.session.get('account_id') is None:
+            if getattr(func, 'kiosk_login', None):
+                if not cherrypy.session.get('kiosk_supervisor_id'):
+                    cherrypy.session.pop('kiosk_operator_id', None)
+                    ajax_or_redirect(func, '../accounts/login?message=',
+                                     "Session timed out. Please have your supervisor log in.", True)
 
+                if not cherrypy.session.get('kiosk_operator_id') and cherrypy.request.method == 'POST':
+                    ajax_or_redirect(func, f'{func.kiosk_login}?message=',
+                                     "Please enter your badge number to log into the kiosk.")
             else:
-                if not c.has_section_or_page_access(include_read_only=True):
-                    return f'You need access to {c.PAGE_PATH}.'
+                ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
+
+        elif '/mivs_judging/' in c.PAGE_PATH:
+            if not uber.models.AdminAccount.is_mivs_judge_or_admin:
+                return f'You need to be a MIVS Judge or have access to {c.PAGE_PATH}'
+
+        elif getattr(func, 'any_admin_access', None):
+            with uber.models.Session() as session:
+                account = session.admin_account(cherrypy.session.get('account_id'))
+                if not account.access_groups:
+                    return "You do not have any admin accesses."
+        else:
+            if not c.has_section_or_page_access(include_read_only=True):
+                return f'You need access to {c.PAGE_PATH}.'
 
         return func(*args, **kwargs)
     return with_restrictions
@@ -915,7 +939,7 @@ def id_required(model):
         def check_id(*args, **params):
             error, model_id = check_id_for_model(model=model, **params)
             if error:
-                raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, error)
+                ajax_or_redirect(f'../preregistration/not_found?id={model_id}&message=', error)
             return func(*args, **params)
         return check_id
     return model_id_required

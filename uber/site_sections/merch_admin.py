@@ -4,7 +4,8 @@ from pockets import listify
 from sqlalchemy import or_
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, credit_card, public
+from uber.decorators import ajax, all_renderable, credit_card, public, kiosk_login
+from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange
 from uber.utils import check, check_csrf
@@ -20,7 +21,7 @@ def attendee_from_id_or_badge_num(session, badge_num_or_qr_code):
     elif re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', badge_num_or_qr_code):
         id = badge_num_or_qr_code
     elif not badge_num_or_qr_code.isdigit():
-        message = 'Invalid badge number'
+        message = 'Invalid badge number.'
 
     if id:
         attendee = session.query(Attendee).filter(or_(Attendee.id == id, Attendee.public_id == id)).first()
@@ -36,8 +37,50 @@ def attendee_from_id_or_badge_num(session, badge_num_or_qr_code):
 
 @all_renderable()
 class Root:
-    def index(self, message=''):
-        return {'message': message}
+    @kiosk_login()
+    def index(self, session, message='', **params):
+        if params.get('enter_kiosk'):
+            supervisor = session.current_admin_account()
+            if not supervisor:
+                message = "Could not set kiosk mode. Please log in again or contact your developer."
+            else:
+                cherrypy.session['kiosk_supervisor_id'] = supervisor.id
+                cherrypy.session.pop('account_id', None)
+                cherrypy.session.pop('attendee_account_id', None)
+        elif params.get('volunteer_logout'):
+            cherrypy.session.pop('kiosk_operator_id', None)
+        elif params.get('exit_kiosk'):
+            cherrypy.session.pop('kiosk_supervisor_id', None)
+            cherrypy.session.pop('kiosk_operator_id', None)
+            raise HTTPRedirect('index?message={}', "Kiosk mode ended.")
+
+        return {
+            'message': message,
+            'supervisor': session.current_supervisor_admin(),
+            'logged_in_volunteer': cherrypy.session.get('kiosk_operator_id'),
+        }
+
+    @ajax
+    def log_in_volunteer(self, session, message='', badge_num=''):
+        attendee = None
+
+        if not badge_num:
+            message = "Please enter a badge number."
+        elif not badge_num.isdigit():
+            message = 'Invalid badge number.'
+        else:
+            attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
+            if not attendee:
+                message = f'No attendee has badge number {badge_num}.'
+
+        if message:
+            return {'success': False, 'message': message}
+
+        cherrypy.session['kiosk_operator_id'] = attendee.id
+        return {'success': True,
+                'message': f"Logged in as {attendee.name_and_badge_info}!",
+                'operator_name': attendee.full_name,
+                }
 
     @public
     def arbitrary_charge_form(self, message='', amount=None, description='', email='', sale_id=None):
@@ -83,6 +126,7 @@ class Root:
                     'success_url': '{}?message={}'.format(return_to, 'Charge successfully processed'),
                     'cancel_url': 'cancel_arbitrary_charge'}
 
+    @kiosk_login()
     def multi_merch_pickup(self, session, message="", csrf_token=None, picker_upper=None, badges=(), **shirt_sizes):
         picked_up = []
         if csrf_token:
@@ -119,6 +163,7 @@ class Root:
         }
 
     @ajax
+    @kiosk_login()
     def check_merch(self, session, badge_num_or_qr_code, staff_merch=''):
         id = shirt = gets_swadge = None
         merch_items = []
@@ -137,8 +182,8 @@ class Root:
             else:
                 shirt_size = c.SHIRTS[attendee.shirt]
 
-            if not merch:
-                message = f'{attendee.name_and_badge_info} has no merch!'
+            if not merch or merch == 'N/A':
+                message = f'{attendee.name_and_badge_info} does not have any merch!'
             elif got_merch:
                 if not (not staff_merch and attendee.gets_swadge and not attendee.got_swadge):
                     message = f'{attendee.name_and_badge_info} already got {merch}. Their shirt size is {shirt_size}.'
@@ -182,6 +227,7 @@ class Root:
         }
 
     @ajax
+    @kiosk_login()
     def give_merch(self, session, id, shirt_size, no_shirt, staff_merch, give_swadge=None):
         try:
             shirt_size = int(shirt_size)
@@ -231,6 +277,7 @@ class Root:
         }
 
     @ajax
+    @kiosk_login()
     def take_back_merch(self, session, id, staff_merch=None):
         attendee = session.attendee(id, allow_invalid=True)
         if staff_merch:
@@ -243,6 +290,7 @@ class Root:
         return '{a.name_and_badge_info} merch handout cancelled.'.format(a=attendee)
 
     @ajax
+    @kiosk_login()
     def redeem_merch_discount(self, session, badge_num_or_qr_code, apply=''):
         attendee, message = attendee_from_id_or_badge_num(session, badge_num_or_qr_code)
         if message:
@@ -270,6 +318,7 @@ class Root:
         return {'success': True, 'message': 'Discount for {} has been marked as redeemed.'.format(attendee.name_and_badge_info)}
 
     @ajax
+    @kiosk_login()
     def record_mpoint_cashout(self, session, badge_num_or_qr_code, amount):
         attendee, message = attendee_from_id_or_badge_num(session, badge_num_or_qr_code)
         if message:
@@ -286,11 +335,13 @@ class Root:
             return {'id': mfc.id, 'success': True, 'message': message}
 
     @ajax
+    @kiosk_login()
     def undo_mpoint_cashout(self, session, id):
         session.delete(session.mpoints_for_cash(id))
         return 'MPoint usage deleted'
 
     @ajax
+    @kiosk_login()
     def record_old_mpoint_exchange(self, session, badge_num_or_qr_code, amount):
         attendee, message = attendee_from_id_or_badge_num(session, badge_num_or_qr_code)
         if message:
@@ -313,6 +364,7 @@ class Root:
         return 'MPoint exchange deleted'
 
     @ajax
+    @kiosk_login()
     def record_sale(self, session, badge_num=None, **params):
         params['reg_station'] = cherrypy.session.get('reg_station', 0)
         sale = session.sale(params)
@@ -335,6 +387,7 @@ class Root:
             return {'id': sale.id, 'success': True, 'message': message}
 
     @ajax
+    @kiosk_login()
     def undo_sale(self, session, id):
         session.delete(session.sale(id))
         return 'Sale deleted'

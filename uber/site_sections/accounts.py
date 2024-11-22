@@ -198,6 +198,11 @@ class Root:
 
             if not message:
                 cherrypy.session['account_id'] = account.id
+
+                # Forcibly exit any volunteer kiosks that were running
+                cherrypy.session.pop('kiosk_operator_id', None)
+                cherrypy.session.pop('kiosk_supervisor_id', None)
+
                 ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
 

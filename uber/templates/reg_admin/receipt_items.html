@@ -994,7 +994,7 @@ See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> fo
         <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
-        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>
         <td valign="top">{{ tracked.data }}</td>
       </tr>
     {% endfor %}

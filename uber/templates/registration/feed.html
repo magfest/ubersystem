@@ -57,7 +57,7 @@
 {% for tracked in feed %}
     <tr>
         <td class="text-nowrap">{{ tracked.when|full_datetime_local }}</td>
-        <td class="text-nowrap">{{ tracked.who }}</td>
+        <td class="text-nowrap">{{ tracked.who_repr }}</td>
         <td>{{ tracked.page }}</td>
         <td>
           {% if tracking_type == 'report' %}

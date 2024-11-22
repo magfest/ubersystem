@@ -910,6 +910,28 @@ class Config(_Overridable):
                 return attendee.to_dict()
         except Exception:
             return {}
+        
+    @request_cached_property
+    @dynamic
+    def CURRENT_KIOSK_SUPERVISOR(self):
+        try:
+            from uber.models import Session
+            with Session() as session:
+                admin_account = session.current_supervisor_admin()
+                return admin_account.attendee.to_dict()
+        except Exception:
+            return {}
+    
+    @request_cached_property
+    @dynamic
+    def CURRENT_KIOSK_OPERATOR(self):
+        try:
+            from uber.models import Session
+            with Session() as session:
+                attendee = session.kiosk_operator_attendee()
+                return attendee.to_dict()
+        except Exception:
+            return {}
 
     @request_cached_property
     @dynamic

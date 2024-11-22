@@ -752,11 +752,22 @@ class Session(SessionManager):
         def current_admin_account(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
                 return self.admin_account(cherrypy.session.get('account_id'))
+            
+        def current_supervisor_admin(self):
+            if getattr(cherrypy, 'session', {}).get('kiosk_supervisor_id'):
+                return self.admin_account(cherrypy.session.get('kiosk_supervisor_id'))
 
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
                 try:
                     return self.admin_account(cherrypy.session.get('account_id')).attendee
+                except NoResultFound:
+                    return
+                
+        def kiosk_operator_attendee(self):
+            if self.current_supervisor_admin and getattr(cherrypy, 'session', {}).get('kiosk_operator_id'):
+                try:
+                    return self.attendee(cherrypy.session.get('kiosk_operator_id'))
                 except NoResultFound:
                     return
 

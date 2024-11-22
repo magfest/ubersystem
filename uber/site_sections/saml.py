@@ -91,6 +91,10 @@ class Root:
                 if not admin_account and not account:
                     raise HTTPRedirect("../landing/index?message={}", message)
 
+                # Forcibly exit any volunteer kiosks that were running
+                cherrypy.session.pop('kiosk_operator_id', None)
+                cherrypy.session.pop('kiosk_supervisor_id', None)
+
                 if admin_account:
                     attendee_to_update = admin_account.attendee
                 else:
