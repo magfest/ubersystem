@@ -33,13 +33,12 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block email %}
     <div class="row g-sm-3">
         <div class="col-12"
-             x-data="{email_copied: false, toggleCopy(checked){ this.email_copied = checked }}">
+             x-data="{email_copied: false, get isEmailRequired(){ return !this.email_copied}, get isEmailDisabled(){ return !this.isEmailRequired}}">
             {{ form_macros.alpine_form_input(artist_marketplace_form.email_address, readonly=read_only,
-                   alpine_props={':required':'!email_copied', ':disabled':'email_copied'},
-                   required_if='!email_copied'
+                   alpine_props={':required':'isEmailRequired', ':disabled':'isEmailDisabled'}
                    ) }}
             {% if app.is_new %}
-                  {{ form_macros.alpine_form_input(artist_marketplace_form.copy_email, readonly=read_only, alpine_props={'@change':'toggleCopy($el.checked)', ':checked':'email_copied'}) }}
+                  {{ form_macros.alpine_form_input(artist_marketplace_form.copy_email, readonly=read_only, alpine_props={'x-model':'email_copied'}) }}
             {% endif %}
         </div>
     </div>
