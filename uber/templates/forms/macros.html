@@ -200,7 +200,7 @@
     </label>
 {% endmacro %}
 
-{% macro alpine_form_input(field, label_text='', help_text='', admin_text='', no_margin=False, alpine_props=None, required_if=None) %}
+{% macro alpine_form_input(field, label_text='', help_text='', admin_text='', no_margin=False, alpine_props=None) %}
     {#
     Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
     field (Field): WTForms form field.
@@ -213,6 +213,7 @@
     force_hidden (bool): If true, the field is rendered as a hidden field instead of whatever its widget is.
     #}
     {% set custom_kwargs = kwargs %}
+    {% set required_if = alpine_props.get(':required') %}
     {% set type = field.meta.get_field_type(field) %}
     {% set label_text = label_text or field.label.text %}
     {% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
