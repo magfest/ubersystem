@@ -15,14 +15,14 @@
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 <div x-data="{
-                international: {{ personal_info.international.data | string | lower }},
+                international: {{ personal_info.international.data | javascript_bool }},
                 copyAddress: false,
                 get isZipRequired(){ return !this.international && !this.copyAddress && !this.badge_placeholder }, //hmd todo broken and not sure why.
-                canRequireCellphone: {{ (is_prereg_dealer or attendee.is_dealer or attendee.staffing) | string | lower }}, //HMD TODO, need to account for staffing_info.staffing toggle.
+                canRequireCellphone: {{ (is_prereg_dealer or attendee.is_dealer) | javascript_bool }},
                 copyCellphone: false,
-                noCellphone: {{ personal_info.no_cellphone.data | string | lower }},
+                noCellphone: {{ personal_info.no_cellphone.data | javascript_bool }},
                 get isCellphoneDisabled() { return this.noCellphone || this.copyCellphone},
-                get isCellphoneRequired() { return this.canRequireCellphone && !this.noCellphone && !this.copyCellphone && !this.badge_placeholder } //badge_placeholder may be undefined - which is still false for us.
+                get isCellphoneRequired() { return (this.staffing || this.canRequireCellPhone) && !this.noCellphone && !this.copyCellphone && !this.badge_placeholder } //badge_placeholder comes from x-data above, can be undefined.
                 }">
     {% block name %}
     {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}

@@ -22,6 +22,7 @@
                                                                 staffing_info.got_staff_merch,
                                                                 staffing_info.hotel_eligible
                                                                 ], admin_text=staffing_admin_text) }}
+        {{ form_macros.alpine_form_input(staffing_info.staffing, admin_text=staffing_admin_text, alpine_props={'x-model.boolean':'staffing'}) }}
     </div>
 </div>
 <script type="text/javascript">
