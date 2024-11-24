@@ -33,7 +33,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block email %}
     <div class="row g-sm-3">
         <div class="col-12"
-             x-data="{email_copied: false, get isEmailRequired(){ return !this.email_copied}, get isEmailDisabled(){ return !this.isEmailRequired}}">
+             x-data="{ app_new: {{app.is_new | string | lower}},email_copied: false, get isEmailRequired(){ return !this.email_copied}, get isEmailDisabled(){ return !this.isEmailRequired}}">
             {{ form_macros.alpine_form_input(artist_marketplace_form.email_address, readonly=read_only,
                    alpine_props={':required':'isEmailRequired', ':disabled':'isEmailDisabled'}
                    ) }}
