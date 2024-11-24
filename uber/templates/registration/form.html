@@ -172,7 +172,7 @@
 
 {{ form_macros.form_validation('attendee-form') }}
 
-<form novalidate method="post" id="attendee-form" action="form">
+<form novalidate method="post" id="attendee-form" action="form" x-data="{badge_placeholder:false}">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
