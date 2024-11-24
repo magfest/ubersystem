@@ -212,25 +212,25 @@
         useful in situations where a field is always read-only. If not set, the field is rendered without any scaffolding.
     force_hidden (bool): If true, the field is rendered as a hidden field instead of whatever its widget is.
     #}
-    {% set custom_kwargs = kwargs %}
     {% set required_if = alpine_props.get(':required') %}
+    {% set custom_kwargs = dict(kwargs, **alpine_props) %}
     {% set type = field.meta.get_field_type(field) %}
     {% set label_text = label_text or field.label.text %}
     {% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
-    {% if type == 'checkbox' %}
-        <div class="form-check {% if not no_margin %} mb-3{% endif %}">
+    {% if type in ['checkbox','switch'] %}
+        <div class="form-check{% if type == 'switch' %} form-switch{% endif %} {% if not no_margin %} mb-3{% endif %}">
             {% if is_readonly %}
                 <input type="hidden" name="{{ field.id }}" value="{{ field.data }}"/>
-                {{ field(class="form-check-input", checked=field.data, disabled=true) }}
+                {{ field(class="form-check-input", checked=field.data, disabled=true, **kwargs) }}
             {% else %}
-                {{ field(class="form-check-input", checked=field.data, value=1, **alpine_props) }}
+                {{ field(class="form-check-input", checked=field.data, value=1, **custom_kwargs) }}
             {% endif %}
             {{ alpine_form_label(field, label_text=label_text, required_if=required_if, class="form-check-label") }}
             {{ form_input_extras(field, help_text, admin_text) }}
         </div>
     {% else %}
         <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
-            {{ field(class="form-control", **alpine_props) }}
+            {{ field(class="form-control", **custom_kwargs) }}
             {{ alpine_form_label(field, label_text=label_text,  required_if=required_if) }}
             {{ form_input_extras(field, help_text, admin_text) }}
         </div>
