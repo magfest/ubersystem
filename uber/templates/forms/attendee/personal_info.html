@@ -14,9 +14,18 @@
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
-
-{% block name %}
-{% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
+<div x-data="{
+                international: {{ personal_info.international.data | string | lower }},
+                copyAddress: false,
+                get isZipRequired(){ return !this.international && !this.copyAddress}, //hmd todo broken and not sure why.
+                canRequireCellphone: {{ (is_prereg_dealer or attendee.is_dealer or attendee.staffing) | string | lower }}, //HMD TODO, need to account for staffing_info.staffing toggle.
+                copyCellphone: false,
+                noCellphone: {{ personal_info.no_cellphone.data | string | lower }},
+                get isCellphoneDisabled() { return this.noCellphone || this.copyCellphone},
+                get isCellphoneRequired() { return this.canRequireCellphone && !this.noCellphone && !this.copyCellphone && !this.badge_placeholder } //badge_placeholder may be undefined - which is still false for us.
+                }">
+    {% block name %}
+    {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
 
 <div class="row g-sm-3">
 <div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.first_name) }}</div>
@@ -68,42 +77,16 @@
 <div class="row g-sm-3">
   {% endif %}
   <div class="col-12 col-sm-6">
-    {{ form_macros.form_input(personal_info.cellphone, extra_field=cellphone_extra_field, required=is_prereg_dealer or attendee.is_dealer or attendee.staffing) }}
-  </div>
-</div>
-<script type="text/javascript">
-  var checkCellphoneRequired = function() {
-      true_evals = [];
-      false_evals = [];
-      {% if is_prereg_dealer %}
-        true_evals.push(true);
-        false_evals.push($("#{{ personal_info.copy_phone.id }}").prop('checked') == false);
-      {% else %}
-        false_evals.push($("#{{ personal_info.no_cellphone.id }}").prop('checked') == false);
-      {% endif %}
-      {% if staffing_info %}
-        true_evals.push($("#{{ staffing_info.staffing.id }}").prop('checked'));
-      {% endif %}
-      {% if badge_flags %}
-        false_evals.push($("#{{ badge_flags.placeholder.id }}").prop('checked') == false);
-      {% endif %}
-      toggleOn = true_evals.some(item => item) && false_evals.every(item => item)
-      $("#{{ personal_info.cellphone.id }}").prop('required', toggleOn);
-      $('#{{ personal_info.cellphone.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
-  }
-  $().ready(function () {
-    checkCellphoneRequired();
-    $("#{{ personal_info.no_cellphone.id }}").change(checkCellphoneRequired);
-      {% if staffing_info %}
-      $("#{{ staffing_info.staffing.id }}").change(checkCellphoneRequired);
-      {% endif %}
-      {% if badge_flags %}
-      $("#{{ badge_flags.placeholder.id }}").change(checkCellphoneRequired);
-      {% endif %}
-  })
-</script>
+          {{ form_macros.alpine_form_input(personal_info.cellphone, no_margin=True, alpine_props={':required':'isCellphoneRequired', ':disabled':'isCellphoneDisabled'})}}
+         {% if is_prereg_dealer %}
+             {{ form_macros.alpine_form_input(personal_info.copy_phone, alpine_props={'x-model.boolean':'copyCellphone'}) }}
+         {% elif attendee.staffing or (other_info and other_info is not none) %}
+             {{ form_macros.alpine_form_input(personal_info.no_cellphone, alpine_props={'x-model.boolean':'noCellphone'}) }}
+         {% endif %}
+      </div>
+      </div>
+    </div>
 {% endblock %}
-
 
 {% block age %}
 <div class="row g-sm-3">
@@ -119,7 +102,7 @@
     {% if c.CONSENT_FORM_URL and not admin_area %}
     <div class="alert alert-warning" role="alert">
       <em>
-        Attendees under 18 <b>MUST</b> bring a signed (and notarized if not accompanied by parent or guardian during badge pickup) 
+        Attendees under 18 <b>MUST</b> bring a signed (and notarized if not accompanied by parent or guardian during badge pickup)
         <a class="link-dark" target="_blank" href="{{ c.CONSENT_FORM_URL }}">parental consent form</a>.
       </em>
     </div>
@@ -134,9 +117,9 @@
 {% if is_prereg_dealer %}
 <div class="row g-sm-3">
   <div class="col-12">
-    {{ form_macros.toggle_checkbox(personal_info.copy_address, 
-      [personal_info.address1, personal_info.address2, personal_info.city, personal_info.region_us, 
-      personal_info.region_canada, personal_info.region, personal_info.zip_code, personal_info.country], 
+    {{ form_macros.toggle_checkbox(personal_info.copy_address,
+      [personal_info.address1, personal_info.address2, personal_info.city, personal_info.region_us,
+      personal_info.region_canada, personal_info.region, personal_info.zip_code, personal_info.country],
       hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.address1 == group.address1) }}
   </div>
 </div>
@@ -149,7 +132,7 @@
       $('#country-selectToAutocomplete').siblings('label').children('.required-indicator').toggle(!$("#country").prop("disabled"));
     }, 10);
   })
-  $().ready(function() { 
+  $().ready(function() {
     setTimeout(function() {
       if ($("#country").prop("disabled")) {
         $("#region").prop('disabled', true);
@@ -159,15 +142,17 @@
       $("country-selectToAutocomplete").prop('disabled', $("#country").prop("disabled"));
       $('#country-selectToAutocomplete').siblings('label').children('.required-indicator').toggle(!$("#country").prop("disabled"));
     }, 10);
-   }) 
+   })
 </script>
 {% endif %}
   {{ form_macros.address_fields(attendee, personal_info) }}
 {% else %}
 {# We need a better solution, but avoiding a row here allows event plugins to put a field next to the zip code #}
-  <div class="col-12 col-sm-6">
-    {{ form_macros.form_input(personal_info.zip_code, extra_field=form_macros.toggle_checkbox(personal_info.international, [personal_info.zip_code], hide_on_checked=True, toggle_required=True, prop='')) }}
-  </div>
+ {# We need a better solution, but avoiding a row here allows event plugins to put a field next to the zip code #}
+      <div class="col-12 col-sm-6">
+            {{ form_macros.alpine_form_input(personal_info.zip_code, no_margin=True, alpine_props={':required':'isZipRequired',':disabled':'copyAddress'}) }}
+            {{ form_macros.alpine_form_input(personal_info.international, alpine_props={'x-model.boolean':'international'}) }}
+      </div>
 {% endif %}
 {% endblock %}
 
@@ -199,3 +184,4 @@
 </div>
 {% endif %}
 {% endblock %}
+</div>
