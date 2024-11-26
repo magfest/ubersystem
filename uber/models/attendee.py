@@ -2231,6 +2231,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def badge_or_masked_name(self):
         return self.badge_printed_name or self.masked_name
+    
+    @property
+    def logged_in_name(self):
+        return self.full_name
 
     @property
     def masked_name(self):

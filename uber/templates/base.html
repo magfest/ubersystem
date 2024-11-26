@@ -449,7 +449,7 @@
                     {% if c.CURRENT_KIOSK_SUPERVISOR %}
                     <li class="nav-item">
                         <a class="nav-link">
-                        Operator: <span id="kiosk-operator-name">{% if c.CURRENT_KIOSK_OPERATOR %}{{ c.CURRENT_KIOSK_OPERATOR.first_name }} {{ c.CURRENT_KIOSK_OPERATOR.last_name }}{% else %}N/A{% endif %}</span>
+                        Operator: <span id="kiosk-operator-name">{% if c.CURRENT_KIOSK_OPERATOR %}{{ c.CURRENT_KIOSK_OPERATOR.logged_in_name }}{% else %}N/A{% endif %}</span>
                         </a>
                     </li>
                     {% endif %}
@@ -499,7 +499,7 @@
                     
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="account-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <span>Logged in as: {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</span> <i title="Account Settings" class="fa fa-cog"></i>
+                        <span>Logged in as: {{ c.CURRENT_ADMIN.logged_in_name }}</span> <i title="Account Settings" class="fa fa-cog"></i>
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="account-dropdown">
                             {% if 'admin_account' in c.CURRENT_ADMIN %}
@@ -525,7 +525,7 @@
                     {% elif c.CURRENT_KIOSK_SUPERVISOR %}
                     <li class="nav-item">
                         <a class="nav-link">
-                        Supervisor: {{ c.CURRENT_KIOSK_SUPERVISOR.first_name }} {{ c.CURRENT_KIOSK_SUPERVISOR.last_name }}
+                        Supervisor: {{ c.CURRENT_KIOSK_SUPERVISOR.logged_in_name }}
                         </a>
                     </li>
                     <li class="nav-item"><a href="..{{ c.PAGE_PATH }}?exit_kiosk=True" class="nav-link">Exit Kiosk Mode</a></li>

@@ -891,7 +891,7 @@ class Config(_Overridable):
         try:
             from uber.models import Session, AdminAccount, Attendee
             with Session() as session:
-                attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts']
+                attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']
                 admin_account = session.query(AdminAccount) \
                     .filter_by(id=cherrypy.session.get('account_id')) \
                     .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts)).one()
@@ -904,10 +904,11 @@ class Config(_Overridable):
     @dynamic
     def CURRENT_VOLUNTEER(self):
         try:
-            from uber.models import Session
+            from uber.models import Session, Attendee
             with Session() as session:
+                attrs = Attendee.to_dict_default_attrs + ['logged_in_name']
                 attendee = session.logged_in_volunteer()
-                return attendee.to_dict()
+                return attendee.to_dict(attrs)
         except Exception:
             return {}
         
