@@ -39,7 +39,8 @@
 </style>
 {% endblock %}
 
-{% block content %} <div class="d-none csrf_token"> {{ csrf_token() }} </div>
+{% block content %}
+<div class="d-none csrf_token"> {{ csrf_token() }} </div>
 <div class="row justify-content-center">
 <div class="col-12 col-md-10 text-center">
   <h2>{{ c.CURRENT_VOLUNTEER.first_name }} {{ c.CURRENT_VOLUNTEER.last_name }}'s Available Shifts</h2>
@@ -60,7 +61,7 @@
       <div id="shifts-info-details" class="accordion-collapse collapse show" aria-labelledby="shifts-info-details-header">
         <div class="accordion-body">
           <p>
-            You are currently signed up for {{ hours }} weighted hours worth of shifts.
+            You are currently signed up for <span id="weighted-hours">{{ hours }}</span> weighted hours worth of shifts.
           </p>
           <p>
             Shifts that will overlap with your existing shifts will be hidden, and you will need to drop a shift to view them.
@@ -74,6 +75,23 @@
           <p>
             You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
           </p>
+
+          {% if requested_setup_nights or requested_teardown_nights %}
+          <div class="alert alert-warning pb-0" id="requested-night-warning">
+            <p>
+              You have requested hotel space on 
+              {% if requested_setup_nights %}<strong>setup nights</strong> ({{ requested_setup_nights|readable_join }}) {% if requested_teardown_nights %}and {% endif %}{% endif %}
+              {% if requested_teardown_nights %}<strong>teardown nights</strong> ({{ requested_teardown_nights|readable_join }}){% endif %}
+              but you are not signed up for shifts on all requested nights.
+            </p>
+            <p>
+              Please make sure to sign up for
+              {% if requested_setup_nights and requested_teardown_nights %}BOTH {% endif %}{% if requested_setup_nights %}setup{% if requested_teardown_nights %} and {% endif %}{% endif %}
+              {% if requested_teardown_nights %}teardown{% endif %} shifts.
+              Failure to sign up for shifts in accordance with your hotel night requests may affect your ability to request staff crash space in the future.
+            </p>
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -237,6 +255,10 @@
                 if (json.success) {
                   $("#message-alert").addClass("alert-success").show().children('span').html(message);
                   shiftDetails.hide();
+                  $("#weighted-hours").fadeOut(function() {
+                    $(this).text(json.hours)
+                  }).fadeIn();
+                  fetchedEventList.length = 0;
                   ec.refetchEvents();
                 } else {
                   showErrorMessage(json.message);
@@ -266,7 +288,7 @@
               url: 'drop',
               dataType: 'json',
               data: {
-                shift_id: id,
+                job_id: id,
                 csrf_token: csrf_token
               },
               success: function (json) {
@@ -275,6 +297,10 @@
                 if (json.success) {
                   $("#message-alert").addClass("alert-success").show().children('span').html(message);
                   shiftDetails.hide();
+                  $("#weighted-hours").fadeOut(function() {
+                    $(this).text(json.hours)
+                  }).fadeIn();
+                  fetchedEventList.length = 0;
                   ec.refetchEvents();
                 } else {
                   showErrorMessage(json.message);
@@ -347,18 +373,64 @@
     }
   }
 
+  var fetchEventsParams = {
+    all: '',
+    highlight: '',
+  }
+  var possibleEventURLS = {'available': 'get_available_jobs', 'assigned': 'get_assigned_jobs'};
+  var fetchEventsURLS = ['get_available_jobs', 'get_assigned_jobs'];
+  var fetchedEventList = [];
+
+  let fetchEvents = async function() {
+      if (fetchedEventList.length > 0) {
+          return fetchedEventList;
+      }
+      let eventParams = new URLSearchParams(fetchEventsParams);
+      try {
+          const responses = await Promise.all(fetchEventsURLS.map(url => fetch(url + "?" + eventParams)));
+          const eventLists = await Promise.all(responses.map((response) => response.json()));
+          let allNewEvents = [].concat(...eventLists);
+          fetchedEventList.push(...allNewEvents);
+
+          {% if requested_setup_nights or requested_teardown_nights %}
+          checkEdgeNights();
+          {% endif %}
+
+          return fetchedEventList;
+      } catch (e) {
+          showErrorMessage('Unable to connect to server, please try again.')
+      }
+  }
+
+  {% if requested_setup_nights or requested_teardown_nights %}
+  let checkEdgeNights = function() {
+    let allShifts = []
+    fetchedEventList.forEach(function(el) { allShifts.push(el.extendedProps) })
+    let setupShifts = allShifts.filter(function(el) { return el.is_setup == true; });
+    let teardownShifts = allShifts.filter(function(el) { return el.is_teardown == true; });
+
+    if ({% if requested_setup_nights %}setupShifts.length > 0
+    {% if requested_teardown_nights %}&&
+    {% endif %}{% endif %}
+    {% if requested_teardown_nights %}teardownShifts.length > 0
+    {% endif %}) {
+      $('#requested-night-warning').hide();
+    } else {
+      $('#requested-night-warning').show();
+    }
+  }
+  {% endif %}
+
   let addEvents = function(id) {
-    let eventSources = ec.getOption('eventSources');
-    eventSources.push(possibleEventSources[id]);
-    ec.setOption('eventSources', eventSources);
+    fetchEventsURLS.push(possibleEventURLS[id]);
+    fetchedEventList.length = 0;
     ec.refetchEvents();
     toggleButton(id, 'on');
   }
 
   let removeEvents = function(id) {
-    let eventSources = ec.getOption('eventSources');
-    updatedEventSources = eventSources.filter(function(el) { return el.url != possibleEventSources[id]['url']; });
-    ec.setOption('eventSources', updatedEventSources);
+    fetchEventsURLS = fetchEventsURLS.filter(function(el) { return el != possibleEventURLS[id]; });
+    fetchedEventList.length = 0;
     ec.refetchEvents();
     toggleButton(id, 'off');
   }
@@ -366,7 +438,7 @@
   let setFilters = function (dropdown_name) {
     let choice = $('#' + dropdown_name).val();
     if (choice == "" || choice == "all") {
-      ec.setOption('resources', {{ default_filters|safe }})
+      ec.setOption('resources', {{ default_filters|safe }});
     } else {
       ec.setOption('resources', []);
       addFilter(choice);
@@ -388,14 +460,13 @@
   }
 
   let setFetchParams = function (paramChanges) {
-    currentParams = possibleEventSources['available']['extraParams'];
     for (const [key, value] of Object.entries(paramChanges)) {
-      possibleEventSources['available']['extraParams'][key] = value;
+      fetchEventsParams[key] = value;
     }
-    let eventSources = ec.getOption('eventSources');
-    if (eventSources.filter(function(el) { return el.url == possibleEventSources['available']['url']; })) {
-      removeEvents('available');
-      addEvents('available');
+
+    if (fetchEventsURLS.includes('get_available_jobs')) {
+      fetchedEventList.length = 0;
+      ec.refetchEvents();
     }
   }
 
@@ -511,23 +582,9 @@
   }
 
   const allFilters = {{ all_filters|safe }}
-  let possibleEventSources = {
-    'available': {
-          url: 'get_available_jobs',
-          method: 'GET',
-          extraParams: {
-            'all': '',
-            'highlight': '',
-          }
-        },
-    'assigned': {
-      url: 'get_assigned_jobs',
-      method: 'GET',
-    }
-  }
 
   const ec = new EventCalendar(document.getElementById('shift_cal'), {
-        view: window.matchMedia('(max-width: 576px)') ? 'listWeek' : 'timeGridWeek',
+        view: window.matchMedia('(max-width: 576px)').matches ? 'listWeek' : 'timeGridWeek',
         date: '{{ c.EPOCH.date() }}',
         allDaySlot: false,
         highlightedDates: {{ highlighted_dates|safe }},
@@ -571,11 +628,12 @@
             }
         },
         viewDidMount: showOtherView,
-        eventSources: [possibleEventSources['available'], possibleEventSources['assigned']],
+        eventSources: [{events: fetchEvents}],
         eventContent: renderEvent,
         eventClick: showEventDetails,
         filterEventsWithResources: true,
         resources: {{ default_filters|safe }},
+        eventClassNames: 'border border-white',
         dayMaxEvents: true,
         nowIndicator: true,
         selectable: false,
