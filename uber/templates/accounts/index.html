@@ -9,6 +9,7 @@ table form {
 </style>
 
 <script type="text/javascript">
+  let selectList;
   const handleInput = () => {
     const inputValue = $('#attendee-select-search').val();
     if (inputValue && inputValue.length < 3) {
@@ -34,7 +35,7 @@ table form {
     $('#attendee-select').text(label);
   }
   $().ready(function () {
-    const selectList = $("#attendee-select-list li");
+    selectList = $("#attendee-select-list li");
   })
 </script>
 
