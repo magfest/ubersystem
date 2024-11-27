@@ -221,13 +221,8 @@ class MITSGame(MagModel):
         if not self.pictures:
             return ['', '']
 
-        header = None
-        thumbnail = None
-        for image in self.pictures:
-            if image.is_header and not header:
-                header = image
-            if image.is_thumbnail and not thumbnail:
-                thumbnail = image
+        header = self.guidebook_header
+        thumbnail = self.guidebook_thumbnail
 
         if not header:
             header = self.pictures[0]

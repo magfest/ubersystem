@@ -509,13 +509,8 @@ class IndieGame(MagModel, ReviewMixin):
         if not self.images:
             return ['', '']
 
-        header = None
-        thumbnail = None
-        for image in self.images:
-            if image.is_header and not header:
-                header = image
-            if image.is_thumbnail and not thumbnail:
-                thumbnail = image
+        header = self.guidebook_header
+        thumbnail = self.guidebook_thumbnail
 
         if not header:
             header = self.images[0]
