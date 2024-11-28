@@ -116,6 +116,8 @@ class Root:
         show_restricted = cherrypy.session.get('signups_show_restricted', True)
         show_nonpublic = cherrypy.session.get('signups_show_nonpublic', True)
 
+        jobs = []
+
         if department_id != '':
             job_filters = [Job.department_id == department_id] if department_id else []
             if not show_past_shifts:
