@@ -9,7 +9,7 @@ from uber.custom_tags import format_image_size
 from uber.decorators import all_renderable, csrf_protected
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Group, GuestGroup, IndieDeveloper, IndieGameImage
-from uber.utils import add_opt, check, check_csrf, check_image_size, check_guidebook_image_filetype
+from uber.utils import add_opt, check, check_csrf, check_image_size, GuidebookUtils
 
 
 def add_new_image(pic, game):
@@ -281,7 +281,7 @@ class Root:
                 game.studio.contact_phone = params.get('contact_phone', '')
 
             if header_image and header_image.filename:
-                message = check_guidebook_image_filetype(header_image)
+                message = GuidebookUtils.check_guidebook_image_filetype(header_image)
                 if not message:
                     header_pic = add_new_image(header_image, game)
                     header_pic.is_header = True
@@ -292,7 +292,7 @@ class Root:
             
             if not message:
                 if thumbnail_image and thumbnail_image.filename:
-                    message = check_guidebook_image_filetype(thumbnail_image)
+                    message = GuidebookUtils.check_guidebook_image_filetype(thumbnail_image)
                     if not message:
                         thumbnail_pic = add_new_image(thumbnail_image, game)
                         thumbnail_pic.is_thumbnail = True

@@ -203,7 +203,7 @@ class MITSGame(MagModel):
 
     @property
     def guidebook_edit_link(self):
-        return f"../mits/team?id={self.id}"
+        return f"../mits_admin/team?id={self.team.id}"
 
     @property
     def guidebook_data(self):
@@ -212,8 +212,8 @@ class MITSGame(MagModel):
             'guidebook_subtitle': self.name,
             'guidebook_desc': self.description,
             'guidebook_location': '',
-            'guidebook_header': self.guidebook_header.filename,
-            'guidebook_thumbnail': self.guidebook_thumbnail.filename,
+            'guidebook_header': self.guidebook_images[0][0],
+            'guidebook_thumbnail': self.guidebook_images[0][1],
         }
 
     @property
@@ -234,12 +234,9 @@ class MITSGame(MagModel):
         if not thumbnail:
             thumbnail = self.pictures[1] if len(self.pictures) > 1 else self.pictures[0]
 
-        prepend = sluggify(self.name)
+        prepend = sluggify(self.name) + '_'
 
-        if header == thumbnail:
-            return [prepend + header.filename], [header]
-        else:
-            return [prepend + header.filename, prepend + thumbnail.filename], [header, thumbnail]
+        return [prepend + header.filename, prepend + thumbnail.filename], [header, thumbnail]
 
 
 class MITSPicture(MagModel):

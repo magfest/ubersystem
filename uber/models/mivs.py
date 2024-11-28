@@ -4,7 +4,7 @@ import cherrypy
 
 from datetime import datetime, timedelta
 from functools import wraps
-
+from pockets import sluggify
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func
@@ -475,22 +475,6 @@ class IndieGame(MagModel, ReviewMixin):
         return self.status == c.ACCEPTED
 
     @property
-    def guidebook_name(self):
-        return self.studio.name
-
-    @property
-    def guidebook_subtitle(self):
-        return self.title
-
-    @property
-    def guidebook_desc(self):
-        return self.description
-
-    @property
-    def guidebook_location(self):
-        return ''
-
-    @property
     def guidebook_header(self):
         for image in self.images:
             if image.is_header:
@@ -505,27 +489,36 @@ class IndieGame(MagModel, ReviewMixin):
         return ''
 
     @property
+    def guidebook_edit_link(self):
+        return f"../mivs/show_info?id={self.id}"
+
+    @property
+    def guidebook_data(self):
+        return {
+            'guidebook_name': self.studio.name,
+            'guidebook_subtitle': self.title,
+            'guidebook_desc': self.description,
+            'guidebook_location': '',
+            'guidebook_header': self.guidebook_images[0][0],
+            'guidebook_thumbnail': self.guidebook_images[0][1],
+        }
+
+    @property
     def guidebook_images(self):
         if not self.images:
             return ['', '']
 
-        header = None
-        thumbnail = None
-        for image in self.images:
-            if image.is_header and not header:
-                header = image
-            if image.is_thumbnail and not thumbnail:
-                thumbnail = image
+        header = self.guidebook_header
+        thumbnail = self.guidebook_thumbnail
 
         if not header:
             header = self.images[0]
         if not thumbnail:
             thumbnail = self.images[1] if len(self.images) > 1 else self.images[0]
 
-        if header == thumbnail:
-            return [header.filename], [header]
-        else:
-            return [header.filename, thumbnail.filename], [header, thumbnail]
+        prepend = sluggify(self.title) + '_'
+
+        return [prepend + header.filename, prepend + thumbnail.filename], [header, thumbnail]
 
 
 class IndieGameImage(MagModel):
@@ -541,7 +534,7 @@ class IndieGameImage(MagModel):
 
     @property
     def url(self):
-        return 'view_image?id={}'.format(self.id)
+        return '../mivs/view_image?id={}'.format(self.id)
 
     @property
     def filepath(self):

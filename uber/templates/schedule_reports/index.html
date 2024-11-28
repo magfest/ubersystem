@@ -1,22 +1,286 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Guidebook Export{% endblock %}
+{% set title = "Guidebook Updates" %}
 {% block content %}
 
-<h2> Guidebook Table Export </h2>
+<script type="text/javascript">
+  let confirmSyncAll = function(btn, label) {
+    form = $(btn).closest('form');
+    bootbox.confirm({
+        backdrop: true,
+        title: `Mark all ${label} items as updated?`,
+        message: `<p>All ${label} items will be marked as updated in Guidebook and removed from this list.
+                  As a precaution, any ${label} items that were updated since you loaded this page will
+                  be excluded.</p><p>It may take a few minutes for changes to show on this page. Proceed?</p>`,
+        buttons: {
+            confirm: { label: 'Continue', className: 'btn-success' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+        },
+        callback: function (result) {
+            if (result) {
+              $.ajax({
+                method: 'POST',
+                url: 'sync_all_items',
+                data: form.serialize(),
+                success: function (json) {
+                  if (json.success) {
+                    let textAppend = json.model == 'schedule' ? "the schedule" : "this custom list";
+                    $(`#${json.model}`).closest('div').fadeOut(500, function () {
+                      $(this).html(`<div class="text-center"><em>No pending updates for ${textAppend}!</em></div>`);
+                    }).fadeIn();
+                    $(`#${json.model}-tab`).find('.badge').fadeOut(500);
 
-<br/>
+                    $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+                  } else {
+                    showErrorMessage(json.message);
+                  }
+                },
+                error: function () {
+                    showErrorMessage('Unable to connect to server, please try again.');
+                }
+              });
+            }
+        }
+    });
+  }
 
-<form method="post" enctype="multipart/form-data" class="form form-inline">
-  <div class="row g-sm-3 row-cols-auto">
-    <div class="col">
-    <select name="selected_model" class="form-select">
-        {{ options(tables) }}
-    </select>
-    </div>
-    <div class="col"><button type="submit" class="btn btn-primary" onClick="form.action='export_guidebook_xlsx';">Download Data Xlsx</button></div>
-    <div class="col"><button type="submit" class="btn btn-success" onClick="form.action='export_guidebook_zip';">Download Images Zip</button></div>
+  let markItemSynced = function(event){
+    let form = $(this);
+    event.preventDefault();
+    $.ajax({
+      method: 'POST',
+      url: 'mark_item_synced',
+      data: form.serialize(),
+      success: function (json) {
+        if (json.success) {
+          let textAppend = json.model == 'schedule' ? "the schedule" : "this custom list";
+          let table = $(`#${json.id}`).parents('table');
+
+          if (table.find('tbody').find('tr').length == 1) {
+            table.parent('div').fadeOut(500, function () {
+              $(this).html(`<div class="text-center"><em>No pending updates for ${textAppend}!</em></div>`);
+            }).fadeIn();
+            $(`#${json.model}-tab`).find('.badge').fadeOut(500);
+          } else {
+            $(`#${json.id}`).fadeOut(500, function () {
+              $(this).remove();
+            });
+          }
+
+          let badgeCount = $(`#${json.model}-tab`).find('.badge').find('.row-count');
+          badgeCount.text(badgeCount.text() - 1);
+          
+          $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+        } else {
+          showErrorMessage(json.message);
+        }
+      },
+      error: function () {
+          showErrorMessage('Unable to connect to server, please try again.');
+      }
+    });
+  }
+  
+  $().ready(function () {
+    $(".sync-item").submit(markItemSynced);
+  });
+</script>
+{% set now = now() %}
+<div class="d-flex justify-content-between">
+  <h2>Guidebook Exports and Updates -- {{ now|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
+  <div>
+  <a href="schedule_guidebook_xlsx" class="btn btn-primary">Download Schedule XLSX</a>
   </div>
-</form>
+</div>
+
+<div class="d-flex justify-content-end gap-3 mb-3">
+  <div>
+    <div class="form-text">Custom Lists Export</div>
+    <form method="post" enctype="multipart/form-data" class="form form-inline">
+      <div class="row g-sm-3 row-cols-auto">
+        <div class="col">
+        <select name="selected_model" class="form-select">
+            {{ options(tables) }}
+        </select>
+        </div>
+        <div class="col"><button type="submit" class="btn btn-primary" onClick="form.action='export_guidebook_xlsx';">Download Data XLSX</button></div>
+        <div class="col"><button type="submit" class="btn btn-success" onClick="form.action='export_guidebook_zip';">Download Images ZIP</button></div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card card-body">
+  <div role="tabpanel">
+    <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <a class="nav-link active" href="#" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule" role="tab" aria-controls="schedule">
+        Schedule Updates
+        {% if schedule_updates %}
+          <span class="badge rounded-pill bg-danger me-0 ms-1">
+          <span class="row-count">{{ schedule_updates|length }}</span>
+          <span class="visually-hidden">unsynced updates</span>
+          </span>
+        {% endif %}
+      </a>
+    </a>
+    </li>
+    {% for model, label in c.GUIDEBOOK_MODELS %}
+    <li class="nav-item" role="presentation">
+      <a class="nav-link" href="#" id="{{ model }}-tab" data-bs-toggle="tab" data-bs-target="#{{ model }}" role="tab" aria-controls="{{ model }}">
+        {{ label }} Updates
+        {% if cl_updates[label] %}
+          <span class="badge rounded-pill bg-danger me-0 ms-1">
+          <span class="row-count">{{ cl_updates[label]|length }}</span>
+          <span class="visually-hidden">unsynced updates</span>
+          </span>
+        {% endif %}
+      </a>
+    </li>
+    {% endfor %}
+    </ul>
+    <div class="tab-content">
+    <div role="tabpanel" class="tab-pane active mt-3" id="schedule" aria-labelledby="schedule-tab">
+      {% if schedule_updates %}
+      <div class="d-flex justify-content-between">
+        <form method="post" action="sync_all_items">
+          {{ csrf_token() }}
+          <input type="hidden" name="selected_model" value="schedule" />
+          <input type="hidden" name="id_list" value="{{ schedule_updates|map(attribute='id')|join(',') }}" />
+          <input type="hidden" name="sync_time" value="{{ now }}" />
+          <button type="button" class="btn btn-success" onClick="confirmSyncAll(this, 'schedule')">Mark All Synced</button>
+        </form>
+        <p>Items in <em>italics</em> has been changed since the last sync.</p>
+      </div>
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Start Date/Time</th>
+            <th>End Date/Time</th>
+            <th>Location</th>
+            <th>Track</th>
+            <th>Last Updated</th>
+            <th>Last Synced</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for result in schedule_updates %}
+          {% set current_data = result.guidebook_data %}
+          {% set synced_data = result.last_synced['data']['guidebook'] if result.last_synced['data'] else {} %}
+          <tr id="{{ result.id }}">
+            {% for key in ['name', 'description', 'start_', 'end_', 'location', 'track'] %}
+            <td class="align-middle">
+              {% if key.endswith('_') %}
+                {% if current_data[key + 'date'] != synced_data[key + 'date'] %}<em>{% endif %}
+                {{ current_data[key + 'date'] }}
+                {% if current_data[key + 'date'] != synced_data[key + 'date'] %}</em>{% endif %}
+                {% if current_data[key + 'time'] != synced_data[key + 'time'] %}<em>{% endif %}
+                  {{ current_data[key + 'time'] }}
+                  {% if current_data[key + 'time'] != synced_data[key + 'time'] %}</em>{% endif %}
+              {% else %}
+                {% if current_data[key] != synced_data[key] %}<em>{% endif %}
+                {{ current_data[key] }}
+                {% if current_data[key] != synced_data[key] %}</em>{% endif %}
+              {% endif %}
+            </td>
+            {% endfor %}
+            <td class="align-middle">{{ result.last_updated|datetime_local("%-I:%M %p %b %-d, %Y") }}</td>
+            <td class="align-middle">{{ result.last_synced_dt('guidebook')|datetime_local("%-I:%M %p %b %-d, %Y") if result.last_synced['guidebook'] else "Never" }}</td>
+            <td class="align-middle">
+              <div class="d-flex gap-1 align-items-center text-nowrap">
+                <a href="../schedule/form?id={{ result.id }}" target="_blank" class="btn btn-primary">View</a>
+                <form method="post" class="sync-item" action="mark_item_synced">
+                  {{ csrf_token() }}
+                  <input type="hidden" name="selected_model" value="schedule" />
+                  <input type="hidden" name="id" value="{{ result.id }}" />
+                  <input type="hidden" name="sync_time" value="{{ now }}" />
+                  <input type="hidden" name="sync_data" value='{{ current_data|jsonize }}' />
+                  <button type="submit" class="btn btn-success">Mark Synced</button>
+                </form>
+                </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="text-center"><em>No pending updates for the schedule!</em></div>
+      {% endif %}
+    </div>
+    {% for model, label in c.GUIDEBOOK_MODELS %}
+    <div role="tabpanel" class="tab-pane mt-3" id="{{ model }}" aria-labelledby="{{ model }}-tab">
+      {% if cl_updates[label] %}
+      <div class="d-flex justify-content-between">
+        <form method="post" action="sync_all_items">
+          {{ csrf_token() }}
+          <input type="hidden" name="selected_model" value="{{ model }}" />
+          <input type="hidden" name="id_list" value="{{ cl_updates[label]|map(attribute='id')|join(',') }}" />
+          <input type="hidden" name="sync_time" value="{{ now }}" />
+          <button type="button" class="btn btn-success" onClick="confirmSyncAll(this, '{{ label|lower }}')">Mark All Synced</button>
+        </form>
+        <p>Items in <em>italics</em> has been changed since the last sync.</p>
+      </div>
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            {% for key, label in c.GUIDEBOOK_PROPERTIES %}
+            <th>{{ label.split("(")[0] }}</th>
+            {% endfor %}
+            <th>Last Updated</th>
+            <th>Last Synced</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for result in cl_updates[label] %}
+          {% set current_data = result.guidebook_data %}
+          {% set synced_data = result.last_synced['data']['guidebook'] if result.last_synced['data'] else {} %}
+          <tr id="{{ result.id }}">
+            {% for key, label in c.GUIDEBOOK_PROPERTIES %}
+            <td class="align-middle">
+              {% if key in ['guidebook_header', 'guidebook_thumbnail'] and current_data[key] %}
+                {% if current_data[key] != synced_data[key] or (not result[key].guest_id and result[key].last_updated > result.last_synced_dt('guidebook')) %}
+                <em><a href="{{ result[key].url or result[key].pic_url }}" target="_blank">{{ current_data[key] }}</a></em>
+                {% else %}
+                <a href="{{ result[key].url or result[key].pic_url }}" target="_blank">{{ current_data[key] }}</a>
+                {% endif %}
+              {% else %}
+                {% if current_data[key] != synced_data[key] %}
+                  <em>{{ current_data[key] }}</em>
+                {% else %}
+                  {{ current_data[key] }}
+                {% endif %}
+              {% endif %}
+            </td>
+            {% endfor %}
+            <td class="align-middle">{{ result.last_updated|datetime_local("%-I:%M %p %b %-d, %Y") }}</td>
+            <td class="align-middle">{{ result.last_synced_dt('guidebook')|datetime_local("%-I:%M %p %b %-d, %Y") if result.last_synced['guidebook'] else "Never" }}</td>
+            <td class="align-middle">
+              <div class="d-flex gap-1 align-items-center text-nowrap">
+              <a href="{{ result.guidebook_edit_link }}" target="_blank" class="btn btn-primary">View</a>
+              <form method="post" class="sync-item" action="mark_item_synced">
+                {{ csrf_token() }}
+                <input type="hidden" name="selected_model" value="{{ model }}" />
+                <input type="hidden" name="id" value="{{ result.id }}" />
+                <input type="hidden" name="sync_time" value="{{ now }}" />
+                <input type="hidden" name="sync_data" value='{{ current_data|jsonize }}' />
+                <button type="submit" class="btn btn-success">Mark Synced</button>
+              </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="text-center"><em>No pending updates for this custom list!</em></div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    </div>
+</div>
 
 
 {% endblock %}

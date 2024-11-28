@@ -1,0 +1,6 @@
+Attention Guidebook admins!
+The following categories have stale items:
+{% for label in stale_models %}- {{ label }}
+{% endfor %}
+
+You can review all pending items here: {{ c.URL_BASE }}/schedule_reports/index

@@ -5,7 +5,7 @@ import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from pockets import uniquify, classproperty
+from pockets import uniquify, classproperty, sluggify
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
@@ -192,33 +192,43 @@ class GuestGroup(MagModel):
         if subclass:
             return getattr(subclass, 'status', getattr(subclass, 'id'))
         return ''
-
+    
     @property
-    def guidebook_name(self):
-        return self.group.name if self.group else ''
-
-    @property
-    def guidebook_subtitle(self):
-        return self.group_type_label
-
-    @property
-    def guidebook_desc(self):
-        return self.bio.desc if self.bio else ''
-
-    @property
-    def guidebook_image(self):
-        return self.bio.pic_filename if self.bio else ''
+    def guidebook_header(self):
+        # Temp: we need real header/thumbnail images later
+        if self.bio:
+            return self.bio
+        return ''
 
     @property
     def guidebook_thumbnail(self):
-        return self.bio.pic_filename if self.bio else ''
+        if self.bio:
+            return self.bio
+        return ''
+    
+    @property
+    def guidebook_edit_link(self):
+        return f"../guests/bio?guest_id={self.id}"
+    
+    @property
+    def guidebook_data(self):
+        return {
+            'guidebook_name': self.group.name if self.group else '',
+            'guidebook_subtitle': self.group_type_label,
+            'guidebook_desc': self.bio.desc if self.bio else '',
+            'guidebook_location': '',
+            'guidebook_header': self.guidebook_images[0][0],
+            'guidebook_thumbnail': self.guidebook_images[0][1],
+        }
 
     @property
     def guidebook_images(self):
         if not self.bio:
-            return ['', '']
+            return ['', ''], ['', '']
+        
+        prepend = sluggify(self.group.name) + '_'
 
-        return [self.bio.pic_filename], [self.bio]
+        return [prepend + self.bio.pic_filename, prepend + self.bio.pic_filename], [self.bio, self.bio]
 
 
 class GuestInfo(MagModel):
