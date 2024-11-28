@@ -178,7 +178,7 @@ def requires_account(models=None):
                     else:
                         message_add = 'fill out this application'
                     message = 'Please log in or create an account to {}!'.format(message_add)
-                    ajax_or_redirect('../landing/index?message=', message, True)
+                    ajax_or_redirect(func, '../landing/index?message=', message, True)
                 elif attendee_account_id is None and admin_account_id is None or \
                         attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
                     message = 'You must log in to view this page.'
@@ -203,7 +203,7 @@ def requires_account(models=None):
                             break
 
                     if error and not attendee:
-                        ajax_or_redirect(f'../preregistration/not_found?id={model_id}&message=', error)
+                        ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
 
                     # Admin account override
                     if session.admin_attendee_max_access(attendee):
@@ -216,8 +216,8 @@ def requires_account(models=None):
 
                 if message:
                     if admin_account_id:
-                        ajax_or_redirect('../accounts/homepage?message=', message)
-                    ajax_or_redirect('../landing/index?message=', message, True)
+                        ajax_or_redirect(func, '../accounts/homepage?message=', message)
+                    ajax_or_redirect(func, '../landing/index?message=', message, True)
             return func(*args, **kwargs)
         return protected
     return model_requires_account
@@ -234,7 +234,7 @@ def requires_admin(func=None, inherent_role=None, override_access=None):
                 with uber.models.Session() as session:
                     message = check_can_edit_dept(session, department_id, inherent_role, override_access)
                     if message:
-                        ajax_or_redirect('../accounts/homepage?message=', message, True)
+                        ajax_or_redirect(func, '../accounts/homepage?message=', message, True)
             return func(*args, **kwargs)
         return _protected
 
@@ -411,7 +411,7 @@ def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
         if c.UBER_SHUT_DOWN:
-            ajax_or_redirect('index?message=', 'The page you requested is only available pre-event.')
+            ajax_or_redirect(func, 'index?message=', 'The page you requested is only available pre-event.')
         else:
             return func(self, *args, **kwargs)
     return with_check
@@ -643,12 +643,12 @@ def renderable(func):
             message = "Your CSRF token is invalid. Please go back and try again."
             uber.server.log_exception_with_verbose_context(msg=str(e))
             if not c.DEV_BOX:
-                ajax_or_redirect('../landing/invalid?message=', message)
+                ajax_or_redirect(func, '../landing/invalid?message=', message)
         except (AssertionError, ValueError) as e:
             message = str(e)
             uber.server.log_exception_with_verbose_context(msg=message)
             if not c.DEV_BOX:
-                ajax_or_redirect('../landing/invalid?message=', message)
+                ajax_or_redirect(func, '../landing/invalid?message=', message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
             pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
@@ -657,7 +657,7 @@ def renderable(func):
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
                 if not c.DEV_BOX:
-                    ajax_or_redirect('../landing/invalid?message=', message)
+                    ajax_or_redirect(func, '../landing/invalid?message=', message)
             else:
                 raise
 
@@ -717,7 +717,7 @@ def attendee_view(func):
     @wraps(func)
     def with_check(*args, **kwargs):
         if cherrypy.session.get('account_id') is None:
-            ajax_or_redirect('../accounts/login?message=', "You are not logged in.", True)
+            ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
         if kwargs.get('id') and str(kwargs.get('id')) != "None":
             with uber.models.Session() as session:
@@ -747,7 +747,7 @@ def ajax_or_redirect(func, redirect_url, message, save_location=False):
 
     if getattr(func, 'ajax', None):
         return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
-    raise HTTPRedirect(redirect_url, message, save_location=save_location)
+    raise HTTPRedirect(redirect_url + '{}', message, save_location=save_location)
 
 
 def restricted(func):
@@ -939,7 +939,7 @@ def id_required(model):
         def check_id(*args, **params):
             error, model_id = check_id_for_model(model=model, **params)
             if error:
-                ajax_or_redirect(f'../preregistration/not_found?id={model_id}&message=', error)
+                ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
             return func(*args, **params)
         return check_id
     return model_id_required
