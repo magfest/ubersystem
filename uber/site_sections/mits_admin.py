@@ -1,10 +1,11 @@
 import cherrypy
+from pockets import sluggify
 from pockets.autolog import log
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csv_file
+from uber.decorators import ajax, all_renderable, csv_file, multifile_zipfile
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, MITSTeam
+from uber.models import Attendee, MITSTeam, MITSGame
 from uber.utils import add_opt, check_csrf
 
 
@@ -162,3 +163,11 @@ class Root:
                 'available' if val in available else ''
                 for val, desc in c.MITS_SCHEDULE_OPTS
             ])
+
+    @multifile_zipfile
+    def accepted_games_images_zip(self, zip_file, session):
+        query = session.query(MITSGame).filter_by(has_been_accepted=True).outerjoin(MITSGame.pictures)
+
+        for game in query:
+            for pic in game.pictures:
+                zip_file.write(pic.filepath, sluggify(pic.game.name) + "_" + pic.filename)
