@@ -1,23 +1,34 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Close Out{% endblock %}
+{% set title_text = "Close Out / Piece Status" %}
 {% block content %}
 
 {% block adminheader %}
-{% if bidder %}
+
 <script>
-    $(function() {
-        $.field('status').val({{ c.SOLD }})
-    });
+  let showBidderInfo = function() {
+    $('#winning-bidder-info').show();
+  }
+  
+  $(function() {
+    $('#winning-bidder-info').hide();
+    $(window).keydown(function(event){
+    if(event.keyCode == 13) {
+      event.preventDefault();
+      showErrorMessage('Please select an option.')
+      return false;
+    }
+  });
+  });
 </script>
-{% endif %}
 {% endblock adminheader %}
 {% block admin_controls %}
 
-<h3>Close Out</h3>
+<h3>Close Out / Piece Status</h3>
 <div class="card">
   <div class="card-body">
-    <strong>Step 1</strong>: Enter the artist code and piece number and, if applicable, the bidder number of the bidder who won the piece.
-    <form role="form" method="get" action="close_out">
+    Enter the artist code and piece number and select the piece's status.
+    <form role="form" method="post" action="close_out">
+    {{ csrf_token() }}
     <div class="row g-sm-3 row-cols-auto align-items-end">
       <div class="col">
         <label class="form-text">Piece Code</label>
@@ -26,54 +37,92 @@
         </div>
       </div>
       <div class="col">
-        <label class="form-text">Bidder Number</label>
+        <label class="form-text">Does this piece have bids?</label>
         <div class="mb-3">
-          <input class="form-control" type="text" name="bidder_num" value="{{ bidder_num }}" placeholder="A-0001 (or leave blank)" />
+          <button type="button" class="btn btn-success" onClick="showBidderInfo()">Won by Bidder</button>
+          <button type="submit" name="action" value="voice_auction" class="btn btn-primary">Send to Voice Auction</button>
+          <button type="submit" name="action" value="no_bids" class="btn btn-danger">No Bids</button>
         </div>
       </div>
       <div class="col">
         <div class="mb-3">
-          <button type="submit" class="btn btn-primary">Begin Close-Out</button>
+        <button type="submit" name="action" value="get_info" class="btn btn-info">Get Piece Info</button>
         </div>
       </div>
     </div>
-    </form>
-  {% if piece and (bidder or not bidder_num) %}
-    <strong>Step 2</strong>: Enter the status the piece should change to{% if bidder %} and the winning bid.<br/>
-    <strong>This piece will be added to a receipt for {% if bidder.badge_printed_name %}{{ bidder.badge_printed_name }} ({% endif %}{{ bidder|form_link }}{{ ')' if bidder.badge_printed_name }} and they will be responsible for picking it up during Sales</strong>{% endif %}.
-    <form role="form" method="post" action="close_out_piece">
-    <div class="row g-sm-3 row-cols-auto align-items-end">
-      <input type="hidden" name="id" value="{{ piece.id }}" />
-      {% if bidder %}<input type="hidden" name="bidder_id" value="{{ bidder.id }}" />{% endif %}
-      <input type="hidden" name="piece_code" value="{{ piece_code }}" />
-      <input type="hidden" name="bidder_num" value="{{ bidder_num }}" />
-      {{ csrf_token() }}
-      <div class="col">
-        <label class="form-text">Piece Status</label>
-        <div class="mb-3">
-          <select name="status" class="form-select">
-            {{ options(c.ART_PIECE_STATUS_OPTS, piece.status) }}
-          </select>
+    <div id="winning-bidder-info">
+    Enter the winning bidder number and bid below.<br/>
+      <div class="row g-sm-3 row-cols-auto align-items-end">
+        <div class="col">
+          <label class="form-text">Bidder Number</label>
+          <div class="mb-3">
+            <input class="form-control" type="text" name="bidder_num" value="{{ bidder_num }}" placeholder="A-0001" />
+          </div>
         </div>
-      </div>
-      <div class="col">
-        <label class="form-text">High Bid</label>
-        <div class="mb-3">
-          <div class="input-group">
-            <span class="input-group-text">$</span>
-            <input class="form-control" type="text" name="winning_bid" value="{{ piece.winning_bid if piece.winning_bid }}" />
+        <div class="col">
+          <label class="form-text">High Bid</label>
+          <div class="mb-3">
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input class="form-control" type="text" name="winning_bid" value="{{ winning_bid }}" />
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="mb-3">
+            <button type="submit" name="action" value="set_winner" class="btn btn-success">Set Winning Bid</button>
           </div>
         </div>
       </div>
-      <div class="col">
-        <div class="mb-3">
-          <button type="submit" class="btn btn-success">Close Out Piece {{ piece.artist_and_piece_id }}</button>
-        </div>
-      </div>
     </div>
     </form>
+    {% if piece %}
+    <div class="row g-sm-3 row-cols-auto align-items-end">
+      <div class="col">
+        <div class="form-text">Piece ID</div>
+        <div class="mb-3">{{ piece.artist_and_piece_id }}</div>
+      </div>
+      <div class="col">
+        <div class="form-text">Piece Title</div>
+        <div class="mb-3">{{ piece.name }}</div>
+      </div>
+      <div class="col">
+        <div class="form-text">Gallery</div>
+        <div class="mb-3">{{ piece.gallery_label }}</div>
+      </div>
+      <div class="col">
+        <div class="form-text">Artist</div>
+        <div class="mb-3"><a href="../art_show_admin/form?id={{ piece.app.id }}" target="_blank">{{ piece.app.artist_or_full_name }}</a></div>
+      </div>
+      <div class="col">
+        <div class="form-text">Artist Location(s)</div>
+        <div class="mb-3">{{ piece.app.locations }}</div>
+      </div>
+      <div class="col">
+        <div class="form-text">Piece Status</div>
+        <div class="mb-3">{{ piece.status_label }}</div>
+      </div>
+      {% if piece.status in [c.SOLD, c.PAID, c.QUICK_SALE] %}
+      <div class="col">
+        <div class="form-text">Sale Price</div>
+        <div class="mb-3">{{ piece.sale_price|format_currency }}</div>
+      </div>
+      {% endif %}
+      {% if piece.winning_bid %}
+      <div class="col">
+        <div class="form-text">Winning Bidder</div>
+        <div class="mb-3">{{ piece.winning_bidder.bidder_num }} ({{ piece.winning_bidder.attendee|form_link(true) }})</div>
+      </div>
+      {% endif %}
+      {% if piece.receipt %}
+      <div class="col">
+        <div class="form-text">Invoice #</div>
+        <div class="mb-3"><a href="../art_show_admin/pieces_bought?id={{ piece.receipt.id }}" target="_blank">{{ piece.receipt.invoice_num }}</a>{% if piece.closed %} (Paid {{ piece.closed|time_day_local }}){% endif %}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 {% endblock admin_controls %}
 {% endblock content %}

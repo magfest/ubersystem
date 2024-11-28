@@ -215,22 +215,17 @@ class Root:
         }
 
     @check_shutdown
-    def shifts(self, session, start=''):
+    def shifts(self, session, **params):
         volunteer = session.logged_in_volunteer()
 
         has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
         has_teardown = volunteer.can_work_teardown or any(
             d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
 
-        if not start and has_setup:
+        if has_setup:
             start = c.SETUP_JOB_START
-        elif not start:
-            start = c.EPOCH
         else:
-            if start.endswith('Z'):
-                start = datetime.strptime(start[:-1], '%Y-%m-%dT%H:%M:%S.%f')
-            else:
-                start = datetime.strptime(start, '%Y-%m-%dT%H:%M:%S.%f')
+            start = c.EPOCH
 
         end = c.TEARDOWN_JOB_END if has_teardown else c.ESCHATON
 

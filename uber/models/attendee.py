@@ -29,7 +29,7 @@ from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthda
     localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt
 
 
-__all__ = ['Attendee', 'AttendeeAccount', 'FoodRestrictions']
+__all__ = ['Attendee', 'AttendeeAccount', 'BadgePickupGroup', 'FoodRestrictions']
 
 
 RE_NONDIGIT = re.compile(r'\D+')
@@ -152,6 +152,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(
         Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
+    
+    badge_pickup_group_id = Column(UUID, ForeignKey('badge_pickup_group.id', ondelete='SET NULL'), nullable=True)
+    badge_pickup_group = relationship(
+        'BadgePickupGroup', backref=backref('attendees', order_by='Attendee.full_name'), foreign_keys=badge_pickup_group_id,
+        cascade='save-update,merge,refresh-expire,expunge', single_parent=True)
 
     creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
     creator = relationship(
@@ -538,7 +543,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.WATCHED_STATUS and not self.banned:
             self.badge_status = c.NEW_STATUS
 
-        if self.badge_status in [c.NEW_STATUS, c.AT_DOOR_PENDING_STATUS] and self.banned:
+        if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.WATCHED_STATUS
             try:
                 uber.tasks.email.send_email.delay(
@@ -556,6 +561,9 @@ class Attendee(MagModel, TakesPaymentMixin):
                     and self.group
                     and not self.group.is_unpaid):
             self.badge_status = c.COMPLETED_STATUS
+
+        if not self.has_or_will_have_badge:
+            self.badge_pickup_group = None
 
     @presave_adjustment
     def _staffing_adjustments(self):
@@ -591,6 +599,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _badge_adjustments(self):
         from uber.badge_funcs import needs_badge_num
+        from uber.tasks.registration import assign_badge_num
+
         if self.badge_type == c.PSEUDO_DEALER_BADGE:
             self.ribbon = add_opt(self.ribbon_ints, c.DEALER_RIBBON)
 
@@ -602,7 +612,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if old_type != self.badge_type or old_num != self.badge_num:
             self.session.update_badge(self, old_type, old_num)
         elif needs_badge_num(self) and not self.badge_num:
-            self.badge_num = self.session.get_next_badge_num(self.badge_type)
+            assign_badge_num.delay(self.id)
 
     @presave_adjustment
     def _use_promo_code(self):
@@ -619,7 +629,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def update_default_cost(self):
-        if self.is_valid or self.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]:
+        if self.is_valid or self.badge_status == c.PENDING_STATUS:
             self.default_cost = self.calc_default_cost()
 
     @hybrid_property
@@ -769,8 +779,11 @@ class Attendee(MagModel, TakesPaymentMixin):
             full_reg_admin = bool(session.current_admin_account().full_registration_admin)
         if c.ADMIN_BADGES_NEED_APPROVAL and not full_reg_admin and self.badge_status == c.PENDING_STATUS:
             return "This badge must be approved by an admin."
-        if self.badge_status == c.WATCHED_STATUS and not c.HAS_SECURITY_ADMIN_ACCESS:
-            return "Please escalate this case to someone with access to the watchlist."
+        if self.badge_status == c.WATCHED_STATUS:
+            if not c.HAS_SECURITY_ADMIN_ACCESS:
+                return "Please escalate this case to someone with access to the watchlist."
+            else:
+                return "Please view this person's watchlist entry to clear them for check-in."
         if (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and not c.HAS_REG_ADMIN_ACCESS:
             return "Altering the badge status is disabled during the event. The system will update it automatically."
         return ''
@@ -946,11 +959,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return c.MERCH_SHIPPING_FEE
 
     @property
-    def in_reg_cart_group(self):
-        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
-            return self.badge_status == c.AT_DOOR_PENDING_STATUS and len(self.managers[0].at_door_attendees) > 1
-        
-    @property
     def has_at_con_payments(self):
         return self.active_receipt.has_at_con_payments if self.active_receipt else False
 
@@ -1051,12 +1059,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def is_valid(self):
-        return self.badge_status not in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS, c.INVALID_STATUS,
+        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS,
                                          c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS, c.REFUNDED_STATUS]
 
     @is_valid.expression
     def is_valid(cls):
-        return not_(cls.badge_status.in_([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS, c.INVALID_STATUS,
+        return not_(cls.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS,
                                           c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS, c.REFUNDED_STATUS]))
 
     @hybrid_property
@@ -1128,10 +1136,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.WATCHED_STATUS:
             if self.banned or not self.regdesk_info:
                 regdesk_info_append = " [{}]".format(self.regdesk_info) if self.regdesk_info else ""
-                return "MUST TALK TO SECURITY before picking up badge{}".format(regdesk_info_append)
+                return "MUST TALK TO MANAGER before picking up badge{}".format(regdesk_info_append)
             return self.regdesk_info or "Badge status is {}".format(self.badge_status_label)
 
-        if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS, c.AT_DOOR_PENDING_STATUS]:
+        if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS]:
             return "Badge status is {}".format(self.badge_status_label)
 
         if self.group and self.paid == c.PAID_BY_GROUP and self.group.is_dealer \
@@ -1150,6 +1158,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.is_presold_oneday:
             if self.badge_type_label != localized_now().strftime('%A'):
                 return "Wrong day"
+        
+        if self.active_escalation_tickets:
+            return "Must be cleared for check-in by manager"
 
         message = uber.utils.check(self)
         return message
@@ -1603,6 +1614,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             notes.append(f"Please check this attendee in {self.accoutrements}.")
 
         return "<br/><br/>".join(notes)
+    
+    @property
+    def active_escalation_tickets(self):
+        return [ticket for ticket in self.escalation_tickets if ticket.resolved == None]
 
     @property
     def multiply_assigned(self):
@@ -2208,6 +2223,18 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def attractions(self):
         return list({e.feature.attraction for e in self.attraction_events})
+    
+    @property
+    def name_and_badge_info(self):
+        return f'{self.badge_or_masked_name} ({self.badge})'
+
+    @property
+    def badge_or_masked_name(self):
+        return self.badge_printed_name or self.masked_name
+    
+    @property
+    def logged_in_name(self):
+        return self.full_name
 
     @property
     def masked_name(self):
@@ -2355,25 +2382,47 @@ class AttendeeAccount(MagModel):
         return [attendee for attendee in self.attendees if attendee.badge_status == c.PENDING_STATUS]
 
     @property
-    def at_door_attendees(self):
-        return sorted([attendee for attendee in self.attendees if attendee.badge_status == c.AT_DOOR_PENDING_STATUS],
-                      key=lambda a: a.first_name)
-
-    @property
-    def at_door_under_18s(self):
-        return sorted([attendee for attendee in self.attendees if attendee.badge_status == c.AT_DOOR_PENDING_STATUS
-                       and attendee.age_now_or_at_con < 18],
-                      key=lambda a: a.first_name)
+    def at_door_pending_attendees(self):
+        return sorted([attendee for attendee in self.attendees if
+                       attendee.badge_status == c.NEW_STATUS and attendee.paid == c.PENDING],
+                       key=lambda a: a.first_name)
 
     @property
     def invalid_attendees(self):
         return [attendee for attendee in self.attendees if not attendee.is_valid and
-                attendee.badge_status not in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]]
+                attendee.badge_status != c.PENDING_STATUS]
 
     @property
     def refunded_deferred_attendees(self):
         return [attendee for attendee in self.attendees
                 if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]]
+
+
+class BadgePickupGroup(MagModel):
+    public_id = Column(UUID, default=lambda: str(uuid4()), nullable=True)
+    account_id = Column(UnicodeText)
+
+    def build_from_account(self, account):
+        for attendee in account.attendees:
+            if attendee.has_badge:
+                self.attendees.append(attendee)
+
+    @property
+    def pending_paid_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.paid == c.PENDING and
+                not attendee.checked_in and not attendee.cannot_check_in_reason]
+
+    @property
+    def checked_in_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.checked_in]
+
+    @property
+    def check_inable_attendees(self):
+        return [attendee for attendee in self.attendees if not attendee.checked_in and not attendee.cannot_check_in_reason]
+
+    @property
+    def under_18_badges(self):
+        return [attendee for attendee in self.check_inable_attendees if attendee.age_now_or_at_con < 18]
 
 
 class FoodRestrictions(MagModel):

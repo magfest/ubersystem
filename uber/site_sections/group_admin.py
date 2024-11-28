@@ -1,5 +1,6 @@
 import cherrypy
 
+from collections import defaultdict
 from datetime import datetime
 from pockets import readable_join
 from pockets.autolog import log
@@ -30,28 +31,41 @@ class Root:
 
     def index(self, session, message='', show_all=None):
         groups = session.viewable_groups()
-        dealer_groups = groups.filter(Group.is_dealer == True)  # noqa: E712
-        guest_groups = groups.join(Group.guest)
+        dealer_counts = defaultdict(int)
 
         if not show_all:
-            dealer_groups = dealer_groups.filter(Group.status != c.IMPORTED)
+            groups = groups.filter(Group.status != c.IMPORTED)
+
+        dealer_groups = groups.filter(Group.is_dealer == True)  # noqa: E712
+        dealer_counts['total'] = dealer_groups.count()
+        for group in dealer_groups:
+            dealer_counts['tables'] += group.tables
+            dealer_counts['badges'] += group.badges
+            match group.status:
+                case c.UNAPPROVED:
+                    dealer_counts['unapproved'] += group.tables
+                case c.WAITLISTED:
+                    dealer_counts['waitlisted'] += group.tables
+                case c.APPROVED:
+                    dealer_counts['approved'] += group.tables
+                case c.SHARED:
+                    dealer_counts['approved'] += group.tables
+
+        guest_groups = groups.join(Group.guest)
 
         return {
             'message': message,
-            'groups': groups.options(joinedload(Group.attendees), joinedload(Group.leader),
-                                     joinedload(Group.active_receipt)),
-            'guest_groups': guest_groups.options(joinedload(Group.attendees), joinedload(Group.leader)),
+            'show_all': show_all,
+            'all_groups': groups.options(joinedload(Group.attendees), joinedload(Group.active_receipt)).all(),
+            'guest_groups': guest_groups.options(joinedload(Group.attendees)),
             'guest_checklist_items': GuestGroup(group_type=c.GUEST).sorted_checklist_items,
             'band_checklist_items': GuestGroup(group_type=c.BAND).sorted_checklist_items,
-            'num_dealer_groups': dealer_groups.count(),
-            'dealer_groups':      dealer_groups.options(joinedload(Group.attendees),
-                                                        joinedload(Group.leader), joinedload(Group.active_receipt)),
-            'dealer_badges':      sum(g.badges for g in dealer_groups),
-            'tables':            sum(g.tables for g in dealer_groups),
-            'show_all': show_all,
-            'unapproved_tables': sum(g.tables for g in dealer_groups if g.status == c.UNAPPROVED),
-            'waitlisted_tables': sum(g.tables for g in dealer_groups if g.status == c.WAITLISTED),
-            'approved_tables':   sum(g.tables for g in dealer_groups if g.status in [c.APPROVED, c.SHARED])
+            'num_dealer_groups': dealer_counts['total'],
+            'dealer_badges': dealer_counts['badges'],
+            'tables': dealer_counts['tables'],
+            'unapproved_tables': dealer_counts['unapproved'],
+            'waitlisted_tables': dealer_counts['waitlisted'],
+            'approved_tables': dealer_counts['approved'],
         }
 
     def new_group_from_attendee(self, session, id):
@@ -263,6 +277,7 @@ class Root:
 
         session.add_all(receipt_manager.items_to_add)
         session.commit()
+        session.check_receipt_closed(receipt)
         raise HTTPRedirect('form?id={}&message={}', id,
                            f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
 

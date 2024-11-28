@@ -46,6 +46,10 @@
   <tr><td colspan="4"></td><td><strong>Total Paid Cash</strong></td><td>{{ (receipt.cash_total / 100)|format_currency }}</td></tr>
   <tr><td colspan="4"></td><td><strong>Amount Due:</strong></td><td>{{ (receipt.owed / 100)|format_currency }}</td></tr>
 </table>
+<br/>
+<div class="text-end">
+  Signature&nbsp; _________________________________________________________
+</div>
 {%- endmacro -%}
 
 {%- macro print_artist_invoice(app) -%}

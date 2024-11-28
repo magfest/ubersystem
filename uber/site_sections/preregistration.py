@@ -17,7 +17,7 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, cs
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, \
+from uber.models import Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
                         ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
@@ -727,31 +727,47 @@ class Root:
         }
 
     def at_door_confirmation(self, session, message='', qr_code_id='', **params):
-        # Currently the cart feature relies on attendee accounts and "At Door Pending Status"
-        # We will want real "carts" later so we can support group check-in for prereg attendees
-
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
         used_codes = defaultdict(int)
         registrations_list = []
-        account = None
+        account = session.current_attendee_account() if c.ATTENDEE_ACCOUNTS_ENABLED else None
+        account_pickup_group = session.query(BadgePickupGroup).filter_by(account_id=account.id).first() if account else None
+        pickup_group = None
 
         if not listify(PreregCart.unpaid_preregs.values()):
-            if c.ATTENDEE_ACCOUNTS_ENABLED and qr_code_id:
-                account = session.query(AttendeeAccount).filter_by(public_id=qr_code_id).first()
-                for attendee in account.at_door_attendees:
+            if qr_code_id:
+                current_pickup_group = session.query(BadgePickupGroup).filter_by(public_id=qr_code_id).first()
+                for attendee in current_pickup_group.attendees:
                     registrations_list.append(attendee.full_name)
             elif c.ATTENDEE_ACCOUNTS_ENABLED:
-                account = session.current_attendee_account()
-                qr_code_id = qr_code_id or (account.public_id if account else '')
+                qr_code_id = qr_code_id or (account_pickup_group.public_id if account_pickup_group else '')
 
             if not qr_code_id:
                 raise HTTPRedirect('form')
+        else:
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                if account_pickup_group and not account_pickup_group.checked_in_attendees:
+                    pickup_group = account_pickup_group
+
+            if not pickup_group and len(cart.attendees) > 1:
+                pickup_group = BadgePickupGroup()
+                if not account_pickup_group and c.ATTENDEE_ACCOUNTS_ENABLED:
+                    pickup_group.account_id = account.id
+                session.add(pickup_group)
+                session.commit()
+                session.refresh(pickup_group)
+
+            if pickup_group:
+                qr_code_id = pickup_group.public_id
 
         for attendee in cart.attendees:
             registrations_list.append(attendee.full_name)
             if c.ATTENDEE_ACCOUNTS_ENABLED:
-                attendee.badge_status = c.AT_DOOR_PENDING_STATUS
-            # Setting this makes the badge count against our badge cap (does not work if at-door pending status is used)
+                session.add_attendee_to_account(attendee, account)
+            if pickup_group:
+                pickup_group.attendees.append(attendee)
+
+            # Setting this makes the badge count against our badge cap
             attendee.paid = c.PENDING
 
             if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
@@ -1084,7 +1100,7 @@ class Root:
 
             for prereg in preregs:
                 receipt = session.get_receipt_by_model(prereg)
-                if isinstance(prereg, Attendee):
+                if isinstance(prereg, Attendee) and receipt:
                     session.refresh_receipt_and_model(prereg, is_prereg=True)
                     session.update_paid_from_receipt(prereg, receipt)
 
@@ -1828,10 +1844,12 @@ class Root:
             account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
         attendees_who_owe_money = {}
-        for attendee in account.attendees:
-            receipt = session.get_receipt_by_model(attendee)
-            if receipt and receipt.current_amount_owed and attendee.is_valid:
-                attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
+        if not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY:
+            for attendee in account.valid_attendees:
+                if attendee not in account.at_door_pending_attendees:
+                    receipt = session.get_receipt_by_model(attendee)
+                    if receipt and receipt.current_amount_owed:
+                        attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
 
         account_attendee = None
         account_attendees = session.valid_attendees().filter(~Attendee.badge_status.in_([c.REFUNDED_STATUS,
@@ -1918,7 +1936,8 @@ class Root:
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if not receipt:
                 receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-            if not receipt.current_amount_owed or receipt.pending_total:
+            if not receipt.current_amount_owed or receipt.pending_total or (c.AFTER_PREREG_TAKEDOWN
+                                                                            and c.SPIN_TERMINAL_AUTH_KEY):
                 raise HTTPRedirect(page + 'message=' + message)
             elif receipt.current_amount_owed and not receipt.pending_total:
                 # TODO: could use some cleanup, needed because of how we handle the placeholder attr
@@ -1933,7 +1952,8 @@ class Root:
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
-        if receipt and receipt.current_amount_owed and not receipt.pending_total and not attendee.placeholder:
+        if receipt and receipt.current_amount_owed and not receipt.pending_total and not attendee.placeholder and (
+                c.BEFORE_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY):
             raise HTTPRedirect('new_badge_payment?id={}&message={}&return_to={}', attendee.id, message, return_to)
 
         return {
@@ -2046,7 +2066,7 @@ class Root:
         except Exception:
             return {'error': "Cannot find your receipt, please contact registration"}
 
-        if receipt.open_receipt_items and receipt.current_amount_owed:
+        if receipt.open_purchase_items and receipt.current_amount_owed:
             return {'error': "You already have an outstanding balance, please refresh the page to pay \
                     for your current items or contact {}".format(email_only(c.REGDESK_EMAIL))}
 
@@ -2175,6 +2195,8 @@ class Root:
     @id_required(Attendee)
     @requires_account(Attendee)
     def new_badge_payment(self, session, id, return_to, message=''):
+        if c.AFTER_PREREG_TAKEDOWN and c.SPIN_TERMINAL_AUTH_KEY:
+            raise HTTPRedirect('confirm?id={}&message={}', id, "Please go to Registration to pay for this badge.")
         attendee = session.attendee(id)
         return {
             'attendee': attendee,

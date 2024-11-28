@@ -46,7 +46,7 @@
 {% for tracked in feed %}
     <tr>
         <td class="text-nowrap">{{ tracked.when|full_datetime_local }}</td>
-        <td class="text-nowrap">{{ tracked.who }}</td>
+        <td class="text-nowrap">{{ tracked.who_repr }}</td>
         <td>{{ tracked.page }}</td>
         <td>{{ tracked.which or 'N/A' }}</td>
         <td style="white-space:nowrap; width:10%">{{ tracked.action_label }}</td>

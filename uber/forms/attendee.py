@@ -133,7 +133,7 @@ class PersonalInfo(AddressForm, MagForm):
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = []
 
-        if attendee.is_new or attendee.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]:
+        if attendee.is_new or attendee.badge_status == c.PENDING_STATUS or attendee.paid == c.PENDING:
             return locked_fields
         elif not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
             return list(self._fields.keys())
@@ -484,7 +484,7 @@ class BadgeAdminNotes(MagForm):
 
 
 class CheckInForm(MagForm):
-    field_validation = CustomValidation()
+    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
 
     full_name = HiddenField('Name')
     legal_name = HiddenField('Name on ID')
@@ -508,6 +508,19 @@ class CheckInForm(MagForm):
             optional_list.append('badge_printed_name')
 
         return optional_list
+
+    @new_or_changed_validation.badge_num
+    def dupe_badge_num(form, field):
+        existing_name = ''
+        if c.NUMBERED_BADGES and field.data \
+                and (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
+            with Session() as session:
+                existing = session.query(Attendee).filter_by(badge_num=field.data)
+                if not existing.count():
+                    return
+                else:
+                    existing_name = existing.first().full_name
+            raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))
 
     @field_validation.birthdate
     def birthdate_format(form, field):

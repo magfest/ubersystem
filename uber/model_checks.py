@@ -1092,7 +1092,7 @@ def no_more_child_badges(attendee):
 
 @prereg_validation.Attendee
 def child_badge_over_13(attendee):
-    if not attendee.is_new and attendee.badge_status not in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] \
+    if not attendee.is_new and attendee.badge_status != c.PENDING_STATUS \
             or attendee.unassigned_group_reg or attendee.valid_placeholder:
         return
 
@@ -1105,7 +1105,7 @@ def child_badge_over_13(attendee):
 
 @prereg_validation.Attendee
 def attendee_badge_under_13(attendee):
-    if not attendee.is_new and attendee.badge_status not in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] \
+    if not attendee.is_new and attendee.badge_status != c.PENDING_STATUS \
             or attendee.unassigned_group_reg or attendee.valid_placeholder:
         return
 

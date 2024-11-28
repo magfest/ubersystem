@@ -268,7 +268,7 @@
   {% endif %}
   
   <div class="table-responsive">
-    <table class="table table-striped datatable">
+    <table class="table table-striped datatable" id="art-show-piece-table">
       <thead>
       <tr>
         <th>ID</th>
@@ -284,7 +284,7 @@
       <tbody>
       {% for piece in app.art_show_pieces %}
       <tr class="piece-row" data-piece_id="{{ piece.id }}">
-        <td> {{ piece.artist_and_piece_id }} </td>
+        <td data-sort="{{ piece.piece_id }}"> {{ piece.artist_and_piece_id }} </td>
         <td>
           {% if admin_area %}
           <form method="post" action="../art_show_applications/save_art_show_piece" role="form">
@@ -471,7 +471,7 @@
         });
 
         $('#add_piece_modal').on('click', addPieceModal);
-        $('.edit_piece_modal').on('click', editPieceModal);
+        $('#art-show-piece-table').on('click', '.edit_piece_modal', editPieceModal);
 
         $('#piece_modals').find('form').submit(function(e) {
             $(this).find('.save_piece').prop('disabled', true);

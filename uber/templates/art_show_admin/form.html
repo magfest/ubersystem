@@ -110,9 +110,11 @@ app, c.PAGE_PATH,
               <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View this {{ c.ART_SHOW_APP_TERM }}</a> for the payment button.
             </p>
           {% elif not app.is_new %}
+          <div class="d-flex align-items-center gap-1">
             <a href="paid_with_cash?id={{ app.id }}" class="btn btn-success" type="submit">Paid with Cash</a>
             <strong>OR</strong>
             <button type="button" class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ app.id }}', '', refreshPage, '../art_show_admin/start_terminal_payment')">Prompt Payment at Terminal</button>
+          </div>
           {% endif %}
         {% endif %}
       </div>

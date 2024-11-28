@@ -3,12 +3,12 @@
   var startPaymentButton = $('#start-spin-payment-button');
   var confirmPaymentButton = $('#confirm-spin-payment-button');
   let intervalId;
-  var startTerminalPayment = function(model_id='', account_id='', callback, action='../registration/start_terminal_payment') {
+  var startTerminalPayment = function(model_id='', pickup_group_id='', callback, action='../registration/start_terminal_payment') {
     $('#payment-loading-message').removeClass('alert-danger').addClass('alert-info');
     $('#payment-loading-message').html("Sending request... &nbsp;" + loadingIcon).show();
     $.post(action,
     {
-      account_id: account_id,
+      pickup_group_id: pickup_group_id,
       model_id: model_id,
       amount: $('#card_amount').length ? $('#card_amount').val() : 0,
       csrf_token: csrf_token

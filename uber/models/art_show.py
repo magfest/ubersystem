@@ -1,6 +1,7 @@
 import random
 import string
 
+from collections import defaultdict
 from pockets import classproperty
 from sqlalchemy import func, case
 from datetime import datetime
@@ -123,7 +124,7 @@ class ArtShowApplication(MagModel):
             # Kind of inefficient, but doing one big query for all the existing
             # codes will be faster than a separate query for each new code.
             old_codes = set(
-                s for (s,) in session.query(ArtShowApplication.artist_id).all())
+                a for tup in session.query(ArtShowApplication.artist_id, ArtShowApplication.artist_id_ad).all() for a in tup)
 
         code_candidate = self._get_code_from_name(banner_name, old_codes) \
             or self._get_code_from_name(self.artist_name, old_codes) \
@@ -457,7 +458,7 @@ class ArtShowReceipt(MagModel):
     def subtotal(self):
         cost = 0
         for piece in self.pieces:
-            cost += piece.sale_price * 100
+            cost += piece.sale_price * 100 if piece.sale_price else 0
         return cost
 
     @property
@@ -503,6 +504,9 @@ class ArtShowBidder(MagModel):
     hotel_room_num = Column(UnicodeText)
     admin_notes = Column(UnicodeText)
     signed_up = Column(UTCDateTime, nullable=True)
+    email_won_bids = Column(Boolean, default=False)
+
+    email_model_name = 'bidder'
 
     @presave_adjustment
     def zfill_bidder_num(self):
@@ -513,6 +517,8 @@ class ArtShowBidder(MagModel):
 
     @classmethod
     def strip_bidder_num(cls, num):
+        if not num:
+            return 0
         return int(num[2:])
 
     @hybrid_property
@@ -523,6 +529,19 @@ class ArtShowBidder(MagModel):
     def bidder_num_stripped(cls):
         return func.cast("0" + func.substr(cls.bidder_num, 3, func.length(cls.bidder_num)), Integer)
     
+    @property
+    def email(self):
+        if self.attendee:
+            return self.attendee.email
+
+    @property
+    def won_pieces_by_gallery(self):
+        pieces_dict = defaultdict(list)
+        for piece in sorted(self.art_show_pieces, key=lambda p: p.artist_and_piece_id):
+            if piece.winning_bid and piece.status == c.SOLD:
+                pieces_dict[piece.gallery].append(piece)
+        return pieces_dict
+
     @classproperty
     def required_fields(cls):
         # Override for independent art shows to force attendee fields to be filled out

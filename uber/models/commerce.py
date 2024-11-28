@@ -100,6 +100,22 @@ class ModelReceipt(MagModel):
     owner_model = Column(UnicodeText)
     closed = Column(UTCDateTime, nullable=True)
 
+    def close_all_items(self, session):
+        for item in self.open_receipt_items:
+            if item.receipt_txn:
+                item.closed = item.receipt_txn.added
+            else:
+                if item.amount < 0:
+                    latest_txn = self.sorted_txns[-1]
+                else:
+                    latest_txn = sorted([txn for txn in self.receipt_txns if txn.amount > 0],
+                                        key=lambda x: x.added, reverse=True)[0]
+                
+                item.receipt_txn = latest_txn
+                item.closed = datetime.now()
+            session.add(item)
+        session.commit()
+
     @property
     def all_sorted_items_and_txns(self):
         return sorted(self.receipt_items + self.receipt_txns, key=lambda x: x.added)
@@ -125,12 +141,16 @@ class ModelReceipt(MagModel):
         return [item for item in self.receipt_items if not item.closed]
 
     @property
-    def closed_receipt_items(self):
-        return [item for item in self.receipt_items if item.closed]
+    def open_purchase_items(self):
+        return [item for item in self.open_receipt_items if item.amount >= 0]
+    
+    @property
+    def open_credit_items(self):
+        return [item for item in self.open_receipt_items if item.amount < 0]
 
     @property
     def charge_description_list(self):
-        return ", ".join([item.desc + " x" + str(item.count) for item in self.open_receipt_items if item.amount > 0])
+        return ", ".join([item.desc + " x" + str(item.count) for item in self.open_purchase_items])
 
     @property
     def cancelled_txns(self):
@@ -268,7 +288,7 @@ class ReceiptTransaction(MagModel):
     Stripe payments will start with an `intent_id` and, if completed, have a `charge_id` set.
     Stripe refunds will have a `refund_id`.
 
-    Stripe payments will track how much has been refunded for that transaction with `refunded` --
+    Stripe payments will track how much has been refunded for that transaction with `refunded` return
         this is an important number to track because it helps prevent refund errors.
 
     All payments keep a list of `receipt_items`. This lets admins track what has been paid for already,
@@ -283,6 +303,13 @@ class ReceiptTransaction(MagModel):
     receipt_info = relationship('ReceiptInfo', foreign_keys=receipt_info_id,
                                 cascade='save-update, merge',
                                 backref=backref('receipt_txns', cascade='save-update, merge'))
+    refunded_txn_id = Column(UUID, ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True)
+    refunded_txn = relationship('ReceiptTransaction', foreign_keys='ReceiptTransaction.refunded_txn_id',
+                                backref=backref('refund_txns', order_by='ReceiptTransaction.added'),
+                                cascade='save-update,merge,refresh-expire,expunge',
+                                remote_side='ReceiptTransaction.id',
+                                single_parent=True)
+    refunded = Column(Integer, default=0)
     intent_id = Column(UnicodeText)
     charge_id = Column(UnicodeText)
     refund_id = Column(UnicodeText)
@@ -291,7 +318,6 @@ class ReceiptTransaction(MagModel):
     amount = Column(Integer)
     txn_total = Column(Integer, default=0)
     processing_fee = Column(Integer, default=0)
-    refunded = Column(Integer, default=0)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     cancelled = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
@@ -316,7 +342,7 @@ class ReceiptTransaction(MagModel):
         if not self.stripe_id:
             actions.append('remove_receipt_item')
 
-        if self.receipt_info:
+        if self.receipt_info and self.receipt_info.fk_email_id:
             actions.append('resend_receipt')
 
         return actions
@@ -483,7 +509,6 @@ class ReceiptItem(MagModel):
     receipt_txn = relationship('ReceiptTransaction', foreign_keys=txn_id,
                                cascade='save-update, merge',
                                backref=backref('receipt_items', cascade='save-update, merge'))
-    # TODO: Add a view-only "refund_txns" relationship to ReceiptTransaction so credit items can track their associated refunds
     fk_id = Column(UUID, index=True, nullable=True)
     fk_model = Column(UnicodeText)
     department = Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS), default=c.OTHER_RECEIPT_ITEM)
@@ -496,6 +521,7 @@ class ReceiptItem(MagModel):
     closed = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
+    admin_notes = Column(UnicodeText)
     revert_change = Column(JSON, default={}, server_default='{}')
 
     @property
@@ -507,6 +533,16 @@ class ReceiptItem(MagModel):
         if not self.closed:
             return
         return self.receipt_txn.added and self.receipt_txn.amount > 0
+    
+    @property
+    def closed_type(self):
+        if not self.closed:
+            return ""
+        if self.amount > 0 and self.receipt_txn.amount > 0:
+            return "Paid"
+        if self.amount < 0 and self.receipt_txn.amount < 0:
+            return "Refunded"
+        return "Closed"
 
     @property
     def available_actions(self):
@@ -547,10 +583,119 @@ class ReceiptInfo(MagModel):
     charged = Column(UTCDateTime)
     voided = Column(UTCDateTime, nullable=True)
     card_data = Column(MutableDict.as_mutable(JSONB), default={})
-    txn_info = Column(MutableDict.as_mutable(JSONB), default={})
     emv_data = Column(MutableDict.as_mutable(JSONB), default={})
+    txn_info = Column(MutableDict.as_mutable(JSONB), default={})
     signature = Column(UnicodeText)
     receipt_html = Column(UnicodeText)
+
+    @property
+    def response_code_str(self):
+        if not self.txn_info or not self.txn_info['response']:
+            return ''
+
+        if self.receipt_txns[0].method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID:
+            match self.txn_info['response'].get('response_code', ''):
+                case '1':
+                    return 'Approved'
+                case '2':
+                    return 'Declined'
+                case '3':
+                    return 'Error'
+                case '4':
+                    return 'Held for Review'
+                case _:
+                    return ''
+
+    @property
+    def avs_str(self):
+        if not self.txn_info or not self.txn_info['fraud_info']:
+            log.error(self.txn_info['fraud_info'])
+            return ''
+        
+        if self.receipt_txns[0].method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID:
+            match self.txn_info['fraud_info'].get('avs', ''):
+                case 'A':
+                    return "The street address matched, but the postal code did not."
+                case 'B':
+                    return "No address information was provided."
+                case 'E':
+                    return "The AVS check returned an error."
+                case 'G':
+                    return "The card was issued by a bank outside the U.S. and does not support AVS."
+                case 'N':
+                    return "Neither the street address nor postal code matched."
+                case 'P':
+                    return "AVS is not applicable for this transaction."
+                case 'R':
+                    return "Retry — AVS was unavailable or timed out."
+                case 'S':
+                    return "AVS is not supported by card issuer."
+                case 'U':
+                    return "Address information is unavailable."
+                case 'W':
+                    return "The US ZIP+4 code matches, but the street address does not."
+                case 'X':
+                    return "Both the street address and the US ZIP+4 code matched."
+                case 'Y':
+                    return "The street address and postal code matched."
+                case 'Z':
+                    return "The postal code matched, but the street address did not."
+                case _:
+                    return ''
+    
+    @property
+    def cvv_str(self):
+        if not self.txn_info or not self.txn_info['fraud_info']:
+            return ''
+        
+        if self.receipt_txns[0].method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID:
+            match self.txn_info['fraud_info'].get('cvv', ''):
+                case 'M':
+                    return "CVV matched."
+                case 'N':
+                    return "CVV did not match."
+                case 'P':
+                    return "CVV was not processed."
+                case 'S':
+                    return "CVV should have been present but was not indicated."
+                case 'U':
+                    return "The issuer was unable to process the CVV check."
+                case _:
+                    return ''
+                
+    @property
+    def cavv_str(self):
+        if not self.txn_info or not self.txn_info['fraud_info']:
+            return ''
+        
+        if self.receipt_txns[0].method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID:
+            match self.txn_info['fraud_info'].get('cavv', ''):
+                case '0':
+                    return "CAVV was not validated because erroneous data was submitted."
+                case '1':
+                    return "CAVV failed validation."
+                case '2':
+                    return "CAVV passed validation."
+                case '3':
+                    return "CAVV validation could not be performed; issuer attempt incomplete."
+                case '4':
+                    return "CAVV validation could not be performed; issuer system error."
+                case '5':
+                    return "Reserved for future use."
+                case '6':
+                    return "Reserved for future use."
+                case '7':
+                    return "CAVV failed validation, but the issuer is available. Valid for U.S.-issued card submitted to non-U.S acquirer."
+                case '8':
+                    return "CAVV passed validation and the issuer is available. Valid for U.S.-issued card submitted to non-U.S. acquirer."
+                case '9':
+                    return "CAVV failed validation and the issuer is unavailable. Valid for U.S.-issued card submitted to non-U.S acquirer."
+                case 'A':
+                    return "CAVV passed validation but the issuer unavailable. Valid for U.S.-issued card submitted to non-U.S acquirer."
+                case 'B':
+                    return "CAVV passed validation, information only, no liability shift."
+                case _:
+                    return "CAVV not validated."
 
 
 class TerminalSettlement(MagModel):
