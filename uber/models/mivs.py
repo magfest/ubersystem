@@ -506,7 +506,7 @@ class IndieGame(MagModel, ReviewMixin):
     @property
     def guidebook_images(self):
         if not self.images:
-            return ['', '']
+            return ['', ''], ['', '']
 
         header = self.guidebook_header
         thumbnail = self.guidebook_thumbnail

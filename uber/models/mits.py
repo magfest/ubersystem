@@ -219,7 +219,7 @@ class MITSGame(MagModel):
     @property
     def guidebook_images(self):
         if not self.pictures:
-            return ['', '']
+            return ['', ''], ['', '']
 
         header = None
         thumbnail = None
