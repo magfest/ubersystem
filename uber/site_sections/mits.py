@@ -14,7 +14,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
 from uber.models import Email, MITSDocument, MITSPicture, MITSTeam
 from uber.tasks.email import send_email
-from uber.utils import check, check_image_size, localized_now, check_guidebook_image_filetype
+from uber.utils import check, check_image_size, localized_now, GuidebookUtils
 
 
 def add_new_image(pic, game):
@@ -223,7 +223,7 @@ class Root:
                 # MITSPicture objects BEFORE checking image size
 
                 if header_image and header_image.filename:
-                    message = check_guidebook_image_filetype(header_image)
+                    message = GuidebookUtils.check_guidebook_image_filetype(header_image)
                     if not message:
                         header_pic = add_new_image(header_image, game)
                         header_pic.is_header = True
@@ -234,7 +234,7 @@ class Root:
 
             if not message:
                 if thumbnail_image and thumbnail_image.filename:
-                    message = check_guidebook_image_filetype(thumbnail_image)
+                    message = GuidebookUtils.check_guidebook_image_filetype(thumbnail_image)
                     if not message:
                         thumbnail_pic = add_new_image(thumbnail_image, game)
                         thumbnail_pic.is_thumbnail = True

@@ -1662,11 +1662,10 @@ c.DEALER_CANCELLABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.
 
 # A list of models that have properties defined for exporting for Guidebook
 c.GUIDEBOOK_MODELS = [
-    ('GuestGroup_guest', 'Guests'),
-    ('GuestGroup_band', 'Bands'),
+    ('GuestGroup_guest', 'Guest'),
+    ('GuestGroup_band', 'Band'),
     ('MITSGame', 'MITS'),
     ('IndieGame', 'MIVS'),
-    ('Event_panels', 'Panels'),
     ('Group_dealer', 'Marketplace'),
 ]
 
@@ -1678,9 +1677,8 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_subtitle', 'Sub-Title (i.e. Location, Table/Booth, or Title/Sponsorship Level)'),
     ('guidebook_desc', 'Description (Optional)'),
     ('guidebook_location', 'Location/Room'),
-    ('guidebook_image', 'Image (Optional)'),
+    ('guidebook_header', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
-    ('guidebook_track', 'Schedule Track (Optional)'),
 ]
 
 

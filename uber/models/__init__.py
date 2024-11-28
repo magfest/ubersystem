@@ -291,7 +291,14 @@ class MagModel:
 
     @presave_adjustment
     def update_last_updated(self):
-        self.last_updated = datetime.now(UTC)
+        if not getattr(self, 'skip_last_updated', None):
+            self.last_updated = datetime.now(UTC)
+
+    def last_synced_dt(self, key):
+        return dateparser.parse(json.loads(self.last_synced.get(key, '"1970/01/01"')))
+    
+    def update_last_synced(self, key, sync_time):
+        self.last_synced[key] = json.dumps(str(UTC.localize(dateparser.parse(sync_time))))
 
     @property
     def session(self):

@@ -24,7 +24,7 @@ from phonenumbers import PhoneNumberFormat
 from pockets import floor_datetime, listify
 from pockets.autolog import log
 from pytz import UTC
-from sqlalchemy import func
+from sqlalchemy import func, or_, cast
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
@@ -641,13 +641,87 @@ def check_image_size(image, size_list):
         return
 
 
-def check_guidebook_image_filetype(pic):
-    from uber.custom_tags import readable_join
+class GuidebookUtils():
+    @classmethod
+    def check_guidebook_image_filetype(cls, pic):
+        from uber.custom_tags import readable_join
 
-    if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
-        return f'Image {pic.filename} is not one of the allowed extensions: '\
-            f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
-    return ''
+        if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
+            return f'Image {pic.filename} is not one of the allowed extensions: '\
+                f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
+        return ''
+
+    @classmethod
+    def parse_guidebook_model(cls, selected_model=''):
+        from uber.models import Session, Event
+        if selected_model == 'schedule':
+            return Event
+
+        model = selected_model.split('_')[0] if '_' in selected_model else selected_model
+        return Session.resolve_model(model)
+
+    @classmethod
+    def get_guidebook_models(cls, session, selected_model=''):
+        from uber.models import GuestBio, MITSPicture, IndieGameImage
+
+        model_cls = cls.parse_guidebook_model(selected_model)
+        model_query = session.query(model_cls)
+        stale_filters = [model_cls.last_synced['guidebook'] == None,
+                        cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < model_cls.last_updated]
+
+        if '_band' in selected_model:
+            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.bio)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+        elif '_guest' in selected_model:
+            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.bio)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+        elif '_dealer' in selected_model:
+            model_query = model_query.filter_by(is_dealer=True)
+        elif 'IndieGame' in selected_model:
+            model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < IndieGameImage.last_updated)
+        elif 'MITSGame' in selected_model:
+            model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.pictures)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < MITSPicture.last_updated)
+            
+        return model_query, stale_filters
+
+    @classmethod
+    def cast_jsonb_to_datetime(cls, jsonb_col):
+        from residue import CoerceUTF8 as UnicodeText, UTCDateTime
+
+        return cast(cast(jsonb_col, UnicodeText), UTCDateTime)
+    
+    @classmethod
+    def get_changed_models(cls, session):
+        """
+        Returns a dictionary of changed "custom list" models and a list of changed "sessions" (Events)
+        """
+        from uber.models import GuestBio, Event
+
+        cl_updates = defaultdict(list)
+        for key, label in c.GUIDEBOOK_MODELS:
+            model_query, filters = GuidebookUtils.get_guidebook_models(session, key)
+            model_query = model_query.filter(or_(*filters))
+            for model in model_query:
+                if model.guidebook_data != model.last_synced.get('data', {}).get('guidebook', {}):
+                    cl_updates[label].append(model)
+                elif model.guidebook_header and not isinstance(model.guidebook_header, GuestBio):
+                    last_synced = model.last_synced_dt('guidebook')
+                    if model.guidebook_header.last_updated > last_synced or model.guidebook_thumbnail.last_updated > last_synced:
+                        cl_updates[label].append(model)
+
+        schedule_updates = []
+        schedule_query = session.query(Event).filter(
+            or_(Event.last_synced['guidebook'] == None,
+                GuidebookUtils.cast_jsonb_to_datetime(Event.last_synced['guidebook']) < Event.last_updated,
+            ))
+
+        for event in schedule_query:
+            if event.guidebook_data != event.last_synced.get('data', {}).get('guidebook', {}):
+                schedule_updates.append(event)
+        
+        return cl_updates, schedule_updates
 
 
 def validate_model(forms, model, preview_model=None, is_admin=False):
@@ -1600,7 +1674,6 @@ class TaskUtils:
     @staticmethod
     def _guess_dept(session, id_name):
         from uber.models import Department
-        from sqlalchemy import or_
 
         id, name = id_name
         dept = session.query(Department).filter(or_(

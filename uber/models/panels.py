@@ -24,6 +24,7 @@ class Event(MagModel):
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
     public_description = Column(UnicodeText)
+    track = Column(UnicodeText)
 
     assigned_panelists = relationship('AssignedPanelist', backref='event')
     applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"),
@@ -54,6 +55,24 @@ class Event(MagModel):
         return self.start_time + timedelta(minutes=self.minutes)
 
     @property
+    def guidebook_data(self):
+        # This is for a Guidebook Sessions export, so it's not the same as a custom list
+        from uber.utils import normalize_newlines
+
+        description = self.public_description or self.description
+
+        return {
+            'name': self.name,
+            'start_date': self.start_time_local.strftime('%m/%d/%Y'),
+            'start_time': self.start_time_local.strftime('%I:%M %p'),
+            'end_date': self.end_time_local.strftime('%m/%d/%Y'),
+            'end_time': self.end_time_local.strftime('%I:%M %p'),
+            'location': self.location_label,
+            'track': self.track,
+            'description': normalize_newlines(description).replace('\n', ' '),
+            }
+
+    @property
     def guidebook_name(self):
         return self.name
 
@@ -71,19 +90,7 @@ class Event(MagModel):
 
     @property
     def guidebook_desc(self):
-        panelists_creds = '<br/><br/>' + '<br/><br/>'.join(
-            a.other_credentials for a in self.applications[0].applicants if a.other_credentials
-        ) if self.applications else ''
-        description = self.public_description or self.description
-        return description + panelists_creds
-
-    @property
-    def guidebook_location(self):
-        return self.location_label
-
-    @property
-    def guidebook_track(self):
-        return self.applications[0].track if self.applications else ''
+        return self.public_description or self.description
 
 
 class AssignedPanelist(MagModel):
@@ -146,6 +153,7 @@ class PanelApplication(MagModel):
             self.event.name = self.name
             self.event.description = self.description
             self.event.public_description = self.public_description
+            self.event.track = self.track
     
     @presave_adjustment
     def set_default_dept(self):
