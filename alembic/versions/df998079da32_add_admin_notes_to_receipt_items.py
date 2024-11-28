@@ -1,15 +1,15 @@
-"""Add header/thumbnail flag to MIVS images
+"""Add admin notes to receipt items
 
-Revision ID: f01a2ad10d79
-Revises: 58756e2dfe4d
-Create Date: 2024-11-05 15:23:12.065060
+Revision ID: df998079da32
+Revises: 9c23621e5e12
+Create Date: 2024-11-11 00:27:15.421118
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'f01a2ad10d79'
-down_revision = '58756e2dfe4d'
+revision = 'df998079da32'
+down_revision = '9c23621e5e12'
 branch_labels = None
 depends_on = None
 
@@ -52,10 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('indie_game_image', sa.Column('is_header', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('indie_game_image', sa.Column('is_thumbnail', sa.Boolean(), server_default='False', nullable=False))
+    op.add_column('receipt_item', sa.Column('admin_notes', sa.Unicode(), server_default='', nullable=False))
 
 
 def downgrade():
-    op.drop_column('indie_game_image', 'is_thumbnail')
-    op.drop_column('indie_game_image', 'is_header')
+    op.drop_column('receipt_item', 'admin_notes')

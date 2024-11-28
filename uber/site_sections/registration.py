@@ -23,9 +23,9 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
     requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, AttendeeAccount, AdminAccount, Email, Group, Job, PageViewTracking, PrintJob, \
-    PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction, \
-    WorkstationAssignment
+from uber.models import (Attendee, AttendeeAccount, AdminAccount, Email, EscalationTicket, Group, Job, PageViewTracking,
+                         PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
+                         WorkstationAssignment)
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, validate_model
@@ -100,8 +100,6 @@ class Root:
                                                ).filter_by(reg_station_id=reg_station_id or -1).first()
 
         status_list = [c.NEW_STATUS, c.COMPLETED_STATUS, c.WATCHED_STATUS, c.UNAPPROVED_DEALER_STATUS]
-        if c.AT_THE_CON:
-            status_list.append(c.AT_DOOR_PENDING_STATUS)
         filter = [Attendee.badge_status.in_(status_list)] if not invalid else []
         total_count = session.query(Attendee.id).filter(*filter).count()
         count = 0
@@ -288,7 +286,7 @@ class Root:
         }  # noqa: E711
 
     @ajax
-    def start_terminal_payment(self, session, model_id='', account_id='', **params):
+    def start_terminal_payment(self, session, model_id='', pickup_group_id='', **params):
         from uber.tasks.registration import process_terminal_sale
 
         error, terminal_id = session.get_assigned_terminal_id()
@@ -310,7 +308,7 @@ class Root:
         process_terminal_sale.delay(workstation_num=cherrypy.session.get('reg_station'),
                                     terminal_id=terminal_id,
                                     model_id=model_id,
-                                    account_id=account_id,
+                                    pickup_group_id=pickup_group_id,
                                     description=description)
         return {'success': True}
 
@@ -336,7 +334,7 @@ class Root:
 
     @ajax
     def poll_terminal_payment(self, session, **params):
-        from spin_rest_utils import utils as spin_rest_utils
+        import uber.spin_rest_utils as spin_rest_utils
         error, terminal_id = session.get_assigned_terminal_id()
 
         if error:
@@ -608,15 +606,12 @@ class Root:
         from uber.site_sections.badge_printing import pre_print_check
         id = params.get('id', None)
 
-        if id in [None, '', 'None']:
-            account = AttendeeAccount()
-        else:
-            account = session.attendee_account(id)
+        pickup_group = session.badge_pickup_group(id)
 
         if not printer_id and not minor_printer_id:
             return {'success': False, 'message': 'You must set a printer ID.'}
 
-        if len(account.at_door_under_18s) != len(account.at_door_attendees) and not printer_id:
+        if len(pickup_group.under_18_badges) != len(pickup_group.check_inable_attendees) and not printer_id:
             return {'success': False,
                     'message': 'You must set a printer ID for the adult badges that are being checked in.'}
 
@@ -627,7 +622,7 @@ class Root:
         cherrypy.session['cart_success_list'] = []
         cherrypy.session['cart_printer_error_list'] = []
 
-        for attendee in account.at_door_attendees:
+        for attendee in pickup_group.check_inable_attendees:
             success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
             if not success:
@@ -642,8 +637,6 @@ class Root:
                 session.add_to_print_queue(attendee, printer_id,
                                            cherrypy.session.get('reg_station'), params.get('fee_amount'))
 
-                if attendee.badge_status == c.AT_DOOR_PENDING_STATUS:
-                    attendee.badge_status = c.NEW_STATUS
                 attendee.checked_in = localized_now()
                 checked_in[attendee.id] = {
                     'badge':      attendee.badge,
@@ -671,17 +664,17 @@ class Root:
                 }
         return {'success': True, 'message': success_message, 'checked_in': checked_in}
 
-    def minor_check_form(self, session, printer_id, attendee_id='', account_id='', reprint_fee=0, num_adults=0):
-        if account_id:
-            account = session.attendee_account(account_id)
-            attendees = account.at_door_under_18s
+    def minor_check_form(self, session, printer_id, attendee_id='', pickup_group_id='', reprint_fee=0, num_adults=0):
+        if pickup_group_id:
+            pickup_group = session.badge_pickup_group(pickup_group_id)
+            attendees = pickup_group.under_18_badges
         elif attendee_id:
             attendee = session.attendee(attendee_id)
             attendees = [attendee]
 
         return {
             'attendees': attendees,
-            'account_id': account_id,
+            'pickup_group_id': pickup_group_id,
             'attendee_id': attendee_id,
             'printer_id': printer_id,
             'reprint_fee': reprint_fee,
@@ -689,10 +682,10 @@ class Root:
         }
 
     @ajax_gettable
-    def complete_minor_check(self, session, printer_id, attendee_id='', account_id='', reprint_fee=0):
-        if account_id:
-            account = session.attendee_account(account_id)
-            attendees = account.at_door_under_18s
+    def complete_minor_check(self, session, printer_id, attendee_id='', pickup_group_id='', reprint_fee=0):
+        if pickup_group_id:
+            pickup_group = session.badge_pickup_group(pickup_group_id)
+            attendees = pickup_group.under_18_badges
         elif attendee_id:
             attendee = session.attendee(attendee_id)
             attendees = [attendee]
@@ -704,14 +697,12 @@ class Root:
         for attendee in attendees:
             _, errors = session.add_to_print_queue(attendee, printer_id,
                                                    cherrypy.session.get('reg_station'), reprint_fee)
-            if errors and not account_id:
+            if errors and not pickup_group_id:
                 return {'success': False, 'message': "<br>".join(errors)}
             elif errors:
                 printer_messages.append(f"There was a problem with printing {attendee.full_name}'s "
                                         f"badge: {' '.join(errors)}")
             else:
-                if attendee.badge_status == c.AT_DOOR_PENDING_STATUS:
-                    attendee.badge_status = c.NEW_STATUS
                 attendee.checked_in = localized_now()
                 checked_in[attendee.id] = {
                     'badge':      attendee.badge,
@@ -757,34 +748,32 @@ class Root:
             'forms': forms,
         }
 
-    def check_in_cart_form(self, session, id):
-        account = session.attendee_account(id)
+    def check_in_group_form(self, session, id):
+        pickup_group = session.badge_pickup_group(id)
         reg_station_id = cherrypy.session.get('reg_station', '')
         workstation_assignment = session.query(WorkstationAssignment).filter_by(
             reg_station_id=reg_station_id or -1).first()
         total_cost = 0
-        for attendee in account.at_door_attendees:
+        for attendee in pickup_group.pending_paid_attendees:
             receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             total_cost += receipt.current_amount_owed
 
         return {
-            'account': account,
+            'pickup_group': pickup_group,
+            'checked_in_names': [attendee.full_name for attendee in pickup_group.checked_in_attendees],
             'total_cost': total_cost,
             'workstation_assignment': workstation_assignment,
         }
 
     @ajax
-    def remove_attendee_from_cart(self, session, **params):
+    def remove_attendee_from_pickup_group(self, session, **params):
         id = params.get('id', None)
 
         if id in [None, '', 'None']:
             return {'error': "No ID provided."}
 
         attendee = session.attendee(id)
-        if attendee.badge_status != c.AT_DOOR_PENDING_STATUS:
-            return {'error': f"This attendee's badge status is actually {attendee.badge_status_label}. Please refresh."}
-
-        attendee.badge_status = c.NEW_STATUS
+        attendee.badge_pickup_group = None
         session.commit()
 
         return {'success': True}
@@ -809,6 +798,28 @@ class Root:
 
     @check_for_encrypted_badge_num
     @ajax
+    def save_no_check_in_all(self, session, message='', **params):
+        if 'id' in params:
+            for id in params.get('id'):
+                attendee_params = {key.replace(f'_{id}', ''): val for key, val in params.items() if f'_{id}' in key}
+                attendee_params['id'] = id
+
+                attendee = session.attendee(id)
+
+                validations = json.loads(self.validate_attendee(form_list=['CheckInForm'], **attendee_params))
+                if 'error' in validations:
+                    session.rollback()
+                    message = ' '.join([item for sublist in validations['error'].values() for item in sublist])
+                    return {'success': False,
+                            'message': f"Could not save attendee {attendee.full_name}: {message}"}
+                else:
+                    save_attendee(session, attendee, attendee_params)
+                    session.commit()
+            return {'success': True,
+                    'message': "Attendees updated!"}
+
+    @check_for_encrypted_badge_num
+    @ajax
     def check_in(self, session, message='', **params):
         id = params.get('id', None)
 
@@ -826,8 +837,6 @@ class Root:
         success, increment = False, False
 
         attendee.checked_in = localized_now()
-        if attendee.badge_status == c.AT_DOOR_PENDING_STATUS:
-            attendee.badge_status = c.NEW_STATUS
         success = True
         session.commit()
         increment = True
@@ -851,6 +860,28 @@ class Root:
         session.add(attendee)
         session.commit()
         return 'Attendee successfully un-checked-in'
+
+    @ajax
+    def create_escalation_ticket(self, session, attendee_ids='', description='', **params):
+        if not attendee_ids:
+            return {'success': False, 'message': "Please select at least one person to make an escalation ticket for."}
+        if not description:
+            return {'success': False, 'message': "Please enter a description for the escalation ticket."}
+
+        attendee_ids = json.loads(attendee_ids)
+
+        ticket = EscalationTicket(description=description)
+        for id in attendee_ids:
+            try:
+                attendee = session.attendee(id)
+            except NoResultFound:
+                return {'success': False, 'message': f"Cannot find attendee for ID {id}! Please refresh and try again."}
+            ticket.attendees.append(attendee)
+        
+        session.add(ticket)
+        session.commit()
+
+        return {'success': True, 'message': "Escalation ticket created."}
 
     def recent(self, session):
         return {'attendees': session.query(Attendee)
@@ -1065,16 +1096,16 @@ class Root:
         if not cherrypy.session.get('reg_station'):
             return {'success': False, 'message': 'You must set a workstation ID to take payments.'}
 
-        account = None
+        pickup_group = None
 
         try:
             attendee = session.attendee(id)
             attendees = [attendee]
         except NoResultFound:
-            account = session.attendee_account(id)
+            pickup_group = session.badge_pickup_group(id)
 
-        if account:
-            attendees = account.at_door_attendees
+        if pickup_group:
+            attendees = pickup_group.pending_paid_attendees
 
         for attendee in attendees:
             receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
@@ -1096,9 +1127,10 @@ class Root:
 
                 attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
+        session.check_receipt_closed(receipt)
         return {
             'success': True,
-            'message': 'Attendee{} marked as paid.'.format('s' if account else ''),
+            'message': 'Attendee{} marked as paid.'.format('s' if pickup_group else ''),
             'id': attendee.id
             }
 

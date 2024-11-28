@@ -23,7 +23,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 from uber.config import c
 from uber import decorators
 from uber.jinja import JinjaEnv
-from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department,
+from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, ArtShowBidder, AutomatedEmail, Department,
                          Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, ArtistMarketplaceApplication, MITSTeam,
                          MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, Room, RoomAssignment, LotteryApplication, Shift)
 from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
@@ -275,8 +275,23 @@ AutomatedEmailFixture(
 # =============================
 AutomatedEmailFixture.queries.update({
     ArtShowApplication:
-        lambda session: session.query(ArtShowApplication).options(subqueryload(ArtShowApplication.attendee))
+        lambda session: session.query(ArtShowApplication).options(subqueryload(ArtShowApplication.attendee)),
+    ArtShowBidder:
+        lambda session: session.query(ArtShowBidder).options(subqueryload(ArtShowBidder.attendee),
+                                                             subqueryload(ArtShowBidder.art_show_pieces))
 })
+
+
+AutomatedEmailFixture(
+    ArtShowBidder,
+    'Bidding Winner Notification for the {EVENT_NAME} Art Show',
+    'art_show/pieces_won.html',
+    lambda a: a.email_won_bids and len(
+        [piece for piece in a.art_show_pieces if piece.winning_bid and piece.status == c.SOLD]) > 0,
+    needs_approval=True,
+    allow_at_the_con=True,
+    sender=c.ART_SHOW_EMAIL,
+    ident='art_show_pieces_won')
 
 
 class ArtShowAppEmailFixture(AutomatedEmailFixture):
@@ -324,21 +339,21 @@ if c.ART_SHOW_ENABLED:
         ArtShowAppEmailFixture(
             'Reminder to pay for your {EVENT_NAME} Art Show application',
             'art_show/payment_reminder.txt',
-            lambda a: a.status == c.APPROVED and a.is_unpaid,
+            lambda a: a.status == c.APPROVED and a.amount_unpaid,
             when=days_between((14, c.ART_SHOW_PAYMENT_DUE), (1, c.EPOCH)),
             ident='art_show_payment_reminder')
 
     ArtShowAppEmailFixture(
         '{EVENT_NAME} Art Show piece entry needed',
         'art_show/pieces_reminder.txt',
-        lambda a: a.status == c.APPROVED and not a.is_unpaid and not a.art_show_pieces,
+        lambda a: a.status == c.APPROVED and not a.amount_unpaid and not a.art_show_pieces,
         when=days_before(15, c.EPOCH),
         ident='art_show_pieces_reminder')
 
     ArtShowAppEmailFixture(
         'Reminder to assign an agent for your {EVENT_NAME} Art Show application',
         'art_show/agent_reminder.html',
-        lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.AGENT and not a.agent,
+        lambda a: a.status == c.APPROVED and not a.amount_unpaid and a.delivery_method == c.AGENT and not a.current_agents,
         when=after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1))),
         ident='art_show_agent_reminder')
 
@@ -346,7 +361,7 @@ if c.ART_SHOW_ENABLED:
         ArtShowAppEmailFixture(
             '{EVENT_NAME} Art Show MAIL IN Instructions',
             'art_show/mailing_in.html',
-            lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.BY_MAIL,
+            lambda a: a.status == c.APPROVED and not a.amount_unpaid and a.delivery_method == c.BY_MAIL,
             when=days_between((c.ART_SHOW_REG_START, 13),
                             (16, c.ART_SHOW_WAITLIST if c.ART_SHOW_WAITLIST else c.ART_SHOW_DEADLINE)),
             ident='art_show_mail_in')

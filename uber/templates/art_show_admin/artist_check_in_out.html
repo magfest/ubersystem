@@ -19,7 +19,8 @@
     <div class="row justify-content-start">
       <div class="col-12 col-sm-4">
       <form role="form" method="get" action="artist_check_in_out" id="search_form">
-        {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
+        {% if checkout %}<input type="hidden" name="checkout" value="1" />
+        {% elif hanging %}<input type="hidden" name="hanging" value="1" />{% endif %}
         <div class="input-group">
           <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
           <button class="btn btn-outline-secondary" type="submit">
@@ -29,10 +30,17 @@
       </form>
       </div>
       {% if search_text %}
-      <div class="col"><a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a></div>
+      <div class="col col-auto"><a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a></div>
       {% endif %}
+      <div class="col col-auto">
+        {% if hanging and not checkout %}
+        <a class="btn btn-info" href="artist_check_in_out?search_text={{ search_text }}">Show All Artists</a>
+        {% else %}
+        <a class="btn btn-outline-info" href="artist_check_in_out?search_text={{ search_text }}&hanging=true">Show Artists Hanging Art</a>
+        {% endif %}
+      </div>
       {% set new_app_link = '../art_show_applications/' if c.INDEPENDENT_ART_SHOW else 'form?new_app=True' %}
-      <div class="col">
+      <div class="col col-auto">
         <a class="btn btn-outline-secondary" href="{{ new_app_link }}" target="_blank">Add a new {{ c.ART_SHOW_APP_TERM }}</a>
       </div>
     </div>
@@ -73,13 +81,14 @@
         <th>Artist Code</th>
         <th><a href="artist_check_in_out?order={{ order.last_name }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}{{ '&checkout=True' if checkout }}">Artist's Name</a></th>
         <th>Display Name</th>
-        <th>Pieces Submitted</th>
+        <th># Pieces</th>
         <th>General Panels</th>
         <th>General Tables</th>
         <th>Mature Panels</th>
         <th>Mature Tables</th>
         <th>Check-In Notes</th>
         <th>Admin Notes</th>
+        <th>Hanging?</th>
         <th>Check-{{ checkout|yesno("Out,In") }}</th>
       </tr></thead>
       {% for app in applications %}
@@ -95,6 +104,7 @@
         <td>{{ app.tables_ad }}</td>
         <td>{{ app.check_in_notes }}</td>
         <td>{{ app.admin_notes }}</td>
+        <td>{{ app.art_show_pieces|selectattr('status','equalto',c.HANGING)|first|yesno("Yes,No") }}</td>
         <td>
           {% if not app.checked_in %}
           <button type="button" class="btn btn-primary open_modal">Check-In Artist</button>

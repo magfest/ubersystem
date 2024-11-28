@@ -31,15 +31,13 @@
   {% block noprint %}
   {% endblock %}
 </div>
-<div class="card-body">
-  <div class="form-horizontal">
-    {% block printform %}
-    {% if type == "bidder" %}
-      {{ bidder_signup_macros.sign_up_form(model, True) }}
-    {% elif type == "artist" %}
-      {{ artist_checkin_macros.check_in_form(model, True) }}
-    {% endif %}
-    {% endblock %}
-  </div>
+<div class="card-body p-0 m-0">
+  {% block printform %}
+  {% if type == "bidder" %}
+    {{ bidder_signup_macros.sign_up_form(model, True) }}
+  {% elif type == "artist" %}
+    {{ artist_checkin_macros.check_in_form(model, True) }}
+  {% endif %}
+  {% endblock %}
 </div>
 </body></html>

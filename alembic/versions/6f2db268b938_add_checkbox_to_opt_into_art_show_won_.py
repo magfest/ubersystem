@@ -1,15 +1,15 @@
-"""Add header/thumbnail flag to MIVS images
+"""Add checkbox to opt into art show won bids email
 
-Revision ID: f01a2ad10d79
-Revises: 58756e2dfe4d
-Create Date: 2024-11-05 15:23:12.065060
+Revision ID: 6f2db268b938
+Revises: df998079da32
+Create Date: 2024-11-11 15:46:11.969424
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'f01a2ad10d79'
-down_revision = '58756e2dfe4d'
+revision = '6f2db268b938'
+down_revision = 'df998079da32'
 branch_labels = None
 depends_on = None
 
@@ -52,10 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('indie_game_image', sa.Column('is_header', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('indie_game_image', sa.Column('is_thumbnail', sa.Boolean(), server_default='False', nullable=False))
+    op.add_column('art_show_bidder', sa.Column('email_won_bids', sa.Boolean(), server_default='False', nullable=False))
 
 
 def downgrade():
-    op.drop_column('indie_game_image', 'is_thumbnail')
-    op.drop_column('indie_game_image', 'is_header')
+    op.drop_column('art_show_bidder', 'email_won_bids')

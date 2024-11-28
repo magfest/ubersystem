@@ -42,6 +42,7 @@ class Root:
                          .join(Attendee)
                          .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
+            'attendee_labels': sorted([label for val, label in attendees]),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
         }
 
@@ -197,6 +198,11 @@ class Root:
 
             if not message:
                 cherrypy.session['account_id'] = account.id
+
+                # Forcibly exit any volunteer kiosks that were running
+                cherrypy.session.pop('kiosk_operator_id', None)
+                cherrypy.session.pop('kiosk_supervisor_id', None)
+
                 ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
 

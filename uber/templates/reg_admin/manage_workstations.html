@@ -175,7 +175,7 @@
                     <tbody>
                         {% for timestamp, admin, workstation_num, terminal_id in settlements['in_progress'] %}
                         <tr>
-                            <td>{{ timestamp|timestamp_to_dt|datetime_local }}</td>
+                            <td data-sort="{{ timestamp }}">{{ timestamp|timestamp_to_dt|datetime_local }}</td>
                             <td>{{ admin }}</td>
                             <td>{{ workstation_num }}</td>
                             <td>{{ terminal_id|tpn_to_terminal_id }}</td>

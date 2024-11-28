@@ -4,6 +4,7 @@ import cherrypy
 from pockets import classproperty, listify
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy import Sequence
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
@@ -16,7 +17,7 @@ from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column
 
 
-__all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList', 'WorkstationAssignment']
+__all__ = ['AccessGroup', 'AdminAccount', 'EscalationTicket', 'PasswordReset', 'WatchList', 'WorkstationAssignment']
 
 
 # Many to many association table to tie Access Groups with Admin Accounts
@@ -61,6 +62,31 @@ class AdminAccount(MagModel):
             from uber.models import Session
             with Session() as session:
                 return session.admin_attendee().full_name
+        except Exception:
+            return None
+        
+    @staticmethod
+    def admin_or_volunteer_name():
+        try:
+            from uber.models import Session
+            with Session() as session:
+                admin = session.admin_attendee()
+                volunteer = session.kiosk_operator_attendee()
+                if volunteer and not admin:
+                    return volunteer.full_name + " (Volunteer)"
+                elif not admin:
+                    return session.current_supervisor_admin().attendee.full_name
+                else:
+                    return admin.full_name
+        except Exception:
+            return None
+        
+    @staticmethod
+    def supervisor_name():
+        try:
+            from uber.models import Session
+            with Session() as session:
+                return session.current_supervisor_admin().attendee.full_name
         except Exception:
             return None
 
@@ -316,7 +342,7 @@ class WatchList(MagModel):
     action = Column(UnicodeText)
     expiration = Column(Date, nullable=True, default=None)
     active = Column(Boolean, default=True)
-    attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True))
+    attendees = relationship('Attendee',  backref=backref('watch_list'), cascade='save-update,merge,refresh-expire,expunge')
 
     @property
     def full_name(self):
@@ -330,6 +356,34 @@ class WatchList(MagModel):
     def fix_birthdate(self):
         if self.birthdate == '':
             self.birthdate = None
+
+
+# Many to many association table to tie Attendees to Escalation Tickets
+attendee_escalation_ticket = Table(
+    'attendee_escalation_ticket',
+    MagModel.metadata,
+    Column('attendee_id', UUID, ForeignKey('attendee.id')),
+    Column('escalation_ticket_id', UUID, ForeignKey('escalation_ticket.id')),
+    UniqueConstraint('attendee_id', 'escalation_ticket_id'),
+    Index('ix_attendee_escalation_ticket_attendee_id', 'attendee_id'),
+    Index('ix_attendee_escalation_ticket_escalation_ticket_id', 'escalation_ticket_id'),
+)
+
+
+class EscalationTicket(MagModel):
+    attendees = relationship(
+        'Attendee', backref='escalation_tickets', order_by='Attendee.full_name',
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='attendee_escalation_ticket')
+    ticket_id_seq = Sequence('escalation_ticket_ticket_id_seq')
+    ticket_id = Column(Integer, ticket_id_seq, server_default=ticket_id_seq.next_value(), unique=True)
+    description = Column(UnicodeText)
+    admin_notes = Column(UnicodeText)
+    resolved = Column(UTCDateTime, nullable=True)
+
+    @property
+    def attendee_names(self):
+        return [a.full_name for a in self.attendees]
 
 
 class WorkstationAssignment(MagModel):

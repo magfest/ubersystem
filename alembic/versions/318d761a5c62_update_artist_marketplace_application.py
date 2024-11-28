@@ -79,11 +79,9 @@ def upgrade():
     op.drop_table('marketplace_application')
     op.add_column('receipt_item', sa.Column('fk_id', residue.UUID(), nullable=True))
     op.add_column('receipt_item', sa.Column('fk_model', sa.Unicode(), server_default='', nullable=False))
-    op.create_index(op.f('ix_receipt_item_fk_id'), 'receipt_item', ['fk_id'], unique=False)
 
 
 def downgrade():
-    op.drop_index(op.f('ix_receipt_item_fk_id'), table_name='receipt_item')
     op.drop_column('receipt_item', 'fk_model')
     op.drop_column('receipt_item', 'fk_id')
     op.create_table('marketplace_application',

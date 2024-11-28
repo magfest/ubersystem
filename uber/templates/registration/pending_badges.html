@@ -47,7 +47,13 @@
         <td>{{ badge.email|email_to_link }}</td>
         <td>{{ badge.badge_type_label }}</td>
         <td>{{ badge.ribbon_labels|join(", ") }}</td>
-        <td>{{ "Need Not Pay" if badge.paid == c.NEED_NOT_PAY else badge.badge_cost|format_currency }}</td>
+        <td>
+          {% if badge.group and badge.group.cost == 0 and badge.group.auto_recalc == False %}
+          Comped Group
+          {% else %}
+          {{ "Need Not Pay" if badge.paid == c.NEED_NOT_PAY else badge.badge_cost|format_currency }}
+          {% endif %}
+        </td>
         <td>{{ badge.created_info.who }}</td>
         <td>{{ badge.admin_notes }}</td>
         <td><button class="btn btn-primary" onClick="approve('{{ badge.id }}')">Approve Badge</button></td>

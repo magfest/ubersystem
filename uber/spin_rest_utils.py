@@ -45,10 +45,12 @@ def signature_from_response(response_json):
 
 def txn_info_from_response(response_json):
     txn_info = {}
+    txn_info['response'] = {}
 
     txn_info['amount'] = response_json[strings.get("dollar_amounts")][strings.get("total_amount")] if response_json.get(strings.get("dollar_amounts")) else 0
-    txn_info['code'] = response_json.get(strings.get("auth_code"), '')
-    txn_info['response'] = response_json[strings.get("gen_resp")][strings.get("det_msg")] if response_json.get(strings.get("gen_resp")) else ''
+    txn_info['response']['auth_code'] = response_json.get(strings.get("auth_code"), '')
+    txn_info['response']['response_code'] = response_json[strings.get("gen_resp")][strings.get("sts_code")] if response_json.get(strings.get("gen_resp")) else ''
+    txn_info['response']['message'] = response_json[strings.get("gen_resp")][strings.get("det_msg")] if response_json.get(strings.get("gen_resp")) else ''
 
     if response_json.get(strings.get("edata"), {}):
         app_name = response_json[strings.get("edata")].get(strings.get("app_name"), '')

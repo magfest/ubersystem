@@ -53,8 +53,8 @@
             <p>**** **** **** {{ receipt.card_data['Last4'] }} <span style="float:right;">**/**</span></p>
             <p>Reference ID <span style="float:right;">{{ receipt.reference_id }}</span></p>
 
-            <p>Response <span style="float:right;">{{ receipt.txn_info['response'] }}</span></p>
-            <p>Code <span style="float:right;">{{ receipt.txn_info['code'] }}</span></p>
+            <p>Response <span style="float:right;">{{ receipt.txn_info['response']['message'] if receipt.txn_info['response'] else '' }}</span></p>
+            <p>Code <span style="float:right;">{{ receipt.txn_info['response']['auth_code'] if receipt.txn_info['response'] else '' }}</span></p>
             <p>Transaction ID <span style="float:right;">{{ receipt.txn_info['txn_id'] }}</span></p>
 
             {% if receipt.emv_data %}

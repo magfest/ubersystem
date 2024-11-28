@@ -166,6 +166,8 @@ class Root:
                                            f"There was an issue processing your refund. "
                                            "Please contact us at {email_only(c.ARTIST_MARKETPLACE_EMAIL)}.")
                     session.add_all(refund.get_receipt_items_to_add())
+            session.commit()
+            session.check_receipt_closed(session.get_receipt_by_model(app.attendee))
 
         if app.status == c.ACCEPTED:
             send_email.delay(

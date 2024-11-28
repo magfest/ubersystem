@@ -891,7 +891,7 @@ class Config(_Overridable):
         try:
             from uber.models import Session, AdminAccount, Attendee
             with Session() as session:
-                attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts']
+                attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']
                 admin_account = session.query(AdminAccount) \
                     .filter_by(id=cherrypy.session.get('account_id')) \
                     .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts)).one()
@@ -904,9 +904,32 @@ class Config(_Overridable):
     @dynamic
     def CURRENT_VOLUNTEER(self):
         try:
+            from uber.models import Session, Attendee
+            with Session() as session:
+                attrs = Attendee.to_dict_default_attrs + ['logged_in_name']
+                attendee = session.logged_in_volunteer()
+                return attendee.to_dict(attrs)
+        except Exception:
+            return {}
+        
+    @request_cached_property
+    @dynamic
+    def CURRENT_KIOSK_SUPERVISOR(self):
+        try:
             from uber.models import Session
             with Session() as session:
-                attendee = session.logged_in_volunteer()
+                admin_account = session.current_supervisor_admin()
+                return admin_account.attendee.to_dict()
+        except Exception:
+            return {}
+    
+    @request_cached_property
+    @dynamic
+    def CURRENT_KIOSK_OPERATOR(self):
+        try:
+            from uber.models import Session
+            with Session() as session:
+                attendee = session.kiosk_operator_attendee()
                 return attendee.to_dict()
         except Exception:
             return {}
@@ -1587,8 +1610,6 @@ c.PREREG_SHIRT_OPTS = sorted(c.PREREG_SHIRT_OPTS if c.PREREG_SHIRT_OPTS else c.S
 c.PREREG_SHIRTS = {key: val for key, val in c.PREREG_SHIRT_OPTS}
 c.STAFF_SHIRT_OPTS = sorted(c.STAFF_SHIRT_OPTS if len(c.STAFF_SHIRT_OPTS) > 1 else c.SHIRT_OPTS)
 c.SHIRT_OPTS = sorted(c.SHIRT_OPTS)
-c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.SHIRT_OPTS))
-c.MERCH_STAFF_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.STAFF_SHIRT_OPTS))
 shirt_label_lookup = {val: key for key, val in c.SHIRT_OPTS}
 c.SHIRT_SIZE_STOCKS = {shirt_label_lookup[val]: key for key, val in c.SHIRT_STOCK_OPTS}
 

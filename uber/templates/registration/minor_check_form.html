@@ -18,7 +18,7 @@
 <div class="modal-footer">
     <div class="form-group">
     <div class="pull-right">
-     <button type="button" id="completeMinorCheckButton" onClick="completeMinorCheck('{{ account_id }}', '{{ attendee_id }}')" class="btn"></button>
+     <button type="button" id="completeMinorCheckButton" onClick="completeMinorCheck('{{ pickup_group_id }}', '{{ attendee_id }}')" class="btn"></button>
      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
     </div>
     </div>
@@ -38,7 +38,7 @@
         }
     }
     changeButtonLabel();
-    var completeMinorCheck = function (accountID, attendeeID) {
+    var completeMinorCheck = function (pickupGroupID, attendeeID) {
         if (attendeeID) {
             loadCheckInFormModal(attendeeID);
         }
@@ -48,7 +48,7 @@
         url: '../registration/complete_minor_check',
         dataType: 'json',
         data: {
-            account_id: accountID,
+            pickup_group_id: pickupGroupID,
             attendee_id: attendeeID,
             printer_id: $.val('printer_id'),
             reprint_fee: {{ reprint_fee|default("''", true) }}

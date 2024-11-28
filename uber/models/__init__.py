@@ -25,7 +25,7 @@ from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
+from sqlalchemy.orm import Query, joinedload, subqueryload
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
@@ -521,7 +521,10 @@ class MagModel:
                         value = datetime.strptime(value, c.DATE_FORMAT)
                     except ValueError:
                         value = dateparser.parse(value)
-                return value.date()
+                try:
+                    return value.date()
+                except AttributeError:
+                    return value
 
             elif isinstance(column.type, JSONB):
                 if isinstance(value, str):
@@ -756,11 +759,22 @@ class Session(SessionManager):
         def current_admin_account(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
                 return self.admin_account(cherrypy.session.get('account_id'))
+            
+        def current_supervisor_admin(self):
+            if getattr(cherrypy, 'session', {}).get('kiosk_supervisor_id'):
+                return self.admin_account(cherrypy.session.get('kiosk_supervisor_id'))
 
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
                 try:
                     return self.admin_account(cherrypy.session.get('account_id')).attendee
+                except NoResultFound:
+                    return
+                
+        def kiosk_operator_attendee(self):
+            if self.current_supervisor_admin and getattr(cherrypy, 'session', {}).get('kiosk_operator_id'):
+                try:
+                    return self.attendee(cherrypy.session.get('kiosk_operator_id'))
                 except NoResultFound:
                     return
 
@@ -1179,10 +1193,12 @@ class Session(SessionManager):
 
             return "", c.TERMINAL_ID_TABLE[lookup_key]
 
-        def get_receipt_by_model(self, model, include_closed=False, who='', create_if_none=""):
+        def get_receipt_by_model(self, model, include_closed=False, who='', create_if_none="", options=[]):
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
                 receipt_select = receipt_select.filter(ModelReceipt.closed == None)  # noqa: E711
+            if options:
+                receipt_select = receipt_select.options(*options)
             receipt = receipt_select.first()
 
             if not receipt and create_if_none:
@@ -1231,6 +1247,11 @@ class Session(SessionManager):
                 pass
 
             return receipt
+        
+        def check_receipt_closed(self, receipt):
+            self.refresh(receipt)
+            if receipt.current_receipt_amount == 0:
+                receipt.close_all_items(self)
 
         def get_terminal_settlements(self):
             from uber.models import TerminalSettlement
@@ -1700,7 +1721,7 @@ class Session(SessionManager):
 
             badge_statuses = [c.NEW_STATUS, c.COMPLETED_STATUS]
             if pending:
-                badge_statuses.extend([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS])
+                badge_statuses.append(c.PENDING_STATUS)
 
             badge_filter = Attendee.badge_status.in_(badge_statuses)
 
@@ -1805,33 +1826,21 @@ class Session(SessionManager):
 
         def index_attendees(self):
             # Returns a base attendee query with extra joins for the index page
-            attendees = self.query(Attendee).outerjoin(Attendee.group) \
-                                            .outerjoin(Attendee.promo_code) \
-                                            .outerjoin(PromoCodeGroup, PromoCode.group) \
-                                            .options(
-                                                joinedload(Attendee.group),
-                                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
-                                                )
+            attendees = self.query(Attendee).outerjoin(Group,
+                                                       Attendee.group_id == Group.id
+                                                       ).outerjoin(BadgePickupGroup
+                                                       ).outerjoin(PromoCode).outerjoin(PromoCodeGroup)
             if c.ATTENDEE_ACCOUNTS_ENABLED:
-                attendees = attendees.outerjoin(Attendee.managers).options(joinedload(Attendee.managers))
+                attendees = attendees.outerjoin(AttendeeAccount, Attendee.managers)
             return attendees
 
         def search(self, text, *filters):
-            # We need to both outerjoin on the PromoCodeGroup table and also
-            # query it.  In order to do this we need to alias it so that the
-            # reference to PromoCodeGroup in the joinedload doesn't conflict
-            # with the outerjoin.  See https://docs.sqlalchemy.org/en/13/orm/query.html#sqlalchemy.orm.query.Query.join
-            aliased_pcg = aliased(PromoCodeGroup)
-
-            attendees = self.query(Attendee).outerjoin(Attendee.group) \
-                                            .outerjoin(Attendee.promo_code) \
-                                            .outerjoin(aliased_pcg, PromoCode.group) \
-                                            .options(
-                                                joinedload(Attendee.group),
-                                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
-                                                )
+            attendees = self.query(Attendee).outerjoin(Group,
+                                                       Attendee.group_id == Group.id
+                                                       ).outerjoin(BadgePickupGroup
+                                                       ).outerjoin(PromoCode).outerjoin(PromoCodeGroup)
             if c.ATTENDEE_ACCOUNTS_ENABLED:
-                attendees = attendees.outerjoin(Attendee.managers).options(joinedload(Attendee.managers))
+                attendees = attendees.outerjoin(AttendeeAccount, Attendee.managers)
 
             attendees = attendees.filter(*filters)
 
@@ -1868,9 +1877,11 @@ class Session(SessionManager):
                 id_list = [
                     Attendee.id == terms[0],
                     Attendee.public_id == terms[0],
-                    aliased_pcg.id == terms[0],
+                    PromoCodeGroup.id == terms[0],
                     Group.id == terms[0],
-                    Group.public_id == terms[0]]
+                    Group.public_id == terms[0],
+                    BadgePickupGroup.id == terms[0],
+                    BadgePickupGroup.public_id == terms[0]]
 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     id_list.extend([AttendeeAccount.id == terms[0], AttendeeAccount.public_id == terms[0]])
@@ -1890,7 +1901,7 @@ class Session(SessionManager):
             def check_text_fields(search_text):
                 check_list = [
                     Group.name.ilike('%' + search_text + '%'),
-                    aliased_pcg.name.ilike('%' + search_text + '%'),
+                    PromoCodeGroup.name.ilike('%' + search_text + '%'),
                 ]
 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:

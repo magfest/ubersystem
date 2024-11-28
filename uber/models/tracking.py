@@ -1,6 +1,7 @@
 import json
 import sys
 from datetime import datetime
+from markupsafe import Markup
 from threading import current_thread
 from urllib.parse import parse_qsl
 
@@ -32,14 +33,22 @@ serializer.register(associationproxy._AssociationList, list)
 class ReportTracking(MagModel):
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
+    supervisor = Column(UnicodeText)
     page = Column(UnicodeText)
     params = Column(MutableDict.as_mutable(JSONB), default={})
+
+    @property
+    def who_repr(self):
+        if self.supervisor:
+            return Markup(f'{self.who};<br/>{self.supervisor} (Supervisor)')
+        return self.who
 
     @classmethod
     def track_report(cls, params):
         from uber.models import Session
         with Session() as session:
-            session.add(ReportTracking(who=AdminAccount.admin_name(),
+            session.add(ReportTracking(who=AdminAccount.admin_or_volunteer_name(),
+                                       supervisor=AdminAccount.supervisor_name() or '',
                                        page=c.PAGE_PATH,
                                        params={key: val for key, val in params.items()
                                                if key not in ['self', 'out', 'session']}))
@@ -49,8 +58,15 @@ class ReportTracking(MagModel):
 class PageViewTracking(MagModel):
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
+    supervisor = Column(UnicodeText)
     page = Column(UnicodeText)
     which = Column(UnicodeText)
+
+    @property
+    def who_repr(self):
+        if self.supervisor:
+            return Markup(f'{self.who};<br/>{self.supervisor} (Supervisor)')
+        return self.who
 
     @classmethod
     def track_pageview(cls):
@@ -84,7 +100,10 @@ class PageViewTracking(MagModel):
             else:
                 return
 
-            session.add(PageViewTracking(who=AdminAccount.admin_name(), page=c.PAGE_PATH, which=which))
+            session.add(PageViewTracking(
+                who=AdminAccount.admin_or_volunteer_name(),
+                supervisor=AdminAccount.supervisor_name() or '',
+                page=c.PAGE_PATH, which=which))
             session.commit()
 
 
@@ -93,12 +112,19 @@ class Tracking(MagModel):
     model = Column(UnicodeText)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
+    supervisor = Column(UnicodeText)
     page = Column(UnicodeText)
     which = Column(UnicodeText)
     links = Column(UnicodeText)
     action = Column(Choice(c.TRACKING_OPTS))
     data = Column(UnicodeText)
     snapshot = Column(UnicodeText)
+
+    @property
+    def who_repr(self):
+        if self.supervisor:
+            return Markup(f'{self.who};<br/>{self.supervisor} (Supervisor)')
+        return self.who
 
     @classmethod
     def format(cls, values):
@@ -129,9 +155,11 @@ class Tracking(MagModel):
     def differences(cls, instance):
         diff = {}
         for attr, column in instance.__table__.columns.items():
-            if attr in ['currently_sending', 'last_send_time',
-                        'unapproved_count', 'last_updated', 'last_synced', 'inventory_updated']:
+            if attr in ['last_updated', 'last_synced', 'inventory_updated', 'unapproved_count']:
                 continue
+
+            if attr in ['currently_sending', 'last_send_time']:
+                return {}
 
             new_val = getattr(instance, attr)
             if new_val:
@@ -179,7 +207,7 @@ class Tracking(MagModel):
         if sys.argv == ['']:
             who = 'server admin'
         else:
-            who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+            who = AdminAccount.admin_or_volunteer_name() or (current_thread().name if current_thread().daemon else 'non-admin')
 
         with Session() as session:
             session.add(Tracking(
@@ -187,6 +215,7 @@ class Tracking(MagModel):
                 fk_id=target.id,
                 which=repr(target),
                 who=who,
+                supervisor=AdminAccount.supervisor_name() or '',
                 page=c.PAGE_PATH,
                 action=action,
                 data=repr(instance),
@@ -220,7 +249,7 @@ class Tracking(MagModel):
         if sys.argv == ['']:
             who = 'server admin'
         else:
-            who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+            who = AdminAccount.admin_or_volunteer_name() or (current_thread().name if current_thread().daemon else 'non-admin')
 
         try:
             snapshot = json.dumps(instance.to_dict(), cls=serializer)
@@ -233,6 +262,7 @@ class Tracking(MagModel):
                 fk_id=instance.id,
                 which=repr(instance),
                 who=who,
+                supervisor=AdminAccount.supervisor_name() or '',
                 page=c.PAGE_PATH,
                 links=links,
                 action=action,

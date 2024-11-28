@@ -435,16 +435,24 @@
         {% if admin_area %}
         <nav class="navbar navbar-expand-lg navbar-light bg-light">
             <div class="container-fluid">
-              <a class="navbar-brand" href="../accounts/homepage">
+              <a class="navbar-brand"{% if c.CURRENT_ADMIN %} href="../accounts/homepage"{% endif %}>
                 <img src="../static/images/favicon.png" alt="{{ c.EVENT_NAME }}" width="24" class="d-inline-block align-text-top">
                 {{ c.EVENT_NAME }}
-            </a>
+                {% if c.CURRENT_KIOSK_SUPERVISOR %}Volunteer Kiosk{% endif %}
+              </a>
               <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-navbar-collapse" aria-controls="main-navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
               </button>
               <div class="collapse navbar-collapse" id="main-navbar-collapse">
                 {% block mainmenu %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0" id="main-menu">
+                    {% if c.CURRENT_KIOSK_SUPERVISOR %}
+                    <li class="nav-item">
+                        <a class="nav-link">
+                        Operator: <span id="kiosk-operator-name">{% if c.CURRENT_KIOSK_OPERATOR %}{{ c.CURRENT_KIOSK_OPERATOR.logged_in_name }}{% else %}N/A{% endif %}</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     {% block mainmenu_items %}
                     {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu -%}
                         {% if menu_item.href -%}
@@ -470,26 +478,28 @@
                 </ul>
                 {% endblock mainmenu %}
                 <ul class="navbar-nav d-flex">
+                    {% if c.CURRENT_ADMIN %}
                     {% block feedback_menu %}
                     {% if c.JIRA_ENABLED %}
-                      <li class="nav-item dropdown">
-                      <a class="nav-link dropdown-toggle" href="#" title="Submit feedback" id="feedback-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" title="Submit feedback" id="feedback-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fa fa-send"></i>
-                      </a>
-                      <ul class="dropdown-menu" role="menu" aria-labelledby="feedback-dropdown">
-                          <li><a class="dropdown-item" id="report-a-bug" href="#" title="Report a Bug">Report a Bug</a></li>
-                          <li><a class="dropdown-item" id="request-an-improvement" href="#" title="Request an Improvement">Request an Improvement</a></li>
+                    </a>
+                    <ul class="dropdown-menu" role="menu" aria-labelledby="feedback-dropdown">
+                        <li><a class="dropdown-item" id="report-a-bug" href="#" title="Report a Bug">Report a Bug</a></li>
+                        <li><a class="dropdown-item" id="request-an-improvement" href="#" title="Request an Improvement">Request an Improvement</a></li>
                         </ul>
-                      </li>
+                    </li>
                     {% endif %}
                     {% endblock %}
                     {% if c.ADMIN_GUIDE_URL %}
                     <li class="nav-item"><a href="{{ c.ADMIN_GUIDE_URL }}" target="admin_guide" class="nav-link"><i title="Admin Guide" class="fa fa-question-circle"></i></a></li>
                     {% endif %}
                     <li class="nav-item"><a href="../accounts/sitemap" class="nav-link"><i title="Site Map" class="fa fa-road"></i></a></li>
+                    
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="account-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <span>Logged in as: {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</span> <i title="Account Settings" class="fa fa-cog"></i>
+                        <span>Logged in as: {{ c.CURRENT_ADMIN.logged_in_name }}</span> <i title="Account Settings" class="fa fa-cog"></i>
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="account-dropdown">
                             {% if 'admin_account' in c.CURRENT_ADMIN %}
@@ -512,6 +522,14 @@
                             <li><a class="dropdown-item" href="../accounts/logout">Logout</a></li>
                         </ul>
                     </li>
+                    {% elif c.CURRENT_KIOSK_SUPERVISOR %}
+                    <li class="nav-item">
+                        <a class="nav-link">
+                        Supervisor: {{ c.CURRENT_KIOSK_SUPERVISOR.logged_in_name }}
+                        </a>
+                    </li>
+                    <li class="nav-item"><a href="..{{ c.PAGE_PATH }}?exit_kiosk=True" class="nav-link">Exit Kiosk Mode</a></li>
+                    {% endif %}
                 </ul>
               </div>
             </div>

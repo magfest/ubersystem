@@ -45,12 +45,6 @@
 {% if not receipt.attendee.art_show_receipt %}
 <p><a href="pieces_bought?id={{ receipt.attendee.id }}">[Start New Invoice]</a></p>
 {% endif %}
-{% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
-{% include 'registration/spin_terminal_form.html' with context %}
-<div class="row justify-content-center">
-  <div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div>
-</div>
-{% endif %}
 {% set receipt_open = (receipt.id == receipt.attendee.art_show_receipt.id) %}
   {% if receipt_open %}
     <div class="row text-center">
@@ -191,7 +185,12 @@
         </form>
       </td></tr>
       {% if not receipt.owed %}
-      <tr><td colspan="9" class="text-end"><button class="btn btn-primary" id="print_receipt">Print{% if receipt_open %} & Close Out{% endif %} Receipt</button></td></tr>
+      <tr><td colspan="9" class="text-end">
+        <button class="btn btn-info" id="print_receipt">Print Receipt</button>
+        {% if receipt_open %}
+        <button class="btn btn-primary" id="print_close_receipt">Print & Close Out Receipt</button>
+        {% endif %}
+      </td></tr>
       {% endif %}
       {% for payment in receipt.art_show_payments %}
       <tr><td colspan="9" class="text-end">
@@ -219,8 +218,15 @@
   </div>
 <form role="form" method="post" id="print_form" action="print_receipt">
   <input type="hidden" name="id" value="{{ receipt.id }}" />
+  <input type="hidden" id="print_close_flag" name="close" value="" />
   {{ csrf_token() }}
 </form>
+{% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
+{% include 'registration/spin_terminal_form.html' with context %}
+<div class="row justify-content-center">
+  <div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8">sdfs</div>
+</div>
+{% endif %}
 </div>
 </div>
 <script type="text/javascript">
@@ -257,12 +263,14 @@
       resumeStripeAction();
     }
 
-    var printReceipt = function() {
+    var printReceipt = function(close=false) {
         window.open('', 'print_receipt_target', 'width=400,height=400,resizeable,scrollbars');
+        close == true ? $('#print_close_flag').val(true) : $('#print_close_flag').val('');
         $('#print_form').attr('target', 'print_receipt_target').submit();
     };
 
-    $('#print_receipt').click(printReceipt);
+    $('#print_receipt').click(function () { printReceipt(); });
+    $('#print_close_receipt').click(function () { printReceipt(close=true); });
 
     {% if must_choose %}
     var modal = bootstrap.Modal.getOrCreateInstance($('.modal'))
