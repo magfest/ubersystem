@@ -1,6 +1,7 @@
 import os
 import cherrypy
 from functools import wraps
+from pockets import sluggify
 from datetime import datetime
 
 from pytz import UTC
@@ -175,8 +176,8 @@ class MITSGame(MagModel):
     personally_own = Column(Boolean, default=False)
     unlicensed = Column(Boolean, default=False)
     professional = Column(Boolean, default=False)
-    pictures = relationship('MITSPicture', backref='team')
-    documents = relationship('MITSDocument', backref='team')
+    pictures = relationship('MITSPicture', backref='game')
+    documents = relationship('MITSDocument', backref='game')
 
     @hybrid_property
     def has_been_accepted(self):
@@ -185,22 +186,6 @@ class MITSGame(MagModel):
     @has_been_accepted.expression
     def has_been_accepted(cls):
         return and_(MITSTeam.id == cls.team_id, MITSTeam.status == c.ACCEPTED)
-
-    @property
-    def guidebook_name(self):
-        return self.team.name
-
-    @property
-    def guidebook_subtitle(self):
-        return self.name
-
-    @property
-    def guidebook_desc(self):
-        return self.description
-
-    @property
-    def guidebook_location(self):
-        return ''
 
     @property
     def guidebook_header(self):
@@ -215,6 +200,21 @@ class MITSGame(MagModel):
             if image.is_thumbnail:
                 return image
         return ''
+
+    @property
+    def guidebook_edit_link(self):
+        return f"../mits/team?id={self.id}"
+
+    @property
+    def guidebook_data(self):
+        return {
+            'guidebook_name': self.team.name,
+            'guidebook_subtitle': self.name,
+            'guidebook_desc': self.description,
+            'guidebook_location': '',
+            'guidebook_header': self.guidebook_header.filename,
+            'guidebook_thumbnail': self.guidebook_thumbnail.filename,
+        }
 
     @property
     def guidebook_images(self):
@@ -234,10 +234,12 @@ class MITSGame(MagModel):
         if not thumbnail:
             thumbnail = self.pictures[1] if len(self.pictures) > 1 else self.pictures[0]
 
+        prepend = sluggify(self.name)
+
         if header == thumbnail:
-            return [header.filename], [header]
+            return [prepend + header.filename], [header]
         else:
-            return [header.filename, thumbnail.filename], [header, thumbnail]
+            return [prepend + header.filename, prepend + thumbnail.filename], [header, thumbnail]
 
 
 class MITSPicture(MagModel):
