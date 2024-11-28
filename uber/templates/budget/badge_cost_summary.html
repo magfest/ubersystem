@@ -5,7 +5,7 @@
 <h3 class="text-center">Badge Cost Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
 <p>Please note that 
   {% if c.HAS_REG_REPORTS_ACCESS %}
-  <a href="../reg_reports/attendee_receipt_discrepancies" target="_blank">receipt discrepancies</a> (warning: long load time!)
+  <a href="../reg_reports/attendee_receipt_discrepancies" target="_blank">receipt discrepancies</a>
   {% else %}receipt discrepancies{% endif %} may contribute to a different total intake than the amounts listed below.</p>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
