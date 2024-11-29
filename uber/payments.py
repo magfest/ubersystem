@@ -1562,7 +1562,7 @@ class ReceiptManager:
 
     @staticmethod
     def mark_paid_from_ids(intent_id, charge_id):
-        from uber.models import Attendee, ArtShowApplication, ArtistMarketplaceApplication, Group, ReceiptTransaction, Session
+        from uber.models import Attendee, ArtShowApplication, Group, ReceiptTransaction, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
 
@@ -1629,19 +1629,6 @@ class ReceiptManager:
                         model=model.to_dict('id'))
                 except Exception:
                     log.error('Unable to send Art Show payment confirmation email', exc_info=True)
-            if model and isinstance(model, ArtistMarketplaceApplication) and not txn.receipt.open_purchase_items:
-                send_email.delay(
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    'Marketplace Payment Received',
-                    render('emails/marketplace/payment_notification.txt', {'app': model}, encoding=None),
-                    model=model.to_dict('id'))
-                send_email.delay(
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    model.email_to_address,
-                    'Marketplace Payment Received',
-                    render('emails/marketplace/payment_confirmation.txt', {'app': model}, encoding=None),
-                    model=model.to_dict('id'))
 
         session.close()
         return matching_txns

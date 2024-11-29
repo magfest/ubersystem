@@ -444,7 +444,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     # badge printing
     # =========================
-    print_requests = relationship('PrintJob', backref='attendee')
+    print_requests = relationship('PrintJob', backref='attendee', order_by='desc(PrintJob.last_updated)')
 
     # =========================
     # art show
@@ -664,6 +664,27 @@ class Attendee(MagModel, TakesPaymentMixin):
         return select([func.count(PrintJob.id)]
                       ).where(and_(PrintJob.attendee_id == cls.id,
                                    PrintJob.printed != None)).label('times_printed')  # noqa: E711
+    
+    @property
+    def print_status(self):
+        if not self.print_requests:
+            return "Not Printed"
+
+        job = self.print_requests[0]
+        
+        if job.printed != None:
+            if self.times_printed > 1:
+                return f"Printed {time_day_local(job.printed)} ({self.times_printed} Prints Total)"
+            return f"Printed {time_day_local(job.printed)}"
+        elif job.errors == "":
+            if job.queued:
+                return f"Queued {time_day_local(job.queued)}"
+            elif job.ready == True:
+                return f"Ready to Print"
+            else:
+                return f"Pending Payment"
+        else:
+            return "Print Job Errored"
 
     @property
     def age_now_or_at_con(self):

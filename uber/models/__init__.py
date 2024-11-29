@@ -1479,7 +1479,8 @@ class Session(SessionManager):
                                  admin_name=self.admin_attendee().full_name,
                                  printer_id=printer_id,
                                  reg_station=reg_station,
-                                 print_fee=print_fee)
+                                 print_fee=print_fee,
+                                 ready=False if print_fee else True)
 
             if attendee.age_now_or_at_con >= 18:
                 print_job.is_minor = False
@@ -1692,7 +1693,8 @@ class Session(SessionManager):
 
         def get_next_badge_to_print(self, printer_id=''):
             query = self.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
-                    PrintJob.printed == None, PrintJob.errors == '', PrintJob.printer_id == printer_id)  # noqa: E711
+                    PrintJob.printed == None, PrintJob.ready == True,  # noqa: E711
+                    PrintJob.errors == '', PrintJob.printer_id == printer_id)
 
             badge = query.order_by(Tracking.when.desc()).with_for_update().first()
 

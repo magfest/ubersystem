@@ -1559,7 +1559,7 @@ class PrintJobLookup:
         """
 
         with Session() as session:
-            filters = [PrintJob.printed == None, PrintJob.errors == '']  # noqa: E711
+            filters = [PrintJob.printed == None, PrintJob.ready == True, PrintJob.errors == '']  # noqa: E711
             if printer_ids:
                 printer_ids = [id.strip() for id in printer_ids.split(',')]
                 filters += [PrintJob.printer_id.in_(printer_ids)]
@@ -1695,7 +1695,7 @@ class PrintJobLookup:
         Returns a dictionary of changed jobs' `json_data` plus job metadata, keyed by job ID.
         """
         with Session() as session:
-            filters = [PrintJob.printed == None, PrintJob.errors == '']  # noqa: E711
+            filters = [PrintJob.printed == None, PrintJob.ready == True, PrintJob.errors == '']  # noqa: E711
 
             if printer_ids:
                 printer_ids = [id.strip() for id in printer_ids.split(',')]

@@ -580,14 +580,15 @@ class Root:
                     'message': "Your workstation has no printers assigned, "
                     "so we can't tell how to handle this minor's badge."}
 
-        success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
+        print_id, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
-        if not success:
+        if not print_id:
             return {'success': False, 'message': message}
 
         session.commit()
         if attendee.age_now_or_at_con < 18 and printer_id == workstation_assignment.printer_id:
             if session.query(PrintJob).filter(PrintJob.printer_id == printer_id,
+                                              PrintJob.ready == True,
                                               PrintJob.printed == None,  # noqa: E711
                                               PrintJob.errors == '').all():
                 return {'success': False,
@@ -596,8 +597,7 @@ class Root:
             else:
                 return {'success': True, 'minor_check': True}
         else:
-            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'),
-                                       params.get('fee_amount'))
+            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'))
             session.commit()
             return {'success': True, 'message': message + f" {attendee.full_name} successfully checked in."}
 
@@ -623,19 +623,19 @@ class Root:
         cherrypy.session['cart_printer_error_list'] = []
 
         for attendee in pickup_group.check_inable_attendees:
-            success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
+            print_id, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
-            if not success:
+            if not print_id:
                 printer_messages.append(f"There was a problem with printing {attendee.full_name}'s badge: {message}")
 
             session.commit()
 
-            if success and attendee.age_now_or_at_con < 18 and (not minor_printer_id or printer_id == minor_printer_id):
+            if print_id and attendee.age_now_or_at_con < 18 and (not minor_printer_id or printer_id == minor_printer_id):
                 minor_check_badges = True
-            elif success:
+            elif print_id:
                 attendee_names_list.append(attendee.full_name)
                 session.add_to_print_queue(attendee, printer_id,
-                                           cherrypy.session.get('reg_station'), params.get('fee_amount'))
+                                           cherrypy.session.get('reg_station'))
 
                 attendee.checked_in = localized_now()
                 checked_in[attendee.id] = {
@@ -664,7 +664,7 @@ class Root:
                 }
         return {'success': True, 'message': success_message, 'checked_in': checked_in}
 
-    def minor_check_form(self, session, printer_id, attendee_id='', pickup_group_id='', reprint_fee=0, num_adults=0):
+    def minor_check_form(self, session, printer_id, attendee_id='', pickup_group_id='', num_adults=0):
         if pickup_group_id:
             pickup_group = session.badge_pickup_group(pickup_group_id)
             attendees = pickup_group.under_18_badges
@@ -677,12 +677,11 @@ class Root:
             'pickup_group_id': pickup_group_id,
             'attendee_id': attendee_id,
             'printer_id': printer_id,
-            'reprint_fee': reprint_fee,
             'num_adults': num_adults,
         }
 
     @ajax_gettable
-    def complete_minor_check(self, session, printer_id, attendee_id='', pickup_group_id='', reprint_fee=0):
+    def complete_minor_check(self, session, printer_id, attendee_id='', pickup_group_id=''):
         if pickup_group_id:
             pickup_group = session.badge_pickup_group(pickup_group_id)
             attendees = pickup_group.under_18_badges
@@ -696,7 +695,7 @@ class Root:
 
         for attendee in attendees:
             _, errors = session.add_to_print_queue(attendee, printer_id,
-                                                   cherrypy.session.get('reg_station'), reprint_fee)
+                                                   cherrypy.session.get('reg_station'))
             if errors and not pickup_group_id:
                 return {'success': False, 'message': "<br>".join(errors)}
             elif errors:

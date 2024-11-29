@@ -295,9 +295,9 @@
             }
         });
     });
-    loadMinorCheckCartForm = function (pickupGroupID, printerID, reprintFee, num_adults=0) {
+    loadMinorCheckCartForm = function (pickupGroupID, printerID, num_adults=0) {
         $('#checkin_modal .modal-content').load(
-            '../registration/minor_check_form?pickup_group_id=' + pickupGroupID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee + '&num_adults=' + num_adults, function() {
+            '../registration/minor_check_form?pickup_group_id=' + pickupGroupID + '&printer_id=' + printerID + '&num_adults=' + num_adults, function() {
         if ($('.minor-check-id').length) {
         } else {
             showErrorMessage("Form loading failed.");
@@ -327,7 +327,7 @@
                         }
                     }
                     if (json.minor_check) {
-                        loadMinorCheckCartForm(pickupGroupID, $.val('printer_id'), 0, json.num_adults);
+                        loadMinorCheckCartForm(pickupGroupID, $.val('printer_id'), json.num_adults);
                     } else {
                         checkInModal.hide();
                         $("#message-alert").addClass("alert-success").show().children('span').html(json.message);

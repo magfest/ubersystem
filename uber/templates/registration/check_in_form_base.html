@@ -221,9 +221,9 @@ $().ready(function() {
         }
     }
     $('#printer_id').on('keyup', changeButtonLabel);
-    loadMinorCheckForm = function (attendeeID, printerID, reprintFee) {
+    loadMinorCheckForm = function (attendeeID, printerID) {
         $('#checkin_modal .modal-content').load(
-            '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee, function() {
+            '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID, function() {
         if ($('.minor-check-id').length) {
         } else {
             showErrorMessage("Form loading failed.");
@@ -244,7 +244,7 @@ $().ready(function() {
                     hideMessageBox('form-validations-check_in_form_' + attendeeID);
                     if (json.success) {
                         if (json.minor_check) {
-                            loadMinorCheckForm(attendeeID, $.val('printer_id'), 0);
+                            loadMinorCheckForm(attendeeID, $.val('printer_id'));
                         } else {
                             checkIn(attendeeID);
                         }

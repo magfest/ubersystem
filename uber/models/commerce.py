@@ -15,6 +15,7 @@ from sqlalchemy.orm import backref
 
 from uber.config import c
 from uber.custom_tags import format_currency
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
@@ -523,6 +524,13 @@ class ReceiptItem(MagModel):
     desc = Column(UnicodeText)
     admin_notes = Column(UnicodeText)
     revert_change = Column(JSON, default={}, server_default='{}')
+
+    @presave_adjustment
+    def process_item_close(self):
+        if self.closed and not self.orig_value_of('closed') and self.fk_id:
+            if self.fk_model == 'PrintJob':
+                print_job = self.session.print_job(self.fk_id)
+                print_job.ready = True
 
     @property
     def total_amount(self):

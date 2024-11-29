@@ -1,5 +1,7 @@
 {% extends 'forms/attendee/badge_flags.html' %}
 
+{% include 'badge_printing/queue_badge.html' %}
+
 {% block attendee_info %}
 {% if not attendee.is_new %}
 <div class="row g-sm-3">
