@@ -53,6 +53,7 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
+    op.add_column('attendee', sa.Column('badge_pickup_group_id', residue.UUID(), nullable=True))
     op.create_table('badge_pickup_group',
     sa.Column('id', residue.UUID(), nullable=False),
     sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
@@ -63,7 +64,6 @@ def upgrade():
     sa.Column('account_id', sa.Unicode(), server_default='', nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_badge_pickup_group'))
     )
-    op.add_column('attendee', sa.Column('badge_pickup_group_id', residue.UUID(), nullable=True))
     op.create_foreign_key(op.f('fk_attendee_badge_pickup_group_id_badge_pickup_group'), 'attendee', 'badge_pickup_group', ['badge_pickup_group_id'], ['id'], ondelete='SET NULL')
 
 
