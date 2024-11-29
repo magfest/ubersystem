@@ -18,6 +18,7 @@
     </form>
     <strong>OR</strong> <br/>
     <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ attendee.id }}', '', loadCheckInForm)">Prompt Payment at Terminal</button>
+    <button class="btn btn-primary" onClick="checkTerminalPayment('{{ attendee.id }}', 'attendee', loadCheckInForm)">Check Payment Terminal</button>
     <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
 {% else %}
     <form method="post" action="mark_as_paid">

@@ -23,7 +23,7 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
     requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import (Attendee, AttendeeAccount, AdminAccount, Email, EscalationTicket, Group, Job, PageViewTracking,
+from uber.models import (Attendee, AdminAccount, Email, EscalationTicket, Group, Job, PageViewTracking, TxnRequestTracking,
                          PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
                          WorkstationAssignment)
 from uber.site_sections.preregistration import check_if_can_reg
@@ -333,6 +333,42 @@ class Root:
         raise HTTPRedirect('../reg_admin/manage_workstations?message={}', message)
 
     @ajax
+    def check_terminal_payment(self, session, model_id, model_name, **params):
+        error, terminal_id = session.get_assigned_terminal_id()
+        if error:
+            return {'success': False, 'message': error}
+
+        terminal_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id)
+        if not terminal_status:
+            return {'success': False, 'message': f"No pending terminal transactions found."}
+        
+        if terminal_status.get('recorded', False):
+            return {'success': False, 'message': f"The last transaction on this terminal has already been successfully recorded."}
+
+        intent_id = terminal_status.get('intent_id', '')
+        if not intent_id:
+            return {'success': False, 'message': f"System error: the last terminal transactions has no receipt info."}
+
+        tracker = session.query(TxnRequestTracking).filter(
+            TxnRequestTracking.terminal_id == terminal_id).order_by(TxnRequestTracking.last_updated.desc()).first()
+        if not tracker:
+            return {'success': False, 'message': f"System error: no tracking data found for terminal {terminal_id}."}
+
+        if tracker.fk_id != model_id:
+            return {'success': False, 'message': f"The last transaction on the terminal does not match this {model_name}."}
+
+        if tracker.resolved:
+            matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id)
+            receipts = [txn.receipt for txn in matching_txns if txn.receipt.owner_id == model_id]
+            for receipt in receipts:
+                if receipt.current_amount_owed:
+                    return {'success': False,
+                            'message': f"The last transaction for this {model_name} was successful, \
+                                        but they still have unpaid items. Please refresh the page or start a new payment."}
+
+        return {'success': True}
+
+    @ajax
     def poll_terminal_payment(self, session, **params):
         import uber.spin_rest_utils as spin_rest_utils
         error, terminal_id = session.get_assigned_terminal_id()
@@ -363,6 +399,7 @@ class Root:
                     'error': "We could not find which payment this transaction was for. "
                     "You may need a manager to log it manually."
                     }
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'recorded', "true")
             return {'success': True, 'intent_id': intent_id}
         else:
             # TODO: Finish and test this

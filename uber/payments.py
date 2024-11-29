@@ -1028,6 +1028,7 @@ class SpinTerminalRequest(TransactionRequest):
         session.commit()
         new_tracker = TxnRequestTracking(workstation_num=self.tracker.workstation_num,
                                          terminal_id=self.tracker.terminal_id,
+                                         fk_id=self.tracker.fk_id,
                                          who=self.tracker.who)
         self.tracker = new_tracker
         new_intent_id = self.intent_id_from_txn_tracker(self.tracker)
@@ -1081,11 +1082,15 @@ class SpinTerminalRequest(TransactionRequest):
         if refund_amount != txn.txn_total and not cherrypy.session.get('reg_station'):
             return ("This is a partial refund, which requires a connected SPIn payment terminal. "
                     "Please set your workstation number and try again.")
+        
+        with Session() as session:
+            model = session.get_model_by_receipt(txn.receipt)
+            model_id = model.id
 
         log.debug('REFUND: attempting to refund card transaction with ID {} {} cents for {}',
                   txn.stripe_id, str(refund_amount), txn.desc)
 
-        self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'),
+        self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'), fk_id=model_id,
                                           terminal_id=self.terminal_id, who=AdminAccount.admin_name())
 
         self.receipt_manager.items_to_add.append(self.tracker)
@@ -1096,10 +1101,6 @@ class SpinTerminalRequest(TransactionRequest):
                                                                     refund_amount,
                                                                     method=self.method,
                                                                     department=department)
-
-        with Session() as session:
-            model = session.get_model_by_receipt(txn.receipt)
-            model_id = model.id
 
         self.terminal_id = txn.receipt_info.terminal_id
         self.ref_id = txn.intent_id

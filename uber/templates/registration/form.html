@@ -78,6 +78,7 @@
             </form>
             <strong>OR</strong>
             <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ attendee.id }}')">Prompt Payment at Terminal</button>
+            <button class="btn btn-primary" onClick="checkTerminalPayment('{{ attendee.id }}', 'attendee')">Check Payment Terminal</button>
             <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
             {% include 'registration/spin_terminal_form.html' with context %}
             <script type="text/javascript">

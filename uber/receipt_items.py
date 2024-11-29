@@ -268,6 +268,7 @@ def one_day_or_upgraded_badge_cost(attendee):
         return c.BADGE_TYPE_PRICES[attendee.badge_type]
     if attendee.qualifies_for_discounts:
         return attendee.new_badge_cost - min(attendee.new_badge_cost, abs(attendee.age_discount))
+    return attendee.new_badge_cost
 
 
 @receipt_calculation.Attendee

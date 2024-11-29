@@ -280,6 +280,7 @@ class Tracking(MagModel):
 class TxnRequestTracking(MagModel):
     incr_id_seq = Sequence('txn_request_tracking_incr_id_seq')
     incr_id = Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True)
+    fk_id = Column(UUID, nullable=True)
     workstation_num = Column(Integer, default=0)
     terminal_id = Column(UnicodeText)
     who = Column(UnicodeText)

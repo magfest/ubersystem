@@ -311,6 +311,7 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, pickup_gr
 
     with Session() as session:
         txn_tracker = TxnRequestTracking(workstation_num=workstation_num, terminal_id=terminal_id,
+                                         fk_id=pickup_group_id or model_id,
                                          who=AdminAccount.admin_name())
         session.add(txn_tracker)
         session.commit()
