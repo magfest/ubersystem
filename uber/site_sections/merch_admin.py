@@ -31,6 +31,12 @@ def attendee_from_id_or_badge_num(session, badge_num_or_qr_code):
         attendee = session.query(Attendee).filter_by(badge_num=badge_num_or_qr_code).first()
         if not attendee:
             message = f'No attendee has badge number {badge_num_or_qr_code}.'
+    
+    if attendee:
+        if not attendee.has_badge:
+            message = f'{attendee.name_and_badge_info} has an invalid badge status: {attendee.badge_status_label}.'
+        elif not attendee.checked_in and id:
+            message = f'{attendee.name_and_badge_info} has not checked in!'
 
     return attendee, message
 
@@ -72,6 +78,12 @@ class Root:
             attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
             if not attendee:
                 message = f'No attendee has badge number {badge_num}.'
+        
+        if attendee:
+            if not attendee.has_badge:
+                message = f'This badge has an invalid status: {attendee.badge_status_label}.'
+            elif not attendee.checked_in:
+                message = 'This badge has not checked in!'
 
         if message:
             return {'success': False, 'message': message}
