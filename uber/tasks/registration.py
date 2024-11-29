@@ -413,9 +413,10 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, pickup_gr
         if response:
             payment_request.process_sale_response(session, response)
         else:
+            error = payment_request.error_message or 'Terminal request timed out or was interrupted'
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id,
-                               'last_error', payment_request.error_message)
-            txn_tracker.internal_error = payment_request.error_message
+                               'last_error', error)
+            txn_tracker.internal_error = error
 
 
 @celery.schedule(timedelta(minutes=30))
