@@ -97,6 +97,11 @@ def full_datetime_local(dt):
 
 
 @JinjaEnv.jinja_filter
+def short_datetime_local(dt):
+    return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%-I:%M %p %b %-d, %Y')
+
+
+@JinjaEnv.jinja_filter
 def full_date_local(dt):
     return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y')
 
