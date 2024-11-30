@@ -855,16 +855,16 @@ class SpinTerminalRequest(TransactionRequest):
                 return f(self, *args, **kwargs)
             except requests.exceptions.ConnectionError as e:
                 log.error(f"Transaction {self.tracking_id} could not connect to SPIn Proxy: {str(e)}")
-                self.error_message = "Could not connect to SPIn Proxy."
+                self.error_message = "Could not connect to SPIn Proxy"
             except requests.exceptions.Timeout as e:
                 if self.timeout_retries > 10:
                     log.error(f"Transaction {self.tracking_id} timed out while connecting to SPIn Terminal: {str(e)}")
-                    self.error_message = "The request timed out."
+                    self.error_message = "The request timed out"
                 else:
                     self.timeout_retries += 1
             except requests.exceptions.RequestException as e:
                 log.error(f"Transaction {self.tracking_id} errored while processing SPIn Terminal sale: {str(e)}")
-                self.error_message = "Unexpected error."
+                self.error_message = "Unexpected error"
 
         return api_call
 
@@ -889,6 +889,8 @@ class SpinTerminalRequest(TransactionRequest):
         if self.api_response_successful(response_json):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
                                'last_response', json.dumps(response_json))
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
+                               'last_error', '')
         else:
             error_message = self.error_message_from_response(response_json)
             log.error(f"Error while processing terminal sale for transaction {self.tracking_id}: {error_message}")
@@ -896,8 +898,6 @@ class SpinTerminalRequest(TransactionRequest):
 
     def process_sale_response(self, session, response):
         from uber.models import ReceiptTransaction
-        from uber.tasks.registration import send_receipt_email
-        from decimal import Decimal
 
         try:
             response_json = response.json()
@@ -940,6 +940,13 @@ class SpinTerminalRequest(TransactionRequest):
                     txn.receipt_info = self.receipt_info_from_txn(session, txn, model_receipt_info, void_response_json)
             return
 
+        self.process_successful_sale(session, response_json, self.intent.id)
+
+    def process_successful_sale(self, session, response_json, intent_id):
+        from uber.models import ReceiptTransaction
+        from uber.tasks.registration import send_receipt_email
+        from decimal import Decimal
+
         self.tracker.success = True
 
         approval_amount = Decimal(str(spin_rest_utils.approved_amount(response_json))) * 100  # don't @ me
@@ -947,7 +954,7 @@ class SpinTerminalRequest(TransactionRequest):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
                                'last_error', "Partial approval")
 
-        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent.id).all()
+        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
         if not matching_txns:
             error_message = "Payment was successful, but did not have any matching transactions"
             log.error(f"Error while processing terminal sale for transaction {self.tracking_id}: {error_message}")
@@ -970,12 +977,13 @@ class SpinTerminalRequest(TransactionRequest):
                 session.delete(txn)
             else:
                 txn.receipt_info = self.receipt_info_from_txn(session, txn, model_receipt_info, response_json)
+                txn.cancelled = None
                 session.add(txn)
                 session.add(txn.receipt_info)
 
         session.commit()
 
-        ReceiptManager.mark_paid_from_ids(self.intent.id, self.terminal_id + "-" + self.intent.id)
+        ReceiptManager.mark_paid_from_ids(intent_id, self.terminal_id + "-" + intent_id)
 
         for receipt_info in model_receipt_info.values():
             send_receipt_email.delay(receipt_info.id)

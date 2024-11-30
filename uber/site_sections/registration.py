@@ -326,9 +326,10 @@ class Root:
                 message = str(response_json)
             else:
                 error_message = req.error_message_from_response(response_json)
-                message = f"Error checking status of {intent_id}: {error_message}"
+                message = f"Error checking status of {intent_id}: {error_message}."
         else:
-            message = f"Error checking status of {intent_id}: {req.error_message}"
+            error = req.error_message or "No response from terminal"
+            message = f"Error checking status of {intent_id}: {error}."
 
         raise HTTPRedirect('../reg_admin/manage_workstations?message={}', message)
 
@@ -349,16 +350,48 @@ class Root:
         if not intent_id:
             return {'success': False, 'message': f"System error: the last terminal transactions has no receipt info."}
 
-        tracker = session.query(TxnRequestTracking).filter(
-            TxnRequestTracking.terminal_id == terminal_id).order_by(TxnRequestTracking.last_updated.desc()).first()
+        tracker = session.query(TxnRequestTracking).filter(TxnRequestTracking.incr_id == intent_id[4:-1]).first()
         if not tracker:
-            return {'success': False, 'message': f"System error: no tracking data found for terminal {terminal_id}."}
+            return {'success': False, 'message': f"System error: no tracking data found for intent {intent_id}."}
 
         if tracker.fk_id != model_id:
             return {'success': False, 'message': f"The last transaction on the terminal does not match this {model_name}."}
 
-        if tracker.resolved:
-            matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id)
+        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id)
+
+        if tracker.internal_error and not tracker.resolved:
+            txn = matching_txns.first()
+            if not txn:
+                return {'success': True} # They'll end up with the error from poll_terminal_payment
+            req = SpinTerminalRequest(terminal_id, amount=txn.txn_total, tracker=tracker, ref_id=intent_id)
+            response = req.check_txn_status(intent_id)
+            if response:
+                response_json = response.json()
+                if req.api_response_successful(response_json):
+                    tracker.resolved = datetime.utcnow()
+                    tracker.response = response_json
+                    tracker.internal_error = ''
+                    session.add(tracker)
+                    session.commit()
+                    req.log_api_response(response_json)
+
+                    req.process_successful_sale(session, response_json, intent_id)
+                    return {'success': True}
+                else:
+                    error = req.error_message_from_response(response_json)
+                    if error != "Not found":
+                        return {'success': False, 'message': f"Error checking status of last transaction: {error}"}
+                    tracker.resolved = datetime.utcnow()
+                    session.add(tracker)
+                    session.commit()
+                    prior_error = terminal_status.get('last_error')
+                    c.REDIS_STORE.hset(
+                        c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id,
+                        'last_error', "The last transaction was not processed by the terminal, \
+                            either because it was cancelled or due to the following error: "
+                            + prior_error)
+        
+        if not tracker.internal_error and tracker.resolved:
             receipts = [txn.receipt for txn in matching_txns if txn.receipt.owner_id == model_id]
             for receipt in receipts:
                 if receipt.current_amount_owed:
@@ -401,17 +434,6 @@ class Root:
                     }
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'recorded', "true")
             return {'success': True, 'intent_id': intent_id}
-        else:
-            # TODO: Finish and test this
-            past_timeout = datetime.now(pytz.UTC) - timedelta(seconds=150)
-            if terminal_status.get('request_timestamp') and \
-                    terminal_status.get('request_timestamp') < past_timeout.timestamp():
-                status_request = SpinTerminalRequest(terminal_id)
-                response = status_request.check_txn_status(intent_id)
-                if response:
-                    status_request.process_sale_response(response)
-                else:
-                    return {'error': status_request.error_message}
 
     def promo_code_groups(self, session, message=''):
         groups = session.query(PromoCodeGroup).order_by(PromoCodeGroup.name).all()
