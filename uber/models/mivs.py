@@ -510,12 +510,6 @@ class IndieGame(MagModel, ReviewMixin):
 
         header = self.guidebook_header
         thumbnail = self.guidebook_thumbnail
-
-        if not header:
-            header = self.images[0]
-        if not thumbnail:
-            thumbnail = self.images[1] if len(self.images) > 1 else self.images[0]
-
         prepend = sluggify(self.title) + '_'
 
         return [prepend + header.filename, prepend + thumbnail.filename], [header, thumbnail]

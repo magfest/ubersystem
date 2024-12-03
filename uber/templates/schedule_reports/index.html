@@ -180,9 +180,12 @@
                   {{ current_data[key + 'time'] }}
                   {% if current_data[key + 'time'] != synced_data[key + 'time'] %}</em>{% endif %}
               {% else %}
-                {% if current_data[key] != synced_data[key] %}<em>{% endif %}
-                {{ current_data[key] }}
-                {% if current_data[key] != synced_data[key] %}</em>{% endif %}
+                {% if current_data[key] != synced_data[key] %}
+                  <em>{{ current_data[key]|linebreaksbr }}</em>
+                  {% if key == 'name' and synced_data[key] %}<br/>(Previously: {{ synced_data[key]|linebreaksbr }}){% endif %}
+                {% else %}
+                {{ current_data[key]|linebreaksbr }}
+                {% endif %}
               {% endif %}
             </td>
             {% endfor %}
@@ -190,7 +193,9 @@
             <td class="align-middle">{{ result.last_synced_dt('guidebook')|datetime_local("%-I:%M %p %b %-d, %Y") if result.last_synced['guidebook'] else "Never" }}</td>
             <td class="align-middle">
               <div class="d-flex gap-1 align-items-center text-nowrap">
+                {% if c.HAS_SCHEDULE_ACCESS %}
                 <a href="../schedule/form?id={{ result.id }}" target="_blank" class="btn btn-primary">View</a>
+                {% endif %}
                 <form method="post" class="sync-item" action="mark_item_synced">
                   {{ csrf_token() }}
                   <input type="hidden" name="selected_model" value="schedule" />
@@ -248,9 +253,10 @@
                 {% endif %}
               {% else %}
                 {% if current_data[key] != synced_data[key] %}
-                  <em>{{ current_data[key] }}</em>
+                  <em>{{ current_data[key]|linebreaksbr }}</em>
+                  {% if key == 'name' and synced_data[key] %}<br/>(Previously: {{ synced_data[key]|linebreaksbr }}){% endif %}
                 {% else %}
-                  {{ current_data[key] }}
+                  {{ current_data[key]|linebreaksbr }}
                 {% endif %}
               {% endif %}
             </td>
@@ -259,7 +265,9 @@
             <td class="align-middle">{{ result.last_synced_dt('guidebook')|datetime_local("%-I:%M %p %b %-d, %Y") if result.last_synced['guidebook'] else "Never" }}</td>
             <td class="align-middle">
               <div class="d-flex gap-1 align-items-center text-nowrap">
-              <a href="{{ result.guidebook_edit_link }}" target="_blank" class="btn btn-primary">View</a>
+              {% if result.guidebook_edit_link.split('/')[1] in (c.GETTABLE_SITE_PAGES[0] + c.ADMIN_ACCESS_SET|list) %}
+                <a href="{{ result.guidebook_edit_link }}" target="_blank" class="btn btn-primary">View</a>
+              {% endif %}
               <form method="post" class="sync-item" action="mark_item_synced">
                 {{ csrf_token() }}
                 <input type="hidden" name="selected_model" value="{{ model }}" />

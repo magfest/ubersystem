@@ -221,18 +221,8 @@ class MITSGame(MagModel):
         if not self.pictures:
             return ['', ''], ['', '']
 
-        header = None
-        thumbnail = None
-        for image in self.pictures:
-            if image.is_header and not header:
-                header = image
-            if image.is_thumbnail and not thumbnail:
-                thumbnail = image
-
-        if not header:
-            header = self.pictures[0]
-        if not thumbnail:
-            thumbnail = self.pictures[1] if len(self.pictures) > 1 else self.pictures[0]
+        header = self.guidebook_header
+        thumbnail = self.guidebook_thumbnail
 
         prepend = sluggify(self.name) + '_'
 
