@@ -223,10 +223,12 @@ class MITSGame(MagModel):
 
         header = self.guidebook_header
         thumbnail = self.guidebook_thumbnail
-
         prepend = sluggify(self.name) + '_'
 
-        return [prepend + header.filename, prepend + thumbnail.filename], [header, thumbnail]
+        header_name = (prepend + header.filename) if header else ''
+        thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
+        
+        return [header_name, thumbnail_name], [header, thumbnail]
 
 
 class MITSPicture(MagModel):
