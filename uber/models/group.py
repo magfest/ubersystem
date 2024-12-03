@@ -483,10 +483,10 @@ class Group(MagModel, TakesPaymentMixin):
     def guidebook_data(self):
         category_labels = [cat for cat in self.categories_labels if 'Other' not in cat]
         if self.categories_text:
-            category_labels.append([self.categories_text])
+            category_labels.append(self.categories_text)
         return {
             'guidebook_name': self.name,
-            'guidebook_subtitle': ', '.join(category_labels[:5]),
+            'guidebook_subtitle': ', '.join(category_labels),
             'guidebook_desc': self.description,
             'guidebook_location': '',
             'guidebook_header': '',
