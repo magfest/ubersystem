@@ -45,7 +45,7 @@ def check_stale_guidebook_models():
             body = render('emails/guidebook_updates.txt', {
                 'stale_models': stale_models,
             }, encoding=None)
-            send_email.delay(c.REPORTS_EMAIL, "guidebook@magfest.org",
+            send_email.delay(c.REPORTS_EMAIL, "gb-ops@magfest.org",
                                 f"Guidebook Updates: {localized_now().strftime("%A %-I:%M %p")}",
                                 body, ident="guidebook_updates"
                                 )
