@@ -106,6 +106,9 @@ class IndieStudio(MagModel):
 
     @property
     def primary_contact_first_names(self):
+        if not self.primary_contacts:
+            return ''
+
         if len(self.primary_contacts) == 1:
             return self.primary_contacts[0].first_name
 
