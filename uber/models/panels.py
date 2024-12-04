@@ -69,7 +69,7 @@ class Event(MagModel):
             'end_time': self.end_time_local.strftime('%I:%M %p'),
             'location': self.location_label,
             'track': self.track,
-            'description': normalize_newlines(description).replace('\n', ' '),
+            'description': description,
             }
 
     @property
