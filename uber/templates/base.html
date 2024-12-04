@@ -48,7 +48,14 @@
         
         <script type="text/javascript">
             $(window).on("runJavaScript", function () {
-              $('[data-bs-toggle="tooltip"]').tooltip();
+                {% if bootstrap5 %}
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl)
+                    })
+                {% else %}
+                $('[data-bs-toggle="tooltip"]').tooltip();
+                {% endif %}
             })
 
             {% if not c.DEV_BOX %}jQuery.migrateMute = true;{% endif %}
