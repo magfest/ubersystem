@@ -576,6 +576,13 @@
       $('a[href="' + anchor + '"]').tab('show');
     });
   });
+  var copyLink = function(e, href) {
+    navigator.clipboard.writeText(href);
+    console.log($(e.target));
+    setTimeout(function () {
+      $(e.target).tooltip('hide');
+    }, 1000);
+  }
 </script>
 
 {%- set can_admin_attraction = admin_account.attendee.can_admin_attraction(attraction) -%}
@@ -790,10 +797,14 @@
                   <a class="btn btn-sm btn-primary"
                       title="Schedule a new {{ feature.name }} event"
                       href="event?feature_id={{ feature.id }}">
-                    <i class="fa fa-time"></i>
+                    <i class="fa fa-clock-o"></i>&nbsp;
                     Schedule Event
                   </a>
                 {%- endif %}
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Copied!"
+                  data-bs-trigger="click" onClick="copyLink(event, '{{ c.URL_BASE }}/attractions/{{ attraction.slug }}?feature={{ feature.slug }}')">
+                  Copy Link
+                </button>
               </h3>
             </div>
             <div class="feature-body">
