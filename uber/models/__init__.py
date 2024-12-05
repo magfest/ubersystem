@@ -1472,7 +1472,7 @@ class Session(SessionManager):
                 return None, errors
 
             if dry_run:
-                return None, None
+                return "None", None
 
             print_job = PrintJob(attendee_id=attendee.id,
                                  admin_id=self.current_admin_account().id,
