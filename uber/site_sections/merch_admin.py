@@ -23,7 +23,7 @@ def attendee_from_id_or_badge_num(session, badge_num_or_qr_code):
     elif badge_num_or_qr_code.startswith(c.EVENT_QR_ID):
         search_uuid = badge_num_or_qr_code[len(c.EVENT_QR_ID):]
         if re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', search_uuid):
-            id = badge_num_or_qr_code
+            id = search_uuid
     elif not badge_num_or_qr_code.isdigit():
         message = 'Invalid badge number.'
 
