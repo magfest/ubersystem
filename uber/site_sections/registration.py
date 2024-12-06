@@ -162,8 +162,12 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
         forms = load_forms(params, attendee, form_list, get_optional=False)
+        new_attendee = Attendee(**attendee.to_dict())
 
-        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()), is_admin=True)
+        if 'promo_code_code' not in params and attendee.promo_code:
+            new_attendee.promo_code = attendee.promo_code
+
+        all_errors = validate_model(forms, attendee, new_attendee, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 
