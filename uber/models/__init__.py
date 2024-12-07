@@ -1846,6 +1846,18 @@ class Session(SessionManager):
 
             attendees = attendees.filter(*filters)
 
+            id_list = [
+                Attendee.id,
+                Attendee.public_id,
+                PromoCodeGroup.id,
+                Group.id,
+                Group.public_id,
+                BadgePickupGroup.id,
+                BadgePickupGroup.public_id]
+
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                id_list.extend([AttendeeAccount.id, AttendeeAccount.public_id])
+
             terms = text.split()
             if len(terms) == 2:
                 first, last = terms
@@ -1875,27 +1887,11 @@ class Session(SessionManager):
 
             elif len(terms) == 1 \
                     and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
-
-                id_list = [
-                    Attendee.id == terms[0],
-                    Attendee.public_id == terms[0],
-                    PromoCodeGroup.id == terms[0],
-                    Group.id == terms[0],
-                    Group.public_id == terms[0],
-                    BadgePickupGroup.id == terms[0],
-                    BadgePickupGroup.public_id == terms[0]]
-
-                if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    id_list.extend([AttendeeAccount.id == terms[0], AttendeeAccount.public_id == terms[0]])
-
-                return attendees.filter(or_(*id_list)), ''
-
+                return attendees.filter(or_(*map(lambda x: x == terms[0], id_list))), ''
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
                 if re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', search_uuid):
-                    return attendees.filter(or_(
-                        Attendee.public_id == search_uuid,
-                        Group.public_id == search_uuid)), ''
+                    return attendees.filter(or_(*map(lambda x: x == search_uuid, id_list))), ''
 
             or_checks = []
             and_checks = []

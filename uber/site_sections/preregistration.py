@@ -756,6 +756,8 @@ class Root:
                 session.add(pickup_group)
                 session.commit()
                 session.refresh(pickup_group)
+            elif not pickup_group:
+                qr_code_id = cart.attendees[0].public_id
 
             if pickup_group:
                 qr_code_id = pickup_group.public_id
