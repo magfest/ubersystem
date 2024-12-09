@@ -3,20 +3,24 @@ Ahoy {{ game.studio.primary_contact_first_names }},
 Here is a December update with general reminders and new information for the upcoming {{c.EVENT_YEAR}} MAGFest Indie Video Game Showcase!
 
 ====
-Communication - Discord Server and Google Group
+MIVS Checklist
 ====
 
-After completing the "Update Studio and Game Information" item on your checklist, all your team members will be added to our MIVS 2024 Google email group. We also have a private Discord server which helps us disseminate quick communications, reminders, etc. Unlike Google groups, we can’t invite you by your email address. Please use this link to join: https://discord.gg/WK7F6DH7Ng  
+You may have seen emails from us about your MIVS checklist.  Even if you are not taking advantage of items such as selling or hotels (or they are past the deadline), we still need you to complete them. Doing so will prevent a MIVS volunteer from sending you an email asking for you to finish them.
 
-Q: How do I know if I’m in or on the right Discord server?
+You can view your checklist at {{ c.URL_BASE }}/guests/index?id={{ game.studio.group.guest.id }}
 
-A:  Check if see a server named “MIVS + IA” AND that you can see the channel #devs on it. If not, see below to join:
+Thanks to all of you who have already completed your checklists ahead of time!
 
-If you’re new to MIVS: use the following link: https://discord.gg/WK7F6DH7Ng  After joining, follow the instructions on the #rules page to get set up as a dev for 2024! After joining, please be sure you change your name in the server to the following format: Your Name (The Name of Your Game) 
+====
+Communication - Discord Server
+====
 
-If you are alumni already in the MIVS Server: please post in #dev-alumni letting us know you’re showcasing for {{ c.EVENT_YEAR }}, and we’ll set up your permissions asap.
+Reminder that we have a private Discord server which helps us disseminate quick communications, reminders, etc. Please use this link to join: https://discord.gg/vmGr5yMP 
 
-For Discord help, reach out to Kpawlowski@Magfest.org or contact either Hurricanes#2729 (Kat) or JDViper5#8200 (John) on Discord and we’ll help you out. 
+Follow the instructions on the #getting-started page to get set up as a dev for 2025! After joining, please be sure you change your name in the server to the following format: Your Name (The Name of Your Game) 
+
+If you are alumni already in the MIVS Server: please go to the #getting-started page and select MIVS 2025 Dev.
 
 We recommend downloading the Discord App to have on your mobile device during MAGFest.
 
@@ -24,7 +28,7 @@ We recommend downloading the Discord App to have on your mobile device during MA
 Hotels
 ====
 
-This is the final week to book if you would like a room on-site at the Gaylord! If you would like to reserve a Gaylord room, you may do so from your checklist before the deadline of midnight Sunday, December 10th.
+This is the final week to book if you would like a room on-site at the Gaylord! If you would like to reserve a Gaylord room, you may do so from your checklist before the deadline of midnight Sunday, December 15th.
 
 You can view your checklist at {{ c.URL_BASE }}/guests/index?id={{ game.studio.group.guest.id }}
 
@@ -41,34 +45,44 @@ After completing the forms online, you will want to submit them to the MAGFest p
 You can view your checklist at {{ c.URL_BASE }}/guests/index?id={{ game.studio.group.guest.id }}
 
 ====
-MIVS Checklist
-====
-
-You may have seen emails from us about your MIVS checklist.  Even if you are not taking advantage of items such as selling or hotels (or they are past the deadline), we still need you to complete them. Doing so will prevent a MIVS volunteer from sending you an email asking for you to finish them.
-
-You can view your checklist at {{ c.URL_BASE }}/guests/index?id={{ game.studio.group.guest.id }}
-
-Thanks to all of you who have already completed your checklists ahead of time!
-
-Be on the lookout for an email with a final checklist item with a short quiz to ensure you're ready for the event.
-
-====
 Layout
 ====
-Our Layout team has been hard at work configuring this year's expo space. We are awaiting final sign off all safety and accessibility guidelines have been met. After that time, we will share the layout. If you have certain needs for your booth placement, please email mivs@magfest.org as soon as possible so we can take that into consideration. While we cannot guarantee requests can be met, we will do our best to accommodate where we can.
+Our Layout Team has been hard at work configuring this year's expo space. We are awaiting final sign off that all safety and accessibility guidelines have been met. After that time, we will share the layout. If you have certain needs for your booth placement, please email mivs@magfest.org as soon as possible so we can take that into consideration. While we cannot guarantee requests can be met, we will do our best to accommodate where we can.
 
 ====
 Cancellations
 ====
 We understand emergencies happen, and they may prevent you from participating at MIVS this year. If this happens, please contact us ASAP so we can allow a waitlisted team to participate. Letting us know ahead of time leaves you on good terms with the MIVS team. Being a no-show at the event places extra work on the volunteer staff and may prevent you from being part of MIVS in the future. 
 
+If you simply need to switch out team members, your group leader can manage your studio's badges from your group management page.
+
 ====
-Other Questions
+Indie Green Room, Discussion Groups, and Press
+====
+
+We have been given a wonderful opportunity this year to have an indie green room outside of the main event space for the entirety of the event. In addition to taking a break and socializing with your fellow indies, we'd like to give you the opportunity to use the space for any special interest discussion groups or jam sessions that require a quieter atmosphere.
+
+Additionally, having access to this quiet space means that we have the perfect venue for recording interviews. We are piloting a program to allow sing-day access to the convention which mean we have the ability to give press access to the show floor and you! If you would like to put any press in contact with us or have any outlets you would like us to reach out to, please email (or have them email) mivs@magfest.org. We know some of you have your own social media followings/podcasts/streams as well. Please know that the room to record is also available to you if you are interested.
+
+We'll be building out a schedule for the room over the next month. If you would like to use the space, please email mivs@magfest so we can try to fit you in.
+
+====
+More on the horizon...
+====
+
+We have some other exciting opportunities in the works like an indie mixer and a developer panel with a visiting school's STEAM club. Stay tuned to Discord for more information as these things are finalized.
+
+====
+Other Questions & Live Q&A
 ====
 
 If you have questions, you can always contact us by emailing mivs@magfest.org or drop a note to us in Discord.
 
-We will also be hosting a series of live Q&A sessions in Discord. The first one is this Sunday, December 10th at 6pm Eastern.
+We will also be hosting a series of one hour live Q&A sessions in the Discord voice channels. This is the perfect time to ask the MIVS team all your burning questions, especially if it's your first time with us. The current schedule is below. Keep an eye on the Discord for any additional sessions or updates.
+
+Tuesday, December 10th 7pm-8pm Eastern
+Sunday, December 15th 8pm-9pm Eastern
+Wednesday, January 8th 8pm-9pm Eastern
 
 
 Forever Your Fan,
