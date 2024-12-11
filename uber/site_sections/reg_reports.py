@@ -196,24 +196,21 @@ class Root:
 
         out.writerow(header + list(map(lambda a: f"{a} # Checked In", admin_list)))
 
-        query_result = checkins_by_hour_query(session).all()
-
-        for result in query_result:
-            hour = localize_datetime(result[0])
-            count = result[1]
-            row = [hour, count]
-
-            hour_admins = session.query(
+        checkin_totals = checkins_by_hour_query(session).all()
+        hour_admin_checkins = session.query(
+                date_trunc_hour(Tracking.when),
                 Tracking.who,
                 func.count(Tracking.who)).filter(
-                    date_trunc_hour(Tracking.when) == result[0],
                     Tracking.action == c.UPDATED,
                     Tracking.model == "Attendee",
                     Tracking.data.contains("checked_in='None -> datetime")
-                    ).group_by(Tracking.who).order_by(Tracking.who)
-            admin_checkins = dict(hour_admins)
-            from pockets.autolog import log
-            log.error(admin_checkins)
+                    ).group_by(date_trunc_hour(Tracking.when)).group_by(Tracking.who).order_by(
+                        date_trunc_hour(Tracking.when))
+        admin_checkins = {(result[0], result[1]): result[2] for result in hour_admin_checkins}
+
+        for result in checkin_totals:
+            row = [localize_datetime(result[0]), result[1]]
+
             for admin in admin_list:
-                row.append(admin_checkins[admin] if admin in admin_checkins else '')
+                row.append(admin_checkins[result[0], admin] if (result[0], admin) in admin_checkins else '')
             out.writerow(row)
