@@ -183,6 +183,7 @@ class Root:
     @csv_file
     def checkins_by_admin_by_hour(self, out, session):
         header = ["Time", "Total Checked In"]
+        admin_list = []
         admins = session.query(Tracking.who).filter(Tracking.action == c.UPDATED,
                                                     Tracking.model == "Attendee",
                                                     Tracking.data.contains("checked_in='None -> datetime")
@@ -191,9 +192,9 @@ class Root:
             if not isinstance(admin, six.string_types):
                 admin = admin[0]  # SQLAlchemy quirk
 
-            header.append(f"{admin} # Checked In")
+            admin_list.append(admin)
 
-        out.writerow(header)
+        out.writerow(header + list(map(lambda a: f"{a} # Checked In", admin_list)))
 
         query_result = checkins_by_hour_query(session).all()
 
@@ -210,6 +211,9 @@ class Root:
                     Tracking.model == "Attendee",
                     Tracking.data.contains("checked_in='None -> datetime")
                     ).group_by(Tracking.who).order_by(Tracking.who)
-            for admin, admin_count in hour_admins:
-                row.append(admin_count)
+            admin_checkins = dict(hour_admins)
+            from pockets.autolog import log
+            log.error(admin_checkins)
+            for admin in admin_list:
+                row.append(admin_checkins[admin] if admin in admin_checkins else '')
             out.writerow(row)
