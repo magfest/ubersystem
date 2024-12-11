@@ -210,7 +210,7 @@ class PanelApplication(MagModel):
 
 class PanelApplicant(SocialMediaMixin, MagModel):
     app_id = Column(UUID, ForeignKey('panel_application.id', ondelete='cascade'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'), nullable=True)
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     submitter = Column(Boolean, default=False)
     first_name = Column(UnicodeText)
     last_name = Column(UnicodeText)
