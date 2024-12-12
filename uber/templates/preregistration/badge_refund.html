@@ -1,4 +1,4 @@
-{% set abandon_hover_text = attendee.cannot_self_service_refund_reason if attendee.amount_paid else attendee.cannot_abandon_badge_reason %}
+{% set abandon_hover_text = attendee.cannot_abandon_badge_reason %}
 {% if c.REFUND_CUTOFF or not attendee.amount_paid %}
     <span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"{% if abandon_hover_text %} title="{{ abandon_hover_text }}"{% endif %}>
 <button type="submit" form="abandon_badge" alt="{{ abandon_hover_text }}" id="abandon_button_{{ attendee.id }}" class="btn btn-danger{% if mini_card %} btn-sm{% endif %}"

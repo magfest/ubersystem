@@ -361,8 +361,7 @@ class MagModel:
         this just returns the current value of that field.
         """
         hist = get_history(self, name)
-        if not hist.deleted and not hist.unchanged and hist.added:
-            # This happens sometimes, but shouldn't. Is this a bug in SQLAlchemy?
+        if not hist.deleted and not hist.unchanged and hist.added and not self.is_new:
             return None
         return (hist.deleted or hist.unchanged or [getattr(self, name)])[0]
 

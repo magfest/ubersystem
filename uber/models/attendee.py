@@ -1193,6 +1193,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "This badge has already been picked up."
         if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             return f"Please contact {email_only(c.STAFF_EMAIL)} to cancel or defer your badge."
+        if self.badge_type in c.BADGE_TYPE_PRICES and c.AFTER_EPOCH:
+            return f"Please contact {email_only(c.REGDESK_EMAIL)} to cancel your badge."
 
         if self.art_show_applications and self.art_show_applications[0].is_valid:
             return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
@@ -1213,7 +1215,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return reason + " Please {} contact us at {}{}.".format(
                 "transfer your badge instead or" if self.is_transferable else "",
                 email_only(c.REGDESK_EMAIL),
-                " to cancel your badge.")
+                " to cancel your badge")
 
     @property
     def cannot_self_service_refund_reason(self):
