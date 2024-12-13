@@ -223,7 +223,7 @@ class GuestGroup(MagModel):
 
     @property
     def guidebook_images(self):
-        if not self.bio:
+        if not self.bio or not self.bio.pic_filename:
             return ['', ''], ['', '']
         
         prepend = sluggify(self.group.name) + '_'
