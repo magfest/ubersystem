@@ -405,7 +405,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     # panels
     # =========================
     assigned_panelists = relationship('AssignedPanelist', backref='attendee')
-    panel_applicants = relationship('PanelApplicant', backref='attendee')
+    panel_applicants = relationship('PanelApplicant', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
     panel_applications = relationship('PanelApplication', backref='poc')
     panel_feedback = relationship('EventFeedback', backref='attendee')
     submitted_panels = relationship(
