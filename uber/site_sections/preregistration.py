@@ -501,9 +501,9 @@ class Root:
             return {"error": all_errors}
 
         return {"success": True}
-    
+
     @ajax_gettable
-    def check_consent_form(self, session, birthdate):
+    def _check_consent_form(self, session, birthdate):
         age_conf = get_age_conf_from_birthday(birthdate, c.NOW_OR_AT_CON)
 
         return {"consent_form": age_conf['consent_form']}
