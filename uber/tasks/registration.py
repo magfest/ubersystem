@@ -136,7 +136,6 @@ def check_placeholder_registrations():
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_pending_badges():
-    return
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         emails = [[
             'Staff',
