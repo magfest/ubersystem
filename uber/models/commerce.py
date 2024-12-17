@@ -2,11 +2,12 @@ from datetime import datetime
 import stripe
 
 from pytz import UTC
+from pockets import classproperty
 from pockets.autolog import log
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import func, or_
 
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.functions import coalesce
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.dialects.postgresql.json import JSONB
@@ -169,59 +170,56 @@ class ModelReceipt(MagModel):
     def pending_total(self):
         return sum([txn.amount for txn in self.receipt_txns if txn.is_pending_charge])
 
-    @hybrid_property
+    @property
     def payment_total(self):
         return sum([txn.amount for txn in self.receipt_txns
                     if not txn.cancelled and txn.amount > 0 and (txn.charge_id or txn.intent_id == '')])
 
-    @payment_total.expression
-    def payment_total(cls):
-        return select([func.sum(ReceiptTransaction.amount)]).where(
-            and_(ReceiptTransaction.receipt_id == cls.id,
-                 ReceiptTransaction.cancelled == None,  # noqa: E711
-                 ReceiptTransaction.amount > 0)).where(
-                     or_(ReceiptTransaction.charge_id != None,  # noqa: E711
-                         ReceiptTransaction.intent_id == '')).label('payment_total')
+    @classproperty
+    def payment_total_sql(cls):
+        return coalesce(func.sum(ReceiptTransaction.amount).filter(
+            ReceiptTransaction.amount > 0, ReceiptTransaction.cancelled == None).filter(
+                or_(ReceiptTransaction.charge_id != None,
+                    ReceiptTransaction.intent_id == '')), 0)
 
-    @hybrid_property
+    @property
     def refund_total(self):
         return sum([txn.amount for txn in self.receipt_txns if txn.amount < 0]) * -1
 
-    @refund_total.expression
-    def refund_total(cls):
-        return select([func.sum(ReceiptTransaction.amount) * -1]
-                      ).where(and_(ReceiptTransaction.amount < 0, ReceiptTransaction.receipt_id == cls.id)
-                              ).label('refund_total')
+    @classproperty
+    def refund_total_sql(cls):
+        return coalesce(func.sum(ReceiptTransaction.amount).filter(
+            ReceiptTransaction.amount < 0) * -1, 0)
     
     @property
-    def has_at_con_payments(self):
-        return any([txn for txn in self.receipt_txns if txn.method == c.SQUARE])
-
-    @hybrid_property
-    def current_amount_owed(self):
-        return max(0, self.current_receipt_amount)
-
-    @current_amount_owed.expression
-    def current_amount_owed(cls):
-        return case([(cls.current_receipt_amount > 0, cls.current_receipt_amount)],
-                    else_=0)
-
-    @hybrid_property
-    def current_receipt_amount(self):
-        return self.item_total - self.txn_total
-
-    @hybrid_property
     def item_total(self):
         return sum([(item.amount * item.count) for item in self.receipt_items])
 
-    @item_total.expression
-    def item_total(cls):
-        return select([func.sum(ReceiptItem.amount * ReceiptItem.count)]
-                      ).where(ReceiptItem.receipt_id == cls.id).label('item_total')
-
-    @hybrid_property
+    @classproperty
+    def item_total_sql(cls):
+        return coalesce(func.sum(ReceiptItem.amount * ReceiptItem.count), 0)
+    
+    @classproperty
+    def fkless_item_total_sql(cls):
+        return coalesce(func.sum(ReceiptItem.amount * ReceiptItem.count).filter(
+            ReceiptItem.fk_id == None
+        ), 0)
+    
+    @property
     def txn_total(self):
         return self.payment_total - self.refund_total
+
+    @property
+    def current_receipt_amount(self):
+        return self.item_total - self.txn_total
+
+    @property
+    def current_amount_owed(self):
+        return max(0, self.current_receipt_amount)
+
+    @property
+    def has_at_con_payments(self):
+        return any([txn for txn in self.receipt_txns if txn.method == c.SQUARE])
 
     @property
     def total_str(self):
