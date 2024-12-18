@@ -314,6 +314,14 @@ class Root:
             'event': event,
             'message': message
         }
+    
+    @csv_file
+    def signups_export(self, out, session, id):
+        event = session.attraction_event(id)
+        out.writerow(['Attendee', 'Badge #', 'Cellphone', 'Email', 'Signup Time', 'Checked In'])
+        for signup in event.signups:
+            out.writerow([signup.attendee.full_name, signup.attendee.badge_num, signup.attendee.cellphone,
+                          signup.attendee.email, signup.signup_time_local, signup.checkin_time_local or 'N/A'])
 
     @csrf_protected
     @not_site_mappable
