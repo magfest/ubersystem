@@ -388,7 +388,8 @@ class Root:
 
             else:
                 for applicant in team.applicants:
-                    if getattr(applicant.attendee, 'full_name', applicant.full_name) == params['waiver_signature']:
+                    if getattr(applicant.attendee, 'full_name', applicant.full_name
+                               ).lower() == params['waiver_signature'].strip().lower():
                         team.waiver_signature = params['waiver_signature']
                         team.waiver_signed = localized_now()
                         break
