@@ -59,10 +59,9 @@ class Root:
 
         sync_guidebook_models.delay(selected_model, sync_time, id_list)
         return {'success': True, 'message': "Syncing items started!", 'model': selected_model}
-        
 
     @xlsx_file
-    def schedule_guidebook_xlsx(self, out, session):
+    def schedule_guidebook_xlsx(self, out, session, new_only=False):
         header_row = ['Session Title', 'Date', 'Time Start', 'End Date (Optional)', 'Time End (Optional)',
                       'Room/Location', 'Schedule Track (Optional)', 'Description (Optional)',
                       'Allow adding to my schedule', 'Require Registration (Optional)',
@@ -76,8 +75,11 @@ class Root:
         rows = []
         id_list = []
         sync_time = str(datetime.now())
+        query = session.query(Event).order_by('start_time')
+        if new_only:
+            query = query.filter(Event.last_synced['guidebook'] == None)
 
-        for event in session.query(Event).order_by('start_time').all():
+        for event in query.all():
             id_list.append(event.id)
             guidebook_fields = event.guidebook_data
             rows.append([
@@ -97,8 +99,11 @@ class Root:
         out.writerows(header_row, rows)
 
     @xlsx_file
-    def export_guidebook_xlsx(self, out, session, selected_model):
-        query, _ = GuidebookUtils.get_guidebook_models(session, selected_model)
+    def export_guidebook_xlsx(self, out, session, selected_model, new_only=False):
+        query, filters = GuidebookUtils.get_guidebook_models(session, selected_model)
+
+        if new_only:
+            query = query.filter(filters[0])
 
         _set_response_filename('{}_guidebook_{}.xlsx'.format(
             filename_safe(dict(c.GUIDEBOOK_MODELS)[selected_model]).lower(),
@@ -127,8 +132,11 @@ class Root:
         out.writerows(header_row, rows)
 
     @multifile_zipfile
-    def export_guidebook_zip(self, zip_file, session, selected_model):
-        query, _ = GuidebookUtils.get_guidebook_models(session, selected_model)
+    def export_guidebook_zip(self, zip_file, session, selected_model, new_only=False):
+        query, filters = GuidebookUtils.get_guidebook_models(session, selected_model)
+
+        if new_only:
+            query = query.filter(filters[0])
 
         for model in query:
             filenames, files = getattr(model, 'guidebook_images', ['', ''])

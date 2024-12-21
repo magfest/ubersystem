@@ -89,6 +89,7 @@
   <h2>Guidebook Exports and Updates -- {{ now|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
   <div>
   <a href="schedule_guidebook_xlsx" class="btn btn-primary">Download Schedule XLSX</a>
+  <a href="schedule_guidebook_xlsx?new_only=true" class="btn btn-primary">New Schedule Items XLSX</a>
   </div>
 </div>
 
@@ -101,6 +102,12 @@
         <select name="selected_model" class="form-select">
             {{ options(tables) }}
         </select>
+        </div>
+        <div class="col">
+          <select name="new_only" class="form-select">
+            <option value="">All</option>
+            <option value="true">Only New</option>
+          </select>
         </div>
         <div class="col"><button type="submit" class="btn btn-primary" onClick="form.action='export_guidebook_xlsx';">Download Data XLSX</button></div>
         <div class="col"><button type="submit" class="btn btn-success" onClick="form.action='export_guidebook_zip';">Download Images ZIP</button></div>
@@ -141,7 +148,7 @@
     <div class="tab-content">
     <div role="tabpanel" class="tab-pane active mt-3" id="schedule" aria-labelledby="schedule-tab">
       {% if schedule_updates %}
-      <div class="d-flex justify-content-between">
+      <div class="d-flex justify-content-between mb-3">
         <form method="post" action="sync_all_items">
           {{ csrf_token() }}
           <input type="hidden" name="selected_model" value="schedule" />
@@ -151,7 +158,7 @@
         </form>
         <p>Items in <em>italics</em> has been changed since the last sync.</p>
       </div>
-      <table class="table table-hover">
+      <table class="table table-hover datatable">
         <thead>
           <tr>
             <th>Name</th>
@@ -217,7 +224,7 @@
     {% for model, label in c.GUIDEBOOK_MODELS %}
     <div role="tabpanel" class="tab-pane mt-3" id="{{ model }}" aria-labelledby="{{ model }}-tab">
       {% if cl_updates[label] %}
-      <div class="d-flex justify-content-between">
+      <div class="d-flex justify-content-between mb-3">
         <form method="post" action="sync_all_items">
           {{ csrf_token() }}
           <input type="hidden" name="selected_model" value="{{ model }}" />
@@ -227,7 +234,7 @@
         </form>
         <p>Items in <em>italics</em> has been changed since the last sync.</p>
       </div>
-      <table class="table table-hover">
+      <table class="table table-hover datatable">
         <thead>
           <tr>
             {% for key, label in c.GUIDEBOOK_PROPERTIES %}
