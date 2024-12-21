@@ -298,6 +298,10 @@ class Group(MagModel, TakesPaymentMixin):
             if len(emails) == 1:
                 return emails[0]
 
+    @property
+    def gets_emails(self):
+        return self.status not in [c.DECLINED, c.CANCELLED] and not self.leader or self.leader.is_valid
+
     @hybrid_property
     def badges_purchased(self):
         return len([a for a in self.attendees if a.paid == c.PAID_BY_GROUP])
