@@ -138,9 +138,12 @@ class Root:
         if new_only:
             query = query.filter(filters[0])
 
+        written_files = []
+
         for model in query:
             filenames, files = getattr(model, 'guidebook_images', ['', ''])
 
             for filename, file in zip(filenames, files):
-                if filename:
+                if filename and not filename in written_files:
+                    written_files.append(filename)
                     zip_file.write(getattr(file, 'filepath', getattr(file, 'pic_fpath', None)), filename)
