@@ -380,6 +380,7 @@
   var possibleEventURLS = {'available': 'get_available_jobs', 'assigned': 'get_assigned_jobs'};
   var fetchEventsURLS = ['get_available_jobs', 'get_assigned_jobs'];
   var fetchedEventList = [];
+  var signedUpHidden = false;
 
   let fetchEvents = async function() {
       if (fetchedEventList.length > 0) {
@@ -404,6 +405,10 @@
 
   {% if requested_setup_nights or requested_teardown_nights %}
   let checkEdgeNights = function() {
+    if (signedUpHidden == true) {
+      return;
+    }
+
     let allShifts = []
     fetchedEventList.forEach(function(el) { allShifts.push(el.extendedProps) })
     let setupShifts = allShifts.filter(function(el) { return el.is_setup == true; });
@@ -422,6 +427,10 @@
   {% endif %}
 
   let addEvents = function(id) {
+    if (id == 'assigned') {
+      signedUpHidden = false;
+    }
+
     fetchEventsURLS.push(possibleEventURLS[id]);
     fetchedEventList.length = 0;
     ec.refetchEvents();
@@ -429,6 +438,10 @@
   }
 
   let removeEvents = function(id) {
+    if (id == 'assigned') {
+      signedUpHidden = true;
+    }
+
     fetchEventsURLS = fetchEventsURLS.filter(function(el) { return el != possibleEventURLS[id]; });
     fetchedEventList.length = 0;
     ec.refetchEvents();
