@@ -478,7 +478,15 @@ class Group(MagModel, TakesPaymentMixin):
 
         physical_address = [address1, address2, city_region_zip, country]
         return '\n'.join([s for s in physical_address if s])
+
+    @property
+    def guidebook_header(self):
+        return ''
     
+    @property
+    def guidebook_thumbnail(self):
+        return ''
+
     @property
     def guidebook_edit_link(self):
         return f"../group_admin/form?id={self.id}"
@@ -496,3 +504,7 @@ class Group(MagModel, TakesPaymentMixin):
             'guidebook_header': '',
             'guidebook_thumbnail': '',
         }
+    
+    @property
+    def guidebook_images(self):
+        return ['', ''], ['', '']
