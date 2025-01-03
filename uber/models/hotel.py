@@ -2,6 +2,7 @@ import random
 
 import checkdigit.verhoeff as verhoeff
 from datetime import timedelta, datetime
+from pytz import UTC
 from markupsafe import Markup
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
