@@ -2,7 +2,7 @@
 <head></head>
 <body>
     <h3>{{ pending|length }} badges are currently pending</h3>
-    Use the <a href="{{ c.URL_BASE}}/{{ site_section }}/pending_badges">pending badges</a> page to review and approve these badges.
+    Use the <a href="{{ c.URL_BASE}}/registration/pending_badges">pending badges</a> page to review and approve these badges.
     <ul style="margin-top:0px ; margin-bottom:10px">
     {% for attendee in pending %}
             <li>

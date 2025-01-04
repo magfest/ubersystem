@@ -137,28 +137,15 @@ def check_placeholder_registrations():
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_pending_badges():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
-        emails = [[
-            'Staff',
-            c.STAFF_EMAIL,
-            Attendee.badge_type == c.STAFF_BADGE,
-            'staffing_admin'
-        ], [
-            'Attendee',
-            c.REGDESK_EMAIL,
-            Attendee.badge_type != c.STAFF_BADGE,
-            'registration'
-        ]]
-        subject = c.EVENT_NAME + ' Pending {} Badge Report for ' + localized_now().strftime('%Y-%m-%d')
+        subject = c.EVENT_NAME + ' Pending Badges Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
-            for badge_type, to, per_email_filter, site_section in emails:
-                pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
-                                                         Attendee.paid != c.PENDING,
-                                                         per_email_filter).all()
-                if pending and session.no_email(subject.format(badge_type)):
-                    body = render('emails/daily_checks/pending.html',
-                                  {'pending': pending, 'site_section': site_section}, encoding=None)
-                    send_email.delay(c.REPORTS_EMAIL, to, subject.format(badge_type), body,
-                                     format='html', model='n/a')
+            pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
+                                                        Attendee.paid != c.PENDING).all()
+            if pending and session.no_email(subject):
+                body = render('emails/daily_checks/pending.html',
+                                {'pending': pending}, encoding=None)
+                send_email.delay(c.REPORTS_EMAIL, c.STAFF_EMAIL, subject, body,
+                                    format='html', model='n/a')
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
