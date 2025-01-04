@@ -190,8 +190,23 @@ def check_near_cap():
 
 
 @celery.schedule(timedelta(days=1))
+def invalidate_at_door_badges():
+    if not c.POST_CON:
+        return
+
+    with Session() as session:
+        pending_badges = session.query(Attendee).filter(Attendee.paid == c.PENDING,
+                                                        Attendee.badge_status == c.NEW_STATUS)
+        for badge in pending_badges:
+            badge.badge_status = c.INVALID_STATUS
+            session.add(badge)
+
+        session.commit()
+
+
+@celery.schedule(timedelta(days=1))
 def email_pending_attendees():
-    if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or c.AT_THE_CON:
+    if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or not c.PRE_CON:
         return
 
     already_emailed_accounts = []
