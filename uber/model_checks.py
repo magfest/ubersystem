@@ -19,6 +19,7 @@ from urllib.request import urlopen
 import cherrypy
 import phonenumbers
 from pockets.autolog import log
+from pockets import sluggify
 from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
@@ -713,10 +714,29 @@ Attraction.required = [
     ('description', 'Description')
 ]
 
+@validation.Attraction
+def slug_not_existing(attraction):
+    with Session() as session:
+        slug = sluggify(attraction.name)
+        if session.query(Attraction).filter(Attraction.id != attraction.id,
+                                            Attraction.slug == slug).first():
+            return f"Another attraction has an identical URL to this one ({slug}). \
+                Please make sure this attraction's name is different from others, not including punctuation."
+
 AttractionFeature.required = [
     ('name', 'Name'),
     ('description', 'Description')
 ]
+
+
+@validation.AttractionFeature
+def slug_not_existing(feature):
+    with Session() as session:
+        slug = sluggify(feature.name)
+        if session.query(AttractionFeature).filter(AttractionFeature.id != feature.id,
+                                                   AttractionFeature.slug == slug).first():
+            return f"Another attraction feature has an identical URL to this one ({slug}). \
+                Please make sure this feature's name is different from others, not including punctuation."
 
 
 @validation.AttractionEvent
