@@ -114,6 +114,7 @@ app, c.PAGE_PATH,
             <a href="paid_with_cash?id={{ app.id }}" class="btn btn-success" type="submit">Paid with Cash</a>
             <strong>OR</strong>
             <button type="button" class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ app.id }}', '', refreshPage, '../art_show_admin/start_terminal_payment')">Prompt Payment at Terminal</button>
+            <button class="btn btn-primary" onClick="checkTerminalPayment('{{ app.id }}', 'application', refreshPage)">Check Payment Terminal</button>
           </div>
           {% endif %}
         {% endif %}

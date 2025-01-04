@@ -3,6 +3,27 @@
   var startPaymentButton = $('#start-spin-payment-button');
   var confirmPaymentButton = $('#confirm-spin-payment-button');
   let intervalId;
+  var checkTerminalPayment = function(model_id, model_name, callback) {
+    $.post('../registration/check_terminal_payment',
+    {
+      model_id: model_id,
+      model_name: model_name,
+      csrf_token: csrf_token
+    }).done( function(json) {
+      if (json && json.success) {
+        $('#payment-loading-message').removeClass('alert-danger').addClass('alert-info');
+        $('#payment-loading-message').html("Checking last sent transaction...  &nbsp;" + loadingIcon).show();
+        setTimeout(pollTerminalPayment, 500, callback);
+        intervalId = setInterval(pollTerminalPayment, 5000, callback);
+      } else if (json && json.message) {
+        $('#payment-loading-message').removeClass('alert-info').addClass('alert-danger');
+        $('#payment-loading-message').html(json.message).show();
+      } else {
+        $('#payment-loading-message').removeClass('alert-info').addClass('alert-danger');
+        $('#payment-loading-message').html("Something went wrong!").show();
+        }
+    });
+  }
   var startTerminalPayment = function(model_id='', pickup_group_id='', callback, action='../registration/start_terminal_payment') {
     $('#payment-loading-message').removeClass('alert-danger').addClass('alert-info');
     $('#payment-loading-message').html("Sending request... &nbsp;" + loadingIcon).show();

@@ -117,8 +117,6 @@ if($.field('return_to')) {
 {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
 {% include 'registration/attendee_pending_warning.html' %}
 {% endif %}
-{% include 'badge_printing/queue_badge.html' %}
-
 {% if attendee.regdesk_info %}
 <div class="alert alert-info">
     <div class="form-text">Special Instructions</div>
@@ -127,6 +125,13 @@ if($.field('return_to')) {
         <p class="form-text"><em>You can update these instructions below.</em></p>
     </div>
 </div>
+{% endif %}
+
+{% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
+<form class="print-badge" id="print-badge-form" action="../badge_printing/add_job_to_queue" method="post">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ attendee.id }}">
+</form>
 {% endif %}
 
 {{ form_macros.form_validation('attendee_form', '../registration/validate_attendee', callback="updateAttendee(submit_button_name)") }}

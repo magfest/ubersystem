@@ -41,14 +41,18 @@
             <div class="alert alert-warning" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
               with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+              {% if c.AT_THE_CON %}Please go to the registration desk during opening hours to pay.{% else %}
               Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
               <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', attendee, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
+              {% endif %}
             </div>
             {% else %}
             <div class="alert alert-danger" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+              {% if c.AT_THE_CON %}Please go to the registration desk during opening hours to pay.{% else %}
               Please <a href="" data-bs-toggle="modal" data-bs-target="#receiptModal">check your receipt here</a> to pay or 
               contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
+              {% endif %}
             </div>
             {% endif %}
         {% elif attendee.badge_status == c.PENDING_STATUS %}
@@ -158,7 +162,7 @@
       {% endif %}
     </form>
 
-    {% if not page_ro and (not attendee.cannot_abandon_badge_reason or attendee.cannot_self_service_refund_reason) %}
+    {% if not page_ro and not attendee.cannot_abandon_badge_reason %}
       <form method="post" action="abandon_badge" id="abandon_badge_{{ attendee.id }}">
         <input type="hidden" name="id" value="{{ attendee.id }}"/>
         {{ csrf_token() }}

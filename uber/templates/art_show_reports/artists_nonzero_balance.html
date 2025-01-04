@@ -4,20 +4,18 @@
 {% include 'discrepancy_reports_header.html' with context %}
 <div class="card">
     <div class="card-body">
-        <p>
-            {% if include_no_receipts %}
-                <a href="artists_nonzero_balance" class="btn btn-secondary">Hide Artists Without Receipts</a>
+        <div class="d-flex justify-content-end mb-3 gap-2">
+            {% if include_discrepancies %}
+            <a href="artists_nonzero_balance{{ '?include_no_receipts=True' if artists_no_receipts else '' }}" class="btn btn-primary">Exclude Artists with Receipt Discrepancies</a>
             {% else %}
-                <a href="artists_nonzero_balance?include_no_receipts=True" class="btn btn-outline-secondary">Show Artists Without Receipts</a>
+            <a href="artists_nonzero_balance{{ '?include_no_receipts=True&' if artists_no_receipts else '?' }}include_discrepancies=True" class="btn btn-outline-primary">Include Attendees with Receipt Discrepancies</a>
             {% endif %}
-            <br/><span class="form-text">
-                Artists without receipts will typically have their receipt created when they start the payment process after approval.
-            </span>
-        </p>
-        <p>
-            This page only shows artists whose receipt matches their default cost{% if include_no_receipts %} or who do not have a receipt{% endif %}.
-            Please see the "Artists with Receipt Discrepancies" page to view artists who may owe money but whose default cost does not match their receipt.
-        </p>
+            {% if apps_no_receipts %}
+            <a href="artists_nonzero_balance{{ '?include_discrepancies=True' if include_discrepancies else '' }}" class="btn btn-primary">Exclude Artists without Receipts</a>
+            {% else %}
+            <a href="artists_nonzero_balance{{ '?include_discrepancies=True&' if include_discrepancies else '?' }}include_no_receipts=True" class="btn btn-outline-primary">Include Attendees without Receipts</a>
+            {% endif %}
+        </div>
         <table class="table table-striped datatable">
         <thead>
             <tr>
@@ -27,13 +25,13 @@
             <th>Amount Owed</th>
             <th>Paid</th>
             <th>Refunded</th>
-            <th>Total</th>
             <th>Difference</th>
             {% if c.HAS_REG_ADMIN_ACCESS %}<th></th>{% endif %}
             </tr>
         </thead>
         <tbody>
-        {% for app in apps %}
+        {% for app, payment_total, refund_total, item_total in apps_and_totals %}
+        {% set txn_total = payment_total - refund_total %}
         <tr id="{{ app.id }}">
             <td data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}">
                 {{ app.attendee|form_link("true") }}
@@ -45,31 +43,49 @@
                 {{ app.deliver_method_label }}
             </td>
             <td>
-                {{ (app.active_receipt.item_total / 100)|format_currency 
-                    if app.active_receipt else app.true_default_cost|format_currency }}
+                {{ (item_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (app.active_receipt.payment_total / 100)|format_currency 
-                    if app.active_receipt else "Unpaid" }}
+                {{ (payment_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (app.active_receipt.refund_total / 100)|format_currency 
-                    if app.active_receipt else "N/A" }}
+                {{ (refund_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (app.active_receipt.txn_total / 100)|format_currency 
-                    if app.active_receipt else "N/A" }}
-            </td>
-            <td>
-                {{ (app.active_receipt.current_receipt_amount / 100)|format_currency 
-                    if app.active_receipt else app.true_default_cost|format_currency }}
+                {{ ((item_total - txn_total) / 100)|format_currency }}
             </td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>
                 <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ app.id }}" target="_blank">View Receipt Items</a>
             </td>
             {% endif %}
-            </tr>
+        </tr>
+        {% endfor %}
+        {% for app in apps_no_receipts %}
+        <tr id="{{ app.id }}">
+            <td data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}">
+                {{ app.attendee|form_link("true") }}
+            </td>
+            <td>
+                <a href="../art_show_admin/form?id={{ app.id }}" target="_blank" class="btn btn-primary">View</a>
+            </td>
+            <td>
+                {{ app.deliver_method_label }}
+            </td>
+            <td>
+                {{ app.true_default_cost|format_currency }}
+            </td>
+            <td>No Receipt</td>
+            <td>No Receipt</td>
+            <td>
+                {{ app.true_default_cost|format_currency }}
+            </td>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+            <td>
+                <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ app.id }}" target="_blank">Create Receipt</a>
+            </td>
+            {% endif %}
+        </tr>
         {% endfor %}
         </tbody>
         </table>

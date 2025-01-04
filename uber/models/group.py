@@ -359,19 +359,9 @@ class Group(MagModel, TakesPaymentMixin):
             return self.active_receipt.item_total / 100
         return (self.cost or self.calc_default_cost()) + self.amount_extra
 
-    @hybrid_property
+    @property
     def is_paid(self):
         return self.active_receipt and self.active_receipt.current_amount_owed == 0
-
-    @is_paid.expression
-    def is_paid(cls):
-        from uber.models import ModelReceipt
-
-        return exists().select_from(ModelReceipt).where(
-            and_(ModelReceipt.owner_id == cls.id,
-                 ModelReceipt.owner_model == "Group",
-                 ModelReceipt.closed == None,  # noqa: E711
-                 ModelReceipt.current_amount_owed == 0))
 
     @property
     def amount_unpaid(self):
@@ -403,7 +393,7 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_paid(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.payment_total]
+        return select([ModelReceipt.payment_total_sql]).outerjoin(ModelReceipt.receipt_txns
                       ).where(and_(ModelReceipt.owner_id == cls.id,
                                    ModelReceipt.owner_model == "Group",
                                    ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
@@ -416,7 +406,7 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_refunded(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.refund_total]
+        return select([ModelReceipt.refund_total_sql]).outerjoin(ModelReceipt.receipt_txns
                       ).where(and_(ModelReceipt.owner_id == cls.id,
                                    ModelReceipt.owner_model == "Group")).label('amount_refunded')
 

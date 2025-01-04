@@ -3,16 +3,16 @@
 {% block title %}Add-on Cost Summary{% endblock %}
 {% block content %}
 <h3 class="text-center">Add-on Cost Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
-<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+<table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
   
   <tr>
-    <td><strong>Total Attendee w/ Add-ons</strong></td><td colspan="5">{{ total_addons }}</td><td><em>Total</em></td><td><em>Grand Total</em></td>
+    <td><strong>Total Attendees w/ Add-ons</strong></td><td colspan="5">{{ total_addons }}</td><td><em>Total</em></td><td><em>Grand Total</em></td>
   </tr>
   <tr>
     <td><strong>Paid Add-ons</strong></td>
-    <td colspan="5">{{ paid_preordered_merch_total + paid_extra_donations_total }}</td>
+    <td colspan="5">{{ paid_preordered_merch_total + paid_extra_donations_total + paid_upgrades_total }}</td>
     <td></td>
-    <td>{{ (paid_preordered_merch_sum + paid_extra_donations_sum)|format_currency }}</td>
+    <td>{{ (paid_preordered_merch_sum + paid_extra_donations_sum + paid_upgrades_sum)|format_currency }}</td>
   </tr>
   <tr>
     <td></td><td></td>
@@ -33,6 +33,29 @@
     <td>{{ amount|format_currency }}</td>
     <td>{{ paid_preordered_merch[amount] }}</td>
     <td>{{ (amount * paid_preordered_merch[amount])|format_currency }}</td>
+    <td></td>
+    <td></td>
+  </tr>
+  {% endfor %}
+  <tr>
+    <td></td><td></td>
+    <td colspan="4">{{ paid_upgrades_total }} badge upgrades</td>
+    <td>{{ paid_upgrades_sum|format_currency }}</td>
+    <td></td>
+  </tr>
+  {% for badge_type in paid_upgrades.keys()|sort() %}
+  {% if loop.first %}
+  <tr>
+    <td></td><td></td><td></td>
+    <td width="10%"><em>Level</em></td><td width="10%"><em>Count</em></td><td width="10%"><em>Total</em></td>
+    <td></td>
+  </tr>
+  {% endif %}
+  <tr>
+    <td></td><td></td><td></td>
+    <td>{{ c.BADGES[badge_type] }}</td>
+    <td>{{ paid_upgrades[badge_type] }}</td>
+    <td>{{ (c.BADGE_TYPE_PRICES[badge_type] * paid_upgrades[badge_type])|format_currency }}</td>
     <td></td>
     <td></td>
   </tr>
@@ -62,9 +85,9 @@
   {% endfor %}
   <tr>
     <td><strong>Unpaid Add-ons</strong></td>
-    <td colspan="5">{{ unpaid_preordered_merch_total + unpaid_extra_donations_total }}</td>
+    <td colspan="5">{{ unpaid_preordered_merch_total + unpaid_extra_donations_total + unpaid_upgrades_total }}</td>
     <td></td>
-    <td>{{ (unpaid_preordered_merch_sum + unpaid_extra_donations_sum)|format_currency }}</td>
+    <td>{{ (unpaid_preordered_merch_sum + unpaid_extra_donations_sum + unpaid_upgrades_sum)|format_currency }}</td>
   </tr>
   <tr>
     <td></td><td></td>
@@ -85,6 +108,29 @@
     <td>{{ amount|format_currency }}</td>
     <td>{{ unpaid_preordered_merch[amount] }}</td>
     <td>{{ (amount * unpaid_preordered_merch[amount])|format_currency }}</td>
+    <td></td>
+    <td></td>
+  </tr>
+  {% endfor %}
+  <tr>
+    <td></td><td></td>
+    <td colspan="4">{{ unpaid_upgrades_total }} badge upgrades</td>
+    <td>{{ unpaid_upgrades_sum|format_currency }}</td>
+    <td></td>
+  </tr>
+  {% for badge_type in unpaid_upgrades.keys()|sort() %}
+  {% if loop.first %}
+  <tr>
+    <td></td><td></td><td></td>
+    <td width="10%"><em>Level</em></td><td width="10%"><em>Count</em></td><td width="10%"><em>Total</em></td>
+    <td></td>
+  </tr>
+  {% endif %}
+  <tr>
+    <td></td><td></td><td></td>
+    <td>{{ c.BADGES[badge_type] }}</td>
+    <td>{{ unpaid_upgrades[badge_type] }}</td>
+    <td>{{ (c.BADGE_TYPE_PRICES[badge_type] * unpaid_upgrades[badge_type])|format_currency }}</td>
     <td></td>
     <td></td>
   </tr>

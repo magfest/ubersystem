@@ -59,7 +59,7 @@
               {% if attendee.badge_type in c.BADGE_TYPE_PRICES %}
                 {% set badge_cost = attendee.calculate_badge_cost() + attendee.default_badge_upgrade_cost %}
               {% elif (attendee.calculate_badge_cost() and attendee.age_discount|abs < attendee.calculate_badge_cost()) or attendee.default_promo_code_group_cost %}
-                {% set badge_cost = (attendee.calculate_badge_cost() or attendee.default_promo_code_group_cost) - attendee.age_discount|abs %}
+                {% set badge_cost = (attendee.calculate_badge_cost() or attendee.default_promo_code_group_cost) %}
               {% else %}
                 {% set badge_cost = 0 %}
               {% endif %}

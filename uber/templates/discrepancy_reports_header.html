@@ -1,4 +1,4 @@
-<h2>Discrepancy Reports</h2>
+<h2>Receipt Reports</h2>
 <p>
     {{ macros.button_menu(
         c.PAGE_PATH, "btn-outline-primary",
@@ -7,8 +7,8 @@
         ) }}
     {{ macros.button_menu(
         c.PAGE_PATH, "btn-outline-success",
-        "../dealer_reports/dealer_receipt_discrepancies", "Dealers with Receipt Discrepancies", c.HAS_DEALER_REPORTS_ACCESS,
-        "../dealer_reports/dealers_nonzero_balance", "Dealers with Non-Zero Balances", c.HAS_DEALER_REPORTS_ACCESS,
+        "../dealer_reports/dealer_receipt_discrepancies", "Groups with Receipt Discrepancies", c.HAS_DEALER_REPORTS_ACCESS,
+        "../dealer_reports/dealers_nonzero_balance", "Groups with Non-Zero Balances", c.HAS_DEALER_REPORTS_ACCESS,
         ) }}
     {{ macros.button_menu(
         c.PAGE_PATH, "btn-outline-info",

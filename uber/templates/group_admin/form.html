@@ -40,6 +40,7 @@
             <a href="paid_with_cash?id={{ group.id }}" class="btn btn-success" type="submit">Paid with Cash</a>
             <strong>OR</strong>
             <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ group.id }}', '', refreshPage)">Prompt Payment at Terminal</button>
+            <button class="btn btn-primary" onClick="checkTerminalPayment('{{ group.id }}', 'group', refreshPage)">Check Payment Terminal</button>
             <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
             {% include 'registration/spin_terminal_form.html' with context %}
           {% else %}

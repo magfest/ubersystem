@@ -152,6 +152,7 @@ class Root:
                 session.commit()
             elif action == 'get_info':
                 message = f"Piece {found_piece.artist_and_piece_id} information retrieved."
+                found_piece.history = session.query(Tracking).filter_by(fk_id=found_piece.id)
             elif action == 'set_winner':
                 if not bidder_num:
                     message = "Please enter the winning bidder number."

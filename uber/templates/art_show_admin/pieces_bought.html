@@ -162,6 +162,7 @@
           <div class="col">
           {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
             <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ receipt.id }}', '', recordCardPayment, '../art_show_admin/start_terminal_payment')">Prompt Payment at Terminal</button>
+            <button class="btn btn-primary" onClick="checkTerminalPayment('{{ receipt.attendee.id }}', 'attendee', recordCardPayment)">Check Payment Terminal</button>
           {% else %}
             {{ stripe_form('purchases_charge', receipt.attendee, receipt_id=receipt.id) }}
           {% endif %}

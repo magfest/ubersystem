@@ -190,8 +190,23 @@ def check_near_cap():
 
 
 @celery.schedule(timedelta(days=1))
+def invalidate_at_door_badges():
+    if not c.POST_CON:
+        return
+
+    with Session() as session:
+        pending_badges = session.query(Attendee).filter(Attendee.paid == c.PENDING,
+                                                        Attendee.badge_status == c.NEW_STATUS)
+        for badge in pending_badges:
+            badge.badge_status = c.INVALID_STATUS
+            session.add(badge)
+
+        session.commit()
+
+
+@celery.schedule(timedelta(days=1))
 def email_pending_attendees():
-    if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or c.AT_THE_CON:
+    if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or not c.PRE_CON:
         return
 
     already_emailed_accounts = []
@@ -311,6 +326,7 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, pickup_gr
 
     with Session() as session:
         txn_tracker = TxnRequestTracking(workstation_num=workstation_num, terminal_id=terminal_id,
+                                         fk_id=pickup_group_id or model_id,
                                          who=AdminAccount.admin_name())
         session.add(txn_tracker)
         session.commit()
@@ -412,9 +428,10 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, pickup_gr
         if response:
             payment_request.process_sale_response(session, response)
         else:
+            error = payment_request.error_message or 'Terminal request timed out or was interrupted'
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id,
-                               'last_error', payment_request.error_message)
-            txn_tracker.internal_error = payment_request.error_message
+                               'last_error', error)
+            txn_tracker.internal_error = error
 
 
 @celery.schedule(timedelta(minutes=30))
