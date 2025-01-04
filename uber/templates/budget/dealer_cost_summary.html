@@ -6,8 +6,8 @@
 <p>Please note that 
   {% if c.HAS_DEALER_REPORTS_ACCESS %}
   <a href="../dealer_reports/dealer_receipt_discrepancies" target="_blank">receipt discrepancies</a>
-  {% else %}receipt discrepancies{% endif %} may contribute to a different total intake than the amounts listed below.</p>
-<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  {% else %}receipt discrepancies{% endif %} and partially-paid groups may contribute to a different total intake than the amounts listed below.</p>
+  <table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
     <td><strong>Total Dealers</strong></td><td colspan="5">{{ total_dealers }}</td><td><em>Total</em></td><td><em>Grand Total</em></td>
   </tr>

@@ -169,28 +169,45 @@ class Root:
 
     @log_pageview
     def artist_receipt_discrepancies(self, session):
-        filters = [ArtShowApplication.true_default_cost_cents != ModelReceipt.item_total,
-                   ArtShowApplication.status == c.APPROVED]
+        apps = session.query(ArtShowApplication).filter(
+            ArtShowApplication.status == c.APPROVED
+            ).join(ArtShowApplication.active_receipt).outerjoin(ModelReceipt.receipt_items).group_by(
+                ModelReceipt.id).group_by(ArtShowApplication.id).having(
+                    ArtShowApplication.true_default_cost_cents != ModelReceipt.fkless_item_total_sql)
 
         return {
-            'apps': session.query(ArtShowApplication).join(ArtShowApplication.active_receipt).filter(*filters),
+            'apps': apps,
         }
 
     @log_pageview
-    def artists_nonzero_balance(self, session, include_no_receipts=False):
-        if include_no_receipts:
-            apps = session.query(ArtShowApplication).outerjoin(ArtShowApplication.active_receipt).filter(
-                or_(and_(ModelReceipt.id == None, ArtShowApplication.true_default_cost > 0),  # noqa: E711
-                    and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))  # noqa: E711
+    def artists_nonzero_balance(self, session, include_no_receipts=False, include_discrepancies=False):
+        item_subquery = session.query(ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
+                                      ).join(ModelReceipt.receipt_items).group_by(ModelReceipt.owner_id).subquery()
+
+        if include_discrepancies:
+            filter = True
         else:
-            apps = session.query(ArtShowApplication).join(
-                ArtShowApplication.active_receipt).filter(
-                    ArtShowApplication.true_default_cost_cents == ModelReceipt.item_total,
-                    ModelReceipt.current_receipt_amount != 0)
+            filter = ArtShowApplication.true_default_cost_cents == item_subquery.c.item_total
+
+        apps_and_totals = session.query(
+            ArtShowApplication, ModelReceipt.payment_total_sql, ModelReceipt.refund_total_sql, item_subquery.c.item_total
+            ).filter(ArtShowApplication.status == c.APPROVED).join(ArtShowApplication.active_receipt).outerjoin(
+                ModelReceipt.receipt_txns).join(item_subquery, ArtShowApplication.id == item_subquery.c.owner_id).group_by(
+                    ModelReceipt.id).group_by(ArtShowApplication.id).group_by(item_subquery.c.item_total).having(
+                        and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
+                             filter))
+
+        if include_no_receipts:
+            apps_no_receipts = session.query(ArtShowApplication).outerjoin(
+                ModelReceipt, ArtShowApplication.active_receipt).filter(ArtShowApplication.true_default_cost > 0,
+                                                                        ModelReceipt.id == None)
+        else:
+            apps_no_receipts = []
 
         return {
-            'apps': apps.filter(ArtShowApplication.status == c.APPROVED),
-            'include_no_receipts': include_no_receipts,
+            'apps_and_totals': apps_and_totals,
+            'include_discrepancies': include_discrepancies,
+            'apps_no_receipts': apps_no_receipts,
         }
 
     @csv_file

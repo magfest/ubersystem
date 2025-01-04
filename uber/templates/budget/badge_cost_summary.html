@@ -6,8 +6,8 @@
 <p>Please note that 
   {% if c.HAS_REG_REPORTS_ACCESS %}
   <a href="../reg_reports/attendee_receipt_discrepancies" target="_blank">receipt discrepancies</a>
-  {% else %}receipt discrepancies{% endif %} may contribute to a different total intake than the amounts listed below.</p>
-<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  {% else %}receipt discrepancies{% endif %} and partially-paid attendees may contribute to a different total intake than the amounts listed below.</p>
+<table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
     <td><strong>Total Badges</strong></td><td colspan="5">{{ total_badges }}</td><td><em>Total</em></td>
   </tr>

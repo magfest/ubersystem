@@ -75,7 +75,7 @@ class Root:
         }
 
     @log_pageview
-    def attendees_nonzero_balance(self, session, include_discrepancies=False):
+    def attendees_nonzero_balance(self, session, include_no_receipts=False, include_discrepancies=False):
         item_subquery = session.query(ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
                                       ).join(ModelReceipt.receipt_items).group_by(ModelReceipt.owner_id).subquery()
 
@@ -91,10 +91,17 @@ class Root:
                     ModelReceipt.id).group_by(Attendee.id).group_by(item_subquery.c.item_total).having(
                         and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
                              filter))
+        
+        if include_no_receipts:
+            attendees_no_receipts = session.query(Attendee).outerjoin(
+                ModelReceipt, Attendee.active_receipt).filter(Attendee.default_cost > 0, ModelReceipt.id == None)
+        else:
+            attendees_no_receipts = []
 
         return {
             'attendees_and_totals': attendees_and_totals,
             'include_discrepancies': include_discrepancies,
+            'attendees_no_receipts': attendees_no_receipts,
         }
 
     @log_pageview
