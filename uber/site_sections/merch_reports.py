@@ -1,6 +1,7 @@
 from collections import defaultdict, OrderedDict
 from datetime import datetime
 from pytz import UTC
+from sqlalchemy import or_
 
 from uber.config import c
 from uber.custom_tags import format_currency, datetime_local_filter
@@ -114,7 +115,8 @@ class Root:
 
     def owed_merch(self, session):
         return {
-            'attendees': session.valid_attendees().filter(Attendee.amount_extra > 0,
+            'attendees': session.valid_attendees().filter(or_(Attendee.amount_extra > 0,
+                                                              Attendee.badge_type.in_(c.BADGE_TYPE_PRICES)),
                                                           Attendee.got_merch == False)  # noqa: E712
         }
 
@@ -132,7 +134,8 @@ class Root:
             'Checked In',
             'Admin Notes',
         ])
-        attendees = session.valid_attendees().filter(Attendee.amount_extra > 0,
+        attendees = session.valid_attendees().filter(or_(Attendee.amount_extra > 0,
+                                                         Attendee.badge_type.in_(c.BADGE_TYPE_PRICES)),
                                                      Attendee.got_merch == False)  # noqa: E712
         for attendee in attendees:
             out.writerow([

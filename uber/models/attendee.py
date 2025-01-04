@@ -444,7 +444,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     # badge printing
     # =========================
-    print_requests = relationship('PrintJob', backref='attendee')
+    print_requests = relationship('PrintJob', backref='attendee', order_by='desc(PrintJob.last_updated)')
 
     # =========================
     # art show
@@ -664,6 +664,27 @@ class Attendee(MagModel, TakesPaymentMixin):
         return select([func.count(PrintJob.id)]
                       ).where(and_(PrintJob.attendee_id == cls.id,
                                    PrintJob.printed != None)).label('times_printed')  # noqa: E711
+    
+    @property
+    def print_status(self):
+        if not self.print_requests:
+            return "Not Printed"
+
+        job = self.print_requests[0]
+        
+        if job.printed != None:
+            if self.times_printed > 1:
+                return f"Printed {time_day_local(job.printed)} ({self.times_printed} Prints Total)"
+            return f"Printed {time_day_local(job.printed)}"
+        elif job.errors == "":
+            if job.queued:
+                return f"Queued {time_day_local(job.queued)}"
+            elif job.ready == True:
+                return f"Ready to Print"
+            else:
+                return f"Pending Payment"
+        else:
+            return "Print Job Errored"
 
     @property
     def age_now_or_at_con(self):
@@ -970,23 +991,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_pending(self):
         return self.active_receipt.pending_total if self.active_receipt else 0
 
-    @hybrid_property
+    @property
     def is_paid(self):
         return self.active_receipt and self.active_receipt.current_amount_owed == 0
-
-    @is_paid.expression
-    def is_paid(cls):
-        from uber.models import ModelReceipt, Group
-
-        return case([(cls.paid == c.PAID_BY_GROUP,
-                      exists().select_from(Group).where(
-                          and_(cls.group_id == Group.id,
-                               Group.is_paid == True)))],  # noqa: E712
-                    else_=(exists().select_from(ModelReceipt).where(
-                            and_(ModelReceipt.owner_id == cls.id,
-                                 ModelReceipt.owner_model == "Attendee",
-                                 ModelReceipt.closed == None,  # noqa: E711
-                                 ModelReceipt.current_amount_owed == 0))))
 
     @hybrid_property
     def amount_paid(self):
@@ -996,7 +1003,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_paid(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.payment_total]).where(
+        return select([ModelReceipt.payment_total_sql]).outerjoin(ModelReceipt.receipt_txns).where(
             and_(ModelReceipt.owner_id == cls.id,
                  ModelReceipt.owner_model == "Attendee",
                  ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
@@ -1009,7 +1016,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_refunded(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.refund_total]).where(
+        return select([ModelReceipt.refund_total_sql]).outerjoin(ModelReceipt.receipt_txns).where(
             and_(ModelReceipt.owner_id == cls.id,
                  ModelReceipt.owner_model == "Attendee")).label('amount_refunded')
 
@@ -1172,6 +1179,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "This badge has already been picked up."
         if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             return f"Please contact {email_only(c.STAFF_EMAIL)} to cancel or defer your badge."
+        if self.badge_type in c.BADGE_TYPE_PRICES and c.AFTER_EPOCH:
+            return f"Please contact {email_only(c.REGDESK_EMAIL)} to cancel your badge."
 
         if self.art_show_applications and self.art_show_applications[0].is_valid:
             return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
@@ -1192,7 +1201,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return reason + " Please {} contact us at {}{}.".format(
                 "transfer your badge instead or" if self.is_transferable else "",
                 email_only(c.REGDESK_EMAIL),
-                " to cancel your badge.")
+                " to cancel your badge")
 
     @property
     def cannot_self_service_refund_reason(self):

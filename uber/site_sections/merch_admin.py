@@ -20,6 +20,10 @@ def attendee_from_id_or_badge_num(session, badge_num_or_qr_code):
         message = 'Please enter or scan a badge number or check-in QR code.'
     elif re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', badge_num_or_qr_code):
         id = badge_num_or_qr_code
+    elif badge_num_or_qr_code.startswith(c.EVENT_QR_ID):
+        search_uuid = badge_num_or_qr_code[len(c.EVENT_QR_ID):]
+        if re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', search_uuid):
+            id = search_uuid
     elif not badge_num_or_qr_code.isdigit():
         message = 'Invalid badge number.'
 
@@ -31,6 +35,12 @@ def attendee_from_id_or_badge_num(session, badge_num_or_qr_code):
         attendee = session.query(Attendee).filter_by(badge_num=badge_num_or_qr_code).first()
         if not attendee:
             message = f'No attendee has badge number {badge_num_or_qr_code}.'
+    
+    if attendee:
+        if not attendee.has_badge:
+            message = f'{attendee.name_and_badge_info} has an invalid badge status: {attendee.badge_status_label}.'
+        elif not attendee.checked_in and id:
+            message = f'{attendee.name_and_badge_info} has not checked in!'
 
     return attendee, message
 
@@ -73,6 +83,12 @@ class Root:
             attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
             if not attendee:
                 message = f'No attendee has badge number {badge_num}.'
+        
+        if attendee:
+            if not attendee.has_badge:
+                message = f'This badge has an invalid status: {attendee.badge_status_label}.'
+            elif not attendee.checked_in:
+                message = 'This badge has not checked in!'
 
         if message:
             return {'success': False, 'message': message}

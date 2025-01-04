@@ -120,6 +120,39 @@
         <div class="mb-3"><a href="../art_show_admin/pieces_bought?id={{ piece.receipt.id }}" target="_blank">{{ piece.receipt.invoice_num }}</a>{% if piece.closed %} (Paid {{ piece.closed|time_day_local }}){% endif %}</div>
       </div>
       {% endif %}
+      <div class="col align-self-center">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#history-modal">View History</button>
+      </div>
+    </div>
+    <div id="history-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="history-title">
+      <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title" id="history-title">
+              {{ piece.artist_and_piece_id }} History
+            </h4>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <table class="table table-striped table-bordered table-sm">
+              <thead><tr>
+                  <th>What</th>
+                  <th>When</th>
+                  <th>Who</th>
+                  <th>Changes</th>
+              </tr></thead>
+              {% for tracked in piece.history %}
+                  <tr>
+                      <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+                      <td valign="top" style="white-space:nowrap">{{ tracked.when|short_datetime_local }}</td>
+                      <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>
+                      <td valign="top">{{ tracked.data }}</td>
+                  </tr>
+              {% endfor %}
+              </table>
+          </div>
+        </div>
+      </div>
     </div>
     {% endif %}
   </div>

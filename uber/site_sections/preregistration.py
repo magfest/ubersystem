@@ -501,9 +501,9 @@ class Root:
             return {"error": all_errors}
 
         return {"success": True}
-    
+
     @ajax_gettable
-    def check_consent_form(self, session, birthdate):
+    def _check_consent_form(self, session, birthdate):
         age_conf = get_age_conf_from_birthday(birthdate, c.NOW_OR_AT_CON)
 
         return {"consent_form": age_conf['consent_form']}
@@ -756,6 +756,8 @@ class Root:
                 session.add(pickup_group)
                 session.commit()
                 session.refresh(pickup_group)
+            elif not pickup_group:
+                qr_code_id = cart.attendees[0].public_id
 
             if pickup_group:
                 qr_code_id = pickup_group.public_id

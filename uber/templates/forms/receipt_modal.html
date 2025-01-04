@@ -10,7 +10,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-          {% if receipt.current_amount_owed and not receipt.pending_total %}{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, stripe_button_id="receipt-stripe-btn") }}{% endif %}
+          {% if receipt.current_amount_owed and not receipt.pending_total and not c.AT_THE_CON %}{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, stripe_button_id="receipt-stripe-btn") }}{% endif %}
         </div>
       </div>
     </div>

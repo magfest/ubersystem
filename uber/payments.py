@@ -855,16 +855,16 @@ class SpinTerminalRequest(TransactionRequest):
                 return f(self, *args, **kwargs)
             except requests.exceptions.ConnectionError as e:
                 log.error(f"Transaction {self.tracking_id} could not connect to SPIn Proxy: {str(e)}")
-                self.error_message = "Could not connect to SPIn Proxy."
+                self.error_message = "Could not connect to SPIn Proxy"
             except requests.exceptions.Timeout as e:
                 if self.timeout_retries > 10:
                     log.error(f"Transaction {self.tracking_id} timed out while connecting to SPIn Terminal: {str(e)}")
-                    self.error_message = "The request timed out."
+                    self.error_message = "The request timed out"
                 else:
                     self.timeout_retries += 1
             except requests.exceptions.RequestException as e:
                 log.error(f"Transaction {self.tracking_id} errored while processing SPIn Terminal sale: {str(e)}")
-                self.error_message = "Unexpected error."
+                self.error_message = "Unexpected error"
 
         return api_call
 
@@ -889,6 +889,8 @@ class SpinTerminalRequest(TransactionRequest):
         if self.api_response_successful(response_json):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
                                'last_response', json.dumps(response_json))
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
+                               'last_error', '')
         else:
             error_message = self.error_message_from_response(response_json)
             log.error(f"Error while processing terminal sale for transaction {self.tracking_id}: {error_message}")
@@ -896,8 +898,6 @@ class SpinTerminalRequest(TransactionRequest):
 
     def process_sale_response(self, session, response):
         from uber.models import ReceiptTransaction
-        from uber.tasks.registration import send_receipt_email
-        from decimal import Decimal
 
         try:
             response_json = response.json()
@@ -940,6 +940,13 @@ class SpinTerminalRequest(TransactionRequest):
                     txn.receipt_info = self.receipt_info_from_txn(session, txn, model_receipt_info, void_response_json)
             return
 
+        self.process_successful_sale(session, response_json, self.intent.id)
+
+    def process_successful_sale(self, session, response_json, intent_id):
+        from uber.models import ReceiptTransaction
+        from uber.tasks.registration import send_receipt_email
+        from decimal import Decimal
+
         self.tracker.success = True
 
         approval_amount = Decimal(str(spin_rest_utils.approved_amount(response_json))) * 100  # don't @ me
@@ -947,7 +954,7 @@ class SpinTerminalRequest(TransactionRequest):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
                                'last_error', "Partial approval")
 
-        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent.id).all()
+        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
         if not matching_txns:
             error_message = "Payment was successful, but did not have any matching transactions"
             log.error(f"Error while processing terminal sale for transaction {self.tracking_id}: {error_message}")
@@ -970,12 +977,13 @@ class SpinTerminalRequest(TransactionRequest):
                 session.delete(txn)
             else:
                 txn.receipt_info = self.receipt_info_from_txn(session, txn, model_receipt_info, response_json)
+                txn.cancelled = None
                 session.add(txn)
                 session.add(txn.receipt_info)
 
         session.commit()
 
-        ReceiptManager.mark_paid_from_ids(self.intent.id, self.terminal_id + "-" + self.intent.id)
+        ReceiptManager.mark_paid_from_ids(intent_id, self.terminal_id + "-" + intent_id)
 
         for receipt_info in model_receipt_info.values():
             send_receipt_email.delay(receipt_info.id)
@@ -1028,6 +1036,7 @@ class SpinTerminalRequest(TransactionRequest):
         session.commit()
         new_tracker = TxnRequestTracking(workstation_num=self.tracker.workstation_num,
                                          terminal_id=self.tracker.terminal_id,
+                                         fk_id=self.tracker.fk_id,
                                          who=self.tracker.who)
         self.tracker = new_tracker
         new_intent_id = self.intent_id_from_txn_tracker(self.tracker)
@@ -1081,11 +1090,15 @@ class SpinTerminalRequest(TransactionRequest):
         if refund_amount != txn.txn_total and not cherrypy.session.get('reg_station'):
             return ("This is a partial refund, which requires a connected SPIn payment terminal. "
                     "Please set your workstation number and try again.")
+        
+        with Session() as session:
+            model = session.get_model_by_receipt(txn.receipt)
+            model_id = model.id
 
         log.debug('REFUND: attempting to refund card transaction with ID {} {} cents for {}',
                   txn.stripe_id, str(refund_amount), txn.desc)
 
-        self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'),
+        self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'), fk_id=model_id,
                                           terminal_id=self.terminal_id, who=AdminAccount.admin_name())
 
         self.receipt_manager.items_to_add.append(self.tracker)
@@ -1096,10 +1109,6 @@ class SpinTerminalRequest(TransactionRequest):
                                                                     refund_amount,
                                                                     method=self.method,
                                                                     department=department)
-
-        with Session() as session:
-            model = session.get_model_by_receipt(txn.receipt)
-            model_id = model.id
 
         self.terminal_id = txn.receipt_info.terminal_id
         self.ref_id = txn.intent_id
@@ -1562,7 +1571,7 @@ class ReceiptManager:
 
     @staticmethod
     def mark_paid_from_ids(intent_id, charge_id):
-        from uber.models import Attendee, ArtShowApplication, ArtistMarketplaceApplication, Group, ReceiptTransaction, Session
+        from uber.models import Attendee, ArtShowApplication, Group, ReceiptTransaction, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
 
@@ -1629,19 +1638,6 @@ class ReceiptManager:
                         model=model.to_dict('id'))
                 except Exception:
                     log.error('Unable to send Art Show payment confirmation email', exc_info=True)
-            if model and isinstance(model, ArtistMarketplaceApplication) and not txn.receipt.open_purchase_items:
-                send_email.delay(
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    'Marketplace Payment Received',
-                    render('emails/marketplace/payment_notification.txt', {'app': model}, encoding=None),
-                    model=model.to_dict('id'))
-                send_email.delay(
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    model.email_to_address,
-                    'Marketplace Payment Received',
-                    render('emails/marketplace/payment_confirmation.txt', {'app': model}, encoding=None),
-                    model=model.to_dict('id'))
 
         session.close()
         return matching_txns

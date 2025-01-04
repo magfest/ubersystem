@@ -361,6 +361,8 @@ class MagModel:
         this just returns the current value of that field.
         """
         hist = get_history(self, name)
+        if not hist.deleted and not hist.unchanged and hist.added and not self.is_new:
+            return None
         return (hist.deleted or hist.unchanged or [getattr(self, name)])[0]
 
     @suffix_property
@@ -1472,14 +1474,15 @@ class Session(SessionManager):
                 return None, errors
 
             if dry_run:
-                return None, None
+                return "None", None
 
             print_job = PrintJob(attendee_id=attendee.id,
                                  admin_id=self.current_admin_account().id,
                                  admin_name=self.admin_attendee().full_name,
                                  printer_id=printer_id,
                                  reg_station=reg_station,
-                                 print_fee=print_fee)
+                                 print_fee=print_fee,
+                                 ready=False if print_fee else True)
 
             if attendee.age_now_or_at_con >= 18:
                 print_job.is_minor = False
@@ -1692,7 +1695,8 @@ class Session(SessionManager):
 
         def get_next_badge_to_print(self, printer_id=''):
             query = self.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
-                    PrintJob.printed == None, PrintJob.errors == '', PrintJob.printer_id == printer_id)  # noqa: E711
+                    PrintJob.printed == None, PrintJob.ready == True,  # noqa: E711
+                    PrintJob.errors == '', PrintJob.printer_id == printer_id)
 
             badge = query.order_by(Tracking.when.desc()).with_for_update().first()
 
@@ -1844,6 +1848,18 @@ class Session(SessionManager):
 
             attendees = attendees.filter(*filters)
 
+            id_list = [
+                Attendee.id,
+                Attendee.public_id,
+                PromoCodeGroup.id,
+                Group.id,
+                Group.public_id,
+                BadgePickupGroup.id,
+                BadgePickupGroup.public_id]
+
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                id_list.extend([AttendeeAccount.id, AttendeeAccount.public_id])
+
             terms = text.split()
             if len(terms) == 2:
                 first, last = terms
@@ -1873,27 +1889,11 @@ class Session(SessionManager):
 
             elif len(terms) == 1 \
                     and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
-
-                id_list = [
-                    Attendee.id == terms[0],
-                    Attendee.public_id == terms[0],
-                    PromoCodeGroup.id == terms[0],
-                    Group.id == terms[0],
-                    Group.public_id == terms[0],
-                    BadgePickupGroup.id == terms[0],
-                    BadgePickupGroup.public_id == terms[0]]
-
-                if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    id_list.extend([AttendeeAccount.id == terms[0], AttendeeAccount.public_id == terms[0]])
-
-                return attendees.filter(or_(*id_list)), ''
-
+                return attendees.filter(or_(*map(lambda x: x == terms[0], id_list))), ''
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
                 if re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', search_uuid):
-                    return attendees.filter(or_(
-                        Attendee.public_id == search_uuid,
-                        Group.public_id == search_uuid)), ''
+                    return attendees.filter(or_(*map(lambda x: x == search_uuid, id_list))), ''
 
             or_checks = []
             and_checks = []

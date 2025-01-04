@@ -23,7 +23,7 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
     requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import (Attendee, AttendeeAccount, AdminAccount, Email, EscalationTicket, Group, Job, PageViewTracking,
+from uber.models import (Attendee, AdminAccount, Email, EscalationTicket, Group, Job, PageViewTracking, TxnRequestTracking,
                          PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
                          WorkstationAssignment)
 from uber.site_sections.preregistration import check_if_can_reg
@@ -162,8 +162,12 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
         forms = load_forms(params, attendee, form_list, get_optional=False)
+        new_attendee = Attendee(**attendee.to_dict())
 
-        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()), is_admin=True)
+        if 'promo_code_code' not in params and attendee.promo_code:
+            new_attendee.promo_code = attendee.promo_code
+
+        all_errors = validate_model(forms, attendee, new_attendee, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 
@@ -326,11 +330,80 @@ class Root:
                 message = str(response_json)
             else:
                 error_message = req.error_message_from_response(response_json)
-                message = f"Error checking status of {intent_id}: {error_message}"
+                message = f"Error checking status of {intent_id}: {error_message}."
         else:
-            message = f"Error checking status of {intent_id}: {req.error_message}"
+            error = req.error_message or "No response from terminal"
+            message = f"Error checking status of {intent_id}: {error}."
 
         raise HTTPRedirect('../reg_admin/manage_workstations?message={}', message)
+
+    @ajax
+    def check_terminal_payment(self, session, model_id, model_name, **params):
+        error, terminal_id = session.get_assigned_terminal_id()
+        if error:
+            return {'success': False, 'message': error}
+
+        terminal_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id)
+        if not terminal_status:
+            return {'success': False, 'message': f"No pending terminal transactions found."}
+        
+        if terminal_status.get('recorded', False):
+            return {'success': False, 'message': f"The last transaction on this terminal has already been successfully recorded."}
+
+        intent_id = terminal_status.get('intent_id', '')
+        if not intent_id:
+            return {'success': False, 'message': f"System error: the last terminal transactions has no receipt info."}
+
+        tracker = session.query(TxnRequestTracking).filter(TxnRequestTracking.incr_id == intent_id[4:-1]).first()
+        if not tracker:
+            return {'success': False, 'message': f"System error: no tracking data found for intent {intent_id}."}
+
+        if tracker.fk_id != model_id:
+            return {'success': False, 'message': f"The last transaction on the terminal does not match this {model_name}."}
+
+        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id)
+
+        if tracker.internal_error and not tracker.resolved:
+            txn = matching_txns.first()
+            if not txn:
+                return {'success': True} # They'll end up with the error from poll_terminal_payment
+            req = SpinTerminalRequest(terminal_id, amount=txn.txn_total, tracker=tracker, ref_id=intent_id)
+            response = req.check_txn_status(intent_id)
+            if response:
+                response_json = response.json()
+                if req.api_response_successful(response_json):
+                    tracker.resolved = datetime.utcnow()
+                    tracker.response = response_json
+                    tracker.internal_error = ''
+                    session.add(tracker)
+                    session.commit()
+                    req.log_api_response(response_json)
+
+                    req.process_successful_sale(session, response_json, intent_id)
+                    return {'success': True}
+                else:
+                    error = req.error_message_from_response(response_json)
+                    if error != "Not found":
+                        return {'success': False, 'message': f"Error checking status of last transaction: {error}"}
+                    tracker.resolved = datetime.utcnow()
+                    session.add(tracker)
+                    session.commit()
+                    prior_error = terminal_status.get('last_error')
+                    c.REDIS_STORE.hset(
+                        c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id,
+                        'last_error', "The last transaction was not processed by the terminal, \
+                            either because it was cancelled or due to the following error: "
+                            + prior_error)
+        
+        if not tracker.internal_error and tracker.resolved:
+            receipts = [txn.receipt for txn in matching_txns if txn.receipt.owner_id == model_id]
+            for receipt in receipts:
+                if receipt.current_amount_owed:
+                    return {'success': False,
+                            'message': f"The last transaction for this {model_name} was successful, \
+                                        but they still have unpaid items. Please refresh the page or start a new payment."}
+
+        return {'success': True}
 
     @ajax
     def poll_terminal_payment(self, session, **params):
@@ -363,18 +436,8 @@ class Root:
                     'error': "We could not find which payment this transaction was for. "
                     "You may need a manager to log it manually."
                     }
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'recorded', "true")
             return {'success': True, 'intent_id': intent_id}
-        else:
-            # TODO: Finish and test this
-            past_timeout = datetime.now(pytz.UTC) - timedelta(seconds=150)
-            if terminal_status.get('request_timestamp') and \
-                    terminal_status.get('request_timestamp') < past_timeout.timestamp():
-                status_request = SpinTerminalRequest(terminal_id)
-                response = status_request.check_txn_status(intent_id)
-                if response:
-                    status_request.process_sale_response(response)
-                else:
-                    return {'error': status_request.error_message}
 
     def promo_code_groups(self, session, message=''):
         groups = session.query(PromoCodeGroup).order_by(PromoCodeGroup.name).all()
@@ -580,14 +643,15 @@ class Root:
                     'message': "Your workstation has no printers assigned, "
                     "so we can't tell how to handle this minor's badge."}
 
-        success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
+        print_id, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
-        if not success:
+        if not print_id:
             return {'success': False, 'message': message}
 
         session.commit()
         if attendee.age_now_or_at_con < 18 and printer_id == workstation_assignment.printer_id:
             if session.query(PrintJob).filter(PrintJob.printer_id == printer_id,
+                                              PrintJob.ready == True,
                                               PrintJob.printed == None,  # noqa: E711
                                               PrintJob.errors == '').all():
                 return {'success': False,
@@ -596,8 +660,7 @@ class Root:
             else:
                 return {'success': True, 'minor_check': True}
         else:
-            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'),
-                                       params.get('fee_amount'))
+            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'))
             session.commit()
             return {'success': True, 'message': message + f" {attendee.full_name} successfully checked in."}
 
@@ -623,19 +686,19 @@ class Root:
         cherrypy.session['cart_printer_error_list'] = []
 
         for attendee in pickup_group.check_inable_attendees:
-            success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
+            print_id, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
-            if not success:
+            if not print_id:
                 printer_messages.append(f"There was a problem with printing {attendee.full_name}'s badge: {message}")
 
             session.commit()
 
-            if success and attendee.age_now_or_at_con < 18 and (not minor_printer_id or printer_id == minor_printer_id):
+            if print_id and attendee.age_now_or_at_con < 18 and (not minor_printer_id or printer_id == minor_printer_id):
                 minor_check_badges = True
-            elif success:
+            elif print_id:
                 attendee_names_list.append(attendee.full_name)
                 session.add_to_print_queue(attendee, printer_id,
-                                           cherrypy.session.get('reg_station'), params.get('fee_amount'))
+                                           cherrypy.session.get('reg_station'))
 
                 attendee.checked_in = localized_now()
                 checked_in[attendee.id] = {
@@ -664,7 +727,7 @@ class Root:
                 }
         return {'success': True, 'message': success_message, 'checked_in': checked_in}
 
-    def minor_check_form(self, session, printer_id, attendee_id='', pickup_group_id='', reprint_fee=0, num_adults=0):
+    def minor_check_form(self, session, printer_id, attendee_id='', pickup_group_id='', num_adults=0):
         if pickup_group_id:
             pickup_group = session.badge_pickup_group(pickup_group_id)
             attendees = pickup_group.under_18_badges
@@ -677,12 +740,11 @@ class Root:
             'pickup_group_id': pickup_group_id,
             'attendee_id': attendee_id,
             'printer_id': printer_id,
-            'reprint_fee': reprint_fee,
             'num_adults': num_adults,
         }
 
     @ajax_gettable
-    def complete_minor_check(self, session, printer_id, attendee_id='', pickup_group_id='', reprint_fee=0):
+    def complete_minor_check(self, session, printer_id, attendee_id='', pickup_group_id=''):
         if pickup_group_id:
             pickup_group = session.badge_pickup_group(pickup_group_id)
             attendees = pickup_group.under_18_badges
@@ -696,7 +758,7 @@ class Root:
 
         for attendee in attendees:
             _, errors = session.add_to_print_queue(attendee, printer_id,
-                                                   cherrypy.session.get('reg_station'), reprint_fee)
+                                                   cherrypy.session.get('reg_station'))
             if errors and not pickup_group_id:
                 return {'success': False, 'message': "<br>".join(errors)}
             elif errors:
