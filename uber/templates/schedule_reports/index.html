@@ -208,7 +208,7 @@
                   <input type="hidden" name="selected_model" value="schedule" />
                   <input type="hidden" name="id" value="{{ result.id }}" />
                   <input type="hidden" name="sync_time" value="{{ now }}" />
-                  <input type="hidden" name="sync_data" value='{{ current_data|jsonize }}' />
+                  <input type="hidden" name="sync_data" value='{{ current_data|tojson }}' />
                   <button type="submit" class="btn btn-success">Mark Synced</button>
                 </form>
                 </div>
@@ -280,7 +280,7 @@
                 <input type="hidden" name="selected_model" value="{{ model }}" />
                 <input type="hidden" name="id" value="{{ result.id }}" />
                 <input type="hidden" name="sync_time" value="{{ now }}" />
-                <input type="hidden" name="sync_data" value='{{ current_data|jsonize }}' />
+                <input type="hidden" name="sync_data" value='{{ current_data|tojson }}' />
                 <button type="submit" class="btn btn-success">Mark Synced</button>
               </form>
               </div>
