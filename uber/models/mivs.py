@@ -368,27 +368,31 @@ class IndieGame(MagModel, ReviewMixin):
             img for img in self.images
             if img.is_screenshot and img.use_in_promo]
 
-    def best_screenshot_downloads(self, count=2):
-        all_images = reversed(sorted(
-            self.images,
+    def accepted_image_downloads(self, count=2):
+        all_screenshots = reversed(sorted(
+            [image for image in self.images if not image.is_header and not image.is_thumbnail],
             key=lambda img: (
                 img.is_screenshot and img.use_in_promo,
                 img.is_screenshot,
                 img.use_in_promo)))
 
         screenshots = []
-        for i, screenshot in enumerate(all_images):
+        for i, screenshot in enumerate(all_screenshots):
             if os.path.exists(screenshot.filepath):
                 screenshots.append(screenshot)
                 if len(screenshots) >= count:
                     break
+        if self.guidebook_header:
+            screenshots.append(self.guidebook_header)
+        if self.guidebook_thumbnail:
+            screenshots.append(self.guidebook_thumbnail)
         return screenshots
 
-    def best_screenshot_download_filenames(self, count=2):
+    def accepted_image_download_filenames(self, count=2):
         nonchars = re.compile(r'[\W]+')
-        best_screenshots = self.best_screenshot_downloads(count)
+        accepted_images = self.accepted_image_downloads(count)
         screenshots = []
-        for i, screenshot in enumerate(best_screenshots):
+        for i, screenshot in enumerate(accepted_images):
             if os.path.exists(screenshot.filepath):
                 name = '_'.join([s for s in self.title.lower().split() if s])
                 name = nonchars.sub('', name)
