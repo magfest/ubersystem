@@ -399,9 +399,9 @@ class IndieGame(MagModel, ReviewMixin):
                 filename = '{}_{}.{}'.format(
                     name, len(screenshots) + 1, screenshot.extension.lower())
                 screenshots.append(filename)
-                if len(screenshots) >= count:
+                if len(screenshots) >= (count + 2):
                     break
-        return screenshots + ([''] * (count - len(screenshots)))
+        return screenshots + ([''] * ((count + 2) - len(screenshots)))
 
     @property
     def promo_image(self):
