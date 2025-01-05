@@ -165,6 +165,8 @@ class Root:
                     new_ribbon_type=group.new_ribbons,
                     badge_status=new_badge_status,
                     )
+                session.commit()
+                session.refresh(group)
 
             if group.is_dealer and group.status == c.SHARED:
                 if group.table_shares:
