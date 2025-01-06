@@ -1,29 +1,11 @@
 {% extends "./preregistration/preregbase.html" %}
 {% import 'forms/macros.html' as form_macros with context %}
 
-{% set title_text = "Transfer Your " ~ c.EVENT_NAME ~ " Registration" %}
+{% set title_text = "Start " ~ c.EVENT_NAME ~ " Registration Transfer" %}
 {% block content %}
 
 <div class="card">
   <div class="card-body">
-    <div class="alert alert-info">
-      <p><em><strong>Want to transfer your badge without exchanging personal information?</strong></em></p>
-      <p>
-        Send the recipient your badge transfer code (<strong>{{ old.transfer_code }}</strong>) or this URL:
-        <code style="user-select: all;">{{ c.URL_BASE }}/preregistration/start_badge_transfer?code={{ old.transfer_code }}</code>
-      </p>
-      <p>Once they fill out the form and send you their transfer code, enter it below to complete the transfer.</p>
-      <form method="post" class="d-flex gap-2" action="complete_badge_transfer">
-        <div><input type="text" class="form-control" name="code" placeholder="XXX-XXX-XXX" /></div>
-        <div>
-          <input type="hidden" name="id" value="{{ old.id }}" />
-          <button type="submit" class="btn btn-primary">Transfer My Badge</button>
-        </div>
-      </form>
-    </div>
-
-    <h2>Transfer {{ old.full_name }}'s Registration</h2>
-
     {% if duplicate_bypass %}
     <div class="alert alert-warning">
       <h3>You may already be registered!</h3>
@@ -82,13 +64,39 @@
       </p>
       <button class="btn btn-info" form="transfer-badge">I'm someone else, let me register!</button>
     </div>
+    {% elif code %}
+        {% if not transfer_badge or not transfer_badge.has_badge %}
+        <div class="alert alert-danger" role="alert">
+            This transfer code (<strong>{{ code }}</strong>) is not associated with a valid, transferable badge.
+        </div>
+        {% else %}
+            {% set badge_details %}
+            The original badge cost was {{ transfer_badge.badge_cost|format_currency }}.
+            {% if transfer_badge.amount_extra %}This badge includes a {{ c.DONATION_TIERS[transfer_badge.amount_extra] }} merch package ({{ transfer_badge.amount_extra|format_currency }}).{% endif %}
+            {% endset %}
+            {% if transfer_badge.active_receipt and transfer_badge.active_receipt.current_amount_owed %}
+            <div class="alert alert-warning" role="alert">
+                <p>
+                    The badge associated with this transfer code (<strong>{{ code }}</strong>) currently has an outstanding balance
+                    of <strong>{{ (transfer_badge.active_receipt.current_amount_owed / 100)|format_currency }}</strong>.
+                </p>
+                <p>Otherwise, the badge is valid and can be transferred.</p>
+                {{ badge_details }}
+            </div>
+            {% else %}
+            <div class="alert alert-info" role="alert">
+                <p>The badge associated with this transfer code (<strong>{{ code }}</strong>) is valid and can be transferred.</p>
+                {{ badge_details }}
+            </div>
+            {% endif %}
+        {% endif %}
     {% endif %}
-
-    <p>
-      By filling out this form, you will be transferring {{ old.full_name }}'s {{ c.EVENT_NAME }} registration
-      to someone else.  {{ old.full_name }} will no longer have a paid {{ c.EVENT_NAME }} badge waiting at
-      our Registration Desk; that will belong to whomever the badge is transferred.
-    </p>
+    <p>Enter a transfer code below to check its validity.</p>
+    <form method="post" class="d-flex gap-2 mb-3" action="start_badge_transfer">
+        <div><input type="text" class="form-control" name="code" placeholder="XXX-XXX-XXX" {% if transfer_badge %}value="{{ transfer_badge.transfer_code }}"{% endif %} /></div>
+        <div><button type="submit" class="btn btn-primary">Check Transfer Code</button></div>
+    </form>
+    <p>Or, fill out the form below to get a code that someone can use to transfer their badge to you.</p>
 
     {% if receipt and receipt.current_amount_owed %}
     <div class="alert alert-danger" role="alert">
@@ -97,11 +105,10 @@
     </div>
     {% endif %}
 
-    {{ form_macros.form_validation('transfer-badge') }}
+    {{ form_macros.form_validation('start-transfer') }}
 
-    <form method="POST" novalidate action="transfer_badge" id="transfer-badge">
+    <form method="POST" novalidate action="start_badge_transfer" id="start-transfer">
       {{ csrf_token() }}
-      <input type="hidden" name="id" value="{{ old.id }}" />
       {% if ban_bypass %}
         <input type="hidden" name="ban_bypass" value="True" />
       {% endif %}
@@ -119,7 +126,7 @@
 
       <div class="form-group">
         <div class="col-sm-6 col-sm-offset-3">
-          <button type="submit" class="btn btn-primary" id="updateButton">Transfer This Badge</button>
+          <button type="submit" class="btn btn-primary">Get Transfer Code</button>
         </div>
       </div>
 

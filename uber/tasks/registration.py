@@ -203,6 +203,7 @@ def email_pending_attendees():
         pending_badges = session.query(Attendee).filter(
             Attendee.paid == c.PENDING,
             Attendee.badge_status == c.PENDING_STATUS,
+            Attendee.transfer_code == '',
             Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)).order_by(Attendee.registered)
         for badge in pending_badges:
             # Update `compare_date` to prevent early deletion of badges registered before a certain date
