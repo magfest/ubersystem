@@ -662,7 +662,7 @@ class GuidebookUtils():
 
     @classmethod
     def get_guidebook_models(cls, session, selected_model=''):
-        from uber.models import GuestBio, MITSPicture, IndieGameImage
+        from uber.models import Group, GuestBio, MITSPicture, IndieGameImage
 
         model_cls = cls.parse_guidebook_model(selected_model)
         model_query = session.query(model_cls)
@@ -676,7 +676,7 @@ class GuidebookUtils():
             model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.bio)
             stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
         elif '_dealer' in selected_model:
-            model_query = model_query.filter_by(is_dealer=True)
+            model_query = model_query.filter(model_cls.status.in_([c.APPROVED])).filter_by(is_dealer=True)
         elif 'IndieGame' in selected_model:
             model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.images)
             stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < IndieGameImage.last_updated)

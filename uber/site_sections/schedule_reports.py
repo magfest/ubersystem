@@ -73,14 +73,11 @@ class Root:
         ))
 
         rows = []
-        id_list = []
-        sync_time = str(datetime.now())
         query = session.query(Event).order_by('start_time')
         if new_only:
             query = query.filter(Event.last_synced['guidebook'] == None)
 
         for event in query.all():
-            id_list.append(event.id)
             guidebook_fields = event.guidebook_data
             rows.append([
                 guidebook_fields['name'],
@@ -95,7 +92,6 @@ class Root:
                 '', '', '', '', ''
             ])
 
-        sync_guidebook_models.delay('schedule', sync_time, id_list)
         out.writerows(header_row, rows)
 
     @xlsx_file
