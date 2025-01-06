@@ -26,7 +26,7 @@ from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
 from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, \
-    localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt
+    localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode
 
 
 __all__ = ['Attendee', 'AttendeeAccount', 'BadgePickupGroup', 'FoodRestrictions']
@@ -192,6 +192,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         backref=backref('used_by', cascade='merge,refresh-expire,expunge'),
         foreign_keys=promo_code_id,
         cascade='merge,refresh-expire,expunge')
+    
+    transfer_code = Column(UnicodeText)
 
     placeholder = Column(Boolean, default=False, admin_only=True, index=True)
     first_name = Column(UnicodeText)
@@ -791,7 +793,15 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models import Session
         with Session() as session:
             return session.admin_attendee_max_access(self, read_only=False)
-        
+
+    @hybrid_property
+    def normalized_transfer_code(self):
+        return RegistrationCode.normalize_code(self.transfer_code)
+
+    @normalized_transfer_code.expression
+    def normalized_transfer_code(cls):
+        return RegistrationCode.sql_normalized_code(cls.transfer_code)
+
     @property
     def cannot_edit_badge_status_reason(self):
         full_reg_admin = False
