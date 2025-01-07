@@ -605,12 +605,14 @@ class Root:
                     cherrypy.response.headers['Accept-Ranges'] = 'bytes'
                     cherrypy.response.headers['Content-Length'] = filesize
                     cherrypy.response.headers['Content-Range'] = 'bytes 0-{}'.format(filesize)
+                    cherrypy.response.headers['Cache-Control'] = 'no-store'
                     return serve_file(filepath, disposition='inline', name=download_filename, content_type=content_type)
                 else:
                     raise cherrypy.HTTPError(404, "File not found")
 
     def view_bio_pic(self, session, id):
         guest = session.guest_group(id)
+        cherrypy.response.headers['Cache-Control'] = 'no-store'
         return serve_file(
             guest.bio.pic_fpath,
             disposition="attachment",
@@ -619,6 +621,7 @@ class Root:
 
     def view_stage_plot(self, session, id):
         guest = session.guest_group(id)
+        cherrypy.response.headers['Cache-Control'] = 'no-store'
         return serve_file(
             guest.stage_plot.fpath,
             disposition="attachment",
