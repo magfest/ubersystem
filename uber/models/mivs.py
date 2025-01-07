@@ -396,8 +396,13 @@ class IndieGame(MagModel, ReviewMixin):
             if os.path.exists(screenshot.filepath):
                 name = '_'.join([s for s in self.title.lower().split() if s])
                 name = nonchars.sub('', name)
-                filename = '{}_{}.{}'.format(
-                    name, len(screenshots) + 1, screenshot.extension.lower())
+                if screenshot.is_header:
+                    filename = f'{name}_header.{screenshot.extension.lower()}'
+                elif screenshot.is_thumbnail:
+                    filename = f'{name}_icon.{screenshot.extension.lower()}'
+                else:
+                    filename = '{}_{}.{}'.format(
+                        name, len(screenshots) + 1, screenshot.extension.lower())
                 screenshots.append(filename)
                 if len(screenshots) >= (count + 2):
                     break
