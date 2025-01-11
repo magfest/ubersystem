@@ -18,25 +18,6 @@
         {{ form_macros.alpine_form_input(staffing_info.staffing, admin_text=staffing_admin_text, alpine_props={'x-model.boolean':'staffing'}) }}
     </div>
 </div>
-<script type="text/javascript">
-    var checkStaffing = function() {
-        true_evals = [];
-        {% if badge_flags %}
-            true_evals.push({{ [c.STAFF_BADGE, c.CONTRACTOR_BADGE] }}.map(String).includes($("#{{ badge_flags.badge_type.id }}").val()));
-            true_evals.push($("#{{ badge_flags.ribbon.id }}-{{ c.VOLUNTEER_RIBBON }}").prop('checked'));
-        {% endif %}
-        if(true_evals.some(item => item)) {
-            $("#{{ staffing_info.staffing.id }}").prop('checked', true).trigger('change');
-        }
-    }
-    $().ready(function () {
-        checkStaffing();
-        {% if badge_flags %}
-        $("#{{ badge_flags.badge_type.id }}").change(checkStaffing);
-        $("#{{ badge_flags.ribbon.id }}").change(checkStaffing);
-        {% endif %}
-    })
-</script>
 <div class="row g-sm-3" x-show="staffing">
     <div class="col-12">
         <div class="form-text">Walk-On Volunteer</div>
