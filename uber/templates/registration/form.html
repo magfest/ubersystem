@@ -172,7 +172,24 @@
 
 {{ form_macros.form_validation('attendee-form') }}
 
-<form novalidate method="post" id="attendee-form" action="form" x-data="{badge_placeholder: {{ attendee.placeholder | javascript_bool }}, badge_ribbons: {{ attendee.ribbon | javascript_array }}, staffing: {{ attendee.staffing | javascript_bool }}}">
+<form novalidate method="post" id="attendee-form" action="form"
+      x-data="{
+        badge_placeholder: {{ attendee.placeholder | javascript_bool }},
+        badge_ribbons: {{ attendee.ribbon | javascript_array }},
+        badge_type : {{ attendee.badge_type }},
+        staffing: {{ attendee.staffing | javascript_bool }}
+        }"
+      x-effect="
+          if (Alpine.raw(badge_ribbons).includes({{ c.VOLUNTEER_RIBBON }})) {
+               console.log('Badge ribbons include volunteer')
+               staffing=true
+          }
+          if(badge_type == {{ c.STAFF_BADGE }} || badge_type == {{ c.CONTRACTOR_BADGE }}){
+               console.log('Badge type is staff or contractor!')
+               staffing=true
+          }
+          "
+>
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
