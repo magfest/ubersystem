@@ -145,12 +145,10 @@ if($.field('return_to')) {
 
       x-init="$watch('badge_ribbons',
                 (ribbons) => {
-                    console.log(Alpine.raw(ribbons))
-                    if (Alpine.raw(ribbons).includes({{ c.VOLUNTEER_RIBBON }})) { staffing=true }
+                    if (Alpine.raw(ribbons).includes({{ c.VOLUNTEER_RIBBON }})) { staffing = true }
                 });
               $watch('badge_type',
                  (btype) => {
-                    console.log(btype);
                     if( btype == {{ c.STAFF_BADGE }} || btype == {{ c.CONTRACTOR_BADGE }}){ staffing = true }
               })"
 >
