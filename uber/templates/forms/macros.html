@@ -195,6 +195,7 @@
     {% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>
         <span class="form-label">{{ label_text }}</span>
         {% if required_if is not none %}
+            <span>HMD Debug <span x-text="{{ required_if | string }}"></span></span>
             <span class="required-indicator text-danger" x-show="{{ required_if }}"> *</span>
         {% endif %}
     </label>
