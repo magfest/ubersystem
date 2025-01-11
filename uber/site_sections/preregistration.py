@@ -1598,6 +1598,18 @@ class Root:
                 attendee.badge_status = c.PENDING_STATUS
                 attendee.paid = c.PENDING
                 attendee.transfer_code = RegistrationCode.generate_random_code(Attendee.transfer_code)
+                session.commit()
+
+                subject = c.EVENT_NAME + ' Pending Badge Code'
+                body = render('emails/reg_workflow/pending_code.txt',
+                                {'attendee': attendee}, encoding=None)
+                send_email.delay(
+                    c.REGDESK_EMAIL,
+                    attendee.email_to_address,
+                    subject,
+                    body,
+                    model=attendee.to_dict('id'))
+
                 raise HTTPRedirect('confirm?id={}&message={}', attendee.id,
                                    f"Success! Your pending badge's transfer code is {attendee.transfer_code}.")
 

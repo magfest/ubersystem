@@ -1,0 +1,11 @@
+{{ attendee.first_name }},
+
+This email is to confirm that you have created a pending {{ c.EVENT_NAME }} badge with the transfer code {{ attendee.transfer_code }}.
+
+You do NOT yet have a valid registration for {{ c.EVENT_NAME }}. In order to activate your registration, someone with an existing badge must use your transfer code to give their badge to you. You will then receive an email from this email address titled "{{ c.EVENT_NAME }} Registration Transferred".
+
+You can also check your badge's status and view/update your details here: {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
+
+If you change your mind, you do not need to do anything. You will not receive any more emails from us unless someone activates your badge.
+
+{{ c.REGDESK_EMAIL_SIGNATURE }}
