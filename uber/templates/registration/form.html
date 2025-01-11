@@ -179,16 +179,17 @@
         badge_type : {{ attendee.badge_type }},
         staffing: {{ attendee.staffing | javascript_bool }}
         }"
-      x-effect="
-          if (Alpine.raw(badge_ribbons).includes({{ c.VOLUNTEER_RIBBON }})) {
-               console.log('Badge ribbons include volunteer')
-               staffing=true
-          }
-          if(badge_type == {{ c.STAFF_BADGE }} || badge_type == {{ c.CONTRACTOR_BADGE }}){
-               console.log('Badge type is staff or contractor!')
-               staffing=true
-          }
-          "
+
+      x-init="$watch('badge_ribbons',
+                (ribbons) => {
+                    console.log(Alpine.raw(ribbons))
+                    if (Alpine.raw(ribbons).includes({{ c.VOLUNTEER_RIBBON }})) { staffing=true }
+                });
+              $watch('badge_type',
+                 (btype) => {
+                    console.log(btype);
+                    if( btype == {{ c.STAFF_BADGE }} || btype == {{ c.CONTRACTOR_BADGE }}){ staffing = true }
+              })"
 >
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
