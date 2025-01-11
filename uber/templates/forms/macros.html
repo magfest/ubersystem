@@ -234,6 +234,12 @@
             {{ field(**custom_kwargs) }}
             {{ form_input_extras(field, help_text, admin_text) }}
         </div>
+    {% elif type == 'select' %}
+        <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
+            {{ field(class="form-select", **custom_kwargs) }}
+            {{ alpine_form_label(field, label_text=label_text, required_if=required_if) }}
+            {{ form_input_extras(field, help_text, admin_text) }}
+        </div>
     {% else %}
         <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
             {{ field(class="form-control", **custom_kwargs) }}
