@@ -840,3 +840,10 @@ def javascript_bool(val):
         return 'true'
     else:
         return 'false'
+
+@JinjaEnv.jinja_filter
+def javascript_array(val):
+    if val:
+        return '['+ val + ']'
+    else:
+        return '[]'
