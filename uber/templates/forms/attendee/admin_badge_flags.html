@@ -178,7 +178,7 @@
 
 {% block ribbons %}
 <div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(badge_flags.ribbon) }}</div>
+    <div class="col-12">{{ form_macros.alpine_form_input(badge_flags.ribbon,alpine_props={'x-model':'badge_ribbons'}) }}</div>
 </div>
 {% if staffing_info %}
 {{ form_macros.toggle_fields_js(badge_flags.ribbon, [staffing_info.staffing], on_values=[c.VOLUNTEER_RIBBON], prop='checked') }}

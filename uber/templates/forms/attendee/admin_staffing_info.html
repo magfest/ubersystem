@@ -15,13 +15,6 @@
 <div class="row g-sm-3">
     <div class="col-12">
         <div class="form-text">Volunteering/Staffing</div>
-        {{ form_macros.toggle_checkbox(staffing_info.staffing, [staffing_info.walk_on_volunteer,
-                                                                staffing_info.requested_depts_ids,
-                                                                staffing_info.assigned_depts_ids,
-                                                                staffing_info.agreed_to_volunteer_agreement,
-                                                                staffing_info.got_staff_merch,
-                                                                staffing_info.hotel_eligible
-                                                                ], admin_text=staffing_admin_text) }}
         {{ form_macros.alpine_form_input(staffing_info.staffing, admin_text=staffing_admin_text, alpine_props={'x-model.boolean':'staffing'}) }}
     </div>
 </div>
@@ -44,7 +37,7 @@
         {% endif %}
     })
 </script>
-<div class="row g-sm-3">
+<div class="row g-sm-3" x-show="staffing">
     <div class="col-12">
         <div class="form-text">Walk-On Volunteer</div>
         {{ form_macros.form_input(staffing_info.walk_on_volunteer) }}
@@ -52,19 +45,19 @@
 </div>
 
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
-<div class="row g-sm-3">
+<div class="row g-sm-3" x-show="staffing">
     <div class="col-12">{{ form_macros.form_input(staffing_info.requested_depts_ids) }}</div>
 </div>
 {% endif %}
 
-<div class="row g-sm-3">
+<div class="row g-sm-3" x-show="staffing">
     <div class="col-12">{{ form_macros.form_input(staffing_info.assigned_depts_ids) }}</div>
 </div>
 {% endblock %}
 
 {% block merch_info %}
 {% if c.SEPARATE_STAFF_MERCH %}
-<div class="row g-sm-3">
+<div class="row g-sm-3" x-show="staffing">
     <div class="col-12 col-sm-6">
         <div class="form-text">Staff Merch Owed</div>
         <div class="mb-3">{{ attendee.staff_merch }}</div>
@@ -78,7 +71,7 @@
 {% endblock %}
 
 {% block checklist_info %}
-<div class="row g-sm-3">
+<div class="row g-sm-3" x-show="staffing">
     {% if c.VOLUNTEER_AGREEMENT_ENABLED %}
     <div class="col">
         {{ form_macros.form_input(staffing_info.agreed_to_volunteer_agreement,
