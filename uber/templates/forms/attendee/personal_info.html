@@ -16,13 +16,13 @@
 #}
 <div x-data="{
                 international: {{ personal_info.international.data | javascript_bool }},
-                copyAddress: false,
-                get isZipRequired(){ return !this.international && !this.copyAddress && !this.badge_placeholder }, //hmd todo broken and not sure why.
-                canRequireCellphone: {{ (is_prereg_dealer or attendee.is_dealer) | javascript_bool }},
-                copyCellphone: false,
+                dealer: {{ (is_prereg_dealer or attendee.is_dealer) | javascript_bool }},
                 noCellphone: {{ personal_info.no_cellphone.data | javascript_bool }},
+                copyAddress: false,
+                copyCellphone: false,
+                get isZipRequired(){ return !this.international && !this.copyAddress && !this.badge_placeholder }, //hmd todo broken and not sure why.
                 get isCellphoneDisabled() { return this.noCellphone || this.copyCellphone},
-                get isCellphoneRequired() { return (this.staffing || this.canRequireCellPhone) && !this.noCellphone && !this.copyCellphone && !this.badge_placeholder } //badge_placeholder comes from x-data above, can be undefined.
+                get isCellphoneRequired() { return (this.staffing || this.dealer) && !this.noCellphone && !this.copyCellphone && !this.badge_placeholder } //this is also similarly broken.
                 }">
     {% block name %}
     {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
