@@ -201,7 +201,7 @@
     </label>
 {% endmacro %}
 
-{% macro alpine_form_input(field, label_text='', help_text='', admin_text='', no_margin=False, alpine_props=None) %}
+{% macro alpine_form_input(field, label_text='', help_text='', admin_text='', no_margin=False, alpine_props=dict() ) %}
     {#
     Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
     field (Field): WTForms form field.
@@ -227,6 +227,11 @@
                 {{ field(class="form-check-input", checked=field.data, value=1, **custom_kwargs) }}
             {% endif %}
             {{ alpine_form_label(field, label_text=label_text, required_if=required_if, class="form-check-label") }}
+            {{ form_input_extras(field, help_text, admin_text) }}
+        </div>
+    {% elif type == 'checkgroup' %}
+        <div class="card card-body{% if not no_margin %} mb-3{% endif %}">
+            {{ field(**custom_kwargs) }}
             {{ form_input_extras(field, help_text, admin_text) }}
         </div>
     {% else %}
