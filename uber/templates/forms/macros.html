@@ -201,7 +201,7 @@
     </label>
 {% endmacro %}
 
-{% macro alpine_form_input(field, label_text='', help_text='', admin_text='', no_margin=False, alpine_props=dict() ) %}
+{% macro alpine_form_input(field, label_text='', help_text='', admin_text='', no_margin=False, hidden_field_text='', force_hidden=False, alpine_props=dict() ) %}
     {#
     Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
     field (Field): WTForms form field.
@@ -218,7 +218,28 @@
     {% set type = field.meta.get_field_type(field) %}
     {% set label_text = label_text or field.label.text %}
     {% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
-    {% if type in ['checkbox','switch'] %}
+    {% if type == 'hidden' or force_hidden %}
+        {% set field_data = field.data|yesno("True,False") if force_hidden and type in ['checkbox','switch'] else field.data %}
+        {% if hidden_field_text %}
+            <div class="form-text">{{ label_text }}</div>
+            <div{% if not no_margin %} class="mb-3"{% endif %}>
+                {% if force_hidden %}
+                    <input type="hidden" name="{{ field.name }}" id="{{ field.id }}"
+                           value="{{ field_data or kwargs['default']|default('') }}"/>
+                {% else %}
+                    {{ field(**custom_kwargs) }}
+                {% endif %}
+                {{ hidden_field_text }}
+            </div>
+        {% else %}
+            {% if force_hidden %}
+                <input type="hidden" name="{{ field.name }}" id="{{ field.id }}"
+                       value="{{ field_data or kwargs['default']|default('') }}"/>
+            {% else %}
+                {{ field(**custom_kwargs) }}
+            {% endif %}
+        {% endif %}
+    {% elif type in ['checkbox','switch'] %}
         <div class="form-check{% if type == 'switch' %} form-switch{% endif %} {% if not no_margin %} mb-3{% endif %}">
             {% if is_readonly %}
                 <input type="hidden" name="{{ field.id }}" value="{{ field.data }}"/>

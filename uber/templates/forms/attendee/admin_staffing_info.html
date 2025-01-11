@@ -21,18 +21,18 @@
 <div class="row g-sm-3" x-show="staffing">
     <div class="col-12">
         <div class="form-text">Walk-On Volunteer</div>
-        {{ form_macros.form_input(staffing_info.walk_on_volunteer) }}
+        {{ form_macros.alpine_form_input(staffing_info.walk_on_volunteer) }}
     </div>
 </div>
 
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 <div class="row g-sm-3" x-show="staffing">
-    <div class="col-12">{{ form_macros.form_input(staffing_info.requested_depts_ids) }}</div>
+    <div class="col-12">{{ form_macros.alpine_form_input(staffing_info.requested_depts_ids) }}</div>
 </div>
 {% endif %}
 
 <div class="row g-sm-3" x-show="staffing">
-    <div class="col-12">{{ form_macros.form_input(staffing_info.assigned_depts_ids) }}</div>
+    <div class="col-12">{{ form_macros.alpine_form_input(staffing_info.assigned_depts_ids) }}</div>
 </div>
 {% endblock %}
 
@@ -45,7 +45,7 @@
     </div>
     <div class="col-12 col-sm-6">
         <div class="form-text">Received Staff Merch</div>
-        <div class="mb-3">{{ form_macros.form_input(staffing_info.got_staff_merch) }}</div>
+        <div class="mb-3">{{ form_macros.alpine_form_input(staffing_info.got_staff_merch) }}</div>
     </div>
 </div>
 {% endif %}
@@ -55,20 +55,20 @@
 <div class="row g-sm-3" x-show="staffing">
     {% if c.VOLUNTEER_AGREEMENT_ENABLED %}
     <div class="col">
-        {{ form_macros.form_input(staffing_info.agreed_to_volunteer_agreement,
+        {{ form_macros.alpine_form_input(staffing_info.agreed_to_volunteer_agreement,
             hidden_field_text=staffing_info.agreed_to_volunteer_agreement.data|yesno("Yes,No")) }}
     </div>
     {% endif %}
     {% if c.EMERGENCY_PROCEDURES_ENABLED %}
     <div class="col">
-        {{ form_macros.form_input(staffing_info.reviewed_emergency_procedures,
+        {{ form_macros.alpine_form_input(staffing_info.reviewed_emergency_procedures,
             hidden_field_text=staffing_info.reviewed_emergency_procedures.data|yesno("Yes,No")) }}
     </div>
     {% endif %}
     <div class="col">
         <div class="form-text">Staff Crash Space</div>
         <div class="mb-3">
-            {{ form_macros.form_input(staffing_info.hotel_eligible, readonly=not c.HAS_DEVTOOLS_ACCESS) }}
+            {{ form_macros.alpine_form_input(staffing_info.hotel_eligible, readonly=not c.HAS_DEVTOOLS_ACCESS) }}
         </div>
     </div>
 </div>
