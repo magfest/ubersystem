@@ -884,28 +884,25 @@ class Session(SessionManager):
             admin = self.current_admin_account()
             return_dict = {'created': self.query(Attendee).filter(
                 or_(Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id))}
-            # Guest groups
-            for group_type, badge_and_ribbon_filter in [(c.BAND,
-                                                         and_(Attendee.badge_type == c.GUEST_BADGE,
-                                                              Attendee.ribbon.contains(c.BAND))),
-                                                        (c.GUEST,
-                                                         and_(Attendee.badge_type == c.GUEST_BADGE,
-                                                              ~Attendee.ribbon.contains(c.BAND)))]:
-                return_dict[c.GROUP_TYPES[group_type].lower() + '_admin'] = (
-                    self.query(Attendee).join(Group, Attendee.group_id == Group.id)
-                        .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
-                            or_(
-                                or_(
-                                    badge_and_ribbon_filter,
-                                    and_(
-                                        Group.id == Attendee.group_id,
-                                        GuestGroup.group_id == Group.id,
-                                        GuestGroup.group_type == group_type,
-                                        )
-                                )
-                            )
-                        )
-                )
+
+            return_dict['band_admin'] = self.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id).join(
+                GuestGroup, Group.id == GuestGroup.group_id).filter(
+                    or_(Attendee.ribbon.contains(c.BAND),
+                        and_(
+                            Attendee.group_id != None,
+                            Group.id == Attendee.group_id,
+                            GuestGroup.group_id == Group.id,
+                            GuestGroup.group_type == c.BAND)))
+            
+            return_dict['guest_admin'] = self.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id).join(
+                GuestGroup, Group.id == GuestGroup.group_id).filter(
+                    ~Attendee.ribbon.contains(c.BAND),
+                    or_(Attendee.badge_type == c.GUEST_BADGE,
+                        and_(
+                            Attendee.group_id != None,
+                            Group.id == Attendee.group_id,
+                            GuestGroup.group_id == Group.id,
+                            ~GuestGroup.group_type.in_([c.BAND, c.MIVS]))))
 
             return_dict['panels_admin'] = self.query(Attendee).outerjoin(PanelApplicant).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
