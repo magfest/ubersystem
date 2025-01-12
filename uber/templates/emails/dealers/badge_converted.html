@@ -20,7 +20,7 @@ we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost and 
   
 {% if c.TRANSFERABLE_BADGE_TYPES %}<br/><br/>Additionally, this badge is reserved for only you and thus <strong>cannot be transferred</strong> to anyone else at any time.{% endif %}
 
-<br/><br/>Please go ahead and confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your registration</a>. All badges not confirmed by {{ c.DEALER_BADGE_DEADLINE|datetime_local("%A, %B %e") }} will be dropped automatically. We hope to see you this year!
+<br/><br/>Please go ahead and confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your registration</a>. All badges not confirmed by {{ c.DEALER_BADGE_DEADLINE|datetime_local("%A, %B %e") }} will be dropped automatically. There is no need to respond to this email. We hope to see you this year!
 
 <br/><br/>-----
 
