@@ -18,18 +18,20 @@
                 international: {{ personal_info.international.data | javascript_bool }},
                 dealer: {{ (is_prereg_dealer or attendee.is_dealer) | javascript_bool }},
                 noCellphone: {{ personal_info.no_cellphone.data | javascript_bool }},
+                copyEmail: {{ (group and loaded_from_group and attendee.email == group.email_address) | javascript_bool }},
+                get isEmailRequired() { return !this.copyEmail },
                 copyAddress: false,
                 copyCellphone: false,
-                get isZipRequired(){ return !this.international && !this.copyAddress && !this.badge_placeholder }, //hmd todo broken and not sure why.
+                get isZipRequired(){ return !this.international && !this.copyAddress && !this.badge_placeholder },
                 get isCellphoneDisabled() { return this.noCellphone || this.copyCellphone},
-                get isCellphoneRequired() { return (this.staffing || this.dealer) && !this.noCellphone && !this.copyCellphone && !this.badge_placeholder } //this is also similarly broken.
+                get isCellphoneRequired() { return (this.staffing || this.dealer) && !this.noCellphone && !this.copyCellphone && !this.badge_placeholder }
                 }">
     {% block name %}
     {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
 
 <div class="row g-sm-3">
-<div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.first_name) }}</div>
-<div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.last_name, value=attendee_last_name) }}</div>
+<div class="col-12 col-sm-6">{{ form_macros.alpine_form_input(personal_info.first_name) }}</div>
+<div class="col-12 col-sm-6">{{ form_macros.alpine_form_input(personal_info.last_name, value=attendee_last_name) }}</div>
 </div>
 
 {% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
@@ -38,7 +40,7 @@
                    checked=attendee.first_name != '' and attendee.legal_name == '') }}
   </div>
 
-  <div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?')) }}
+  <div class="col-12 col-sm-6">{{ form_macros.alpine_form_input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?')) }}
   </div>
 </div>
 {% else %}
@@ -58,13 +60,13 @@
 
 {% block contact_info %}
 {% set attendee_email = attendee.masked_email if limited_read else attendee.email %}
-{% if is_prereg_dealer %}
-  {% set email_extra_field = form_macros.toggle_checkbox(personal_info.copy_email, [personal_info.email], hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.email == group.email_address) %}
-{% endif %}
 
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    {{ form_macros.form_input(personal_info.email, extra_field=email_extra_field, value=attendee_email) }}
+    {{ form_macros.alpine_form_input(personal_info.email, value=attendee_email, alpine_props={':required':'isEmailRequired', ':disabled':'copyEmail'}) }}
+      {% if is_prereg_dealer %}
+          {{ form_macros.alpine_form_input(personal_info.copy_email, alpine_props={'x-model.boolean':'copyEmail'}) }}
+      {% endif %}
   </div>
   {% if c.PREREG_CONFIRM_EMAIL_ENABLED and (attendee.needs_pii_consent or attendee.badge_status == c.PENDING_STATUS) %}
   <div class="col-12 col-sm-6">

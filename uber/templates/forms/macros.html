@@ -190,14 +190,16 @@
 </script>
 {%- endmacro %}
 
-{% macro alpine_form_label(field, label_text='', required_if=None) %}
+{% macro alpine_form_label(field, label_text='', required=None, required_if=None) %}
     <label for="{{ field.label.field_id }}"
     {% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>
         <span class="form-label">{{ label_text }}</span>
         {% if required_if is not none %}
-            <span>HMD Debug <span x-text="{{ required_if | string }}"></span></span>
             <span class="required-indicator text-danger" x-show="{{ required_if }}"> *</span>
+        {% elif required is not none %}
+            <span class="required-indicator text-danger"> *</span>
         {% endif %}
+
     </label>
 {% endmacro %}
 
@@ -247,7 +249,7 @@
             {% else %}
                 {{ field(class="form-check-input", checked=field.data, value=1, **custom_kwargs) }}
             {% endif %}
-            {{ alpine_form_label(field, label_text=label_text, required_if=required_if, class="form-check-label") }}
+            {{ alpine_form_label(field, label_text=label_text, required= field.flags.required, required_if=required_if, class="form-check-label") }}
             {{ form_input_extras(field, help_text, admin_text) }}
         </div>
     {% elif type == 'checkgroup' %}
@@ -258,13 +260,13 @@
     {% elif type == 'select' %}
         <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
             {{ field(class="form-select", **custom_kwargs) }}
-            {{ alpine_form_label(field, label_text=label_text, required_if=required_if) }}
+            {{ alpine_form_label(field, label_text=label_text,  required= field.flags.required, required_if=required_if) }}
             {{ form_input_extras(field, help_text, admin_text) }}
         </div>
     {% else %}
         <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
             {{ field(class="form-control", **custom_kwargs) }}
-            {{ alpine_form_label(field, label_text=label_text,  required_if=required_if) }}
+            {{ alpine_form_label(field, label_text=label_text,  required= field.flags.required,  required_if=required_if) }}
             {{ form_input_extras(field, help_text, admin_text) }}
         </div>
     {% endif %}
