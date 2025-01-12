@@ -145,11 +145,17 @@ if($.field('return_to')) {
 
       x-init="$watch('badge_ribbons',
                 (ribbons) => {
-                    if (Alpine.raw(ribbons).includes({{ c.VOLUNTEER_RIBBON }})) { staffing = true }
+                    console.log(Alpine.raw(ribbons))
+                    if (Alpine.raw(ribbons).includes({{ c.VOLUNTEER_RIBBON }})) { staffing=true }
                 });
               $watch('badge_type',
                  (btype) => {
-                    if( btype == {{ c.STAFF_BADGE }} || btype == {{ c.CONTRACTOR_BADGE }}){ staffing = true }
+                    console.log(btype);
+                    if( btype == {{ c.STAFF_BADGE }} || btype == {{ c.CONTRACTOR_BADGE }}){
+                        staffing = true;
+                        //This does trigger the above watcher, but that's alright.
+                        badge_ribbons = badge_ribbons.filter( ribbon => ribbon != {{ c.VOLUNTEER_RIBBON }} );
+                     }
               })"
 >
   {{ csrf_token() }}
