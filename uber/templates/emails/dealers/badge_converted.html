@@ -5,20 +5,22 @@
 
 <br/><br/>
 {% if group.status not in [c.CANCELLED, c.DECLINED] %}
-I am sorry to inform you that only a few spaces opened up for the waitlist, and unfortunately your group ({{ group.name }}) did not make it into the {{ c.EVENT_NAME }} {{ c.DEALER_LOC_TERM }} this year, which is why your application is now being declined. Please try again next year.
+I am sorry to inform you that only a few spaces opened up for the waitlist, and unfortunately your group ({{ group.name }}) did not make it into the {{ c.EVENT_NAME }} {{ c.DEALER_LOC_TERM }} this year, which is why your application is now being declined.
 
-<br/><br/>We hope you'll still want to come to {{ c.EVENT_NAME }}!
+<br/><br/>If you would still like to attend {{ c.EVENT_NAME }} as an attendee,
 {% else %}
-Although your group ({{ group.name }}) {{ 'cancelled their ' + c.DEALER_APP_TERM if group.status == c.CANCELLED else 'was declined' }}, we think you may still want to come and enjoy all that {{ c.EVENT_NAME }} has to offer!
+Although your group ({{ group.name }}) {{ 'cancelled their ' + c.DEALER_APP_TERM if group.status == c.CANCELLED else 'was declined' }}, we think you may still want to come and enjoy all that {{ c.EVENT_NAME }} has to offer! Therefore,
 {% endif %}
-Therefore, we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost and attendee.badge_cost < c.BADGE_PRICE %} for {{ attendee.badge_cost|format_currency }}, which was the price of registration when you first applied{% endif %}.
+we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost and attendee.badge_cost < c.BADGE_PRICE %} for {{ attendee.badge_cost|format_currency }}, which was the price of registration when you first applied{% endif %}.
 {% if other_badges > 0 %}Attendee badges were also reserved for the {{ (other_badges ~ ' other people') if other_badges > 1 else 'other person' }} in your group who had a valid name and email. {% endif %}
 {% if group.unregistered_badges > 0 %}All unassigned badges were dropped.{% endif %}
 
 <br/><br/>Please note: You are choosing to accept or decline an ATTENDEE badge at the price it would have been had you bought it instead of applying for the {{ c.DEALER_LOC_TERM }}.
   <strong>You were not accepted as {{ c.DEALER_INDEFINITE_TERM }}, and will not have space in the {{ c.DEALER_LOC_TERM }}.</strong>
+  
+{% if c.TRANSFERABLE_BADGE_TYPES %}<br/><br/>Additionally, this badge is reserved for only you and thus <strong>cannot be transferred</strong> to anyone else at any time.{% endif %}
 
-<br/><br/>Please go ahead and confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your registration</a>. We hope to see you this year!
+<br/><br/>Please go ahead and confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your registration</a>. All badges not confirmed by {{ c.DEALER_BADGE_DEADLINE|datetime_local("%A, %B %e") }} will be dropped automatically. We hope to see you this year!
 
 <br/><br/>-----
 

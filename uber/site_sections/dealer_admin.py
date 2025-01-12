@@ -32,6 +32,8 @@ def convert_dealer_badge(session, attendee, admin_note=''):
     if attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY]:
         params['paid'] = c.NOT_PAID
         params['badge_status'] = c.NEW_STATUS
+        params['overridden_price'] = c.get_attendee_price(attendee.registered_local)
+        attendee.can_transfer = False
 
     receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
 

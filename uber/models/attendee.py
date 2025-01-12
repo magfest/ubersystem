@@ -1399,6 +1399,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             and not self.checked_in \
             and (self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] or self.in_promo_code_group) \
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
+            and not self.overridden_price \
             and not self.admin_account \
             and not self.has_role_somewhere
 

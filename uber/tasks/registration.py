@@ -192,6 +192,23 @@ def invalidate_at_door_badges():
 
 
 @celery.schedule(timedelta(days=1))
+def invalidate_dealer_badges():
+    if not c.DEALER_BADGE_DEADLINE or not c.AFTER_DEALER_BADGE_DEADLINE:
+        return
+
+    with Session() as session:
+        pending_badges = session.query(Attendee).filter(Attendee.admin_notes.contains('Converted badge'),
+                                                        Attendee.placeholder,
+                                                        Attendee.paid == c.NOT_PAID,
+                                                        Attendee.badge_status != c.INVALID_STATUS)
+        for badge in pending_badges:
+            badge.badge_status = c.INVALID_STATUS
+            session.add(badge)
+
+        session.commit()
+
+
+@celery.schedule(timedelta(days=1))
 def email_pending_attendees():
     if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or not c.PRE_CON:
         return
