@@ -120,6 +120,8 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
         elif not delete_group:
             attendee.badge_status = c.INVALID_GROUP_STATUS
             attendee.paid = c.NOT_PAID
+        else:
+            session.delete(attendee)
 
         if delete_group:
             attendee.group = None
