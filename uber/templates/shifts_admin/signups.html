@@ -2,13 +2,6 @@
 {% block title %}Shifts{% endblock %}
 {% block content %}
 
-<style type="text/css">
-  #jobs-container #volunteers { top: 149px; }
-  @media (min-width: 768px) {
-    #jobs-container #volunteers { top: 115px; }
-  }
-</style>
-
 {% include "shifts_admin/main_menu.html" %}
 {% if department_id == '' %}
 Please select a department above to view its signups.
@@ -52,6 +45,19 @@ Please select a department above to view its signups.
   <i class="fa fa-filter"></i>
   Show Non Public
 </a>
+{% if attendees %}
+<div id="volunteers" class="card sticky-top float-end">
+  <div class="card-body">
+    <b>Assign someone to any of these positions</b> <br/>
+    <select id="attendee" class="form-select">
+        <option value="">Select a volunteer</option>
+        {% for attendee in attendees %}
+            <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
+        {% endfor %}
+    </select>
+  </div>
+</div>
+{% endif %}
 <br/><br/>
 
 <script type="text/javascript">
