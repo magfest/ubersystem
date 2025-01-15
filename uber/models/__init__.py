@@ -853,12 +853,15 @@ class Session(SessionManager):
             if group_id:
                 subqueries.append(self.query(Group).filter(Group.id == group_id))
 
-            for key, val in c.GROUP_TYPE_OPTS:
-                if val.lower() + '_admin' in admin.read_or_write_access_set:
-                    subqueries.append(
-                        self.query(Group).join(
-                            GuestGroup, Group.id == GuestGroup.group_id).filter(
-                                GuestGroup.group_type == key))
+            if 'guest_admin' in admin.read_or_write_access_set:
+                subqueries.append(self.query(Group).join(
+                    GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        ~GuestGroup.group_type.in_([c.BAND, c.MIVS])))
+
+            if 'band_admin' in admin.read_or_write_access_set:
+                subqueries.append(self.query(Group).join(
+                    GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        GuestGroup.group_type == c.BAND))
 
             if 'dealer_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).filter(Group.is_dealer))

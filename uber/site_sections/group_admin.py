@@ -30,7 +30,7 @@ class Root:
         return ''
 
     def index(self, session, message='', show_all=None):
-        groups = session.viewable_groups()
+        groups = session.viewable_groups().options(joinedload(Group.attendees))
         dealer_counts = defaultdict(int)
 
         if not show_all:
@@ -51,13 +51,14 @@ class Root:
                 case c.SHARED:
                     dealer_counts['approved'] += group.tables
 
-        guest_groups = groups.join(Group.guest)
+        guest_groups = groups.filter(Group.guest != None)
 
         return {
             'message': message,
             'show_all': show_all,
-            'all_groups': groups.options(joinedload(Group.attendees), joinedload(Group.active_receipt)).all(),
-            'guest_groups': guest_groups.options(joinedload(Group.attendees)),
+            'all_groups': groups,
+            'guest_groups': guest_groups,
+            'dealer_groups': dealer_groups.options(joinedload(Group.active_receipt)),
             'guest_checklist_items': GuestGroup(group_type=c.GUEST).sorted_checklist_items,
             'band_checklist_items': GuestGroup(group_type=c.BAND).sorted_checklist_items,
             'num_dealer_groups': dealer_counts['total'],
