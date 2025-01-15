@@ -313,17 +313,15 @@ def multifile_zipfile(func):
     @wraps(func)
     def zipfile_out(self, session, **kwargs):
         zip_filename = func.__name__ + datetime.now().strftime('%Y%m%d_%H%M') + '.zip'
-        with tempfile.TemporaryDirectory(dir=c.UPLOADED_FILES_DIR) as tmpdir:
-            zipfile_writer = os.path.join(tmpdir, zip_filename)
-            
-            with zipfile.ZipFile(zipfile_writer, mode='w') as zip_file:
+        with tempfile.NamedTemporaryFile(dir=c.UPLOADED_FILES_DIR, delete_on_close=False) as zipfile_writer:
+            with zipfile.ZipFile(zipfile_writer.name, mode='w') as zip_file:
                 func(self, zip_file, session, **kwargs)
 
             cherrypy.response.headers['Cache-Control'] = 'no-store'
             track_report(kwargs)
 
             return serve_file(
-                zipfile_writer,
+                zipfile_writer.name,
                 disposition="attachment",
                 name=zip_filename,
                 content_type='application/zip')
