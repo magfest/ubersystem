@@ -2068,6 +2068,9 @@ class Session(SessionManager):
             job = self.job(job_id)
             attendee = self.attendee(attendee_id)
 
+            if not attendee.has_badge:
+                return f'This badge is currently {attendee.badge_status_label} and cannot sign up for shifts.'
+
             if not attendee.has_required_roles(job):
                 return 'You cannot assign an attendee to this shift who does not have the required roles: {}'.format(
                     job.required_roles_labels)
