@@ -149,11 +149,13 @@ class PanelApplication(MagModel):
 
     @presave_adjustment
     def update_event_info(self):
-        if self.event:
+        if self.event and any([getattr(self.event, key, '') != getattr(self, key, '') for key in [
+                'name', 'description', 'public_description', 'track']]):
             self.event.name = self.name
             self.event.description = self.description
             self.event.public_description = self.public_description
             self.event.track = self.track
+            self.event.last_updated = self.last_updated
     
     @presave_adjustment
     def set_default_dept(self):
