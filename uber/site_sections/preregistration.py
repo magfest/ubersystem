@@ -1546,7 +1546,7 @@ class Root:
         raise HTTPRedirect(f'group_members?id={id}&message={message}')
 
     def start_badge_transfer(self, session, message='', **params):
-        transfer_code = params.get('code', '')
+        transfer_code = params.get('code', '').strip()
         transfer_badge = None
 
         if transfer_code:
