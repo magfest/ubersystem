@@ -1601,6 +1601,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                 except KeyError:
                     staff_shirts += ' [{}]'.format("Size unknown")
             merch.append(staff_shirts)
+        elif self.could_get_staff_shirt and self.shirt_opt_out in [c.STAFF_OPT_OUT, c.ALL_OPT_OUT]:
+            merch.append("NO Staff Shirt")
 
         if self.staffing:
             merch.append('Staffer Info Packet')
