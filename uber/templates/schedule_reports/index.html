@@ -43,9 +43,9 @@
     });
   }
 
-  let markItemSynced = function(event){
-    let form = $(this);
-    event.preventDefault();
+  let markItemSynced = function(){
+    let form = $(this).closest('form');
+    
     $.ajax({
       method: 'POST',
       url: 'mark_item_synced',
@@ -81,7 +81,10 @@
   }
   
   $().ready(function () {
-    $(".sync-item").submit(markItemSynced);
+    $('#schedule-table').on('click', '.sync-item', markItemSynced);
+    {% for model, label in c.GUIDEBOOK_MODELS %}
+    $('#{{ model }}-table').on('click', '.sync-item', markItemSynced);
+    {% endfor %}
   });
 </script>
 {% set now = now() %}
@@ -158,7 +161,7 @@
         </form>
         <p>Items in <em>italics</em> has been changed since the last sync.</p>
       </div>
-      <table class="table table-hover datatable">
+      <table class="table table-hover datatable" id="schedule-table">
         <thead>
           <tr>
             <th>Name</th>
@@ -203,13 +206,13 @@
                 {% if c.HAS_SCHEDULE_ACCESS %}
                 <a href="../schedule/form?id={{ result.id }}" target="_blank" class="btn btn-primary">View</a>
                 {% endif %}
-                <form method="post" class="sync-item" action="mark_item_synced">
+                <form method="post" action="mark_item_synced">
                   {{ csrf_token() }}
                   <input type="hidden" name="selected_model" value="schedule" />
                   <input type="hidden" name="id" value="{{ result.id }}" />
                   <input type="hidden" name="sync_time" value="{{ now }}" />
                   <input type="hidden" name="sync_data" value='{{ current_data|tojson }}' />
-                  <button type="submit" class="btn btn-success">Mark Synced</button>
+                  <button type="button" class="btn btn-success sync-item">Mark Synced</button>
                 </form>
                 </div>
             </td>
@@ -234,7 +237,7 @@
         </form>
         <p>Items in <em>italics</em> has been changed since the last sync.</p>
       </div>
-      <table class="table table-hover datatable">
+      <table class="table table-hover datatable" id="{{ model }}-table">
         <thead>
           <tr>
             {% for key, label in c.GUIDEBOOK_PROPERTIES %}
@@ -275,13 +278,13 @@
               {% if result.guidebook_edit_link.split('/')[1] in (c.GETTABLE_SITE_PAGES[0] + c.ADMIN_ACCESS_SET|list) %}
                 <a href="{{ result.guidebook_edit_link }}" target="_blank" class="btn btn-primary">View</a>
               {% endif %}
-              <form method="post" class="sync-item" action="mark_item_synced">
+              <form method="post" action="mark_item_synced">
                 {{ csrf_token() }}
                 <input type="hidden" name="selected_model" value="{{ model }}" />
                 <input type="hidden" name="id" value="{{ result.id }}" />
                 <input type="hidden" name="sync_time" value="{{ now }}" />
                 <input type="hidden" name="sync_data" value='{{ current_data|tojson }}' />
-                <button type="submit" class="btn btn-success">Mark Synced</button>
+                <button type="button" class="btn btn-success sync-item">Mark Synced</button>
               </form>
               </div>
             </td>
