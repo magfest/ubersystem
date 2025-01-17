@@ -40,6 +40,9 @@ def convert_dealer_badge(session, attendee, admin_note=''):
     for key, val in params.items():
         setattr(attendee, key, val)
 
+    # Helps track whether or not the badge has been 'claimed'
+    attendee.placeholder = True
+
     session.add(attendee)
     session.commit()
 
