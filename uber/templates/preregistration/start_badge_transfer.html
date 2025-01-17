@@ -51,7 +51,7 @@
       {% endif %}
 
     <p>If you're absolutely sure that this is someone else, you can continue below.</p>
-      <button class="btn btn-info" form="transfer-badge">I'm someone else, let me register!</button>
+      <button class="btn btn-info" form="start-transfer">I'm someone else, let me register!</button>
     </div>
     {% elif ban_bypass %}
     <div class="alert alert-danger">
@@ -62,7 +62,7 @@
         just happen to have the same name as someone who has been banned, then go ahead and continue. If we see someone
         on our banned list complete their registration then we'll contact you to verify that you're someone else.
       </p>
-      <button class="btn btn-info" form="transfer-badge">I'm someone else, let me register!</button>
+      <button class="btn btn-info" form="start-transfer">I'm someone else, let me register!</button>
     </div>
     {% elif code %}
         {% if not transfer_badge or not transfer_badge.has_badge %}

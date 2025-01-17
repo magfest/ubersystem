@@ -1586,6 +1586,7 @@ class Root:
                     return {
                         'message': message,
                         'transfer_badge': transfer_badge,
+                        'duplicate': duplicate,
                         'attendee': attendee,
                         'forms': forms,
                         'code': transfer_code,
