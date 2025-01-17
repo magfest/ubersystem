@@ -1625,9 +1625,14 @@ class Root:
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('transfer_badge?id={}&message={}', id, "Please submit the form to transfer your badge.")
 
+        code = code.strip()
+
         old = session.attendee(id)
         if not old.is_transferable:
             raise HTTPRedirect('../landing/index?message={}', 'This badge is not transferable.')
+        
+        if not code:
+            raise HTTPRedirect('transfer_badge?id={}&message={}', id, 'Please enter a transfer code.')
 
         transfer_badges = session.query(Attendee).filter(
             Attendee.normalized_transfer_code == RegistrationCode.normalize_code(code))
