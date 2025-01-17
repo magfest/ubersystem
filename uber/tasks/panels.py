@@ -1,7 +1,7 @@
 import json
 
 from collections import defaultdict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from dateutil import parser as dateparser
 from sqlalchemy import or_
 
@@ -31,6 +31,7 @@ def _get_deleted_models(session, deleted_since=None):
 
     for tracking_entry in deleted_synced:
         snapshot = json.loads(tracking_entry.snapshot)
+        guidebook_data = snapshot['last_synced']['data']['guidebook']
 
         model = snapshot['_model']
         if model == 'GuestGroup':
@@ -38,9 +39,19 @@ def _get_deleted_models(session, deleted_since=None):
         elif model == 'Group':
             model += '_dealer'
 
-        model_name = 'Schedule Item' if model == 'Event' else model_names[model]
+        if model == 'Event':
+            model_name = 'Schedule Item'
+            start_day = datetime.strptime(guidebook_data['start_date'], '%d/%M/%Y').strftime('%A (%-m/%-d/%Y)')
+            end_day = datetime.strptime(guidebook_data['end_date'], '%d/%M/%Y').strftime('%A (%-m/%-d/%Y)')
+            if start_day != end_day:
+                item_name = f"{guidebook_data['name']} on {start_day} {guidebook_data['start_time']} to {end_day} {guidebook_data['end_time']}"
+            else:
+                item_name = f"{guidebook_data['name']} on {start_day} {guidebook_data['start_time']} to {guidebook_data['end_time']}"
+        else:
+            model_names[model]
+            item_name = guidebook_data['name']
 
-        deleted_models[model_name].append(snapshot['last_synced']['data']['guidebook']['name'])
+        deleted_models[model_name].append(item_name)
     return deleted_models
 
 
@@ -62,7 +73,7 @@ def sync_guidebook_models(selected_model, sync_time, id_list):
             session.commit()
 
 
-@celery.schedule(timedelta(hours=12))
+@celery.schedule(timedelta(hours=1))
 def check_deleted_guidebook_models():
     if not c.PRE_CON or not c.GUIDEBOOK_UPDATES_EMAIL:
         return
