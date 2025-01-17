@@ -1626,9 +1626,12 @@ class Root:
             raise HTTPRedirect('transfer_badge?id={}&message={}', id, "Please submit the form to transfer your badge.")
 
         old = session.attendee(id)
+        if not old.is_transferable:
+            raise HTTPRedirect('../landing/index?message={}', 'This badge is not transferable.')
+
         transfer_badges = session.query(Attendee).filter(
             Attendee.normalized_transfer_code == RegistrationCode.normalize_code(code))
-        
+
         if transfer_badges.count() == 1:
             transfer_badge = transfer_badges.first()
         elif transfer_badges.count() > 1:
