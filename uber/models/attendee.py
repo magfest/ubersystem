@@ -312,6 +312,12 @@ class Attendee(MagModel, TakesPaymentMixin):
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.has_inherent_role)',
         viewonly=True)
+    dept_memberships_with_dept_role = relationship(
+        'DeptMembership',
+        primaryjoin='and_('
+                    'Attendee.id == DeptMembership.attendee_id, '
+                    'DeptMembership.has_dept_role)',
+        viewonly=True)
     dept_memberships_with_role = relationship(
         'DeptMembership',
         primaryjoin='and_('
@@ -1401,7 +1407,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
             and not self.overridden_price \
             and not self.admin_account \
-            and not self.has_role_somewhere
+            and not self.dept_memberships_with_inherent_role
 
     @property
     def is_transferable(self):
@@ -1416,7 +1422,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             reasons.append("they have an admin account")
         if self.badge_type not in c.TRANSFERABLE_BADGE_TYPES:
             reasons.append("their badge type ({}) is not transferable".format(self.badge_type_label))
-        if self.has_role_somewhere:
+        if self.dept_memberships_with_inherent_role:
             reasons.append("they are a department head, checklist admin, \
                            or point of contact for the following departments: {}".format(
                                readable_join(self.get_labels_for_memberships('dept_memberships_with_role'))))
@@ -1424,7 +1430,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def force_no_transfer(self):
-        if self.admin_account or self.badge_type not in c.TRANSFERABLE_BADGE_TYPES or self.has_role_somewhere:
+        if self.admin_account or self.badge_type not in c.TRANSFERABLE_BADGE_TYPES or self.dept_memberships_with_inherent_role:
             self.can_transfer = False
 
     # TODO: delete this after Super MAGFest 2018

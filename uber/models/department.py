@@ -98,6 +98,10 @@ class DeptMembership(MagModel):
         return exists().select_from(dept_membership_dept_role) \
             .where(cls.id == dept_membership_dept_role.c.dept_membership_id)
 
+    @property
+    def dept_roles_names(self):
+        return readable_join([role.name for role in self.dept_roles])
+
 
 class DeptMembershipRequest(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
