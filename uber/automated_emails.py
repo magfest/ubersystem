@@ -553,7 +553,7 @@ def dealer_placeholder(a): return a.placeholder and a.is_dealer and a.group.stat
 
 def staff_import_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
                                                            and (a.admin_account or
-                                                                "staff import".lower() in a.admin_notes.lower()))
+                                                                "staff import" in a.admin_notes.lower()))
 
 
 def volunteer_placeholder(a): return a.staffing and a.placeholder and a.registered_local > c.PREREG_OPEN and \
@@ -583,7 +583,7 @@ AutomatedEmailFixture(
     Attendee,
     'Please complete your {EVENT_NAME} {EVENT_YEAR} registration',
     'placeholders/regular.txt',
-    lambda a: generic_placeholder(a) and a.paid != c.NEED_NOT_PAY,
+    lambda a: generic_placeholder(a) and a.paid != c.NEED_NOT_PAY and "converted badge" not in a.admin_notes.lower(),
     sender=c.CONTACT_EMAIL,
     allow_at_the_con=True,
     ident='generic_badge_confirmation')
