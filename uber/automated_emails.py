@@ -259,7 +259,7 @@ AutomatedEmailFixture(
     lambda g: (
       c.AFTER_GROUP_PREREG_TAKEDOWN
       and g.unregistered_badges
-      and (not g.is_dealer or g.status in [c.APPROVED, c.SHARED])),
+      and (not g.is_dealer or g.status in c.DEALER_ACCEPTED_STATUSES)),
     # query=and_(
     #     Group.unregistered_badges == True,
     #     or_(Group.is_dealer == False, Group.status == c.APPROVED)),
@@ -465,7 +465,7 @@ if c.DEALER_REG_START:
     MarketplaceEmailFixture(
         'Reminder to pay for your {} {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
-        lambda g: g.status in [c.APPROVED, c.SHARED] and days_after(30, g.approved)() and g.is_unpaid,
+        lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and days_after(30, g.approved)() and g.is_unpaid,
         # query=and_(
         #     Group.status == c.APPROVED,
         #     Group.approved < (func.now() - timedelta(days=30)),
@@ -479,7 +479,7 @@ if c.DEALER_REG_START:
                                                     c.EPOCH.strftime('%b %Y'),
                                                     c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
-        lambda g: g.status in [c.APPROVED, c.SHARED] and g.is_unpaid,
+        lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
         when=days_before(7, c.DEALER_PAYMENT_DUE, 2),
         needs_approval=True,
@@ -490,7 +490,7 @@ if c.DEALER_REG_START:
                                                         c.EPOCH.strftime('%b %Y'),
                                                         c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
-        lambda g: g.status in [c.APPROVED, c.SHARED] and g.is_unpaid,
+        lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
         when=days_before(2, c.DEALER_PAYMENT_DUE),
         needs_approval=True,
@@ -548,7 +548,7 @@ def band_placeholder(a): return a.placeholder and a.badge_type == c.GUEST_BADGE 
             and a.group.guest.group_type == c.BAND)
 
 
-def dealer_placeholder(a): return a.placeholder and a.is_dealer and a.group.status in [c.APPROVED, c.SHARED]
+def dealer_placeholder(a): return a.placeholder and a.is_dealer and a.group.status in c.DEALER_ACCEPTED_STATUSES
 
 
 def staff_import_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN

@@ -1679,6 +1679,7 @@ if not c.ALLOW_SHARED_TABLES:
 dealer_status_label_lookup = {val: key for key, val in c.DEALER_STATUS_OPTS}
 c.DEALER_EDITABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_EDITABLE_STATUS_LIST]
 c.DEALER_CANCELLABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_CANCELLABLE_STATUS_LIST]
+c.DEALER_ACCEPTED_STATUSES = [c.APPROVED, c.SHARED] if c.ALLOW_SHARED_TABLES else [c.APPROVED]
 
 
 # A list of models that have properties defined for exporting for Guidebook

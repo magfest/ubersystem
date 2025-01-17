@@ -80,7 +80,7 @@
         {% if attendee.is_dealer %}
           {% if attendee.group.status == c.DECLINED %}
             {% set bg_class = 'danger' %}
-          {% elif attendee.group.status in [c.APPROVED, c.SHARED] %}
+          {% elif attendee.group.status in c.DEALER_ACCEPTED_STATUSES %}
             {% set bg_class = 'success' %}
           {% elif attendee.group.status == c.WAITLISTED %}
             {% set bg_class = 'warning' %}

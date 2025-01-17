@@ -229,12 +229,12 @@ class Group(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def attendees_have_badges(self):
-        return self.is_valid and (not self.is_dealer or self.status in [c.APPROVED, c.SHARED])
+        return self.is_valid and (not self.is_dealer or self.status in c.DEALER_ACCEPTED_STATUSES)
 
     @attendees_have_badges.expression
     def attendees_have_badges(cls):
         return and_(cls.is_valid,
-                    or_(cls.is_dealer == False, cls.status.in_([c.APPROVED, c.SHARED])))  # noqa: E712
+                    or_(cls.is_dealer == False, cls.status.in_(c.DEALER_ACCEPTED_STATUSES)))  # noqa: E712
 
     @property
     def access_sections(self):
@@ -365,7 +365,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def amount_unpaid(self):
-        if self.is_dealer and self.status not in [c.APPROVED, c.SHARED]:
+        if self.is_dealer and self.status not in c.DEALER_ACCEPTED_STATUSES:
             return 0
 
         if self.registered:

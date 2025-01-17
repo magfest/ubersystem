@@ -120,7 +120,7 @@ class Root:
 
         signnow_last_emailed = None
         signnow_signed = False
-        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status in [c.APPROVED, c.SHARED]:
+        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status in c.DEALER_ACCEPTED_STATUSES:
             if cherrypy.request.method == 'POST':
                 signnow_request = SignNowRequest(session=session, group=group,
                                                  ident="terms_and_conditions", create_if_none=True)
@@ -203,7 +203,7 @@ class Root:
                     group.guest.group_type = group.guest_group_type
 
                 if group.is_new and group.is_dealer:
-                    if group.status in [c.APPROVED, c.SHARED] and group.amount_unpaid:
+                    if group.status in c.DEALER_ACCEPTED_STATUSES and group.amount_unpaid:
                         raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                     elif group.status == c.APPROVED:
                         raise HTTPRedirect(
@@ -212,7 +212,7 @@ class Root:
                         raise HTTPRedirect(
                             'index?message={}', group.name + ' is uploaded as ' + group.status_label)
                 elif group.is_dealer:
-                    if group.status in [c.APPROVED, c.SHARED] and group.orig_value_of('status') not in [c.APPROVED,
+                    if group.status in c.DEALER_ACCEPTED_STATUSES and group.orig_value_of('status') not in [c.APPROVED,
                                                                                                         c.SHARED]:
                         for attendee in group.attendees:
                             attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)

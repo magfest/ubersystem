@@ -1247,7 +1247,7 @@ class Root:
         signnow_document = None
         signnow_link = ''
 
-        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status in [c.APPROVED, c.SHARED]:
+        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status in c.DEALER_ACCEPTED_STATUSES:
             signnow_request = SignNowRequest(session=session, group=group, ident="terms_and_conditions",
                                              create_if_none=True)
 
