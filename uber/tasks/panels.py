@@ -41,8 +41,8 @@ def _get_deleted_models(session, deleted_since=None):
 
         if model == 'Event':
             model_name = 'Schedule Item'
-            start_day = datetime.strptime(guidebook_data['start_date'], '%d/%M/%Y').strftime('%A (%-m/%-d/%Y)')
-            end_day = datetime.strptime(guidebook_data['end_date'], '%d/%M/%Y').strftime('%A (%-m/%-d/%Y)')
+            start_day = datetime.strptime(guidebook_data['start_date'], '%M/%d/%Y').strftime('%A (%-m/%-d/%Y)')
+            end_day = datetime.strptime(guidebook_data['end_date'], '%M/%d/%Y').strftime('%A (%-m/%-d/%Y)')
             if start_day != end_day:
                 item_name = f"{guidebook_data['name']} on {start_day} {guidebook_data['start_time']} to {end_day} {guidebook_data['end_time']}"
             else:
