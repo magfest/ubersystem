@@ -11,7 +11,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block admin_notes %}
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_admin_notes.regdesk_info, admin_text="Any instructions here are shown at the top of this form.") }}</div>
-    {% set review_link = 'for <a href="registration/review" target="_blank">reviewing after the event</a>'|safe if c.HAS_REGISTRATION_ACCESS else 'collected for registration admins after the event' %}
+    {% set review_link = 'for <a href="../registration/review" target="_blank">reviewing after the event</a>'|safe if c.HAS_REGISTRATION_ACCESS else 'collected for registration admins after the event' %}
     <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_admin_notes.for_review, admin_text="These notes are " ~ review_link ~ ".") }}</div>
 </div>
 <div class="row g-sm-3">
