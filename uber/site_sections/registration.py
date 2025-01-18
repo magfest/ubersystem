@@ -932,7 +932,7 @@ class Root:
 
         attendee_ids = json.loads(attendee_ids)
 
-        ticket = EscalationTicket(description=description)
+        ticket = EscalationTicket(description=description, who=AdminAccount.admin_name() or 'non-admin')
         for id in attendee_ids:
             try:
                 attendee = session.attendee(id)
