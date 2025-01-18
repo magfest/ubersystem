@@ -1150,6 +1150,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.badge_type_label in c.DAYS_OF_WEEK
 
     @property
+    def watchlist_warning(self):
+        """
+        Events have different ways of handling people on the attendee watchlist,
+        so this property allows you to easily override the message shown to staffers
+        without having to override the entire cannot_check_in_reason function.
+        """
+        regdesk_info_append = " [{}]".format(self.regdesk_info) if self.regdesk_info else ""
+        return "MUST TALK TO MANAGER before picking up badge{}".format(regdesk_info_append)
+
+    @property
     def cannot_check_in_reason(self):
         """
         Returns None if we are ready for checkin, otherwise a short error
@@ -1158,8 +1168,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.badge_status == c.WATCHED_STATUS:
             if self.banned or not self.regdesk_info:
-                regdesk_info_append = " [{}]".format(self.regdesk_info) if self.regdesk_info else ""
-                return "MUST TALK TO MANAGER before picking up badge{}".format(regdesk_info_append)
+                return self.watchlist_warning
             return self.regdesk_info or "Badge status is {}".format(self.badge_status_label)
 
         if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS]:
