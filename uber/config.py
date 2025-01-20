@@ -888,6 +888,7 @@ class Config(_Overridable):
             index_pages.append('/preregistration/start_badge_transfer')
         if not c.ATTENDEE_ACCOUNTS_ENABLED:
             index_pages.append('/preregistration/check_if_preregistered')
+        return index_pages
 
     @request_cached_property
     @dynamic
