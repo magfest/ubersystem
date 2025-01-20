@@ -873,6 +873,21 @@ class Config(_Overridable):
     @property
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
+    
+    @property
+    def INDEXABLE_PAGE_PATHS(self):
+        """
+        Even if we ban crawlers via robots.txt, if anyone publishes a link to a protected
+        page it will end up on Bing, private UUID and all. Instead we want to ban indexing
+        via the meta tag for everything except these pages.
+        """
+        index_pages = ['/landing/', '/landing/index', '/pregistration/form', '/accounts/login']
+        if c.SHIFTS_CREATED:
+            index_pages.append('/staffing/login')
+        if c.TRANSFERABLE_BADGE_TYPES:
+            index_pages.append('/preregistration/start_badge_transfer')
+        if not c.ATTENDEE_ACCOUNTS_ENABLED:
+            index_pages.append('/preregistration/check_if_preregistered')
 
     @request_cached_property
     @dynamic

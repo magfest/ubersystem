@@ -89,7 +89,7 @@
         {% endif %}
     {% endblock %}
 
-    {% if c.DEV_BOX %}<meta name="robots" content="noindex">{% endif %}
+    {% if c.DEV_BOX or c.PAGE_PATH not in c.INDEXABLE_PAGE_PATHS %}<meta name="robots" content="noindex">{% endif %}
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">

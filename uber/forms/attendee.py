@@ -417,7 +417,7 @@ class Consents(MagForm):
 
 
 class AdminConsents(Consents):
-    attractions_opt_out = HiddenBoolField('Can Sign Up for Attractions')
+    attractions_opt_out = HiddenBoolField('Attractions Signups Locked')
     pii_consent = HiddenBoolField()
 
     def can_spam_label(self):
