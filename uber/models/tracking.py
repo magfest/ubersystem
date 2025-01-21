@@ -110,8 +110,8 @@ class PageViewTracking(MagModel):
 class Tracking(MagModel):
     fk_id = Column(UUID, index=True)
     model = Column(UnicodeText)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    who = Column(UnicodeText)
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC), index=True)
+    who = Column(UnicodeText, index=True)
     supervisor = Column(UnicodeText)
     page = Column(UnicodeText)
     which = Column(UnicodeText)

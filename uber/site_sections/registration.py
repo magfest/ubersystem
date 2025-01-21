@@ -1325,7 +1325,7 @@ class Root:
             'what': what,
             'page': page,
             'action': action,
-            'count': feed.count(),
+            'count': feed.limit(10000).count(),
             'feed': get_page(page, feed),
             'action_opts': [opt for opt in c.TRACKING_OPTS if opt[0] != c.AUTO_BADGE_SHIFT],
             'who_opts': [
