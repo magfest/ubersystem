@@ -598,7 +598,7 @@
 
   const ec = new EventCalendar(document.getElementById('shift_cal'), {
         view: window.matchMedia('(max-width: 576px)').matches ? 'listWeek' : 'timeGridWeek',
-        date: '{{ c.EPOCH.date() }}',
+        date: window.matchMedia('(max-width: 576px)').matches ? '{{ start }}' : '{{ c.EPOCH.date() }}',
         allDaySlot: false,
         highlightedDates: {{ highlighted_dates|safe }},
         headerToolbar: {
