@@ -179,7 +179,7 @@ class ModelReceipt(MagModel):
     def payment_total_sql(cls):
         return coalesce(func.sum(ReceiptTransaction.amount).filter(
             ReceiptTransaction.amount > 0, ReceiptTransaction.cancelled == None).filter(
-                or_(ReceiptTransaction.charge_id != None,
+                or_(ReceiptTransaction.charge_id != '',
                     ReceiptTransaction.intent_id == '')), 0)
 
     @property
