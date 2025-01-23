@@ -2275,7 +2275,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def masked_name(self):
-        return self.first_name + ' ' + self.last_name[0] + '.'
+        return self.first_name + ' ' + (self.last_name[0] if self.last_name else '?') + '.'
 
     @property
     def masked_email(self):
