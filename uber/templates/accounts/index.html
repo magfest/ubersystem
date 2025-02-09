@@ -12,18 +12,18 @@ table form {
   let selectList;
   const handleInput = () => {
     const inputValue = $('#attendee-select-search').val();
-    if (inputValue && inputValue.length < 3) {
+    if (inputValue && inputValue.trim().length < 3) {
       return;
     }
 
     $("#attendee-select-list li").remove();
 
     if (inputValue) {
-        const matchingEls = selectList.filter((key, val) => val.innerText.trim().includes(inputValue));
+        const lowerInputVal = inputValue.trim().toLowerCase();
+        const matchingEls = selectList.filter((key, val) =>
+            val.getAttribute("data-lowercase").includes(lowerInputVal));
 
-        matchingEls.each((key, val) => {
-          $('#attendee-select-list').append(val);
-        });
+        $('#attendee-select-list').append(...matchingEls);
     } else {
       selectList.each((key, val) => {
           $('#attendee-select-list').append(val);
@@ -65,10 +65,11 @@ table form {
                        class="form-control 
                               border-0 border-bottom 
                               shadow-none mb-2" 
-                       placeholder="Search..." 
+                       placeholder="Search..."
+                       autocomplete="off"
                        oninput="handleInput()">
                 {% for attendee in all_attendees %}
-                <li id="list-item-{{ attendee[0] }}">
+                <li id="list-item-{{ attendee[0] }}" data-lowercase="{{ attendee[1].lower() }}">
                   <a href="#" class="dropdown-item" onClick="setAttendeeId('{{ attendee[0] }}', '{{ attendee[1] }}')">{{ attendee[1] }}</a>
                 </li>
                 {% endfor %}

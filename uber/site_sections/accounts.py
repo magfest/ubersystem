@@ -30,7 +30,7 @@ def valid_password(password, account):
 class Root:
     def index(self, session, message=''):
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.is_valid == True)  # noqa: E712
+            .filter(Attendee.first_name != '', Attendee.is_valid == True).order_by(Attendee.last_first.asc())# noqa: E712
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -42,8 +42,7 @@ class Root:
                          .join(Attendee)
                          .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
-            'attendee_labels': sorted([label for val, label in attendees]),
-            'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
+            'all_attendees': attendees,
         }
 
     @csrf_protected
