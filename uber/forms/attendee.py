@@ -68,7 +68,7 @@ class PersonalInfo(AddressForm, MagForm):
         else validators.Optional()])
     age_group = SelectField('Age Group', validators=[
         validators.DataRequired("Please select your age group.") if not c.COLLECT_EXACT_BIRTHDATE
-        else validators.Optional()], choices=c.AGE_GROUPS)
+        else validators.Optional()], choices=c.AGE_GROUP_OPTS)
     ec_name = StringField('Emergency Contact Name', validators=[
         validators.DataRequired("Please tell us the name of your emergency contact.")
         ], render_kw={'placeholder': 'Who we should contact if something happens to you'})

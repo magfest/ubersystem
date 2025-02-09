@@ -1525,6 +1525,7 @@ c.AGE_GROUP_CONFIGS = {}
 for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
+c.AGE_GROUP_OPTS = [(key, value['desc']) for key,value in c.AGE_GROUP_CONFIGS.items()]
 
 c.RECEIPT_DEPT_CATEGORIES = {}
 for _name, _val in _config['enums']['receipt_item_dept'].items():
