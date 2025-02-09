@@ -15,18 +15,22 @@ table form {
     if (inputValue && inputValue.trim().length < 3) {
       return;
     }
+    console.log("Running Search: " + Date.now());
+    const listElement = $('#attendee-select-list')[0];
 
-    $("#attendee-select-list li").remove();
+    $("#attendee-select-list > li").remove();
 
     if (inputValue) {
+        console.log("Filtering inputs: " + Date.now());
         const lowerInputVal = inputValue.trim().toLowerCase();
         const matchingEls = selectList.filter((key, val) =>
             val.getAttribute("data-lowercase").includes(lowerInputVal));
+        console.log("Appending Nodes: " + Date.now());
 
-        $('#attendee-select-list').append(...matchingEls);
+        listElement.append(...matchingEls);
     } else {
       selectList.each((key, val) => {
-          $('#attendee-select-list').append(val);
+          listElement.append(val);
         });
     }
 }
@@ -62,9 +66,9 @@ table form {
             <ul class="dropdown-menu pt-0 col-12" id="attendee-select-list"
                 aria-labelledby="attendee-select">
                 <input type="text" id="attendee-select-search"
-                       class="form-control 
-                              border-0 border-bottom 
-                              shadow-none mb-2" 
+                       class="form-control
+                              border-0 border-bottom
+                              shadow-none mb-2"
                        placeholder="Search..."
                        autocomplete="off"
                        oninput="handleInput()">
