@@ -10,28 +10,24 @@ table form {
 
 <script type="text/javascript">
   let selectList;
+  let firstThousand;
+
   const handleInput = () => {
     const inputValue = $('#attendee-select-search').val();
     if (inputValue && inputValue.trim().length < 3) {
       return;
     }
-    console.log("Running Search: " + Date.now());
     const listElement = $('#attendee-select-list')[0];
 
     $("#attendee-select-list > li").remove();
 
     if (inputValue) {
-        console.log("Filtering inputs: " + Date.now());
         const lowerInputVal = inputValue.trim().toLowerCase();
         const matchingEls = selectList.filter((key, val) =>
             val.getAttribute("data-lowercase").includes(lowerInputVal));
-        console.log("Appending Nodes: " + Date.now());
-
         listElement.append(...matchingEls);
     } else {
-      selectList.each((key, val) => {
-          listElement.append(val);
-        });
+        listElement.append(...firstThousand);
     }
 }
   let setAttendeeId = function (val, label) {
@@ -40,6 +36,8 @@ table form {
   }
   $().ready(function () {
     selectList = $("#attendee-select-list li");
+    firstThousand = selectList.slice(0,1000);
+
   })
 </script>
 
