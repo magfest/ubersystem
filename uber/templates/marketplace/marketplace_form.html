@@ -30,14 +30,18 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     </div>
 </div>
 {% endblock %}
-
 {% block email %}
-{% set copy_email_field = form_macros.toggle_checkbox(artist_marketplace_form.copy_email, [artist_marketplace_form.email_address], hide_on_checked=True, toggle_required=True, prop="disabled") %}
-<div class="row g-sm-3">
-    <div class="col-12">
-        {{ form_macros.form_input(artist_marketplace_form.email_address, readonly=read_only, extra_field=copy_email_field if app.is_new else None) }}
+    <div class="row g-sm-3">
+        <div class="col-12"
+             x-data="{ app_new: {{app.is_new | string | lower}},email_copied: false, get isEmailRequired(){ return !this.email_copied}, get isEmailDisabled(){ return !this.isEmailRequired}}">
+            {{ form_macros.alpine_form_input(artist_marketplace_form.email_address, readonly=read_only,
+                   alpine_props={':required':'isEmailRequired', ':disabled':'isEmailDisabled'}
+                   ) }}
+            {% if app.is_new %}
+                  {{ form_macros.alpine_form_input(artist_marketplace_form.copy_email, readonly=read_only, alpine_props={'x-model':'email_copied'}) }}
+            {% endif %}
+        </div>
     </div>
-</div>
 {% endblock %}
 
 {% block website_tax %}
