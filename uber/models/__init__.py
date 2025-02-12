@@ -1114,27 +1114,17 @@ class Session(SessionManager):
                     return None, \
                            'This badge is invalid. Please contact registration.'
             else:
-                attendee_params = {
-                    attr: params.get(attr, '')
-                    for attr in ['first_name', 'last_name', 'email']}
+                attendee_params = {}
+                for key, val in params.items():
+                    if key.startswith('attendee_'):
+                        attendee_params[key.replace('attendee_', '')] = val
                 attendee = self.attendee(attendee_params, restricted=True,
                                          ignore_csrf=True)
                 attendee.placeholder = True
-                if not params.get('email', ''):
-                    message = 'Email address is a required field.'
+                if c.ATTENDEE_ACCOUNTS_ENABLED and self.current_attendee_account():
+                    self.add_attendee_to_account(attendee, self.current_attendee_account())
                 elif c.ATTENDEE_ACCOUNTS_ENABLED:
-                    if self.current_attendee_account():
-                        self.add_attendee_to_account(attendee, self.current_attendee_account())
-                    else:
-                        password = params.get('account_password')
-                        if password and password != params.get('confirm_password'):
-                            message = 'Password confirmation does not match.'
-                        else:
-                            message = valid_password(password) or valid_email(params.get('email', ''))
-                        if not message:
-                            new_account = self.create_attendee_account(params.get('email', ''), password=password)
-                            self.add_attendee_to_account(attendee, new_account)
-                            cherrypy.session['attendee_account_id'] = new_account.id
+                    message = "Please log in to complete your application."
             return attendee, message
 
         def create_admin_account(self, attendee, password='', generate_pwd=True, **params):

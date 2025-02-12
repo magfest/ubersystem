@@ -2,13 +2,13 @@
   <div class="col-12 col-sm-6">
     <label for="first_name" class="form-text">Name</label>
     <div class="input-group">
-      <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
-      <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
+      <input type="text" name="attendee_first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
+      <input type="text" name="attendee_last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
     </div>
   </div>
   <div class="col-12 col-sm-6">
     <label for="email" class="form-text">Email Address</label>
-    <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="email@example.com">
+    <input type="email" name="attendee_email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="email@example.com">
   </div>
   {% if c.INDEPENDENT_ART_SHOW %}
   <input type="hidden" name="not_attending" value="1">
