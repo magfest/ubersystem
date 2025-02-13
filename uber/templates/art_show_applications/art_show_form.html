@@ -101,6 +101,34 @@
   {% endif %}
 </div>
 
+{% if c.ARTIST_PAYOUT_METHOD_OPTS|length > 2 %}
+  <div class="row g-sm-3">
+    <div class="col-12 col-sm-6">
+      <label class="form-text">Preferred Payout Method</label>
+      <div class="mb-3">
+        {% if readonly %}
+        {{ app.payout_method_label }}
+        {% else %}
+        <select class="form-select" name="payout_method">
+          {{ options(c.ARTIST_PAYOUT_METHOD_OPTS, app.payout_method) }}
+        </select>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-12 col-sm-6">
+      <label for="check_payable" class="form-text">Name on Check/Bank Account</label>
+      <div class="mb-3">
+        {% if readonly %}
+        {{ app.check_payable if app.check_payable else app.attendee.legal_first_name ~ ' ' ~ app.attendee.legal_last_name }}
+        {% else %}
+        <input type="text" class="form-control" name="check_payable" id="check_payable" value="{{ app.check_payable }}" placeholder="{{ app.attendee.legal_first_name ~ ' ' ~ app.attendee.legal_last_name }}" />
+        <p class="form-text mb-0">The name to use for payment, if different from your first and last name.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endif %}
+
 {% if app.delivery_method == c.AGENT and app.valid_agent_codes %}
   {% if not c.ONE_AGENT_PER_APP %}
     <input type="hidden" form="add_agent_code" name="id" value="{{ app.id }}" />
