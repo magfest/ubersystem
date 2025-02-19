@@ -25,7 +25,8 @@ class AmazonSES:
     def sendEmail(self, source, toAddresses, message, replyToAddresses=None, returnPath=None, ccAddresses=None, bccAddresses=None):
         params = { 'Source': source }
         destinations = {}
-        for objName, addresses in zip(["ToAddresses", "CcAddresses", "BccAddresses"], [toAddresses, ccAddresses, bccAddresses]):
+        for objName, addresses in zip(["ToAddresses", "CcAddresses", "BccAddresses", "replyToAddresses"],
+                                      [toAddresses, ccAddresses, bccAddresses, replyToAddresses]):
             if addresses:
                 if not isinstance(addresses, str) and getattr(addresses, '__iter__', False):
                     destinations[objName] = [a for a in addresses]
