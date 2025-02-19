@@ -25,13 +25,18 @@ class AmazonSES:
     def sendEmail(self, source, toAddresses, message, replyToAddresses=None, returnPath=None, ccAddresses=None, bccAddresses=None):
         params = { 'Source': source }
         destinations = {}
-        for objName, addresses in zip(["ToAddresses", "CcAddresses", "BccAddresses", "replyToAddresses"],
-                                      [toAddresses, ccAddresses, bccAddresses, replyToAddresses]):
+        for objName, addresses in zip(["ToAddresses", "CcAddresses", "BccAddresses"], [toAddresses, ccAddresses, bccAddresses]):
             if addresses:
                 if not isinstance(addresses, str) and getattr(addresses, '__iter__', False):
                     destinations[objName] = [a for a in addresses]
                 else:
                     destinations[objName] = addresses.split(', ')
+
+        if not isinstance(replyToAddresses, str) and getattr(replyToAddresses, '__iter__', False):
+            replyToEmails = [a for a in replyToAddresses]
+        else:
+            replyToEmails = replyToAddresses.split(', ')
+
         if not returnPath:
             returnPath = source
         message_dict = {}
@@ -51,7 +56,7 @@ class AmazonSES:
                         'Data': message['subject'],
                     },
                 },
-                ReplyToAddresses=replyToAddresses,
+                ReplyToAddresses=replyToEmails,
                 ReturnPath=returnPath or source,
             )
             log.info("Sent email. Response: " + str(response))
