@@ -80,6 +80,15 @@
     <form method="post" action="edit" class="form-horizontal" role="form">
       <input type="hidden" name="id" value="{{ app.id }}">
 
+      {% if c.INDEPENDENT_ART_SHOW %}
+      <h3>Your Information</h3>
+      <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+      {% include 'art_show_applications/new_attendee_fields.html' %}
+      {% include "region_opts.html" %}
+      {{ macros.address_form(app, label_prefix="Mailing", use_bs5=True, is_readonly=not app.is_new and app.status != c.UNAPPROVED and not admin_area) }}
+      <h3 class="mt-3">{{ c.ART_SHOW_APP_TERM|title }} Details</h3>
+      {% endif %}
+
       {% include 'art_show_applications/art_show_form.html' %}
 
       {% if app.status == c.UNAPPROVED %}
