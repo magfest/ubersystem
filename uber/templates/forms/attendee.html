@@ -651,7 +651,7 @@ $().ready(function() {
 {% endset %}
 
 {% macro amount_extra(form="", read_only=(amount_extra_ro or money_fields_ro or page_ro)) %}
-{% if c.DONATIONS_ENABLED and not admin_area and not read_only %}
+{% if c.ADDONS_ENABLED and not admin_area and not read_only %}
   {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra or attendee.gets_any_kind_of_shirt %}
     <div class="extra-row form-group">
       <label for="amount_extra" class="col-sm-3 control-label">Pre-order Merch
@@ -715,7 +715,7 @@ $().ready(function() {
     </div>
   {% endif %}
 {% endif %}
-{% if c.DONATIONS_ENABLED and (admin_area or read_only) %}
+{% if c.ADDONS_ENABLED and (admin_area or read_only) %}
 {% set can_upgrade_amount_extra = c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 and attendee.amount_extra < c.PREREG_DONATION_OPTS[-1][0] %}
   <div class="form-group">
     <label class="col-sm-3 control-label">
@@ -1402,7 +1402,7 @@ $(window).on("runJavaScript", function () {
     <label for="pii_consent" class="checkbox-label">
       <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required {% if pii_consent %}checked{% endif %} />
       <strong>Yes</strong>, I understand and agree that {{ c.ORGANIZATION_NAME }} will store the personal information I provided above for the limited purposes of contacting me about my 
-      registration{% if c.HOTELS_ENABLED %}, hotel accommodations{% endif %}{% if c.DONATIONS_ENABLED %}, kick-in packages{% endif %}{% if c.ACCESSIBILITY_SERVICES_ENABLED %}, accessibility needs{% endif %}{% if c.HOTELS_ENABLED or c.DONATIONS_ENABLED or c.ACCESSIBILITY_SERVICES_ENABLED %},{% endif %} or volunteer opportunities selected at sign-up.
+      registration{% if c.HOTELS_ENABLED %}, hotel accommodations{% endif %}{% if c.ADDONS_ENABLED %}, kick-in packages{% endif %}{% if c.ACCESSIBILITY_SERVICES_ENABLED %}, accessibility needs{% endif %}{% if c.HOTELS_ENABLED or c.ADDONS_ENABLED or c.ACCESSIBILITY_SERVICES_ENABLED %},{% endif %} or volunteer opportunities selected at sign-up.
     </label>
     {% if not admin_area and c.PRIVACY_POLICY_URL %}
         <p class="help-block">

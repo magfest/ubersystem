@@ -406,7 +406,7 @@ class Consents(MagForm):
         label = base_label
         if c.HOTELS_ENABLED:
             label += ', hotel accommodations'
-        if c.DONATIONS_ENABLED:
+        if c.ADDONS_ENABLED:
             label += ', donations'
         if c.ACCESSIBILITY_SERVICES_ENABLED:
             label += ', accessibility needs'
