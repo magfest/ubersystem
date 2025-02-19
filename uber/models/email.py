@@ -280,6 +280,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         self.sender = fixture.sender
         self.cc = ','.join(fixture.cc)
         self.bcc = ','.join(fixture.bcc)
+        self.replyto = ','.join(fixture.replyto)
         self.needs_approval = fixture.needs_approval
         self.allow_at_the_con = fixture.allow_at_the_con
         self.allow_post_con = fixture.allow_post_con
@@ -319,9 +320,9 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 self.render_template(self.body, data),
                 self.format,
                 model=model_instance.to_dict('id'),
-                replyto=self.replyto or model_instance.replyto_emails_for_ident(self.ident),
                 cc=self.cc or model_instance.cc_emails_for_ident(self.ident),
                 bcc=self.bcc or model_instance.bcc_emails_for_ident(self.ident),
+                replyto=self.replyto or model_instance.replyto_emails_for_ident(self.ident),
                 ident=self.ident,
                 automated_email=self.to_dict('id'))
             return True

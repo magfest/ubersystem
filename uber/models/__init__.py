@@ -143,16 +143,16 @@ class MagModel:
         """
         return self.email
     
-    def replyto_emails_for_denty(self, ident=''):
-        # A list of emails to set as reply-to for an automated email with a particular ident
-        return
-    
     def cc_emails_for_ident(self, ident=''):
         # A list of emails to carbon-copy for an automated email with a particular ident
         return
     
     def bcc_emails_for_ident(self, ident=''):
         # A list of emails to blind-carbon-copy for an automated email with a particular ident
+        return
+
+    def replyto_emails_for_ident(self, ident=''):
+        # A list of emails to set as reply-to for an automated email with a particular ident
         return
 
     @property
