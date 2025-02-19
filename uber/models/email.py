@@ -319,6 +319,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 self.render_template(self.body, data),
                 self.format,
                 model=model_instance.to_dict('id'),
+                replyto=self.replyto or model_instance.replyto_emails_for_ident(self.ident),
                 cc=self.cc or model_instance.cc_emails_for_ident(self.ident),
                 bcc=self.bcc or model_instance.bcc_emails_for_ident(self.ident),
                 ident=self.ident,
