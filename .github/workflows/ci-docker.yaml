@@ -54,6 +54,8 @@ jobs:
           context: "."
           push: true
           tags: ghcr.io/${{ matrix.name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   build:
     permissions:
@@ -95,3 +97,5 @@ jobs:
           context: "."
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
