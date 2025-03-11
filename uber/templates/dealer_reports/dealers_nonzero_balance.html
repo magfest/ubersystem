@@ -1,23 +1,21 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% set title_text = "Attendees With Non-Zero Balances" %}
+{% set title_text = "Groups With Non-Zero Balances" %}
 {% block content %}
 {% include 'discrepancy_reports_header.html' with context %}
 <div class="card">
     <div class="card-body">
-        <p>
-            {% if include_no_receipts %}
-                <a href="dealers_nonzero_balance" class="btn btn-secondary">Hide Dealers Without Receipts</a>
+        <div class="d-flex justify-content-end mb-3 gap-2">
+            {% if include_discrepancies %}
+            <a href="dealers_nonzero_balance{{ '?include_no_receipts=True' if groups_no_receipts else '' }}" class="btn btn-primary">Exclude Groups with Receipt Discrepancies</a>
             {% else %}
-                <a href="dealers_nonzero_balance?include_no_receipts=True" class="btn btn-outline-secondary">Show Dealers Without Receipts</a>
+            <a href="dealers_nonzero_balance{{ '?include_no_receipts=True&' if groups_no_receipts else '?' }}include_discrepancies=True" class="btn btn-outline-primary">Include Groups with Receipt Discrepancies</a>
             {% endif %}
-            <br/><span class="form-text">
-                Groups without receipts will typically have their receipt created when they start the payment process after approval.
-            </span>
-        </p>
-        <p>
-            This page only shows dealers whose receipt matches their default cost{% if include_no_receipts %} or who do not have a receipt{% endif %}.
-            Please see the "Dealers with Receipt Discrepancies" page to view dealers who may owe money but whose default cost does not match their receipt.
-        </p>
+            {% if groups_no_receipts %}
+            <a href="dealers_nonzero_balance{{ '?include_discrepancies=True' if include_discrepancies else '' }}" class="btn btn-primary">Exclude Groups without Receipts</a>
+            {% else %}
+            <a href="dealers_nonzero_balance{{ '?include_discrepancies=True&' if include_discrepancies else '?' }}include_no_receipts=True" class="btn btn-outline-primary">Include Groups without Receipts</a>
+            {% endif %}
+        </div>
         <table class="table table-striped datatable">
         <thead>
             <tr>
@@ -26,13 +24,13 @@
             <th>Amount Owed</th>
             <th>Paid</th>
             <th>Refunded</th>
-            <th>Total</th>
             <th>Difference</th>
             {% if c.HAS_REG_ADMIN_ACCESS %}<th></th>{% endif %}
             </tr>
         </thead>
         <tbody>
-        {% for group in groups %}
+        {% for group, payment_total, refund_total, item_total in groups_and_totals %}
+        {% set txn_total = payment_total - refund_total %}
         <tr id="{{ group.id }}">
             <td data-order="{{ group.name }}" data-search="{{ group.name }}">
                 {{ group|form_link("true") }}
@@ -41,31 +39,41 @@
                 {{ group.leader|form_link("true") }}
             </td>
             <td>
-                {{ (group.active_receipt.item_total / 100)|format_currency 
-                    if group.active_receipt else group.cost|format_currency }}
+                {{ (item_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (group.active_receipt.payment_total / 100)|format_currency 
-                    if group.active_receipt else "Unpaid" }}
+                {{ (payment_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (group.active_receipt.refund_total / 100)|format_currency 
-                    if group.active_receipt else "N/A" }}
+                {{ (refund_total / 100)|format_currency }}
             </td>
             <td>
-                {{ (group.active_receipt.txn_total / 100)|format_currency 
-                    if group.active_receipt else "N/A" }}
-            </td>
-            <td>
-                {{ (group.active_receipt.current_receipt_amount / 100)|format_currency 
-                    if group.active_receipt else group.cost|format_currency }}
+                {{ ((item_total - txn_total) / 100)|format_currency }}
             </td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>
                 <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ group.id }}" target="_blank">View Receipt Items</a>
             </td>
             {% endif %}
-            </tr>
+        </tr>
+        {% endfor %}
+        {% for group in groups_no_receipts %}
+        <tr id="{{ group.id }}">
+            <td data-order="{{ group.name }}" data-search="{{ group.name }}">
+                {{ group|form_link("true") }}
+            </td>
+            <td data-order="{{ group.leader.full_name }}" data-search="{{ group.leader.full_name }}">
+                {{ group.leader|form_link("true") }}
+            </td>
+            <td>{{ group.cost|format_currency }}</td>
+            <td>No Receipt</td>
+            <td>No Receipt</td>
+            <td>{{ group.cost|format_currency }}</td>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+            <td>
+                <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ group.id }}" target="_blank">Create Receipt</a>
+            </td>
+            {% endif %}
         {% endfor %}
         </tbody>
         </table>

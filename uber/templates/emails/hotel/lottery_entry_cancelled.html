@@ -1,0 +1,14 @@
+<html>
+<head></head>
+<body>
+<p>
+    {{ application.attendee.full_name }},<br/>
+    This is to notify you that you have withdrawn your entry from the {{ c.EVENT_NAME }} hotel lottery.
+    You do NOT have an entry in the lottery and will not be awarded a room.
+</p>
+
+<p></p>
+    You can <a href="{{ c.URL_BASE }}/hotel_lottery/start?attendee_id={{ application.attendee.id }}" target="_blank">re-enter the hotel lottery</a> any time until {{ application.current_lottery_deadline|datetime_local }}.
+</p>
+</body>
+</html>

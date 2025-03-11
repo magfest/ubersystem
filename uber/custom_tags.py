@@ -97,6 +97,11 @@ def full_datetime_local(dt):
 
 
 @JinjaEnv.jinja_filter
+def short_datetime_local(dt):
+    return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%-I:%M %p %b %-d, %Y')
+
+
+@JinjaEnv.jinja_filter
 def full_date_local(dt):
     return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y')
 
@@ -223,6 +228,14 @@ def format_phone(val, country='US'):
 
 
 @JinjaEnv.jinja_filter
+def format_image_size(val):
+    if not val or len(val) != 2:
+        return
+    
+    return f"{val[0]}x{val[1]}px"
+
+
+@JinjaEnv.jinja_filter
 def jsonize(x):
     is_empty = x is None or isinstance(x, jinja2.runtime.Undefined)
     return safe_string('{}' if is_empty else html.escape(json.dumps(x, cls=serializer), quote=False))
@@ -343,11 +356,11 @@ form_link_site_sections = {}
 
 
 @JinjaEnv.jinja_filter
-def form_link(model, new_window=False):
+def form_link(model, new_window=False, prepend=''):
     if not model:
         return ''
 
-    from uber.models import Attendee, AttendeeAccount, Attraction, Department, Group, Job, PanelApplication
+    from uber.models import Attendee, AttendeeAccount, Attraction, Department, Group, Job, PanelApplication, LotteryApplication
 
     page = 'form'
 
@@ -367,19 +380,21 @@ def form_link(model, new_window=False):
         Department: '../dept_admin/',
         Group: '../group_admin/',
         Job: '../jobs/',
-        PanelApplication: '../panels_admin/'}
+        PanelApplication: '../panels_admin/',
+        LotteryApplication: '../hotel_lottery_admin/'}
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
-    name = getattr(model, 'name', getattr(model, 'full_name', getattr(model, 'email', model)))
+    name = getattr(model, 'name', getattr(model, 'full_name', getattr(model, 'email', getattr(model, 'confirmation_num', model))))
+    extra_html = ' target="_blank"' if new_window and page != '#attendee_form' else ''
 
     if site_section or cls == Attendee and page == '#attendee_form':
         return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(
                                                            site_section,
                                                            page,
                                                            model.id,
-                                                           ' target="_blank"' if new_window else '',
-                                                           escape(name)))
+                                                           extra_html,
+                                                           prepend + escape(name)))
     return name
 
 
@@ -705,7 +720,12 @@ def pages(page, count):
             else:
                 path += ('&' if '?' in path else '?') + page_qs
             pages.append('<li class="page-item"><a class="page-link" href="{}">{}</a></li>'.format(path, pagenum))
-    return safe_string('<ul class="pagination">' + ' '.join(map(str, pages)) + '</ul>')
+    extra_class = ''
+    if len(pages) == 1:
+        extra_class = ' pagination-lg'
+    elif len(pages) > 100:
+        extra_class = ' pagination-sm'
+    return safe_string(f'<ul class="pagination flex-wrap{extra_class}">{' '.join(map(str, pages))}</ul>')
 
 
 @JinjaEnv.jinja_filter

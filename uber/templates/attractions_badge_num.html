@@ -79,9 +79,9 @@
 
       var errorMessage = function(response) {
         if (response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], 'badge-signup-alert');
         } else {
-          showErrorMessage('Unrecognized badge number: ' + badgeNum, '', {timeOut: 3000});
+          showErrorMessage('Unrecognized badge number: ' + badgeNum, 'badge-signup-alert');
         }
         $badgeNum.focus();
       };

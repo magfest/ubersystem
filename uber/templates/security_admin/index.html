@@ -27,11 +27,13 @@
       {% for entry in active_entries %}
       <tr>
         <td><a href="watchlist_form?id={{ entry.id }}">View Details</a></td>
-        <td>{{ (entry.last_updated.when|default(entry.created.when, true))|full_datetime_local }}</td>
+        <td data-order="{{ entry.last_update_info.when|default(entry.created_info.when, true) }}">
+          {{ (entry.last_update_info.when|default(entry.created_info.when, true))|full_datetime_local }}
+        </td>
         <td>{{ entry.expiration }}</td>
-        <td>
+        <td data-order="{{ entry.attendees_and_guesses|length }}">
           {% for attendee in entry.attendees_and_guesses %}
-          {{ attendee|form_link }}{% if attendee in entry.attendees %} (Confirmed){% endif %}
+          {{ attendee|form_link(true) }}{% if attendee in entry.attendees %} (Confirmed){% endif %}
           {% else %}N/A{% endfor %}
         </td>
         <td>{{ entry.first_names }}</td>
@@ -65,7 +67,7 @@
       {% for entry in inactive_entries %}
       <tr>
         <td><a href="watchlist_form?id={{ entry.id }}">View Details</a></td>
-        <td>{{ (entry.last_updated.when|default(entry.created.when, true))|full_datetime_local }}</td>
+        <td>{{ (entry.last_update_info.when|default(entry.created_info.when, true))|full_datetime_local }}</td>
         <td>{{ entry.expiration }}</td>
         <td>
           {% for attendee in entry.attendees %}

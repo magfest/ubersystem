@@ -1,4 +1,5 @@
 from urllib.parse import quote
+from uber.config import c
 
 import cherrypy
 
@@ -49,6 +50,8 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
             query += '{sep}original_location={loc}'.format(
                 sep=qs_char, loc=self.quote(original_location))
 
+        if c.URL_ROOT.startswith("https"):
+            cherrypy.request.base = cherrypy.request.base.replace("http://", "https://")
         cherrypy.HTTPRedirect.__init__(self, query)
 
     def quote(self, s):

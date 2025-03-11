@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Art Show Application History - {{ app.attendee.full_name }}{% endblock %}
+{% block title %}Art Show {{ c.ART_SHOW_APP_TERM|title }} History - {{ app.attendee.full_name }}{% endblock %}
 {% block content %}
 
 {{ macros.nav_menu(
@@ -11,7 +11,7 @@ app, c.PAGE_PATH,
 "index", "Return to App List", True
 ) }}
 
-<h2>Changelog for {{ app.attendee.full_name }}'s Art Show Application</h2>
+<h2>Changelog for {{ app.attendee.full_name }}'s Art Show {{ c.ART_SHOW_APP_TERM|title }}</h2>
 
 <table class="table table-striped table-bordered table-sm">
 <thead><tr>
@@ -26,7 +26,7 @@ app, c.PAGE_PATH,
         <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
-        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>
         <td valign="top">{{ tracked.data }}</td>
     </tr>
 {% endfor %}

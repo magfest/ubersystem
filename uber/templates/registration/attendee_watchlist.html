@@ -1,5 +1,29 @@
 {% set admin_area=True %}
 <script type="text/javascript">
+  let confirmEntry = function() {
+  var formToSubmit = $('#confirm-entry');
+  bootbox.confirm({
+      title: 'Confirm Watchlist Entry?',
+      message: 'When you "confirm" a watchlist entry, that entry will be permanently associated with this ' +
+      'attendee and no other watchlist entries will be matched to this person. If there are multiple ' +
+      'correct watchlist entries for an attendee, please choose the most recent one. This cannot be undone.',
+      buttons: {
+          confirm: {
+              label: 'Confirm Entry',
+              className: 'btn-info'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+          if (result) {
+            formToSubmit.submit();
+          }
+      }
+  });
+  };
 $(function () {
   $("form[action*='/security_admin/']").submit(function (event) {
     event.preventDefault();
@@ -22,57 +46,31 @@ $(function () {
         window.location.hash = old_hash;
     });
   })
-$("form[name='confirm_entry']").submit(function (event) {
-  var formToSubmit = this;
-  event.preventDefault();
-  bootbox.confirm({
-      title: 'Confirm Watchlist Entry?',
-      message: 'When you "confirm" a watchlist entry, that entry will be permanently associated with this ' +
-      'attendee and no other watchlist entries will be matched to this person. If there are multiple ' +
-      'correct watchlist entries for an attendee, please choose the most recent one. This cannot be undone.',
-      buttons: {
-          confirm: {
-              label: 'Confirm Entry',
-              className: 'btn-info'
-          },
-          cancel: {
-              label: 'Nevermind',
-              className: 'btn-outline-secondary'
-          }
-      },
-      callback: function (result) {
-          if (result) {
-            formToSubmit.submit();
-          }
-      }
-  });
-});
 });
   </script>
 
   <h2>{% if not attendee.watchlist_id %}Possible Watchlist Entries{% else %}Watchlist Entry{% endif %}
     for {{ attendee.full_name }} ({{ attendee.badge }})</h2>
+  <div class="card card-body mb-3">
   {% if attendee.badge_status == c.WATCHED_STATUS %}
-    <div class="row">
       <form role="form" method="post" action="../security_admin/update_watchlist_entry">
         {{ csrf_token() }}
         <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
         <input type="hidden" name="ignore" value="true"/>
         <button class="btn btn-success" type="submit">
-          Ignore Watchlist Entries
+          Clear for Check-In
         </button>
         <div class="form-text">Sets attendee to "Completed" status, allowing them to check in without altering any watchlist entries.</div>
       </form>
-    </div>
   {% else %}
-  <p>{{ attendee.full_name }} currently has a badge status of {{ attendee.badge_status_label }} and is{% if attendee.is_not_ready_to_checkin %} NOT{% endif %} ready to check in.</p>
+  <p>{{ attendee.full_name }} currently has a badge status of {{ attendee.badge_status_label }} and is{% if attendee.cannot_check_in_reason %} NOT{% endif %} ready to check in.</p>
   {% endif %}
 
   {% if attendee.watchlist_id %}
-    Below is the confirmed watchlist entry for this attendee. All other possible watchlist entries are ignored.
+    <br/><p>Below is the confirmed watchlist entry for this attendee. All other possible watchlist entries are ignored.
     <br/><strong>Reason</strong>: {{ attendee.watch_list.reason }}
     <br/><strong>Action</strong>: {{ attendee.watch_list.action }}
-    <br/>
+    </p>
     <form class="form-inline" role="form" method="post" onSubmit="updateWatchlist()" action="../security_admin/update_watchlist_entry">
       {{ csrf_token() }}
       <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
@@ -83,11 +81,13 @@ $("form[name='confirm_entry']").submit(function (event) {
         Watchlist Entry
       </button>
     </form>
+  </div>
   {% else %}
+  </div>
     {% for list in active_entries, inactive_entries %}
       {% set active = loop.cycle(True, False) %}
-      <br/>
-      <div class="card">
+      {% if list %}
+      <div class="card mb-3">
       <div class="card-header"><h3 class="card-title">{{ loop.cycle('Active', 'Inactive') }} Entries</h3></div>
       <div class="card-body">
         {% if active %}
@@ -106,7 +106,7 @@ $("form[name='confirm_entry']").submit(function (event) {
             <th>Watchlist DOB</th>
             <th>Watchlist Reason</th>
             <th>Watchlist Action</th>
-            <th>{{ loop.cycle('Deactivate', 'Activate') }}</th>
+            <th>{{ loop.cycle('Deactivate Entry', 'Activate Entry') }}</th>
             <th>Confirm as Correct Match</th>
           </tr>
           {% for entry in list %}
@@ -129,12 +129,12 @@ $("form[name='confirm_entry']").submit(function (event) {
               </form>
             </td>
             <td>
-              <form class="form-inline" role="form" method="post" name="confirm_entry" action="../security_admin/update_watchlist_entry">
+              <form class="form-inline" role="form" method="post" id="confirm-entry" action="../security_admin/update_watchlist_entry">
                 {{ csrf_token() }}
                 <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
                 <input type="hidden" name="watchlist_id" value="{{ entry.id }}"/>
                 <input type="hidden" name="confirm" value="1"/>
-                <button class="btn btn-info">
+                <button type="button" class="btn btn-info" onClick="confirmEntry()">
                   Confirm Watchlist Entry
                 </button>
               </form>
@@ -143,6 +143,7 @@ $("form[name='confirm_entry']").submit(function (event) {
         </table>
         </div>
       </div>
+      {% endif %}
     {% endfor %}
   {% endif %}
   

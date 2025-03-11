@@ -1,5 +1,6 @@
 import cherrypy
 
+from collections import defaultdict
 from datetime import datetime
 from pockets import readable_join
 from pockets.autolog import log
@@ -30,28 +31,41 @@ class Root:
 
     def index(self, session, message='', show_all=None):
         groups = session.viewable_groups()
-        dealer_groups = groups.filter(Group.is_dealer == True)  # noqa: E712
-        guest_groups = groups.join(Group.guest)
+        dealer_counts = defaultdict(int)
 
         if not show_all:
-            dealer_groups = dealer_groups.filter(Group.status != c.IMPORTED)
+            groups = groups.filter(Group.status != c.IMPORTED)
+
+        dealer_groups = groups.filter(Group.is_dealer == True)  # noqa: E712
+        dealer_counts['total'] = dealer_groups.count()
+        for group in dealer_groups:
+            dealer_counts['tables'] += group.tables
+            dealer_counts['badges'] += group.badges
+            match group.status:
+                case c.UNAPPROVED:
+                    dealer_counts['unapproved'] += group.tables
+                case c.WAITLISTED:
+                    dealer_counts['waitlisted'] += group.tables
+                case c.APPROVED:
+                    dealer_counts['approved'] += group.tables
+                case c.SHARED:
+                    dealer_counts['approved'] += group.tables
+
+        guest_groups = groups.join(Group.guest)
 
         return {
             'message': message,
-            'groups': groups.options(joinedload(Group.attendees), joinedload(Group.leader),
-                                     joinedload(Group.active_receipt)),
-            'guest_groups': guest_groups.options(joinedload(Group.attendees), joinedload(Group.leader)),
+            'show_all': show_all,
+            'all_groups': groups.options(joinedload(Group.attendees), joinedload(Group.active_receipt)).all(),
+            'guest_groups': guest_groups.options(joinedload(Group.attendees)),
             'guest_checklist_items': GuestGroup(group_type=c.GUEST).sorted_checklist_items,
             'band_checklist_items': GuestGroup(group_type=c.BAND).sorted_checklist_items,
-            'num_dealer_groups': dealer_groups.count(),
-            'dealer_groups':      dealer_groups.options(joinedload(Group.attendees),
-                                                        joinedload(Group.leader), joinedload(Group.active_receipt)),
-            'dealer_badges':      sum(g.badges for g in dealer_groups),
-            'tables':            sum(g.tables for g in dealer_groups),
-            'show_all': show_all,
-            'unapproved_tables': sum(g.tables for g in dealer_groups if g.status == c.UNAPPROVED),
-            'waitlisted_tables': sum(g.tables for g in dealer_groups if g.status == c.WAITLISTED),
-            'approved_tables':   sum(g.tables for g in dealer_groups if g.status == c.APPROVED)
+            'num_dealer_groups': dealer_counts['total'],
+            'dealer_badges': dealer_counts['badges'],
+            'tables': dealer_counts['tables'],
+            'unapproved_tables': dealer_counts['unapproved'],
+            'waitlisted_tables': dealer_counts['waitlisted'],
+            'approved_tables': dealer_counts['approved'],
         }
 
     def new_group_from_attendee(self, session, id):
@@ -69,31 +83,17 @@ class Root:
 
         raise HTTPRedirect('form?id={}&message={}', group.id, "Group successfully created.")
 
-    def resend_signnow_link(self, session, id):
-        group = session.group(id)
-
-        signnow_request = SignNowRequest(session=session, group=group)
-        if not signnow_request.document:
-            raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
-
-        signnow_request.send_dealer_signing_invite()
-        if signnow_request.error_message:
-            log.error(signnow_request.error_message)
-            raise HTTPRedirect("form?id={}&message={}", id,
-                               f"Error sending SignNow link: {signnow_request.error_message}")
-        else:
-            signnow_request.document.last_emailed = datetime.now(UTC)
-            session.add(signnow_request.document)
-            raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
-
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
         reg_station_id = cherrypy.session.get('reg_station', '')
 
         if params.get('id') not in [None, '', 'None']:
             group = session.group(params.get('id'))
+            if not session.admin_group_max_access(group):
+                raise HTTPRedirect('index?message={}', f"You are not allowed to view this group. If you think this is an error, \
+                                   please email us at {c.DEVELOPER_EMAIL}")
             if cherrypy.request.method == 'POST':
-                receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params)
+                receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params.copy())
                 session.add_all(receipt_items)
         else:
             group = Group(is_dealer=True, tables=1) if new_dealer else Group()
@@ -119,16 +119,14 @@ class Root:
 
         signnow_last_emailed = None
         signnow_signed = False
-        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED:
+        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status in [c.APPROVED, c.SHARED]:
             if cherrypy.request.method == 'POST':
                 signnow_request = SignNowRequest(session=session, group=group,
                                                  ident="terms_and_conditions", create_if_none=True)
             else:
                 signnow_request = SignNowRequest(session=session, group=group)
 
-            if signnow_request.error_message:
-                log.error(signnow_request.error_message)
-            elif signnow_request.document:
+            if not signnow_request.error_message and signnow_request.document:
                 session.add(signnow_request.document)
 
                 signnow_signed = signnow_request.document.signed
@@ -156,10 +154,10 @@ class Root:
                 group.auto_recalc = False
 
             if group.is_new or group.badges != group_info_form.badges.data:
-                test_permissions = Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbons,
-                                            paid=c.PAID_BY_GROUP)
-                new_badge_status = c.PENDING_STATUS if not session.admin_can_create_attendee(test_permissions)\
-                    else c.NEW_STATUS
+                if c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
+                    new_badge_status = c.PENDING_STATUS
+                else:
+                    new_badge_status = c.NEW_STATUS
                 message = session.assign_badges(
                     group,
                     group_info_form.badges.data or int(bool(group.leader_first_name)),
@@ -167,6 +165,19 @@ class Root:
                     new_ribbon_type=group.new_ribbons,
                     badge_status=new_badge_status,
                     )
+
+            if group.is_dealer and group.status == c.SHARED:
+                if group.table_shares:
+                    message = ("This group has shared tables connected to it. "
+                               "If there are more than two tables sharing a spot, "
+                               "please connect the other tables to this group instead.")
+                if not message and 'shared_with_name' in params:
+                    shared_with_name = params.pop('shared_with_name')
+                    if shared_with_name != group.shared_with_name:
+                        try:
+                            group.set_shared_with_name(shared_with_name)
+                        except ValueError as e:
+                            message = str(e)
 
             if not message and group.is_new and group.leader_first_name:
                 session.commit()
@@ -191,7 +202,7 @@ class Root:
                     group.guest.group_type = group.guest_group_type
 
                 if group.is_new and group.is_dealer:
-                    if group.status == c.APPROVED and group.amount_unpaid:
+                    if group.status in [c.APPROVED, c.SHARED] and group.amount_unpaid:
                         raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                     elif group.status == c.APPROVED:
                         raise HTTPRedirect(
@@ -200,7 +211,8 @@ class Root:
                         raise HTTPRedirect(
                             'index?message={}', group.name + ' is uploaded as ' + group.status_label)
                 elif group.is_dealer:
-                    if group.status == c.APPROVED and group.orig_value_of('status') != c.APPROVED:
+                    if group.status in [c.APPROVED, c.SHARED] and group.orig_value_of('status') not in [c.APPROVED,
+                                                                                                        c.SHARED]:
                         for attendee in group.attendees:
                             attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
                             session.add(attendee)
@@ -265,6 +277,7 @@ class Root:
 
         session.add_all(receipt_manager.items_to_add)
         session.commit()
+        session.check_receipt_closed(receipt)
         raise HTTPRedirect('form?id={}&message={}', id,
                            f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
 

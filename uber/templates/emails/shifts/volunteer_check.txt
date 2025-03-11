@@ -1,7 +1,7 @@
 {{ attendee.first_name }},
 
-Thanks for preregistering for {{ c.EVENT_NAME }}!  You checked a box on your registration form which indicated that you were interested in volunteering, and the deadline for signing up for shifts is coming up.  If you'd still like to help, you can sign up for shifts until {{ c.UBER_TAKEDOWN|datetime_local }} by logging in at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }}
+Thanks for preregistering for {{ c.EVENT_NAME }}! You checked a box on your registration form which indicated that you were interested in volunteering, and {% if c.UBER_TAKEDOWN < c.EPOCH %}the deadline for signing up for shifts is coming up{% else %}{{ c.EVENT_NAME }} is rapidly approaching{% endif %}. If you'd still like to help, you can sign up for shifts {{ ('until ' ~ c.UBER_TAKEDOWN|datetime_local) if c.UBER_TAKEDOWN < c.EPOCH else 'anytime' }} by logging in at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }}
 
-It's fine if you decide not to volunteer; if you change your mind after the deadline, just come see us in Staffing Ops at {{ c.EVENT_NAME }} and we'll let you know what shifts are still available.
+It's fine if you decide not to volunteer; you have until {{ c.DROP_SHIFTS_DEADLINE.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }} to drop any shifts you signed up for. Otherwise, please contact STOPS at {{ c.STAFF_EMAIL|email_only }}.{% if c.UBER_TAKEDOWN < c.EPOCH %} If you missed the deadline for signing up for shifts, come see us in Staffing Ops at {{ c.EVENT_NAME }} and we'll let you know what shifts are still available.{% endif %}
 
 {{ c.STOPS_EMAIL_SIGNATURE }}

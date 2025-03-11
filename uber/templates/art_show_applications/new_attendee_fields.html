@@ -10,10 +10,14 @@
     <label for="email" class="form-text">Email Address</label>
     <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="email@example.com">
   </div>
+  {% if c.INDEPENDENT_ART_SHOW %}
+  <input type="hidden" name="not_attending" value="1">
+  {% else %}
   <div class="col-12">
     <label for="not_attending" class="form-check-label">
       <input type="checkbox" class="form-check-input" id="not_attending" name="not_attending" value="1" {% if not_attending %}checked {% endif %}/>
       I don't plan on attending {{ c.EVENT_NAME }}.
     </label>
   </div>
+  {% endif %}
 </div>

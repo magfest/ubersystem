@@ -5,7 +5,7 @@ from wtforms import (BooleanField, DecimalField, EmailField,
 from wtforms.validators import ValidationError
 
 from uber.config import c
-from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, NumberInputGroup
+from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, NumberInputGroup, Ranking
 from uber.forms.attendee import valid_cellphone
 from uber.custom_tags import format_currency, pluralize
 from uber.model_checks import invalid_phone_number
@@ -128,6 +128,8 @@ class TableInfo(GroupInfo):
 
 class AdminTableInfo(TableInfo, AdminGroupInfo):
     status = SelectField('Status', choices=c.DEALER_STATUS_OPTS, coerce=int)
+    shared_with_name = StringField(
+        'Shared With', description=f"The {c.DEALER_APP_TERM} this {c.DEALER_APP_TERM} is sharing a table with.")
     convert_badges = BooleanField("Convert this group's badges to individual badges.")
 
     def can_add_label(self):

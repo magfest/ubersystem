@@ -1,50 +1,90 @@
 {% extends "preregistration/preregbase.html" %}
-{% block title %}Marketplace Application{% endblock %}
+{% set title_text = "Marketplace Application" %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block content %}
-{% set payment_includes_badge = app.attendee.badge_cost and app.attendee.amount_unpaid > app.total_cost %}
 {% set attendee = app.attendee %}
+
+<script type="text/javascript">
+  $(function() {
+    var $cancelForm = $('#cancel-form');
+    $cancelForm.on('submit', function(event) {
+      event.preventDefault();
+      bootbox.confirm({
+        backdrop: true,
+        title: 'Cancel Artist Marketplace Application?',
+        message: '<p>Are you sure you want to cancel your artist marketplace application?</p>' +
+          '<p>This will give up your{% if app.status != c.ACCEPTED %} shot at a{% endif %} spot in the Artist Marketplace.' +
+          '{% if app.amount_paid %} You will be refunded your {{ (app.amount_paid / 100)|format_currency }} fee.{% endif %}</p>' +
+          '<p>This cannot be undone.</p>',
+        buttons: {
+          confirm: { label: 'Yes, Cancel', className: 'btn-danger' },
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+        },
+        callback: function (result) {
+          if (result) {
+            $cancelForm[0].submit();
+          }
+        }
+      });
+    });
+  });
+  
+    
+  
+</script>
+
+
 <div class="card">
   <div class="card-header">
-    Marketplace Application
+    Artist Marketplace Application Information
   </div>
   <div class="card-body">
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}
-      {% include 'confirm_tabs.html' with context %}
-    {% endif %}
-    <h2>{{ c.EVENT_NAME }} Marketplace Application</h2>
+    {% include 'confirm_tabs.html' with context %}
+    {{ form_macros.form_validation('marketplace-form', 'validate_marketplace_app') }}
+    <h2>{{ c.EVENT_NAME }} Artist Marketplace Application</h2>
     <p>
-      {% if app.status == c.APPROVED %}
-      Congratulations, your application has been approved!
+      {% if app.status == c.ACCEPTED %}
+      Congratulations, your application has been accepted!
         {% if not app.incomplete_reason and app.amount_unpaid %}
-          In order to complete your application, please pay {{ app.attendee.amount_unpaid|format_currency }} using the button below.
-          {% if payment_includes_badge %}This total includes the cost of your badge.{% endif %}<br/><br/>
+          In order to complete your application, please pay the {{ (app.amount_unpaid / 100)|format_currency }} artist marketplace fee using the button below.<br/>
           <div style="text-align:center">
+            {% if incomplete_txn %}
+              {{ stripe_form('finish_pending_payment', app, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
+            {% else %}
               {{ stripe_form('process_marketplace_payment', app) }}
+            {% endif %}
           </div>
-        {% elif app.attendee.placeholder %}
-          Before completing your application, please finish filling out your information
-          <a href="../preregistration/confirm?id={{ app.attendee_id }}" target="_blank">here</a>. You may also use that page
-          to pay for your {% if payment_includes_badge %}badge and {% endif %}marketplace spot, or pay here later.
-        {% endif %}
-      {% elif app.status != c.UNAPPROVED %}
+        {% else %}<p>{{ app.incomplete_reason }}</p>{% endif %}
+      {% elif app.status in [c.DECLINED, c.CANCELLED] %}
       Unfortunately, since your application has been {{ app.status_label|lower }}, you may no longer edit it. However,
-      you may still view the details of your application below. <br/><br/>
+      you may still view the details of your application below.
+      {% else %}
+      Your application is currently <strong>{{ app.status_label }}</strong>.
       {% endif %}
     </p>
-    <form method="post" id="new_agent" action="new_agent" role="form"></form>
-    <form method="post" action="edit" class="form-horizontal" role="form">
+    <form novalidate method="post" action="edit" role="form" id="marketplace-form">
       <input type="hidden" name="id" value="{{ app.id }}">
+      {{ csrf_token() }}
+      {% set read_only = app.status in [c.DECLINED, c.CANCELLED] or c.AFTER_PREREG_TAKEDOWN or c.AFTER_EPOCH %}
 
-      {% include 'marketplace/marketplace_form.html' %}
+      {% include 'marketplace/marketplace_form.html' with context %}
 
-      {% if app.status == c.UNAPPROVED %}
-      <div class="form-group">
-        <div class="col-sm-6 col-sm-offset-3">
-          <button type="submit" class="btn btn-primary">Update Application</button>
+    </form>
+      {% if not read_only %}
+      <div class="row g-sm-1 row-cols-auto">
+        <div class="col col-auto">
+          <button type="submit" form="marketplace-form" class="btn btn-primary">Update Application</button>
         </div>
+        {% if c.BEFORE_MARKETPLACE_CANCEL_DEADLINE and app.status not in [c.DECLINED, c.CANCELLED] %}
+        <div class="col col-auto">
+          <form method="post" action="cancel" role="form" id="cancel-form">
+            <input type="hidden" name="id" value="{{ app.id }}" />
+            <button type="submit" class="btn btn-danger" id="cancel">Cancel Application</button>
+          </form>
+        </div>
+        {% endif %}
       </div>
       {% endif %}
-    </form>
   </div>
 </div>
 {% endblock %}

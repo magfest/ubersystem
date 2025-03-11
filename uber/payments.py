@@ -1,6 +1,5 @@
 import checkdigit.verhoeff as verhoeff
 import pytz
-from spin_rest_utils import utils as spin_rest_utils
 from typing import Iterable
 from collections import OrderedDict
 from datetime import datetime, timedelta
@@ -19,7 +18,7 @@ import uber
 from uber.config import c
 from uber.custom_tags import format_currency, email_only
 from uber.utils import report_critical_exception
-
+import uber.spin_rest_utils as spin_rest_utils
 
 class MockStripeIntent(dict):
     """
@@ -263,7 +262,7 @@ class PreregCart:
 class TransactionRequest:
     # TODO: Split out Stripe and AuthNet logic into their own subclasses, like SpinTerminalRequest
     def __init__(self, receipt=None, receipt_email='', description='', amount=0,
-                 method=c.STRIPE, customer_id=None, create_receipt_item=False):
+                 method=c.STRIPE, customer_id=None, **kwargs):
         self.amount = int(amount)
         self.receipt_email = receipt_email[0] if isinstance(receipt_email, list) else receipt_email
         self.description = description
@@ -280,10 +279,12 @@ class TransactionRequest:
             log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, "
                       f"which has {receipt.current_amount_owed} balance due.")
             self.receipt_manager = ReceiptManager(receipt)
+
+            if 'who' in kwargs:
+                self.receipt_manager.who = kwargs['who']
+
             if not self.amount:
                 self.amount = receipt.current_amount_owed
-            if create_receipt_item:
-                self.receipt_manager.create_receipt_item(receipt, self.description, self.amount)
 
         if c.AUTHORIZENET_LOGIN_ID:
             self.merchant_auth = apicontractsv1.merchantAuthenticationType(
@@ -401,18 +402,18 @@ class TransactionRequest:
                     subject='ERROR: MAGFest Stripe invalid request error')
                 return 'An unexpected problem occurred: ' + str(e)
 
-    def refund_or_cancel(self, txn):
+    def refund_or_cancel(self, txn, department=None):
         if not self.amount:
             return "You must enter an amount to refund."
 
         error = self._pre_process_refund(txn)
         if not error:
-            error = self._process_refund(txn)
+            error = self._process_refund(txn, department=department)
 
         if error:
             return error
 
-    def refund_or_skip(self, txn):
+    def refund_or_skip(self, txn, department=None):
         if not self.amount:
             return "You must enter an amount to refund."
 
@@ -420,7 +421,7 @@ class TransactionRequest:
         if error:
             return
 
-        error = self._process_refund(txn)
+        error = self._process_refund(txn, department=department)
 
         if error:
             return error
@@ -452,7 +453,7 @@ class TransactionRequest:
         if txn.amount - already_refunded < refund_amount:
             return "There is not enough left on this transaction to refund {format_currency(refund_amount / 100)}."
 
-    def _process_refund(self, txn):
+    def _process_refund(self, txn, department=None):
         """
         Attempts to refund a given Stripe transaction and add/update the relevant transactions on the receipt.
         Returns an error message or sets the object's response property if the refund was successful.
@@ -471,14 +472,15 @@ class TransactionRequest:
         if message:
             return message
 
-        self.receipt_manager.create_refund_transaction(txn.receipt,
+        self.receipt_manager.create_refund_transaction(txn,
                                                        "Automatic refund of transaction " + txn.stripe_id,
                                                        str(self.response_id),
                                                        self.amount,
-                                                       method=self.method)
+                                                       method=self.method,
+                                                       department=department)
         self.receipt_manager.update_transaction_refund(txn, self.amount)
 
-    def prepare_payment(self, intent_id='', payment_method=c.STRIPE):
+    def prepare_payment(self, intent_id='', payment_method=c.STRIPE, department=None):
         """
         Creates the stripe intent and receipt transaction for a given payment processor object.
         Most methods should call this instead of calling create_stripe_intent and
@@ -492,7 +494,8 @@ class TransactionRequest:
         message = self.create_stripe_intent(intent_id)
         if not message:
             message = self.receipt_manager.create_payment_transaction(self.description, self.intent,
-                                                                      method=payment_method)
+                                                                      method=payment_method,
+                                                                      department=department)
 
         if message:
             return message
@@ -659,6 +662,7 @@ class TransactionRequest:
 
         payment_profile = None
         order = None
+        intent_id = params.get('intent_id')
 
         params_str = [f"{name}: {params[name]}" for name in params]
         log.debug(f"Transaction {self.tracking_id} building an AuthNet transaction request, request type "
@@ -686,7 +690,7 @@ class TransactionRequest:
                                                                                params.get('first_name', ''),
                                                                                params.get('last_name', ''))
                     if not payment_profile:
-                        return f"Could not complete payment. Please contact us at {email_only(c.REGDESK_EMAIL)}"
+                        return f"Could not complete payment. Please contact us at {email_only(c.REGDESK_EMAIL)}."
 
             elif 'cc_num' in params:
                 # This is only for refunds, hence the lack of expiration date
@@ -727,37 +731,82 @@ class TransactionRequest:
 
         response = transactionController.getresponse()
 
+        txn_info = {}
+        card_info = {}
+        txn_info['fraud_info'] = {}
+        txn_info['response'] = {}
+
         if response is not None:
             if response.messages.resultCode == "Ok":
+                txn_response_dict = response.transactionResponse.__dict__
+
+                txn_info['txn_id'] = str(txn_response_dict.get("transId", ''))
+                txn_info['response']['response_code'] = txn_response_dict.get('responseCode', '')
+                txn_info['response']['auth_code'] = txn_response_dict.get("authCode", '')
+                txn_info['fraud_info']['avs'] = txn_response_dict.get("avsResultCode", '')
+                txn_info['fraud_info']['cvv'] = txn_response_dict.get("cvvResultCode", '')
+                txn_info['fraud_info']['cavv'] = txn_response_dict.get("cavvResultCode", '')
+
+                card_info['CardType'] = str(txn_response_dict.get("accountType", ''))
+                card_info['Last4'] = str(txn_response_dict.get('accountNumber', ''))
+
+                if card_info['Last4']:
+                    card_info['Last4'] = card_info['Last4'][4:]
+
                 if hasattr(response.transactionResponse, 'messages') is True:
                     self.response = response.transactionResponse
                     auth_txn_id = str(self.response.transId)
 
+                    txn_info['response']['message_code'] = str(response.transactionResponse.messages.message[0].code)
+                    txn_info['response']['message'] = str(response.transactionResponse.messages.message[0].description)
+
                     log.debug(f"Transaction {self.tracking_id} request successful. Transaction ID: {auth_txn_id}")
+                    self.log_authorizenet_response(intent_id, txn_info, card_info)
 
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
                         ReceiptManager.mark_paid_from_ids(params.get('intent_id'), auth_txn_id)
                 else:
-                    error_code = str(response.transactionResponse.errors.error[0].errorCode)
-                    error_msg = str(response.transactionResponse.errors.error[0].errorText)
-                    log.debug(f"Transaction {self.tracking_id} request did not receive a transaction response! "
-                              f"{error_code}: {error_msg}")
+                    txn_info['response']['message_code'] = str(response.transactionResponse.errors.error[0].errorCode)
+                    txn_info['response']['message'] = str(response.transactionResponse.errors.error[0].errorText)
+                    log.debug(f"Transaction {self.tracking_id} declined! "
+                              f"{txn_info['response']['message_code']}: {txn_info['response']['message']}")
+                    self.log_authorizenet_response(intent_id, txn_info, card_info)
 
-                    return str(response.transactionResponse.errors.error[0].errorText)
+                    return "Transaction declined. Please ensure you are entering the correct expiration date, card CVV/CVC, and ZIP Code."
             else:
                 if hasattr(response, 'transactionResponse') is True \
                         and hasattr(response.transactionResponse, 'errors') is True:
-                    error_code = response.transactionResponse.errors.error[0].errorCode
-                    error_msg = response.transactionResponse.errors.error[0].errorText
+                    txn_info['response']['message_code'] = str(response.transactionResponse.errors.error[0].errorCode)
+                    txn_info['response']['message'] = str(response.transactionResponse.errors.error[0].errorText)
                 else:
-                    error_code = response.messages.message[0]['code'].text
-                    error_msg = response.messages.message[0]['text'].text
+                    txn_info['response']['message_code'] = str(response.messages.message[0]['code'].text)
+                    txn_info['response']['message'] = str(response.messages.message[0]['text'].text)
 
-                log.debug(f"Transaction {self.tracking_id} request failed! {error_code}: {error_msg}")
+                log.error(f"Transaction {self.tracking_id} request failed! {txn_info['response']['message_code']}: {txn_info['response']['message']}")
+                self.log_authorizenet_response(intent_id, txn_info, card_info)
 
-                return str(error_msg)
+                return "Transaction failed. Please refresh the page and try again, " + \
+                    f"or contact us at {email_only(c.REGDESK_EMAIL)}."
         else:
             log.error(f"Transaction {self.tracking_id} request to AuthNet failed: no response received.")
+
+    def log_authorizenet_response(self, intent_id, txn_info, card_info):
+        from uber.models import ReceiptInfo, ReceiptTransaction, Session
+        
+        session = Session().session
+        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
+
+        # AuthNet returns "StringElement" but we want strings
+        txn_info['response'] = {key: str(val) for key, val in txn_info['response'].items()}
+        txn_info['fraud_info'] = {key: str(val) for key, val in txn_info['fraud_info'].items()}
+
+        if not matching_txns:
+            log.debug(f"Tried to save receipt info for intent ID {intent_id} but we couldn't find any matching payments!")
+        
+        for txn in matching_txns:
+            txn.receipt_info = ReceiptInfo(txn_info=txn_info, card_data=card_info, charged=datetime.now())
+            session.add(txn.receipt_info)
+        session.commit()
 
 
 class SpinTerminalRequest(TransactionRequest):
@@ -806,16 +855,16 @@ class SpinTerminalRequest(TransactionRequest):
                 return f(self, *args, **kwargs)
             except requests.exceptions.ConnectionError as e:
                 log.error(f"Transaction {self.tracking_id} could not connect to SPIn Proxy: {str(e)}")
-                self.error_message = "Could not connect to SPIn Proxy."
+                self.error_message = "Could not connect to SPIn Proxy"
             except requests.exceptions.Timeout as e:
                 if self.timeout_retries > 10:
                     log.error(f"Transaction {self.tracking_id} timed out while connecting to SPIn Terminal: {str(e)}")
-                    self.error_message = "The request timed out."
+                    self.error_message = "The request timed out"
                 else:
                     self.timeout_retries += 1
             except requests.exceptions.RequestException as e:
                 log.error(f"Transaction {self.tracking_id} errored while processing SPIn Terminal sale: {str(e)}")
-                self.error_message = "Unexpected error."
+                self.error_message = "Unexpected error"
 
         return api_call
 
@@ -840,6 +889,8 @@ class SpinTerminalRequest(TransactionRequest):
         if self.api_response_successful(response_json):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
                                'last_response', json.dumps(response_json))
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
+                               'last_error', '')
         else:
             error_message = self.error_message_from_response(response_json)
             log.error(f"Error while processing terminal sale for transaction {self.tracking_id}: {error_message}")
@@ -847,8 +898,6 @@ class SpinTerminalRequest(TransactionRequest):
 
     def process_sale_response(self, session, response):
         from uber.models import ReceiptTransaction
-        from uber.tasks.registration import send_receipt_email
-        from decimal import Decimal
 
         try:
             response_json = response.json()
@@ -891,6 +940,13 @@ class SpinTerminalRequest(TransactionRequest):
                     txn.receipt_info = self.receipt_info_from_txn(session, txn, model_receipt_info, void_response_json)
             return
 
+        self.process_successful_sale(session, response_json, self.intent.id)
+
+    def process_successful_sale(self, session, response_json, intent_id):
+        from uber.models import ReceiptTransaction
+        from uber.tasks.registration import send_receipt_email
+        from decimal import Decimal
+
         self.tracker.success = True
 
         approval_amount = Decimal(str(spin_rest_utils.approved_amount(response_json))) * 100  # don't @ me
@@ -898,7 +954,7 @@ class SpinTerminalRequest(TransactionRequest):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
                                'last_error', "Partial approval")
 
-        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent.id).all()
+        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
         if not matching_txns:
             error_message = "Payment was successful, but did not have any matching transactions"
             log.error(f"Error while processing terminal sale for transaction {self.tracking_id}: {error_message}")
@@ -921,12 +977,13 @@ class SpinTerminalRequest(TransactionRequest):
                 session.delete(txn)
             else:
                 txn.receipt_info = self.receipt_info_from_txn(session, txn, model_receipt_info, response_json)
+                txn.cancelled = None
                 session.add(txn)
                 session.add(txn.receipt_info)
 
         session.commit()
 
-        ReceiptManager.mark_paid_from_ids(self.intent.id, self.terminal_id + "-" + self.intent.id)
+        ReceiptManager.mark_paid_from_ids(intent_id, self.terminal_id + "-" + intent_id)
 
         for receipt_info in model_receipt_info.values():
             send_receipt_email.delay(receipt_info.id)
@@ -979,6 +1036,7 @@ class SpinTerminalRequest(TransactionRequest):
         session.commit()
         new_tracker = TxnRequestTracking(workstation_num=self.tracker.workstation_num,
                                          terminal_id=self.tracker.terminal_id,
+                                         fk_id=self.tracker.fk_id,
                                          who=self.tracker.who)
         self.tracker = new_tracker
         new_intent_id = self.intent_id_from_txn_tracker(self.tracker)
@@ -1014,7 +1072,7 @@ class SpinTerminalRequest(TransactionRequest):
         response = requests.post(spin_rest_utils.get_call_url(self.api_url, 'settle'), data=self.base_request)
         return response
 
-    def _process_refund(self, txn):
+    def _process_refund(self, txn, department=None):
         from uber.models import TxnRequestTracking, AdminAccount, Session
         from uber.tasks.registration import process_terminal_sale
 
@@ -1032,24 +1090,25 @@ class SpinTerminalRequest(TransactionRequest):
         if refund_amount != txn.txn_total and not cherrypy.session.get('reg_station'):
             return ("This is a partial refund, which requires a connected SPIn payment terminal. "
                     "Please set your workstation number and try again.")
+        
+        with Session() as session:
+            model = session.get_model_by_receipt(txn.receipt)
+            model_id = model.id
 
         log.debug('REFUND: attempting to refund card transaction with ID {} {} cents for {}',
                   txn.stripe_id, str(refund_amount), txn.desc)
 
-        self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'),
+        self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'), fk_id=model_id,
                                           terminal_id=self.terminal_id, who=AdminAccount.admin_name())
 
         self.receipt_manager.items_to_add.append(self.tracker)
 
-        refund_txn = self.receipt_manager.create_refund_transaction(txn.receipt,
+        refund_txn = self.receipt_manager.create_refund_transaction(txn,
                                                                     "Automatic refund of transaction " + txn.stripe_id,
                                                                     self.intent_id_from_txn_tracker(self.tracker),
                                                                     refund_amount,
-                                                                    method=self.method)
-
-        with Session() as session:
-            model = session.get_model_by_receipt(txn.receipt)
-            model_id = model.id
+                                                                    method=self.method,
+                                                                    department=department)
 
         self.terminal_id = txn.receipt_info.terminal_id
         self.ref_id = txn.intent_id
@@ -1163,8 +1222,9 @@ class ReceiptManager:
     def __init__(self, receipt=None, **params):
         self.receipt = receipt
         self.items_to_add = []
+        self.who = ''
 
-    def create_payment_transaction(self, desc='', intent=None, amount=0, txn_total=0, method=c.STRIPE):
+    def create_payment_transaction(self, desc='', intent=None, amount=0, txn_total=0, method=c.STRIPE, department=None):
         from uber.models import AdminAccount, ReceiptTransaction
 
         if intent:
@@ -1179,36 +1239,50 @@ class ReceiptManager:
 
         self.items_to_add.append(ReceiptTransaction(receipt_id=self.receipt.id,
                                                     intent_id=intent.id if intent else '',
+                                                    method=method,
+                                                    department=department or self.receipt.default_department,
                                                     amount=amount,
                                                     txn_total=txn_total or amount,
-                                                    receipt_items=self.receipt.open_receipt_items,
+                                                    receipt_items=self.receipt.open_purchase_items,
                                                     desc=desc,
-                                                    method=method,
-                                                    who=AdminAccount.admin_name() or 'non-admin'
+                                                    who=self.who or AdminAccount.admin_name() or 'non-admin'
                                                     ))
+        if not intent:
+            for item in self.receipt.open_purchase_items:
+                item.closed = datetime.now()
+                self.items_to_add.append(item)
 
-    def create_refund_transaction(self, receipt, desc, refund_id, amount, method=c.STRIPE):
+    def create_refund_transaction(self, refunded_txn, desc, refund_id, amount, method=c.STRIPE, department=None):
         from uber.models import AdminAccount, ReceiptTransaction
 
-        receipt_txn = ReceiptTransaction(receipt_id=receipt.id,
+        receipt_txn = ReceiptTransaction(receipt_id=refunded_txn.receipt.id,
                                          refund_id=refund_id,
+                                         refunded_txn_id=refunded_txn.id,
                                          method=method,
+                                         department=department or refunded_txn.receipt.default_department,
                                          amount=amount * -1,
+                                         receipt_items=refunded_txn.receipt.open_credit_items,
                                          desc=desc,
-                                         who=AdminAccount.admin_name() or 'non-admin'
+                                         who=self.who or AdminAccount.admin_name() or 'non-admin'
                                          )
+
+        for item in refunded_txn.receipt.open_credit_items:
+            self.items_to_add.append(item)
+            item.closed = datetime.now()
 
         self.items_to_add.append(receipt_txn)
         return receipt_txn
 
-    def create_receipt_item(self, receipt, desc, amount):
+    def create_receipt_item(self, receipt, department, category, desc, amount):
         from uber.models import AdminAccount, ReceiptItem
 
         receipt_item = ReceiptItem(receipt_id=receipt.id,
+                                   department=department,
+                                   category=category,
                                    desc=desc,
                                    amount=amount,
                                    count=1,
-                                   who=AdminAccount.admin_name() or 'non-admin'
+                                   who=self.who or AdminAccount.admin_name() or 'non-admin'
                                    )
 
         self.items_to_add.append(receipt_item)
@@ -1219,281 +1293,267 @@ class ReceiptManager:
         self.items_to_add.append(txn)
 
     @classmethod
-    def create_new_receipt(cls, model, create_model=False, items=None):
+    def create_new_receipt(cls, model, who='', create_model=False):
         """
         Iterates through the cost_calculations for this model and returns a list containing
         all non-null cost and credit items.
 
         This function is for use with new models to grab all their initial costs for creating or previewing a receipt.
         """
-        from uber.models import AdminAccount, ModelReceipt, ReceiptItem
-        if not items:
-            items = [uber.receipt_items.cost_calculation.items] + [uber.receipt_items.credit_calculation.items]
+        from uber.models import AdminAccount, ModelReceipt, ReceiptItem, Group
+        calc_items = uber.receipt_items.receipt_calculation.items
         receipt_items = []
         receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__) if create_model else None
 
-        for i in items:
-            for calculation in i[model.__class__.__name__].values():
-                item = calculation(model)
-                if item:
-                    try:
-                        desc, cost, col_name, count = item
-                    except ValueError:
-                        # Unpack list of wrong size (no quantity provided).
-                        desc, cost, col_name = item
-                        count = 1
+        def handle_col_name(model, col_name, category):
+            # Adds a column's default value to revert_changes
+            # and sets the category based on the column, if it has not yet been set.
+            default_val = getattr(model.__class__(), col_name, None)
+            revert_change[col_name] = default_val
+            if getattr(model, 'receipt_changes', None) and category == c.OTHER:
+                x, category = model.receipt_changes.get(col_name, (None, c.OTHER))
 
-                    default_val = getattr(model.__class__(), col_name, None) if col_name else None
-                    if isinstance(cost, Iterable):
-                        # A list of the same item at different prices, e.g., group badges
-                        for price in cost:
-                            if receipt:
-                                receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                                 desc=desc,
-                                                                 amount=price,
-                                                                 count=cost[price],
-                                                                 who=AdminAccount.admin_name() or 'non-admin',
-                                                                 revert_change={col_name: default_val
-                                                                                } if col_name else {}
-                                                                 ))
-                            else:
-                                receipt_items.append((desc, price, cost[price]))
-                    elif receipt:
-                        receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                         desc=desc,
-                                                         amount=cost,
-                                                         count=count,
-                                                         who=AdminAccount.admin_name() or 'non-admin',
-                                                         revert_change={col_name: default_val} if col_name else {}
-                                                         ))
+            return revert_change, category
+
+        for calculation in calc_items[model.__class__.__name__].values():
+            item = calculation(model)
+            if not item:
+                continue
+            try:
+                desc, cost, col_or_category, count = item
+            except ValueError:
+                # Unpack list of wrong size (no quantity provided).
+                desc, cost, col_or_category = item
+                count = 1
+
+            if isinstance(model, Group):
+                department = c.DEALER_RECEIPT_ITEM if model.is_dealer else c.REG_RECEIPT_ITEM
+            else:
+                department = getattr(model, 'department', c.OTHER_RECEIPT_ITEM)
+            category = c.OTHER
+
+            revert_change = {}
+            if col_or_category and isinstance(col_or_category, tuple):
+                for col_name in col_or_category:
+                    revert_change, category = handle_col_name(model, col_name, category)
+            elif col_or_category and isinstance(col_or_category, int):
+                revert_change, category = {}, col_or_category
+            elif col_or_category:
+                revert_change, category = handle_col_name(model, col_or_category, category)
+
+            if isinstance(cost, Iterable):
+                # A list of the same item at different prices, e.g., group badges
+                for price in cost:
+                    try:
+                        price = int(price)
+                    except ValueError:
+                        log.exception(f"The price for {desc} ({price}) isn't a number!")
                     else:
-                        receipt_items.append((desc, cost, count))
+                        if receipt:
+                            receipt_items.append(ReceiptItem(receipt_id=receipt.id,
+                                                            department=department,
+                                                            category=category,
+                                                            desc=desc,
+                                                            amount=price,
+                                                            count=cost[price],
+                                                            revert_change=revert_change,
+                                                            ))
+                        else:
+                            receipt_items.append((desc, price, cost[price]))
+            elif receipt:
+                receipt_items.append(ReceiptItem(receipt_id=receipt.id,
+                                                department=department,
+                                                category=category,
+                                                desc=desc,
+                                                amount=cost,
+                                                count=count,
+                                                who=who or AdminAccount.admin_name() or 'non-admin',
+                                                revert_change=revert_change,
+                                                ))
+            else:
+                receipt_items.append((desc, cost, count))
 
         return receipt, receipt_items
 
-    @classmethod
-    def calc_simple_cost_change(cls, model, col_name, new_val):
-        """
-        Takes an instance of a model and attempts to calculate a simple cost change
-        based on a column name. Used for columns where the cost is the column, e.g.,
-        extra_donation and amount_extra.
-        """
-        model_dict = model.to_dict()
-
-        if model_dict.get(col_name) is None:
-            return None, None
-
-        if not new_val:
-            new_val = 0
-
-        return (model_dict[col_name] * 100, (int(new_val) - model_dict[col_name]) * 100)
 
     @classmethod
-    def process_receipt_credit_change(cls, model, col_name, new_val, receipt=None):
-        from uber.models import AdminAccount, ReceiptItem
-
-        credit_change_tuple = model.credit_changes.get(col_name)
-        if not credit_change_tuple:
-            return
-
-        credit_change_name = credit_change_tuple[0]
-        credit_change_func = credit_change_tuple[1]
-
-        change_func = getattr(model, credit_change_func)
-        old_discount, discount_change = change_func(**{col_name: new_val})
-        if old_discount >= 0 and discount_change < 0:
-            verb = "Added"
-        elif old_discount < 0 and discount_change >= 0 and old_discount == discount_change * -1:
-            verb = "Removed"
-        else:
-            verb = "Changed"
-        discount_desc = "{} {}".format(credit_change_name, verb)
-
-        if col_name == 'birthdate':
-            old_val = datetime.strftime(getattr(model, col_name), c.TIMESTAMP_FORMAT)
-        else:
-            old_val = getattr(model, col_name)
-
-        if receipt:
-            return ReceiptItem(receipt_id=receipt.id,
-                               desc=discount_desc,
-                               amount=discount_change,
-                               who=AdminAccount.admin_name() or 'non-admin',
-                               revert_change={col_name: old_val},
-                               )
-        else:
-            return (discount_desc, discount_change)
-
-    @classmethod
-    def process_receipt_upgrade_item(cls, model, col_name, new_val, receipt=None, count=1):
-        from uber.models import AdminAccount, ReceiptItem
+    def process_receipt_change(cls, model, col_name, new_model, receipt=None, who='', count=1, revert_change={}):
+        from uber.models import AdminAccount, ReceiptItem, Group
         from uber.models.types import Choice
 
         """
         Finds the cost of a receipt item to add to an existing receipt.
-        This uses the cost_changes dictionary defined on each model in receipt_items.py,
-        calling it with the extra keyword arguments provided. If no function is specified,
-        we use calc_simple_cost_change instead.
+        This uses the cost_changes dictionary defined on each model in receipt_items.py.
 
         If a ModelReceipt is provided, a new ReceiptItem is created and returned.
         Otherwise, the raw values are returned so attendees can preview their receipt
         changes.
         """
+        cost_change_func, category = model.receipt_changes.get(col_name, (None, None))
+
+        if not cost_change_func:
+            return
+
         try:
-            new_val = int(new_val)
+            cost_desc, cost_change, maybe_category, count = cost_change_func(model, new_model)
+        except ValueError:
+            # Unpack list of wrong size (no quantity provided).
+            cost_desc, cost_change, maybe_category = cost_change_func(model, new_model)
+        except TypeError as e:
+            log.error(str(e))
+            return
+
+        old_val = getattr(model, col_name)
+        try:
+            old_val = int(old_val)
         except Exception:
-            pass  # It's fine if this is not a number
+            pass
 
-        if col_name not in ['promo_code_code', 'badges'] and isinstance(model.__table__.columns.get(col_name).type,
-                                                                        Choice):
-            increase_term, decrease_term = "Upgrading", "Downgrading"
+        if isinstance(maybe_category, int):
+            category = maybe_category
+
+        if isinstance(model, Group):
+            department = c.DEALER_RECEIPT_ITEM if model.is_dealer else c.REG_RECEIPT_ITEM
         else:
-            increase_term, decrease_term = "Increasing", "Decreasing"
+            department = getattr(model, 'department', c.OTHER_RECEIPT_ITEM)
 
-        cost_change_tuple = model.cost_changes.get(col_name)
-        if not cost_change_tuple:
-            cost_change_name = col_name.replace('_', ' ').title()
-            old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
-        else:
-            cost_change_name = cost_change_tuple[0]
-            cost_change_func = cost_change_tuple[1]
-            if len(cost_change_tuple) > 2:
-                cost_change_name = cost_change_name.format(*[dictionary.get(new_val, str(new_val))
-                                                             for dictionary in cost_change_tuple[2:]])
-
-            if not cost_change_func:
-                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
-            else:
-                change_func = getattr(model, cost_change_func)
-                old_cost, cost_change = change_func(**{col_name: new_val})
-
-        is_removable_item = col_name != 'badge_type'
-
-        if not old_cost and is_removable_item:
-            cost_desc = "Adding {}".format(cost_change_name)
-        elif cost_change * -1 == old_cost and is_removable_item:  # We're crediting the full amount of the item
-            cost_desc = "Removing {}".format(cost_change_name)
-        elif cost_change > 0:
-            cost_desc = "{} {}".format(increase_term, cost_change_name)
-        else:
-            cost_desc = "{} {}".format(decrease_term, cost_change_name)
-
-        if col_name == 'tables':
-            old_val = int(getattr(model, col_name))
-        else:
-            old_val = getattr(model, col_name)
+        if isinstance(cost_change, Iterable):
+            # A list of the same item at different prices, e.g., group badges
+            receipt_items = []
+            for price in cost_change:
+                if receipt:
+                    receipt_items.append(ReceiptItem(receipt_id=receipt.id,
+                                                     department=department,
+                                                     category=category,
+                                                     desc=cost_desc,
+                                                     amount=price,
+                                                     count=cost_change[price],
+                                                     revert_change=revert_change,
+                                                    ))
+                else:
+                    receipt_items.append((cost_desc, price, cost_change[price]))
+            return receipt_items
 
         if receipt:
-            revert_change = {col_name: old_val} if col_name not in ['promo_code_code', 'badges', 'birthdate'] else {}
-            return ReceiptItem(receipt_id=receipt.id,
-                               desc=cost_desc,
-                               amount=cost_change,
-                               count=count,
-                               who=AdminAccount.admin_name() or 'non-admin',
-                               revert_change=revert_change,
-                               )
+            if not revert_change:
+                revert_change = {col_name: old_val} if col_name not in ['promo_code_code', 'badges', 'birthdate'] else {}
+            return [ReceiptItem(receipt_id=receipt.id,
+                                department=department,
+                                category=category,
+                                desc=cost_desc,
+                                amount=cost_change,
+                                count=count,
+                                who=who or AdminAccount.admin_name() or 'non-admin',
+                                revert_change=revert_change,
+                               )]
         else:
-            return (cost_desc, cost_change, count)
+            return [(cost_desc, cost_change, count)]
 
     @classmethod
-    def auto_update_receipt(self, model, receipt, params):
-        from uber.models import Group, ReceiptItem, AdminAccount
+    def auto_update_receipt(self, model, receipt, params, who=''):
+        from uber.models import Attendee, Group, ArtShowApplication, Session
         if not receipt:
             return []
 
         receipt_items = []
+        new_model = model.__class__(**model.to_dict())
 
         model_overridden_price = getattr(model, 'overridden_price', None)
-        overridden_unset = model_overridden_price and params.get('no_override')
+        overridden_unset = model_overridden_price and (params.get('no_override') or 
+                                                       isinstance(model, ArtShowApplication) and params.get('overridden_price', None) == '')
         model_auto_recalc = getattr(model, 'auto_recalc', True) if isinstance(model, Group) else None
-        auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
+        auto_recalc_set = not model_auto_recalc and params.get('auto_recalc', None)
 
-        if overridden_unset or auto_recalc_unset:
-            # Note: we can't use preview models here because the full default cost
+        if overridden_unset or auto_recalc_set:
+            # We process this a little differently since the full default cost
             # relies on non-dict-able properties, like groups' # of badges
+            old_model = model.__class__(**model.to_dict())
+
             if overridden_unset:
+                revert_change = {'overridden_price': model.overridden_price}
+
                 current_cost = model.overridden_price
                 model.overridden_price = None
                 new_cost = model.calc_default_cost()
-
-                revert_change = {'overridden_price': model.overridden_price}
             else:
+                revert_change = {'auto_recalc': False, 'cost': model.cost}
+
                 current_cost = model.cost
                 model.auto_recalc = True
                 new_cost = model.calc_default_cost()
 
-                revert_change = {'auto_recalc': True, 'cost': model.cost}
-
             if new_cost != current_cost:
-                cost_change = new_cost - current_cost
-                receipt_items += [ReceiptItem(receipt_id=receipt.id,
-                                              desc=f"Reverting to default price from custom price of ${current_cost}",
-                                              amount=cost_change * 100,
-                                              count=1,
-                                              who=AdminAccount.admin_name() or 'non-admin',
-                                              revert_change=revert_change,
-                                              )]
+                items = self.process_receipt_change(old_model,
+                                                    'overridden_price' if overridden_unset else 'cost',
+                                                    model, receipt, who=who, revert_change=revert_change)
+                if items:
+                    for receipt_item in items:
+                        if receipt_item.amount != 0:
+                            receipt_items += [receipt_item]
 
-        if not params.get('no_override') and params.get('overridden_price', None) is not None:
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
-            return [receipt_item] if receipt_item else []
+        if not params.get('no_override') and params.get('overridden_price', None) not in [None, '']:
+            new_model.overridden_price = int(params.get('overridden_price') or 0)
+            items = self.process_receipt_change(model, 'overridden_price', new_model, receipt, who=who)
+            return items if items else []
         elif params.get('no_override'):
             params.pop('overridden_price')
 
         if not params.get('auto_recalc') and isinstance(model, Group):
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', params)
-            return [receipt_item] if receipt_item else []
+            new_model.cost = int(params.get('cost') or 0)
+            new_model.auto_recalc = False
+            items = self.process_receipt_change(model, 'cost', new_model, receipt, who=who)
+            return items if items else []
         else:
             params.pop('cost', None)
 
         if params.get('power_fee', None) is not None and c.POWER_PRICES.get(int(params.get('power'), 0),
                                                                             None) is None:
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', params)
-            receipt_items += [receipt_item] if receipt_item else []
+            new_model.power_fee = int(params.get('power_fee') or 0)
+            new_model.power = int(params.get('power') or 0)
+            items = self.process_receipt_change(model, 'power_fee', new_model, receipt, who=who)
+            receipt_items += items if items else []
             params.pop('power')
             params.pop('power_fee')
 
         params = model.auto_update_receipt(params)
 
-        changed_params = {}
+        changed_params = []
         for key, val in params.items():
             column = model.__table__.columns.get(key)
             if column is not None:
                 coerced_val = model.coerce_column_data(column, val)
                 if coerced_val != getattr(model, key, None):
-                    changed_params[key] = coerced_val
-            if key in ['promo_code_code']:  # keys that map to properties instead of columns
+                    changed_params.append(key)
+                    setattr(new_model, key, coerced_val)
+            if key in ['promo_code_code']:
                 if val != getattr(model, key, None):
-                    changed_params[key] = val
+                    setattr(new_model, 'promo_code', None)
+                    with Session() as session:
+                        session.add_promo_code_to_attendee(new_model, val)
+                        items = self.process_receipt_change(model, key, new_model, receipt, who=who)
+                        if items:
+                            for receipt_item in items:
+                                if receipt_item.amount != 0:
+                                    receipt_items += [receipt_item]
 
         if isinstance(model, Group):
             # "badges" is a property and not a column, so we have to include it explicitly
             maybe_badges_update = params.get('badges', None)
             if maybe_badges_update is not None and maybe_badges_update != model.badges:
-                changed_params['badges'] = maybe_badges_update
+                setattr(new_model, 'badges_update', int(maybe_badges_update))
+                changed_params.append('badges')
 
-        cost_changes = getattr(model.__class__, 'cost_changes', [])
-        credit_changes = getattr(model.__class__, 'credit_changes', [])
+        if isinstance(model, Attendee) and (model.qualifies_for_discounts != new_model.qualifies_for_discounts):
+            changed_params.append('birthdate')
+
         for param in changed_params:
-            if param in credit_changes:
-                receipt_item = self.add_receipt_item_from_param(model, receipt, param,
-                                                                changed_params, 'process_receipt_credit_change')
-                receipt_items += [receipt_item] if receipt_item else []
-            elif param in cost_changes:
-                receipt_item = self.add_receipt_item_from_param(model, receipt, param, changed_params)
-                receipt_items += [receipt_item] if receipt_item else []
+            items = self.process_receipt_change(model, param, new_model, receipt, who=who)
+            if items:
+                for receipt_item in items:
+                    if receipt_item.amount != 0:
+                        receipt_items += [receipt_item]
 
         return receipt_items
-
-    @classmethod
-    def add_receipt_item_from_param(self, model, receipt, param_name, params, func_name='process_receipt_upgrade_item'):
-        charge_func = getattr(ReceiptManager, func_name)
-        try:
-            receipt_item = charge_func(model, param_name, receipt=receipt, new_val=params[param_name])
-            if receipt_item.amount != 0:
-                return receipt_item
-        except Exception as e:
-            log.error(str(e))
 
     @staticmethod
     def mark_paid_from_stripe_intent(payment_intent):
@@ -1511,7 +1571,7 @@ class ReceiptManager:
 
     @staticmethod
     def mark_paid_from_ids(intent_id, charge_id):
-        from uber.models import Attendee, ArtShowApplication, MarketplaceApplication, Group, ReceiptTransaction, Session
+        from uber.models import Attendee, ArtShowApplication, Group, ReceiptTransaction, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
 
@@ -1535,9 +1595,8 @@ class ReceiptManager:
                 txn.cancelled = None
 
             for item in txn.receipt_items:
-                if item.amount > 0:
-                    item.closed = datetime.now()
-                    session.add(item)
+                item.closed = txn.added
+                session.add(item)
 
             session.commit()
 
@@ -1548,12 +1607,18 @@ class ReceiptManager:
                 if model.paid in [c.NOT_PAID, c.PENDING]:
                     model.paid = c.HAS_PAID
             if isinstance(model, Group) and model.is_paid:
-                model.paid = c.HAS_PAID
+                for attendee in model.attendees:
+                    if attendee.paid == c.PAID_BY_GROUP and attendee.badge_status == c.NEW_STATUS and \
+                                                            not attendee.placeholder and \
+                                                                attendee.first_name:
+                        attendee.badge_status = c.COMPLETED_STATUS
+                        session.add(attendee)
             session.add(model)
 
             session.commit()
+            session.check_receipt_closed(txn_receipt)
 
-            if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_receipt_items:
+            if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_purchase_items:
                 try:
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
@@ -1563,7 +1628,7 @@ class ReceiptManager:
                         model=model.to_dict('id'))
                 except Exception:
                     log.error('Unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
-            if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_receipt_items:
+            if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_purchase_items:
                 try:
                     send_email.delay(
                         c.ART_SHOW_EMAIL,
@@ -1573,19 +1638,6 @@ class ReceiptManager:
                         model=model.to_dict('id'))
                 except Exception:
                     log.error('Unable to send Art Show payment confirmation email', exc_info=True)
-            if model and isinstance(model, MarketplaceApplication) and not txn.receipt.open_receipt_items:
-                send_email.delay(
-                    c.MARKETPLACE_APP_EMAIL,
-                    c.MARKETPLACE_APP_EMAIL,
-                    'Marketplace Payment Received',
-                    render('emails/marketplace/payment_notification.txt', {'app': model}, encoding=None),
-                    model=model.to_dict('id'))
-                send_email.delay(
-                    c.MARKETPLACE_APP_EMAIL,
-                    model.email_to_address,
-                    'Marketplace Payment Received',
-                    render('emails/marketplace/payment_confirmation.txt', {'app': model}, encoding=None),
-                    model=model.to_dict('id'))
 
         session.close()
         return matching_txns

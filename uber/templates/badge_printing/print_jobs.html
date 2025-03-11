@@ -1,10 +1,4 @@
-{% if jobs|length == c.ROW_LOAD_LIMIT %}
-<div class="card-body">
-There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view. Please use another view to see complete print jobs.
-</div>
-{% endif %}
-
-<div class="card">
+<div class="card card-body">
     <table class="table table-striped datatable" data-order="[[ 0, &quot;desc&quot; ]]">
     <thead><tr>
         <th>Created</th>
@@ -13,16 +7,19 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
         <th>Badge Name</th>
         <th>Admin</th>
         <th>Printer ID</th>
-        <th>Reg Station</th>
-        <th>Print Fee</th>
-        <th>Queued</th>
+        <th>Workstation</th>
+        <th>Fee</th>
+        {% if flag != 'pending' %}<th>Queued</th>{% endif %}
+        {% if flag not in ['not_printed', 'pending'] %}
         <th>Printed</th>
         <th>Errors</th>
+        {% endif %}
+        {% if flag not in ['not_printed', 'errors', 'printed'] %}<th>Ready?</th>{% endif %}
         <th></th>
     </tr></thead>
     {% for job in jobs %}
     <tr>
-    <td data-order="{{ job.created.when }}">{{ job.created.when|time_day_local }}</td>
+    <td data-order="{{ job.created }}">{{ job.created|time_day_local }}</td>
     <td>{{ job.id }}</td>
     {% if not attendee %}
     <td data-order="{{ job.attendee.full_name }}" data-search="{{ job.attendee.full_name }}">
@@ -36,10 +33,11 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
     <td>{{ job.printer_id }}</td>
     <td>{{ job.reg_station }}</td>
     <td>{{ job.print_fee|format_currency }}</td>
-    <td id="queued_{{ job.id }}" data-order="{{ job.queued }}">{{ job.queued|time_day_local|default("No", true) }}</td>
-    <td id="printed_{{ job.id }}" data-order="{{ job.printed }}">{{ job.printed|time_day_local|default("No", true) }}</td>
-    <td id="errors_{{ job.id }}">{{ job.errors }}</td>
-    <td>
+    {% if flag != 'pending' %}<td id="queued_{{ job.id }}" data-order="{{ job.queued }}">{{ job.queued|time_day_local|default("No", true) }}</td>{% endif %}
+    {% if flag not in ['not_printed', 'pending'] %}<td id="printed_{{ job.id }}" data-order="{{ job.printed }}">{{ job.printed|time_day_local|default("No", true) }}</td>
+    <td id="errors_{{ job.id }}">{{ job.errors }}</td>{% endif %}
+    {% if flag not in ['not_printed', 'errors', 'printed',] %}<td>{{ job.ready|yesno("Yes,No") }}</td>{% endif %}
+    <td class="align-items-center text-nowrap">
         {% if not job.printed %}
             {% if job.queued and not job.errors %}
             <a id="queued_{{ job.id }}_link" class="btn btn-info ajax-link" href="mark_as_unsent?id={{ job.id }}">Mark as Unsent</a>

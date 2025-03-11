@@ -1,26 +1,7 @@
-{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-<div class="row">
-    <div class="text-center">
-      <a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
-      or
-    {% if cart.total_cost > 0 %}
-    {% if c.AT_THE_CON %}
-        {% if c.SPIN_TERMINAL_AUTH_KEY %}
-            <a href="at_door_confirmation" class="btn btn-success">Confirm Registrations and Get Check-in Barcode</a>
-        {% else %}
-            {{ stripe_form('prereg_payment') }}
-        {% endif %}
-    {% endif %}
-    {% else %}
-        <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
-    {% endif %}
-    </div>
-</div>
-{% else %}
 <div class="row">
     <div class="text-center">
         {% if cart.total_cost > 0 %}
-            {% if c.AT_THE_CON and c.ATTENDEE_ACCOUNTS_ENABLED and c.SPIN_TERMINAL_AUTH_KEY %}
+            {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
                 <a href="at_door_confirmation" class="btn btn-success">Confirm Registrations and Get Check-in Barcode</a>
             {% else %}
                 {{ stripe_form('prereg_payment', text="Pay with Card Now") }}
@@ -35,4 +16,3 @@
         <br/><a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
     </div>
 </div>
-{% endif %}

@@ -7,6 +7,7 @@ import phonenumbers
 import random
 import re
 import string
+import textwrap
 import traceback
 import uber
 import urllib
@@ -15,6 +16,7 @@ from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 from glob import glob
 from os.path import basename
+from PIL import Image
 from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
@@ -22,6 +24,7 @@ from phonenumbers import PhoneNumberFormat
 from pockets import floor_datetime, listify
 from pockets.autolog import log
 from pytz import UTC
+from sqlalchemy import func, or_, cast
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
@@ -302,9 +305,18 @@ def get_age_from_birthday(birthdate, today=None):
     Returns: An integer indicating the age.
 
     """
+    from uber.models import Attendee
 
     if not today:
         today = date.today()
+
+    if isinstance(birthdate, str):
+        birthdate_col = Attendee.__table__.columns.get('birthdate')
+        birthdate = Attendee().coerce_column_data(birthdate_col, birthdate)
+
+    if isinstance(today, str):
+        birthdate_col = Attendee.__table__.columns.get('birthdate')
+        today = Attendee().coerce_column_data(birthdate_col, today)
 
     # int(True) == 1 and int(False) == 0
     upcoming_birthday = int(
@@ -621,6 +633,97 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
+def check_image_size(image, size_list):
+    try:
+        return Image.open(image).size == tuple(map(int, size_list))
+    except OSError:
+        # This probably isn't an image at all
+        return
+
+
+class GuidebookUtils():
+    @classmethod
+    def check_guidebook_image_filetype(cls, pic):
+        from uber.custom_tags import readable_join
+
+        if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
+            return f'Image {pic.filename} is not one of the allowed extensions: '\
+                f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
+        return ''
+
+    @classmethod
+    def parse_guidebook_model(cls, selected_model=''):
+        from uber.models import Session, Event
+        if selected_model == 'schedule':
+            return Event
+
+        model = selected_model.split('_')[0] if '_' in selected_model else selected_model
+        return Session.resolve_model(model)
+
+    @classmethod
+    def get_guidebook_models(cls, session, selected_model=''):
+        from uber.models import GuestBio, MITSPicture, IndieGameImage
+
+        model_cls = cls.parse_guidebook_model(selected_model)
+        model_query = session.query(model_cls)
+        stale_filters = [model_cls.last_synced['guidebook'] == None,
+                        cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < model_cls.last_updated]
+
+        if '_band' in selected_model:
+            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.bio)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+        elif '_guest' in selected_model:
+            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.bio)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+        elif '_dealer' in selected_model:
+            model_query = model_query.filter_by(is_dealer=True)
+        elif 'IndieGame' in selected_model:
+            model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < IndieGameImage.last_updated)
+        elif 'MITSGame' in selected_model:
+            model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.pictures)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < MITSPicture.last_updated)
+            
+        return model_query, stale_filters
+
+    @classmethod
+    def cast_jsonb_to_datetime(cls, jsonb_col):
+        from residue import CoerceUTF8 as UnicodeText, UTCDateTime
+
+        return cast(cast(jsonb_col, UnicodeText), UTCDateTime)
+    
+    @classmethod
+    def get_changed_models(cls, session):
+        """
+        Returns a dictionary of changed "custom list" models and a list of changed "sessions" (Events)
+        """
+        from uber.models import GuestBio, Event
+
+        cl_updates = defaultdict(list)
+        for key, label in c.GUIDEBOOK_MODELS:
+            model_query, filters = GuidebookUtils.get_guidebook_models(session, key)
+            model_query = model_query.filter(or_(*filters))
+            for model in model_query:
+                if model.guidebook_data != model.last_synced.get('data', {}).get('guidebook', {}):
+                    cl_updates[label].append(model)
+                elif model.guidebook_header and not isinstance(model.guidebook_header, GuestBio):
+                    last_synced = model.last_synced_dt('guidebook')
+                    if model.guidebook_header.last_updated > last_synced or model.guidebook_thumbnail.last_updated > last_synced:
+                        cl_updates[label].append(model)
+
+        schedule_updates = []
+        schedule_query = session.query(Event).filter(
+            or_(Event.last_synced['guidebook'] == None,
+                GuidebookUtils.cast_jsonb_to_datetime(Event.last_synced['guidebook']) < Event.last_updated,
+            ))
+
+        for event in schedule_query:
+            if event.guidebook_data != event.last_synced.get('data', {}).get('guidebook', {}):
+                schedule_updates.append(event)
+        
+        return cl_updates, schedule_updates
+
+
 def validate_model(forms, model, preview_model=None, is_admin=False):
     from wtforms import validators
 
@@ -807,6 +910,162 @@ class Order:
     def __str__(self):
         return self.order
 
+class RegistrationCode():
+    """
+    A class that provides functions to manage human-readable unique codes that
+    attendees can enter at registration, e.g., promo codes.
+    """
+
+    _AMBIGUOUS_CHARS = {
+        '0': 'OQD',
+        '1': 'IL',
+        '2': 'Z',
+        '5': 'S',
+        '6': 'G',
+        '8': 'B'}
+
+    _UNAMBIGUOUS_CHARS = string.digits + string.ascii_uppercase
+    for _, s in _AMBIGUOUS_CHARS.items():
+        _UNAMBIGUOUS_CHARS = re.sub('[{}]'.format(s), '', _UNAMBIGUOUS_CHARS)
+    
+    @classmethod
+    def sql_normalized_code(cls, code):
+        return func.replace(func.replace(func.lower(code), '-', ''), ' ', '')
+    
+    @classmethod
+    def _generate_code(cls, generator, code_col, count=None):
+        """
+        Helper method to limit collisions for the other generate() methods.
+
+        Arguments:
+            generator (callable): Function that returns a newly generated code.
+            count (int): The number of codes to generate. If `count` is `None`,
+                then a single code will be generated. Defaults to `None`.
+
+        Returns:
+            If an `int` value was passed for `count`, then a `list` of newly
+            generated codes is returned. If `count` is `None`, then a single
+            `str` is returned.
+        """
+        from uber.models import Session
+        with Session() as session:
+            # Kind of inefficient, but doing one big query for all the existing
+            # codes will be faster than a separate query for each new code.
+            old_codes = set(s for (s,) in session.query(code_col).all())
+
+        # Set an upper limit on the number of collisions we'll allow,
+        # otherwise this loop could potentially run forever.
+        max_collisions = 100
+        collisions = 0
+        codes = set()
+        while len(codes) < (1 if count is None else count):
+            code = generator().strip()
+            if not code:
+                break
+            if code in codes or code in old_codes:
+                collisions += 1
+                if collisions >= max_collisions:
+                    break
+            else:
+                codes.add(code)
+        return (codes.pop() if codes else None) if count is None else codes
+
+    @classmethod
+    def generate_random_code(cls, code_col, count=None, length=9, segment_length=3):
+        """
+        Generates a random promo code.
+
+        With `length` = 12 and `segment_length` = 3::
+
+            XXX-XXX-XXX-XXX
+
+        With `length` = 6 and `segment_length` = 2::
+
+            XX-XX-XX
+
+        Arguments:
+            count (int): The number of codes to generate. If `count` is `None`,
+                then a single code will be generated. Defaults to `None`.
+            length (int): The number of characters to use for the code.
+            segment_length (int): The length of each segment within the code.
+
+        Returns:
+            If an `int` value was passed for `count`, then a `list` of newly
+            generated codes is returned. If `count` is `None`, then a single
+            `str` is returned.
+        """
+
+        # The actual generator function, called repeatedly by `_generate_code`
+        def _generate_random_code():
+            letters = ''.join(random.choice(cls._UNAMBIGUOUS_CHARS) for _ in range(length))
+            return '-'.join(textwrap.wrap(letters, segment_length))
+
+        return cls._generate_code(_generate_random_code, code_col, count=count)
+
+    @classmethod
+    def generate_word_code(cls, count=None):
+        """
+        Generates a promo code consisting of words from `PromoCodeWord`.
+
+        Arguments:
+            count (int): The number of codes to generate. If `count` is `None`,
+                then a single code will be generated. Defaults to `None`.
+
+        Returns:
+            If an `int` value was passed for `count`, then a `list` of newly
+            generated codes is returned. If `count` is `None`, then a single
+            `str` is returned.
+        """
+        from uber.models import Session, PromoCodeWord
+        with Session() as session:
+            words = PromoCodeWord.group_by_parts_of_speech(
+                session.query(PromoCodeWord).order_by(PromoCodeWord.normalized_word).all())
+
+        # The actual generator function, called repeatedly by `_generate_code`
+        def _generate_word_code():
+            code_words = []
+            for part_of_speech, _ in PromoCodeWord._PART_OF_SPEECH_OPTS:
+                if words[part_of_speech]:
+                    code_words.append(random.choice(words[part_of_speech]))
+            return ' '.join(code_words)
+
+        return cls._generate_code(_generate_word_code, count=count)
+
+    @classmethod
+    def disambiguate_code(cls, code):
+        """
+        Removes ambiguous characters in a promo code supplied by an attendee.
+
+        Arguments:
+            code (str): A promo code as typed by an attendee.
+
+        Returns:
+            str: A copy of `code` with all ambiguous characters replaced by
+                their unambiguous equivalent.
+        """
+        code = cls.normalize_code(code)
+        if not code:
+            return ''
+        for unambiguous, ambiguous in cls._AMBIGUOUS_CHARS.items():
+            ambiguous_pattern = '[{}]'.format(ambiguous.lower())
+            code = re.sub(ambiguous_pattern, unambiguous.lower(), code)
+        return code
+
+    @classmethod
+    def normalize_code(cls, code):
+        """
+        Normalizes a promo code supplied by an attendee.
+
+        Arguments:
+            code (str): A promo code as typed by an attendee.
+
+        Returns:
+            str: A copy of `code` converted to all lowercase, with dashes ("-")
+                and whitespace characters removed.
+        """
+        if not code:
+            return ''
+        return re.sub(r'[\s\-]+', '', code.lower())
 
 class Registry:
     """
@@ -822,7 +1081,7 @@ class DeptChecklistConf(Registry):
     instances = OrderedDict()
 
     def __init__(self, slug, description, deadline, full_description='', name=None, path=None,
-                 email_post_con=False, external_form_url=''):
+                 email_post_con=False, external_form_url='', **kwargs):
         assert re.match('^[a-z0-9_]+$', slug), \
             'Dept Head checklist item sections must have separated_by_underscore names'
 
@@ -843,8 +1102,8 @@ class DeptChecklistConf(Registry):
                 pass
         raise KeyError('department_id')
 
-
-for _slug, _conf in sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline']):
+deadline_sorted_checklist_items = sorted(c.DEPT_HEAD_CHECKLIST.items(), key=lambda tup: tup[1]['deadline'])
+for _slug, _conf in sorted(deadline_sorted_checklist_items, key=lambda tup: tup[1]['order']):
     DeptChecklistConf.register(_slug, _conf)
 
 
@@ -956,7 +1215,7 @@ def _server_to_url(server):
     elif path.startswith('uber'):
         return f'{protocol}://{host}/uber'
     elif path in ['uber', 'rams']:
-        f'{protocol}://{host}/{path}'
+        return f'{protocol}://{host}/{path}'
     return f'{protocol}://{host}'
 
 
@@ -1195,12 +1454,13 @@ class SignNowRequest:
                 "Accept": "application/json"
             }
 
-    def set_access_token(self, refresh=False):
-        from uber.config import aws_secrets_client
+    def set_access_token(self):
+        from uber.tasks.redis import set_signnow_key
 
-        self.access_token = c.SIGNNOW_ACCESS_TOKEN
+        set_signnow_key.delay()
+        self.access_token = c.REDIS_STORE.get(c.REDIS_PREFIX + 'signnow_access_token')
 
-        if self.access_token and not refresh:
+        if self.access_token:
             return
 
         if c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
@@ -1211,31 +1471,46 @@ class SignNowRequest:
             else:
                 self.access_token = access_request['access_token']
                 return
-        elif not aws_secrets_client:
-            self.error_message = ("Couldn't get a SignNow access token because there was no AWS Secrets client. "
-                                  "If you're on a development box, you can instead use a username and password.")
         elif not c.AWS_SIGNNOW_SECRET_NAME:
             self.error_message = ("Couldn't get a SignNow access token because the secret name is not set. "
                                   "If you're on a development box, you can instead use a username and password.")
+        self.error_message = "Couldn't set the SignNow key. Check the redis task for errors."
+
+        if self.error_message:
+            log.error(self.error_message)
+
+    def invalid_request(self, msg, check_group=False):
+        if check_group:
+            if not self.group:
+                self.error_message = f"{msg} without a group attached to the request!"
+        elif not self.document:
+            self.error_message = f"{msg} without a document attached to the request!"
         else:
-            aws_secrets_client.get_signnow_secret()
-            self.access_token = c.SIGNNOW_ACCESS_TOKEN
-            return
+            self.check_access_token(msg)
+        return bool(self.error_message)
+
+    def check_access_token(self, msg):
+        if not self.access_token:
+            self.set_access_token()
+            if not self.access_token:
+                self.error_message = f"{msg} but access token is not set!"        
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import put
         from json import dumps, loads
+        if self.invalid_request("Tried to create a document"):
+            log.error(self.error_message)
+            return
 
-        self.set_access_token(refresh=True)
-        if not self.error_message:
-            document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
+        document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
 
-            if 'error' in document_request:
-                self.error_message = (f"Error creating document from template with token {self.access_token}: " +
-                                      document_request['error'])
+        if 'error' in document_request:
+            self.error_message = (f"Error creating document from template with token {self.access_token}: " +
+                                    document_request['error'])
 
         if self.error_message:
-            return None
+            log.error(self.error_message)
+            return
 
         if uneditable_texts_list:
             response = put(signnow_sdk.Config().get_base_url() + '/document/' +
@@ -1248,6 +1523,7 @@ class SignNowRequest:
             if 'errors' in edit_request:
                 self.error_message = "Error setting up uneditable text fields: " + '; '.join(
                     [e['message'] for e in edit_request['errors']])
+                log.error(self.error_message)
                 return None
 
         if fields:
@@ -1263,6 +1539,7 @@ class SignNowRequest:
                 if 'errors' in fields_request:
                     self.error_message = "Error setting up fields: " + '; '.join(
                         [e['message'] for e in fields_request['errors']])
+                    log.error(self.error_message)
                     return None
 
         if folder_id:
@@ -1271,13 +1548,14 @@ class SignNowRequest:
                                                folder_id)
             if 'error' in result:
                 self.error_message = "Error moving document into folder: " + result['error']
+                log.error(self.error_message)
                 # Give the document request back anyway
 
         return document_request.get('id')
 
     def get_doc_signed_timestamp(self):
-        if not self.document:
-            self.error_message = "Tried to get a signed timestamp without a document attached to the request!"
+        if self.invalid_request("Tried to get a signed timestamp"):
+            log.error(self.error_message)
             return
 
         details = self.get_document_details()
@@ -1285,11 +1563,8 @@ class SignNowRequest:
             return details['signatures'][0].get('created')
 
     def create_dealer_signing_link(self):
-        if not self.group:
-            self.error_message = "Tried to send a dealer signing link without a group attached to the request!"
-            return
-        if not self.document:
-            self.error_message = "Tried to send a dealer signing link without a document attached to the request!"
+        if self.invalid_request("Tried to send a dealer signing link", check_group=True):
+            log.error(self.error_message)
             return
 
         first_name = self.group.leader.first_name if self.group.leader else ''
@@ -1316,8 +1591,8 @@ class SignNowRequest:
             dict: A dictionary representing the JSON response containing the signing links for the document.
         """
 
-        if not self.document:
-            self.error_message = "Tried to send a signing link without a document attached to the request!"
+        if self.invalid_request("Tried to send a signing link"):
+            log.error(self.error_message)
             return
 
         response = post(signnow_sdk.Config().get_base_url() + '/link', headers=self.api_call_headers,
@@ -1331,13 +1606,15 @@ class SignNowRequest:
         if 'errors' in signing_request:
             self.error_message = "Error getting signing link: " + '; '.join(
                 [e['message'] for e in signing_request['errors']])
+            log.error(self.error_message)
         else:
             return signing_request.get('url_no_signup')
 
     def send_dealer_signing_invite(self):
         from uber.custom_tags import email_only
-        if not self.group:
-            self.error_message = "Tried to send a dealer signing invite without a group attached to the request!"
+
+        if self.invalid_request("Tried to send a dealer signing invite", check_group=True):
+            log.error(self.error_message)
             return
 
         invite_payload = {
@@ -1359,30 +1636,33 @@ class SignNowRequest:
 
         if 'error' in invite_request:
             self.error_message = "Error sending invite to sign: " + invite_request['error']
+            log.error(self.error_message)
         else:
             return invite_request
 
     def get_download_link(self):
-        if not self.document:
-            self.error_message = "Tried to get a download link from a request without a document!"
+        if self.invalid_request("Tried to get a download link"):
+            log.error(self.error_message)
             return
 
         download_request = signnow_sdk.Document.download_link(self.access_token, self.document.document_id)
 
         if 'error' in download_request:
             self.error_message = "Error getting download link: " + download_request['error']
+            log.error(self.error_message)
         else:
             return download_request.get('link')
 
     def get_document_details(self):
-        if not self.document:
-            self.error_message = "Tried to get document details from a request without a document!"
+        if self.invalid_request("Tried to get document details from a request"):
+            log.error(self.error_message)
             return
 
         document_request = signnow_sdk.Document.get(self.access_token, self.document.document_id)
 
         if 'error' in document_request:
             self.error_message = "Error getting document: " + document_request['error']
+            log.error(self.error_message)
         else:
             return document_request
 
@@ -1394,7 +1674,6 @@ class TaskUtils:
     @staticmethod
     def _guess_dept(session, id_name):
         from uber.models import Department
-        from sqlalchemy import or_
 
         id, name = id_name
         dept = session.query(Department).filter(or_(

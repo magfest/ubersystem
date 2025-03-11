@@ -2,19 +2,24 @@
 {% import 'macros.html' as macros with context %}
 
 {% block printform %}
-<h3 align="center">{% if not admin_report %}High Bids Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}{% else %}Bidder Report{% endif %}</h3>
-<table class="table table-striped table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+<style>
+  tr td, th{
+  padding: 2px !important;
+  margin: 2px !important;
+}
+</style>
+<h3 class="text-center">{% if not admin_report %}High Bids Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}{% else %}Bidder Report{% endif %}</h3>
+<table class="table table-bordered table-striped ms-auto me-auto" style="max-width: 600px;">
   <tr>
     <th>Bidder Number</th>
-    <th colspan="2">Piece Information</th>
+    <th>Piece ID</th>
     <th>Piece Name</th>
     <th>Winning Bid</th>
   </tr>
   {% for piece in won_pieces %}
   <tr>
     <td>{{ piece.winning_bidder_num }}</td>
-    <td>{{ piece.app.artist_id }}</td>
-    <td>{{ piece.piece_id }}</td>
+    <td>{{ piece.artist_and_piece_id }}</td>
     <td>{{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }}</td>
     <td>{{ piece.winning_bid }}</td>
   </tr>
@@ -26,12 +31,12 @@
 <table class="table table-striped table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
     <th>Bidder Number</th>
-    <th colspan="2">Piece Information</th>
+    <th>Piece ID</th>
     <th>Piece Name</th>
     <th>Winning Bid</th>
   </tr>
   {% else %}
-  <tr><td colspan="5"></td></tr>
+  <tr><td colspan="4"></td></tr>
   {% endif %}
   {% endif %}
   {% endfor %}

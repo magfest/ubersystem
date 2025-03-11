@@ -12,10 +12,10 @@ this coming {{ event_dates() }}. Below is a copy of your application. You may
     <li><strong>General Table Sections</strong>: {{ app.tables }} table sections ({{ app.default_table_cost|format_currency }}) </li>
     <li><strong>Mature Panels</strong>: {{ app.panels_ad }} mature panels ({{ app.default_mature_panel_cost|format_currency }}) </li>
     <li><strong>Mature Table Sections</strong>: {{ app.tables_ad }} mature table sections ({{ app.default_mature_table_cost|format_currency }}) </li>
-    <li><strong>Total Price</strong>: {{ app.potential_cost|format_currency }}{% if app.delivery_method == c.BY_MAIL and c.ART_MAILING_FEE %} (including {{ app.default_mailing_fee_cost|format_currency }} mailing fee){% endif %}</li>
+    {% if c.ART_SHOW_HAS_FEES %}<li><strong>Total Price</strong>: {{ app.potential_cost|format_currency }}{% if app.delivery_method == c.BY_MAIL and c.ART_MAILING_FEE %} (including {{ app.default_mailing_fee_cost|format_currency }} mailing fee){% endif %}</li>{% endif %}
     <li><strong>Description</strong>: {{ app.description }}</li>
     {% if app.special_needs %}<li><strong>Special Requests</strong>: {{ app.special_needs }}</li>{% endif %}
-    {% if app.attendee.badge_status == c.NOT_ATTENDING %}<li>You will not be attending {{ c.EVENT_NAME }} and thus will
+    {% if app.attendee.badge_status == c.NOT_ATTENDING and not c.INDEPENDENT_ART_SHOW %}<li>You will not be attending {{ c.EVENT_NAME }} and thus will
     not be issued a badge. If you expect this to change, please contact the art show staff at {{ c.ART_SHOW_EMAIL }}
     {% endif %}
     <li><strong>Website URL</strong>: {{ app.website }}</li>
@@ -36,7 +36,7 @@ confirmation link they receive by email when they register.
 {% endif %}
 
 <br/><br/>
-{% if c.AFTER_ART_SHOW_WAITLIST %}
+{% if c.ART_SHOW_WAITLIST and c.AFTER_ART_SHOW_WAITLIST %}
     Because our art show is currently full, your submission has been automatically placed on our waitlist.  We'll let
     you know if your application is later approved.
 {% else %}

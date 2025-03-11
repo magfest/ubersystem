@@ -4,6 +4,13 @@
 {% include 'discrepancy_reports_header.html' with context %}
 <div class="card">
     <div class="card-body">
+        <div class="d-flex justify-content-end mb-3">
+            {% if only_dealers %}
+                <a href="dealer_receipt_discrepancies" class="btn btn-outline-secondary">Show All Groups</a>
+            {% else %}
+                <a href="dealer_receipt_discrepancies?only_dealers=True" class="btn btn-secondary">Show Only Dealers</a>
+            {% endif %}
+            </div>
         <table class="table table-striped datatable">
         <thead>
             <tr>

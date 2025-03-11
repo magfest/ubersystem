@@ -1,6 +1,7 @@
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, log_pageview
 
+from collections import defaultdict
 from sqlalchemy import or_, and_
 
 from uber.custom_tags import format_currency
@@ -107,7 +108,29 @@ class Root:
         artists_with_pieces = session.query(ArtShowApplication).filter(
             ArtShowApplication.art_show_pieces != None, ArtShowApplication.status == c.APPROVED)  # noqa: E711
 
-        all_apps = session.query(ArtShowApplication).all()
+        approved_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED)
+
+        panels, tables = {}, {}
+        for key in 'general', 'mature', 'fee':
+            panels[key] = defaultdict(int)
+            tables[key] = defaultdict(int)
+
+        for app in approved_apps:
+            if app.overridden_price == 0:
+                panels['general']['free'] += app.panels
+                panels['mature']['free'] += app.panels_ad
+                tables['general']['free'] += app.tables
+                tables['mature']['free'] += app.tables_ad
+            else:
+                panels['general']['paid'] += app.panels
+                panels['mature']['paid'] += app.panels_ad
+                tables['general']['paid'] += app.tables
+                tables['mature']['paid'] += app.tables_ad
+                
+                panels['fee']['general'] += app.panels * c.COST_PER_PANEL
+                panels['fee']['mature'] += app.panels_ad * c.COST_PER_PANEL
+                tables['fee']['general'] += app.tables * c.COST_PER_TABLE
+                tables['fee']['mature'] += app.tables_ad * c.COST_PER_TABLE
 
         return {
             'message': message,
@@ -120,10 +143,12 @@ class Root:
             'general_auctioned_count': general_auctioned.count(),
             'mature_auctioned_count': mature_auctioned.count(),
             'artist_count': artists_with_pieces.count(),
-            'general_panels_count': sum([app.panels for app in all_apps]),
-            'mature_panels_count': sum([app.panels_ad for app in all_apps]),
-            'general_tables_count': sum([app.tables for app in all_apps]),
-            'mature_tables_count': sum([app.tables_ad for app in all_apps]),
+            'panels': panels,
+            'total_panels': sum([count for key, count in panels['general'].items()]) + sum(
+                [count for key, count in panels['mature'].items()]),
+            'tables': tables,
+            'total_tables': sum([count for key, count in tables['general'].items()]) + sum(
+                [count for key, count in tables['mature'].items()]),
             'now': localized_now(),
         }
 
@@ -144,28 +169,45 @@ class Root:
 
     @log_pageview
     def artist_receipt_discrepancies(self, session):
-        filters = [ArtShowApplication.true_default_cost_cents != ModelReceipt.item_total,
-                   ArtShowApplication.status == c.APPROVED]
+        apps = session.query(ArtShowApplication).filter(
+            ArtShowApplication.status == c.APPROVED
+            ).join(ArtShowApplication.active_receipt).outerjoin(ModelReceipt.receipt_items).group_by(
+                ModelReceipt.id).group_by(ArtShowApplication.id).having(
+                    ArtShowApplication.true_default_cost_cents != ModelReceipt.fkless_item_total_sql)
 
         return {
-            'apps': session.query(ArtShowApplication).join(ArtShowApplication.active_receipt).filter(*filters),
+            'apps': apps,
         }
 
     @log_pageview
-    def artists_nonzero_balance(self, session, include_no_receipts=False):
-        if include_no_receipts:
-            apps = session.query(ArtShowApplication).outerjoin(ArtShowApplication.active_receipt).filter(
-                or_(and_(ModelReceipt.id == None, ArtShowApplication.true_default_cost > 0),  # noqa: E711
-                    and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))  # noqa: E711
+    def artists_nonzero_balance(self, session, include_no_receipts=False, include_discrepancies=False):
+        item_subquery = session.query(ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
+                                      ).join(ModelReceipt.receipt_items).group_by(ModelReceipt.owner_id).subquery()
+
+        if include_discrepancies:
+            filter = True
         else:
-            apps = session.query(ArtShowApplication).join(
-                ArtShowApplication.active_receipt).filter(
-                    ArtShowApplication.true_default_cost_cents == ModelReceipt.item_total,
-                    ModelReceipt.current_receipt_amount != 0)
+            filter = ArtShowApplication.true_default_cost_cents == item_subquery.c.item_total
+
+        apps_and_totals = session.query(
+            ArtShowApplication, ModelReceipt.payment_total_sql, ModelReceipt.refund_total_sql, item_subquery.c.item_total
+            ).filter(ArtShowApplication.status == c.APPROVED).join(ArtShowApplication.active_receipt).outerjoin(
+                ModelReceipt.receipt_txns).join(item_subquery, ArtShowApplication.id == item_subquery.c.owner_id).group_by(
+                    ModelReceipt.id).group_by(ArtShowApplication.id).group_by(item_subquery.c.item_total).having(
+                        and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
+                             filter))
+
+        if include_no_receipts:
+            apps_no_receipts = session.query(ArtShowApplication).outerjoin(
+                ModelReceipt, ArtShowApplication.active_receipt).filter(ArtShowApplication.true_default_cost > 0,
+                                                                        ModelReceipt.id == None)
+        else:
+            apps_no_receipts = []
 
         return {
-            'apps': apps.filter(ArtShowApplication.status == c.APPROVED),
-            'include_no_receipts': include_no_receipts,
+            'apps_and_totals': apps_and_totals,
+            'include_discrepancies': include_discrepancies,
+            'apps_no_receipts': apps_no_receipts,
         }
 
     @csv_file
@@ -186,7 +228,7 @@ class Root:
 
         for app in session.query(ArtShowApplication
                                  ).join(Attendee, ArtShowApplication.attendee_id == Attendee.id
-                                        ).filter(ArtShowApplication.status == c.approved,
+                                        ).filter(ArtShowApplication.status == c.APPROVED,
                                                  or_(and_(ArtShowApplication.country != '',
                                                           ArtShowApplication.country != 'United States'),
                                                      and_(Attendee.country != '',
@@ -195,8 +237,8 @@ class Root:
                           app.attendee.legal_first_name + " " + app.attendee.legal_last_name,
                           app.check_payable or (app.attendee.legal_first_name + " " + app.attendee.legal_last_name),
                           app.email,
-                          app.agent.full_name if app.agent else '',
-                          app.agent.email if app.agent else '',
+                          app.single_agent.full_name if app.current_agents else '',
+                          app.single_agent.email if app.current_agents else '',
                           ])
 
     @csv_file
@@ -280,7 +322,7 @@ class Root:
                       "Type",
                       "Media",
                       "Minimum Bid",
-                      "QuickSale Price",
+                      c.QS_PRICE_TERM,
                       "Sale Price",
                       ])
 
@@ -289,10 +331,12 @@ class Root:
                 piece_type = "{} ({} of {})".format(piece.type_label, piece.print_run_num, piece.print_run_total)
             else:
                 piece_type = piece.type_label
+            
+            artist_code, piece_id = piece.artist_and_piece_id.split('-')
 
-            out.writerow([piece.app.display_name,
-                          piece.app.artist_id,
-                          piece.piece_id,
+            out.writerow([piece.app_display_name,
+                          artist_code,
+                          piece_id,
                           piece.name,
                           piece.status_label,
                           piece_type,

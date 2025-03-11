@@ -36,7 +36,7 @@
 <input type="hidden" id="same_legal_name" name="same_legal_name" {% if attendee.first_name != '' and attendee.legal_name == '' %}value="1" {% endif %}/>
 {% endif %}
 
-{% if admin_area or attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
+{% if admin_area or attendee.has_personalized_badge %}
 <div class="row g-sm-3">
   <div class="col-12">{{ form_macros.form_input(personal_info.badge_printed_name) }}</div>
 </div>

@@ -91,6 +91,10 @@ class Root:
                 if not admin_account and not account:
                     raise HTTPRedirect("../landing/index?message={}", message)
 
+                # Forcibly exit any volunteer kiosks that were running
+                cherrypy.session.pop('kiosk_operator_id', None)
+                cherrypy.session.pop('kiosk_supervisor_id', None)
+
                 if admin_account:
                     attendee_to_update = admin_account.attendee
                 else:
@@ -118,7 +122,7 @@ class Root:
                             redirect_url = None
 
                 if not redirect_url:
-                    if c.AT_THE_CON and admin_account:
+                    if c.AT_OR_POST_CON and admin_account:
                         redirect_url = "../accounts/homepage"
                     else:
                         redirect_url = "../preregistration/homepage"

@@ -1,12 +1,14 @@
 {% extends 'forms/attendee/badge_flags.html' %}
 
+{% include 'badge_printing/queue_badge.html' %}
+
 {% block attendee_info %}
 {% if not attendee.is_new %}
 <div class="row g-sm-3">
-    {% if attendee.created and attendee.created.when|full_datetime_local != attendee.registered|full_datetime_local and attendee.created.who == "non-admin" %}
+    {% if attendee.created_info and attendee.created_info.when|full_datetime_local != attendee.registered|full_datetime_local and attendee.created_info.who == "non-admin" %}
     <div class="col">
         <div class="form-text">Created</div>
-        <div class="mb-4">{{ attendee.created.when|full_datetime_local }} by {{ attendee.created.who }}</div>
+        <div class="mb-4">{{ attendee.created_info.when|full_datetime_local }} by {{ attendee.created_info.who }}</div>
     </div>
     {% endif %}
     {% if attendee.registered %}
@@ -15,10 +17,10 @@
         <div class="mb-4">{{ attendee.registered_local|full_datetime_local }}</div>
     </div>
     {% endif %}
-    {% if attendee.last_updated %}
+    {% if attendee.last_update_info %}
     <div class="col">
         <div class="form-text">Last Updated</div>
-        <div class="mb-4">{{ attendee.last_updated.when|full_datetime_local }} by {{ attendee.last_updated.who }}</div>
+        <div class="mb-4">{{ attendee.last_update_info.when|full_datetime_local }} by {{ attendee.last_update_info.who }}</div>
     </div>
     {% endif %}
 </div>
@@ -51,14 +53,14 @@
         </div>
     </div>
     {% endif %}
-    {% if c.AT_THE_CON %}
+    {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED or c.AFTER_EPOCH or attendee.checked_in %}
     <div class="col">
         <div class="form-text">Checked In</div>
         <div class="mb-4">
             {% if attendee.checked_in %}
                 {{ attendee.checked_in_local|datetime("%B %-d, %Y, %-I:%M %p") }}
-            {% elif attendee.is_not_ready_to_checkin %}
-                Can't check in yet: {{ attendee.is_not_ready_to_checkin }}
+            {% elif attendee.cannot_check_in_reason %}
+                Can't check in yet: {{ attendee.cannot_check_in_reason }}
             {% else %}
                 Not checked in yet
             {% endif %}
@@ -126,11 +128,10 @@
 
 
 {% block badge_info %}
-{% set admin_can_change_status = not c.AT_THE_CON or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS %}
 <div class="row g-sm-3">
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_status,
-            help_text='' if admin_can_change_status else "Altering the badge status is disabled during the event. The system will update it automatically.",
-            disabled=not admin_can_change_status) }}</div>
+            admin_text=attendee.cannot_edit_badge_status_reason,
+            disabled=(attendee.cannot_edit_badge_status_reason != '')) }}</div>
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_type) }}</div>
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_num,
             extra_field=form_macros.toggle_checkbox(badge_flags.no_badge_num, [badge_flags.badge_num], hide_on_checked=True, prop="readonly", checked=not attendee.badge_num)) }}</div>

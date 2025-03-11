@@ -31,9 +31,7 @@ def mivs_assign_game_codes_to_judges():
                             break
                     else:
                         log.warning(
-                            'Unable to find free code for game {} to assign to judge {}',
-                            game.title,
-                            review.judge.full_name)
+                            f'Unable to find free code for game {game.title} to assign to judge {review.judge.full_name}')
 
 
 def should_send_reminder(session, studio, keys, ident_prepend):

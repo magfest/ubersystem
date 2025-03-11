@@ -4,7 +4,7 @@ import cherrypy
 
 from datetime import datetime, timedelta
 from functools import wraps
-
+from pockets import sluggify
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func
@@ -38,6 +38,7 @@ class IndieJudge(MagModel, ReviewMixin):
     genres = Column(MultiChoice(c.MIVS_INDIE_JUDGE_GENRE_OPTS))
     platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
+    vr_text = Column(UnicodeText)
     staff_notes = Column(UnicodeText)
 
     codes = relationship('IndieGameCode', backref='judge')
@@ -80,7 +81,7 @@ class IndieStudio(MagModel):
     status = Column(
         Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW, admin_only=True)
     staff_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
 
     accepted_core_hours = Column(Boolean, default=False)
     discussion_emails = Column(UnicodeText)
@@ -230,12 +231,13 @@ class IndieStudio(MagModel):
     @property
     def unclaimed_badges(self):
         claimed_count = len(
-            [d for d in self.developers if not d.matching_attendee])
+            [d for d in self.developers if not d.attendee])
         return max(0, self.comped_badges - claimed_count)
 
 
 class IndieDeveloper(MagModel):
     studio_id = Column(UUID, ForeignKey('indie_studio.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 
     # primary_contact == True just means they receive emails
     primary_contact = Column(Boolean, default=False)
@@ -248,17 +250,11 @@ class IndieDeveloper(MagModel):
 
     @property
     def email_to_address(self):
-        # Note: this doesn't actually do what we want right now
-        # because the IndieDeveloper and attendee are not properly linked
-        if self.matching_attendee:
-            return self.matching_attendee.email
-        return self.email
+        return self.attendee.email if self.attendee else self.email
 
     @property
     def cellphone_num(self):
-        if self.matching_attendee:
-            return self.matching_attendee.cellphone
-        return self.cellphone
+        return self.attendee.cellphone if self.attendee else self.cellphone
 
     @property
     def full_name(self):
@@ -278,8 +274,13 @@ class IndieGame(MagModel, ReviewMixin):
     title = Column(UnicodeText)
     brief_description = Column(UnicodeText)       # 140 max
     genres = Column(MultiChoice(c.MIVS_INDIE_GENRE_OPTS))
+    is_multiplayer = Column(Boolean, default=False)
+    player_count = Column(UnicodeText)
     platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
+    content_warning = Column(Boolean, default=False)
+    warning_desc = Column(UnicodeText)
+    photosensitive_warning = Column(Boolean, default=False)
     description = Column(UnicodeText)  # 500 max
     how_to_play = Column(UnicodeText)  # 1000 max
     link_to_video = Column(UnicodeText)
@@ -317,7 +318,7 @@ class IndieGame(MagModel, ReviewMixin):
     status = Column(
         Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW, admin_only=True)
     judge_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     waitlisted = Column(UTCDateTime, nullable=True)
     accepted = Column(UTCDateTime, nullable=True)
 
@@ -474,39 +475,50 @@ class IndieGame(MagModel, ReviewMixin):
         return self.status == c.ACCEPTED
 
     @property
-    def guidebook_name(self):
-        return self.studio.name
-
-    @property
-    def guidebook_subtitle(self):
-        return self.title
-
-    @property
-    def guidebook_desc(self):
-        return self.description
-
-    @property
-    def guidebook_location(self):
+    def guidebook_header(self):
+        for image in self.images:
+            if image.is_header:
+                return image
         return ''
 
     @property
-    def guidebook_image(self):
-        return self.best_screenshot_download_filenames()[0]
+    def guidebook_thumbnail(self):
+        for image in self.images:
+            if image.is_thumbnail:
+                return image
+        return ''
 
     @property
-    def guidebook_thumbnail(self):
-        return self.best_screenshot_download_filenames()[1] \
-            if len(self.best_screenshot_download_filenames()) > 1 else self.best_screenshot_download_filenames()[0]
+    def guidebook_edit_link(self):
+        return f"../mivs/show_info?id={self.id}"
+
+    @property
+    def guidebook_data(self):
+        return {
+            'guidebook_name': self.studio.name,
+            'guidebook_subtitle': self.title,
+            'guidebook_desc': self.description,
+            'guidebook_location': '',
+            'guidebook_header': self.guidebook_images[0][0],
+            'guidebook_thumbnail': self.guidebook_images[0][1],
+        }
 
     @property
     def guidebook_images(self):
-        image_filenames = [self.best_screenshot_download_filenames()[0]]
-        images = [self.best_screenshot_downloads()[0]]
-        if self.guidebook_image != self.guidebook_thumbnail:
-            image_filenames.append(self.guidebook_thumbnail)
-            images.append(self.best_screenshot_downloads()[1])
+        if not self.images:
+            return ['', ''], ['', '']
 
-        return image_filenames, images
+        header = self.guidebook_header
+        thumbnail = self.guidebook_thumbnail
+
+        if not header:
+            header = self.images[0]
+        if not thumbnail:
+            thumbnail = self.images[1] if len(self.images) > 1 else self.images[0]
+
+        prepend = sluggify(self.title) + '_'
+
+        return [prepend + header.filename, prepend + thumbnail.filename], [header, thumbnail]
 
 
 class IndieGameImage(MagModel):
@@ -517,10 +529,12 @@ class IndieGameImage(MagModel):
     description = Column(UnicodeText)
     use_in_promo = Column(Boolean, default=False)
     is_screenshot = Column(Boolean, default=True)
+    is_header = Column(Boolean, default=False)
+    is_thumbnail = Column(Boolean, default=False)
 
     @property
     def url(self):
-        return 'view_image?id={}'.format(self.id)
+        return '../mivs/view_image?id={}'.format(self.id)
 
     @property
     def filepath(self):
@@ -547,6 +561,7 @@ class IndieGameReview(MagModel):
     game_status = Column(
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_content_bad = Column(Boolean, default=False)
+    read_how_to_play = Column(Boolean, default=False)
 
     # 0 = not reviewed, 1-10 score (10 is best)
     readiness_score = Column(Integer, default=0)

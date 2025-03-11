@@ -3,12 +3,12 @@
 <li>
     {{ macros.checklist_image(attendee.reviewed_emergency_procedures) }}
     {% if not attendee.reviewed_emergency_procedures %}
-        Please review
+        Please review our
     {% else %}
         You have acknowledged that you reviewed our
     {% endif %}
-    {% if not attendee.placeholder and (attendee.agreed_to_volunteer_agreement or not c.VOLUNTEER_AGREEMENT_ENABLED) %}<a href="emergency_procedures">Emergency Procedures</a>{% else %}Emergency Procedures{% endif %}
+    {% if c.EMERGENCY_PROCEDURES_READY and not attendee.placeholder and (attendee.agreed_to_volunteer_agreement or not c.VOLUNTEER_AGREEMENT_ENABLED) %}<a href="emergency_procedures">Emergency Procedures</a>{% else %}Emergency Procedures{% endif %}
     {% if not attendee.reviewed_emergency_procedures %} and acknowledge that you have done so{% endif %}. 
-    (Deadline: {{ c.EMERGENCY_PROCEDURES_DEADLINE }})
+    {% if c.EMERGENCY_PROCEDURES_READY %}(Deadline: {{ c.EMERGENCY_PROCEDURES_DEADLINE }}){% else %}(Coming Soon!){% endif %}
 </li>
 {% endif %}

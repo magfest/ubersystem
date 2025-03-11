@@ -20,8 +20,8 @@
                 {% if group.guest -%}
                   &nbsp;
                   <div class="btn-group" role="group" aria-label="...">
-                  <a href="checklist_info?id={{ group.guest.id }}" class="btn btn-xs btn-outline-secondary"><i class="fa fa-cog" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></i></a>
-                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-xs btn-primary"><i class="fa fa-check" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></i></a>
+                  <a href="checklist_info?id={{ group.guest.id }}" class="btn btn-sm btn-outline-secondary"><i class="fa fa-cog" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></i></a>
+                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-sm btn-primary"><i class="fa fa-check" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></i></a>
                   </div>
                 {% endif %}
             </span>
@@ -53,4 +53,5 @@
   <p><a href="../guest_reports/checklist_info_csv">Export all checklist data as a CSV file</a></p>
   <p><a href="../guest_reports/autograph_requests">Autographs CSV</a></p>
   <p><a href="../guest_reports/detailed_travel_info_csv">Detailed Travel Info CSV</a></p>
+  <p><a href="../guest_reports/panel_info_csv">Submitted Panels CSV</a></p>
   {% endif %}

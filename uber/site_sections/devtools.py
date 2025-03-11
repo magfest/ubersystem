@@ -168,7 +168,7 @@ class Root:
             'attendees': all_instances
         }
 
-    def import_model(self, session, model_import, selected_model='', date_format="%Y-%m-%d"):
+    def import_model(self, session, model_import, selected_model=''):
         model = Session.resolve_model(selected_model)
         message = ''
 
@@ -194,45 +194,16 @@ class Root:
 
             for colname, val in row.items():
                 col = cols[colname]
-                if not val:
-                    # in a lot of cases we'll just have the empty string, so we'll just
-                    # do nothing for those cases
-                    continue
-                if isinstance(col.type, Boolean):
-                    if isinstance(val, six.string_types):
-                        val = val.strip().lower() not in ('f', 'false', 'n', 'no', '0')
-                    else:
-                        val = bool(val)
-                elif isinstance(col.type, UTCDateTime):
-                    # we'll need to make sure we use whatever format string we used to
-                    # export this date in the first place
-                    try:
-                        val = UTC.localize(datetime.strptime(val, date_format + ' %H:%M:%S'))
-                    except Exception:
-                        val = UTC.localize(datetime.strptime(val, date_format))
-                elif isinstance(col.type, Date):
-                    val = datetime.strptime(val, date_format).date()
-                elif isinstance(col.type, Choice):
-                    val = col.type.convert_if_label(val)
-                elif isinstance(col.type, MultiChoice):
-                    val = col.type.convert_if_labels(val)
-                elif isinstance(col.type, Integer):
-                    val = int(val)
-                elif isinstance(col.type, JSONB):
-                    val = json.loads(val)
-
-                # now that we've converted val to whatever it actually needs to be, we
-                # can just set it on the model
-                setattr(model_instance, colname, val)
-
-            try:
-                session.commit()
-            except Exception:
-                log.error('ImportError', exc_info=True)
-                session.rollback()
-                message = 'Import unsuccessful'
+                setattr(model_instance, colname, model_instance.coerce_column_data(col, val))
 
             id_list.append(model_instance.id)
+
+        try:
+            session.commit()
+        except Exception:
+            log.error('ImportError', exc_info=True)
+            session.rollback()
+            message = 'Import unsuccessful'
 
         all_instances = session.query(model).filter(model.id.in_(id_list)).all() if id_list else None
 
@@ -271,24 +242,10 @@ class Root:
         session.execute(text('SELECT 1'))
         db_read_time += time.perf_counter()
 
-        if os.environ.get("ENABLE_CELERY", "true").lower() == "true":
-            payload = random.randrange(1024)
-            task_run_time = -time.perf_counter()
-            response = ping.delay(payload).wait(timeout=2)
-            task_run_time += time.perf_counter()
-        else:
-            task_run_time = 0
-            payload = "Not Run, ENABLE_CELERY != true"
-            response = "Not Run, ENABLE_CELERY != true"
-
         return json.dumps({
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
             'session_read_count': read_count,
             'session_commit_time': session_commit_time,
             'db_read_time': db_read_time,
             'db_status': Session.engine.pool.status(),
-            'task_run_time': task_run_time,
-            'task_response_correct': payload == response,
-            'task_payload': payload,
-            'task_response': response,
         })

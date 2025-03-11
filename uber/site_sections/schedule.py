@@ -88,26 +88,6 @@ class Root:
         })
 
     @site_mappable(download=True)
-    @schedule_view
-    def schedule_tsv(self, session):
-        cherrypy.response.headers['Content-Type'] = 'text/tsv'
-        cherrypy.response.headers['Content-Disposition'] = 'attachment;filename=Schedule-{}.tsv'.format(
-            int(localized_now().timestamp()))
-
-        schedule = defaultdict(list)
-        for event in session.query(Event).order_by('start_time').all():
-            schedule[event.location_label].append(dict(event.to_dict(), **{
-                'date': event.start_time_local.strftime('%m/%d/%Y'),
-                'start_time': event.start_time_local.strftime('%I:%M:%S %p'),
-                'end_time': (event.start_time_local + timedelta(minutes=event.minutes)).strftime('%I:%M:%S %p'),
-                'description': normalize_newlines(event.description).replace('\n', ' ')
-            }))
-
-        return render('schedule/schedule.tsv', {
-            'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0]['location']))
-        })
-
-    @site_mappable(download=True)
     def ical(self, session, **params):
         icalendar = ics.Calendar()
 
@@ -132,8 +112,8 @@ class Root:
                     name=event.name,
                     begin=event.start_time,
                     end=(event.start_time + timedelta(minutes=event.minutes)),
-                    description=normalize_newlines(event.description),
-                    created=event.created.when,
+                    description=normalize_newlines(event.public_description or event.description),
+                    created=event.created_info.when,
                     location=event.location_label))
 
         cherrypy.response.headers['Content-Type'] = \
@@ -145,26 +125,6 @@ class Root:
 
     if not c.HIDE_SCHEDULE:
         ical.restricted = False
-
-    @csv_file
-    def csv(self, out, session):
-        out.writerow(['Session Title', 'Date', 'Time Start', 'Time End', 'Room/Location',
-                      'Schedule Track (Optional)', 'Description (Optional)', 'Allow Checkin (Optional)',
-                      'Checkin Begin (Optional)', 'Limit Spaces? (Optional)', 'Allow Waitlist (Optional)'])
-        rows = []
-        for event in session.query(Event).order_by('start_time').all():
-            rows.append([
-                event.name,
-                event.start_time_local.strftime('%m/%d/%Y'),
-                event.start_time_local.strftime('%I:%M:%S %p'),
-                (event.start_time_local + timedelta(minutes=event.minutes)).strftime('%I:%M:%S %p'),
-                event.location_label,
-                event.guidebook_track,
-                normalize_newlines(event.description).replace('\n', ' '),
-                '', '', '', ''
-            ])
-        for r in sorted(rows, key=lambda tup: tup[4]):
-            out.writerow(r)
 
     @csv_file
     def panels(self, out, session):
@@ -179,7 +139,7 @@ class Root:
                     event.start_time_local.strftime('%I%p %a').lstrip('0'),
                     '{} minutes'.format(event.minutes),
                     event.location_label,
-                    event.description,
+                    event.public_description or event.description,
                     panelist_names])
 
     @schedule_view
@@ -194,7 +154,7 @@ class Root:
                 'start_unix': int(mktime(event.start_time.utctimetuple())),
                 'end_unix': int(mktime(event.end_time.utctimetuple())),
                 'duration': event.minutes,
-                'description': event.description,
+                'description': event.public_description or event.description,
                 'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
             }
             for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])
@@ -243,6 +203,7 @@ class Root:
                 if event.is_new:
                     event.name = add_panel.name
                     event.description = add_panel.description
+                    event.public_description = add_panel.public_description
                     for pa in add_panel.applicants:
                         if pa.attendee_id:
                             assigned_panelist = AssignedPanelist(attendee_id=pa.attendee.id, event_id=event.id)

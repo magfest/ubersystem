@@ -1,0 +1,150 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title_text = "Escalation Tickets" %}
+{% block content %}
+<h2>Escalation Tickets</h2>
+
+<script type="text/javascript">
+    var updateTicket = function (event, ticketID, markResolved) {
+        event.preventDefault();
+        let form = $(`#update-form-${ticketID}`)
+        let data = form.serialize();
+
+        if (markResolved != undefined) {
+            data = markResolved ? data + '&resolve=True' : data + '&unresolve=True';
+        }
+        data = data + `&csrf_token=${csrf_token}`;
+
+        $.ajax({
+            method: 'POST',
+            url: 'update_escalation_ticket',
+            dataType: 'json',
+            data: data,
+            success: function (json) {
+                hideMessageBox();
+                var message = json.message;
+                if (json.success) {
+                    $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                    $(`#resolved-time-${ticketID}`).html(json.resolved);
+                    $(`#resolve-btn-${ticketID}`).toggle(json.resolved == '');
+                    $(`#unresolve-btn-${ticketID}`).toggle(json.resolved != '');
+                } else {
+                showErrorMessage(message);
+                }
+            },
+            error: function () {
+                showErrorMessage('Unable to connect to server, please try again.');
+            }
+        });
+    }
+    var deleteTicket = function (ticketID, refID) {
+        bootbox.confirm({
+              backdrop: true,
+              title: 'Delete ticket?',
+              message: `Are you sure you want to delete escalation ticket #${refID}?
+                        This cannot be undone and should only be for cases where a ticket was incorrectly or mistakenly filed.`,
+              buttons: {
+                  confirm: { label: 'Delete Ticket', className: 'btn-danger' },
+                  cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+              },
+              callback: function (result) {
+                  if (result) {
+                    $.ajax({
+                        method: 'POST',
+                        url: 'delete_escalation_ticket',
+                        dataType: 'json',
+                        data: {
+                            id: ticketID,
+                            csrf_token: csrf_token,
+                        },
+                        success: function (json) {
+                            hideMessageBox();
+                            var message = json.message;
+                            if (json.success) {
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                $(`#${ticketID}`).hide();
+                            } else {
+                            showErrorMessage(message);
+                            }
+                        },
+                        error: function () {
+                            showErrorMessage('Unable to connect to server, please try again.');
+                        }
+                    });
+                }
+            }
+        });
+    }
+</script>
+
+<div class="row mt-3 justify-content-between">
+    <div class="col col-auto">
+        <span class="ms-2">{{ total_count }} total {% if not closed %}open {% endif %} ticket{{ total_count|pluralize }}</span>
+    </div>
+    <div class="col col-auto mb-3">
+        {% if closed %}
+        <a href="../reg_admin/escalation_tickets" class="btn btn-info">Hide Resolved Tickets</a>
+        {% else %}
+        <a href="../reg_admin/escalation_tickets?closed=True" class="btn btn-info">Show Resolved Tickets</a>
+        {% endif %}
+    </div>
+</div>
+
+{% block table %}
+<div class="card card-body">
+    <table class="table table-hover datatable" data-order="[[ 0, &quot;asc&quot; ]]">
+    <thead>
+        <tr>
+        {% block tableheadings %}
+        <th>Ticket ID</th>
+        <th>Created</th>
+        <th>Attendees</th>
+        <th>Problem</th>
+        <th>Admin Notes</th>
+        <th></th>
+        {% endblock tableheadings %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for ticket in tickets %}
+        <tr id="{{ ticket.id }}">
+            {% block tablerows scoped %}
+            <td>{{ ticket.ticket_id }}</td>
+            <td data-order="{{ ticket.created }}">
+                {{ ticket.created|time_day_local }}
+            </td>
+            <td>
+                {% for attendee in ticket.attendees %}
+                {{ attendee|form_link(true) }}{% if not loop.last %} / {% endif %}
+                {% endfor %}
+            </td>
+            <td>{{ ticket.description }}</td>
+            <td>
+                <input type="text" name="admin_notes" form="update-form-{{ ticket.id }}" class="form-control" value="{{ ticket.admin_notes }}">
+            </td>
+            <td data-order="{{ ticket.resolved }}" class="text-nowrap w-0">
+                <form method="post" id="update-form-{{ ticket.id }}">
+                    <input type="hidden" name="id" value="{{ ticket.id }}" />
+                </form>
+                <em id="resolved-time-{{ ticket.id }}">{% if ticket.resolved %}Resolved {{ ticket.resolved|time_day_local }}{% endif %}</em>&nbsp;
+                <button id="resolve-btn-{{ ticket.id }}" class="btn btn-sm btn-success" {% if ticket.resolved %}style="display:none;"{% endif %}
+                        onClick="updateTicket(event, '{{ ticket.id }}', true)">Resolve
+                </button>
+                <button id="unresolve-btn-{{ ticket.id }}" class="btn btn-sm btn-warning" {% if not ticket.resolved %}style="display:none;"{% endif %}
+                        onClick="updateTicket(event, '{{ ticket.id }}', false)">Reopen
+                </button>
+                <button class="btn btn-sm btn-primary" onClick="updateTicket(event, '{{ ticket.id }}')">
+                    Update
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" onClick="deleteTicket('{{ ticket.id }}', '{{ ticket.ticket_id }}')">
+                    Delete
+                </button>
+            </td>
+            {% endblock tablerows %}
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+</div>
+
+{% endblock table %}
+{% endblock content %}

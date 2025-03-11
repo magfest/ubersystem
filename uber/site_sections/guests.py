@@ -1,6 +1,7 @@
 import os
 import shutil
 
+from pockets.autolog import log
 import cherrypy
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
@@ -9,6 +10,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans
+from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check
 from uber.tasks.email import send_email
 
@@ -117,13 +119,17 @@ class Root:
         guest = session.guest_group(guest_id)
         guest_stage_plot = session.guest_stage_plot(params, restricted=True)
         if cherrypy.request.method == 'POST':
-            guest_stage_plot.filename = plot.filename
-            guest_stage_plot.content_type = plot.content_type.value
-            if guest_stage_plot.stage_plot_extension not in c.ALLOWED_STAGE_PLOT_EXTENSIONS:
-                message = 'Uploaded file type must be one of ' + ', '.join(c.ALLOWED_STAGE_PLOT_EXTENSIONS)
-            else:
-                with open(guest_stage_plot.fpath, 'wb') as f:
-                    shutil.copyfileobj(plot.file, f)
+            if plot.filename:
+                guest_stage_plot.filename = plot.filename
+                guest_stage_plot.content_type = plot.content_type.value
+                if guest_stage_plot.stage_plot_extension not in c.ALLOWED_STAGE_PLOT_EXTENSIONS:
+                    message = 'Uploaded file type must be one of ' + ', '.join(c.ALLOWED_STAGE_PLOT_EXTENSIONS)
+                else:
+                    with open(guest_stage_plot.fpath, 'wb') as f:
+                        shutil.copyfileobj(plot.file, f)
+            elif not params.get('notes'):
+                message = "Please either upload a stage layout or explain your inputs and stage gear needs in the Additional Notes section."
+            if not message:
                 guest.stage_plot = guest_stage_plot
                 session.add(guest_stage_plot)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Stage directions uploaded')
@@ -189,11 +195,22 @@ class Root:
         guest = session.guest_group(guest_id)
         guest_merch = session.guest_merch(params, checkgroups=GuestMerch.all_checkgroups, bools=GuestMerch.all_bools)
         guest_merch.handlers = guest_merch.extract_handlers(params)
+
+        autograph_params = params.copy()
+        autograph_params.pop('id', None)
+        if guest.autograph:
+            autograph_params['id'] = guest.autograph.id
+        guest_autograph = session.guest_autograph(autograph_params)
+        
         group_params = dict()
+
         if cherrypy.request.method == 'POST':
             message = check(guest_merch)
+            
             if not message:
-                if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE \
+                if not guest.deadline_from_model('autograph') and params.get('rock_island_autographs', '') == '':
+                    message = 'Please select whether you would like to have a Meet N Greet at Rock Island.'
+                elif c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE \
                         and guest_merch.selling_merch == c.OWN_TABLE \
                         and guest.group_type == c.BAND \
                         and not all([coverage, warning]):
@@ -214,6 +231,17 @@ class Root:
                     else:
                         guest.group.apply(group_params, restricted=True)
             if not message:
+                if not guest.deadline_from_model('autograph'):
+                    guest.autograph = guest_autograph
+                    session.add(guest_autograph)
+                    if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
+                        guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
+                        send_email.delay(
+                            c.ROCK_ISLAND_EMAIL,
+                            c.ROCK_ISLAND_EMAIL,
+                            '{} Meet & Greet Notification'.format(guest.group.name),
+                            render('emails/guests/meetgreet_notification.txt', {'guest': guest}, encoding=None),
+                            model=guest.to_dict('id'))
                 guest.merch = guest_merch
                 session.add(guest_merch)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your merchandise preferences have been saved')
@@ -223,9 +251,10 @@ class Root:
         return {
             'guest': guest,
             'guest_merch': guest_merch,
+            'guest_autograph': guest.autograph or guest_autograph,
             'group': group_params or guest.group,
             'message': message,
-            'agreed_to_ri_faq': guest.group_type == c.BAND and guest_merch and
+            'agreed_to_ri_faq': guest.group_type in c.ROCK_ISLAND_GROUPS and guest_merch and
             guest_merch.orig_value_of('selling_merch') != c.NO_MERCH and guest_merch.poc_address1,
         }
 
@@ -303,7 +332,7 @@ class Root:
             guest_autograph.length = 60 * int(params.get('length'), 0)
             guest_autograph.rock_island_length = 60 * int(params.get('rock_island_length', 0))
 
-            if guest_autograph.rock_island_autographs or \
+            if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
                     guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
                 send_email.delay(
                     c.ROCK_ISLAND_EMAIL,
@@ -344,7 +373,7 @@ class Root:
             detailed_travel_plans = compile_travel_plans_from_params(session, **params) or \
                 guest_travel_plans.detailed_travel_plans
         else:
-            guest_travel_plans = session.guest_travel_plans(params, checkgroups=['modes'])
+            guest_travel_plans = session.guest_travel_plans(params, restricted=True)
 
         if cherrypy.request.method == 'POST':
             if guest.uses_detailed_travel_plans:
@@ -397,6 +426,17 @@ class Root:
         return {
             'guest': guest,
             'guest_hospitality': guest.hospitality or guest_hospitality,
+            'message': message
+        }
+    
+    def performer_badges(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            guest.badges_assigned = bool(params.get('badges_assigned'))
+            raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for assigning your badges!')
+
+        return {
+            'guest': guest,
             'message': message
         }
 
@@ -524,6 +564,19 @@ class Root:
             if guest.group.studio:
                 if not params.get('show_info_updated'):
                     message = "Please confirm you have updated your studio's and game's information."
+
+                if not message and not guest.group.studio.contact_phone:
+                    message = 'Please update your show information to enter a contact phone number for MIVS staff.'
+
+                if not message:
+                    for game in guest.group.studio.confirmed_games:
+                        if not game.guidebook_header or not game.guidebook_thumbnail:
+                            message = "Please upload a Guidebook header and thumbnail."
+                        else:
+                            message = mivs_show_info_required_fields(game)
+                        if message:
+                            message = f"{game.title} show info is missing something: {message}"
+                            break
 
                 if not message:
                     guest.group.studio.show_info_updated = True

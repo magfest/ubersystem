@@ -8,9 +8,9 @@
         <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="bidder_title_{{ attendee.id }}">Bidder Signup</h4>
       </div>
-
-      <form target="upload_frame" method="post" action="sign_up_bidder" role="form" class="form-horizontal">
-        <div class="modal-body">
+      <div class="modal-body">
+        <div class="alert alert-dismissible" role="alert" id="bidder-message-alert-{{ attendee.id }}"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('bidder-message-alert-{{ attendee.id }}')" aria-label="Close"></button></div>
+        <form target="upload_frame" method="post" action="sign_up_bidder" role="form" class="form-horizontal">
           {{ csrf_token() }}
           {{ sign_up_form(attendee) }}
         </div>
@@ -23,23 +23,36 @@
           <button type="submit" class="btn btn-success save_bidder complete">Complete Signup</button>
           {% endif %}
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   </div>
 </div>
 {%- endmacro -%}
 
 {%- macro sign_up_form(attendee, printable=not admin_area) -%}
+{% if attendee and attendee.address1 %}
+  {% set address_model = attendee %}
+{% elif attendee.art_show_applications and attendee.art_show_applications[0].address1 %}
+  {% set address_model = attendee.art_show_applications[0] %}
+{% else %}
+  {% set address_model = attendee %}
+{% endif %}
+{% set attendee_fields_ro = printable or not c.INDEPENDENT_ART_SHOW %}
 <div class="row g-sm-3 p-0">
   <div class="col text-start">
-    <div class="form-text">Badge Name</div>
-    <div class="mb-3">{{ attendee.badge_printed_name }}</div>
+    {{ macros.form_group(attendee, 'badge_printed_name', label="Badge Name", is_readonly=attendee_fields_ro, use_bs5=True) }}
   </div>
 
-  <div class="col text-end">
+  <div class="col">
     <label class="form-text">Bidder Number</label>
-    <div class="mb-3"><span class="bidder_num">{{ attendee.art_show_bidder.bidder_num }}</span></div>
+    <div class="mb-3">
+    {% if not printable %}
+    <input type="text" class="form-control" name="bidder_num" value="{{ attendee.art_show_bidder.bidder_num }}" />
+    {% else %}
+    <span class="bidder_num">{{ attendee.art_show_bidder.bidder_num }}</span>
+    {% endif %}
+    </div>
   </div>
 
   <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
@@ -47,11 +60,11 @@
 </div>
 
 <div class="row g-sm-3">
-{{ macros.name_form_group(attendee, label="Full Name", is_readonly=True, use_bs5=True) }}
-{{ macros.form_group(attendee, 'legal_name', label="Legal Name", is_readonly=True, use_bs5=True) }}
+{{ macros.name_form_group(attendee, label="Full Name", is_readonly=attendee_fields_ro, use_bs5=True) }}
+{{ macros.form_group(attendee, 'legal_name', label="Legal Name", is_readonly=attendee_fields_ro, use_bs5=True) }}
 </div>
 
-{{ macros.address_form(attendee, is_readonly=True, use_bs5=True) }}
+{{ macros.address_form(address_model, is_readonly=attendee_fields_ro, use_bs5=True) }}
 
 {% if attendee.cellphone or not printable %}
 <div class="row g-sm-3">
@@ -65,7 +78,14 @@
 </div>
 
 <div class="row g-sm-3">
-{{ macros.form_group(attendee.art_show_bidder, 'admin_notes', label="Notes", is_readonly=printable, use_bs5=True) }}
+{{ macros.form_group(attendee.art_show_bidder, 'admin_notes', type='textarea', label="Notes", is_readonly=printable, use_bs5=True) }}
+<div class="col-12 col-sm-6">
+  <div class="form-text">Email List of Won Pieces?</div>
+  <label class="form-check-label">
+    <input type="checkbox" class="form-check-input" name="email_won_bids" value="1"{% if attendee.art_show_bidder.email_won_bids %} checked{% endif %}>
+    <strong>Yes</strong>, email this bidder at {{ attendee.email }} about pieces they won in the art show.
+  </label>
+</div>
 </div>
 
 {% if printable %}

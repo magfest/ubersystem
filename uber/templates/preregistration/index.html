@@ -57,16 +57,16 @@
           <td>
             <ul style="padding-left:15px">
               {% if attendee.badge_type in c.BADGE_TYPE_PRICES %}
-                {% set badge_cost = attendee.default_badge_cost + attendee.default_badge_upgrade_cost %}
-              {% elif (attendee.default_badge_cost and attendee.age_discount|abs < attendee.default_badge_cost) or attendee.default_promo_code_group_cost %}
-                {% set badge_cost = (attendee.default_badge_cost or attendee.default_promo_code_group_cost) - attendee.age_discount|abs %}
+                {% set badge_cost = attendee.calculate_badge_cost() + attendee.default_badge_upgrade_cost %}
+              {% elif (attendee.calculate_badge_cost() and attendee.age_discount|abs < attendee.calculate_badge_cost()) or attendee.default_promo_code_group_cost %}
+                {% set badge_cost = (attendee.calculate_badge_cost() or attendee.default_promo_code_group_cost) %}
               {% else %}
                 {% set badge_cost = 0 %}
               {% endif %}
               <li>{% if attendee.badge_type in c.BADGE_TYPE_PRICES %}{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}R{% endif %}egistration for {{ c.EVENT_NAME }}
                 {% if attendee.badges %} for {{ attendee.badges }} people{% endif %}
                 {% if badge_cost %} ({{ badge_cost|format_currency }}){% endif %}</li>
-              {% if attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_discount|abs > attendee.default_badge_cost and not attendee.promo_code_id %}
+              {% if attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_discount|abs > attendee.calculate_badge_cost() and not attendee.promo_code_id %}
                 <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
               {% elif attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_group_conf.discount != 0 %}
                 <li>{{ attendee.age_discount|abs|format_currency }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>

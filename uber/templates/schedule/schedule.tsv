@@ -1,3 +1,0 @@
-{% autoescape off %}Session Title	Date	Time Start	Time End	Room/Location	Schedule Track (Optional)	Description (Optional)
-{% for place, events in schedule %}{% for event in events %}{{ event.name }}	{{event.date}}	{{ event.start_time }}	{{ event.end_time }}	{{ place }}		{{ event.description|default("NO DESCRIPTION") }}
-{% endfor %}{% endfor %}{% endautoescape %}

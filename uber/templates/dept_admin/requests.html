@@ -53,9 +53,9 @@
 </h2>
 <p class="subheader">
   {% if requested_any %}
-    <a class="btn btn-xs btn-plain" href="requests?department_id={{ department.id }}">
+    <a class="btn btn-sm btn-secondary" href="requests?department_id={{ department.id }}">
   {% else %}
-    <a class="btn btn-xs btn-outline-secondary" href="requests?department_id={{ department.id }}&requested_any=1">
+    <a class="btn btn-sm btn-outline-secondary" href="requests?department_id={{ department.id }}&requested_any=1">
   {% endif %}
       <i class="fa fa-filter"></i>
       Include volunteers willing to help Anywhere

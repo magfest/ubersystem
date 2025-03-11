@@ -59,6 +59,9 @@
 </script>
 
 <div class="card">
+  <div class="card-header">
+    {% if group.is_dealer %}{{ c.DEALER_APP_TERM|title }}{% else %}Group{% endif %} Information
+  </div>
   <div class="card-body">
     {% if group.leader %}
     {% set attendee = group.leader %}
@@ -79,11 +82,13 @@
         {% endif %}
         {% include "groupextra.html" %}
         {% if group.status in c.DEALER_EDITABLE_STATUSES %}
+        <div id="dealer-actions">
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
         {% endif %}
         {% if group.status in c.DEALER_CANCELLABLE_STATUSES %}
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}
+        </div>
       </form>
       {% if group.status in c.DEALER_CANCELLABLE_STATUSES %}
         <form method="post" id="cancel_dealer" action="../preregistration/cancel_dealer" class="form-horizontal" role="form">
@@ -92,10 +97,10 @@
       {% endif %}
     {% endif%}
 
-{% if group.status not in [c.CANCELLED, c.DECLINED] %}
 <hr/>
 <h2 class="h5"> Members of "{{ group.name }}" </h2>
 
+{% if group.status not in [c.CANCELLED, c.DECLINED] %}
 {% if group.amount_unpaid and not group.is_dealer %}
     <div style="text-align:center">
         {{ stripe_form('process_group_payment',group) }}
@@ -122,11 +127,15 @@
     someone else. Upgraded badges may only be transferred directly between two people; please contact us at
     {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you wish to transfer badges.
 </div>
+{% elif group.attendees|length - group.floating|length != 1 %}
+<p>Because your {{ c.DEALER_APP_TERM }} is {{ group.status_label }}, you cannot add or assign {{ c.DEALER_HELPER_TERM }}s, but you can view your assigned {{ c.DEALER_HELPER_TERM }}s below.</p>
+{% endif %}
 
-<br/> <b>Here are the badges for your group:</b>
+<b>Here are the badges for your group:</b>
 <table style="width: auto">
 {% for attendee in group.sorted_attendees %}
     <tr>
+      {% if attendee.first_name or group.status not in [c.CANCELLED, c.DECLINED] %}
         <td><ul style="margin: 5px 0; padding-right: 0"><li></li></ul></td>
         {% if attendee.first_name %}
             <td style="padding-right: 10px">
@@ -148,7 +157,7 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee.can_abandon_badge %}
+                {% if not attendee.cannot_abandon_badge_reason %}
                   <form method="post" action="unset_group_member">
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -168,12 +177,14 @@
             </td>
         {% endif %}
     </tr>
+    {% endif %}
 {% endfor %}
 </table>
 
+{% if group.status not in [c.CANCELLED, c.DECLINED] %}
         <br/>{% if group.is_dealer and group.min_badges_addable %}
         You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional {{ c.DEALER_HELPER_TERM }} badges.<br/><br/>
-        {% elif group.is_dealer %}
+        {% elif group.is_dealer and group.status != c.SHARED %}
         Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional {{ c.DEALER_HELPER_TERM }} badges.
         {% endif %}
 
@@ -217,7 +228,7 @@
       </form>
     </div>
 
-    {% if c.REMAINING_BADGES > 50 and (not c.AT_THE_CON or not c.SPIN_TERMINAL_AUTH_KEY) %}
+    {% if c.REMAINING_BADGES > 50 and (not c.AT_THE_CON and not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY) %}
     <script type="text/javascript">
         {% if receipt and receipt.current_amount_owed %}
             $(function(){

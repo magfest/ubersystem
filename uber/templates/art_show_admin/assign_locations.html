@@ -1,16 +1,76 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Assign Locations{% endblock %}
+{% set title_text = "Assign Locations" %}
 {% block content %}
 <style type="text/css">
 .invalid-row>td {background-color: #FFE4E1 !important;}
 </style>
-{% block admin_controls %}
 
-<h3>Assign Locations</h3>
-<div class="card-body">
-  <form role="form" method="post" action="assign_locations" class="form-inline">
-  <button class="btn btn-primary" type="submit">Save</button>
-  <table class="table table-striped datatable">
+<script type="text/javascript">
+  var updateAll = function() {
+    let bigData = ''
+    $('[id^=update_location_]').each(function() {
+      let serializedData = new URLSearchParams($(this).serialize());
+
+      if (bigData == '') {
+        bigData = 'csrf_token=' + serializedData.get('csrf_token')
+      }
+
+      bigData = bigData + '&id=' + serializedData.get('id')
+
+      for (const [key, value] of serializedData) {
+        if (key != 'csrf_token' && key != 'id') {
+          bigData = bigData + '&' + key + '_' + serializedData.get('id') + '=' + value
+        }
+      }
+    })
+    $.ajax({
+      method: 'POST',
+      url: 'update_all',
+      dataType: 'json',
+      data: bigData,
+      success: function (json) {
+        hideMessageBox();
+        var message = json.message;
+        if (json.success) {
+          $("#message-alert").addClass("alert-info").show().children('span').html(message);
+          window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+        } else {
+          showErrorMessage(message);
+        }
+      },
+      error: function () {
+          showErrorMessage('Unable to connect to server, please try again.');
+      }
+    });
+  }
+  $().ready(function () {
+    $('form[action="update_location"]').on('submit', function(event) {
+      event.preventDefault();
+      $.ajax({
+        type: 'POST',
+        url: $(this).attr("action"),
+        data: $(this).serialize(), 
+        success: function (json) {
+          hideMessageBox();
+          var message = json.message;
+          if (json.success) {
+            $("#message-alert").addClass("alert-info").show().children('span').html(message);
+            window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+          } else {
+            showErrorMessage(message);
+          }
+        },
+        error: function () {
+            showErrorMessage('Unable to connect to server, please try again.');
+        }
+      });
+    })
+  });
+</script>
+
+<h2>Assign Locations</h2>
+<div class="card card-body">
+  <table class="table table-hover datatable">
     <thead><tr>
         <th>Artist Name</th>
         <th>Real Name</th>
@@ -18,27 +78,38 @@
         <th>Mature Grids</th>
         <th>General Tables</th>
         <th>Mature Tables</th>
-        <th>Location</th>
+        <th>Locations</th>
+        <th></th>
     </tr></thead>
     {% for app in apps %}
         <tr {% if app.amount_unpaid %}class="invalid-row"{% endif %}>
-            <td>{{ app.artist_name|default('N/A') }}</td>
-            <td style="text-align:left" data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}"> <a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}</a> </td>
+            <td>{{ app.artist_name|default('N/A',true) }}</td>
+            <td data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}"> <a href="form?id={{ app.id }}" target="_blank">{{ app.attendee.full_name|default("?????") }}</a> </td>
             <td>{{ app.panels }}</td>
             <td>{{ app.panels_ad }}</td>
             <td>{{ app.tables }}</td>
             <td>{{ app.tables_ad }}</td>
             <td>
-              <input type="text" class="form-control" name="{{ app.id }}_locations" value="{{ app.locations }}" />
+              <input type="text" class="form-control" form="update_location_{{ app.id }}" name="locations" value="{{ app.locations }}" />
+            </td>
+            <td>
+              <form id="update_location_{{ app.id }}" method="post" action="update_location">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ app.id }}" />
+                <button type="submit" class="btn btn-sm btn-primary update-button">
+                  <i class="fa fa-check"></i>
+                </button>
+              </form>
             </td>
         </tr>
     {% endfor %}
-      <caption align="bottom">
-        <ul class="pagination"></ul>
-      </caption>
     </table>
-    <button class="btn btn-primary" type="submit">Save</button>
-    </form>
+    <div class="d-flex justify-content-end mt-3">
+      <div class="flex-grow-1"></div>
+      <div>
+        <button type="button" class="btn btn-primary" onClick="updateAll()">Update All</button>
+      </div>
+    </div>
 </div>
-{% endblock admin_controls %}
+
 {% endblock content %}

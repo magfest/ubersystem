@@ -101,9 +101,9 @@
     {% if admin_account.is_super_admin %}All{% else %}Your{% endif %} Tokens
   </h3>
   {% if show_revoked %}
-    <a id="btn_show_revoked" href="index" class="btn btn-xs btn-plain">
+    <a id="btn_show_revoked" href="index" class="btn btn-sm btn-outline-secondary">
   {% else %}
-    <a id="btn_show_revoked" href="index?show_revoked=true" class="btn btn-xs btn-outline-secondary">
+    <a id="btn_show_revoked" href="index?show_revoked=true" class="btn btn-sm btn-outline-secondary">
   {% endif %}
       <i class="fa fa-filter"></i>
       Show Revoked Tokens
@@ -150,7 +150,7 @@
                 {% else %}
                   <form method="post" action="revoke_api_token" role="form">
                     <input type="hidden" name="id" value="{{ token.id }}"/>
-                    <button class="btn btn-xs btn-danger" type="submit">Revoke</button>
+                    <button class="btn btn-sm btn-danger" type="submit">Revoke</button>
                   </form>
                 {% endif %}
               </td>

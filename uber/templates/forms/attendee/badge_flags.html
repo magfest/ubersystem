@@ -18,7 +18,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 {% block attendee_info %}
-{% if not admin_area and (attendee.placeholder or 'register_group_member' in c.PAGE_PATH) %}
+{% if not admin_area and (attendee.placeholder or 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED) %}
     {% if attendee.placeholder %}
         <input type="hidden" name="placeholder" id="placeholder" value="False" />
     {% else %}

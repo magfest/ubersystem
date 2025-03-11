@@ -5,23 +5,27 @@
 {% set dealer_reg_open = c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
 {% set prereg_message %}
     {% if c.BEFORE_PREREG_OPEN %}
+        {% if not c.HIDE_PREREG_OPEN_DATE %}
         Preregistration will open {{ c.PREREG_OPEN|datetime_local }}.
+        {% else %}
+        Preregistration will open later this year.
+        {% endif %}
     {% elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON %}
         Preregistration has closed for the year.
     {% elif not c.ATTENDEE_BADGE_AVAILABLE %}
         {{ c.EVENT_NAME_AND_YEAR }} has sold out!
     {% endif %}
 {% endset %}
-{% if c.AT_THE_CON and account.at_door_attendees %}
+{% if c.AT_THE_CON and account.at_door_pending_attendees %}
     <h2 class="text-center fst-italic mt-3">Pending At-Door Registrations</h2>
     <div class="text-center">Please go to Registration to pay for and claim the badges below.</div>
-    {% for attendee in account.at_door_attendees %}
+    {% for attendee in account.at_door_pending_attendees %}
     <div class="card card-body mb-3">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% endfor %}
 {% endif %}
-{% if not account.valid_attendees and (not c.AT_THE_CON or not account.at_door_attendees) %}
+{% if not account.valid_attendees and (not c.AT_THE_CON or not account.at_door_pending_attendees) %}
     <div class="text-center">
         <span class="h2 text-uppercase">You have no current registrations</span>
         <p>{{ prereg_message }}</p>
@@ -36,16 +40,15 @@
             <a href="../preregistration/form" class="btn btn-primary">Register Now!</a>
         {% endif %}
         </p>
-        {% if account.imported_group_badges and dealer_reg_open %}
-            {% if account.imported_attendees|length == 1 and account.imported_attendees[0].is_group_leader %}
+        {% if account.imported_group_leaders and dealer_reg_open %}
+            {% if account.imported_group_leaders|length == 1 %}
                 <a href="../preregistration/reapply?id={{ account.imported_attendees[0].id }}" class="btn btn-success">Reapply with last year's dealer application</a>
             {% else %}
-                Select a registration below to purchase a badge for this year. You will be able to review and edit your information before purchasing.
-                
-                <br/><br/>If you were a dealer assistant last year, ask the dealer to log into their account and reapply.
+                Select a registration below to purchase a badge or reapply as a {{ c.DEALER_TERM }}. You will be able to review and edit your information before purchasing.
             {% endif %}
         {% elif dealer_reg_open %}
             <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
+            {% if account.imported_group_badges %}If you were a {{ c.DEALER_HELPER_TERM }} last year, ask your group leader to log into their account to reapply.{% endif %}
         {% endif %}
     </div>
 {% else %}
@@ -59,11 +62,31 @@
     <li>{{ attendee }} owes {{ (money_owed / 100)|format_currency }}</li>
     {% if loop.last %}
     </ul>
-    Please click "Edit Details" on the appropriate attendee below to view and pay for their registration.
+    Please click "View/Edit Registration" on the appropriate attendee below to view and pay for their registration.
     If this doesn't look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
     </div>
     {% endif %}
     {% endfor %}
+
+    {% if c.HOTEL_LOTTERY_OPEN or (account.hotel_eligible_staff|length > 0 and c.STAFF_HOTEL_LOTTERY_OPEN) %}
+    <div class="alert alert-info">
+        <p>
+            The {{ c.EVENT_NAME_AND_YEAR }} hotel lottery is now open!
+        </p>
+        <p>
+            Click the "<strong>Enter Hotel Lottery</strong>" button next to the details for your badge to start your lottery entry.
+        </p>
+        {% if account.hotel_eligible_attendees|length > 1 %}
+        <p>
+            <strong>Each badge must be entered into the lottery individually.</strong>
+            Your badges are NOT automatically entered as a group, so be sure to complete an entry for each eligible badge in your account.
+        </p>
+        {% if c.STAFF_HOTEL_LOTTERY_OPEN and not c.HOTEL_LOTTERY_OPEN %}
+            <p>The lottery is currently only available to staff. The attendee lottery begins {{ c.HOTEL_LOTTERY_FORM_START|datetime_local }}.</p>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
 
     {% if prereg_message %}
         <div class="text-center mt-3 mb-2 text-danger">{{ prereg_message }}</div>
@@ -114,36 +137,36 @@
 {% for attendee in account.imported_attendees %}
     {% if loop.first %}
         <h2 class="text-center fst-italic mt-3">Past Registrations</h2>
-        {% if not account.valid_attendees %}<div class="col-10">{% endif %}
+        {% if not account.valid_attendees %}<div class="row justify-content-center"><div class="col-10">{% endif %}
     {% endif %}
     <div class="card card-body mb-3">
     {% include "preregistration/attendee_card.html" %}
     </div>
-    {% if loop.last and not account.valid_attendees %}</div>{% endif %}
+    {% if loop.last and not account.valid_attendees %}</div>{% if not account.valid_attendees %}</div>{% endif %}{% endif %}
 {% endfor %}
 {% for attendee in account.refunded_deferred_attendees %}
 {% if loop.first %}
-<div class="panel card-danger">
+<div class="card">
     <div class="card-header">
         <h2 class="h4 card-title">Cancelled Registrations</h2>
     </div>
     <div class="card-body">
-        <table class="table table-striped datatable">
+        <table class="table table-hover">
         <thead>
             <tr>
-            <th>Status</th>
-            <th>Registration</th>
+            <th>Name</th>
+            <th>Email</th>
             <th></th>
             </tr>
         </thead>
         <tbody>
         {% endif %}
             <tr id="{{ account.email|idize }}">
-            <td>{{ attendee.badge_status_label }}</td>
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 {{ attendee.full_name }}
                 {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
             </td>
+            <td>{{ attendee.email }}</td>
             <td>
                 {% if attendee.badge_status == c.REFUNDED_STATUS %}
                 <form method="post" action="repurchase" class="form-horizontal">
@@ -184,60 +207,5 @@
         });
       });
     });
-  </script>
-
-{# TODO: move this to a script file #}
-<script type="text/javascript">
-    var checkDuplicateEmails = function(attendee_id, attendee_name) {
-        let link = '';
-        let modalIdStr = '';
-        if (event.currentTarget.tagName == "A") {
-            event.preventDefault();
-            link = event.currentTarget.href;
-        } else {
-            modalIdStr = event.currentTarget.dataset.bsTarget;
-        }
-        duplicate_message = '<p>The email address for this registration is used by at least one other registration.</p>' +
-                            '<p>Hotel lottery entries are limited to one entry per email address. Only one entry will be accepted.</p>' +
-                            '<p>See <a href="{{ c.HOTEL_LOTTERY_FAQ_URL }}" target="_blank">our FAQ</a> for more information.</p>'
-        $.ajax({
-        method: 'POST',
-        url: '../hotel_lottery/check_duplicate_emails',
-        data: {
-            id: attendee_id,
-            csrf_token: csrf_token
-        },
-        success: function(response) {
-            if (response.count && parseInt(response.count) > 0) {
-                if(link != '') {
-                    bootbox.confirm({
-                        backdrop: true,
-                        title: 'Hotel Lottery Notice',
-                        message: duplicate_message,
-                        buttons: {
-                        confirm: { label: 'Enter the hotel lottery as ' + attendee_name, className: 'btn-success' },
-                        cancel: { label: 'Cancel', className: 'btn-outline-secondary' }
-                        },
-                        callback: function (result) {
-                        if (result) {
-                            window.location.href = link;
-                        }
-                        }
-                    });
-                } else {
-                    modal = $(modalIdStr);
-                    modal.find('.duplicate-warning').first().html(duplicate_message);
-                }
-            } else if (response.count != undefined) {
-                if(link != '') {
-                    window.location.href = link;
-                } else {
-                    modal = $(modalIdStr);
-                    modal.find('.duplicate-warning').first().html('');
-                }
-            }
-        }
-    });   
-    }
   </script>
 {% endblock %}

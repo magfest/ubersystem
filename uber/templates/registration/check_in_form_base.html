@@ -6,7 +6,7 @@
   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 <div class="modal-body">
-{% if attendee.amount_unpaid or attendee.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS] and attendee.amount_unpaid_if_valid %}
+{% if attendee.amount_unpaid or attendee.badge_status == c.PENDING_STATUS and attendee.amount_unpaid_if_valid %}
 <div class="center text-center check-in">
 <h4>{{ attendee.full_name }} currently owes <strong>{{ attendee.amount_unpaid_if_valid|format_currency }}</strong>.</h4>
 {% if c.SPIN_TERMINAL_AUTH_KEY %}
@@ -18,6 +18,7 @@
     </form>
     <strong>OR</strong> <br/>
     <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ attendee.id }}', '', loadCheckInForm)">Prompt Payment at Terminal</button>
+    <button class="btn btn-primary" onClick="checkTerminalPayment('{{ attendee.id }}', 'attendee', loadCheckInForm)">Check Payment Terminal</button>
     <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
 {% else %}
     <form method="post" action="mark_as_paid">
@@ -41,8 +42,7 @@
 <iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
 </div>
 <div class="modal-footer">
-  <div class="form-group">
-  <div class="pull-right">
+    <div class="d-flex justify-content-end">
 <script type="text/javascript">
 var toggleMarkButton = function (dropdown) {
     var $button = $(dropdown).parent().parent().find(':submit');
@@ -187,19 +187,21 @@ $().ready(function() {
 </form>
 </div>
 <div class="modal-footer">
-    <button class='btn btn-outline-secondary btn-sm pull-left' onClick="loadCheckInFormModal('{{ attendee.id }}')">
-        <i class="fa fa-refresh"></i>
-    </button>
-  <div class="form-group">
-  <div class="pull-right">
-      <button type="submit" id="printAndOrCheckIn" form="check_in_form_{{ attendee.id }}" class="btn btn-primary">
-        {% if print_and_checkin %}Print Badge{% else %}Save{% endif %} & Check In
-      </button>
+    <div class="d-flex gap-1 w-100">
+        <div class="me-auto">
+            <button class='btn btn-outline-secondary btn-sm' onClick="loadCheckInFormModal('{{ attendee.id }}')">
+                <i class="fa fa-refresh"></i>
+            </button>
+        </div>
+        <div>
+            <button type="submit" id="printAndOrCheckIn" form="check_in_form_{{ attendee.id }}" class="btn btn-primary">
+                {% if print_and_checkin %}Print Badge{% else %}Save{% endif %} & Check In
+            </button>
+        </div>
 {% endif %}
    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
-  </div>
-  </div>
+</div>
  
 </div>
 <script type="text/javascript">
@@ -220,9 +222,9 @@ $().ready(function() {
         }
     }
     $('#printer_id').on('keyup', changeButtonLabel);
-    loadMinorCheckForm = function (attendeeID, printerID, reprintFee) {
+    loadMinorCheckForm = function (attendeeID, printerID) {
         $('#checkin_modal .modal-content').load(
-            '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee, function() {
+            '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID, function() {
         if ($('.minor-check-id').length) {
         } else {
             showErrorMessage("Form loading failed.");
@@ -243,7 +245,7 @@ $().ready(function() {
                     hideMessageBox('form-validations-check_in_form_' + attendeeID);
                     if (json.success) {
                         if (json.minor_check) {
-                            loadMinorCheckForm(attendeeID, $.val('printer_id'), 0);
+                            loadMinorCheckForm(attendeeID, $.val('printer_id'));
                         } else {
                             checkIn(attendeeID);
                         }

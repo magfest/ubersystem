@@ -13,15 +13,16 @@ from uber.utils import localized_now
 
 def pre_print_check(session, attendee, printer_id, dry_run=False, **params):
     fee_amount = params.get('fee_amount', 0)
+    free_reprint = params.get('free_reprint')
     reprint_reason = params.get('reprint_reason')
 
-    try:
-        fee_amount = int(fee_amount)
-    except Exception:
-        return False, "What you entered for Reprint Fee ({}) isn't even a number".format(fee_amount)
-
-    if not fee_amount and not reprint_reason and c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
-        return False, "You must set a fee or enter a reason for a free reprint!"
+    if c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
+        if not fee_amount:
+            return None, "This attendee has already had their badge printed."
+        elif free_reprint and not reprint_reason:
+            return None, "Please enter a reason for running a free badge reprint."
+    
+    fee_amount = 0 if free_reprint else fee_amount
 
     print_id, errors = session.add_to_print_queue(attendee,
                                                   printer_id,
@@ -29,7 +30,7 @@ def pre_print_check(session, attendee, printer_id, dry_run=False, **params):
                                                   fee_amount,
                                                   dry_run)
     if errors:
-        return False, "<br>".join(errors)
+        return None, "<br>".join(errors)
 
     if not fee_amount:
         if c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
@@ -39,11 +40,11 @@ def pre_print_check(session, attendee, printer_id, dry_run=False, **params):
                 .format(session.admin_attendee().full_name,
                         localized_now().strftime('%m/%d, %H:%M'),
                         " Reason: " + reprint_reason if reprint_reason else '')
-            return True, '{}adge sent to printer.'.format("B" if not c.BADGE_REPRINT_FEE or attendee.times_printed == 0
+            return print_id, '{}adge sent to printer.'.format("B" if not c.BADGE_REPRINT_FEE or attendee.times_printed == 0
                                                           else "Free reprint recorded and b")
     else:
-        return True, 'Badge sent to printer with reprint fee of ${}.'.format(fee_amount)
-    return True, 'Badge sent to printer.'
+        return print_id, 'To print this badge, please complete payment for the reprint fee of ${}.'.format(fee_amount)
+    return print_id, 'Badge sent to printer.'
 
 
 @all_renderable()
@@ -52,7 +53,7 @@ class Root:
         base_query = session.query(Attendee).join(Attendee.print_requests)
 
         if pending:
-            badges = base_query.filter(PrintJob.printed == None,  # noqa: E711
+            badges = base_query.filter(PrintJob.printed == None, PrintJob.ready == True,  # noqa: E711
                                        PrintJob.errors == '').order_by(PrintJob.queued.desc()).all()
         else:
             badges = base_query.filter(PrintJob.printed != None).order_by(PrintJob.printed.desc()).all()  # noqa: E711
@@ -120,9 +121,7 @@ class Root:
 
     @not_site_mappable
     def print_jobs(self, session, flag):
-        from uber.models import Tracking
-
-        filters = [Tracking.action == c.CREATED]
+        filters = []
         if flag == 'pending':
             filters += [PrintJob.queued == None, PrintJob.printed == None, PrintJob.errors == '']  # noqa: E711
         elif flag == 'not_printed':
@@ -134,25 +133,36 @@ class Root:
         elif flag == 'printed':
             filters += [PrintJob.printed != None]  # noqa: E711
 
-        jobs = session.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
-                 *filters).order_by(Tracking.when.desc()).limit(c.ROW_LOAD_LIMIT).all()
+        jobs = session.query(PrintJob).filter(*filters).order_by(PrintJob.created.desc()).all()
 
         return {
             'jobs': jobs,
+            'flag': flag,
         }
 
     @ajax
     def add_job_to_queue(self, session, id, printer_id='', **params):
         attendee = session.attendee(id)
-        success, message = pre_print_check(session, attendee, printer_id, dry_run=False, **params)
+        reprint_fee = 0 if params.get('free_reprint') else int(params.get('fee_amount', 0))
+        new_name = params.get('badge_printed_name', '')
 
-        if success:
-            reprint_fee = int(params.get('fee_amount', 0))
+        if new_name and new_name != attendee.badge_printed_name:
+            attendee.badge_printed_name = new_name
+            session.commit()
+            session.refresh(attendee)
+
+        print_id, message = pre_print_check(session, attendee, printer_id, dry_run=False, **params)
+
+        if print_id:
             if reprint_fee:
                 receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                 session.add(ReceiptItem(receipt_id=receipt.id,
+                                        department=c.REG_RECEIPT_ITEM,
+                                        category=c.BADGE_REPRINT,
                                         desc="Badge reprint fee (${})".format(reprint_fee),
                                         amount=reprint_fee * 100,
+                                        fk_id=print_id,
+                                        fk_model="PrintJob",
                                         count=1,
                                         who=AdminAccount.admin_name() or 'non-admin',
                                         )
@@ -161,7 +171,7 @@ class Root:
             session.add(attendee)
             session.commit()
 
-        return {'success': success, 'message': message}
+        return {'success': True if print_id else False, 'message': message}
 
     @ajax_gettable
     def mark_as_unsent(self, session, id):
@@ -217,6 +227,8 @@ class Root:
                 receipt = session.get_receipt_by_model(job.attendee)
                 if receipt:
                     session.add(ReceiptItem(receipt_id=receipt.id,
+                                            department=c.REG_RECEIPT_ITEM,
+                                            category=c.BADGE_REPRINT,
                                             desc="Badge reprint cancelled (${})".format(job.print_fee),
                                             amount=job.print_fee * 100 * -1,
                                             count=1,

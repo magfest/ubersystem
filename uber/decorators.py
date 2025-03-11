@@ -5,6 +5,7 @@ import inspect
 import json
 import os
 import re
+import sqlalchemy
 import threading
 import traceback
 import uuid
@@ -158,7 +159,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
     return check_can_edit_dept(session, department_id, inherent_role, override_access='full_dept_admin')
 
 
-def requires_account(model=None):
+def requires_account(models=None):
     from uber.models import Attendee, AttendeeAccount, Group
 
     def model_requires_account(func):
@@ -170,26 +171,39 @@ def requires_account(model=None):
                 admin_account_id = cherrypy.session.get('account_id')
                 attendee_account_id = cherrypy.session.get('attendee_account_id')
                 message = ''
-                if not model and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
+                if not models and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
                     # These should all be pages like the prereg form
                     if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']:
                         message_add = 'register'
                     else:
                         message_add = 'fill out this application'
                     message = 'Please log in or create an account to {}!'.format(message_add)
-                    raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
+                    ajax_or_redirect(func, '../landing/index?message=', message, True)
                 elif attendee_account_id is None and admin_account_id is None or \
                         attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
                     message = 'You must log in to view this page.'
-                elif kwargs.get('id') and model:
-                    check_id_for_model(model, **kwargs)
-                    if model == Attendee:
-                        attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
-                    elif model == Group:
-                        attendee = session.query(model).filter_by(id=kwargs.get('group_id',
-                                                                                kwargs.get('id'))).first().leader
-                    else:
-                        attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
+                elif kwargs.get('id') and models:
+                    model_list = [models] if not isinstance(models, list) else models
+                    attendee, error, model_id = None, None, None
+                    for model in model_list:
+                        if model == Attendee:
+                            error, model_id = check_id_for_model(model, alt_id='attendee_id', **kwargs)
+                            if not error:
+                                attendee = session.attendee(model_id, allow_invalid=True)
+                        elif model == Group:
+                            error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
+                            if not error:
+                                attendee = session.query(model).filter_by(id=model_id).first().leader
+                        else:
+                            other_model = session.query(model).filter_by(id=kwargs.get('id')).first()
+                            if other_model:
+                                attendee = other_model.attendee
+
+                        if attendee:
+                            break
+
+                    if error and not attendee:
+                        ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
 
                     # Admin account override
                     if session.admin_attendee_max_access(attendee):
@@ -202,8 +216,8 @@ def requires_account(model=None):
 
                 if message:
                     if admin_account_id:
-                        raise HTTPRedirect('../accounts/homepage?message={}'.format(message))
-                    raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
+                        ajax_or_redirect(func, '../accounts/homepage?message=', message)
+                    ajax_or_redirect(func, '../landing/index?message=', message, True)
             return func(*args, **kwargs)
         return protected
     return model_requires_account
@@ -220,7 +234,7 @@ def requires_admin(func=None, inherent_role=None, override_access=None):
                 with uber.models.Session() as session:
                     message = check_can_edit_dept(session, department_id, inherent_role, override_access)
                     if message:
-                        raise HTTPRedirect('../accounts/homepage?message={}'.format(message), save_location=True)
+                        ajax_or_redirect(func, '../accounts/homepage?message=', message, True)
             return func(*args, **kwargs)
         return _protected
 
@@ -255,7 +269,9 @@ def ajax(func):
             assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
             check_csrf(kwargs.pop('csrf_token', None))
         except Exception:
-            message = "There was an issue submitting the form. Please refresh and try again."
+            traceback.print_exc()
+            message = "Your session login may have timed out. Try logging in again." if c.ATTENDEE_ACCOUNTS_ENABLED else \
+                "There was an issue submitting the form. Please refresh and try again."
             return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     returns_json.ajax = True
@@ -348,7 +364,7 @@ def xlsx_file(func):
         if set_headers:
             cherrypy.response.headers['Content-Type'] = \
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.xlsx')
+            _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d_%H%M') + '.xlsx')
 
         track_report(kwargs)
         return output
@@ -372,7 +388,7 @@ def csv_file(func):
         # set headers last in case there were errors, so end user still see error page
         if set_headers:
             cherrypy.response.headers['Content-Type'] = 'application/csv'
-            _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.csv')
+            _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d_%H%M') + '.csv')
 
         track_report(kwargs)
         return output
@@ -395,7 +411,7 @@ def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
         if c.UBER_SHUT_DOWN:
-            raise HTTPRedirect('index?message={}', 'The page you requested is only available pre-event.')
+            ajax_or_redirect(func, 'index?message=', 'The page you requested is only available pre-event.')
         else:
             return func(self, *args, **kwargs)
     return with_check
@@ -548,6 +564,10 @@ def sessionized(func):
 
     @wraps(func)
     def with_session(*args, **kwargs):
+        if len(args) > 1 and isinstance(args[1], sqlalchemy.orm.session.Session):
+            retval = func(*args, **kwargs)
+            return retval
+
         with uber.models.Session() as session:
             try:
                 retval = func(*args, session=session, **kwargs)
@@ -564,6 +584,19 @@ def renderable_data(data=None):
     data['c'] = c
     data.update({m.__name__: m for m in uber.models.Session.all_models()})
     return data
+
+
+# render using the first template that actually exists in template_name_list
+# Returns a generator that streams the template result to the client
+def render_stream(template_name_list, data=None, encoding='utf-8'):
+    data = renderable_data(data)
+    env = JinjaEnv.env()
+    template = env.get_or_select_template(template_name_list)
+    rendered = template.generate(data)
+    if encoding:
+        for chunk in rendered:
+            yield chunk.encode(encoding)
+    return rendered
 
 
 # render using the first template that actually exists in template_name_list
@@ -610,12 +643,12 @@ def renderable(func):
             message = "Your CSRF token is invalid. Please go back and try again."
             uber.server.log_exception_with_verbose_context(msg=str(e))
             if not c.DEV_BOX:
-                raise HTTPRedirect("../landing/invalid?message={}", message)
+                ajax_or_redirect(func, '../landing/invalid?message=', message)
         except (AssertionError, ValueError) as e:
             message = str(e)
             uber.server.log_exception_with_verbose_context(msg=message)
             if not c.DEV_BOX:
-                raise HTTPRedirect("../landing/invalid?message={}", message)
+                ajax_or_redirect(func, '../landing/invalid?message=', message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
             pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
@@ -624,7 +657,7 @@ def renderable(func):
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
                 if not c.DEV_BOX:
-                    raise HTTPRedirect("../landing/invalid?message={}", message)
+                    ajax_or_redirect(func, '../landing/invalid?message=', message)
             else:
                 raise
 
@@ -645,11 +678,19 @@ def renderable(func):
             if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
                 return render('closed.html')
             elif isinstance(result, dict):
+                cp_config = getattr(func, "_cp_config", {})
+                if cp_config.get("response.stream", False):
+                    return render_stream(_get_template_filename(func), result)
                 return render(_get_template_filename(func), result)
             else:
                 return result
 
     return with_rendering
+
+def streamable(func):
+    func._cp_config = getattr(func, "_cp_config", {})
+    func._cp_config['response.stream'] = True
+    return func
 
 
 def public(func):
@@ -657,19 +698,17 @@ def public(func):
     return func
 
 
-def any_admin_access(func):
-    func.public = True
+def kiosk_login(login_url='index'):
+    def kiosk_decorator(func):
+        func.kiosk_login = login_url
+        return func
 
-    @wraps(func)
-    def with_check(*args, **kwargs):
-        if cherrypy.session.get('account_id') is None:
-            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
-        with uber.models.Session() as session:
-            account = session.admin_account(cherrypy.session.get('account_id'))
-            if not account.access_groups:
-                return "You do not have any admin accesses."
-        return func(*args, **kwargs)
-    return with_check
+    return kiosk_decorator
+
+
+def any_admin_access(func):
+    func.any_admin_access = True
+    return func
 
 
 def attendee_view(func):
@@ -678,7 +717,7 @@ def attendee_view(func):
     @wraps(func)
     def with_check(*args, **kwargs):
         if cherrypy.session.get('account_id') is None:
-            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+            ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
         if kwargs.get('id') and str(kwargs.get('id')) != "None":
             with uber.models.Session() as session:
@@ -703,24 +742,49 @@ def schedule_view(func):
     return with_check
 
 
+def ajax_or_redirect(func, redirect_url, message, save_location=False):
+    # Make sure redirect_url ends with 'message=' so we can append the message
+
+    if getattr(func, 'ajax', None):
+        return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
+    raise HTTPRedirect(redirect_url + '{}', message, save_location=save_location)
+
+
 def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
-        if not func.public:
-            if '/staffing/' in c.PAGE_PATH:
-                if not cherrypy.session.get('staffer_id'):
-                    raise HTTPRedirect('../staffing/login?message=You+are+not+logged+in', save_location=True)
+        if func.public:
+            return func(*args, **kwargs)
 
-            elif cherrypy.session.get('account_id') is None:
-                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+        if '/staffing/' in c.PAGE_PATH:
+            if not cherrypy.session.get('staffer_id'):
+                ajax_or_redirect(func, '../staffing/login?message=', "You are not logged in.", True)
 
-            elif '/mivs_judging/' in c.PAGE_PATH:
-                if not uber.models.AdminAccount.is_mivs_judge_or_admin:
-                    return f'You need to be a MIVS Judge or have access to {c.PAGE_PATH}'
+        elif cherrypy.session.get('account_id') is None:
+            if getattr(func, 'kiosk_login', None):
+                if not cherrypy.session.get('kiosk_supervisor_id'):
+                    cherrypy.session.pop('kiosk_operator_id', None)
+                    ajax_or_redirect(func, '../accounts/login?message=',
+                                     "Session timed out. Please have your supervisor log in.", True)
 
+                if not cherrypy.session.get('kiosk_operator_id') and cherrypy.request.method == 'POST':
+                    ajax_or_redirect(func, f'{func.kiosk_login}?message=',
+                                     "Please enter your badge number to log into the kiosk.")
             else:
-                if not c.has_section_or_page_access(include_read_only=True):
-                    return f'You need access to {c.PAGE_PATH}.'
+                ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
+
+        elif '/mivs_judging/' in c.PAGE_PATH:
+            if not uber.models.AdminAccount.is_mivs_judge_or_admin:
+                return f'You need to be a MIVS Judge or have access to {c.PAGE_PATH}'
+
+        elif getattr(func, 'any_admin_access', None):
+            with uber.models.Session() as session:
+                account = session.admin_account(cherrypy.session.get('account_id'))
+                if not account.access_groups:
+                    return "You do not have any admin accesses."
+        else:
+            if not c.has_section_or_page_access(include_read_only=True):
+                return f'You need access to {c.PAGE_PATH}.'
 
         return func(*args, **kwargs)
     return with_restrictions
@@ -789,7 +853,7 @@ class ReceiptItemConfig:
         return wrapper
 
 
-cost_calculation, credit_calculation = ReceiptItemConfig(), ReceiptItemConfig()
+receipt_calculation = ReceiptItemConfig()
 
 
 adjustment_counter = count().__next__
@@ -873,16 +937,21 @@ def id_required(model):
     def model_id_required(func):
         @wraps(func)
         def check_id(*args, **params):
-            check_id_for_model(model=model, **params)
+            error, model_id = check_id_for_model(model=model, **params)
+            if error:
+                ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
             return func(*args, **params)
         return check_id
     return model_id_required
 
 
-def check_id_for_model(model, **params):
+def check_id_for_model(model, alt_id=None, **params):
     message = None
     session = params['session']
-    model_id = params.get('id')
+    if alt_id:
+        model_id = params.get(alt_id, params.get('id'))
+    else:
+        model_id = params.get('id')
 
     if not model_id:
         message = "No ID provided. Try using a different link or going back."
@@ -901,4 +970,4 @@ def check_id_for_model(model, **params):
 
     if message:
         log.error("check_id {} error: {}: id={}".format(model.__name__, message, model_id))
-        raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, message)
+    return message, model_id

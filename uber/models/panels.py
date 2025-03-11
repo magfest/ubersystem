@@ -23,6 +23,8 @@ class Event(MagModel):
     duration = Column(Integer)  # half-hour increments
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
+    public_description = Column(UnicodeText)
+    track = Column(UnicodeText)
 
     assigned_panelists = relationship('AssignedPanelist', backref='event')
     applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"),
@@ -53,6 +55,24 @@ class Event(MagModel):
         return self.start_time + timedelta(minutes=self.minutes)
 
     @property
+    def guidebook_data(self):
+        # This is for a Guidebook Sessions export, so it's not the same as a custom list
+        from uber.utils import normalize_newlines
+
+        description = self.public_description or self.description
+
+        return {
+            'name': self.name,
+            'start_date': self.start_time_local.strftime('%m/%d/%Y'),
+            'start_time': self.start_time_local.strftime('%I:%M %p'),
+            'end_date': self.end_time_local.strftime('%m/%d/%Y'),
+            'end_time': self.end_time_local.strftime('%I:%M %p'),
+            'location': self.location_label,
+            'track': self.track,
+            'description': normalize_newlines(description).replace('\n', ' '),
+            }
+
+    @property
     def guidebook_name(self):
         return self.name
 
@@ -70,18 +90,7 @@ class Event(MagModel):
 
     @property
     def guidebook_desc(self):
-        panelists_creds = '<br/><br/>' + '<br/><br/>'.join(
-            a.other_credentials for a in self.applications[0].applicants if a.other_credentials
-        ) if self.applications else ''
-        return self.description + panelists_creds
-
-    @property
-    def guidebook_location(self):
-        return self.location_label
-
-    @property
-    def guidebook_track(self):
-        return self.applications[0].track if self.applications else ''
+        return self.public_description or self.description
 
 
 class AssignedPanelist(MagModel):
@@ -104,6 +113,7 @@ class PanelApplication(MagModel):
     length_text = Column(UnicodeText)
     length_reason = Column(UnicodeText)
     description = Column(UnicodeText)
+    public_description = Column(UnicodeText)
     unavailable = Column(UnicodeText)
     available = Column(UnicodeText)
     affiliations = Column(UnicodeText)
@@ -123,9 +133,10 @@ class PanelApplication(MagModel):
     tabletop = Column(Boolean, default=False)
     cost_desc = Column(UnicodeText)
     livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
+    record = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
     panelist_bringing = Column(UnicodeText)
     extra_info = Column(UnicodeText)
-    applied = Column(UTCDateTime, server_default=utcnow())
+    applied = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     accepted = Column(UTCDateTime, nullable=True)
     confirmed = Column(UTCDateTime, nullable=True)
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
@@ -141,11 +152,18 @@ class PanelApplication(MagModel):
         if self.event:
             self.event.name = self.name
             self.event.description = self.description
+            self.event.public_description = self.public_description
+            self.event.track = self.track
     
     @presave_adjustment
     def set_default_dept(self):
         if len(c.PANEL_DEPT_OPTS) <= 1 and not self.department:
             self.department = c.PANELS
+
+    @presave_adjustment
+    def set_record(self):
+        if len(c.LIVESTREAM_OPTS) > 2 and not self.record:
+            self.record = c.OPT_OUT
 
     @property
     def email(self):

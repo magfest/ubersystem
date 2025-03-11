@@ -13,7 +13,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber.config import c
 from uber.custom_tags import readable_join
 from uber.decorators import render
-from uber.models import ApiJob, Attendee, TerminalSettlement, Email, Session, ReceiptInfo, ReceiptTransaction
+from uber.models import (ApiJob, Attendee, AttendeeAccount, TerminalSettlement, Email, Session, BadgePickupGroup,
+                         ReceiptInfo, ReceiptTransaction)
 from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils
@@ -22,7 +23,34 @@ from uber.payments import ReceiptManager
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
            'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue',
-           'process_terminal_sale', 'send_receipt_email']
+           'process_terminal_sale', 'send_receipt_email', 'assign_badge_num', 'create_badge_pickup_groups', 'update_receipt']
+
+
+@celery.task
+def assign_badge_num(attendee_id):
+    time.sleep(1) # Allow some time to save to DB
+    with Session() as session:
+        attendee = session.query(Attendee).filter_by(id=attendee_id).first()
+        if not attendee:
+            time.sleep(60)
+            attendee = session.query(Attendee).filter_by(id=attendee_id).first()
+            if not attendee:
+                log.error(f"Timed out when trying to assign a badge number to attendee {attendee_id}!")
+                return
+        attendee.badge_num = session.get_next_badge_num(attendee.badge_type)
+        session.add(attendee)
+        session.commit()
+
+
+@celery.task
+def update_receipt(attendee_id, params):
+    with Session() as session:
+        attendee = session.attendee(attendee_id)
+        receipt = session.get_receipt_by_model(attendee)
+        if receipt:
+            receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+            session.add_all(receipt_items)
+            session.commit()
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -34,7 +62,7 @@ def check_duplicate_registrations():
     the registration email address. This allows us to see new duplicate
     attendees without repetitive emails.
     """
-    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
+    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         subject = c.EVENT_NAME + ' Duplicates Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
             if session.no_email(subject):
@@ -65,7 +93,7 @@ def check_duplicate_registrations():
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_placeholder_registrations():
-    if c.PRE_CON and c.CHECK_PLACEHOLDERS and (c.DEV_BOX or c.SEND_EMAILS):
+    if c.PRE_CON and c.CHECK_PLACEHOLDERS and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         emails = [[
             'Staff',
             c.STAFF_EMAIL,
@@ -108,7 +136,7 @@ def check_placeholder_registrations():
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_pending_badges():
-    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
+    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         emails = [[
             'Staff',
             c.STAFF_EMAIL,
@@ -135,7 +163,7 @@ def check_pending_badges():
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_unassigned_volunteers():
-    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
+    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         with Session() as session:
             unassigned = session.query(Attendee).filter(
                 Attendee.is_valid == True,  # noqa: E712
@@ -151,18 +179,34 @@ def check_unassigned_volunteers():
 
 @celery.schedule(timedelta(minutes=5))
 def check_near_cap():
-    actual_badges_left = c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT
-    for badges_left in [int(num) for num in c.BADGES_LEFT_ALERTS]:
-        subject = "BADGES SOLD ALERT: {} BADGES LEFT!".format(badges_left)
-        with Session() as session:
-            if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
-                body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left}, encoding=None)
-                send_email.delay(c.REPORTS_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
+    if c.REPORTS_EMAIL:
+        actual_badges_left = c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT
+        for badges_left in [int(num) for num in c.BADGES_LEFT_ALERTS]:
+            subject = "BADGES SOLD ALERT: {} BADGES LEFT!".format(badges_left)
+            with Session() as session:
+                if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
+                    body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left}, encoding=None)
+                    send_email.delay(c.REPORTS_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
+
+
+@celery.schedule(timedelta(days=1))
+def invalidate_at_door_badges():
+    if not c.POST_CON:
+        return
+
+    with Session() as session:
+        pending_badges = session.query(Attendee).filter(Attendee.paid == c.PENDING,
+                                                        Attendee.badge_status == c.NEW_STATUS)
+        for badge in pending_badges:
+            badge.badge_status = c.INVALID_STATUS
+            session.add(badge)
+
+        session.commit()
 
 
 @celery.schedule(timedelta(days=1))
 def email_pending_attendees():
-    if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or c.AT_THE_CON:
+    if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or not c.PRE_CON:
         return
 
     already_emailed_accounts = []
@@ -170,6 +214,7 @@ def email_pending_attendees():
     with Session() as session:
         four_days_old = datetime.now(pytz.UTC) - timedelta(hours=96)
         pending_badges = session.query(Attendee).filter(
+            Attendee.paid == c.PENDING,
             Attendee.badge_status == c.PENDING_STATUS,
             Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)).order_by(Attendee.registered)
         for badge in pending_badges:
@@ -271,7 +316,7 @@ def close_out_terminals(workstation_and_terminal_ids, who):
 
 
 @celery.task
-def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_id=None, **kwargs):
+def process_terminal_sale(workstation_num, terminal_id, model_id=None, pickup_group_id=None, **kwargs):
     from uber.payments import SpinTerminalRequest
     from uber.models import TxnRequestTracking, AdminAccount
 
@@ -281,6 +326,7 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
 
     with Session() as session:
         txn_tracker = TxnRequestTracking(workstation_num=workstation_num, terminal_id=terminal_id,
+                                         fk_id=pickup_group_id or model_id,
                                          who=AdminAccount.admin_name())
         session.add(txn_tracker)
         session.commit()
@@ -288,19 +334,22 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
         c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'tracking_id', txn_tracker.id)
         intent_id = SpinTerminalRequest.intent_id_from_txn_tracker(txn_tracker)
 
-        if account_id:
+        if pickup_group_id:
             try:
-                account = session.attendee_account(account_id)
+                pickup_group = session.badge_pickup_group(pickup_group_id)
             except NoResultFound:
-                txn_tracker.internal_error = f"Account {account_id} not found!"
+                txn_tracker.internal_error = f"Badge pickup group {pickup_group_id} not found!"
                 session.commit()
                 return
 
             txn_total = 0
             attendee_names_list = []
             receipts = []
+            account_email = ''
             try:
-                for attendee in account.at_door_attendees:
+                for attendee in pickup_group.pending_paid_attendees:
+                    if attendee.managers and not account_email:
+                        account_email = attendee.primary_account_email
                     receipt = session.get_receipt_by_model(attendee)
                     if receipt:
                         incomplete_txn = receipt.get_last_incomplete_txn()
@@ -322,11 +371,11 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
                 session.commit()
                 return
 
-            # Accounts get a custom payment description defined here, so get rid of whatever was passed in
+            # Pickup groups get a custom payment description defined here, so get rid of whatever was passed in
             kwargs.pop("description", None)
 
             payment_request = SpinTerminalRequest(terminal_id=terminal_id,
-                                                  receipt_email=account.email,
+                                                  receipt_email=account_email,
                                                   description="At-door registration for "
                                                   f"{readable_join(attendee_names_list)}",
                                                   amount=txn_total,
@@ -379,9 +428,10 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
         if response:
             payment_request.process_sale_response(session, response)
         else:
+            error = payment_request.error_message or 'Terminal request timed out or was interrupted'
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id,
-                               'last_error', payment_request.error_message)
-            txn_tracker.internal_error = payment_request.error_message
+                               'last_error', error)
+            txn_tracker.internal_error = error
 
 
 @celery.schedule(timedelta(minutes=30))
@@ -408,6 +458,51 @@ def check_missed_stripe_payments():
             paid_ids.append(payment_intent.id)
             ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
     return paid_ids
+
+
+@celery.schedule(timedelta(days=1))
+def create_badge_pickup_groups():
+    if c.ATTENDEE_ACCOUNTS_ENABLED and c.BADGE_PICKUP_GROUPS_ENABLED and (c.AFTER_PREREG_TAKEDOWN or c.DEV_BOX):
+        with Session() as session:
+            skip_account_ids = set(s for (s,) in session.query(BadgePickupGroup.account_id).all())
+            for account in session.query(AttendeeAccount).filter(~AttendeeAccount.id.in_(skip_account_ids)):
+                pickup_group = BadgePickupGroup(account_id=account.id)
+                pickup_group.build_from_account(account)
+                session.add(pickup_group)
+            session.commit()
+
+
+@celery.task
+def import_attendee_accounts(accounts, admin_id, admin_name, target_server, api_token):
+    already_queued = 0
+    with Session() as session:
+        for account in accounts:
+            id = account['id']
+            existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_account_import",
+                                                           ApiJob.query == id,
+                                                           ApiJob.completed == None,  # noqa: E711
+                                                           ApiJob.cancelled == None,  # noqa: E711
+                                                           ApiJob.errors == '').count()
+            if existing_import:
+                already_queued += 1
+            else:
+                import_job = ApiJob(
+                    admin_id=admin_id,
+                    admin_name=admin_name,
+                    job_name="attendee_account_import",
+                    target_server=target_server,
+                    api_token=api_token,
+                    query=id,
+                    json_data={'all': False}
+            )
+                if len(accounts) < 25:
+                    TaskUtils.attendee_account_import(import_job)
+                else:
+                    session.add(import_job)
+        session.commit()
+    count = len(accounts) - already_queued
+    return f"{count} account(s) queued for import. {already_queued} jobs were already in the queue."
+    
 
 
 @celery.schedule(timedelta(minutes=30))

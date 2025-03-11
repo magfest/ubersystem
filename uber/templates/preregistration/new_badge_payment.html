@@ -25,7 +25,7 @@
                 </form>
             </div>
             {% endif %}
-            {% if attendee.can_abandon_badge %}
+            {% if not attendee.cannot_abandon_badge_reason %}
             <div class="col col-auto">
                 <form method="post" action="abandon_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}"/>

@@ -9,7 +9,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import PromoCode, PromoCodeWord, Session
-from uber.utils import check, check_all, localized_now
+from uber.utils import check, check_all, localized_now, RegistrationCode
 
 
 @all_renderable()
@@ -66,7 +66,8 @@ class Root:
         return {'result': result}
 
     def delete_promo_codes(self, session, id=None, **params):
-        query = session.query(PromoCode).filter(PromoCode.uses_count == 0)
+        query = session.query(PromoCode).filter(PromoCode.uses_count == 0,
+                                                PromoCode.group == None)
         if id is not None:
             ids = [s.strip() for s in id.split(',') if s.strip()]
             query = query.filter(PromoCode.id.in_(ids))
@@ -78,15 +79,19 @@ class Root:
         raise HTTPRedirect(page + '?message={}', '{} promo code{} deleted'.format(result, '' if result == 1 else 's'))
 
     @csv_file
-    def export_promo_codes(self, out, session, codes):
-        codes = codes or session.query(PromoCode).all()
-        out.writerow(['Code', 'Expiration Date', 'Discount', 'Uses'])
+    def export_promo_codes(self, out, session, code_ids=[]):
+        if code_ids:
+            codes = [session.promo_code(id) for id in code_ids]
+        else:
+            codes = session.query(PromoCode).filter(PromoCode.group == None).all()
+        out.writerow(['Code', 'Expiration Date', 'Discount', 'Total Uses', '# Uses'])
         for code in codes:
             out.writerow([
                 code.code,
                 code.expiration_date,
                 code.discount_str,
-                code.uses_allowed_str])
+                code.uses_allowed_str,
+                code.uses_count_str])
 
     @site_mappable
     @log_pageview
@@ -102,6 +107,7 @@ class Root:
             discount_type=0,
             discount=10,
             uses_allowed=1,
+            admin_notes='',
             export=False)
         params = dict(defaults, **{k: v for k, v in params.items() if k in defaults})
 
@@ -141,7 +147,7 @@ class Root:
 
             if not codes:
                 if params['use_words']:
-                    codes = PromoCode.generate_word_code(params['count'])
+                    codes = RegistrationCode.generate_word_code(params['count'])
                 else:
                     try:
                         length = int(params['length'])
@@ -151,8 +157,8 @@ class Root:
                         segment_length = int(params['segment_length'])
                     except Exception:
                         segment_length = 3
-                    codes = PromoCode.generate_random_code(
-                        params['count'], length, segment_length)
+                    codes = RegistrationCode.generate_random_code(PromoCode.code, params['count'],
+                                                                  length, segment_length)
 
             promo_codes = []
             for code in codes:
@@ -175,10 +181,29 @@ class Root:
                 result['message'] = 'Some of the requested promo codes could not be generated'
 
         if params['export']:
-            return self.export_promo_codes(codes=result['promo_codes'])
+            return self.export_promo_codes(code_ids=[code.id for code in result['promo_codes']])
 
         result.update(defaults)
         return result
+    
+    @ajax
+    def update_all(self, session, message='', **params):
+        if 'id' in params:
+            for id in params.get('id'):
+                code_params = {key.replace(f'_{id}', ''): val for key, val in params.items() if f'_{id}' in key}
+                code_params['id'] = id
+
+                promo_code = session.promo_code(code_params)
+                message = check(promo_code)
+                if message:
+                    session.rollback()
+                    return {'success': False,
+                            'message': f"Could not save promo code {promo_code.code}: {message}"}
+                else:
+                    session.commit()
+            return {'success': True,
+                    'message': "Promo codes updated!"}
+
 
     def update_promo_code(self, session, message='', **params):
         if 'id' in params:

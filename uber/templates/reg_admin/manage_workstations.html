@@ -146,7 +146,10 @@
 
         {% if c.HAS_DEVTOOLS_ACCESS and c.SPIN_TERMINAL_AUTH_KEY %}
         <br/>
-        <p>Use the form below to get any transaction's current status in JSON. Debug use only, obviously.</p>
+        <p>
+            Use the form below to get any transaction's current status in JSON. Debug use only.
+            The terminal that processed the transaction must be assigned to your current workstation.
+        </p>
         <form method="post" action="../registration/check_txn_status">
             {{ csrf_token() }}
             <div class="row g-sm-3 row-cols-auto">
@@ -175,7 +178,7 @@
                     <tbody>
                         {% for timestamp, admin, workstation_num, terminal_id in settlements['in_progress'] %}
                         <tr>
-                            <td>{{ timestamp|timestamp_to_dt|datetime_local }}</td>
+                            <td data-sort="{{ timestamp }}">{{ timestamp|timestamp_to_dt|datetime_local }}</td>
                             <td>{{ admin }}</td>
                             <td>{{ workstation_num }}</td>
                             <td>{{ terminal_id|tpn_to_terminal_id }}</td>

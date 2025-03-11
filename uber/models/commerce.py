@@ -2,11 +2,12 @@ from datetime import datetime
 import stripe
 
 from pytz import UTC
+from pockets import classproperty
 from pockets.autolog import log
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import func, or_
 
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.functions import coalesce
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.dialects.postgresql.json import JSONB
@@ -15,6 +16,7 @@ from sqlalchemy.orm import backref
 
 from uber.config import c
 from uber.custom_tags import format_currency
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
@@ -100,9 +102,33 @@ class ModelReceipt(MagModel):
     owner_model = Column(UnicodeText)
     closed = Column(UTCDateTime, nullable=True)
 
+    def close_all_items(self, session):
+        for item in self.open_receipt_items:
+            if item.receipt_txn:
+                item.closed = item.receipt_txn.added
+            else:
+                if item.amount < 0:
+                    latest_txn = self.sorted_txns[-1]
+                else:
+                    latest_txn = sorted([txn for txn in self.receipt_txns if txn.amount > 0],
+                                        key=lambda x: x.added, reverse=True)[0]
+                
+                item.receipt_txn = latest_txn
+                item.closed = datetime.now()
+            session.add(item)
+        session.commit()
+
     @property
     def all_sorted_items_and_txns(self):
         return sorted(self.receipt_items + self.receipt_txns, key=lambda x: x.added)
+    
+    @property
+    def sorted_txns(self):
+        return sorted([txn for txn in self.receipt_txns], key=lambda x: x.added)
+    
+    @property
+    def sorted_items(self):
+        return sorted([item for item in self.receipt_items], key=lambda x: x.added)
 
     @property
     def total_processing_fees(self):
@@ -117,12 +143,16 @@ class ModelReceipt(MagModel):
         return [item for item in self.receipt_items if not item.closed]
 
     @property
-    def closed_receipt_items(self):
-        return [item for item in self.receipt_items if item.closed]
+    def open_purchase_items(self):
+        return [item for item in self.open_receipt_items if item.amount >= 0]
+    
+    @property
+    def open_credit_items(self):
+        return [item for item in self.open_receipt_items if item.amount < 0]
 
     @property
     def charge_description_list(self):
-        return ", ".join([item.desc + " x" + str(item.count) for item in self.open_receipt_items if item.amount > 0])
+        return ", ".join([item.desc + " x" + str(item.count) for item in self.open_purchase_items])
 
     @property
     def cancelled_txns(self):
@@ -140,55 +170,56 @@ class ModelReceipt(MagModel):
     def pending_total(self):
         return sum([txn.amount for txn in self.receipt_txns if txn.is_pending_charge])
 
-    @hybrid_property
+    @property
     def payment_total(self):
         return sum([txn.amount for txn in self.receipt_txns
                     if not txn.cancelled and txn.amount > 0 and (txn.charge_id or txn.intent_id == '')])
 
-    @payment_total.expression
-    def payment_total(cls):
-        return select([func.sum(ReceiptTransaction.amount)]).where(
-            and_(ReceiptTransaction.receipt_id == cls.id,
-                 ReceiptTransaction.cancelled == None,  # noqa: E711
-                 ReceiptTransaction.amount > 0)).where(
-                     or_(ReceiptTransaction.charge_id != None,  # noqa: E711
-                         ReceiptTransaction.intent_id == '')).label('payment_total')
+    @classproperty
+    def payment_total_sql(cls):
+        return coalesce(func.sum(ReceiptTransaction.amount).filter(
+            ReceiptTransaction.amount > 0, ReceiptTransaction.cancelled == None).filter(
+                or_(ReceiptTransaction.charge_id != None,
+                    ReceiptTransaction.intent_id == '')), 0)
 
-    @hybrid_property
+    @property
     def refund_total(self):
         return sum([txn.amount for txn in self.receipt_txns if txn.amount < 0]) * -1
 
-    @refund_total.expression
-    def refund_total(cls):
-        return select([func.sum(ReceiptTransaction.amount) * -1]
-                      ).where(and_(ReceiptTransaction.amount < 0, ReceiptTransaction.receipt_id == cls.id)
-                              ).label('refund_total')
-
-    @hybrid_property
-    def current_amount_owed(self):
-        return max(0, self.current_receipt_amount)
-
-    @current_amount_owed.expression
-    def current_amount_owed(cls):
-        return case([(cls.current_receipt_amount > 0, cls.current_receipt_amount)],
-                    else_=0)
-
-    @hybrid_property
-    def current_receipt_amount(self):
-        return self.item_total - self.txn_total
-
-    @hybrid_property
+    @classproperty
+    def refund_total_sql(cls):
+        return coalesce(func.sum(ReceiptTransaction.amount).filter(
+            ReceiptTransaction.amount < 0) * -1, 0)
+    
+    @property
     def item_total(self):
         return sum([(item.amount * item.count) for item in self.receipt_items])
 
-    @item_total.expression
-    def item_total(cls):
-        return select([func.sum(ReceiptItem.amount * ReceiptItem.count)]
-                      ).where(ReceiptItem.receipt_id == cls.id).label('item_total')
-
-    @hybrid_property
+    @classproperty
+    def item_total_sql(cls):
+        return coalesce(func.sum(ReceiptItem.amount * ReceiptItem.count), 0)
+    
+    @classproperty
+    def fkless_item_total_sql(cls):
+        return coalesce(func.sum(ReceiptItem.amount * ReceiptItem.count).filter(
+            ReceiptItem.fk_id == None
+        ), 0)
+    
+    @property
     def txn_total(self):
         return self.payment_total - self.refund_total
+
+    @property
+    def current_receipt_amount(self):
+        return self.item_total - self.txn_total
+
+    @property
+    def current_amount_owed(self):
+        return max(0, self.current_receipt_amount)
+
+    @property
+    def has_at_con_payments(self):
+        return any([txn for txn in self.receipt_txns if txn.method == c.SQUARE])
 
     @property
     def total_str(self):
@@ -202,6 +233,17 @@ class ModelReceipt(MagModel):
                                                           "Payments" if self.txn_total >= 0 else "Refunds",
                                                           "They" if self.current_receipt_amount >= 0 else "We",
                                                           format_currency(abs(self.current_receipt_amount / 100)))
+    
+    @property
+    def default_department(self):
+        from uber.models import Session, Attendee, Group
+        cls = Session.resolve_model(self.owner_model)
+        if cls in [Attendee, Group]:
+            with Session() as session:
+                model = session.query(cls).filter_by(id=self.owner_id).first()
+                if model and model.is_dealer:
+                    return c.DEALER_RECEIPT_ITEM
+        return getattr(cls, 'department')
 
     def get_last_incomplete_txn(self):
         from uber.models import Session
@@ -245,7 +287,7 @@ class ReceiptTransaction(MagModel):
     Stripe payments will start with an `intent_id` and, if completed, have a `charge_id` set.
     Stripe refunds will have a `refund_id`.
 
-    Stripe payments will track how much has been refunded for that transaction with `refunded` --
+    Stripe payments will track how much has been refunded for that transaction with `refunded` return
         this is an important number to track because it helps prevent refund errors.
 
     All payments keep a list of `receipt_items`. This lets admins track what has been paid for already,
@@ -260,14 +302,21 @@ class ReceiptTransaction(MagModel):
     receipt_info = relationship('ReceiptInfo', foreign_keys=receipt_info_id,
                                 cascade='save-update, merge',
                                 backref=backref('receipt_txns', cascade='save-update, merge'))
+    refunded_txn_id = Column(UUID, ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True)
+    refunded_txn = relationship('ReceiptTransaction', foreign_keys='ReceiptTransaction.refunded_txn_id',
+                                backref=backref('refund_txns', order_by='ReceiptTransaction.added'),
+                                cascade='save-update,merge,refresh-expire,expunge',
+                                remote_side='ReceiptTransaction.id',
+                                single_parent=True)
+    refunded = Column(Integer, default=0)
     intent_id = Column(UnicodeText)
     charge_id = Column(UnicodeText)
     refund_id = Column(UnicodeText)
     method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
+    department = Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS), default=c.OTHER_RECEIPT_ITEM)
     amount = Column(Integer)
     txn_total = Column(Integer, default=0)
     processing_fee = Column(Integer, default=0)
-    refunded = Column(Integer, default=0)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     cancelled = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
@@ -292,7 +341,7 @@ class ReceiptTransaction(MagModel):
         if not self.stripe_id:
             actions.append('remove_receipt_item')
 
-        if self.receipt_info:
+        if self.receipt_info and self.receipt_info.fk_email_id:
             actions.append('resend_receipt')
 
         return actions
@@ -459,6 +508,10 @@ class ReceiptItem(MagModel):
     receipt_txn = relationship('ReceiptTransaction', foreign_keys=txn_id,
                                cascade='save-update, merge',
                                backref=backref('receipt_items', cascade='save-update, merge'))
+    fk_id = Column(UUID, index=True, nullable=True)
+    fk_model = Column(UnicodeText)
+    department = Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS), default=c.OTHER_RECEIPT_ITEM)
+    category = Column(Choice(c.RECEIPT_CATEGORY_OPTS), default=c.OTHER)
     amount = Column(Integer)
     comped = Column(Boolean, default=False)
     reverted = Column(Boolean, default=False)
@@ -467,7 +520,15 @@ class ReceiptItem(MagModel):
     closed = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
+    admin_notes = Column(UnicodeText)
     revert_change = Column(JSON, default={}, server_default='{}')
+
+    @presave_adjustment
+    def process_item_close(self):
+        if self.closed and not self.orig_value_of('closed') and self.fk_id:
+            if self.fk_model == 'PrintJob':
+                print_job = self.session.print_job(self.fk_id)
+                print_job.ready = True
 
     @property
     def total_amount(self):
@@ -477,7 +538,17 @@ class ReceiptItem(MagModel):
     def paid(self):
         if not self.closed:
             return
-        return self.receipt_txn.added
+        return self.receipt_txn.added and self.receipt_txn.amount > 0
+    
+    @property
+    def closed_type(self):
+        if not self.closed:
+            return ""
+        if self.amount > 0 and self.receipt_txn.amount > 0:
+            return "Paid"
+        if self.amount < 0 and self.receipt_txn.amount < 0:
+            return "Refunded"
+        return "Closed"
 
     @property
     def available_actions(self):
@@ -518,10 +589,119 @@ class ReceiptInfo(MagModel):
     charged = Column(UTCDateTime)
     voided = Column(UTCDateTime, nullable=True)
     card_data = Column(MutableDict.as_mutable(JSONB), default={})
-    txn_info = Column(MutableDict.as_mutable(JSONB), default={})
     emv_data = Column(MutableDict.as_mutable(JSONB), default={})
+    txn_info = Column(MutableDict.as_mutable(JSONB), default={})
     signature = Column(UnicodeText)
     receipt_html = Column(UnicodeText)
+
+    @property
+    def response_code_str(self):
+        if not self.txn_info or not self.txn_info['response']:
+            return ''
+
+        if self.receipt_txns[0].method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID:
+            match self.txn_info['response'].get('response_code', ''):
+                case '1':
+                    return 'Approved'
+                case '2':
+                    return 'Declined'
+                case '3':
+                    return 'Error'
+                case '4':
+                    return 'Held for Review'
+                case _:
+                    return ''
+
+    @property
+    def avs_str(self):
+        if not self.txn_info or not self.txn_info['fraud_info']:
+            log.error(self.txn_info['fraud_info'])
+            return ''
+        
+        if self.receipt_txns[0].method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID:
+            match self.txn_info['fraud_info'].get('avs', ''):
+                case 'A':
+                    return "The street address matched, but the postal code did not."
+                case 'B':
+                    return "No address information was provided."
+                case 'E':
+                    return "The AVS check returned an error."
+                case 'G':
+                    return "The card was issued by a bank outside the U.S. and does not support AVS."
+                case 'N':
+                    return "Neither the street address nor postal code matched."
+                case 'P':
+                    return "AVS is not applicable for this transaction."
+                case 'R':
+                    return "Retry — AVS was unavailable or timed out."
+                case 'S':
+                    return "AVS is not supported by card issuer."
+                case 'U':
+                    return "Address information is unavailable."
+                case 'W':
+                    return "The US ZIP+4 code matches, but the street address does not."
+                case 'X':
+                    return "Both the street address and the US ZIP+4 code matched."
+                case 'Y':
+                    return "The street address and postal code matched."
+                case 'Z':
+                    return "The postal code matched, but the street address did not."
+                case _:
+                    return ''
+    
+    @property
+    def cvv_str(self):
+        if not self.txn_info or not self.txn_info['fraud_info']:
+            return ''
+        
+        if self.receipt_txns[0].method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID:
+            match self.txn_info['fraud_info'].get('cvv', ''):
+                case 'M':
+                    return "CVV matched."
+                case 'N':
+                    return "CVV did not match."
+                case 'P':
+                    return "CVV was not processed."
+                case 'S':
+                    return "CVV should have been present but was not indicated."
+                case 'U':
+                    return "The issuer was unable to process the CVV check."
+                case _:
+                    return ''
+                
+    @property
+    def cavv_str(self):
+        if not self.txn_info or not self.txn_info['fraud_info']:
+            return ''
+        
+        if self.receipt_txns[0].method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID:
+            match self.txn_info['fraud_info'].get('cavv', ''):
+                case '0':
+                    return "CAVV was not validated because erroneous data was submitted."
+                case '1':
+                    return "CAVV failed validation."
+                case '2':
+                    return "CAVV passed validation."
+                case '3':
+                    return "CAVV validation could not be performed; issuer attempt incomplete."
+                case '4':
+                    return "CAVV validation could not be performed; issuer system error."
+                case '5':
+                    return "Reserved for future use."
+                case '6':
+                    return "Reserved for future use."
+                case '7':
+                    return "CAVV failed validation, but the issuer is available. Valid for U.S.-issued card submitted to non-U.S acquirer."
+                case '8':
+                    return "CAVV passed validation and the issuer is available. Valid for U.S.-issued card submitted to non-U.S. acquirer."
+                case '9':
+                    return "CAVV failed validation and the issuer is unavailable. Valid for U.S.-issued card submitted to non-U.S acquirer."
+                case 'A':
+                    return "CAVV passed validation but the issuer unavailable. Valid for U.S.-issued card submitted to non-U.S acquirer."
+                case 'B':
+                    return "CAVV passed validation, information only, no liability shift."
+                case _:
+                    return "CAVV not validated."
 
 
 class TerminalSettlement(MagModel):

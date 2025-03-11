@@ -1,5 +1,5 @@
 {% import 'art_show_common/artist_checkin_macros.html' as artist_checkin_macros with context %}
-{% set readonly = app.checked_in and not admin_area %}
+{% set readonly = app.checked_in and not c.INDEPENDENT_ART_SHOW and not admin_area %}
 <style>
   table form {
     display: inline;
@@ -57,7 +57,7 @@
                 </div>
               </div>
               <div class="col-12 col-sm-6">
-                <label class="form-text" for="quick_sale_price-{{ real_piece.id or 'new' }}">Quick Sale Price</label>
+                <label class="form-text" for="quick_sale_price-{{ real_piece.id or 'new' }}">{{ c.QS_PRICE_TERM|title }}</label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
                   <input type="number" step="1" min="0" class="form-control" name="quick_sale_price" id="quick_sale_price-{{ real_piece.id or 'new' }}" value="{{ real_piece.quick_sale_price or '' }}" required autocomplete="off" />
@@ -131,25 +131,40 @@
     <input type="hidden" name="id" value="{{ app.id }}" />
     <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
     {{ csrf_token() }}
+    {% if admin_area %}
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        <label for="banner_name" class="form-text">Locations</label>
+        {% if readonly %}
+          {{ app.locations }}
+        {% else %}
+          <input type="text" class="form-control" name="locations" id="locations" value="{{ app.locations }}"/>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     <div class="row g-sm-3">
       <div class="col-12 col-sm-6">
         <label for="banner_name" class="form-text">Banner Name</label>
         {% if readonly %}
-          {{ app.banner_name or app.artist_name or app.attendee.full_name }}
+          {{ app.display_name }}
         {% else %}
-          <input type="text" class="form-control" name="banner_name" id="banner_name" value="{{ app.banner_name }}" placeholder="{{ app.artist_name or app.attendee.full_name }}"/>
+          <input type="text" class="form-control" name="banner_name" id="banner_name" value="{{ app.banner_name }}" placeholder="{{ app.display_name }}"/>
           {% if not admin_area %}<p class="form-text">The name displayed with your art.</p>{% endif %}
         {% endif %}
       </div>
+      {% if app.has_mature_space %}
       <div class="col-12 col-sm-6">
-        <label for="check_payable" class="form-text">Name on Check</label>
+        <label for="banner_name_ad" class="form-text">Mature Banner Name</label>
         {% if readonly %}
-          {{ app.check_payable or (app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name) }}
+          {{ app.display_name }}
         {% else %}
-          <input type="text" class="form-control" name="check_payable" id="check_payable" value="{{ app.check_payable }}" placeholder="{{ app.attendee.legal_first_name ~ ' ' ~ app.attendee.legal_last_name }}"/>
-          {% if not admin_area %}<p class="form-text">The name your check should be made payable to.</p>{% endif %}
+          <input type="text" class="form-control" name="banner_name_ad" id="banner_name_ad" value="{{ app.banner_name_ad }}" placeholder="{{ app.mature_display_name }}"/>
+          {% if not admin_area %}<p class="form-text">The name displayed with your art in the mature gallery, if different from your banner name in the general gallery.</p>{% endif %}
         {% endif %}
       </div>
+      {% endif %}
     </div>
 
     <div class="row g-sm-3 mb-3">
@@ -171,12 +186,35 @@
       </div>
     </div>
 
+    <div class="row g-sm-3 mb-3">
+      <div class="col-12 col-sm-6">
+        <label for="check_payable" class="form-text">Name on Check</label>
+        {% if readonly %}
+          {{ app.check_payable or (app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name) }}
+        {% else %}
+          <input type="text" class="form-control" name="check_payable" id="check_payable" value="{{ app.check_payable }}" placeholder="{{ app.attendee.legal_first_name ~ ' ' ~ app.attendee.legal_last_name }}"/>
+          {% if not admin_area %}<p class="form-text">The name your check should be made payable to.</p>{% endif %}
+        {% endif %}
+      </div>
+      <div class="col-12 col-sm-6">
+        <label for="contact_at_con" class="form-text">How should we contact you at-con?</label>
+        {% if readonly %}
+          {{ app.contact_at_con }}
+        {% else %}
+          <textarea class="form-control" name="contact_at_con" id="contact_at_con" rows="2">{{ app.contact_at_con }}</textarea>
+          {% if not admin_area %}<p class="form-text">Please tell us the best way to get a hold of you during the event.</p>{% endif %}
+        {% endif %}
+      </div>
+    </div>
+
     {% if app.delivery_method == c.BY_MAIL %}
       {% if c.BY_MAIL_US_ONLY and not admin_area %}
       <input type="hidden" name="us_only" value="{{ app.us_only|yesno("1,0") }}" />
       {% endif %}
       {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name, is_readonly=readonly) }}
-      {{ macros.address_form(app, label_prefix="Mailing", is_readonly=readonly) }}
+    {% endif %}
+    {% if app.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW %}
+      {{ macros.address_form(app, label_prefix="Mailing" if app.delivery_method == c.BY_MAIL else "", is_readonly=readonly, use_bs5=True) }}
     {% endif %}
 
     {% if not readonly %}
@@ -188,8 +226,8 @@
     {% endif %}
   </form>
   <h3 class="card-title">Art Show Pieces</h3>
-  <div class="row g-sm-3 text-center">
-    {% if not readonly %}
+  {% if not readonly and (not app.checked_in or admin_area) %}
+  <div class="row g-sm-3 mb-3 text-center">
     <div class="col-4">
       <button class="btn btn-primary" id="add_piece_modal">Add {% if app.art_show_pieces %}Another {% endif %}Piece</button>
     </div>
@@ -201,33 +239,36 @@
         <button type="submit" class="btn btn-outline-secondary" id="confirm_pieces">Confirm Current Pieces</button>
       </form>
     </div>
-    {% endif %}
     <div class="col-4">
       <form role="form" target="_blank" method="post" id="print_form" action="../art_show_admin/print_check_in_out_form">
       <input type="hidden" name="id" value="{{ app.id }}" />
       <button class="btn btn-success">Print Check-In Form</button>
-    </form>
+      </form>
     {{ csrf_token() }}
-    </form>
+    </div>
   </div>
+  {% endif %}
   {% if admin_area %}
-  <div class="row text-center">
-    <br/>
-    <form method="post" action="../art_show_admin/bid_sheet_pdf" class="form-inline">
-      <label class="control-label">Piece IDs:</label>
-      <input type="hidden" name="id" value="{{ app.id }}" />
-      {{ csrf_token() }}
-      <input type="text" class="form-control" name="piece_ids" size="7" placeholder="1-2, 5, 7" />
-      <button type="submit" class="btn btn-outline-secondary">Print Bid Sheets</button>
-      <p class="help-block">
-      Leave piece IDs blank to print all bid sheets for this artist.
-      </p>
-    </form>
+  <form method="post" action="../art_show_admin/bid_sheet_pdf">
+  <div class="row">
+      <div class="col text-end">
+        <label class="control-label">Piece IDs:</label>
+      </div>
+      <div class="col text-center">
+        <input type="hidden" name="id" value="{{ app.id }}" />
+        {{ csrf_token() }}
+        <input type="text" class="form-control" name="piece_ids" size="7" placeholder="1-2, 5, 7" />
+        <p class="help-block">
+        Leave piece IDs blank to print all bid sheets for this artist.
+        </p>
+      </div>
+      <div class="col"><button type="submit" class="btn btn-outline-secondary">Print Bid Sheets</button></div>
   </div>
+  </form>
   {% endif %}
   
   <div class="table-responsive">
-    <table class="table table-striped datatable">
+    <table class="table table-striped datatable" id="art-show-piece-table">
       <thead>
       <tr>
         <th>ID</th>
@@ -243,7 +284,7 @@
       <tbody>
       {% for piece in app.art_show_pieces %}
       <tr class="piece-row" data-piece_id="{{ piece.id }}">
-        <td> {{ piece.artist_and_piece_id }} </td>
+        <td data-sort="{{ piece.piece_id }}"> {{ piece.artist_and_piece_id }} </td>
         <td>
           {% if admin_area %}
           <form method="post" action="../art_show_applications/save_art_show_piece" role="form">
@@ -273,7 +314,7 @@
         </td>
         <td> {% if piece.valid_for_sale %}
           Opening Bid: {{ piece.opening_bid }}
-          <br/>Quick Sale Price: {% if not piece.valid_quick_sale %}N/A{% else %}{{ piece.quick_sale_price }}{% endif %}
+          <br/>{{ c.QS_PRICE_TERM|title }}: {% if not piece.valid_quick_sale %}N/A{% else %}{{ piece.quick_sale_price }}{% endif %}
           {% else %}N/A{% endif %}
         </td>
         {% if not app.checked_in or admin_area %}
@@ -408,7 +449,7 @@
         if (result.error) {
           showErrorMessage(result.error.substring(7), alertId, false);
         } else if (result.success) {
-          window.location = '?id={{ app.id }}&message=' + result.success;
+          window.location = '?id={{ app.id }}&message=' + encodeURIComponent(result.success);
         }
         $('#piece_modals').find('.save_piece').prop('disabled', false);
       });
@@ -430,7 +471,7 @@
         });
 
         $('#add_piece_modal').on('click', addPieceModal);
-        $('.edit_piece_modal').on('click', editPieceModal);
+        $('#art-show-piece-table').on('click', '.edit_piece_modal', editPieceModal);
 
         $('#piece_modals').find('form').submit(function(e) {
             $(this).find('.save_piece').prop('disabled', true);

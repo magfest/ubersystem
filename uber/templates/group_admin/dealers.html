@@ -38,12 +38,12 @@
     </tr>
   </thead>
   <tbody>
-{% for group in dealer_groups %}
+{% for group in all_groups|selectattr("is_dealer") %}
     <tr{% if c.SIGNNOW_DEALER_TEMPLATE_ID and not group.signnow_document_signed or group.status in [c.DECLINED, c.CANCELLED] %} class="danger"{% endif %}>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> 
           <a href="form?id={{ group.id }}">{{ group.name|default('?????', boolean=True) }}</a></td>
         <td>
-            {{ group.status_label }}{% if group.convert_badges and group.badges_purchased %} <span class="text-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="This {{ c.DEALER_TERM }}'s badges will be converted to individual badges tonight!"><i class="fa fa-exclamation-circle" aria-hidden="true"></i></span>{% endif %}
+            {{ group.status_label }}{% if group.convert_badges and group.badges_purchased %} <span class="text-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="This {{ c.DEALER_TERM }}'s badges will be converted to individual badges tonight!"><i class="fa fa-exclamation-circle"></i></span>{% endif %}
         </td>
         <td>{{ group.website|url_to_link(target="_blank", is_relative=False) }}</td>
         <td data-order="{{ group.badges_purchased }}" data-search="{{ group.badges_purchased }}"> {{ group.badges_purchased }} / {{ group.badges }} </td>

@@ -9,19 +9,20 @@
         {% if c.SPIN_TERMINAL_AUTH_KEY %}
             <form method="post" action="mark_as_paid">
                 {{ csrf_token() }}
-                <input type="hidden" id="mark-as-paid-account-id" name="id" value="{{ account.id }}" />
+                <input type="hidden" id="mark-as-paid-group-id" name="id" value="{{ pickup_group.id }}" />
                 <input type="hidden" name="payment_method" value="{{ c.CASH }}" />
                 <div class="center"><button class="btn btn-success" type="submit">Paid with Cash</button></div>
             </form>
             <strong>OR</strong> <br/>
-            <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('', '{{ account.id }}', loadCheckInCart)">Prompt Payment at Terminal</button>
+            <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('', '{{ pickup_group.id }}', loadCheckInCart)">Prompt Payment at Terminal</button>
+            <button class="btn btn-primary" onClick="checkTerminalPayment('{{ pickup_group.id }}', 'pick-up group', loadCheckInCart)">Check Payment Terminal</button>
             <div class="row justify-content-center">
                 <div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div>
             </div>
         {% else %}
             <form method="post" action="mark_as_paid">
                 {{ csrf_token() }}
-                <input type="hidden" id="mark-as-paid-account-id" name="id" value="{{ account.id }}" />
+                <input type="hidden" id="mark-as-paid-group-id" name="id" value="{{ pickup_group.id }}" />
                 <div class="row g-sm-3 row-cols-auto justify-content-center">
                     <div class="col">
                         <select name="payment_method" class="form-select" onChange="toggleMarkButton(this)">
@@ -35,14 +36,21 @@
 
             <strong>OR</strong> <br/>
             {# TODO: Will need to account for cart for this stripe form #}
-            {{ stripe_form('manual_reg_charge', account) }}
+            {{ stripe_form('manual_reg_charge', pickup_group) }}
         {% endif %}
     {% endif %}
 
     <br/><div class="alert" role="alert" id="form-validations"><span></span></div>
 
-    <table class="table table-striped text-reset">
+    {% if checked_in_names %}
+    <p>
+        The following attendees in this group have already checked in: {{ checked_in_names|readable_join }}
+    </p>
+    {% endif %}
+
+    <table class="table table-hover text-reset">
         <thead>
+            <th class="escalate-ticket collapse">Escalate</th>
             <th></th>
             <th>Name</th>
             <th>Birthdate</th>
@@ -53,10 +61,13 @@
             <th></th>
         </thead>
         <tbody>
-        {% for attendee in account.at_door_attendees %}
+        {% for attendee in pickup_group.check_inable_attendees %}
         <tr id="{{ attendee.id }}">
+            <td class="escalate-ticket collapse">
+                <label class="d-block"><input type="checkbox" class="form-check-input" name="escalate-attendee-ids" value="{{ attendee.id }}" /></label>
+            </td>
             <td>
-                <button class="btn btn-sm btn-danger" id="invalidate-{{ attendee.id }}" data-bs-toggle="tooltip" title="Invalidate" onClick="removeAttendeeFromCartConfirm('{{ attendee.id }}', '{{ account.id }}')">
+                <button class="btn btn-sm btn-danger" id="invalidate-{{ attendee.id }}" data-bs-toggle="tooltip" title="Invalidate" onClick="removeAttendeeFromPickupGroupConfirm('{{ attendee.id }}', '{{ pickup_group.id }}')">
                     <i class="fa fa-remove"></i>
                 </button>
             </td>
@@ -66,7 +77,7 @@
                 <input class="form-control" form="update-form-{{ attendee.id }}" id="birthdate-{{ attendee.id }}" name="birthdate" type="date" value="{{ attendee.birthdate }}">
                 ({{ attendee.age_group_conf.desc }})
             </td>
-            <td>{{ attendee.badge_type_label }}{% if attendee.ribbon %} ({{ attendee.ribbon_labels|join(" / ") }} ){% endif %}</td>
+            <td>{{ attendee.badge_type_label }}{% if attendee.ribbon %} ({{ attendee.ribbon_labels|join(" / ") }}){% endif %}</td>
             <td>
                 {% if attendee.badge_num %}
                     <input form="update-form-{{ attendee.id }}" id="badge_num-{{ attendee.id }}" name="badge_num" type="hidden" value="{{ attendee.badge_num }}">
@@ -76,7 +87,7 @@
                 {% endif %}
             </td>
             <td>
-                <input class="form-control" form="update-form-{{ attendee.id }}" id="badge_printed_name-{{ attendee.id }}" maxlength="20" name="badge_printed_name" type="text" value="{{ attendee.badge_printed_name }}">
+                <input class="form-control" form="update-form-{{ attendee.id }}" id="badge_printed_name-{{ attendee.id }}" maxlength="30" name="badge_printed_name" type="text" value="{{ attendee.badge_printed_name }}">
             </td>
             <td>
                 {{ attendee.amount_unpaid_if_valid|format_currency }}
@@ -86,7 +97,7 @@
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
                 </form>
-                <button type="button" class="btn btn-sm btn-primary" id="update-{{ attendee.id }}" data-bs-toggle="tooltip" title="Update" onClick="updateAttendee('{{ attendee.id }}', '{{ account.id }}')">
+                <button type="button" class="btn btn-sm btn-primary" id="update-{{ attendee.id }}" data-bs-toggle="tooltip" title="Update" onClick="updateAttendee('{{ attendee.id }}', '{{ pickup_group.id }}')">
                     <i class="fa fa-check"></i>
                 </button>
             </td>
@@ -94,17 +105,26 @@
         {% endfor %}
         </tbody>
     </table>
-    <form novalidate action="/" id="check_in_form_{{ account.id }}" role="form" class="check-in">
+    <form novalidate action="/" id="check_in_form_{{ pickup_group.id }}" role="form" class="check-in">
     {{ csrf_token() }}
-    <input type="hidden" name="id" value="{{ account.id }}"/>
+    <input type="hidden" name="id" value="{{ pickup_group.id }}"/>
+    <div class="d-flex gap-3 justify-content-end">
+        <div><button type="button" class="btn btn-primary" onClick="updateAll()">Update All</button></div>
+    </div>
     {% if c.BADGE_PRINTING_ENABLED %}
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-6">
+    <div class="d-flex gap-3 text-start">
+        <div class="flex-fill">
+            <div class="form-text">&nbsp;</div>
+            <div>
+                <p><a href="#" class="btn btn-warning" data-bs-toggle="collapse" data-bs-target=".escalate-ticket" aria-expanded="false" aria-controls="escalate-ticket">Escalate to Manager</a></p>
+            </div>
+        </div>
+        <div class="flex-fill">
             <label for="printer_id" class="form-text">Printer ID</label>
             <div class="mb-3"><input type="text" class="form-control" name="printer_id" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" /></div>
         </div>
-        {% if account.at_door_under_18s %}
-        <div class="col-12 col-sm-6">
+        {% if pickup_group.under_18_badges %}
+        <div class="flex-fill">
             <label for="printer_id" class="form-text">Minor Printer ID</label>
             <div class="mb-3"><input type="text" class="form-control" name="minor_printer_id" value="{{ workstation_assignment.minor_or_adult_printer_id if workstation_assignment else '' }}"/></div>
         </div>
@@ -112,18 +132,42 @@
     </div>
     {% endif %}
     </form>
-</div>
+    <div class="row g-sm-3 text-start">
+        <div class="escalate-ticket col-12 collapse bg-light card card-body">
+            <p>
+                Attendees with an escalation ticket will not be able to check in before a manager
+                clears their ticket(s). Use the checkboxes above
+                to select the attendees you want to include in the ticket, then describe the problem below and click
+                "Create Escalation Ticket".
+            </p>
+            <div class="row">
+            <div class="col-12 col-lg-6 text-end">
+                <div class="form-text text-start">Escalation Note</div>
+                <textarea name="description" id="escalation-ticket-desc" class="form-control mb-3" rows="4"></textarea>
+                <button class="btn btn-warning" type="button" onClick="createEscalationTicket()">Create Escalation Ticket</button>
+                <a href="#" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target=".escalate-ticket">Cancel</a>
+            </div>
+            </div>
+        </div>
+    </div>
+</div></div>
 <div class="modal-footer">
     {% set print_and_checkin = c.BADGE_PRINTING_ENABLED %}
-    <button class='btn btn-outline-secondary btn-sm' onClick="loadCheckInCartModal('{{ account.id }}')">
-        <i class="fa fa-refresh"></i>
-    </button>
-    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-    {% if not total_cost %}
-    <button type="button" class="btn btn-success check-in" onClick="printAndOrCheckIn('{{ account.id }}', '{{ print_and_checkin }}')">
-        {% if print_and_checkin %}Print Badges{% else %}Save{% endif %} & Check In
-    </button>
-    {% endif %}
+    <div class="d-flex gap-1 w-100">
+        <div class="me-auto">
+        <button class='btn btn-outline-secondary btn-sm' onClick="loadCheckInGroupModal('{{ pickup_group.id }}')">
+            <i class="fa fa-refresh"></i>
+        </button>
+        </div>
+        <div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            {% if not total_cost %}
+            <button type="button" class="btn btn-success check-in" onClick="printAndOrCheckIn('{{ pickup_group.id }}', '{{ print_and_checkin }}')">
+                {% if print_and_checkin %}Print Badges{% else %}Save{% endif %} & Check In
+            </button>
+            {% endif %}
+        </div>
+    </div>
 </div>
 <script type="text/javascript">
     var toggleMarkButton = function (dropdown) {
@@ -134,30 +178,28 @@
             $button.attr('disabled', 'disabled');
         }
     };
-    var removeAttendeeFromCartConfirm = function(attendee_id, account_id) {
+    var removeAttendeeFromPickupGroupConfirm = function(attendee_id, pickupGroupID) {
         var btn = $('#invalidate-' + attendee_id);
         btn_html = btn.parent().html();
-        btn_html = btn_html.replace("removeAttendeeFromCartConfirm", "removeAttendeeFromCart");
+        btn_html = btn_html.replace("removeAttendeeFromPickupGroupConfirm", "removeAttendeeFromPickupGroup");
         btn_html = btn_html.replace('<i class="fa fa-remove"></i>', "Confirm &nbsp;<i class='fa fa-remove'></i>");
         btn.parent().html(btn_html);
     };
-    var removeAttendeeFromCart = function(attendee_id, account_id) {
-        $.post("remove_attendee_from_cart", {id: attendee_id, csrf_token: csrf_token}).done(function(response) {
+    var removeAttendeeFromPickupGroup = function(attendee_id, pickupGroupID) {
+        $.post("remove_attendee_from_pickup_group", {id: attendee_id, csrf_token: csrf_token}).done(function(response) {
             if (response.error) {
                 $("#form-validations").addClass("alert-danger").children('span').html(response.error);
             } else {
-                $("#form-validations").addClass("alert-success").children('span').html("Attendee removed from cart. Refreshing...");
+                $("#form-validations").addClass("alert-success").children('span').html("Attendee removed from badge pickup group.");
                 $("#form-validations").show();
-                setTimeout(function(){
-                    loadCheckInCartModal(account_id);
-                }, 1000);
+                $(`#${attendee_id}`).remove();
             }
         }).fail(function() {
             $('#form-validations').addClass('alert-danger').children('span').html("Couldn't contact server!");
             $("#form-validations").show();
         });
     }
-    var updateAttendee = function(attendee_id, account_id) {
+    var updateAttendee = function(attendee_id, pickupGroupID) {
         var $form = $('#update-form-' + attendee_id);
         $("#form-validations").hide().removeClass().addClass("alert").children('span').html("");
         $.post("validate_attendee", $form.serialize() + '&form_list=CheckInForm').done(function (response) {
@@ -176,11 +218,8 @@
                         $("#form-validations").addClass("alert-danger").children('span').html(response.error);
                         $("#form-validations").show();
                     } else {
-                        $("#form-validations").addClass("alert-success").children('span').html("Attendee updated! Refreshing...");
+                        $("#form-validations").addClass("alert-success").children('span').html("Attendee updated!");
                         $("#form-validations").show();
-                        setTimeout(function(){
-                            loadCheckInCartModal(account_id);
-                        }, 1000);
                     }
                 }).fail(function() {
                     $('#form-validations').addClass('alert-danger').children('span').html("Couldn't contact server!");
@@ -191,6 +230,44 @@
             $("#form-validations").show();
         });
     };
+    
+    var updateAll = function() {
+        let bigData = ''
+        $('[id^=update-form]').each(function() {
+            let serializedData = new URLSearchParams($(this).serialize());
+
+            if (bigData == '') {
+                bigData = 'csrf_token=' + serializedData.get('csrf_token')
+            }
+
+            bigData = bigData + '&id=' + serializedData.get('id')
+
+            for (const [key, value] of serializedData) {
+                if (key != 'csrf_token' && key != 'id') {
+                bigData = bigData + '&' + key + '_' + serializedData.get('id') + '=' + value
+                }
+            }
+            })
+            $.ajax({
+            method: 'POST',
+            url: 'save_no_check_in_all',
+            dataType: 'json',
+            data: bigData,
+            success: function (json) {
+                hideMessageBox('form-validations');
+                var message = json.message;
+                if (json.success) {
+                $("#form-validations").addClass("alert-info").show().children('span').html(message);
+                } else {
+                showErrorMessage(message, 'form-validations');
+                }
+            },
+            error: function () {
+                showErrorMessage('Unable to connect to server, please try again.', 'form-validations');
+            }
+        });
+    }
+    
     $("form[action='mark_as_paid']").submit(function (e) {
         e.preventDefault();
 
@@ -208,7 +285,7 @@
                 if (json.success) {
                     $("#payment-loading-message").removeClass("alert-info").addClass("alert-success").show().html(message);
                     setTimeout(function(){
-                        loadCheckInCartModal($('#mark-as-paid-account-id').val());
+                        loadCheckInGroupModal($('#mark-as-paid-group-id').val());
                     }, 1000);
                 } else {
                     showErrorMessage(message);
@@ -219,26 +296,26 @@
             }
         });
     });
-    loadMinorCheckCartForm = function (accountID, printerID, reprintFee, num_adults=0) {
+    loadMinorCheckCartForm = function (pickupGroupID, printerID, num_adults=0) {
         $('#checkin_modal .modal-content').load(
-            '../registration/minor_check_form?account_id=' + accountID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee + '&num_adults=' + num_adults, function() {
+            '../registration/minor_check_form?pickup_group_id=' + pickupGroupID + '&printer_id=' + printerID + '&num_adults=' + num_adults, function() {
         if ($('.minor-check-id').length) {
         } else {
             showErrorMessage("Form loading failed.");
-            loadCheckInCartModal(accountID);
+            loadCheckInGroupModal(pickupGroupID);
         }
         });
     }
     loadCheckInCart = function (json=null) {
-        loadCheckInCartModal('{{ account.id }}')
+        loadCheckInGroupModal('{{ pickup_group.id }}')
     }
-    var printAndOrCheckIn = function (accountID, print=false) {
+    var printAndOrCheckIn = function (pickupGroupID, print=false) {
         if(print == false) {}
         $.ajax({
             method: 'POST',
             url: '../registration/print_and_check_in_badges',
             dataType: 'json',
-            data: $("#check_in_form_" + accountID).serialize(),
+            data: $("#check_in_form_" + pickupGroupID).serialize(),
             success: function (json) {
                 hideMessageBox('form-validations');
                 if (json.success) {
@@ -251,7 +328,7 @@
                         }
                     }
                     if (json.minor_check) {
-                        loadMinorCheckCartForm(accountID, $.val('printer_id'), 0, json.num_adults);
+                        loadMinorCheckCartForm(pickupGroupID, $.val('printer_id'), json.num_adults);
                     } else {
                         checkInModal.hide();
                         $("#message-alert").addClass("alert-success").show().children('span').html(json.message);

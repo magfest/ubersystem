@@ -1,0 +1,365 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set room_lottery = room_lottery or forms['room_lottery'] %}
+{% set suite_lottery = suite_lottery or forms['suite_lottery'] %}
+{% set room_or_suite_lottery = suite_lottery if 'suite_lottery' in forms else room_lottery %}
+{% set room_text = "suite" if 'suite_lottery' in forms else 'room' %}
+{% set app_or_parent = application.parent_application or application %}
+
+{# BLOCK NAMES in this form:
+    ranking_js
+    form_js
+    terms
+    legal_name
+    check_in_out_dates
+    ada_info
+    hotel_and_room_type_ranking
+    suite_type_ranking
+    priorities
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+Due to the extra scaffolding involved on this form, each block also has a _desc and _form block inside it for more targeted overrides.
+#}
+
+{% set steps = {'counter': 1} %}
+
+{% block ranking_js %}
+{% if not read_only %}
+{{ "deps/Sortable.js"|serve_static_content }}
+
+<style>
+    .sortable-ghost {
+        opacity: 0.6;
+    }
+    .chosen {
+        opacity: 1;
+    }
+    input[type=date]:invalid {
+        background-color: hsl(0, 100%, 97%);
+        border-color: #d00;
+    }
+    .placeholder-deselect-opt::after, .placeholder-select-opt::after {
+        content: "Drag an item here.";
+        opacity: 0.33;
+        font-style: italic;
+        display: "block";
+        vertical-align: middle;
+        text-align: center;
+    }
+    .placeholder-deselect-opt::after {
+        content: "Drag an item here to deselect it.";
+    }
+    .placeholder-select-opt::after {
+        content: "Drag an item here to select it.";
+    }
+</style>
+{% endif %}
+{% endblock %}
+
+{% block form_js %}
+{% if not read_only %}
+<script type="text/javascript">
+    var goToNextStep = function(response) {
+        let step = 0;
+        if (response.step_completed != '') {
+            step = parseInt(response.step_completed);
+        }
+        {% block last_step_js %}
+        if (step >= 5) {
+            $('#{{ room_text }}-lottery-form').submit();
+        }
+        {% endblock %}
+        else {
+            if (step == 1) {
+                $('#return-btn').text("Return to Options");
+            }
+            let next_step = step + 1;
+            $('#step-' + step).collapse('hide');
+            $('#step-' + step + '-submit').hide();
+            $('#step-' + step + '-save-reminder').collapse('show');
+            $('#step-' + step + '-button').html($('#step-' + step + '-button').html() + "&nbsp;<i class='fa fa-check'></i>");
+            $('#step-' + next_step + '-button').prop('disabled', false);
+            $('#step-' + next_step).collapse('show');
+            $('#form-validations-{{ room_text }}-lottery-form').detach().prependTo($('#step-' + next_step).find('.accordion-body'));
+            serverValidationPassed = false;
+        }
+    };
+
+    $().ready(function() {
+        {% if application.current_step != 0 %}
+        $('#step-1').collapse('hide');
+        current_step = parseInt("{{ application.current_step }}");
+        for (let step = 1; step <= current_step; step++) {
+            $('#step-' + step + '-button').prop('disabled', false).html($('#step-' + step + '-button').html() + "&nbsp;<i class='fa fa-check'></i>");
+            $('#step-' + step + '-submit').hide();
+            $('#step-' + step + '-save-reminder').collapse('show');
+        }
+        let next_step = current_step + 1
+        if ($('#step-' + next_step).length) {}
+        $('#step-' + next_step).collapse('show');
+        $('#step-' + next_step + '-button').prop('disabled', false)
+        $('#form-validations-{{ room_text }}-lottery-form').detach().prependTo($('#step-' + next_step).find('.accordion-body'));
+        {% elif application.status != c.COMPLETE %}
+        $('#form-validations-{{ room_text }}-lottery-form').detach().prependTo($('#step-1').find('.accordion-body'));
+        {% endif %}
+    })
+</script>
+{% endif %}
+{% endblock %}
+
+{% block terms %}{% endblock %}
+
+{% block legal_name %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: Check-in Name & Phone Number
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block legal_name_desc %}
+            <p>
+                Hotels require your first and last name to match the photo ID you use during check-in, plus a phone number they can contact you at.
+                Please verify your first name, last name, and phone number below.
+            </p>
+            {% endblock %}
+
+            {% block legal_name_form %}
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    {{ form_macros.form_input(room_or_suite_lottery.legal_first_name, readonly=read_only, value=room_or_suite_lottery.legal_first_name.data or application.attendee.legal_first_name) }}
+                </div>
+                <div class="col-12 col-sm-6">
+                    {{ form_macros.form_input(room_or_suite_lottery.legal_last_name, readonly=read_only, value=room_or_suite_lottery.legal_last_name.data or application.attendee.legal_last_name) }}
+                </div>
+            </div>
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    {{ form_macros.form_input(room_or_suite_lottery.cellphone, readonly=read_only, value=room_or_suite_lottery.cellphone.data or application.attendee.cellphone) }}
+                </div>
+            </div>
+
+            {% if not read_only and application.current_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+{% endblock %}
+
+{% block check_in_out_dates %}
+{% set room_requirements = app_or_parent.suite_requirements_str if 'suite_lottery' in forms else app_or_parent.room_requirements_str %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: Check-In and Check-Out Dates
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block check_in_out_dates_desc %}
+            <p>
+                Rooms are available from {{ c.HOTEL_LOTTERY_CHECKIN_START|full_date_local }} to {{ c.HOTEL_LOTTERY_CHECKOUT_END|full_date_local }}. {{ room_requirements }}
+            </p>
+            {% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date or not read_only %}
+            {% if read_only %}Below are your{% else %}Enter your{% endif %}
+                <strong>preferred dates</strong> and <strong>acceptable dates</strong> for check-in and check-out{% if not read_only %} below{% endif %}. We use the acceptable dates as a backup in case the full range of preferred dates isn't available when your entry is drawn.
+            </p>
+            {% endif %}
+            {% if not read_only %}
+            <p>Entering a later acceptable check-in and earlier acceptable check-out date is strongly advised to give you a better chance at a {{ room_text }}, but if your check-in and/or check-out dates are non-negotiable you can leave either or both of the "acceptable" date fields blank.</p>
+            {% endif %}
+            <p>As a reminder, {{ c.EVENT_NAME_AND_YEAR }} runs from {{ c.EPOCH.date().strftime('%A %m/%d/%Y') }} to {{ c.ESCHATON.date().strftime('%A %m/%d/%Y') }}.</p>
+            {% endblock %}
+
+            {% block check_in_out_dates_form %}
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.earliest_checkin_date, readonly=read_only) }}</div>
+                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.latest_checkout_date, readonly=read_only) }}</div>
+            </div>
+            {% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date or not read_only %}
+            <div class="row g-sm-3 mb-3">
+                <div class="col-12 col-sm-6">
+                    {% if app_or_parent.latest_checkin_date or not read_only %}
+                    {{ form_macros.form_input(room_or_suite_lottery.latest_checkin_date, readonly=read_only) }}
+                    {% endif %}
+                </div>
+                <div class="col-12 col-sm-6">
+                    {% if app_or_parent.earliest_checkout_date or not read_only %}
+                    {{ form_macros.form_input(room_or_suite_lottery.earliest_checkout_date, readonly=read_only) }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not read_only and application.current_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+{% endblock %}
+
+{% block ada_info %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: ADA Room Information
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+        {% block ada_info_desc %}
+        <p>
+            We have a wide variety of ADA-compliant rooms which can accommodate those with mobility, hearing, or visual impairments.
+            Note that {{ c.EVENT_NAME }} will likely receive more ADA requests than available rooms; once ADA rooms are exhausted, standard rooms are awarded.
+        </p>
+        <p>
+            At the conclusion of the lottery, Accessibility Services reaches out to all room awards with an ADA request, regardless of the awarded room type.
+            If an ADA request is made but the available rooms cannot accommodate your needs, your reservation may be canceled without penalty.
+        </p>
+        <p>
+            If you do <strong>not</strong> require an ADA-compliant room, but would like to request an accomodation for medical need(s) (e.g., quiet floor placement, low floor placement, close proximity to elevators/stairs), please leave the checkbox below <strong>unchecked</strong>.
+            Instead, after the lottery's conclusion, please reach out to Accessibility Services to discuss available options if you have been awarded a room. If the available rooms cannot accommodate your needs, the reservation may be canceled without penalty.
+        </p>
+        {% endblock %}
+        {% block ada_info_form %}
+        <div class="row g-sm-3">
+            <div class="col-12"><strong>{{ form_macros.toggle_checkbox(room_or_suite_lottery.wants_ada, [room_or_suite_lottery.ada_requests], toggle_required=True, disabled=read_only) }}</strong></div>
+        </div>
+        <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.ada_requests, readonly=read_only) }}</div>
+            <div class="col-12 col-sm-6 alert alert-info">
+                {% block ada_requests_desc %}
+                Please describe what accommodations may best suit your needs, e.g., "wide doorways" or "roll in shower."
+                This gives us an early idea as to which ADA room will work for you.
+                <strong>Do not include any health or medical condition information.</strong>
+                {% endblock %}
+            </div>
+        </div>
+
+        {% if not read_only and application.current_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+        {% endif %}
+        {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
+        {% endblock %}
+        </div>
+    </div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+</div>
+{% endblock %}
+
+{% block suite_type_ranking %}{% endblock %}
+
+{% block hotel_and_room_type_ranking %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: Hotel and Room Type Preference{% if 'suite_lottery' in forms %} for Standard Room Lottery{% endif %}
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block room_opt_out %}{% endblock %}
+
+            {% block hotel_and_room_type_ranking_desc %}
+            <p class="hotel_and_room_type_ranking">
+                Rank your choice of hotel and standard room type below by clicking and dragging options from "Available" to "Selected" in order of preference.
+                At least one selection is required. Not all hotels/room types need be selected. Accordingly, <em>please do not select hotels or room types you do not wish to stay at</em>.
+                For additional room and amenity information, please see <a href="{{ c.HOTEL_LOTTERY_URL }}" target="_blank">our website</a>.
+            </p>
+            {% endblock %}
+
+            {% block hotel_and_room_type_ranking_form %}
+            <div class="hotel_and_room_type_ranking">
+            {{ form_macros.form_input(room_or_suite_lottery.hotel_preference, readonly=read_only) }}
+            {{ form_macros.form_input(room_or_suite_lottery.room_type_preference, readonly=read_only) }}
+            </div>
+            {% if not read_only and application.current_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+{% endblock %}
+
+{% block priorities %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: Ranking Preference Priorities
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block priorities_desc %}
+            <p>
+                Rank the options below from top to bottom to determine how we'll prioritize your ranked choices and preferred dates.
+                This ranking only applies if your entry has multiple options for a given category, as we can only work within the options that you specify as acceptable.
+            </p>
+            <p>We ask that you rank all priorities even if you haven't selected multiple options for all categories{% if 'suite_lottery' in forms %} or if you are opting out of a standard room entry{% endif %}, in case you come back and change your entry later.</p>
+            {% include 'hotel_lottery/priorities_example.html' with context %}
+            {% endblock %}
+            {% block priorities_form %}
+            {{ form_macros.form_input(room_or_suite_lottery.selection_priorities, readonly=read_only) }}
+
+            {% if not read_only and application.current_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue{% if suite %} to Suite Lottery{% endif %}</button>
+                </div>
+            </div>
+            {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+{% endblock %}

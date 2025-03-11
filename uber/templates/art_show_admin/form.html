@@ -11,7 +11,7 @@ app, c.PAGE_PATH,
 "index", "Return to App List", True
 ) }}
 
-<h2>Art Show Application Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</h2>
+<h2>Art Show {{ c.ART_SHOW_APP_TERM|title }} Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</h2>
 
 {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
   {% include 'registration/spin_terminal_form.html' with context %}
@@ -35,71 +35,108 @@ app, c.PAGE_PATH,
 
       {{ csrf_token() }}
 
-      {% if new_app or c.HAS_ART_SHOW_ADMIN_ACCESS %}
-      <div class="form-group">
-        <label for="attendee" class="col-sm-3 control-label">Attendee</label>
-        <div class="col-sm-6">
+      <div class="row g-sm-3 form-group">
+        <div class="col-12 col-sm-6">
+        <label for="attendee" class="col-12 form-text">Attendee</label>
+        <div class="mb-3">
           <select class="form-select" id="attendee_id" name="attendee_id" required="true">
             <option value="" selected="selected">Select an attendee</option>
             {{ options(all_attendees, attendee_id) }}
           </select>
         </div>
-      </div>
-      {% else %}
-      <div class="form-group">
-        <label for="attendee" class="col-sm-3 control-label">Attendee Badge Status</label>
-        <div class="col-sm-6">
+        </div>
+      {% if not new_app %}
+      <div class="col-12 col-sm-6">
+        <label for="attendee" class="col-12 form-text">Attendee Badge Status</label>
+        <div class="mb-3">
           <select class="form-select" id="badge_status" name="badge_status">
             {{ options(c.BADGE_STATUS_OPTS, app.attendee.badge_status) }}
           </select>
         </div>
       </div>
       {% endif %}
-
-      <div class="form-group">
-        <label for="status" class="col-sm-3 control-label">Application Status</label>
-        <div class="col-sm-6">
-          <select class="form-select" name="status">
-            {{ options(c.ART_SHOW_STATUS_OPTS, app.status) }}
-          </select>
-        </div>
-        <div class="clearfix"></div>
-        <p class="help-block col-sm-6 col-sm-offset-3">Changing this may trigger an email to the attendee.</p>
       </div>
 
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Paid?</label>
-        <div class="col-sm-6">
-          {% if app.status == c.APPROVED %}
-          <div class="form-inline">
-          <span id="amount_paid" class="form-control-static">
-            {{ (app.amount_paid / 100)|format_currency }} out of {{ app.total_cost|format_currency }}
-          </span>
+      <div class="row g-sm-3 form-group">
+        <div class="col-12 col-sm-6">
+          <label for="status" class="col-12 form-text">{{ c.ART_SHOW_APP_TERM|title }} Status</label>
+          <div class="mb-3">
+            <select class="form-select" name="status">
+              {{ options(c.ART_SHOW_STATUS_OPTS, app.status) }}
+            </select>
+            <p class="form-text">Changing this may trigger an email to the attendee.</p>
           </div>
-          {% else %}
-          <p class="form-control-static">
-            N/A
-          </p>
-          {% endif %}
         </div>
+        <div class="col-12 col-sm-6">
+          <label for="attendee" class="col-12 form-text">Locations</label>
+          <div class="mb-3">
+            <input type="text" class="form-control" name="locations" value="{{ app.locations }}" />
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 form-group">
+        {% if c.ART_SHOW_HAS_FEES %}
+        <div class="col-12 col-sm-6">
+          <label class="col-12 form-text">Paid?</label>
+          <div class="col-12">
+            {% if app.status == c.APPROVED %}
+            <div class="form-inline">
+            <span id="amount_paid" class="form-control-static">
+              {{ (app.amount_paid / 100)|format_currency }} out of {{ app.total_cost|format_currency }}
+            </span>
+            </div>
+            {% else %}
+            <p class="form-control-static">
+              N/A
+            </p>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+        <div class="col-12 col-sm-6">
+          <label class="col-12 form-text">Payout Method</label>
+          <div class="col-12">
+            <select class="form-select" name="payout_method">
+              {{ options(c.ARTIST_PAYOUT_METHOD_OPTS, app.payout_method) }}
+            </select>
+          </div>
+        </div>
+
         {% if app.amount_unpaid %}
           {% if not app.is_new and (not c.AT_THE_CON or not c.SPIN_TERMINAL_AUTH_KEY) %}
           <div class="clearfix"></div>
             <p class="help-block col-sm-6 col-sm-offset-3">
-              <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View this application</a> for the payment button.
+              <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View this {{ c.ART_SHOW_APP_TERM }}</a> for the payment button.
             </p>
           {% elif not app.is_new %}
+          <div class="d-flex align-items-center gap-1">
             <a href="paid_with_cash?id={{ app.id }}" class="btn btn-success" type="submit">Paid with Cash</a>
             <strong>OR</strong>
             <button type="button" class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ app.id }}', '', refreshPage, '../art_show_admin/start_terminal_payment')">Prompt Payment at Terminal</button>
+            <button class="btn btn-primary" onClick="checkTerminalPayment('{{ app.id }}', 'application', refreshPage)">Check Payment Terminal</button>
+          </div>
           {% endif %}
         {% endif %}
       </div>
 
+      <div class="row g-3">
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Artist ID</label>
+          <input type="text" name="artist_id" class="form-control" value="{{ app.artist_id }}">
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Mature Artist ID</label>
+          <input type="text" name="artist_id_ad" class="form-control" value="{{ app.artist_id_ad }}">
+          <p class="form-text">This will be the same as the artist ID unless the artist entered a separate mature banner name.</p>
+        </div>
+      </div>
+
       {% include 'art_show_applications/art_show_form.html' %}
 
+      {% if c.ART_SHOW_HAS_FEES %}
       <div class="form-group">
-        <label class="col-sm-3 control-label">Discounted Price</label>
+        <label class="col-sm-3 form-text">Discounted Price</label>
         <div class="col-sm-2">
           <input type="text" class="form-control" name="overridden_price"
                  value="{{ app.overridden_price if app.overridden_price != None else '' }}" />
@@ -108,15 +145,27 @@ app, c.PAGE_PATH,
           (Base Price: {{ app.base_price|default(app.potential_cost)|format_currency }})
         </span>
         <div class="clearfix"></div>
-        <p class="help-block col-sm-6 col-sm-offset-3">Change this to set an override on the application price, or leave
+        <p class="help-block col-sm-6 col-sm-offset-3">Change this to set an override on the {{ c.ART_SHOW_APP_TERM }} price, or leave
           it blank to use the base price.
-          {% if app.status != c.APPROVED %}<br/>Attendees are only asked to pay once their applications are approved.
+          {% if app.status != c.APPROVED %}<br/>Attendees are only asked to pay once their {{ c.ART_SHOW_APP_TERM }}s are approved.
           {% endif %}</p>
       </div>
+      {% endif %}
 
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Admin Notes</label>
-        <div class="col-sm-6">
+      <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Check-In Notes</label>
+          <textarea name="check_in_notes" class="form-control" rows="4">{{ app.check_in_notes }}</textarea>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Agent Notes</label>
+          <textarea name="agent_notes" class="form-control" rows="4">{{ app.agent_notes }}</textarea>
+        </div>
+      </div>
+
+      <div class="row mb-3 g-sm-3">
+        <div class="col-12 col-sm-6">
+          <label class="form-text">Admin Notes</label>
           <textarea name="admin_notes" class="form-control" rows="4">{{ app.admin_notes }}</textarea>
         </div>
       </div>

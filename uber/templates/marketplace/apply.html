@@ -1,0 +1,53 @@
+{% extends "preregistration/preregbase.html" %}
+{% set title_text = "Artist Marketplace Application" %}
+{% import 'forms/macros.html' as form_macros with context %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    {{ form_macros.form_validation('marketplace-form', 'validate_marketplace_app') }}
+    <h2>{{ c.EVENT_NAME }} Artist Marketplace Application</h2>
+    <p>Welcome to the application for the {{ c.EVENT_NAME_AND_YEAR }} Artist Marketplace!</p>
+    {% if c.AFTER_MARKETPLACE_DEADLINE and not c.HAS_MARKETPLACE_ACCESS %}
+    <p>Unfortunately, the deadline for marketplace applications has passed and we are no longer accepting applications.</p>
+    {% else %}
+    {% if c.AFTER_MARKETPLACE_DEADLINE and c.HAS_MARKETPLACE_ACCESS %}
+    <p style="color:red">
+        Marketplace applications have closed, but because you are a logged in
+        administrator you can submit a new application using this form.
+    </p>
+    {% endif %}
+    {% if c.AFTER_MARKETPLACE_WAITLIST %}
+    <p style="color:orange">
+        The deadline for marketplace applications has passed. You may still submit an application to be put on our waiting
+        list. Applications will close completely on {{ c.MARKETPLACE_DEADLINE|datetime_local }}.
+    </p>
+    {% endif %}
+
+    <p>
+      {% if MARKETPLACE_WAITLIST %}Marketplace applications are due by {{ c.MARKETPLACE_WAITLIST|datetime_local }}.
+      Any applications submitted after this date will be automatically waitlisted.{% endif %}
+      Applications will close{% if MARKETPLACE_WAITLIST %} completely{% endif %} on <strong>{{ c.MARKETPLACE_DEADLINE|datetime_local }}</strong>.
+    </p>
+
+    {% if attendee.is_group_leader and attendee.is_dealer %}
+    <p>We have pre-filled some of the fields below using the information from your {{ c.DEALER_APP_TERM }}.</p>
+    {% endif %}
+
+    <form novalidate method="post" action="apply" role="form" id="marketplace-form">
+      <input type="hidden" name="attendee_id" value="{{ attendee_id }}" />
+      {{ csrf_token() }}
+      {% set read_only = False %}
+      {% include 'marketplace/marketplace_form.html' with context %}
+
+      <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+          <button type="submit" class="btn btn-primary">Submit Application</button>
+        </div>
+      </div>
+    </form>
+
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

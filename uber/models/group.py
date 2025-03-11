@@ -25,6 +25,14 @@ __all__ = ['Group']
 
 class Group(MagModel, TakesPaymentMixin):
     public_id = Column(UUID, default=lambda: str(uuid4()))
+    shared_with_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    shared_with = relationship(
+        'Group',
+        foreign_keys='Group.shared_with_id',
+        backref=backref('table_shares', viewonly=True),
+        cascade='save-update,merge,refresh-expire,expunge',
+        remote_side='Group.id',
+        single_parent=True)
     name = Column(UnicodeText)
     tables = Column(Numeric, default=0)
     zip_code = Column(UnicodeText)
@@ -50,20 +58,21 @@ class Group(MagModel, TakesPaymentMixin):
     convert_badges = Column(Boolean, default=False, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     approved = Column(UTCDateTime, nullable=True)
-    leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
+    leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
+                       nullable=True)
     creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 
     creator = relationship(
         'Attendee',
         foreign_keys=creator_id,
-        backref=backref('created_groups', order_by='Group.name', cascade='all,delete-orphan'),
+        backref=backref('created_groups', order_by='Group.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Attendee.id',
         single_parent=True)
     leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
-    studio = relationship('IndieStudio', uselist=False, backref='group')
+    studio = relationship('IndieStudio', uselist=False, backref='group', cascade='save-update,merge,refresh-expire,expunge')
     guest = relationship('GuestGroup', backref='group', uselist=False)
     active_receipt = relationship(
         'ModelReceipt',
@@ -91,29 +100,6 @@ class Group(MagModel, TakesPaymentMixin):
         if not self.is_unpaid or self.orig_value_of('status') != self.status:
             for a in self.attendees:
                 a.presave_adjustments()
-
-    def calc_group_price_change(self, **kwargs):
-        preview_group = Group(**self.to_dict())
-        current_cost = int(self.cost * 100)
-        new_cost = None
-
-        if 'cost' in kwargs:
-            try:
-                preview_group.cost = int(kwargs['cost'])
-            except TypeError:
-                preview_group.cost = 0
-            new_cost = preview_group.cost * 100
-        if 'tables' in kwargs:
-            preview_group.tables = int(kwargs['tables'])
-            return self.default_table_cost * 100, (preview_group.default_table_cost * 100
-                                                   ) - (self.default_table_cost * 100)
-        if 'badges' in kwargs:
-            num_new_badges = int(kwargs['badges']) - self.badges
-            return self.current_badge_cost * 100, self.new_badge_cost * num_new_badges * 100
-
-        if not new_cost:
-            new_cost = int(preview_group.calc_default_cost() * 100)
-        return current_cost, new_cost - current_cost
 
     @presave_adjustment
     def assign_creator(self):
@@ -162,6 +148,43 @@ class Group(MagModel, TakesPaymentMixin):
                 signed = True
 
         return signed
+    
+    def convert_to_shared(self, session):
+        self.tables = 0
+        if len(self.floating) < abs(1 - self.badges):
+            new_badges_count = self.badges - len(self.floating)
+        else:
+            new_badges_count = 1
+
+        session.assign_badges(self, new_badges_count)
+
+    @property
+    def shared_with_name(self):
+        if self.shared_with:
+            return self.shared_with.name
+
+    def set_shared_with_name(self, value):
+        # This is not a setter function in order to avoid being processed inside WTForms
+        # TODO: Make that work
+
+        from uber.models import Session
+        if value == '':
+            self.shared_with = None
+        elif self.is_dealer and self.status == c.SHARED:
+            with Session() as session:
+                shared_group = session.query(Group).filter(Group.name == value).first()
+                if not shared_group:
+                    raise ValueError(f"Could not find group name {value}.")
+                elif shared_group.status == c.SHARED:
+                    raise ValueError(f"Group {value} is already sharing a table with {shared_group.shared_with.name}."
+                                     "You may want to share this group's table with that group instead.")
+                else:
+                    self.shared_with_id = shared_group.id
+    
+    @presave_adjustment
+    def unshare_table(self):
+        if self.status != c.SHARED:
+            self.shared_with = None
 
     @property
     def sorted_attendees(self):
@@ -186,7 +209,7 @@ class Group(MagModel, TakesPaymentMixin):
         care specifically about paid-by-group badges rather than all unassigned
         badges.
         """
-        return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
+        return [a for a in self.attendees if a.is_unassigned and a.paid in [c.PAID_BY_GROUP, c.NEED_NOT_PAY]]
 
     @hybrid_property
     def normalized_name(self):
@@ -206,12 +229,36 @@ class Group(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def attendees_have_badges(self):
-        return self.is_valid and (not self.is_dealer or self.status == c.APPROVED)
+        return self.is_valid and (not self.is_dealer or self.status in [c.APPROVED, c.SHARED])
 
     @attendees_have_badges.expression
     def attendees_have_badges(cls):
         return and_(cls.is_valid,
-                    or_(cls.is_dealer == False, cls.status == c.APPROVED))  # noqa: E712
+                    or_(cls.is_dealer == False, cls.status.in_([c.APPROVED, c.SHARED])))  # noqa: E712
+
+    @property
+    def access_sections(self):
+        """
+        Returns what site sections a group 'belongs' to based on their properties.
+        We use this list to determine which admins can view the group.
+        In some cases, we rely on the group's leader to tell us what kind of group this is.
+        """
+        section_list = []
+        if self.leader:
+            if self.leader.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
+                section_list.append('shifts_admin')
+            if c.PANELIST_RIBBON in self.leader.ribbon_ints:
+                section_list.append('panels_admin')
+        if self.is_dealer:
+            section_list.append('dealer_admin')
+        if self.guest:
+            if self.guest.group_type == c.BAND:
+                section_list.append('band_admin')
+            elif self.guest.group_type == c.MIVS:
+                section_list.append('mivs_admin')
+            else:
+                section_list.append('guest_admin')
+        return section_list
 
     @property
     def new_ribbon(self):
@@ -308,23 +355,13 @@ class Group(MagModel, TakesPaymentMixin):
             return self.active_receipt.item_total / 100
         return (self.cost or self.calc_default_cost()) + self.amount_extra
 
-    @hybrid_property
+    @property
     def is_paid(self):
         return self.active_receipt and self.active_receipt.current_amount_owed == 0
 
-    @is_paid.expression
-    def is_paid(cls):
-        from uber.models import ModelReceipt
-
-        return exists().select_from(ModelReceipt).where(
-            and_(ModelReceipt.owner_id == cls.id,
-                 ModelReceipt.owner_model == "Group",
-                 ModelReceipt.closed == None,  # noqa: E711
-                 ModelReceipt.current_amount_owed == 0))
-
     @property
     def amount_unpaid(self):
-        if self.is_dealer and self.status != c.APPROVED:
+        if self.is_dealer and self.status not in [c.APPROVED, c.SHARED]:
             return 0
 
         if self.registered:
@@ -352,7 +389,7 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_paid(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.payment_total]
+        return select([ModelReceipt.payment_total_sql]).outerjoin(ModelReceipt.receipt_txns
                       ).where(and_(ModelReceipt.owner_id == cls.id,
                                    ModelReceipt.owner_model == "Group",
                                    ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
@@ -365,7 +402,7 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_refunded(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.refund_total]
+        return select([ModelReceipt.refund_total_sql]).outerjoin(ModelReceipt.receipt_txns
                       ).where(and_(ModelReceipt.owner_id == cls.id,
                                    ModelReceipt.owner_model == "Group")).label('amount_refunded')
 
@@ -427,20 +464,19 @@ class Group(MagModel, TakesPaymentMixin):
 
         physical_address = [address1, address2, city_region_zip, country]
         return '\n'.join([s for s in physical_address if s])
+    
+    @property
+    def guidebook_edit_link(self):
+        return f"../group_admin/form?id={self.id}"
 
     @property
-    def guidebook_name(self):
-        return self.name
-
-    @property
-    def guidebook_subtitle(self):
+    def guidebook_data(self):
         category_labels = [cat for cat in self.categories_labels if 'Other' not in cat] + [self.categories_text]
-        return ', '.join(category_labels[:5])
-
-    @property
-    def guidebook_desc(self):
-        return self.description
-
-    @property
-    def guidebook_location(self):
-        return ''
+        return {
+            'guidebook_name': self.name,
+            'guidebook_subtitle': ', '.join(category_labels[:5]),
+            'guidebook_desc': self.description,
+            'guidebook_location': '',
+            'guidebook_header': '',
+            'guidebook_thumbnail': '',
+        }

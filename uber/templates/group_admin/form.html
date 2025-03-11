@@ -23,16 +23,16 @@
       {% elif signnow_last_emailed %}
       <div class="col text-end">
       <em>This dealer was last emailed their SignNow document at {{ signnow_last_emailed|datetime_local }}.</em>
-      <a class="btn btn-warning" href="../group_admin/resend_signnow_link?id={{ group.id }}">Resend SignNow Link</a>
+      <a class="btn btn-warning" href="../dealer_admin/resend_signnow_link?id={{ group.id }}">Resend SignNow Link</a>
       </div>
-      {% elif c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED %}
+      {% elif c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status in [c.APPROVED, c.SHARED] %}
       <div class="col text-end">
       <em>This dealer has not been emailed a SignNow document yet.</em>
-      <a class="btn btn-success" href="../group_admin/resend_signnow_link?id={{ group.id }}">Send SignNow Link</a>
+      <a class="btn btn-success" href="../dealer_admin/resend_signnow_link?id={{ group.id }}">Send SignNow Link</a>
       </div>
       {% endif %}
     </div>
-    {% if c.AT_THE_CON and group.amount_unpaid %}
+    {% if (c.AT_THE_CON or c.AFTER_PREREG_TAKEDOWN) and group.amount_unpaid %}
       <div class="alert alert-warning center" role="alert">
         <h4>{{ group.name }} currently owes <strong>{{ group.amount_unpaid|format_currency }}</strong>.</h4>
         {% if payment_enabled %}
@@ -40,6 +40,7 @@
             <a href="paid_with_cash?id={{ group.id }}" class="btn btn-success" type="submit">Paid with Cash</a>
             <strong>OR</strong>
             <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ group.id }}', '', refreshPage)">Prompt Payment at Terminal</button>
+            <button class="btn btn-primary" onClick="checkTerminalPayment('{{ group.id }}', 'group', refreshPage)">Check Payment Terminal</button>
             <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
             {% include 'registration/spin_terminal_form.html' with context %}
           {% else %}
@@ -133,7 +134,7 @@
       <th>Amount Extra</th>
       <th>Leader</th>
       <th>Unassign</th>
-      {% if c.AT_THE_CON %}<th>Check In</th>{% endif %}
+      {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}<th>Check In</th>{% endif %}
     </tr>
     </thead>
     <tbody>
@@ -164,15 +165,15 @@
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <input type="hidden" name="return_to" value="../group_admin/form?id={{ group.id }}" />
-                <input type="submit" value="Unassign" />
+                <input type="submit" value="Unassign" class="btn btn-warning" />
               </form>
             {% endif %}
           </td>
-          {% if c.AT_THE_CON and attendee.checked_in %}
+          {% if (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and attendee.checked_in %}
             <td><b>Checked-in {{ attendee.checked_in_local|datetime("%-I:%M%p")|lower }} {{ attendee.checked_in_local|datetime("%a") }}</b></td>
-          {% elif c.AT_THE_CON %}
-            {% if attendee.is_not_ready_to_checkin %}
-              <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+          {% elif c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
+            {% if attendee.cannot_check_in_reason %}
+              <td>Can't checkin ({{ attendee.cannot_check_in_reason }})</td>
             {% else %}
               <td id="cin_{{ attendee.id }}">
                 <button class="attendee-checkin btn btn-sm btn-success" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>

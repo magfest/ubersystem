@@ -9,7 +9,7 @@ from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
 from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, CustomValidation)
+                        HiddenBoolField, HiddenIntField, CustomValidation, Ranking)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
 from uber.models import Attendee, Session, PromoCodeGroup
@@ -18,7 +18,8 @@ from uber.utils import get_age_conf_from_birthday
 
 
 __all__ = ['AdminBadgeExtras', 'AdminBadgeFlags', 'AdminConsents', 'AdminStaffingInfo', 'BadgeExtras',
-           'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo', 'Consents']
+           'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo',
+           'Consents']
 
 
 # TODO: turn this into a proper validation class
@@ -102,18 +103,18 @@ class PersonalInfo(AddressForm, MagForm):
 
     def get_optional_fields(self, attendee, is_admin=False):
         if attendee.valid_placeholder and (is_admin or cherrypy.request.method == 'POST'):
-            return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone']
+            return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone', 'confirm_email']
         if is_admin and attendee.unassigned_group_reg:
             return ['first_name', 'last_name', 'email', 'badge_printed_name',
                     'cellphone', 'confirm_email'] + self.placeholder_optional_field_names()
 
         optional_list = super().get_optional_fields(attendee, is_admin)
 
-        if not attendee.needs_pii_consent and not attendee.badge_status == c.PENDING_STATUS:
+        if is_admin or not attendee.needs_pii_consent and attendee.badge_status != c.PENDING_STATUS:
             optional_list.append('confirm_email')
 
-        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE
-                                                                    and c.AFTER_PRINTED_BADGE_DEADLINE):
+        if not attendee.has_personalized_badge or (c.PRINTED_BADGE_DEADLINE
+                                                   and c.AFTER_PRINTED_BADGE_DEADLINE):
             optional_list.append('badge_printed_name')
 
         if self.same_legal_name.data:
@@ -132,7 +133,7 @@ class PersonalInfo(AddressForm, MagForm):
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = []
 
-        if attendee.is_new or attendee.badge_status in [c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS]:
+        if attendee.is_new or attendee.badge_status == c.PENDING_STATUS or attendee.paid == c.PENDING:
             return locked_fields
         elif not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
             return list(self._fields.keys())
@@ -301,7 +302,7 @@ class OtherInfo(MagForm):
             with Session() as session:
                 code = session.lookup_promo_code(field.data)
                 if not code:
-                    group = session.lookup_promo_or_group_code(field.data, PromoCodeGroup)
+                    group = session.lookup_registration_code(field.data, PromoCodeGroup)
                     if not group:
                         raise ValidationError("The promo code you entered is invalid.")
                     elif not group.valid_codes:
@@ -309,7 +310,7 @@ class OtherInfo(MagForm):
                 else:
                     if code.is_expired:
                         raise ValidationError("That promo code has expired.")
-                    elif code.uses_remaining <= 0 and not code.is_unlimited:
+                    elif not code.is_unlimited and code.uses_remaining <= 0:
                         raise ValidationError("That promo code has been used already.")
 
 
@@ -483,7 +484,7 @@ class BadgeAdminNotes(MagForm):
 
 
 class CheckInForm(MagForm):
-    field_validation = CustomValidation()
+    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
 
     full_name = HiddenField('Name')
     legal_name = HiddenField('Name on ID')
@@ -494,7 +495,7 @@ class CheckInForm(MagForm):
     badge_type = HiddenIntField('Badge Type')
     badge_num = StringField('Badge Number', id="checkin_badge_num", default='', validators=[
         validators.DataRequired('Badge number is required.'),
-    ])
+    ] if c.NUMBERED_BADGES else [])
     badge_printed_name = PersonalInfo.badge_printed_name
     got_merch = AdminBadgeExtras.got_merch
     got_staff_merch = AdminStaffingInfo.got_staff_merch
@@ -502,11 +503,24 @@ class CheckInForm(MagForm):
     def get_optional_fields(self, attendee, is_admin=False):
         optional_list = super().get_optional_fields(attendee, is_admin)
 
-        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES or (c.PRINTED_BADGE_DEADLINE and
-                                                                    c.AFTER_PRINTED_BADGE_DEADLINE):
+        if not attendee.has_personalized_badge or (c.PRINTED_BADGE_DEADLINE and
+                                                   c.AFTER_PRINTED_BADGE_DEADLINE):
             optional_list.append('badge_printed_name')
 
         return optional_list
+
+    @new_or_changed_validation.badge_num
+    def dupe_badge_num(form, field):
+        existing_name = ''
+        if c.NUMBERED_BADGES and field.data \
+                and (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
+            with Session() as session:
+                existing = session.query(Attendee).filter_by(badge_num=field.data)
+                if not existing.count():
+                    return
+                else:
+                    existing_name = existing.first().full_name
+            raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))
 
     @field_validation.birthdate
     def birthdate_format(form, field):

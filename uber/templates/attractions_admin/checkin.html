@@ -189,14 +189,14 @@
     };
 
     var toggleShowCheckedIn = function(isShowing) {
-      $showCheckedInButton.toggleClass('btn-plain', !isShowing);
+      $showCheckedInButton.toggleClass('btn-outline-secondary', !isShowing);
       $showCheckedInButton.toggleClass('btn-outline-secondary', isShowing);
       $container.toggleClass('show-checked-in', !isShowing);
     };
 
     $showCheckedInButton.on('click', function(event) {
       event.preventDefault();
-      toggleShowCheckedIn($showCheckedInButton.hasClass('btn-plain'));
+      toggleShowCheckedIn($showCheckedInButton.hasClass('btn-outline-secondary'));
     });
 
     $('.form-control-feedback').on('click', function(event) {
@@ -317,7 +317,7 @@
     </div>
   </div>
   <br/>
-  <button id="filter" class="btn btn-xs btn-xs btn-outline-secondary">
+  <button id="filter" class="btn btn-sm btn-sm btn-outline-secondary">
     <i class="fa fa-filter"></i>
     Show Already Checked In
   </button>

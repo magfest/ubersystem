@@ -55,7 +55,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
             {{ form_macros.form_input(check_in_form.birthdate) }}
         </div>
     {% endif %}
-    {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
+    {% if attendee.has_personalized_badge %}
         <div class="col">{{ form_macros.form_input(check_in_form.badge_printed_name) }}</div>
     {% endif %}
 </div>
@@ -76,19 +76,43 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 
 {% block badge_printing %}
-{% if c.BADGE_PRINTING_ENABLED %}
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-6">
-            <label for="printer_id" class="form-text">Printer ID</label>
-            <div class="mb-3"><input type="text" id="printer_id" class="form-control" name="printer_id" /></div>
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">
+        <div class="form-text">&nbsp;</div>
+        <div>
+            <p><a href="#" class="btn btn-warning" data-bs-toggle="collapse" data-bs-target=".escalate-ticket" aria-expanded="false" aria-controls="escalate-ticket">Escalate to Manager</a></p>
         </div>
     </div>
+{% if c.BADGE_PRINTING_ENABLED %}
+    <div class="col-12 col-sm-6">
+        <label for="printer_id" class="form-text">Printer ID</label>
+        <div class="mb-3"><input type="text" id="printer_id" class="form-control" name="printer_id" /></div>
+    </div>
 {% endif %}
+</div>
+
+<div class="row g-sm-3">
+    <div class="escalate-ticket col-12 collapse bg-light card card-body">
+        <p>
+            This will add {{ attendee.full_name }} to the manager queue and they will not be able to check in before a manager
+            clears their ticket(s). If you're sure you want to do this, please describe the problem below and click
+            "Create Escalation Ticket".
+        </p>
+        <div class="row">
+        <div class="col-12 col-lg-6 text-end">
+            <div class="form-text text-start">Escalation Note</div>
+            <textarea name="description" id="escalation-ticket-desc" class="form-control mb-3" rows="4"></textarea>
+            <button class="btn btn-warning" type="button" onClick="createEscalationTicket('{{ attendee.id }}')">Create Escalation Ticket</button>
+            <a href="#" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target=".escalate-ticket">Cancel</a>
+        </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block check_in_notes %}
 {% if attendee.check_in_notes %}
-<div class="alert alert-info">
+<div class="alert alert-info mt-3">
     {{ attendee.check_in_notes }}
 </div>
 {% endif %}

@@ -30,7 +30,10 @@ def _submit_checklist_item(session, department_id, submitted, csrf_token, slug, 
             department_id,
             custom_message or 'Thanks for completing the {} form!'.format(slug.replace('_', ' ')))
 
-    return {'department': department}
+    return {
+        'department': department,
+        'conf': DeptChecklistConf.instances[slug],
+    }
 
 
 @all_renderable()

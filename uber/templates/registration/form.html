@@ -6,44 +6,66 @@
 {% include "registration/menu.html" %}
 
 {% include "check_in.html" %}
-{% set can_check_in = c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and (not receipt or not receipt.current_amount_owed) %}
+{% set can_check_in = (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and not attendee.checked_in and not attendee.cannot_check_in_reason and (not receipt or not receipt.current_amount_owed) %}
 
-<div class="row mb-3">
-    <div class="col">
-    {% if not attendee.is_new %}
-    <a class="btn btn-primary" href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">View as Attendee</a>
-    {% endif %}
-    {% if attendee.group and c.HAS_GROUP_ADMIN_ACCESS %}
+<div class="d-flex justify-content-between">
+    <div class="d-flex gap-1">
+        {% if not attendee.is_new %}
+        <a class="btn btn-primary" href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">View as Attendee</a>
+        {% endif %}
+        {% if attendee.group and c.HAS_GROUP_ADMIN_ACCESS %}
         <a class="btn btn-secondary" href="../group_admin/form?id={{ attendee.group.id }}" target="_blank">View Group "{{ attendee.group.name }}"</a>
-    {% endif %}
-    {% if attendee.promo_code_groups %}
+        {% endif %}
+        {% if attendee.promo_code_groups %}
         <a class="btn btn-outline-secondary" href="../registration/promo_code_group_form?id={{ attendee.promo_code_groups[0].id }}" target="_blank">View Group "{{ attendee.promo_code_groups[0].name }}"</a>
-    {% endif %}
-    {% if not attendee.is_new %}
-        <form method="post" class="d-inline" id="delete_attendee" action="../registration/delete" onSubmit="return confirm('{% if attendee.unassigned_group_reg %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
-            {{ csrf_token() }}
-            <input type="hidden" name="id" value="{{ attendee.id }}" />
-            {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
-        </form>
-        <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.unassigned_group_reg %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
-                        {% if attendee.cannot_delete_badge_reason %} style="background-color:#BCBCBC" title="{{ attendee.cannot_delete_badge_reason }}" disabled {% endif %}/>
-        {% if c.HAS_SECURITY_ADMIN_ACCESS %}
-        <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
         {% endif %}
-
-        {% if attendee.paid != c.LOST_BADGE %}
-            <form method="post" class="d-inline" action="lost_badge">
+    </div>
+    <div class="d-flex gap-1">
+        {% if not attendee.is_new %}
+            <form method="post" id="delete_attendee" action="../registration/delete" onSubmit="return confirm('{% if attendee.unassigned_group_reg %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
+                {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
-                <input type="submit" class="btn btn-outline-danger" value="Report Lost Badge">
+                {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
             </form>
+            <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.unassigned_group_reg %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
+                            {% if attendee.cannot_delete_badge_reason %} style="background-color:#BCBCBC" title="{{ attendee.cannot_delete_badge_reason }}" disabled {% endif %}/>
+            {% if c.HAS_SECURITY_ADMIN_ACCESS %}
+            <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
+            {% endif %}
+
+            {% if attendee.paid != c.LOST_BADGE %}
+                <form method="post" action="lost_badge">
+                    <input type="hidden" name="id" value="{{ attendee.id }}" />
+                    <input type="submit" class="btn btn-outline-danger" value="Report Lost Badge">
+                </form>
+            {% endif %}
         {% endif %}
-{% endif %}
+        </div>
     </div>
 </div>
 
 <div class="card">
 <div class="card-body">
-{% if c.AT_THE_CON and receipt and receipt.current_amount_owed and not attendee.is_new %}
+{% if attendee.active_escalation_tickets %}
+<div class="alert alert-warning center pb-0" role="alert">
+    {% if c.HAS_REG_ADMIN_ACCESS %}
+    {% set one_ticket = attendee.active_escalation_tickets|length == 1 %}
+    <p>
+        This attendee has {% if one_ticket %}an outstanding escalation ticket with the note: {{ attendee.active_escalation_tickets[0].description }}
+        {% else %}the following outstanding escalation tickets:
+        <ul>
+            {% for ticket in attendee.active_escalation_tickets %}
+            <li>{{ ticket.description }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </p>
+    <p>Please review and resolve their ticket{% if not one_ticket %}s{% endif %} on the <a href="../reg_admin/escalation_tickets" target="_blank">Escalation Tickets</a> page.</p>
+    {% else %}
+    <p>This attendee cannot check in because they have at least one outstanding escalation ticket. Please ask them to go to the manager station.</p>
+    {% endif %}
+</div>
+{% elif (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and receipt and receipt.current_amount_owed and not attendee.is_new %}
     <div class="alert alert-warning center" role="alert">
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>
     {% if payment_enabled %}
@@ -56,6 +78,7 @@
             </form>
             <strong>OR</strong>
             <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ attendee.id }}')">Prompt Payment at Terminal</button>
+            <button class="btn btn-primary" onClick="checkTerminalPayment('{{ attendee.id }}', 'attendee')">Check Payment Terminal</button>
             <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
             {% include 'registration/spin_terminal_form.html' with context %}
             <script type="text/javascript">
@@ -121,10 +144,9 @@
     {% else %}Please ask an admin with receipt access to correct their receipt.{% endif %}
 </div>
 {% endif %}
-{% if c.AT_THE_CON %}
+{% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
 {% include 'registration/attendee_pending_warning.html' %}
 {% endif %}
-{% include 'badge_printing/queue_badge.html' %}
 
 {% if attendee.regdesk_info %}
 <div class="alert alert-info">
@@ -139,6 +161,13 @@
 <div class="alert alert-info">
     {{ attendee.check_in_notes }}
 </div>
+{% endif %}
+
+{% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
+<form class="print-badge" id="print-badge-form" action="../badge_printing/add_job_to_queue" method="post">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ attendee.id }}">
+</form>
 {% endif %}
 
 {{ form_macros.form_validation('attendee-form') }}

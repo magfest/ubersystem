@@ -9,28 +9,50 @@ from uber.utils import extract_urls
 @all_renderable()
 class Root:
     @log_pageview
-    def dealer_receipt_discrepancies(self, session):
-        filters = [Group.cost_cents != ModelReceipt.item_total, Group.is_dealer == True,  # noqa: E712
-                   Group.status == c.APPROVED]
+    def dealer_receipt_discrepancies(self, session, only_dealers=False):
+        if only_dealers:
+            filters = [Group.is_dealer == True, Group.status.in_([c.APPROVED, c.SHARED])]  # noqa: E712
+        else:
+            filters = [or_(Group.is_dealer == False, Group.status.in_([c.APPROVED, c.SHARED]))]
+
+        groups = session.query(Group).filter(*filters).join(Group.active_receipt).outerjoin(
+            ModelReceipt.receipt_items).group_by(ModelReceipt.id).group_by(Group.id).having(
+                Group.cost_cents != ModelReceipt.fkless_item_total_sql)
 
         return {
-            'groups': session.query(Group).join(Group.active_receipt).filter(*filters),
+            'groups': groups,
+            'only_dealers': only_dealers,
         }
 
     @log_pageview
-    def dealers_nonzero_balance(self, session, include_no_receipts=False):
-        if include_no_receipts:
-            groups = session.query(Group).outerjoin(Group.active_receipt).filter(
-                or_(and_(ModelReceipt.id == None, Group.cost > 0),  # noqa: E711
-                    and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))  # noqa: E711
+    def dealers_nonzero_balance(self, session, include_no_receipts=False, include_discrepancies=False):
+        item_subquery = session.query(ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
+                                      ).join(ModelReceipt.receipt_items).group_by(ModelReceipt.owner_id).subquery()
+        
+        if include_discrepancies:
+            filter = True
         else:
-            groups = session.query(Group).join(Group.active_receipt).filter(
-                Group.cost_cents == ModelReceipt.item_total,
-                ModelReceipt.current_receipt_amount != 0)
+            filter = Group.cost_cents == item_subquery.c.item_total
 
+        groups_and_totals = session.query(
+            Group, ModelReceipt.payment_total_sql, ModelReceipt.refund_total_sql, item_subquery.c.item_total
+            ).filter(Group.is_valid == True).join(Group.active_receipt).outerjoin(
+                ModelReceipt.receipt_txns).join(item_subquery, Group.id == item_subquery.c.owner_id).group_by(
+                    ModelReceipt.id).group_by(Group.id).group_by(item_subquery.c.item_total).having(
+                        and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
+                             filter))
+        
+        if include_no_receipts:
+            groups_no_receipts = session.query(Group).outerjoin(ModelReceipt,
+                                                                Group.active_receipt).filter(Group.cost > 0,
+                                                                                             ModelReceipt.id == None)
+        else:
+            groups_no_receipts = []
+        
         return {
-            'groups': groups.filter(Group.is_dealer == True, Group.status == c.APPROVED),  # noqa: E712
-            'include_no_receipts': include_no_receipts,
+            'groups_and_totals': groups_and_totals,
+            'include_discrepancies': include_discrepancies,
+            'groups_no_receipts': groups_no_receipts,
         }
 
     @csv_file
@@ -77,7 +99,7 @@ class Root:
         ])
         dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()  # noqa: E712
         for group in dealer_groups:
-            if group.status == c.APPROVED:
+            if group.status in [c.APPROVED, c.SHARED]:
                 full_name = group.leader.full_name if group.leader else ''
                 out.writerow([
                     group.name,
@@ -153,7 +175,7 @@ class Root:
         dealer_groups = session.query(Group).filter(Group.tables > 0).all()
         rows = []
         for group in dealer_groups:
-            if group.status == c.APPROVED and group.is_dealer:
+            if group.status in [c.APPROVED, c.SHARED] and group.is_dealer:
                 rows.append([
                     group.name,
                     group.email,
@@ -223,7 +245,7 @@ class Root:
 
     @xlsx_file
     def seller_tax_info(self, out, session):
-        approved_groups = session.query(Group).filter(Group.status == c.APPROVED).all()
+        approved_groups = session.query(Group).filter(Group.status.in_([c.APPROVED, c.SHARED])).all()
         rows = []
         for group in approved_groups:
             if group.is_dealer:

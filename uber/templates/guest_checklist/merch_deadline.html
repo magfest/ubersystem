@@ -185,7 +185,7 @@
         <select name="selling_merch" class="form-control">
           <option value="">Tell us how you'd like to sell your merch</option>
           {% if HAS_ROCK_ISLAND %}
-            {{ options(c.GUEST_MERCH_OPTS,guest_merch.selling_merch) }}
+            {{ options(c.GUEST_MERCH_OPTS, guest_merch.selling_merch) }}
           {% else %}
             {{ options(c.GUEST_MERCH_OPTS|rejectattr('0', 'equalto', c.ROCK_ISLAND), guest_merch.selling_merch) }}
           {% endif %}
@@ -196,6 +196,19 @@
     {% block form_extra %}
       {% if HAS_ROCK_ISLAND %}
         <div id="rockisland" style="display:none">
+          {% if not guest.deadline_from_model('autograph') %}
+          <h3>Meet N Greet™</h3>
+          <div class="form-group">
+            <div class="col-sm-6 col-sm-offset-3">
+              <p>Would you like to have a Meet N Greet™ at Rock Island?</p>
+              <select name="rock_island_autographs" class="form-control" required>
+                <option value="">Please select an option...</option>
+                <option value="1" {% if guest_autograph.rock_island_autographs %}selected {% endif %}>Yes</option>
+                <option value="0" {% if guest_autograph.rock_island_autographs == False %}selected {% endif %}>No</option>
+              </select>
+            </div>
+          </div>
+          {% endif %}
           <h3>Your Inventory</h3>
           <p class="help-block">You may add or edit items in your inventory until {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}.</p>
           <div id="inventory_container"{% if not guest_merch.inventory %} style="display:none"{% endif %}>
@@ -205,8 +218,8 @@
             <h4>Add some merch to your inventory!</h4>
             <div class="inventory-add-item text-success">
               <span class="glyphicon glyphicon-plus-sign"></span>
-              <select class="form-select add_inventory">
-                <option value="">Select an item to add it...</option>
+              <select class="form-control add_inventory">
+                <option value="">Select an item to add...</option>
                 {{ options(c.MERCH_TYPES_OPTS) }}
               </select>
             </div>
@@ -246,10 +259,40 @@
             {{ macros.name_form_group(handler, label='Merch Handler', prefix='handlers_', suffix='_' ~ index) }}
           {%- endfor %}
           <h3>Extra Info</h3>
-          {{ macros.form_group(guest_merch, 'bringing_boxes', type='textarea', label='Bringing any boxes?',
-              placeholder='How many boxes and how big are they?',
-              help='Please tell us how many boxes you plan on bringing and how big they are. We would like to plan accordingly.',
-              is_required=False) }}
+          <div class="form-group">
+            <label class="col-sm-3 control-label">Inventory Delivery</label>
+            <div class="col-sm-6">
+              <p>Will you be shipping your inventory to the warehouse or bringing it in person?</p>
+              <select name="delivery_method" class="form-control" required>
+                <option value="">Please select an option...</option>
+                {{ options(c.GUEST_MERCH_DELIVERY_OPTS, guest_merch.delivery_method) }}
+              </select>
+              <p class="help-block" id="delivery_hint" style="display:none">
+                Please check <a href="../static/RockIsland.pdf">the FAQ</a> to confirm the shipping address and delivery deadline!
+              </p>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="col-sm-3 control-label">Preferred Payout Method</label>
+            <div class="col-sm-6">
+              <select name="payout_method" class="form-control" required>
+                <option value="">Please select an option...</option>
+                {{ options(c.GUEST_MERCH_PAYOUT_METHOD_OPTS, guest_merch.payout_method) }}
+              </select>
+              <p class="help-block">
+                If other options are not possible, select "Other" and we will discuss options in person.
+              </p>
+            </div>
+          </div>
+          {{ macros.form_group(guest_merch, 'paypal_email', label="PayPal Email Address", is_required=True) }}
+          <div id="payout_address">
+            {{ macros.form_group(guest_merch, 'check_payable', label='Name on Check', is_required=True) }}
+            {{ macros.address_form(guest_merch, name_prefix='check_', model_prefix='check_', is_required=True) }}
+          </div>
+          {{ macros.form_group(guest_merch, 'arrival_plans', label="Arrival Plans", type='textarea', is_required=True,
+                               help="Please tell us your estimated arrival to Rock Island to check in your inventory.") }}
+          {{ macros.form_group(guest_merch, 'merch_events', label="Performance Dates/Times", type='textarea',
+                               help="Please tell us any signings/panels/shows you are a part of and that you would like us to be at in order to sell your merch (subject to staff approval and availability).") }}
           {{ macros.form_group(guest_merch, 'extra_info', type='textarea', label='Anything else?',
               placeholder='Anything else we might need to know?',
               is_required=False) }}
@@ -257,8 +300,28 @@
 
         {% include "region_opts.html" %}
         <script type="text/javascript">
+          var showOrHideDeliveryHint = function() {
+            setVisible('#delivery_hint', $.val('delivery_method') == "{{ c.SHIPPING }}");
+          }
+
+          var showOrHidePayoutExtraFields = function() {
+            setVisible($.field('paypal_email').parents('.form-group'), $.val('payout_method') == "{{ c.PAYPAL }}");
+            $.field('paypal_email').prop('required', $.val('payout_method') == "{{ c.PAYPAL }}");
+            $("label[for='paypal_email']").toggleClass('optional-field', $.val('payout_method') != "{{ c.PAYPAL }}");
+
+            setVisible('#payout_address', $.val('payout_method') == "{{ c.CHECK }}");
+            $.field('check_payable').prop('required', $.val('payout_method') == "{{ c.CHECK }}");
+            $("label[for='check_payable']").toggleClass('optional-field', $.val('payout_method') != "{{ c.CHECK }}");
+            {% for field_name in ['country', 'address1', 'city', 'region', 'zip_code'] %}
+            $.field('check_{{ field_name }}').prop('required', $.val('payout_method') == "{{ c.CHECK }}");
+            $("label[for='check_{{ field_name }}']").toggleClass('optional-field', $.val('payout_method') != "{{ c.CHECK }}");
+            {% endfor %}
+            // I STILL hate Select2Autocomplete
+            $.field('check_country').next().prop('required', $.val('payout_method') == "{{ c.CHECK }}");
+          }
+
             var showOrHideRockIsland = function() {
-                var isRockIsland = $.val('selling_merch') === {{ c.ROCK_ISLAND }};
+                var isRockIsland = $.val('selling_merch') == "{{ c.ROCK_ISLAND }}";
                 setVisible('#rockisland', isRockIsland);
 
                 $('#rockisland input, #rockisland textarea, #rockisland select').prop('disabled', !isRockIsland);
@@ -375,6 +438,13 @@
             $(function () {
                 showOrHideRockIsland();
                 $.field('selling_merch').on('change', showOrHideRockIsland);
+
+                showOrHideDeliveryHint();
+                $.field('delivery_method').on('change', showOrHideDeliveryHint);
+
+                showOrHidePayoutExtraFields();
+                $.field('payout_method').on('change', showOrHidePayoutExtraFields);
+
                 $('.add_inventory').on('change', onChooseInventoryType);
 
                 var $inventoryContainer = $('#inventory_container'),

@@ -115,13 +115,11 @@ c.MENU = MenuItem(name='Root', submenu=[
 
     MenuItem(name='People', submenu=[
         MenuItem(name='Attendees', href='../registration/'),
-        MenuItem(name='Pending Badges', href='../registration/pending_badges'),
-        MenuItem(name='Promo Code Groups', href='../registration/promo_code_groups'),
         MenuItem(name='Groups', href='../group_admin/'),
         MenuItem(name='Dealers', href='../group_admin/#dealers', access_override='dealer_admin'),
         MenuItem(name='Guests', href='../group_admin/#guests', access_override='guest_admin'),
         MenuItem(name='Bands', href='../group_admin/#bands', access_override='band_admin'),
-        MenuItem(name='MIVS', href='../group_admin/#mivs', access_override='mivs_admin'),
+        
     ]),
 
     MenuItem(name='Schedule', submenu=[
@@ -136,9 +134,24 @@ c.MENU = MenuItem(name='Root', submenu=[
 ])
 
 
+if c.MIVS_ENABLED:
+    c.MENU['People'].append_menu_item(MenuItem(name='MIVS', href='../group_admin/#mivs',
+                                               access_override='mivs_admin'), position=5)
+
+
+if c.GROUPS_ENABLED:
+    c.MENU['People'].append_menu_item(MenuItem(name='Promo Code Groups',
+                                               href='../registration/promo_code_groups'), position=2)
+
+
 if c.ATTENDEE_ACCOUNTS_ENABLED:
     c.MENU['People'].append_menu_item(MenuItem(name='Attendee Accounts',
                                                href='../reg_admin/attendee_accounts'), position=1)
+
+
+if c.ADMIN_BADGES_NEED_APPROVAL:
+    c.MENU['People'].append_menu_item(MenuItem(name='Pending Badges',
+                                               href='../registration/pending_badges'), position=1)
 
 
 if c.ATTRACTIONS_ENABLED:
@@ -161,5 +174,4 @@ if c.ART_SHOW_ENABLED:
         MenuItem(name='Link to Apply', href='../art_show_applications/', access_override='art_show_admin'),
         MenuItem(name='At-Con Operations', href='../art_show_admin/ops'),
         MenuItem(name='Reports', href='../art_show_reports/index'),
-        MenuItem(name='Sales Charge Form', href='../art_show_admin/sales_charge_form'),
         ]))

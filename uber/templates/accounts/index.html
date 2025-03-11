@@ -8,6 +8,37 @@ table form {
 }
 </style>
 
+<script type="text/javascript">
+  let selectList;
+  const handleInput = () => {
+    const inputValue = $('#attendee-select-search').val();
+    if (inputValue && inputValue.length < 3) {
+      return;
+    }
+
+    $("#attendee-select-list li").remove();
+
+    if (inputValue) {
+        const matchingEls = selectList.filter((key, val) => val.innerText.trim().includes(inputValue));
+
+        matchingEls.each((key, val) => {
+          $('#attendee-select-list').append(val);
+        });
+    } else {
+      selectList.each((key, val) => {
+          $('#attendee-select-list').append(val);
+        });
+    }
+}
+  let setAttendeeId = function (val, label) {
+    $('#attendee_id').val(val);
+    $('#attendee-select').text(label);
+  }
+  $().ready(function () {
+    selectList = $("#attendee-select-list li");
+  })
+</script>
+
 <div class="card">
   <div class="card-header">
     <span class="card-title">New Account</span>
@@ -19,10 +50,30 @@ table form {
       <div class="row mb-sm-2">
         <div class="col-12 col-sm-6">
           <label for="attendee_id" class="visually-hidden">Attendee</label>
-          <select class="form-select" id="attendee_id" name="attendee_id">
-              <option value="" selected="selected">Select an attendee</option>
-              {{ options(all_attendees) }}
-          </select>
+          <input type="hidden" name="attendee_id" id="attendee_id" value="" />
+          <div class="dropdown mb-3">
+            <button class="btn btn-outline-secondary dropdown-toggle col-12" 
+                    type="button" 
+                    id="attendee-select" 
+                    data-bs-toggle="dropdown" 
+                    aria-expanded="false">
+                Select an attendee
+            </button>
+            <ul class="dropdown-menu pt-0 col-12" id="attendee-select-list"
+                aria-labelledby="attendee-select">
+                <input type="text" id="attendee-select-search"
+                       class="form-control 
+                              border-0 border-bottom 
+                              shadow-none mb-2" 
+                       placeholder="Search..." 
+                       oninput="handleInput()">
+                {% for attendee in all_attendees %}
+                <li id="list-item-{{ attendee[0] }}">
+                  <a href="#" class="dropdown-item" onClick="setAttendeeId('{{ attendee[0] }}', '{{ attendee[1] }}')">{{ attendee[1] }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
         </div>
         <div class="col-12 col-sm-6">
           {{ macros.checkgroup_opts(

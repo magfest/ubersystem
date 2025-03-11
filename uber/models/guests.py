@@ -3,9 +3,9 @@ import re
 import shutil
 import uuid
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-from pockets import uniquify, classproperty
+from pockets import uniquify, classproperty, sluggify
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
@@ -37,6 +37,7 @@ class GuestGroup(MagModel):
 
     wants_mc = Column(Boolean, nullable=True)
     needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
+    badges_assigned = Column(Boolean, default=False)
     info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
     bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
     taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -92,7 +93,7 @@ class GuestGroup(MagModel):
 
     @property
     def uses_detailed_travel_plans(self):
-        return self.group_type == c.BAND
+        return  # Disabled for now
 
     @property
     def all_badges_claimed(self):
@@ -139,9 +140,9 @@ class GuestGroup(MagModel):
 
     @property
     def panel_status(self):
-        application_count = len(self.group.leader.panel_applications)
+        application_count = len(self.group.leader.submitted_panels)
         return '{} Panel Application(s)'.format(application_count) \
-            if self.group.leader.panel_applications else self.status('panel')
+            if self.group.leader.submitted_panels else self.status('panel')
 
     @property
     def mc_status(self):
@@ -191,33 +192,43 @@ class GuestGroup(MagModel):
         if subclass:
             return getattr(subclass, 'status', getattr(subclass, 'id'))
         return ''
-
+    
     @property
-    def guidebook_name(self):
-        return self.group.name if self.group else ''
-
-    @property
-    def guidebook_subtitle(self):
-        return self.group_type_label
-
-    @property
-    def guidebook_desc(self):
-        return self.bio.desc if self.bio else ''
-
-    @property
-    def guidebook_image(self):
-        return self.bio.pic_filename if self.bio else ''
+    def guidebook_header(self):
+        # Temp: we need real header/thumbnail images later
+        if self.bio:
+            return self.bio
+        return ''
 
     @property
     def guidebook_thumbnail(self):
-        return self.bio.pic_filename if self.bio else ''
+        if self.bio:
+            return self.bio
+        return ''
+    
+    @property
+    def guidebook_edit_link(self):
+        return f"../guests/bio?guest_id={self.id}"
+    
+    @property
+    def guidebook_data(self):
+        return {
+            'guidebook_name': self.group.name if self.group else '',
+            'guidebook_subtitle': self.group_type_label,
+            'guidebook_desc': self.bio.desc if self.bio else '',
+            'guidebook_location': '',
+            'guidebook_header': self.guidebook_images[0][0],
+            'guidebook_thumbnail': self.guidebook_images[0][1],
+        }
 
     @property
     def guidebook_images(self):
         if not self.bio:
-            return ['', '']
+            return ['', ''], ['', '']
+        
+        prepend = sluggify(self.group.name) + '_'
 
-        return [self.bio.pic_filename], [self.bio]
+        return [prepend + self.bio.pic_filename, prepend + self.bio.pic_filename], [self.bio, self.bio]
 
 
 class GuestInfo(MagModel):
@@ -342,8 +353,21 @@ class GuestMerch(MagModel):
 
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
     selling_merch = Column(Choice(c.GUEST_MERCH_OPTS), nullable=True)
+    delivery_method = Column(Choice(c.GUEST_MERCH_DELIVERY_OPTS), nullable=True)
+    payout_method = Column(Choice(c.GUEST_MERCH_PAYOUT_METHOD_OPTS), nullable=True)
+    paypal_email = Column(UnicodeText)
+    check_payable = Column(UnicodeText)
+    check_zip_code = Column(UnicodeText)
+    check_address1 = Column(UnicodeText)
+    check_address2 = Column(UnicodeText)
+    check_city = Column(UnicodeText)
+    check_region = Column(UnicodeText)
+    check_country = Column(UnicodeText)
+
+    arrival_plans = Column(UnicodeText)
+    merch_events = Column(UnicodeText)
     inventory = Column(JSON, default={}, server_default='{}')
-    bringing_boxes = Column(UnicodeText)
+    inventory_updated = Column(UTCDateTime, nullable=True)
     extra_info = Column(UnicodeText)
     tax_phone = Column(UnicodeText)
 
@@ -401,6 +425,10 @@ class GuestMerch(MagModel):
     @property
     def rock_island_csv_url(self):
         return '../guest_reports/rock_island_csv?id={}'.format(self.guest_id)
+    
+    @property
+    def rock_island_square_export_url(self):
+        return f'../guest_reports/rock_island_square_xlsx?id={self.guest_id}'
 
     @property
     def status(self):
@@ -591,6 +619,7 @@ class GuestMerch(MagModel):
             if persist_files:
                 self._prune_inventory_file(item, inventory, prune_missing=True)
             self.inventory = inventory
+            self.inventory_updated = datetime.now()
         return item
 
     def set_inventory(self, inventory, *, persist_files=True):
@@ -598,12 +627,14 @@ class GuestMerch(MagModel):
             self._save_inventory_files(inventory)
             self._prune_inventory_files(inventory, prune_missing=True)
         self.inventory = inventory
+        self.inventory_updated = datetime.now()
 
     def update_inventory(self, inventory, *, persist_files=True):
         if persist_files:
             self._save_inventory_files(inventory)
             self._prune_inventory_files(inventory, prune_missing=False)
         self.inventory = dict(self.inventory, **inventory)
+        self.inventory_updated = datetime.now()
 
 
 class GuestCharity(MagModel):
@@ -649,9 +680,10 @@ class GuestInterview(MagModel):
 
 class GuestTravelPlans(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
-    modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS))
+    modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
     modes_text = Column(UnicodeText)
     details = Column(UnicodeText)
+    completed = Column(Boolean, default=False)
 
     @property
     def num_detailed_travel_plans(self):

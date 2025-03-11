@@ -8,14 +8,14 @@
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ guest.id }}" />
 
-  {% if guest.group.leader.panel_applications %}
+  {% if guest.group.leader.submitted_panels %}
     <div class="form-group">
       <label class="col-sm-3 control-label">Panels</label>
       <div class="col-sm-6">
         <div class="form-control-static">
           <a href="../panels_admin/assigned_to?id={{ guest.group.leader.id }}" target="_blank">
-            View the {{ guest.group.leader.panel_applications|length }}
-            panel{{ guest.group.leader.panel_applications|length|pluralize }} submitted by this guest.
+            View the {{ guest.group.leader.submitted_panels|length }}
+            panel{{ guest.group.leader.submitted_panels|length|pluralize }} submitted by this guest.
           </a>
         </div>
       </div>

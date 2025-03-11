@@ -3,12 +3,12 @@
 {% if attendee.hotel_eligible and c.AFTER_ROOM_DEADLINE and c.HAS_HOTEL_ADMIN_ACCESS %}
     <li>
         {% if c.HOTEL_REQUESTS_URL %}
-            <img src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ attendee.id }}" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
+            <img src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ attendee.id }}&event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
             The deadline for editing hotel requests has passed, but as a STOPS admin, you can still
             {% if attendee.hotel_requests %}
-                <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">edit</a>
+                <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}&event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}">edit</a>
             {% else %}
-                <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">fill out</a>
+                <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}&event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}">fill out</a>
             {% endif %}
         {% else %}
             {{ macros.checklist_image(attendee.hotel_requests) }}
@@ -26,8 +26,8 @@
         <li>
             {% if not attendee.placeholder and not attendee.hotel_requests %}
                 {% if c.HOTEL_REQUESTS_URL %}
-                    <img src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ attendee.id }}&seed={{ range(65536) | random }}" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
-                    <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}" target="_blank">Tell us</a>
+                    <img src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ attendee.id }}&seed={{ range(65536) | random }}&event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
+                    <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}&event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}" target="_blank">Tell us</a>
                 {% else %}
                     {{ macros.checklist_image(attendee.hotel_requests) }}
                     <a href="hotel">Tell us</a>
@@ -39,7 +39,7 @@
             whether you want hotel room space no later than <b>{{ c.ROOM_DEADLINE|datetime_local }}</b>.{% if c.STAFF_ROOM_FAQ_URL %} Please <a href="{{ c.STAFF_ROOM_FAQ_URL }}" target="_blank">review our FAQ</a> first.{% endif %}
             {% if attendee.hotel_requests %}
                 {% if c.HOTEL_REQUESTS_URL %}
-                    (you may <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">edit your request</a> until then).
+                    (you may <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}&event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}">edit your request</a> until then).
                 {% else %}
                     (you may <a href="hotel">edit your request</a> until then).
                 {% endif %}
@@ -48,7 +48,7 @@
     {% else %}
         <li>
             {% if c.HOTEL_REQUESTS_URL %}
-                <img src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ attendee.id }}" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
+                <img src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ attendee.id }}&event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
             {% else %}
                 {{ macros.checklist_image(attendee.hotel_requests) }}
             {% endif %}
