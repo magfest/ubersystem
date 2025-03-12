@@ -154,6 +154,9 @@ class Root:
         for refund in refunds:
             model = session.get_model_by_receipt(refund.receipt)
             model_type = refund.receipt.owner_model
+            if not model:
+                continue
+
             if model_type == 'Attendee':
                 model_name = model.full_name
             elif model_type == 'Group':
