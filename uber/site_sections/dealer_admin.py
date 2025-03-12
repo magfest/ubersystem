@@ -208,7 +208,7 @@ class Root:
         return {'group': group}
 
     @ajax
-    def unapprove(self, session, id, action, email_text, message=''):
+    def unapprove(self, session, id, action, email_text, convert=False, message=''):
         assert action in ['waitlisted', 'declined']
         group = session.group(id)
         subject = 'Your {} {} has been {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM, action)
@@ -222,8 +222,10 @@ class Root:
                 model=group.to_dict('id'))
         if action == 'waitlisted':
             group.status = c.WAITLISTED
-        else:
+        elif convert == True:
             message = decline_and_convert_dealer_group(session, group)
+        else:
+            group.status = c.DECLINED
         session.commit()
         return {'success': True,
                 'message': message}
