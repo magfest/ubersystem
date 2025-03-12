@@ -33,8 +33,13 @@ class Root:
             .filter(Attendee.first_name != '', Attendee.is_valid == True).order_by(Attendee.last_first.asc())# noqa: E712
 
         attendees = [
-            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
-            for id, name, badge_type, badge_num in attendee_attrs]
+            {
+                'id': id,
+                'displayText': '{} - {}{}'.format(name.title(), c.BADGES[badge_type],
+                                                  ' #{}'.format(badge_num) if badge_num else '')
+            }
+            for id, name, badge_type, badge_num in attendee_attrs
+        ]
 
         return {
             'message':  message,

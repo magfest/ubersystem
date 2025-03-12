@@ -9,36 +9,10 @@ table form {
 </style>
 
 <script type="text/javascript">
-  let selectList;
-  let firstThousand;
-
-  const handleInput = () => {
-    const inputValue = $('#attendee-select-search').val();
-    if (inputValue && inputValue.trim().length < 3) {
-      return;
-    }
-    const listElement = $('#attendee-select-list')[0];
-
-    $("#attendee-select-list > li").remove();
-
-    if (inputValue) {
-        const lowerInputVal = inputValue.trim().toLowerCase();
-        const matchingEls = selectList.filter((key, val) =>
-            val.getAttribute("data-lowercase").includes(lowerInputVal));
-        listElement.append(...matchingEls);
-    } else {
-        listElement.append(...firstThousand);
-    }
-}
   let setAttendeeId = function (val, label) {
     $('#attendee_id').val(val);
     $('#attendee-select').text(label);
   }
-  $().ready(function () {
-    selectList = $("#attendee-select-list li");
-    firstThousand = selectList.slice(0,1000);
-
-  })
 </script>
 
 <div class="card">
@@ -46,7 +20,21 @@ table form {
     <span class="card-title">New Account</span>
   </div>
   <div class="card-body">
-    <form id="new_admin" method="post" action="update" {% if c.AT_OR_POST_CON %}onsubmit="return check_passwords()" {% endif %}role="form">
+    <form id="new_admin" method="post" action="update" {% if c.AT_OR_POST_CON %}onsubmit="return check_passwords()" {% endif %}role="form"
+        x-data='{ full_attendee_list: {{ all_attendees | tojson }},
+                  search_string: "",
+                  get display_attendees() {
+                            let inputValue = this.search_string;
+                            if (inputValue && inputValue.trim().length >= 3) {
+                                inputValue = inputValue.trim().toLowerCase();
+                                return this.full_attendee_list.filter((attendee) =>
+                                    attendee.displayText.toLowerCase().includes(inputValue));
+                            } else {
+                               return this.full_attendee_list.slice(0,1000);
+                            }
+                        }
+                }'
+    >
       <input type="hidden" name="id" value="None" />
       {{ csrf_token() }}
       <div class="row mb-sm-2">
@@ -69,12 +57,13 @@ table form {
                               shadow-none mb-2"
                        placeholder="Search..."
                        autocomplete="off"
-                       oninput="handleInput()">
-                {% for attendee in all_attendees %}
-                <li id="list-item-{{ attendee[0] }}" data-lowercase="{{ attendee[1].lower() }}">
-                  <a href="#" class="dropdown-item" onClick="setAttendeeId('{{ attendee[0] }}', '{{ attendee[1] }}')">{{ attendee[1] }}</a>
-                </li>
-                {% endfor %}
+                       x-model="search_string"
+                >
+                <template x-for="attendee in display_attendees" :key="attendee.id">
+                    <li>
+                      <a href="#" class="dropdown-item" x-text="attendee.displayText"></a>
+                    </li>
+                </template>
             </ul>
         </div>
         </div>
