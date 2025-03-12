@@ -27,7 +27,6 @@ def checkins_by_hour_query(session):
             .group_by(date_trunc_hour(Attendee.checked_in)) \
             .order_by(date_trunc_hour(Attendee.checked_in))
 
-
 @all_renderable()
 class Root:
     def comped_badges(self, session, message='', show='all'):
@@ -52,7 +51,7 @@ class Root:
             'unclaimed_comped': unclaimed_comped.count(),
             'show': show,
         }
-    
+
     @csv_file
     def comped_badges_csv(self, out, session):
         comped = session.query(Attendee).filter(
@@ -62,7 +61,7 @@ class Root:
                          or_(PromoCode.cost == None, PromoCode.cost == 0)),
                     and_(Attendee.group != None, Attendee.paid == c.PAID_BY_GROUP, Group.cost == 0))
             )
-        
+
         out.writerow(['Claimed?', 'Group Name', 'Promo Code', 'ID', 'Name', 'Name on ID',
                       'Badge Type', 'Badge #', 'Created By', 'Admin Notes'])
         
@@ -145,7 +144,7 @@ class Root:
             'refund_models': refund_models,
             'counts': counts,
         }
-    
+
     @csv_file
     def self_service_refunds_csv(self, out, session):
         refunds = session.query(ReceiptTransaction).filter(ReceiptTransaction.amount < 0,
@@ -154,6 +153,9 @@ class Root:
         for refund in refunds:
             model = session.get_model_by_receipt(refund.receipt)
             model_type = refund.receipt.owner_model
+            if not model:
+                continue
+
             if model_type == 'Attendee':
                 model_name = model.full_name
             elif model_type == 'Group':
@@ -162,11 +164,10 @@ class Root:
                 model_name = model.attendee.full_name
             else:
                 model_name = getattr(model, 'name', '???')
-            
+
             out.writerow([refund.refund_id, model_type, model.id, model_name, datetime_local_filter(refund.added),
                           format_currency(refund.amount * -1 / 100), refund.desc])
-            
-    
+
     def checkins_by_hour(self, session):
         query_result = checkins_by_hour_query(session).all()
 
