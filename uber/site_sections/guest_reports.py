@@ -192,7 +192,7 @@ class Root:
     @csv_file
     def rock_island_csv(self, out, session, id=None, **params):
         out.writerow([
-            'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Quantity', 'Promo Picture URL'
+            'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Quantity', 'Promo Picture URL',
         ])
         query = session.query(GuestGroup).options(
                 subqueryload(GuestGroup.group)).options(
@@ -233,8 +233,52 @@ class Root:
                         item['name'],
                         '${:.2f}'.format(float(item['price'])),
                         guest.merch.total_quantity(item),
-                        convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image'))
+                        convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),
                     ])
+
+    @csv_file
+    def rock_island_info_csv(self, out, session):
+        guest_groups = session.query(GuestGroup).options(
+                subqueryload(GuestGroup.group)).options(
+                subqueryload(GuestGroup.merch)).filter(
+                    GuestGroup.id == GuestMerch.guest_id,
+                    GuestMerch.selling_merch == c.ROCK_ISLAND,
+                    GuestGroup.group_id == Group.id).order_by(
+                        Group.name).all()
+
+        out.writerow(['Group Name', 'PoC Name', 'PoC Phone #', 'PoC Email', 'PoC Address 1', 'PoC Address 2',
+                      'PoC City', 'PoC Region', 'PoC ZipCode', 'PoC Country', 'Meet N Greet', 'Delivery Method',
+                      'Preferred Payout Method', 'Payout Info', 'Trusted Handlers'])
+        
+        def attr_or_not_set(guest_merch, attr):
+            if guest_merch.full_name:
+                return getattr(guest_merch, attr, '')
+            else:
+                return "Not Set"
+        
+        for guest in guest_groups:
+            if not guest.autograph:
+                meet_greet = "Not Selected"
+            else:
+                meet_greet = "Yes" if guest.autograph.rock_island_autographs else "No"
+            
+            if guest.merch.payout_method == c.PAYPAL:
+                payout_info = guest.merch.paypal_email
+            elif guest.merch.payout_method == c.CHECK:
+                payout_info = guest.merch.check_payable
+            else:
+                payout_info = "N/A"
+            
+            trusted_handlers = [f"{handler['first_name']} {handler['last_name']}" for handler in guest.merch.handlers]
+
+            out.writerow([guest.group.name, attr_or_not_set(guest.merch, 'full_name'),
+                          attr_or_not_set(guest.merch, 'phone'), attr_or_not_set(guest.merch, 'email'),
+                          attr_or_not_set(guest.merch, 'poc_address1'), attr_or_not_set(guest.merch, 'poc_address2'),
+                          attr_or_not_set(guest.merch, 'poc_city'), attr_or_not_set(guest.merch, 'poc_region'),
+                          attr_or_not_set(guest.merch, 'poc_zip_code'), attr_or_not_set(guest.merch, 'poc_country'),
+                          meet_greet, guest.merch.delivery_method_label, guest.merch.payout_method_label, payout_info,
+                          ', '.join(trusted_handlers)
+                          ])
 
     @csv_file
     def autograph_requests(self, out, session):

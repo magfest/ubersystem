@@ -1,11 +1,24 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Comped Badges Report{% endblock %}
+{% set title = "Comped Badges Report" %}
 {% block content %}
 
-<b>Total:</b> {{ all_comped }} comped badges <br/>
-<strong>Claimed:</strong> {{ claimed_comped }} <br/>
-<strong>Unclaimed:</strong> {{ unclaimed_comped }}
-<div class="row" style="padding: 10px;"></div>
+<h2>Comped Badges -- {{ now()|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
+
+<div class="row mt-3 justify-content-between align-items-end">
+    <div class="col col-auto">
+        <p>
+          <b>Total:</b> {{ all_comped }} comped badges <br/>
+          <strong>Claimed:</strong> {{ claimed_comped }} <br/>
+          <strong>Unclaimed:</strong> {{ unclaimed_comped }}
+        </p>
+    </div>
+    <div class="col col-auto mb-3">
+        <a href="comped_badges_csv">
+            <i class="fa fa-download"></i> Download CSV
+        </a>
+    </div>
+</div>
+
 <div role="tabpanel">
 <ul class="nav nav-tabs" role="tablist">
   <li class="nav-item" role="presentation">
@@ -52,7 +65,7 @@
 {% for attendee in comped_attendees %}
     <tr>
         <td>{{ (attendee.placeholder or attendee.is_unassigned)|yesno("No,Yes") }}</td>
-        <td data-order="{{ attendee.group_name }}" data-search="{{ attendee.group_name }}">{{ attendee.group|form_link }}</td>
+        <td data-order="{{ attendee.group.name or '' }}" data-search="{{ attendee.group.name or '' }}">{{ attendee.group|form_link }}</td>
         <td>{{ attendee.promo_code_code }}{% if attendee.promo_code.group %}({{ attendee.promo_code.group|form_link }}){% endif %}</td>
         <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> {{ attendee|form_link }}</a> </td>
         <td>{{ attendee.legal_name }}</td>
