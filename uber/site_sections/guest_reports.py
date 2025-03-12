@@ -249,13 +249,13 @@ class Root:
         out.writerow(['Group Name', 'PoC Name', 'PoC Phone #', 'PoC Email', 'PoC Address 1', 'PoC Address 2',
                       'PoC City', 'PoC Region', 'PoC ZipCode', 'PoC Country', 'Meet N Greet', 'Delivery Method',
                       'Preferred Payout Method', 'Payout Info', 'Trusted Handlers'])
-        
+
         def attr_or_not_set(guest_merch, attr):
             if guest_merch.full_name:
                 return getattr(guest_merch, attr, '')
             else:
                 return "Not Set"
-        
+
         for guest in guest_groups:
             if not guest.autograph:
                 meet_greet = "Not Selected"
@@ -268,8 +268,11 @@ class Root:
                 payout_info = guest.merch.check_payable
             else:
                 payout_info = "N/A"
-            
-            trusted_handlers = [f"{handler['first_name']} {handler['last_name']}" for handler in guest.merch.handlers]
+
+            if guest.merch.handlers:
+                trusted_handlers = [f"{handler['first_name']} {handler['last_name']}" for handler in guest.merch.handlers]
+            else:
+                trusted_handlers = ["None"]
 
             out.writerow([guest.group.name, attr_or_not_set(guest.merch, 'full_name'),
                           attr_or_not_set(guest.merch, 'phone'), attr_or_not_set(guest.merch, 'email'),
