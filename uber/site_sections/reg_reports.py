@@ -6,6 +6,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import literal
 
 from uber.config import c
+from uber.custom_tags import datetime_local_filter, format_currency
 from uber.decorators import all_renderable, log_pageview, csv_file
 from uber.models import Attendee, Group, PromoCode, ReceiptTransaction, ModelReceipt, ReceiptItem, Tracking
 from uber.utils import localize_datetime
@@ -51,6 +52,25 @@ class Root:
             'unclaimed_comped': unclaimed_comped.count(),
             'show': show,
         }
+    
+    @csv_file
+    def comped_badges_csv(self, out, session):
+        comped = session.query(Attendee).filter(
+            Attendee.has_badge == True).outerjoin(PromoCode).outerjoin(Group, Attendee.group_id == Group.id).filter(
+                or_(and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code == None),
+                    and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code != None, 
+                         or_(PromoCode.cost == None, PromoCode.cost == 0)),
+                    and_(Attendee.group != None, Attendee.paid == c.PAID_BY_GROUP, Group.cost == 0))
+            )
+        
+        out.writerow(['Claimed?', 'Group Name', 'Promo Code', 'ID', 'Name', 'Name on ID',
+                      'Badge Type', 'Badge #', 'Created By', 'Admin Notes'])
+        
+        for attendee in comped:
+            out.writerow(["Yes" if not attendee.placeholder else "No", attendee.group.name if attendee.group else 'N/A',
+                          attendee.promo_code.code if attendee.promo_code else 'N/A', attendee.id, attendee.full_name,
+                          attendee.legal_name, attendee.badge_type_label, attendee.badge_num,
+                          attendee.creator.full_name if attendee.creator else 'N/A', attendee.admin_notes])
 
     def found_how(self, session):
         return {'all': sorted(
@@ -113,8 +133,7 @@ class Root:
         refund_models = defaultdict(dict)
         for refund in refunds:
             model = session.get_model_by_receipt(refund.receipt)
-            model_name = ''.join(' ' + char if char.isupper() else
-                                 char.strip() for char in model.__class__.__name__).strip()
+            model_name = refund.receipt.owner_model
             refund_models[model_name][refund] = model
             if c.BADGE_TYPE_PRICES and isinstance(model, Attendee):
                 if model.badge_type in c.BADGE_TYPE_PRICES:
@@ -126,6 +145,27 @@ class Root:
             'refund_models': refund_models,
             'counts': counts,
         }
+    
+    @csv_file
+    def self_service_refunds_csv(self, out, session):
+        refunds = session.query(ReceiptTransaction).filter(ReceiptTransaction.amount < 0,
+                                                           ReceiptTransaction.who == 'non-admin').all()
+        out.writerow(['Transaction ID', 'Model Type', 'Model ID', 'Model Name', 'Refunded Date', 'Amount', 'Desc'])
+        for refund in refunds:
+            model = session.get_model_by_receipt(refund.receipt)
+            model_type = refund.receipt.owner_model
+            if model_type == 'Attendee':
+                model_name = model.full_name
+            elif model_type == 'Group':
+                model_name = model.name
+            elif getattr(model, 'attendee', None) is not None:
+                model_name = model.attendee.full_name
+            else:
+                model_name = getattr(model, 'name', '???')
+            
+            out.writerow([refund.refund_id, model_type, model.id, model_name, datetime_local_filter(refund.added),
+                          format_currency(refund.amount * -1 / 100), refund.desc])
+            
     
     def checkins_by_hour(self, session):
         query_result = checkins_by_hour_query(session).all()
