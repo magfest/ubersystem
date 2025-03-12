@@ -8,13 +8,6 @@ table form {
 }
 </style>
 
-<script type="text/javascript">
-  let setAttendeeId = function (val, label) {
-    $('#attendee_id').val(val);
-    $('#attendee-select').text(label);
-  }
-</script>
-
 <div class="card">
   <div class="card-header">
     <span class="card-title">New Account</span>
@@ -23,6 +16,16 @@ table form {
     <form id="new_admin" method="post" action="update" {% if c.AT_OR_POST_CON %}onsubmit="return check_passwords()" {% endif %}role="form"
         x-data='{ full_attendee_list: {{ all_attendees | tojson }},
                   search_string: "",
+                  selectedAttendee: {},
+                  get selected_display(){
+                    if(!this.selectedAttendee.displayText){
+                        return "Select an attendee";
+                    }
+                    return this.selectedAttendee.displayText;
+                  },
+                  get search_more() {
+                    return this.full_attendee_list.length > 500 && this.search_string.trim().length < 3;
+                  },
                   get display_attendees() {
                             let inputValue = this.search_string;
                             if (inputValue && inputValue.trim().length >= 3) {
@@ -30,7 +33,7 @@ table form {
                                 return this.full_attendee_list.filter((attendee) =>
                                     attendee.displayText.toLowerCase().includes(inputValue));
                             } else {
-                               return this.full_attendee_list.slice(0,1000);
+                               return this.full_attendee_list.slice(0,500);
                             }
                         }
                 }'
@@ -40,14 +43,14 @@ table form {
       <div class="row mb-sm-2">
         <div class="col-12 col-sm-6">
           <label for="attendee_id" class="visually-hidden">Attendee</label>
-          <input type="hidden" name="attendee_id" id="attendee_id" value="" />
+          <input type="hidden" name="attendee_id" id="attendee_id" x-model="selectedAttendee.id" />
           <div class="dropdown mb-3">
             <button class="btn btn-outline-secondary dropdown-toggle col-12" 
                     type="button" 
                     id="attendee-select" 
                     data-bs-toggle="dropdown" 
-                    aria-expanded="false">
-                Select an attendee
+                    aria-expanded="false"
+                    x-text="selected_display">
             </button>
             <ul class="dropdown-menu pt-0 col-12" id="attendee-select-list"
                 aria-labelledby="attendee-select">
@@ -61,8 +64,13 @@ table form {
                 >
                 <template x-for="attendee in display_attendees" :key="attendee.id">
                     <li>
-                      <a href="#" class="dropdown-item" x-text="attendee.displayText"></a>
+                      <a href="#" class="dropdown-item"
+                         x-on:click="selectedAttendee = attendee"
+                         x-text="attendee.displayText"></a>
                     </li>
+                </template>
+                <template x-if="search_more">
+                    <li><a class="dropdown-item">More attendees exist! Please use search.</a></li>
                 </template>
             </ul>
         </div>
