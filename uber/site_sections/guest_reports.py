@@ -270,7 +270,9 @@ class Root:
                 payout_info = "N/A"
 
             if guest.merch.handlers:
-                trusted_handlers = [f"{handler['first_name']} {handler['last_name']}" for handler in guest.merch.handlers]
+                trusted_handlers = [
+                    f"{handler.get('first_name', '').strip()} {handler.get('last_name', '').strip()}".strip()
+                    for handler in guest.merch.handlers]
             else:
                 trusted_handlers = ["None"]
 
