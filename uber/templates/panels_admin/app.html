@@ -212,7 +212,7 @@
 
     <div class="row">
         <label class="form-text">How do they feel about recording or livestreaming?</label>
-        {% if c.LIVE_STREAM_OPTS|length > 2 %}
+        {% if c.LIVESTREAM_OPTS|length > 2 %}
         <div class="col-sm-6 form-control-static">
             {{ app.livestream_label }}
         </div>
@@ -220,9 +220,11 @@
         <div class="col-sm-6 form-control-static">
             Recording: {{ app.record_label }}
         </div>
+        {% if c.CAN_LIVESTREAM %}
         <div class="col-sm-6 form-control-static">
             Livestreaming: {{ app.livestream_label }}
         </div>
+        {% endif %}
         {% endif %}
     </div>
 

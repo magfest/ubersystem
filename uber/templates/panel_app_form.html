@@ -212,7 +212,7 @@
     </div>
     <div class="clearfix"></div>
 </div>
-{% if c.LIVE_STREAM_OPTS|length > 2 %}
+{% if c.LIVESTREAM_OPTS|length > 2 %}
 <div class="form-group">
     <label class="col-sm-3 control-label">Is it okay to record or livestream your panel? </label>
     <div class="col-sm-6">
@@ -239,6 +239,7 @@
         While we don't record every panel, we attempt to record and post most panels to our YouTube channel after the event.
     </p>
 </div>
+{% if c.CAN_LIVESTREAM %}
 <div class="form-group">
     <label class="col-sm-3 control-label">Is it okay to livestream your panel? </label>
     <div class="col-sm-6">
@@ -252,6 +253,7 @@
         If you answered Yes to being livestreamed, please ensure that you're not presenting anything that could be considered copyright infringement.
     </p>
 </div>
+{% endif %}
 {% endif %}
 
 

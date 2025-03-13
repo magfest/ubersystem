@@ -43,11 +43,11 @@
     <li><strong>Expected Length</strong>: {{ app.length_label if app.length != c.OTHER and not app.length_text else app.length_text }}</li>
     {% if app.length_reason %}<li><strong>Reason for Length</strong>: {{ app.length_reason }}</li>{% endif %}
     <li><strong>Noise Level</strong>: {{ app.noise_level_label }}</li>
-    {% if c.LIVE_STREAM_OPTS|length > 2 %}
+    {% if c.LIVESTREAM_OPTS|length > 2 %}
     <li><strong>Recording or Livestreaming:</strong> {{ app.livestream_label }}</li>
     {% else %}
     <li><strong>Recording:</strong> {{ app.record_label }}</li>
-    <li><strong>Livestreaming:</strong> {{ app.livestream_label }}</li>
+    {% if c.CAN_LIVESTREAM %}<li><strong>Livestreaming:</strong> {{ app.livestream_label }}</li>{% endif %}
     {% endif %}
     {% if app.tables_desc %}<li><strong>Special Table Set-up</strong>: {{ app.tables_desc }}</li>{% endif %}
     {% if app.cost_desc %}<li><strong>Upfront Cost and Materials</strong>: {{ app.cost_desc }}</li>{% endif %}

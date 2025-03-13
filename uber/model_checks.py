@@ -668,7 +668,7 @@ def specify_nonstandard_time(app):
 
 @validation.PanelApplication
 def select_livestream_opt(app):
-    if not app.livestream:
+    if not app.livestream and c.CAN_LIVESTREAM:
         return 'Please select your preference for recording/livestreaming.' \
             if len(c.LIVESTREAM_OPTS) > 2 else 'Please tell us if we can livestream your panel.'
     
