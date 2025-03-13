@@ -341,25 +341,18 @@ def sanitize_html(text, **kw):
 
 
 @JinjaEnv.jinja_filter
-def serve_static_content(relative_url):
+def serve_static_content(relative_url, defer=False):
     hash = c.STATIC_HASH_LIST.get(relative_url, None)
     hash_str = f' integrity="{hash}" crossorigin="anonymous"' if hash and c.STATIC_URL.startswith('http') else ''
     if relative_url.endswith('.css'):
         return Markup(f'<link rel="stylesheet" type="text/css" href="{c.STATIC_URL}{relative_url}"{hash_str} />')
     elif relative_url.endswith('.js'):
-        return Markup(f'<script type="text/javascript" src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
+        if defer:
+            return Markup(f'<script defer src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
+        else:
+            return Markup(f'<script type="text/javascript" src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
     else:
         return "WARNING: Unsupported static content!"
-
-
-@JinjaEnv.jinja_filter
-def serve_static_defer_content(relative_url):
-    hash = c.STATIC_HASH_LIST.get(relative_url, None)
-    hash_str = f' integrity="{hash}" crossorigin="anonymous"' if hash and c.STATIC_URL.startswith('http') else ''
-    if relative_url.endswith('.js'):
-        return Markup(f'<script defer src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
-    else:
-        return "WARNING: Unsupported static deferred content!"
 
 form_link_site_sections = {}
 
