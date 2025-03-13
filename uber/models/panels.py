@@ -197,7 +197,7 @@ class PanelApplication(MagModel):
 
     @property
     def confirm_deadline(self):
-        if c.PANELS_CONFIRM_DEADLINE and self.has_been_accepted and not self.confirmed and not self.poc_id:
+        if c.PANELS_CONFIRM_DEADLINE and self.has_been_accepted and not self.confirmed and not (self.group and self.group.guest):
             confirm_deadline = timedelta(days=c.PANELS_CONFIRM_DEADLINE)
             return self.accepted + confirm_deadline
 
