@@ -37,10 +37,14 @@ services:
     command: ['celery-worker']
   db:
     image: postgres
+    ports:
+      - 25432:5432
     environment:
       - POSTGRES_PASSWORD=uber_db
       - POSTGRES_USER=uber_db
       - POSTGRES_DB=uber_db
+    volumes:
+      - ./db/uber_data:/var/lib/postgres/data
   redis:
     image: redis
   rabbitmq:
