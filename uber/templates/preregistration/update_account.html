@@ -1,53 +1,66 @@
-{% import "fields/account.html" as account_fields with context %}
-<div class="panel panel-heading">
-<button class="btn btn-info" type="button" data-toggle="collapse" data-target="#update-account" aria-expanded="false" aria-controls="update-account">
-    <span class="glyphicon glyphicon-cog"></span> Account Settings
-</button>
-{% if c.PAGE_PATH != '/preregistration/homepage' %}
-<a href="../preregistration/homepage" class="btn btn-primary">Go to Homepage</a>
-{% endif %}
-<a href="../preregistration/logout" class="btn btn-danger pull-right">
-    <span class="glyphicon glyphicon-log-out"></span> Log Out
-</a>
-<div class="collapse" id="update-account">
-    <div class="panel-body">
-        <form method="post" action="update_account" class="form-horizontal">
+{% import "forms/account.html" as account_fields with context %}
+<div class="row">
+    <div class="col-4">
+        <div class="form-text text-start">Logged in as: {{ homepage_account.email }}</div>
+        {% if not homepage_account.is_sso_account %}
+        <button class="btn btn-info pull-left" type="button" data-bs-toggle="collapse" data-bs-target="#update-account" aria-expanded="false" aria-controls="update-account">
+            <i class="fa fa-cog"></i> Account Settings
+        </button>
+        {% endif %}
+    </div>
+    <div class="col-4">
+        <br/>
+        {% if c.PAGE_PATH != '/preregistration/homepage' %}
+        <a href="../preregistration/homepage" class="btn btn-primary">Go to Homepage</a>
+        {% endif %}
+    </div>
+    <div class="col-4">
+        <br/>
+        <a href="../preregistration/logout" class="btn btn-danger pull-right">
+            <i class="fa fa-log-out"></i> Log Out
+        </a>
+    </div>
+</div>
+<div class="clearfix"></div>
+{% if not homepage_account.is_sso_account %}
+&nbsp;
+<div class="collapse text-start" id="update-account">
+    <div class="card">
+    <div class="card-body">
+        <form method="post" action="update_account">
             {{ csrf_token() }}
-            <input type="hidden" name="id" value="{{ account.id }}" />
-            <div class="form-group">
-                <label for="current_password" class="col-sm-3 control-label">Current Password</label>
-                <div class="col-sm-6">
-                    <input type="password" name="current_password" id="current_password" value="" class="form-control" placeholder="Enter account password to make changes" required>
+            <input type="hidden" name="id" value="{{ homepage_account.id }}" />
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    <label for="current_password" class="form-text">Current Password</label>
+                <input type="password" name="current_password" id="current_password" value="" class="form-control" placeholder="Enter account password to make changes" required>
                 </div>
             </div>
             <hr>
-            <div class="form-group">
-                <label for="email" class="col-sm-3 control-label">Account Email</label>
-                <div class="col-sm-6">
-                    <input type="email" name="account_email" id="account_email" value="{{ account.email }}" class="form-control" placeholder="Account email address" required>
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    <label for="email" class="form-text">Account Email</label>
+                    <input type="email" name="account_email" id="account_email" value="{{ homepage_account.email }}" class="form-control" placeholder="Account email address" required>
                 </div>
             </div>
-            <div class="form-group">
-                <label for="new_password" class="col-sm-3 control-label">New Password</label>
-                <div class="col-sm-6">
-                    <input type="password" name="new_password" id="new_password" value="" class="form-control" placeholder="Leave blank to keep current password">
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    <label for="new-password" class="form-text">New Password</label>
+                    <input type="password" name="new_password" id="new-password" value="" class="form-control" placeholder="Leave blank to keep current password">
+                    {{ account_fields.password_help }}
                 </div>
-                {{ account_fields.password_help }}
-            </div>
-            <div class="form-group">
-                <label for="confirm_new_password" class="col-sm-3 control-label">Confirm New Password</label>
-                <div class="col-sm-6">
-                    <input type="password" name="confirm_new_password" id="confirm_new_password" value="" class="form-control" placeholder="Leave blank to keep current password">
+                <div class="col-12 col-sm-6">
+                    <label for="confirm-password" class="form-text">Confirm New Password</label>
+                    <input type="password" name="confirm_password" id="confirm-password" value="" class="form-control" placeholder="Leave blank to keep current password">
                 </div>
             </div>
-            <div class="col-sm-9 col-sm-offset-3">
-                <button type="submit" class="btn btn-primary" id="accountUpdateButton">
-                Update Account Info
-                </button>
-            </div>
+            <button type="submit" class="btn btn-primary" id="accountUpdateButton">
+            Update Account Info
+            </button>
         </form>
     </div>
-</div>
+    </div>
 </div>
 
 {{ account_fields.new_password_validation }}
+{% endif %}

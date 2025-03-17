@@ -4,12 +4,12 @@ Thank you for your game submission ({{ game.title }}) to the MAGFest Indie Video
 
 Your studio's entry was judged high enough to qualify for the MIVS area but we do not have enough space to host your team, so we've added you to our Waitlist.
 
-This means that if other indies who have been placed in MIVS end up not being able to show for any reason, we'll ask indies on the Waitlist as to their availability to take the spot.  If you know outright you can't attend, please let us know and we'll remove you from the Waitlist.  (We're sorry but we cannot give out details regarding size of the Waitlist or entry position.)
+What does this mean? If indies who have been accepted in MIVS are not able to show for any reason, we'll offer the booth space to an indie on the Waitlist.  Please fill out this quick [Waitlist Form](https://forms.gle/JNfDSDr9Lchh1vxy9) with the last date you'd like to be pulled from the Waitlist. (We're sorry but we cannot give out details regarding size of the Waitlist or entry position. Being on the Waitlist does not guarantee a place within MIVS.)
 
-Alternatively you can also show at MAGFest even if you do not have a full-time MIVS booth area via "QuickPlay"!
+Now the great news... You can still show at MAGFest even if you do not have a full-time MIVS booth via "QuickPlay"!
 
-QuickPlay is an area at MIVS where tables are set aside for indies to show their game for a block of time.  As an indie, you'll be able to sign up for a 2 hour block of time, with possibly more blocks depending on availability.  We will provide a table, 2 chairs, and power.  You will need to provide your own equipment.  (WIFI/Network connections will not be available.)
+QuickPlay is an area within MIVS where booths are set aside for indies to show their game for a block of time.  As an indie, you'll be able to sign up for a 2 hour block of time, with possibly more blocks depending on availability.  We will provide a 6' table, 4 chairs, and access to a power drop.  You will need to provide your own equipment.  (WIFI/Network connections will not be available.)
 
-Signups for Quickplay will not happen online, they will only be available on-site at MAGFest in the MIVS area and will require you to have purchased a MAGFest badge.  Signups will be on a first come first serve basis, so we recommend visiting the MIVS area at your first convenience after picking up your MAGFest badge.
+Signups for Quickplay will not happen online. They will only be available on-site at MAGFest in the MIVS area and will require you to have purchased a MAGFest badge.  Signups will be on a first come, first serve basis, so we recommend visiting the MIVS area at your earliest convenience after picking up your MAGFest badge.
 
 {{ c.MIVS_EMAIL_SIGNATURE }}

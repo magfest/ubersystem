@@ -1,5 +1,5 @@
 {% if not attendee.amount_unpaid and attendee.paid in [c.NOT_PAID, c.PENDING] %}
-<div class="alert alert-warning" id="pending_paid_warning">
+<div class="alert alert-warning" role="alert" id="pending_paid_warning">
     <p><strong>This attendee is not marked as paid.</strong></p>
     <p>This could be because:
         <ul>

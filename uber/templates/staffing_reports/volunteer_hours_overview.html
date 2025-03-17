@@ -1,23 +1,19 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Staffing Overview{% endblock %}
 {% block content %}
-  <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js"></script>
-  <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/buttons.html5.min.js"></script>
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css">
   <script type="text/javascript">
       $.fn.dataTable.ext.search.push(
           function( settings, data, dataIndex ) {
               var min_hours = parseFloat( $('#min_hours').val());
               var max_hours = parseFloat( $('#max_hours').val());
-              var hours = parseFloat( data[4] ) || 0;
+              var hours = parseFloat( data[5] ) || 0;
 
               var min_worked = parseFloat( $('#min_worked').val());
               var max_worked = parseFloat( $('#max_worked').val());
-              var worked = parseFloat( data[5] ) || 0;
+              var worked = parseFloat( data[6] ) || 0;
 
               var show_hotel = ($('#show_all').is(':visible'));
-              var hotel_assigned = (data[7] == "yes");
+              var hotel_assigned = (data[8] == "yes");
 
               if ( ( isNaN( min_hours ) && isNaN( max_hours ) ) ||
                   ( isNaN( min_hours ) && hours <= max_hours ) ||
@@ -55,9 +51,6 @@
               ]
           });
 
-          // Hide hotel space requests
-          dtable.column(6).visible(false);
-
           $('#show_hotel a').click(function() {
               $('#show_all').show();
               $('#show_hotel').hide();
@@ -76,18 +69,27 @@
       });
   </script>
 
-  <div class="panel panel-body"><h2> Volunteer Hours Overview </h2>
-    <p class="text-center"><span id="show_all" class="show_or_hide_hotel"><a href="#">View all volunteers instead of only those who have been assigned hotel space</a>.</span>
-      <span id="show_hotel"><a href="#">View only volunteers who have been assigned hotel space</a>.</span></p>
-
-    <div class="pull-left"><h4>Filter by Weighted Hours</h4>
-      <p class="form-inline">Min: <input type="text" class="form-control" id="min_hours" name="min_hours">
-        Max: <input type="text" class="form-control" id="max_hours" name="max_hours"></p></div>
-
-    <div class="pull-right"><h4>Filter by Hours Worked</h4>
-      <p class="form-inline">Min: <input type="text" class="form-control" id="min_worked" name="min_worked">
-        Max: <input type="text" class="form-control" id="max_worked" name="max_worked"></p></div></div>
-  <div class="table-responsive">
+  <div class="card-body">
+    <h2> Volunteer Hours Overview </h2>
+    <div class="row g-sm-3">
+      <div class="col-3">
+        <strong>Filter by Weighted Hours</strong>
+        <p class="form-inline">Min: <input type="text" class="form-control" id="min_hours" name="min_hours">
+        Max: <input type="text" class="form-control" id="max_hours" name="max_hours"></p>
+      </div>
+      <div class="col">
+        <p class="text-center"><span id="show_all" class="show_or_hide_hotel"><a href="#">View all volunteers instead of only those who have been assigned hotel space</a>.</span>
+          <span id="show_hotel"><a href="#">View only volunteers who have been assigned hotel space</a>.</span>
+        </p>
+      </div>
+      <div class="col-3">
+        <strong>Filter by Hours Worked</strong>
+        <p class="form-inline">Min: <input type="text" class="form-control" id="min_worked" name="min_worked">
+        Max: <input type="text" class="form-control" id="max_worked" name="max_worked"></p>
+      </div>
+    </div>  
+  </div>
+  <div class="card-body">
     <table id="volunteer_hours"
            class="table table-hover"
            data-page-length="-1"
@@ -95,6 +97,7 @@
            data-auto-width="true">
       <thead>
       <tr>
+        <th>Badge Type</th>
         <th>Last Name</th>
         <th>First Name</th>
         <th>Legal Name</th>
@@ -108,6 +111,7 @@
       <tbody>
       {% for volunteer in volunteers %}
         <tr>
+          <td>{{ volunteer.badge_type_label }}</td>
           <td>{{ volunteer.last_name }}</td>
           <td>{{ volunteer.first_name }}</td>
           <td>{{ volunteer.legal_name }}</td>

@@ -1,4 +1,3 @@
-import uuid
 from datetime import timedelta
 
 import six
@@ -11,6 +10,7 @@ from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Float, Integer
 
 from uber.config import c
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
@@ -159,8 +159,8 @@ class Department(MagModel):
     solicits_volunteers = Column(Boolean, default=True)
     is_shiftless = Column(Boolean, default=False)
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
-    is_setup_approval_exempt = Column(Boolean, default=False)
-    is_teardown_approval_exempt = Column(Boolean, default=False)
+    is_setup_approval_exempt = Column(Boolean, default=True)
+    is_teardown_approval_exempt = Column(Boolean, default=True)
     max_consecutive_minutes = Column(Integer, default=0)
 
     jobs = relationship('Job', backref='department')
@@ -170,7 +170,6 @@ class Department(MagModel):
     dept_heads = relationship(
         'Attendee',
         backref=backref('headed_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_dept_head == True)',
@@ -180,7 +179,6 @@ class Department(MagModel):
     checklist_admins = relationship(
         'Attendee',
         backref=backref('checklist_admin_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_checklist_admin == True)',
@@ -190,7 +188,6 @@ class Department(MagModel):
     members_with_inherent_role = relationship(
         'Attendee',
         backref=backref('depts_with_inherent_role', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.has_inherent_role)',
@@ -200,7 +197,6 @@ class Department(MagModel):
     members_who_can_admin_checklist = relationship(
         'Attendee',
         backref=backref('can_admin_checklist_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'or_('
@@ -212,7 +208,6 @@ class Department(MagModel):
     pocs = relationship(
         'Attendee',
         backref=backref('poc_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_poc == True)',
@@ -236,7 +231,6 @@ class Department(MagModel):
     requesting_attendees = relationship(
         'Attendee',
         backref=backref('requested_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='or_('
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None)',
@@ -245,7 +239,6 @@ class Department(MagModel):
         viewonly=True)
     unassigned_requesting_attendees = relationship(
         'Attendee',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(or_('
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None), '
@@ -257,7 +250,6 @@ class Department(MagModel):
         viewonly=True)
     unassigned_explicitly_requesting_attendees = relationship(
         'Attendee',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'DeptMembershipRequest.department_id == Department.id, '
                     'not_(exists().where(and_('
@@ -272,6 +264,14 @@ class Department(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Department.id',
         single_parent=True)
+
+    @presave_adjustment
+    def force_approval_exempt(self):
+        # We used to have a system where departments would approve staffers for
+        # setup and teardown shifts -- we're getting rid of this option, which
+        # is most easily accomplished by making all departments always exempt
+        self.is_setup_approval_exempt = True
+        self.is_teardown_approval_exempt = True
 
     @hybrid_property
     def member_count(self):
@@ -299,12 +299,6 @@ class Department(MagModel):
                 department = int(department)
             except ValueError:
                 return department
-
-        if isinstance(department, int):
-            # This is the same algorithm used by the migration script to
-            # convert c.JOB_LOCATIONS into department ids in the database.
-            prefix = '{:07x}'.format(department)
-            return prefix + str(uuid.uuid5(cls.NAMESPACE, str(department)))[7:]
 
         return department.id
 

@@ -9,8 +9,7 @@
     <td colspan="3">
       {% block deadline_text %}
         We require that you upload an exact description of your desired stage layout.
-        Also include any needed extra rental requests, set lists, information regarding
-        video/visuals, etc...
+        Please be sure to include any needed extra rental requests, setlists, information regarding video/visuals, etc...
         <br/></br>
         Failure to do so may result in you not receiving the setup you expect or want.
       {% endblock %}
@@ -36,12 +35,26 @@
 
   <br/><br/>
 
-  <form method="post" action="stage_plot" enctype="multipart/form-data">
+  <form method="post" action="stage_plot" class="form-horizontal" role="form" enctype="multipart/form-data">
     <input type="hidden" name="guest_id" value="{{ guest.id }}" />
     <input type="hidden" name="id" value="{{ guest_stage_plot.db_id }}" />
     {{ csrf_token() }}
-    <input type="file" name="plot" />
-    <br>
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Stage Layouts</label>
+      <div class="col-sm-6">
+        <input type="file" name="plot" />
+      </div>
+      {% if guest.stage_plot and guest.stage_plot.filename %}
+      <div class="clearfix"></div>
+      <p class="help-block col-sm-6 col-sm-offset-3">Uploading a new file will replace the existing one.</p>
+      {% endif %}
+    </div>
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Additional Notes</label>
+      <div class="col-sm-6">
+        <textarea name="notes" class="form-control">{{ guest_stage_plot.notes }}</textarea>
+      </div>
+    </div>
     {% block form_extra %}{% endblock %}
     <input type="submit" class="btn btn-primary" value="Upload Desired Stage Layouts" />
   </form>

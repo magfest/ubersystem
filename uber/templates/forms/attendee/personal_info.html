@@ -1,0 +1,201 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set personal_info = personal_info or forms['personal_info'] %}
+{% set other_info = other_info or forms['other_info'] if 'other_info' in forms else None %}
+{% set badge_flags = badge_flags or forms['badge_flags'] %}
+{% set staffing_info = staffing_info or forms['staffing_info'] %}
+
+{# BLOCK NAMES in this form:
+      name
+      contact_info
+      age
+      address
+      ec_info
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block name %}
+{% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
+
+<div class="row g-sm-3">
+<div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.first_name) }}</div>
+<div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.last_name, value=attendee_last_name) }}</div>
+</div>
+
+{% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, hide_on_checked=True, prop="disabled",
+                   checked=attendee.first_name != '' and attendee.legal_name == '') }}
+  </div>
+
+  <div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?')) }}
+  </div>
+</div>
+{% else %}
+<input type="hidden" id="same_legal_name" name="same_legal_name" {% if attendee.first_name != '' and attendee.legal_name == '' %}value="1" {% endif %}/>
+{% endif %}
+
+{% if admin_area or attendee.has_personalized_badge %}
+<div class="row g-sm-3">
+  <div class="col-12">{{ form_macros.form_input(personal_info.badge_printed_name) }}</div>
+</div>
+  {% if badge_flags and admin_area %}
+  {{ form_macros.toggle_fields_js(badge_flags.badge_type, [personal_info.badge_printed_name], on_values=c.PREASSIGNED_BADGE_TYPES, toggle_required=True) }}
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+
+{% block contact_info %}
+{% set attendee_email = attendee.masked_email if limited_read else attendee.email %}
+{% if is_prereg_dealer %}
+  {% set email_extra_field = form_macros.toggle_checkbox(personal_info.copy_email, [personal_info.email], hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.email == group.email_address) %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.copy_phone, [personal_info.cellphone], hide_on_checked=True, prop="disabled", checked=group and loaded_from_group and attendee.cellphone == group.phone) %}
+{% elif attendee.staffing or (other_info and other_info is not none) %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, prop="disabled") %}
+{% endif %}
+
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+    {{ form_macros.form_input(personal_info.email, extra_field=email_extra_field, value=attendee_email) }}
+  </div>
+  {% if c.PREREG_CONFIRM_EMAIL_ENABLED and (attendee.needs_pii_consent or attendee.badge_status == c.PENDING_STATUS) %}
+  <div class="col-12 col-sm-6">
+    {{ form_macros.form_input(personal_info.confirm_email, value=attendee_email if edit_id or attendee.placeholder else '') }}
+  </div>
+</div>
+<div class="row g-sm-3">
+  {% endif %}
+  <div class="col-12 col-sm-6">
+    {{ form_macros.form_input(personal_info.cellphone, extra_field=cellphone_extra_field, required=is_prereg_dealer or attendee.is_dealer or attendee.staffing) }}
+  </div>
+</div>
+<script type="text/javascript">
+  var checkCellphoneRequired = function() {
+      true_evals = [];
+      false_evals = [];
+      {% if is_prereg_dealer %}
+        true_evals.push(true);
+        false_evals.push($("#{{ personal_info.copy_phone.id }}").prop('checked') == false);
+      {% else %}
+        false_evals.push($("#{{ personal_info.no_cellphone.id }}").prop('checked') == false);
+      {% endif %}
+      {% if staffing_info %}
+        true_evals.push($("#{{ staffing_info.staffing.id }}").prop('checked'));
+      {% endif %}
+      {% if badge_flags %}
+        false_evals.push($("#{{ badge_flags.placeholder.id }}").prop('checked') == false);
+      {% endif %}
+      toggleOn = true_evals.some(item => item) && false_evals.every(item => item)
+      $("#{{ personal_info.cellphone.id }}").prop('required', toggleOn);
+      $('#{{ personal_info.cellphone.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
+  }
+  $().ready(function () {
+    checkCellphoneRequired();
+    $("#{{ personal_info.no_cellphone.id }}").change(checkCellphoneRequired);
+      {% if staffing_info %}
+      $("#{{ staffing_info.staffing.id }}").change(checkCellphoneRequired);
+      {% endif %}
+      {% if badge_flags %}
+      $("#{{ badge_flags.placeholder.id }}").change(checkCellphoneRequired);
+      {% endif %}
+  })
+</script>
+{% endblock %}
+
+
+{% block age %}
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+{% if c.COLLECT_EXACT_BIRTHDATE %}
+  {{ form_macros.form_input(personal_info.birthdate, admin_text=attendee.age_group_conf.desc) }}
+{% else %}
+  TBD
+{% endif %}
+  </div>
+
+  <div class="col-12 col-sm-6">
+    {% if c.CONSENT_FORM_URL and not admin_area %}
+    <div class="alert alert-warning" role="alert">
+      <em>
+        Attendees under 18 <b>MUST</b> bring a signed (and notarized if not accompanied by parent or guardian during badge pickup) 
+        <a class="link-dark" target="_blank" href="{{ c.CONSENT_FORM_URL }}">parental consent form</a>.
+      </em>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+
+{% block address %}
+{% if c.COLLECT_FULL_ADDRESS %}
+{% if is_prereg_dealer %}
+<div class="row g-sm-3">
+  <div class="col-12">
+    {{ form_macros.toggle_checkbox(personal_info.copy_address, 
+      [personal_info.address1, personal_info.address2, personal_info.city, personal_info.region_us, 
+      personal_info.region_canada, personal_info.region, personal_info.zip_code, personal_info.country], 
+      hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.address1 == group.address1) }}
+  </div>
+</div>
+<script type="text/javascript">
+  // selectToAutocomplete is a pain in my ass
+  $("#copy_address").on('click', function() {
+    setTimeout(function() {
+      if (!$("#country").prop("disabled")) {regionChangecountry();}
+      $("#country-selectToAutocomplete").prop('disabled', $("#country").prop("disabled"));
+      $('#country-selectToAutocomplete').siblings('label').children('.required-indicator').toggle(!$("#country").prop("disabled"));
+    }, 10);
+  })
+  $().ready(function() { 
+    setTimeout(function() {
+      if ($("#country").prop("disabled")) {
+        $("#region").prop('disabled', true);
+        $("#region_us").prop('disabled', true);
+        $("#region_canada").prop('disabled', true);
+      }
+      $("country-selectToAutocomplete").prop('disabled', $("#country").prop("disabled"));
+      $('#country-selectToAutocomplete').siblings('label').children('.required-indicator').toggle(!$("#country").prop("disabled"));
+    }, 10);
+   }) 
+</script>
+{% endif %}
+  {{ form_macros.address_fields(attendee, personal_info) }}
+{% else %}
+{# We need a better solution, but avoiding a row here allows event plugins to put a field next to the zip code #}
+  <div class="col-12 col-sm-6">
+    {{ form_macros.form_input(personal_info.zip_code, extra_field=form_macros.toggle_checkbox(personal_info.international, [personal_info.zip_code], hide_on_checked=True, toggle_required=True, prop='')) }}
+  </div>
+{% endif %}
+{% endblock %}
+
+
+{% block ec_info %}
+{% set show_ec = admin_area and ((attendee.admin_read_access() and attendee.admin_read_access() > 2) or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS) or (attendee.is_new or not admin_area) %}
+{% if show_ec or not personal_info.ec_name.data %}
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+    {{ form_macros.form_input(personal_info.ec_name) }}
+  </div>
+
+  <div class="col-12 col-sm-6">
+    {{ form_macros.form_input(personal_info.ec_phone) }}
+  </div>
+</div>
+{% endif %}
+{% if show_ec or not personal_info.onsite_contact.data %}
+{% set onsite_extra_field = form_macros.toggle_checkbox(personal_info.no_onsite_contact, [personal_info.onsite_contact], toggle_required=True, hide_on_checked=True, prop="disabled") %}
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+    {{ form_macros.form_input(personal_info.onsite_contact, extra_field=onsite_extra_field, maxlength="500") }}
+  </div>
+  <div class="col-12 col-sm-6">
+    <div class="alert alert-info" role="alert">
+    Please provide names and contact info for a trusted friend or friends who will be at or near the venue during the event.
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

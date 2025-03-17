@@ -1,7 +1,7 @@
 """Add column to track email sending
 
 Revision ID: fa2deb095760
-Revises: c7a439f29c1c
+Revises: cd2578936cb0
 Create Date: 2022-11-28 21:45:45.496955
 
 """
@@ -9,7 +9,7 @@ Create Date: 2022-11-28 21:45:45.496955
 
 # revision identifiers, used by Alembic.
 revision = 'fa2deb095760'
-down_revision = 'c7a439f29c1c'
+down_revision = 'cd2578936cb0'
 branch_labels = None
 depends_on = None
 

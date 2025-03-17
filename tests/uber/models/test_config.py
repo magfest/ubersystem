@@ -9,27 +9,6 @@ from uber.models import Attendee, Group, Session
 from uber.utils import localized_now, request_cached_context
 
 
-class TestBadgeDeadlines:
-    def test_staff_badge_deadline(self):
-        assert c.PRINTED_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.STAFF_BADGE)
-
-    def test_supporter_badge_deadline_earlier(self, monkeypatch):
-        monkeypatch.setattr(c, 'SUPPORTER_BADGE_DEADLINE', (c.PRINTED_BADGE_DEADLINE - timedelta(days=1)))
-        assert c.PRINTED_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.ATTENDEE_BADGE)
-
-    def test_supporter_badge_deadline_later(self, monkeypatch):
-        monkeypatch.setattr(c, 'SUPPORTER_BADGE_DEADLINE', (c.PRINTED_BADGE_DEADLINE + timedelta(days=1)))
-        assert c.SUPPORTER_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.ATTENDEE_BADGE)
-
-    def test_group_leader_supporter_deadline(self, monkeypatch):
-        monkeypatch.setattr(c, 'SUPPORTER_BADGE_DEADLINE', (c.PRINTED_BADGE_DEADLINE + timedelta(days=1)))
-        assert c.SUPPORTER_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.PSEUDO_GROUP_BADGE)
-
-    def test_new_dealer_supporter_deadline(self, monkeypatch):
-        monkeypatch.setattr(c, 'SUPPORTER_BADGE_DEADLINE', (c.PRINTED_BADGE_DEADLINE + timedelta(days=1)))
-        assert c.SUPPORTER_BADGE_DEADLINE == c.get_printed_badge_deadline_by_type(c.PSEUDO_DEALER_BADGE)
-
-
 class TestPrices:
     def test_initial_attendee(self, clear_price_bumps):
         assert 40 == c.get_attendee_price(datetime.now(UTC))
@@ -223,17 +202,6 @@ class TestBadgeOpts:
     def test_at_door_badge_opts_with_extra(self, monkeypatch):
         monkeypatch.setattr(c, 'BADGE_TYPE_PRICES', {c.CONTRACTOR_BADGE: 55})
         assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.ONE_DAY_BADGE, c.CONTRACTOR_BADGE}
-
-
-class TestStaffGetFood:
-    def test_job_locations_with_food_prep(self):
-        assert c.STAFF_GET_FOOD
-
-    def test_job_locations_without_food_prep(self, monkeypatch):
-        job_locations = dict(c.JOB_LOCATIONS)
-        del job_locations[c.FOOD_PREP]
-        monkeypatch.setattr(c, 'JOB_LOCATIONS', job_locations)
-        assert not c.STAFF_GET_FOOD
 
 
 class TestDealerConfig:

@@ -1,0 +1,469 @@
+{% extends "base.html" %}{% set admin_area=True %}
+
+{% set processors_str = processors[c.STRIPE] ~ " or " ~ processors[c.SQUARE] if c.AT_THE_CON else processors[c.STRIPE] %}
+
+{% block title %}Receipt Items Guide{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h3>Receipt Items Overview</h3>
+    <p>
+      Each attendee, group, and art show application has a list of receipt items that record that attendee or group's purchases, credits, payments, and refunds.
+      Below is an example of a typical receipt for an attendee.
+      <br/><img src="../static/images/receipt-guide/receipt-example.png" class="col-12 col-sm-8">
+      <ul>
+        <li>
+          <strong>Purchase items</strong> record something that the attendee or group owes money for. Each purchase item corresponds to one type of purchase.
+          In the example above, this attendee bought a badge and a merch package, which was recorded as two purchase items.
+        </li>
+        <li>
+          <strong>Credit items</strong> are the opposite of purchases and reduce the amount of money the attendee or group owes.
+          For example, an age discount adds a credit.
+        </li>
+        <li>
+          <strong>Payment items</strong> record the attendee or group paying for their purchases, minus any credits on their receipt.
+          Each payment item corresponds to one transaction, as in the example above.
+        </li>
+        <li>
+          <strong>Refund items</strong> record any money we refund back to the attendee or group.
+          Like payments, each refund item corresponds to a single transaction.
+        </li>
+      </ul>
+    </p>
+    <p>
+      This system allows a clear view of the history of money-related changes to that attendee, group, or application.
+      It also allows admins better control of what someone owes for their group, badge, or art show application.
+      Most importantly, it allows admins to refund attendees via {{ processors_str }} for either specific items or for the entire cost of their badge/application, including add-ons.
+    </p>
+    <div class="alert alert-success">
+    <p>
+      There's a few important things to keep in mind when working with receipt items:
+      <ul>
+        <li><strong>Receipt items are public.</strong> Attendees and groups have a button to view their receipt, including descriptions of receipt items. This allows them to understand what they're being charged for.</li>
+        <li><strong>Receipt items may need correcting.</strong> Due to technical limitations, the system may sometimes calculate updates to existing receipts incorrectly. Please contact your developer if this happens.</li>
+        <li><strong>Attendees are NOT notified of receipt changes.</strong> The system will not automatically email the attendee or group when their receipt changes, even if they owe money. They will see a balance on their badge or group if they happen to {% if c.ATTENDEE_ACCOUNTS_ENABLED %}log in{% else %}view their confirmation or group management page{% endif %}. Attendees who are not paid up (or are in groups that owe money) will not be able to check in.</li>
+      </ul>
+    </p>
+    </div>
+    <div class="row">
+    <div class="col-12 col-sm-6">
+      <h3>Refunding Receipt Items</h3>
+        <p>You can refund attendees and groups a few different ways:</p>
+        <p>
+          <strong>Record a Refund:</strong> This adds a record of a refund to a receipt, allowing you to record, e.g., cash refunds.
+          <strong>This will not refund a transaction via {{ processors_str }},</strong> it is only used to record refunds.
+          See <a href="#manual-receipt-guide">"Manually Updating Receipt Items"</a> for instructions on recording refunds.
+        </p>
+        <p>
+          <strong>Comp and Refund:</strong> This adds a credit to the receipt for a selected purchase, then processes a refund for that amount.
+          For example, you would use this to comp and refund someone's badge without cancelling their registration.
+        </p>
+        <div class="row justify-content-center">
+          <a class="btn btn-primary col-12 col-sm-6 mb-2" data-bs-toggle="collapse" href="#comprefund" role="button" aria-expanded="false" aria-controls="comprefund">
+            Show instructions
+          </a>
+        </div>
+        <p>
+          <ol class="collapse" id="comprefund">
+            <li>
+              Find and click the "Refund Options" button for the item you want to comp.
+              <br/><img src="../static/images/receipt-guide/badge-refund-1.png" class="col-12">
+              <br/><br/>
+            </li>
+            <li>
+              In the dialog box that opens, click the "Comp and Refund" button.
+              <br/><img src="../static/images/receipt-guide/badge-refund-2.png" class="col-12 col-sm-6">
+              <br/><br/><strong>If you don't see a "Comp and Refund" button</strong>, that means the system is unable to figure out how
+              to automatically comp and refund this item. You should use the "Arbitrary Refund" method below instead.
+              <br/><br/>
+            </li>
+            <li>
+              The page will reload. The receipt will now have two new receipt items: a record of the automatic refund,
+              and a credit item comping the original item cost (in this case, the badge cost).
+              <img src="../static/images/receipt-guide/badge-refund-3.png" class="col-12">
+            </li>
+          </ol>
+        </p>
+        <p>
+          <strong>Undo and Refund:</strong> This adds a credit to the receipt for a selected purchase, processes a refund for that amount,
+          AND changes the attendee, group, or application to revert whatever purchase was made.
+          For example, you would use this to cancel and refund an upgrade purchased by an attendee.
+        </p>
+        <p>Note: This option is not available for all receipt items. For example, it is not possible to undo and refund a badge purchase.</p>
+        <div class="row justify-content-center">
+          <a class="btn btn-primary col-12 col-sm-6 mb-2" data-bs-toggle="collapse" href="#undorefund" role="button" aria-expanded="false" aria-controls="undorefund">
+            Show instructions
+          </a>
+        </div>
+        <p>
+          <ol class="collapse" id="undorefund">
+            <li>
+              Find and click the "Refund Options" button for the item you want to comp.
+              <br/><img src="../static/images/receipt-guide/merch-refund-1.png" class="col-12">
+              <br/><br/>
+            </li>
+            <li>
+              In the dialog box that opens, click the "Undo and Refund" button.
+              <br/><img src="../static/images/receipt-guide/merch-refund-2.png" class="col-12 col-sm-6">
+              <br/><br/>{% if not c.AUTHORIZENET_LOGIN_ID %}
+                The "Undo and Refund Excluding Fees" button will work similarly, but will leave {{ processors_str }} processing fees out of the refund.
+                This is in case your department has a policy where processing fees are excluded from refunds.
+              {% else %}
+                The "Undo and Refund Excluding Fees" button will not appear for you as it is not enabled for {{ processors_str }}.
+              {% endif %}
+              <br/><br/><strong>If you don't see an "Undo and Refund" button</strong>, the system is for some reason unable to figure out how
+              to automatically undo and refund this item. You will need to edit the attendee or group's registration manually, then use the "Arbitrary Refund" method below instead.
+              <br/><br/>
+            </li>
+            <li>
+              The page will reload. The receipt will now have two new receipt items: a record of the automatic refund,
+              and a credit item noting that the original item was removed from the attendee or group (in this case, a merch package).
+              The attendee or group's registration will also have been updated to reflect the change, so they will no longer have the
+              item in question attached to their badge or group.
+              <br/><img src="../static/images/receipt-guide/merch-refund-3.png" class="col-12">
+            </li>
+          </ol>
+        </p>
+        <p>
+          <strong>Arbitrary Refund:</strong> If you want to add a custom discount or credit that isn't the full amount of a purchased item,
+          or you want to comp and refund multiple items at once, you can add that credit item to the receipt and then choose a transaction to refund that amount to.
+          For example, if you need to give an attendee a discount on their merch, you would add the discount amount and then
+          refund that amount to a transaction of your choice.
+        </p>
+        <div class="row justify-content-center">
+          <a class="btn btn-primary col-12 col-sm-6 mb-2" data-bs-toggle="collapse" href="#arbitrefund" role="button" aria-expanded="false" aria-controls="arbitrefund">
+            Show instructions
+          </a>
+        </div>
+        <p>
+          <ol class="collapse" id="arbitrefund">
+            <li>
+              Add a credit item to the receipt describing the discount you are giving the attendee or group.
+              See <a href="#manual-receipt-guide">"Manually Updating Receipt Items"</a> for instructions on adding
+              credit items. In the example below, we added a credit item with the description "Partial Merch Credit" and a value of $30.
+              <br/><img src="../static/images/receipt-guide/arbit-refund-1.png" class="col-12">
+              <br/><br/>
+            </li>
+            <li>
+              Find the transaction you want to refund. In the example below, there's three items -- one transaction for the original 
+              badge purchase, one purchase item when the attendee added a merch package, and the transaction paying for the merch package.
+              Since both transactions total over $30, we can click the "Refund $30" button next to either of them.
+              <br/><img src="../static/images/receipt-guide/arbit-refund-2.png" class="col-12">
+              <br/><br/>It's important to pick the right transaction here! Each transaction may have been paid with a different credit card, so
+              do you best to select the transaction that most closely matches what you are comping for the attendee or group.
+              Since this credit is for merch, we'll select the button next to the payment the attendee made for adding merch to their badge.
+              <br/><br/><strong>If you don't see any "Refund $XX" button</strong>, that means no transaction item on the receipt has
+              enough money to cover the full credit item. In this case, you should split the credit into smaller chunks and
+              go through these steps twice to refund each part of the credit.
+              <br/><br/>
+            </li>
+            <li>
+              In the dialog box that opens, click the "Refund $XX" (in this case, $30) button.
+              <br/><img src="../static/images/receipt-guide/arbit-refund-3.png" class="col-12 col-sm-6">
+              <br/><br/>
+            </li>
+            <li>
+              The page will reload. The receipt will now have a receipt item recording the automatic refund, which is shown below along
+              with the custom credit item we added in step 1.
+              <br/><img src="../static/images/receipt-guide/arbit-refund-4.png" class="col-12">
+            </li>
+          </ol>
+        </p>
+        <p>
+          <strong>Refund and Cancel:</strong> This refunds all transactions on a receipt and marks the attendee in question as Refunded,
+          invalidating their badge.{% if not c.AUTHORIZENET_LOGIN_ID %} There is also an option to do this without refunding the credit card processing fees.{% endif %}
+        </p>
+        <p>
+          Groups can also be refunded and cancelled. <strong>This cancels all badges in the group</strong>, so should only be done
+          if you are sure that no one in the group will want their badge.
+        </p>
+        <div class="row justify-content-center">
+          <a class="btn btn-primary col-12 col-sm-6 mb-2" data-bs-toggle="collapse" href="#cancelrefund" role="button" aria-expanded="false" aria-controls="cancelrefund">
+            Show instructions
+          </a>
+        </div>
+        <p>
+          <ol class="collapse" id="cancelrefund">
+            <li>
+              At the bottom of the Receipt Items page, click "Refund and Cancel This Attendee/Group".
+              {% if not c.AUTHORIZENET_LOGIN_ID %}
+                If your event's policy excludes credit card processing fees, click "Refund and Cancel This Attendee Excluding Processing Fees" instead.
+              {% else %}
+                The "Refund and Cancel This Attendee Excluding Processing Fees" button will not appear for you as it is not enabled for {{ processors_str }}.
+              {% endif %}
+              <br/><img src="../static/images/receipt-guide/cancel-refund-1.png" class="col-12">
+              <br/><br/>
+            </li>
+            <li>
+              In the dialog box that opens, click the "Fully Refund and Cancel" button.
+              <br/><img src="../static/images/receipt-guide/cancel-refund-2.png" class="col-12 col-sm-6">
+              <br/><br/>
+            </li>
+            <li>
+              The page will reload. There will be no current receipts since the registration has been cancelled and no further items can be purchased.
+              The current receipt will instead be listed as a "Closed Receipt."
+              It will also list new receipt items -- one for every transaction that was refunded, and one noting that the badge was cancelled.
+              <br/><img src="../static/images/receipt-guide/cancel-refund-3.png" class="col-12">
+              <br/><br/>If the attendee views their badge, it will show as a refunded badge. If a group was cancelled, their group page will show that they are cancelled.
+            </li>
+          </ol>
+        </p>
+    </div>
+    <div class="col-12 col-sm-6">
+      <h3 id="manual-receipt-guide">Manually Updating Receipt Items</h3>
+      <p>Admins are able to add, delete, and undo receipt items manually. This is useful in a few cases, for example:
+        <ul>
+          <li>Adding a custom discount, like a discount for merch.</li>
+          <li>Cancelling an unpaid upgrade or add-on.</li>
+          <li>Correcting a system miscalculation, which can happen in some (hopefully rare) cases.</li>
+          <li>Recording a refund processed outside the system, like a refund for a cash payment.</li>
+        </ul>
+      </p>
+      <p>You can manually edit receipts in the following ways:</p>
+      <p>
+        <strong>Create a Receipt:</strong> Receipts for attendees and groups aren't always created immediately.
+        "Placeholder" attendees created by admins, or unapproved dealer groups, won't get a receipt generated until they claim their badge or are approved and start the payment process, respectively.
+        You can bypass this in order to add custom items to a receipt before an attendee tries to claim their badge and pay.
+      </p>
+      <div class="row justify-content-center">
+        <a class="btn btn-primary col-12 col-sm-6 mb-2" data-bs-toggle="collapse" href="#createreceipt" role="button" aria-expanded="false" aria-controls="createreceipt">
+          Show instructions
+        </a>
+      </div>
+      <p>
+        <ol class="collapse" id="createreceipt">
+          <li>
+            If an attendee or group doesn't have an active receipt, the two buttons below will appear on their page.
+            In most cases, you should use "Create Default Receipt" to simulate how the system would create someone's receipt when they claim their badge and pay.
+            <br/><img src="../static/images/receipt-guide/create-receipt-1.png" class="col-12 col-sm-6">
+            <br/><br/>
+          </li>
+          <li>
+            The receipt below is an example of what the system might generate when you create a default receipt.
+            The attendee now owes money for their badge, but you can add credits or custom purchases before they claim their badge and pay.
+            <br/><img src="../static/images/receipt-guide/create-receipt-2.png" class="col-12">
+            <br/><br/>Once the attendee {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logs in{% else %}views their confirmation or group management page{% endif %},
+            they will be prompted to pay whatever the balance is on their receipt.
+            <br/><br/>
+          </li>
+          <li>
+            If you use "Create Blank Receipt" instead, you will bypass any automatic calculations for how much the attendee owes and for what, and create a receipt with no line items.
+            This should be used extremely sparingly, if at all.
+            <br/><img src="../static/images/receipt-guide/create-receipt-3.png" class="col-12">
+            <br/><br/>
+          </li>
+        </ol>
+      </p>
+      <p>
+        <strong>Record a Receipt Item:</strong> This allows you to add a custom credit or purchase. If the attendee paid or was refunded outside the system, you can also record it here.
+      </p>
+      <div class="row justify-content-center">
+        <a class="btn btn-primary col-12 col-sm-6 mb-2" data-bs-toggle="collapse" href="#recorditem" role="button" aria-expanded="false" aria-controls="recorditem">
+          Show instructions
+        </a>
+      </div>
+      <p>
+        <ol class="collapse" id="recorditem">
+          <li>
+            Underneath the receipt total, you'll see a list of buttons next to "Record:", as shown below.
+            Note that the "Payment" and "Refund" buttons are greyed out -- this is because this attendee's receipt balance is
+            currently $0. In this case, you'll need to click either Purchase or Credit, depending on what you need to record.
+            <br/><img src="../static/images/receipt-guide/record-item-1.png" class="col-12 col-sm-6">
+            <br/><br/>
+          </li>
+          <li>
+            A row will appear with places to write a Description, Amount, and Quantity. In this example, the attendee signed up
+            for a custom merch pack, so we use that as a description and note how much they paid for it.
+            <br/><img src="../static/images/receipt-guide/record-item-2.png" class="col-12">
+            <br/><br/>After you are done filling these fields in, click "Record Purchase" (or Credit, or Payment, etc).
+            <br/><br/>
+          </li>
+          <li>
+            The page will reload with your new receipt item visible.
+            <br/><img src="../static/images/receipt-guide/record-item-3.png" class="col-12">
+            <br/><br/>
+            At this point, the attendee can {% if c.ATTENDEE_ACCOUNTS_ENABLED %}log in{% else %}view their confirmation or group management page{% endif %}
+            and they will be prompted to pay the $50 balance. In this example, the attendee has already paid us outside the system, so let's also record a payment.
+            <br/><br/>
+          </li>
+          <li>
+            Just like when recording a purchase, use the list of buttons next to "Record:" shown below.
+            Note that, because the attendee now owes money, the Payment and Refund buttons are no longer greyed out.
+            <br/><img src="../static/images/receipt-guide/record-payment-1.png" class="col-12 col-sm-6">
+            <br/><br/>
+          </li>
+          <li>
+            The row for recording a payment has a description, amount, and a dropdown for selecting the
+            <strong>Payment Method</strong>. This dropdown may vary based on your event's policies but will typically have the following options:
+            <ul>
+              <li><strong>Cash:</strong> The attendee paid with cash.</li>
+              <li>
+                <strong>{{ c.PAYMENT_METHODS[c.STRIPE] }}:</strong> The attendee paid via {{ c.PAYMENT_METHODS[c.STRIPE] }}.
+              </li>
+              {% if c.SQUARE in c.PAYMENT_METHODS %}
+              <li>
+                <strong>{{ c.PAYMENT_METHODS[c.SQUARE] }}:</strong> The attendee paid via {{ c.PAYMENT_METHODS[c.SQUARE] }}.
+                If possible, please include the last 4 digits (and <em>ONLY</em> the last 4 digits) of the credit card the attendee used.
+              </li>
+              {% endif %}
+              {% if c.MANUAL in c.PAYMENT_METHODS %}
+              <li>
+                <strong>{{ c.PAYMENT_METHODS[c.MANUAL] }}:</strong> You took the attendee's payment by manually enter their credit card number into {{ c.PAYMENT_METHODS[c.STRIPE] }}.
+              </li>
+              {% endif %}
+              {% if c.STRIPE_ERROR in c.PAYMENT_METHODS %}
+              <li>
+                <strong>{{ c.PAYMENT_METHODS[c.STRIPE_ERROR] }}:</strong> Use this for payments made via {{ c.PAYMENT_METHODS[c.STRIPE] }} that the system should have recorded but didn't.
+                Hopefully you won't need to use this, but if you do, make sure your developer knows what happened.
+              </li>
+              {% endif %}
+            </ul>
+            <br/>When selecting a payment method that involves {{ c.PAYMENT_METHODS[c.STRIPE] }}, 
+            please include in the description an ID that will help other admins find this payment in 
+            {{ c.PAYMENT_METHODS[c.STRIPE] }}'s records (e.g., {% if not c.AUTHORIZENET_LOGIN_ID %}the "pi_" ID in the URL when viewing a payment in Stripe{% else %}AuthNet instructions here{% endif %}).
+            <br/><br/>In this case, the attendee paid via cash so we select the "Cash" payment method and simply enter "Cash payment" as the description.
+            <br/><img src="../static/images/receipt-guide/record-payment-2.png" class="col-12">
+            <br/><br/>
+          </li>
+          <li>
+            The page will refresh, and you'll see your new payment item on the receipt.
+            <br/><img src="../static/images/receipt-guide/record-payment-3.png" class="col-12">
+            <br/><br/>
+            Note that the "Custom Merch" item we added no longer has the "Delete Item" button available.
+            This is because the payment we added brought the receipt balance to $0, so all 'open' purchases (in this case, just the Custom Merch item) are now considered paid for.
+            You can delete the transaction to reverse this process.
+            <br/><br/>
+          </li>
+        </ol>
+      </p>
+      <p>
+        <strong>Add a Custom Discount:</strong> Although you can give attendees promo codes to get a discount, promo codes only apply to the badge cost.
+        If you want to instead add a discount for an item, like discounted merch for certain comped attendees, you'll need to manually edit their receipts.
+        We hope to streamline this process in the future, but in the meantime, you should follow the steps below.
+      </p>
+      <div class="row justify-content-center">
+        <a class="btn btn-primary col-12 col-sm-6 mb-2" data-bs-toggle="collapse" href="#discountitem" role="button" aria-expanded="false" aria-controls="discountitem">
+          Show instructions
+        </a>
+      </div>
+      <p>
+        <ol class="collapse" id="discountitem">
+          <li>
+            Because this attendee was created by an admin, their receipt hasn't been created yet.
+            In this case, we want a receipt to exist so we can update it, so click the "Create Default Receipt" button.
+            <br/><img src="../static/images/receipt-guide/create-receipt-1.png" class="col-12 col-sm-6">
+            <br/><br/>
+            This will create a receipt with whatever items are appropriate for the attendee or group.
+            In this case, the attendee is a comped staffer so they won't owe any money.
+            <br/><br/>
+          </li>
+          <li>
+            In order to add a discount to an item, we need to first add the item to the attendee's registration.
+            Click "Attendee Data" in the top bar.
+            <br/><img src="../static/images/receipt-guide/discount-merch-2.png" class="col-12 col-sm-6">
+            <br/><br/>
+          </li>
+          <li>
+            This attendee wants to buy the pre-ordered merch package called the "Korok Tier".
+            Click the "Badge Extras" button on the left-hand side, then use the dropdown to add a merch package to this attendee's registration.
+            Your event's add-ons may look different, but most of them should be in the Badge Extras section like this one.
+            <br/><img src="../static/images/receipt-guide/discount-merch-3.png" class="col-12 col-sm-6">
+            <br/><br/>
+            Because the merch package comes with a shirt, we'll also need to set a shirt size.
+            After you've updated the add-on you want, click "Save" to add it to the attendee's registration.
+            <br/><br/>
+          </li>
+          <li>
+            The new merch has been added to the attendee's receipt automatically as a purchase item.
+            Now it's time to add the discount. In the row of buttons labeled "Purchase", "Credit", "Payment", and "Refund", click "Credit".
+            <br/><img src="../static/images/receipt-guide/discount-merch-4.png" class="col-12">
+            <br/><br/>
+          </li>
+          <li>
+            A new row will appear with a description, amount, and quantity to fill in.
+            Enter a description and the dollar amount the discount should be, then click "Record Credit".
+            <br/><img src="../static/images/receipt-guide/discount-merch-5.png" class="col-12">
+            <br/><br/>
+          </li>
+          <li>
+            The page will reload. Your new credit item will appear on the receipt.
+            At this point, the attendee can {% if c.ATTENDEE_ACCOUNTS_ENABLED %}log in{% else %}view their confirmation or group management page{% endif %}
+            and they will be prompted to pay the remaining $30 for their merch.
+            <br/><img src="../static/images/receipt-guide/discount-merch-5.png" class="col-12">
+            <br/><br/>
+          </li>
+        </ol>
+      </p>
+      <p>
+        <strong>Delete, Comp, and Undo Receipt Items:</strong> Existing receipt items can be altered without refunding money to the attendee or group.
+        This can be useful for adjusting an attendee or group's receipt before they pay the balance.
+        For example, you can undo a badge upgrade for an attendee who started buying a badge upgrade but stopped before paying.
+        This can also be helpful for fixing receipt calculation errors.
+      </p>
+      <div class="row justify-content-center">
+        <a class="btn btn-primary col-12 col-sm-6 mb-2" data-bs-toggle="collapse" href="#edititem" role="button" aria-expanded="false" aria-controls="edititem">
+          Show instructions
+        </a>
+      </div>
+      <p>
+        <ol class="collapse" id="edititem">
+          <li>
+            Below is an example of a merch package that an attendee selected, but cancelled payment for.
+            They have contacted us and asked for the merch upgrade to be removed from their account, so we'll click the "Undo Item" button for that purchase.
+            <br/><img src="../static/images/receipt-guide/edit-items-1.png" class="col-12">
+            <br/><br/>
+          </li>
+          <li>
+            A dialog will pop up asking for a confirmation. Click "Undo" to confirm.
+            <br/><img src="../static/images/receipt-guide/edit-items-2.png" class="col-12 col-sm-6">
+            <br/><br/>
+          </li>
+          <li>
+            The page will refresh and a new credit will be added to the receipt noting how the item was reverted.
+            The attendee's registration is also updated to go back to the merch they had purchased before upgrading.
+            <br/><img src="../static/images/receipt-guide/edit-items-3.png" class="col-12">
+            <br/><br/>
+          </li>
+          <li>
+            Items can also be deleted or comped.
+            Deleting a receipt item will remove it from the receipt without any other changes, so should generally only be done to correct a mistake.
+            Comping an item will add a credit to the receipt for that item's amount. The process for deleting or comping an item is the same as undoing an item.
+          </li>
+        </ol>
+      </p>
+      <p>
+        <strong>Cancel Payments:</strong> Attendees may sometimes start a payment and neither finish paying nor cancel it themselves.
+        If you are editing a receipt total, or the payment is otherwise not for the correct amount, you can mark it as cancelled.
+        This will remove the "finish paying" prompt that attendees and groups see and recalculate the amount they owe the next time they {% if c.ATTENDEE_ACCOUNTS_ENABLED %}log in{% else %}view their confirmation or group management page{% endif %}.
+      </p>
+      <div class="row justify-content-center">
+        <a class="btn btn-primary col-12 col-sm-6 mb-2" data-bs-toggle="collapse" href="#cancelpayment" role="button" aria-expanded="false" aria-controls="cancelpayment">
+          Show instructions
+        </a>
+      </div>
+      <p>
+        <ol class="collapse" id="cancelpayment">
+          <li>
+            To cancel a payment, simply click the "Mark as Cancelled" button as shown below.
+            <br/><br/>{% if c.AUTHORIZENET_LOGIN_ID %}"Refresh from Stripe" will not appear for you due to how AuthNet payments work.
+            {% else %}As a precaution, <em>ALWAYS</em> click "Refresh from Stripe" before cancelling a payment to make sure the attendee didn't suddenly decide to finish paying.{% endif %}
+            <br/><img src="../static/images/receipt-guide/cancel-payment-1.png" class="col-12">
+            <br/><br/>
+          </li>
+          <li>
+            A dialog will pop up asking if you are sure you want to mark the payment as cancelled. Click "Mark Transaction as Cancelled".
+            <br/><img src="../static/images/receipt-guide/cancel-payment-2.png" class="col-12 col-sm-6">
+            <br/><br/>
+          </li>
+          <li>
+            The page will refresh and show the transaction as cancelled, including the day/time it was cancelled.
+            <br/><img src="../static/images/receipt-guide/cancel-payment-3.png" class="col-12 col-sm-6">
+            <br/><br/>
+          </li>
+        </ol>
+      </p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

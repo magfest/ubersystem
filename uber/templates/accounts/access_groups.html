@@ -3,14 +3,14 @@
 {% block content %}
   <script type="text/javascript">
       var accessLevelToColor = {
-          0: 'btn-default',
+          0: 'btn-outline-secondary',
           1: 'btn-warning',
           2: 'btn-info',
           5: 'btn-primary'
       };
 
       var updateAccesses = function(dict, suffix) {
-          $('.select' + suffix).val("0").addClass('btn-default');
+          $('.select' + suffix).val("0").addClass('btn-outline-secondary');
           $.each(dict, function( key, val ) {
               $('#' + key + suffix).val(val);
           });
@@ -22,7 +22,7 @@
       };
 
       var updateColor = function() {
-          $(this).removeClass('btn-default btn-warning btn-info btn-primary').addClass(accessLevelToColor[$(this).val()]);
+          $(this).removeClass('btn-outline-secondary btn-warning btn-info btn-primary').addClass(accessLevelToColor[$(this).val()]);
       };
 
       var getAccessGroup = function(groupId, callback) {
@@ -38,9 +38,11 @@
                   updateAccesses(json.access, '_access');
                   updateAccesses(json.read_only_access, '_read_only_access');
                   updateAllColors();
+                  $('#start_time').val(json.start_time);
+                  $('#end_time').val(json.end_time);
               },
               error: function () {
-                  toastr.error('Unable to connect to server, please try again.');
+                  showErrorMessage('Unable to connect to server, please try again.');
               }
           });
       };
@@ -57,7 +59,7 @@
               message: 'Are you sure you want to delete this access group? This cannot be undone.',
               buttons: {
                   confirm: { label: 'Delete Group', className: 'btn-danger' },
-                  cancel: { label: 'Nevermind', className: 'btn-default' }
+                  cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
               },
               callback: function (result) {
                   if (result) {
@@ -70,18 +72,18 @@
                               csrf_token: csrf_token
                           },
                           success: function (json) {
-                            toastr.clear();
+                            hideMessageBox();
                             var message = json.message;
                             if (json.success) {
-                                toastr.info(message);
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
                                 $("select[name='id'] option[value='" + id + "']").remove();
                                 $.field('id').val("None").trigger("change");
                             } else {
-                                toastr.error(json.error);
+                                showErrorMessage(json.error);
                             }
                         },
                           error: function () {
-                              toastr.error('Unable to connect to server, please try again.');
+                              showErrorMessage('Unable to connect to server, please try again.');
                           }
                       });
                   }
@@ -116,36 +118,70 @@
       });
   </script>
 
-  <div class="panel panel-default">
-    <div class="panel-heading">
-      <h3 class="panel-title">Access Groups</h3>
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Access Groups</h3>
     </div>
-    <div class="panel-body">
+    <div class="card-body">
       <form method="post" action="access_groups" class="form-horizontal">
         {{ csrf_token() }}
-        <div class="form-group">
-          <label class="col-sm-1 control-label">Access Group</label>
-          <div class="col-sm-6">
-            <select name="id" class="form-control">
-              <option value="None">Add new access group</option>
-              {{ options(c.ACCESS_GROUP_OPTS) }}
-            </select>
+        <div class="row">
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-text">Access Group</label>
+            <div class="mb-3">
+              <select name="id" class="form-select">
+                <option value="None">Add new access group</option>
+                {{ options(c.ACCESS_GROUP_OPTS) }}
+              </select>
+            </div>
           </div>
-        </div>
 
-        <div class="form-group"> {{ restricted }}
-          <label class="col-sm-1 control-label">Access Group Name</label>
-          <div class="col-sm-6">
-            <input type="text" class="form-control" name="name" value="{{ access_group.name }}" />
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-text">Access Group Name</label>
+            <div class="mb-3">
+              <input type="text" class="form-control" name="name" value="{{ access_group.name }}" />
+            </div>
+          </div>
+
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-text">Start Date</label>
+            <div class="mb-3">
+              <input type="text" class="form-control" name="start_time" id="start_time" placeholder="N/A" />
+            </div>
+          </div>
+
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-text">End Date</label>
+            <div class="mb-3">
+              <input type="text" class="form-control" name="end_time" id="end_time" placeholder="N/A" />
+            </div>
           </div>
         </div>
+        <script type="text/javascript">
+          var default_start = new Date('{{ c.EPOCH.isoformat()[:-6] }}');
+          var default_end = new Date('{{ c.ESCHATON.isoformat()[:-6] }}');
+          default_start.setHours(0,0,0);
+          default_end.setHours(0,0,0);
+          $('#start_time').datetimepicker({
+            sideBySide: true,
+            defaultDate: default_start,
+            format: 'M/D/Y h:mm A'
+          });
+          $('#end_time').datetimepicker({
+            sideBySide: true,
+            defaultDate: default_end,
+            format: 'M/D/Y h:mm A'
+          });
+          $('#start_time').val('');
+          $('#end_time').val('');
+        </script>
 
         <p><em>Access to a site section grants access to all pages and file exports in that section, plus any pages or exports that get added later.</em></p>
 
         <button type="submit" class="btn btn-primary">Save</button>
         <button type="button" class="btn btn-danger delete-button disabled">Delete</button>
 
-        <table class="table table-responsive table-hover">
+        <table class="table table-hover">
           <thead>
           <tr>
             <th></th>
@@ -157,15 +193,15 @@
           <tbody>
           {% for section in c.ADMIN_PAGES %}
             <tr>
-              <td class="clickable" data-toggle="collapse" id="{{ section }}" data-target=".{{ section }}">
-                <span class="glyphicon glyphicon-plus"></span>
+              <td class="clickable" data-bs-toggle="collapse" id="{{ section }}" data-bs-target=".{{ section }}">
+                <i class="fa fa-plus"></i>
               </td>
               <td>{{ section|replace('_', ' ')|title }}</td>
               <td>
-                <select class="form-control select_access" id="{{ section }}_access" name="{{ section }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
+                <select class="form-select select_access" id="{{ section }}_access" name="{{ section }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
               </td>
               <td>
-                <select class="form-control select_read_only_access" id="{{ section }}_read_only_access" name="{{ section }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
+                <select class="form-select select_read_only_access" id="{{ section }}_read_only_access" name="{{ section }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
               </td>
             </tr>
             {% for page in c.ADMIN_PAGES[section] %}
@@ -173,10 +209,10 @@
                 <td></td>
                 <td><span class="col-sm-offset-1">{{ page }}</span></td>
                 <td>
-                  <select class="form-control select_access" id="{{ section }}_{{ page }}_access" name="{{ section }}_{{ page }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
+                  <select class="form-select select_access" id="{{ section }}_{{ page }}_access" name="{{ section }}_{{ page }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
                 </td>
                 <td>
-                  <select class="form-control select_read_only_access" id="{{ section }}_{{ page }}_read_only_access" name="{{ section }}_{{ page }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
+                  <select class="form-select select_read_only_access" id="{{ section }}_{{ page }}_read_only_access" name="{{ section }}_{{ page }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
                 </td>
               </tr>
             {% endfor %}

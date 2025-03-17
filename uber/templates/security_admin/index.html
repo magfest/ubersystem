@@ -4,48 +4,84 @@
 {% endblock %}
 {% block content %}
 
-<h1>
-  <a class="btn btn-primary" href="watchlist_form">Add a Watchlist Entry</a>
-</h1>
+  <p><a class="btn btn-primary" href="watchlist_form">Add a Watchlist Entry</a></p>
 
-<div class="panel panel-default">
-  <div class="panel-heading">
-    <h3 class="panel-title">Existing Watchlist Entries</h3>
+<div class="card">
+  <div class="card-header">
+    Active Watchlist Entries
   </div>
-  <table class="table table-striped datatable">
-    <thead>
+  <div class="card-body">
+    <table class="table table-striped datatable">
+      <thead>
+        <tr>
+          <th>Details</th>
+          <th>Last Updated</th>
+          <th>Expiration Date</th>
+          <th>Matching Attendee(s)</th>
+          <th>First Name(s)</th>
+          <th>Last Name</th>
+          <th>Email Address</th>
+          <th>Date of Birth</th>
+        </tr>
+      </thead>
+      {% for entry in active_entries %}
       <tr>
-        <th>Entry Status</th>
-        <th>Details</th>
-        <th>Possible Match(es)</th>
-        <th>Confirmed Match(es)</th>
-        <th>First Name(s)</th>
-        <th>Last Name</th>
-        <th>Email Address</th>
-        <th>Date of Birth</th>
+        <td><a href="watchlist_form?id={{ entry.id }}">View Details</a></td>
+        <td data-order="{{ entry.last_update_info.when|default(entry.created_info.when, true) }}">
+          {{ (entry.last_update_info.when|default(entry.created_info.when, true))|full_datetime_local }}
+        </td>
+        <td>{{ entry.expiration }}</td>
+        <td data-order="{{ entry.attendees_and_guesses|length }}">
+          {% for attendee in entry.attendees_and_guesses %}
+          {{ attendee|form_link(true) }}{% if attendee in entry.attendees %} (Confirmed){% endif %}
+          {% else %}N/A{% endfor %}
+        </td>
+        <td>{{ entry.first_names }}</td>
+        <td>{{ entry.last_name }}</td>
+        <td>{{ entry.email }}</td>
+        <td>{{ entry.birthdate|datetime("%Y-%m-%d") }}</td>
       </tr>
-    </thead>
-{% for entry in watchlist_entries %}
-    <tr>
-      <td>{{ entry.active|yesno("Active,Inactive") }}</td>
-      <td><a href="watchlist_form?id={{ entry.id }}">View Entry Details</a></td>
-      <td>
-        {% for attendee in entry.attendee_guesses %}
-        {{ attendee|form_link }}
-        {% else %}N/A{% endfor %}
-      </td>
-      <td>
-        {% for attendee in entry.attendees %}
-        {{ attendee|form_link }}
-        {% else %}N/A{% endfor %}
-      </td>
-      <td>{{ entry.first_names }}</td>
-      <td>{{ entry.last_name }}</td>
-      <td>{{ entry.email }}</td>
-      <td>{{ entry.birthdate|datetime("%Y-%m-%d") }}</td>
-    </tr>
-{% endfor %}
-  </table>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+<br/>
+<div class="card">
+  <div class="card-header">
+    Inactive Watchlist Entries
+  </div>
+  <div class="card-body">
+    <table class="table table-striped datatable">
+      <thead>
+        <tr>
+          <th>Details</th>
+          <th>Last Updated</th>
+          <th>Expiration Date</th>
+          <th>Matched Attendee(s)</th>
+          <th>First Name(s)</th>
+          <th>Last Name</th>
+          <th>Email Address</th>
+          <th>Date of Birth</th>
+        </tr>
+      </thead>
+      {% for entry in inactive_entries %}
+      <tr>
+        <td><a href="watchlist_form?id={{ entry.id }}">View Details</a></td>
+        <td>{{ (entry.last_update_info.when|default(entry.created_info.when, true))|full_datetime_local }}</td>
+        <td>{{ entry.expiration }}</td>
+        <td>
+          {% for attendee in entry.attendees %}
+          {{ attendee|form_link }} ({{ attendee.badge_status_label }})
+          {% else %}N/A{% endfor %}
+        </td>
+        <td>{{ entry.first_names }}</td>
+        <td>{{ entry.last_name }}</td>
+        <td>{{ entry.email }}</td>
+        <td>{{ entry.birthdate|datetime("%Y-%m-%d") }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
 </div>
 
 {% endblock %}

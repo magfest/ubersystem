@@ -32,11 +32,11 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
 {% else %}You have already submitted your team's availability information, but you can update it below.{% endif %}</p>
 <form method="post" action="index" role="form" class="form-horizontal">
 <input type="hidden" name="id" value="{{ team.id }}" />
-{{ macros.form_group(team, 'name', is_required=True)}}
+{{ macros.form_group(team, 'name', is_required=True) }}
 {{ csrf_token() }}
-{{ macros.form_group(team, 'days_available', type='number', placeholder="3 days minimum", is_required=True, help="How many days can you present?")}}
-{{ macros.form_group(team, 'hours_available', type='number', placeholder="4 hours per day minimum", is_required=True, help="How many hours each day can you present?")}}
-{{ macros.form_group(team, 'concurrent_attendees', type='number', is_required=True, help="How many attendees can you run games for at once?")}}
+{{ macros.form_group(team, 'days_available', type='number', placeholder="3 days minimum", is_required=True, help="How many days can you present?") }}
+{{ macros.form_group(team, 'hours_available', type='number', placeholder="8 hours per day minimum", is_required=True, help="How many hours each day can you present?") }}
+{{ macros.form_group(team, 'concurrent_attendees', type='number', is_required=True, help="How many attendees can you run games for at once?") }}
 <div class="form-group">
   <div class="col-sm-6 col-sm-offset-3">
     <button type="submit" class="btn btn-primary">
@@ -56,7 +56,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
     <tr>
         <td><ul><li></li></ul></td>
         <td><h4>{{ applicant.full_name }}</h4></td>
-        <td><a class="btn btn-default" href="applicant?id={{ applicant.id }}">Edit</a></td>
+        <td><a class="btn btn-outline-secondary" href="applicant?id={{ applicant.id }}">Edit</a></td>
         <td>
             {% if applicant.primary_contact %}
                 <i>Receives Emails</i>
@@ -97,7 +97,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
     <tr>
         <td><ul><li></li></ul></td>
         <td><h4>{{ game.name }}</h4></td>
-        <td><a class="btn btn-default" href="game?id={{ game.id }}">Edit</a></td>
+        <td><a class="btn btn-outline-secondary" href="game?id={{ game.id }}">Edit</a></td>
         <td>
             <form method="post" action="delete_game">
                 {{ csrf_token() }}
@@ -121,7 +121,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
       <div class="btn-group">
     {% endif %}
     <a href="panel?id={{ team.panel_app.db_id if team.panel_app else 'None' }}&schedule_id={{ team.schedule.id if team.schedule else 'None' }}" class="btn
-      {% if team.panel_interest %}btn-default">Update Panel Application
+      {% if team.panel_interest %}btn-outline-secondary">Update Panel Application
       {% else %}btn-success">Apply for a Panel{% endif %}
     </a>
 
@@ -151,7 +151,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
     {% endif %}
 
     <a href="schedule?id={{ team.schedule.id if team.schedule else 'None' }}" class="btn
-      {% if team.showcase_interest %}btn-default">Update Showcase Availability
+      {% if team.showcase_interest %}btn-outline-secondary">Update Showcase Availability
       {% else %}btn-success">Apply for the Showcase{% endif %}
     </a>
 
@@ -169,7 +169,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
 
 {% endif %}
 
-{% if team.steps_completed >= 5 %}
+{% if team.steps_completed >= 4 %}
     <h3>Manage Hotel Room Requests</h3>
 
     <p>We have a limited number of rooms set aside for people who need hotel space and haven't secured it for themselves.</p>
@@ -183,7 +183,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
     {% endif %}
 
     <a href="hotel_requests" class="btn
-      {% if team.completed_hotel_form %}btn-default">Update Hotel Request Information
+      {% if team.completed_hotel_form %}btn-outline-secondary">Update Hotel Request Information
       {% else %}btn-success">Enter Hotel Request Information{% endif %}
     </a>
 
@@ -247,7 +247,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
               message: '<p>Are you sure you want to cancel your MITS application?</p>',
               buttons: {
                   confirm: { label: 'Yes, Cancel My Application', className: 'btn-danger' },
-                  cancel: { label: 'Nevermind', className: 'btn-default' }
+                  cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
               },
               callback: function (result) {
           if (result) {

@@ -1,8 +1,12 @@
 {{ app.submitter.first_name }},
 
-Congratulations, "{{ app.name }}", the panel you submitted for {{ c.EVENT_NAME }} {{ c.EVENT_YEAR }}, has been approved.  We will send you another e-mail to confirm your availability on our schedule.
+Congratulations, "{{ app.name }}", the panel you submitted for {{ c.EVENT_NAME_AND_YEAR }}, has been approved.{% if app.confirm_deadline %}
 
-Yourself and all panelists will receive free admissions.  If you have not yet registered you will receive a notification that we have begun registering you for the event, and you will need to follow the instruction in that email to finish your registration.
+You must confirm you can still run the panel or your submission will automatically be put on the waitlist on {{ app.confirm_deadline|datetime_local }}. You can confirm by clicking this link: {{ c.URL_BASE }}/panels/confirm_panel?id={{ app.id }}{% endif %}
+
+After you confirm your attendance, we will send you another e-mail to confirm your availability on our schedule.  Note that your day and time will be manually scheduled based on the availability you specified on your submission. If this availability has changed, please let us know as soon as possible, as we will not be reaching out again for availability before scheduling.
+
+Yourself and all panelists will receive free admissions. If you have not yet registered you will receive a notification that we have begun registering you for the event, and you will need to follow the instruction in that email to finish your registration.
 
 Important: If you or any others on your panel have purchased badges, {{ c.EVENT_NAME }} will refund the purchase price.  Please let us know if this is the case so we can get your refund sooner. As a reminder {{ c.EVENT_NAME }} will be held {{ c.EPOCH|datetime_local("%A, %B %-d") }} through {{ c.ESCHATON|datetime_local("%A, %B %-d") }} at {{ c.EVENT_VENUE }}.
 
@@ -10,5 +14,5 @@ If you have any questions or concerns, please don't hesitate to send them to {{ 
 
 Congratulations again, and we look forward to seeing you at {{ c.EVENT_NAME }}!
 
-{{ c.PEGLEGS_EMAIL_SIGNATURE }}
+{{ c.PANELS_EMAIL_SIGNATURE }}
 

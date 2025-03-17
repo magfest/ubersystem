@@ -1,5 +1,6 @@
 {% extends "guest_checklist/bio_deadline.html" %}
-{% block deadline_headline %}Guest/Group Information{% endblock %}
+
+{% block deadline_headline %}Announcement Information{% endblock %}
 {% block deadline_text %}
 {% if guest.bio_status %}
   You have already provided us with your bio information, but you can use the link above to update it.
@@ -8,15 +9,11 @@
     include it on our website.
   {% endif %}
 {% else %}
-  Use the link above to add your photo and bio information for the {{ c.EVENT_NAME }} website and announcements.
+  Use this form to add a bio, pic, and your socials so we can let attendees know you'll be at {{ c.EVENT_NAME }}!
 {% endif %}
 {% endblock %}
 
 {% block form_headline %}Guest/Group Info for {{ guest.group.name }}{% endblock %}
-{% block form_desc %}
-Please provide a short bio and a photo for our website. Everything else is optional, but if you provide social media
-  information, we'll include that as well.
-{% endblock %}
 
 {% block form_extra %}
 {% endblock %}

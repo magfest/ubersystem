@@ -1,0 +1,81 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Dealers With Receipt Discrepancies{% endblock %}
+{% block content %}
+{% include 'discrepancy_reports_header.html' with context %}
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-content-end mb-3">
+            {% if only_dealers %}
+                <a href="dealer_receipt_discrepancies" class="btn btn-outline-secondary">Show All Groups</a>
+            {% else %}
+                <a href="dealer_receipt_discrepancies?only_dealers=True" class="btn btn-secondary">Show Only Dealers</a>
+            {% endif %}
+            </div>
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Group Name</th>
+            <th>Group Leader</th>
+            <th>Current Cost</th>
+            <th>Receipt Total</th>
+            <th>Paid</th>
+            <th>Refunded</th>
+            <th>Total</th>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+                <th></th>
+                <th></th>
+            {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for group in groups %}
+        <tr id="{{ group.id }}">
+            <td data-order="{{ group.name }}" data-search="{{ group.name }}">
+                {{ group|form_link("true") }}
+            </td>
+            <td data-order="{{ group.leader.full_name }}" data-search="{{ group.leader.full_name }}">
+                {{ group.leader|form_link("true") }}
+            </td>
+            <td id="{{ group.id }}-cost">
+                {{ group.cost|format_currency }}{% if not group.auto_recalc %} (Custom){% endif %}
+            </td>
+            <td id="{{ group.id }}-receipt-total">
+                {{ (group.active_receipt.item_total / 100)|format_currency }}
+            </td>
+            <td>{{ (group.active_receipt.payment_total / 100)|format_currency }}</td>
+            <td>{{ (group.active_receipt.refund_total / 100)|format_currency }}</td>
+            <td>{{ (group.active_receipt.txn_total / 100)|format_currency }}</td>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+                <td>
+                    <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ group.id }}" target="_blank">View Receipt Items</a>
+                </td>
+                <td>
+                    <a class="btn btn-primary" href="#" onClick="refreshDealerAndReceipt('{{ group.id }}')">Refresh Group & Receipt</a>
+                </td>
+            {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% if c.HAS_REG_ADMIN_ACCESS %}
+<script type="text/javascript">
+    var refreshDealerAndReceipt = function(groupId) {
+        hideMessageBox();
+        $.post("../reg_admin/refresh_model_receipt",
+        {id: groupId, csrf_token: csrf_token}, function(response) {
+            if (response.new_cost) {
+                $('#' + groupId + '-cost').html(response.new_cost);
+                $('#' + groupId + '-receipt-total').html(response.new_receipt_total);
+                $("#message-alert").addClass("alert-info").show().children('span').html(response.message);
+            } else {
+                $('#' + groupId).remove()
+                $("#message-alert").addClass("alert-success").show().children('span').html(response.message);
+            }
+            
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}

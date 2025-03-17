@@ -1,7 +1,7 @@
 {% extends "preregistration/preregbase.html" %}
 {% block title %}Art Show Application{% endblock %}
-{% block backlink %}{% endblock %}
 {% block content %}
+{% if not c.INDEPENDENT_ART_SHOW %}
 <script type="text/javascript">
     var showOrHideNewBadge = function() {
         var noBadgeChecked = $.field("new_badge").prop('checked');
@@ -14,84 +14,83 @@
         $.field('new_badge').on('click', showOrHideNewBadge);
     });
 </script>
-<div class="masthead"></div>
-{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    {% if logged_in_account %}
-    {% include 'preregistration/create_or_login_account.html' %}
-    {% else %}
-    {% include 'preregistration/login.html' %}
-    {% endif %}
-  </div>
-</div>
 {% endif %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
+<h2>{{ c.EVENT_NAME }} Art Show Application</h2>
+<div class="card">
+  <div class="card-body">
+    {% if c.DEV_BOX %}
+      <div class="alert alert-info">
+        <strong> You are on a development box.
+          {% if c.BEFORE_ART_SHOW_REG_START %}
+            Otherwise, you would be automatically redirected to <a href="../static_views/art_show_not_open.html">the "art show reg not yet open" page</a>.
+          {% elif c.AFTER_ART_SHOW_DEADLINE and not c.AT_THE_CON %}
+            Otherwise, you would be automatically redirected to <a href="../static_views/art_show_closed.html">the "art show reg closed" page</a>.
+          {% endif %}
+        </strong>
+      </div>
+    {% endif %}
     {% if c.AFTER_ART_SHOW_DEADLINE and not c.HAS_ART_SHOW_ACCESS %}
-    Unfortunately, the deadline for art show applications has passed and we are no longer accepting applications.
+      <p>Unfortunately, the deadline for art show {{ c.ART_SHOW_APP_TERM }}s has passed and we are no longer accepting {{ c.ART_SHOW_APP_TERM }}s.</p>
     {% else %}
-    {% if c.AFTER_ART_SHOW_DEADLINE and c.HAS_ART_SHOW_ACCESS %}
-    <span style="color:red">
-        Art show applications have closed, but because you are a logged in
-        administrator you can submit a new application using this form.
-      </span>
-    <br/> <br/>
-    {% endif %}
-    {% if c.AFTER_ART_SHOW_WAITLIST %}
-    <span style="color:orange">
-        The deadline for art show applications has passed. You may still submit an application to be put on our waiting
-        list. Applications will close completely on {{ c.ART_SHOW_DEADLINE|datetime_local }}.
-      </span>
-    <br/><br/>
-    {% endif %}
+      {% if c.ART_SHOW_WAITLIST and c.AFTER_ART_SHOW_WAITLIST %}
+        <p style="color:orange">
+          The deadline for art show {{ c.ART_SHOW_APP_TERM }}s has passed. You may still submit an {{ c.ART_SHOW_APP_TERM }} to be put on our waiting
+          list. {{ c.ART_SHOW_APP_TERM|title }}s will close completely on {{ c.ART_SHOW_DEADLINE|datetime_local }}.
+          Space is limited and may be filled prior to the {{ c.ART_SHOW_APP_TERM }} window closing.
+        </p>
+      {% endif %}
 
-    Art show applications are due by {{ c.ART_SHOW_WAITLIST|datetime_local }}. Any applications submitted after this
-    date will be automatically waitlisted. Applications will close completely on
-    {{ c.ART_SHOW_DEADLINE|datetime_local }}. Please review the {{ c.EVENT_NAME }} Art Show rules
-    <a href="{{ c.ART_SHOW_RULES_URL }}" target="_blank">here</a>.
+    <p>
+    {% if c.ART_SHOW_WAITLIST %}
+      Art show {{ c.ART_SHOW_APP_TERM }}s are due by {{ c.ART_SHOW_WAITLIST|datetime_local }}. Any {{ c.ART_SHOW_APP_TERM }}s submitted after this
+      date will be automatically waitlisted.
+    {% endif %}
+    {{ c.ART_SHOW_APP_TERM|title }}s will close completely on {{ c.ART_SHOW_DEADLINE|datetime_local }}.</p>
 
-    <form method="post" action="index" class="form-horizontal" role="form">
+    <p></p>Please review the {{ c.EVENT_NAME }} Art Show rules
+    <a href="{{ c.ART_SHOW_RULES_URL }}" target="_blank">here</a>. Space is limited and may be filled prior to the {{ c.ART_SHOW_APP_TERM }} window closing.</p>
+
+    <form method="post" action="index" role="form">
       <h3>Your Information</h3>
-      <div class="form-group">
-        <div class="col-sm-6 col-sm-offset-3">
-          <label class="optional-field">
-            <input type="checkbox" name="new_badge" id="no_badge"
+      {% if not c.INDEPENDENT_ART_SHOW %}
+      <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">
+          <label for="attendee_id" class="form-text">Confirmation Number</label>
+          <input type="text" name="attendee_id" class="form-control" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  value="{{ attendee_id }}" {% if attendee.id and not attendee.is_new %}readonly {% endif %}/>
+          
+          <p class="form-text">The confirmation number you received when you registered.</p>
+        </div>
+      </div>
+      {% if not attendee_id %}
+      <div class="row g-sm-3">
+        <div class="col-12">
+          <input type="checkbox" class="form-check-input" name="new_badge" id="no_badge"
                    {% if new_badge %}checked {% endif %}/>
-            I don't have a badge for {{ c.EVENT_NAME }}.
+          <label for="no_badge" class="form-check-label">
+            I don't have a badge for {{ c.EVENT_NAME }} yet.
           </label>
         </div>
-        <div class="clearfix"></div>
-        <p class="help-block col-sm-6 col-sm-offset-3 new-badge">
-          A new badge will be created for you, and you'll have the
-          opportunity to complete your registration after submitting your application.
+      </div>
+
+      <div class="row g-sm-3 new-badge mt-2">
+        <p class="col-12 col-sm-9">
+          Enter your information below. A new badge will be created for you, and you'll have the
+          opportunity to complete your registration after submitting your {{ c.ART_SHOW_APP_TERM }}.
         </p>
       </div>
-      <div class="form-group">
-        <label for="attendee_id" class="col-sm-3 control-label">Confirmation Number</label>
-        <div class="col-sm-6">
-          <input type="text" name="attendee_id" class="form-control" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                 value="{{ attendee_id }}" {% if attendee.id and not attendee.is_new %}readonly {% endif %}/>
-        </div>
-        <div class="clearfix"></div>
-        <p class="help-block col-sm-6 col-sm-offset-3">The confirmation number you received when you registered.</p>
-      </div>
+      {% endif %}
+      {% endif %}
+      {% if not attendee_id %}
+      {% include 'art_show_applications/new_attendee_fields.html' %}
+      {% endif %}
 
-      <div class="new-badge">
-        {% if not logged_in_account %}
-        {% set no_email = True %}
-        {% include 'preregistration/create_account_fields.html' %}
-        {% endif %}
-        {% include 'art_show_applications/new_attendee_fields.html' %}
-      </div>
-
-      <h3>Art Information</h3>
+      <h3 class="mt-3">Art Information</h3>
       {% include 'art_show_applications/art_show_form.html' %}
 
-      <div class="form-group">
-        <div class="col-sm-6 col-sm-offset-3">
-          <button type="submit" class="btn btn-primary">Submit Application</button>
+      <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">
+          <button type="submit" class="btn btn-primary">Submit {{ c.ART_SHOW_APP_TERM|title }}</button>
         </div>
       </div>
     </form>

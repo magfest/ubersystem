@@ -23,7 +23,7 @@ class MenuItem:
         self.name = name
         self.access_override = access_override
 
-    def append_menu_item(self, m):
+    def append_menu_item(self, m, position=None):
         """
         If we're appending a new menu item, and we aren't a submenu, convert us to one now.
         Create a new submenu and append a new item to it with the same name and href as us.
@@ -47,14 +47,17 @@ class MenuItem:
             self.submenu = [MenuItem(name=self.name, href=self.href)]
             self.href = None
 
-        self.submenu.append(m)
+        if position:
+            self.submenu.insert(position, m)
+        else:
+            self.submenu.append(m)
 
     def render_items_filtered_by_current_access(self):
         """
         Returns: dict of menu items which are allowed to be seen by the logged in user's access levels
         """
         out = {}
-        
+
         page_path = self.access_override or self.href
 
         if self.href and not c.has_section_or_page_access(page_path=page_path.strip('.'), include_read_only=True):
@@ -111,14 +114,12 @@ c.MENU = MenuItem(name='Root', submenu=[
     ]),
 
     MenuItem(name='People', submenu=[
-        MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
-        MenuItem(name='Pending Badges', href='../registration/pending_badges'),
-        MenuItem(name='Promo Code Groups', href='../registration/promo_code_groups'),
+        MenuItem(name='Attendees', href='../registration/'),
         MenuItem(name='Groups', href='../group_admin/'),
         MenuItem(name='Dealers', href='../group_admin/#dealers', access_override='dealer_admin'),
         MenuItem(name='Guests', href='../group_admin/#guests', access_override='guest_admin'),
         MenuItem(name='Bands', href='../group_admin/#bands', access_override='band_admin'),
-        MenuItem(name='MIVS', href='../group_admin/#mivs', access_override='mivs_admin'),
+        
     ]),
 
     MenuItem(name='Schedule', submenu=[
@@ -133,6 +134,26 @@ c.MENU = MenuItem(name='Root', submenu=[
 ])
 
 
+if c.MIVS_ENABLED:
+    c.MENU['People'].append_menu_item(MenuItem(name='MIVS', href='../group_admin/#mivs',
+                                               access_override='mivs_admin'), position=5)
+
+
+if c.GROUPS_ENABLED:
+    c.MENU['People'].append_menu_item(MenuItem(name='Promo Code Groups',
+                                               href='../registration/promo_code_groups'), position=2)
+
+
+if c.ATTENDEE_ACCOUNTS_ENABLED:
+    c.MENU['People'].append_menu_item(MenuItem(name='Attendee Accounts',
+                                               href='../reg_admin/attendee_accounts'), position=1)
+
+
+if c.ADMIN_BADGES_NEED_APPROVAL:
+    c.MENU['People'].append_menu_item(MenuItem(name='Pending Badges',
+                                               href='../registration/pending_badges'), position=1)
+
+
 if c.ATTRACTIONS_ENABLED:
     c.MENU['Schedule'].append_menu_item(MenuItem(name='Attractions', href='../attractions_admin/'))
 
@@ -140,10 +161,11 @@ if c.ATTRACTIONS_ENABLED:
 if c.BADGE_PRINTING_ENABLED:
     c.MENU.append_menu_item(MenuItem(name='Badge Printing', submenu=[
         MenuItem(name='Printed Badges', href='../badge_printing/'),
-        MenuItem(name='Waiting to Print', href='../badge_printing/index?pending=True'),
-        MenuItem(name='Print Jobs List', href='../badge_printing/print_jobs_list'),
-        MenuItem(name='Kiosk Print', href='../badge_printing/print_next_badge'),
+        MenuItem(name='Print Jobs', href='../badge_printing/print_jobs_list'),
     ]))
+
+if c.BADGE_PRINTING_ENABLED or c.SPIN_TERMINAL_AUTH_KEY:
+    c.MENU['Admin'].append_menu_item(MenuItem(name='Manage Workstations', href='../reg_admin/manage_workstations'))
 
 
 if c.ART_SHOW_ENABLED:
@@ -152,5 +174,4 @@ if c.ART_SHOW_ENABLED:
         MenuItem(name='Link to Apply', href='../art_show_applications/', access_override='art_show_admin'),
         MenuItem(name='At-Con Operations', href='../art_show_admin/ops'),
         MenuItem(name='Reports', href='../art_show_reports/index'),
-        MenuItem(name='Sales Charge Form', href='../art_show_admin/sales_charge_form'),
         ]))

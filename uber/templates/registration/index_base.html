@@ -7,7 +7,16 @@
     {% include 'barcode_client.html' %}
   {% endif %}
   <style> .badge_count { margin-left: 15px; } </style>
-  <script>
+  <script type="text/javascript">
+    var invertShowAll = function() {
+      {% if invalid %}
+      $('#search_invalid').val('');
+      {% else %}
+      $('#search_invalid').val('1');
+      {% endif %}
+      $('#search_form').submit();
+    }
+
     $(function() {
       $('#search_bar').select();
 
@@ -17,15 +26,15 @@
           detectBadgeNum: true,
           autoSubmitForm: '#search_form',
           shouldAutoFill: function() {
-            return !$('#checkin-badge').is(':visible');
+            return !$('#checkin_badge_num').is(':visible');
           },
           shouldAutoSubmit: function() {
-            return !$('#checkin-badge').is(':visible');
+            return !$('#checkin_badge_num').is(':visible');
           }
         });
 
         $('body').barcodeField({
-          targetField: '#checkin-badge',
+          targetField: '#checkin_badge_num',
           blurOnKeys: ['~', '\\'],
           detectBadgeNum: true,
           showErrorMessageWhenHidden: false
@@ -44,55 +53,108 @@
     });
   </script>
   {% include "check_in.html" %}
+  {% if c.SPIN_TERMINAL_AUTH_KEY %}
+    {% include 'registration/spin_terminal_form.html' with context %}
+  {% endif %}
+
+  {% if c.BADGE_PRINTING_ENABLED %}
+  <div class="modal" tabindex="-1" id="printer-assignment">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            {% if workstation_assignment and workstation_assignment.printer_id %}Re-a{% else %}A{% endif %}ssign Printers
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="update-printers" action="update_printers" method="post">
+            <input type="hidden" name="reg_station_id" value="{{ reg_station_id }}" />
+            <div class="row g-sm-3">
+              <div class="col-12 col-sm-6">
+                <label for="printer_id" class="form-text">Printer ID <span class="text-danger"> *</span></label>
+                <input type="text" name="printer_id" id="printer_id" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" placeholder="E.g., printer_01" class="form-control" required>
+              </div>
+              <div class="col-12 col-sm-6">
+                <label for="minor_printer_id" class="form-text">Minor Printer ID</label>
+                <input type="text" name="minor_printer_id" id="minor_printer_id" value="{{ workstation_assignment.minor_printer_id if workstation_assignment else '' }}" placeholder="Leave blank to use only one printer." class="form-control">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" form="update-printers" class="btn btn-primary">Update</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
 {% endblock adminheader %}
 {% block admin_controls %}
-<div class="row">
-    <div class="col-sm-6 col-md-4">
+<div class="row g-sm-3 row-cols-auto">
+    <div class="col-12 col-sm-6 col-md-5">
       <form role="form" method="get" action="index" id="search_form">
+        <div class="row g-sm-1 row-cols-auto">
+          <div class="col flex-grow-1">
             <input type="hidden" name="order" value="{{ order }}" />
-            <input type="hidden" name="invalid" value="{{ invalid }}" />
+            <input type="hidden" name="invalid" id="search_invalid" value="{{ invalid }}" />
             <div class="input-group">
                 <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
-                <span class="input-group-btn">
-                    <button class="btn btn-default" type="submit">
-                        <span class="glyphicon glyphicon-search"></span>
-                    </button>
-                </span>
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="fa fa-search"></i>
+                </button>
             </div>
+          </div>
+          <div class="col col-auto">
+            <button type="button" class="btn btn-info" onClick="invertShowAll()">
+              {% if invalid %}
+                Hide Invalid Badges
+              {% else %}
+                Show All Badges
+              {% endif %}
+            </button>
+          </div>
+        </div>
         </form>
     </div>
 
-    <div class="col-sm-6 col-md-8">
-      <form method="post" action="set_reg_station" class="form-inline">
+    <div class="col flex-grow-1">
         <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
-
-        {% if invalid  %}
-            <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hide Invalid Badges</a>
-        {% else %}
-            <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid=True">Show All Badges</a>
-        {% endif %}
 
         {% if c.HAS_REG_ADMIN_ACCESS and search_results and attendees %}
         <a class="btn btn-success" href="#" onClick="exportSearch()">Export Current Search</a>
         {% endif %}
-        <div class="form-group">
-        <style type="text/css">
-        .collapse.in {
-          display: inline-block;
-        }
-        </style>
-        <a href="#set-reg-station" class="btn btn-default" data-toggle="collapse">Set At-Door Reg Station</a>
-        <span id="set-reg-station" class="collapse">
-        <label class="sr-only" for="reg_station">Reg Station #</label>
-        <input class="form-control" id="reg_station" name="reg_station" placeholder="Reg Station #" value="{{ reg_station }}">
-        <button type="submit" class="btn btn-primary">Save</button>
-        </span>
-        <a href="../merch_admin/arbitrary_charge_form" target="_blank" class="btn btn-warning">Arbitrary Charge Form</a>
-        </div>
-      </form>
     </div>
-</div>
+    {% if c.HAS_REG_ADMIN_ACCESS %}
+    <div class="col">
+      <a href="../merch_admin/arbitrary_charge_form" target="_blank" class="btn btn-warning">Arbitrary Charge Form</a>
+    </div>
+    {% endif %}
+    {% if c.BADGE_PRINTING_ENABLED and reg_station_id %}
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#printer-assignment">
+        {% if workstation_assignment and workstation_assignment.printer_id %}Re-a{% else %}A{% endif %}ssign Printers
+      </button>
+    {% endif %}
+    {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
+    <form method="post" action="set_reg_station">
+      <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
+      <div class="row g-sm-2 row-cols-auto">
+        <div class="col">
+          <a href="#set-reg-station" class="btn btn-outline-secondary" data-bs-toggle="collapse">Set Workstation ID</a>
+        </div>
+        <div id="set-reg-station" class="col collapse">
+          <div class="input-group">
+            <input class="form-control" size="4" id="reg_station_id" name="reg_station_id" placeholder="###" value="{{ reg_station_id }}">
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+
 
 <script type="text/javascript">
   var exportSearch = function exportSearch () {
@@ -102,7 +164,7 @@
                  ' Searches with large numbers of results will slow down the system!</p>',
         buttons: {
           confirm: { label: 'Yes, Export All The Data!', className: 'btn-success' },
-          cancel: { label: 'Nevermind', className: 'btn-default' }
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
         },
         callback: function (result) {
           if (result) {
@@ -113,35 +175,44 @@
       return false;
   };
 </script>
-
-<div class="row" style="margin-top: 15px;">
-    <div class="col-xs-12">
-        <span style="margin-right: 15px;">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</span>
-        <span style="margin-right: 15px;"><span id="checkin_count">{{ checkin_count }}</span> Checked In</span>
-        {% if c.BADGE_PRINTING_ENABLED %}<span class="pull-right" style="margin-right: 15px;"><a href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&reset_printers=True">Reset Default Printer IDs</a></span>{% endif %}
-        {% if printer_minor_id %}<span class="pull-right" style="margin-right: 15px;">Minor Printer: {{ printer_minor_id }}</span>{% endif %}
-        {% if printer_default_id %}<span class="pull-right" style="margin-right: 15px;">Standard Printer: {{ printer_default_id }}</span>{% endif %}
-        {% if reg_station %}<span class="pull-right" style="margin-right: 15px;">Reg station #: {{ reg_station }}</span>{% endif %}
+<div class="row mt-3 justify-content-between">
+    <div class="col col-auto">
+        <span class="ms-2">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</span>
+        <span class="ms-2"><span id="checkin_count">{{ checkin_count }}</span> Checked In</span>
         {% if c.HAS_REG_ADMIN_ACCESS %}
         {% block badge_counts %}
-        <span class="badge_count btn" data-warning-threshold="1500" data-danger-thresold="250">{{ c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT }} Attendee badges left</span>
+        <span class="badge_count" data-warning-threshold="1500" data-danger-thresold="250">{{ c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT }} Attendee badges left</span>
         {% endblock %}
+        {% endif %}
+    </div>
+    <div class="col col-auto">
+        {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}Workstation #: {{ reg_station_id|default("None",true) }}<br/>{% endif %}
+        {% if c.BADGE_PRINTING_ENABLED %}
+          {% set printer_text = "Standard Printer" if workstation_assignment and workstation_assignment.separate_printers else "Printer" %}
+          {{ printer_text }}: {{ workstation_assignment.printer_id|default("None") if workstation_assignment else "None" }}
+          {% if workstation_assignment and workstation_assignment.separate_printers %}
+          <br/>Minor Printer: {{ workstation_assignment.minor_printer_id }}
+          {% endif %}
+        {% endif %}
+        {% if c.SPIN_TERMINAL_AUTH_KEY %}
+        <br/>Terminal ID: {{ workstation_assignment.terminal_id|default("None") if workstation_assignment else "None" }}
         {% endif %}
     </div>
 </div>
 
-
-
 {% if search_results %}
-    <div class="panel panel-info">
-      <div class="panel-body">
+    <div class="card card-info">
+      <div class="card-body">
         <a href="index?order={{ order }}&page=1&invalid={{ invalid }}">Click here</a> to view full attendee list instead of only search results.
       </div>
     </div>
 {% endif %}
 {% endblock admin_controls %}
 {% block table %}
-<ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+<ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+  <li class="page-item{% if page == 1 %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == 1 %}#{% else %}index?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}{% endif %}">Previous</a>
+  </li>
 {% for pagenum in pages %}
     {% if pagenum == page %}
     <li class="page-item active">
@@ -150,28 +221,32 @@
     {% else %}
     <li class="page-item">
         <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
-    {% endif %}
     </li>
+    {% endif %}
 {% endfor %}
+  <li class="page-item{% if page == pages|length %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == pages|length %}#{% else %}index?order={{ order }}&page={{ pages|length }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}{% endif %}">Next</a>
+  </li>
 </ul>
-<div class="panel panel-default">
+<div class="card">
     {% if page %}
       <table class="table table-striped" data-page-size="9999999">
         <thead>
           <tr>
             {% block tableheadings %}
+            {% if c.ATTENDEE_ACCOUNTS_ENABLED %}<th> <a href="index?order={{ order.primary_account_email }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Attendee Account</a> </th>{% endif %}
             <th> <a href="index?order={{ order.group_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Group Name</a> </th>
-            <th> <a href="index?order={{ order.promo_code_group_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Promo Code Group</a> </th>
+            {% if c.GROUPS_ENABLED %}<th> <a href="index?order={{ order.promo_code_group_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Promo Code Group</a> </th>{% endif %}
             <th> <a href="index?order={{ order.last_first }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Full Name</a> </th>
             <th> <a href="index?order={{ order.legal_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Name on ID</a> </th>
             {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="index?order={{ order.badge_printed_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge Name</a> </th>{% endif %}
-            <th> <a href="index?order={{ order.badge_type }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badges Type</a></th>
+            <th> <a href="index?order={{ order.badge_type }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge Type</a></th>
             {% if c.NUMBERED_BADGES %}<th> <a href="index?order={{ order.badge_num }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge #</a> </th> {% endif %}
             <th> <a href="index?order={{ order.ribbon }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge Ribbons</a></th>
-            <th> <a href="index?order={{ order.amount_extra }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Upgrade</a></th>
+            {% if c.DONATION_TIER_OPTS|length > 1 %}<th> <a href="index?order={{ order.amount_extra }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Upgrade</a></th>{% endif %}
             <th> <a href="index?order={{ order.paid }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Paid</a> </th>
             <th>{% if c.COLLECT_EXACT_BIRTHDATE %}<a href="index?order={{ order.birthdate }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{% endif%}Age{% if c.COLLECT_EXACT_BIRTHDATE %}</a>{% endif %}</th>
-            {% if c.AT_THE_CON %}
+            {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED or c.AFTER_EPOCH %}
                 <th> <a href="index?order={{ order.checked_in }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}"><nobr>Checked In</nobr></a> </th>
             {% endif %}
             {% endblock tableheadings %}
@@ -181,6 +256,7 @@
           {% for attendee in attendees %}
             <tr {% if attendee.badge_status == c.INVALID_STATUS or attendee.badge_status == c.IMPORTED_STATUS %}class="danger"{% endif %}>
                 {% block tablerows scoped %}
+                {% if c.ATTENDEE_ACCOUNTS_ENABLED %}<td>{{ attendee.managers[0]|form_link if attendee.managers else 'None' }}</td>{% endif %}
                 <td id="group_{{ attendee.id }}">
                     {% if attendee.group %}
                     <a href="../group_admin/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
@@ -188,6 +264,7 @@
                     {{ attendee.group_name }}
                     {% endif %}
                 </td>
+                {% if c.GROUPS_ENABLED %}
                   <td id="promo_code_group_{{ attendee.id }}">
                   {% for group in attendee.promo_code_groups %}
                     <a href="promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
@@ -196,6 +273,7 @@
                     <a href="promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a>
                   {% endif %}
                   </td>
+                {% endif %}
                 <td id="name_{{ attendee.id }}" style="text-align:left">
                     <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
                 </td>
@@ -206,10 +284,10 @@
                 <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
                 {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}
                 <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_labels|join(", ") }}</td>
-                <td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>
+                {% if c.DONATION_TIER_OPTS|length > 1 %}<td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>{% endif %}
                 <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
                 <td> <nobr>{{ attendee.age_group_conf.desc }}</nobr> </td>
-                {% if c.AT_THE_CON %}
+                {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
                     {% if attendee.checked_in %}
                             <td>
                                 {% if attendee.paid == c.LOST_BADGE %}
@@ -222,14 +300,19 @@
                                     </form>
                                 {% endif %}
                             </td>
-                    {% elif attendee.is_not_ready_to_checkin %}
-                        <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+                    {% elif attendee.cannot_check_in_reason %}
+                        <td>Can't checkin ({{ attendee.cannot_check_in_reason }})</td>
                     {% else %}
-                      {% if not reg_station and not c.BADGE_PRINTING_ENABLED and attendee.amount_unpaid %}
-                        <td>Can't checkin (Attendee owes {{ attendee.amount_unpaid|format_currency }})</td>
+                      {% if not reg_station_id and attendee.amount_unpaid %}
+                        <td>Set workstation ID to check in (Attendee owes {{ attendee.amount_unpaid|format_currency }})</td>
+                      {% elif c.BADGE_PRINTING_ENABLED and (not workstation_assignment or not workstation_assignment.printer_id) %}
+                        <td>Set {{ "workstation" if not reg_station_id else "printer" }} ID to check in</td>
                       {% else %}
                         <td id="cin_{{ attendee.id }}">
                             <button class="attendee-checkin btn btn-sm btn-success" data-attendee-id="{{ attendee.id }}" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>
+                            {% if attendee.badge_pickup_group and attendee.badge_pickup_group.check_inable_attendees|length > 1 %}
+                            <button class="cart-checkin btn btn-sm btn-primary" data-attendee-id="{{ attendee.id }}" onClick="loadCheckInGroupModal('{{ attendee.badge_pickup_group.id }}')">Check In Group</button>
+                            {% endif %}
                         </td>
                       {% endif %}
                     {% endif %}
@@ -252,18 +335,24 @@
 <div>Showing {{ start_attendee_num }} to {{ start_attendee_num + attendees|length - 1 }} out of {{ search_count }} attendees</div>
 {% endif %}
 {% if attendees|length > 15 %}
-<ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+<ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+  <li class="page-item{% if page == 1 %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == 1 %}#{% else %}index?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}{% endif %}">Previous</a>
+  </li>
 {% for pagenum in pages %}
-   {% if pagenum == page %}
-   <li class="page-item active">
-      <a class="page-link" href="#">{{ pagenum }}</a>
+    {% if pagenum == page %}
+    <li class="page-item active">
+        <a class="page-link" href="#">{{ pagenum }}</a>
     </li>
     {% else %}
     <li class="page-item">
         <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
-    {% endif %}
     </li>
+    {% endif %}
 {% endfor %}
+  <li class="page-item{% if page == pages|length %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == pages|length %}#{% else %}index?order={{ order }}&page={{ pages|length }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}{% endif %}">Next</a>
+  </li>
 </ul>
 {% endif %}
 

@@ -1,0 +1,28 @@
+<script type="text/javascript">
+    var disclaimersConfirmed = false;
+    var confirmDisclaimers = function () {
+      disclaimersConfirmed = true;
+      $("#prereg-form").submit();
+    }
+    var openDisclaimersModal = function() {
+      var modal = bootstrap.Modal.getOrCreateInstance($('#disclaimers_modal'))
+      modal.show();
+      $('#disclaimers_modal').on('hidden.bs.modal', function (event) {
+        if(serverValidationPassed != undefined) { serverValidationPassed = false; }
+      })
+    }
+    
+  </script>
+
+<div class="modal fade" id="disclaimers_modal" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-body">{% include "preregistration/disclaimers.html" %}</div>
+          <div class="modal-footer">
+            <button class="btn btn-primary btn-lg" data-bs-dismiss="modal" onClick="confirmDisclaimers()">
+              I agree to the above
+            </button>
+          </div>
+        </div>
+    </div>
+</div>

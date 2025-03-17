@@ -39,7 +39,7 @@
 </script>
 
 <h2>
-  <span class="glyphicon glyphicon-cog"></span>
+  <i class="fa fa-cog"></i>
   Membership Requests for {{ department|form_link }}
   <small style="margin-left: 10px">
   {% if requested_any %}
@@ -47,23 +47,23 @@
   {% else %}
     <a href="dept_requests_export?department_id={{ department.id }}">
   {% endif %}
-      <span class="glyphicon glyphicon-download"></span> Download CSV
+      <i class="fa fa-download"></i> Download CSV
     </a>
   </small>
 </h2>
 <p class="subheader">
   {% if requested_any %}
-    <a class="btn btn-xs btn-plain" href="requests?department_id={{ department.id }}">
+    <a class="btn btn-sm btn-secondary" href="requests?department_id={{ department.id }}">
   {% else %}
-    <a class="btn btn-xs btn-default" href="requests?department_id={{ department.id }}&requested_any=1">
+    <a class="btn btn-sm btn-outline-secondary" href="requests?department_id={{ department.id }}&requested_any=1">
   {% endif %}
-      <span class="glyphicon glyphicon-filter"></span>
+      <i class="fa fa-filter"></i>
       Include volunteers willing to help Anywhere
     </a>
 </p>
 
-{%- set requesting_attendees = department.unassigned_requesting_attendees
-    if requested_any else department.unassigned_explicitly_requesting_attendees -%}
+{%- set requesting_attendees = department.unassigned_requesting_attendees|selectattr('is_valid')
+    if requested_any else department.unassigned_explicitly_requesting_attendees|selectattr('is_valid') -%}
 
 {% if requesting_attendees %}
   <form method="post" action="requests" class="form-horizontal" role="form">
@@ -82,7 +82,7 @@
                 <th>Badge</th>
                 <th>Placeholder</th>
                 {%- if requested_any -%}
-                  <th class="text-right">Explicitly Requested {{ department.name }}</th>
+                  <th class="text-end">Explicitly Requested {{ department.name }}</th>
                 {%- endif -%}
               </tr>
             </thead>
@@ -98,7 +98,7 @@
                   <td>{{ attendee.badge }}</td>
                   <td>{{ attendee.placeholder|yesno('Yes,No') }}</td>
                   {%- if requested_any -%}
-                    <td class="text-right">{{ (attendee in department.unassigned_explicitly_requesting_attendees)|yesno('Yes,No') }}</td>
+                    <td class="text-end">{{ (attendee in department.unassigned_explicitly_requesting_attendees)|yesno('Yes,No') }}</td>
                   {%- endif -%}
                 </tr>
               {% endfor %}
@@ -113,7 +113,7 @@
     <div class="form-group">
       <div class="col-sm-12">
         <button type="submit" class="btn btn-primary">Save</button>
-        <a href="form?id={{ department.id }}" type="button" class="btn btn-default">Cancel</a>
+        <a href="form?id={{ department.id }}" type="button" class="btn btn-outline-secondary">Cancel</a>
       </div>
     </div>
   </form>

@@ -2,15 +2,14 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import cherrypy
-import re
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, \
-    check_can_edit_dept, log_pageview, requires_shifts_admin
+    check_can_edit_dept, requires_shifts_admin
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, Email, Job, PageViewTracking, Shift, Tracking
+from uber.models import Attendee, Department, Job
 from uber.utils import check, localized_now, redirect_to_allowed_dept
 
 
@@ -50,24 +49,34 @@ def update_counts(job, counts):
         counts['regular_total'] += job.total_hours
         counts['regular_signups'] += job.weighted_hours * len(job.shifts)
 
+
 @all_renderable()
 class Root:
     @department_id_adapter
     @requires_shifts_admin
     def index(self, session, department_id=None, message='', time=None):
         redirect_to_allowed_dept(session, department_id, 'index')
+
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
+            department_id = None
+
+        jobs = []
+
         initial_date = max(datetime.now(c.EVENT_TIMEZONE), c.SHIFTS_START_DAY)
         if time:
             initial_date = max(initial_date, datetime.strptime(time, "%Y-%m-%dT%H:%M:%S%z"))
 
-        department_id = None if department_id == 'All' else department_id
         department = session.query(Department).get(department_id) if department_id else None
-        jobs = session.jobs(department_id).all()
         by_start = defaultdict(list)
-        for job in jobs:
-            if job.type == c.REGULAR:
-                by_start[job.start_time_local].append(job)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
+
+        if department_id != '':
+            jobs = session.jobs(department_id).all()
+            for job in jobs:
+                if job.type == c.REGULAR:
+                    by_start[job.start_time_local].append(job)
 
         try:
             checklist = session.checklist_status('creating_shifts', department_id)
@@ -75,7 +84,7 @@ class Root:
             checklist = {'conf': None, 'relevant': False, 'completed': None}
 
         return {
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'department': department,
             'setup': [j for j in jobs if j.type == c.SETUP],
             'teardown': [j for j in jobs if j.type == c.TEARDOWN],
@@ -92,7 +101,12 @@ class Root:
     def signups(self, session, department_id=None, message='', toggle_filter=''):
         if not toggle_filter:
             redirect_to_allowed_dept(session, department_id, 'signups')
-        department_id = None if department_id == 'All' or department_id == 'None' else department_id
+
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
+            department_id = None
+
         cherrypy.session['prev_department_id'] = department_id
 
         if toggle_filter:
@@ -102,17 +116,20 @@ class Root:
         show_restricted = cherrypy.session.get('signups_show_restricted', True)
         show_nonpublic = cherrypy.session.get('signups_show_nonpublic', True)
 
-        job_filters = [Job.department_id == department_id] if department_id else []
-        if not show_past_shifts:
-            job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
-        if not show_restricted:
-            job_filters.append(Job.restricted == False)  # noqa: E712
-        if not show_nonpublic:
-            job_filters.append(Job.department_id.in_(
-                select([Department.id]).where(
-                    Department.solicits_volunteers == True)))  # noqa: E712
+        jobs = []
 
-        jobs = session.jobs().filter(*job_filters)
+        if department_id != '':
+            job_filters = [Job.department_id == department_id] if department_id else []
+            if not show_past_shifts:
+                job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
+            if not show_restricted:
+                job_filters.append(Job.restricted == False)  # noqa: E712
+            if not show_nonpublic:
+                job_filters.append(Job.department_id.in_(
+                    select([Department.id]).where(
+                        Department.solicits_volunteers == True)))  # noqa: E712
+
+            jobs = session.jobs().filter(*job_filters)
 
         try:
             checklist = session.checklist_status('postcon_hours', department_id)
@@ -121,7 +138,7 @@ class Root:
 
         return {
             'message': message,
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'show_past_shifts': show_past_shifts,
             'show_restricted': show_restricted,
             'show_nonpublic': show_nonpublic,
@@ -135,14 +152,18 @@ class Root:
     @requires_shifts_admin
     def unfilled_shifts(self, session, department_id=None, message='', toggle_filter=''):
         """
-        This page is very similar to the signups view, but this is for STOPS to assign on-call 
+        This page is very similar to the signups view, but this is for STOPS to assign on-call
         volunteers to shifts onsite, so all the default values need to be the exact opposite.
 
         We also don't want the filters to interfere with the signups view so we store them separately.
         """
         if not toggle_filter:
             redirect_to_allowed_dept(session, department_id, 'unfilled_shifts')
-        department_id = None if department_id == 'All' or department_id == 'None' else department_id
+
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
+            department_id = None
 
         if toggle_filter:
             cherrypy.session[toggle_filter] = not cherrypy.session.get(toggle_filter)
@@ -151,21 +172,24 @@ class Root:
         show_restricted = cherrypy.session.get('unfilled_show_restricted')
         show_nonpublic = cherrypy.session.get('unfilled_show_nonpublic')
 
-        job_filters = [Job.department_id == department_id] if department_id else []
-        if not show_past_shifts:
-            job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
-        if not show_restricted:
-            job_filters.append(Job.restricted == False)  # noqa: E712
-        if not show_nonpublic:
-            job_filters.append(Job.department_id.in_(
-                select([Department.id]).where(
-                    Department.solicits_volunteers == True)))  # noqa: E712
+        jobs = []
 
-        jobs = session.jobs().filter(*job_filters)
+        if department_id != '':
+            job_filters = [Job.department_id == department_id] if department_id else []
+            if not show_past_shifts:
+                job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
+            if not show_restricted:
+                job_filters.append(Job.restricted == False)  # noqa: E712
+            if not show_nonpublic:
+                job_filters.append(Job.department_id.in_(
+                    select([Department.id]).where(
+                        Department.solicits_volunteers == True)))  # noqa: E712
+
+            jobs = session.jobs().filter(*job_filters)
 
         return {
             'message': message,
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'show_past_shifts': show_past_shifts,
             'show_restricted': show_restricted,
             'show_nonpublic': show_nonpublic,
@@ -178,29 +202,38 @@ class Root:
     def staffers(self, session, department_id=None, message=''):
         redirect_to_allowed_dept(session, department_id, 'staffers')
 
-        department_id = None if department_id == 'All' else department_id
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
+            department_id = None
+
+        attendees = []
+        counts = defaultdict(int)
+        requested_count = 0
 
         if department_id:
             department = session.query(Department).filter_by(id=department_id).first()
             if not department:
-                department_id = None
+                department_id = ''
 
-        dept_filter = [] if not department_id \
-            else [Attendee.dept_memberships.any(department_id=department_id)]
-        attendees = session.staffers(pending=True).filter(*dept_filter).all()
-        for attendee in attendees:
-            if session.admin_has_staffer_access(attendee) or department_id:
-                attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
-                    else attendee.is_dept_head
-                attendee.trusted_here = attendee.trusted_in(department_id) if department_id \
-                    else attendee.has_role_somewhere
-                attendee.hours_here = attendee.weighted_hours_in(department_id)
-            else:
-                attendees.remove(attendee)
+        if department_id != '':
+            dept_filter = [] if department_id == None else [  # noqa: E711
+                Attendee.dept_memberships.any(department_id=department_id)]
+            attendees = session.staffers(pending=True).filter(*dept_filter).all()
+            requested_count = None if not department_id else len(
+                [a for a in department.unassigned_explicitly_requesting_attendees if a.is_valid])
+            for attendee in attendees:
+                if session.admin_has_staffer_access(attendee) or department_id:
+                    attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
+                        else attendee.is_dept_head
+                    attendee.trusted_here = attendee.trusted_in(department_id) if department_id \
+                        else attendee.has_role_somewhere
+                    attendee.hours_here = attendee.weighted_hours_in(department_id)
+                else:
+                    attendees.remove(attendee)
 
-        counts = defaultdict(int)
-        for job in session.jobs(department_id):
-            update_counts(job, counts)
+            for job in session.jobs(department_id):
+                update_counts(job, counts)
 
         try:
             checklist = session.checklist_status('assigned_volunteers', department_id)
@@ -209,10 +242,11 @@ class Root:
 
         return {
             'counts': counts,
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'attendees': attendees,
             'emails': ','.join(a.email for a in attendees),
             'emails_with_shifts': ','.join([a.email for a in attendees if department_id and a.hours_here]),
+            'requested_count': requested_count,
             'checklist': checklist,
             'message': message,
         }
@@ -226,7 +260,7 @@ class Root:
         attendee = session.attendee(id, allow_invalid=True)
         attendee.nonshift_minutes = int(float(nonshift_hours or 0) * 60)
         session.commit()
-        return { 'success': True, 'message': 'Non-shift hours updated' }
+        return {'success': True, 'message': 'Non-shift hours updated'}
 
     @ajax
     def update_notes(self, session, id, admin_notes, for_review=None):
@@ -235,23 +269,23 @@ class Root:
         if for_review is not None:
             attendee.for_review = for_review
         session.commit()
-        return { 'success': True, 'message': 'Notes updated' }
+        return {'success': True, 'message': 'Notes updated'}
 
     @ajax
     def assign_shift(self, session, staffer_id, job_id):
         message = session.assign(staffer_id, job_id)
         if message:
-            return { 'success': False, 'message': message }
+            return {'success': False, 'message': message}
         else:
             session.commit()
-            return { 'success': True, 'message': 'Shift added' }
+            return {'success': True, 'message': 'Shift added'}
 
     @ajax
     def unassign_shift(self, session, shift_id):
         shift = session.shift(shift_id)
         session.delete(shift)
         session.commit()
-        return { 'success': True, 'message': 'Staffer unassigned from shift' }
+        return {'success': True, 'message': 'Staffer unassigned from shift'}
 
     @requires_shifts_admin
     def form(self, session, message='', **params):
@@ -266,7 +300,20 @@ class Root:
             allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
 
         if cherrypy.request.method == 'POST':
-            job.duration = int(params.get('duration_hours', 0)) * 60 + int(params.get('duration_minutes', 0))
+            hours = params.get('duration_hours', 0)
+            minutes = params.get('duration_minutes', 0)
+
+            try:
+                hours = int(hours)
+            except ValueError:
+                hours = 0
+
+            try:
+                minutes = int(minutes)
+            except ValueError:
+                minutes = 0
+
+            job.duration = hours * 60 + minutes
             message = check(job)
             if not message:
                 session.add(job)
@@ -320,7 +367,7 @@ class Root:
 
         message = check_can_edit_dept(session, job.department, override_access='full_shifts_admin')
         if message:
-            raise HTTPRedirect('index?department_id={}&time={}&message={}', 
+            raise HTTPRedirect('index?department_id={}&time={}&message={}',
                                job.department_id, job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z"),
                                message)
 
@@ -328,7 +375,7 @@ class Root:
             session.delete(shift)
         session.delete(job)
         raise HTTPRedirect('index?department_id={}&time={}',
-                           job.department_id, 
+                           job.department_id,
                            job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z"))
 
     @csrf_protected

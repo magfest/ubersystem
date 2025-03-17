@@ -1,0 +1,20 @@
+<html>
+<head></head>
+<body>
+You ({{ attendee.full_name }}) deferred your attendee badge last year, so we have created a placeholder badge for you for 
+{{ c.EVENT_NAME_AND_YEAR }} this coming {{ event_dates() }}. 
+Please <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">click here to claim your badge</a>, 
+make sure your information is up-to-date.
+
+<br/><br/>Badges are not mailed out before the event, so your badge will be available for pickup at the registration desk when 
+you arrive at {{ c.EVENT_NAME }}. Bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }}
+to the registration desk, where you'll be provided with your badge.
+{% if c.DONATIONS_ENABLED %} If you pre-order a t-shirt or other merch package, you can pick those up at our merchandise booth.
+The location and hours of the registration desk and merchandise booth will be emailed prior to the event.{% endif %}
+
+{% include "emails/reg_workflow/reg_notes.html" %}
+
+<br/><br/>
+{% include "emails/reg_workflow/refund_policy.html" %}
+</body>
+</html>

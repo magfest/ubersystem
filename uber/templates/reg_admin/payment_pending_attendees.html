@@ -20,7 +20,7 @@
 <tbody>
 {% for attendee, matches in attendees %}
     <tr id="{{ attendee.id }}">
-        <td data-sort="{{ attendee.created.when }}">{{ attendee.created.when|datetime_local }}</td>
+        <td data-sort="{{ attendee.created_info.when }}">{{ attendee.created_info.when|datetime_local }}</td>
         <td>{{ attendee|form_link("true") }}</td>
         <td>{{ attendee.email }}</td>
         <td>{{ attendee.amount_extra_label }}</td>
@@ -46,9 +46,9 @@
     var invalidate = function (attendeeId) {
         $.post('invalidate_badge', {csrf_token: csrf_token, id: attendeeId}, function (response) {
             if (response.error) {
-                toastr.error(response.error);
+                showErrorMessage(response.error);
             } else {
-                toastr.info('Invalidated badge');
+                $("#message-alert").addClass("alert-info").show().children('span').html('Invalidated badge');
                 hideRows(response.invalidated);
             }
         }, 'json');

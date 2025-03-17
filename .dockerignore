@@ -1,0 +1,12 @@
+Dockerfile
+.git
+.gitignore
+.gitattributes
+.travis.yml
+*.md
+docker-compose.yml
+.github
+**/*.pyc
+**/__pycache__
+.idea
+**/.DS_Store

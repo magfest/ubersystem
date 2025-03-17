@@ -1,125 +1,131 @@
-{% extends "preregistration/preregbase.html" %}
-{% block title %}Manage Your Registrations{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Manage Your Registrations" %}
 {% block content %}
-{% include 'prereg_masthead.html' %}
-{% include 'preregistration/update_account.html' %}
+{% set account = homepage_account %}
 {% set dealer_reg_open = c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
 {% set prereg_message %}
     {% if c.BEFORE_PREREG_OPEN %}
+        {% if not c.HIDE_PREREG_OPEN_DATE %}
         Preregistration will open {{ c.PREREG_OPEN|datetime_local }}.
+        {% else %}
+        Preregistration will open later this year.
+        {% endif %}
     {% elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON %}
         Preregistration has closed for the year.
     {% elif not c.ATTENDEE_BADGE_AVAILABLE %}
-        Preregistration has sold out!
+        {{ c.EVENT_NAME_AND_YEAR }} has sold out!
     {% endif %}
 {% endset %}
-<div class="panel panel-primary">
-    <div class="panel-heading">
-        <h4 class="panel-title">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h4>
+{% if c.AT_THE_CON and account.at_door_pending_attendees %}
+    <h2 class="text-center fst-italic mt-3">Pending At-Door Registrations</h2>
+    <div class="text-center">Please go to Registration to pay for and claim the badges below.</div>
+    {% for attendee in account.at_door_pending_attendees %}
+    <div class="card card-body mb-3">
+        {% include "preregistration/attendee_card.html" %}
     </div>
-{% if not account.valid_attendees %}
-    <div class="panel-body text-center">
-        <h2 class="text-uppercase">You have no current registrations</h2>
+    {% endfor %}
+{% endif %}
+{% if not account.valid_attendees and (not c.AT_THE_CON or not account.at_door_pending_attendees) %}
+    <div class="text-center">
+        <span class="h2 text-uppercase">You have no current registrations</span>
         <p>{{ prereg_message }}</p>
         <p>
         {% if account.imported_single_badges and not prereg_message %}
             {% if account.imported_attendees|length == 1 %}
-            <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info"> Import last year's registration</a>
+            <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info">Import last year's registration</a>
             {% else %}
-                Select a registration to import below.
+            Select a registration below to purchase a badge for this year. You will be able to review and edit your information before purchasing.
             {% endif %}
         {% elif not prereg_message %}
             <a href="../preregistration/form" class="btn btn-primary">Register Now!</a>
         {% endif %}
         </p>
-        {% if account.imported_group_badges and dealer_reg_open %}
-            {% if account.imported_attendees|length == 1 and account.imported_attendees[0].is_group_leader %}
+        {% if account.imported_group_leaders and dealer_reg_open %}
+            {% if account.imported_group_leaders|length == 1 %}
                 <a href="../preregistration/reapply?id={{ account.imported_attendees[0].id }}" class="btn btn-success">Reapply with last year's dealer application</a>
             {% else %}
-                Select a registration to import below. If you were a dealer assistant last year, ask the dealer to reapply.
+                Select a registration below to purchase a badge or reapply as a {{ c.DEALER_TERM }}. You will be able to review and edit your information before purchasing.
             {% endif %}
         {% elif dealer_reg_open %}
             <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
+            {% if account.imported_group_badges %}If you were a {{ c.DEALER_HELPER_TERM }} last year, ask your group leader to log into their account to reapply.{% endif %}
         {% endif %}
     </div>
-</div>
 {% else %}
-<div class="panel-body">
+<h2 class="text-center fst-italic mt-3">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
     {% for attendee, money_owed in attendees_who_owe_money.items() %}
     {% if loop.first %}
-    <div class="alert alert-warning">
+    <div class="alert alert-warning" role="alert">
         The following attendees on your account have outstanding balances:
         <ul>
     {% endif %}
     <li>{{ attendee }} owes {{ (money_owed / 100)|format_currency }}</li>
     {% if loop.last %}
     </ul>
-    Please click "Edit Details" on the appropriate attendee below to view and pay for their registration.
+    Please click "View/Edit Registration" on the appropriate attendee below to view and pay for their registration.
     If this doesn't look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
     </div>
     {% endif %}
     {% endfor %}
+
+    {% if c.HOTEL_LOTTERY_OPEN or (account.hotel_eligible_staff|length > 0 and c.STAFF_HOTEL_LOTTERY_OPEN) %}
+    <div class="alert alert-info">
+        <p>
+            The {{ c.EVENT_NAME_AND_YEAR }} hotel lottery is now open!
+        </p>
+        <p>
+            Click the "<strong>Enter Hotel Lottery</strong>" button next to the details for your badge to start your lottery entry.
+        </p>
+        {% if account.hotel_eligible_attendees|length > 1 %}
+        <p>
+            <strong>Each badge must be entered into the lottery individually.</strong>
+            Your badges are NOT automatically entered as a group, so be sure to complete an entry for each eligible badge in your account.
+        </p>
+        {% if c.STAFF_HOTEL_LOTTERY_OPEN and not c.HOTEL_LOTTERY_OPEN %}
+            <p>The lottery is currently only available to staff. The attendee lottery begins {{ c.HOTEL_LOTTERY_FORM_START|datetime_local }}.</p>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if prereg_message %}
+        <div class="text-center mt-3 mb-2 text-danger">{{ prereg_message }}</div>
+    {% endif %}
+
+    {% for attendee in account.valid_group_badges %}
+    <div class="card card-body mb-3">
+        {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% endfor %}
+    {% for attendee in account.valid_single_badges %}
+    <div class="card card-body mb-3">
+        {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% endfor %}
+
     <div class="text-center">
         {% if not prereg_message or dealer_reg_open %}
-        <div class="btn-group">
+        <div class="btn-group mb-3">
             {% if not prereg_message %}
-            <a href="../preregistration/form" class="btn btn-primary">Add Registration(s)</a>
+            <a href="../preregistration/form" class="btn btn-primary">Add More Registration(s)</a>
             {% endif %}
             {% if dealer_reg_open %}
             <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
             {% endif %}
         </div>
-        {% else %}
-        {{ prereg_message }}
         {% endif %}
     </div>
-    {% if account.valid_single_badges and account.valid_group_badges %}
-    <ul class="nav nav-pills" role="tablist">
-        <li role="presentation" class="active"><a href="#single" aria-controls="home" role="tab" data-toggle="tab">Registrations</a></li>
-        <li role="presentation"><a href="#group" aria-controls="profile" role="tab" data-toggle="tab">Group Registrations</a></li>
-    </ul>
-    {% endif %}
-<div class="tab-content">
-    <div class="tab-pane{% if account.valid_single_badges %} active{% endif %}" id="single" role="tabpanel">
-    {% for attendee in account.valid_single_badges %}
-    {% if loop.first %}
-    <div class="panel-body">
-    {% endif %}
-    <div class="row">
-        {% include "preregistration/attendee_card.html" %}
-    </div>
-    {% if loop.last %}
-    </div>
-    {% endif %}
-    {% endfor %}
-    </div>
-    <div class="tab-pane{% if account.valid_group_badges %} active{% endif %}" id="group" role="tabpanel">
-    {% for attendee in account.valid_group_badges %}
-    {% if loop.first %}
-    <div class="panel-body">
-    {% endif %}
-    <div class="row">
-        {% include "preregistration/attendee_card.html" %}
-    </div>
-    {% if loop.last %}
-    </div>
-    {% endif %}
-    {% endfor %}
-    </div>
-</div>
-</div>
-</div>
 {% endif %}
 {% if not account.valid_attendees %}
     {% for attendee in account.pending_attendees %}
     {% if loop.first %}
-    <div class="panel panel-default">
-        <div class="panel-heading">
-            <h4 class="panel-title">Pending Registrations</h4>
+        <h2 class="text-center fst-italic mt-3">Pending Registrations</h2>
+        <div class="text-center mt-1 mb-1">
+            <a href="../preregistration/resume_pending?account_id={{ account.id }}" class="btn btn-primary">Add All Pending Badges to Cart</a>
+            <br><span class="form-text">You will be able to edit or delete registrations before paying.</span>
         </div>
-        <div class="panel-footer">
     {% endif %}
-    <div class="row">
+    <div class="card card-body mb-3">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% if loop.last %}
@@ -129,44 +135,38 @@
     {% endfor %}
 {% endif %}
 {% for attendee in account.imported_attendees %}
-{% if loop.first %}
-<div class="panel panel-default">
-    <div class="panel-heading">
-        <h4 class="panel-title">Past Registrations</h4>
-    </div>
-    <div class="panel-footer">
-{% endif %}
-<div class="row">
+    {% if loop.first %}
+        <h2 class="text-center fst-italic mt-3">Past Registrations</h2>
+        {% if not account.valid_attendees %}<div class="row justify-content-center"><div class="col-10">{% endif %}
+    {% endif %}
+    <div class="card card-body mb-3">
     {% include "preregistration/attendee_card.html" %}
-</div>
-{% if loop.last %}
-</div>
-</div>
-{% endif %}
+    </div>
+    {% if loop.last and not account.valid_attendees %}</div>{% if not account.valid_attendees %}</div>{% endif %}{% endif %}
 {% endfor %}
 {% for attendee in account.refunded_deferred_attendees %}
 {% if loop.first %}
-<div class="panel panel-danger">
-    <div class="panel-heading">
-        <h4 class="panel-title">Cancelled Registrations</h4>
+<div class="card">
+    <div class="card-header">
+        <h2 class="h4 card-title">Cancelled Registrations</h2>
     </div>
-    <div class="table-responsive">
-        <table class="table table-striped datatable">
+    <div class="card-body">
+        <table class="table table-hover">
         <thead>
             <tr>
-            <th>Status</th>
-            <th>Registration</th>
+            <th>Name</th>
+            <th>Email</th>
             <th></th>
             </tr>
         </thead>
         <tbody>
         {% endif %}
             <tr id="{{ account.email|idize }}">
-            <td>{{ attendee.badge_status_label }}</td>
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 {{ attendee.full_name }}
                 {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
             </td>
+            <td>{{ attendee.email }}</td>
             <td>
                 {% if attendee.badge_status == c.REFUNDED_STATUS %}
                 <form method="post" action="repurchase" class="form-horizontal">
@@ -196,8 +196,8 @@
             'Once they create their account, you will no longer be able to manage their' +
             ' registration for them.',
           buttons: {
-            confirm: { label: '<span class="glyphicon glyphicon-plus"></span> Create Account', className: 'btn-success' },
-            cancel: { label: 'Nevermind', className: 'btn-default' }
+            confirm: { label: '<i class="fa fa-plus"></i> Create Account', className: 'btn-success' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
           },
           callback: function (result) {
             if (result) {

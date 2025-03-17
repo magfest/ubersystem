@@ -85,9 +85,9 @@
 
         // Control how the target field is blurred/focused.
         blurOnKeys: [],
-        refocusAfterBlurOnKeys: true,  // Refocuses if blurred from blurOnKeys
-        focusOnError: true,  // Always focus, regardless of blurOnKeys
-        focusOnComplete: true,  // Always focus, regardless of blurOnKeys
+        refocusAfterBlurOnKeys: true, // Refocuses if blurred from blurOnKeys
+        focusOnError: true, // Always focus, regardless of blurOnKeys
+        focusOnComplete: true, // Always focus, regardless of blurOnKeys
 
         // Set to false to turn off toastr error messages entirely.
         showErrorMessage: true,
@@ -172,7 +172,7 @@
 
       this.onDetectionError = function(response) {
         if (this.shouldShowErrorMessage()) {
-          toastr.warning(response['error'], '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-warning").show().children('span').html(response['error'], '', {timeOut: 3000});
         }
 
         if (settings.focusOnError) {

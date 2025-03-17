@@ -2,14 +2,14 @@ from datetime import datetime, timedelta
 
 import cherrypy
 from pockets import classproperty, listify
-from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy import Sequence
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
-from sqlalchemy.types import Boolean, Date
+from sqlalchemy.types import Boolean, Date, Integer
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -17,7 +17,7 @@ from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column
 
 
-__all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList']
+__all__ = ['AccessGroup', 'AdminAccount', 'EscalationTicket', 'PasswordReset', 'WatchList', 'WorkstationAssignment']
 
 
 # Many to many association table to tie Access Groups with Admin Accounts
@@ -49,10 +49,12 @@ class AdminAccount(MagModel):
                     'ApiToken.revoked_time == None)')
 
     judge = relationship('IndieJudge', uselist=False, backref='admin_account')
-    print_requests = relationship('PrintJob', backref='admin_account')
+    print_requests = relationship('PrintJob', backref='admin_account',
+                                  cascade='save-update,merge,refresh-expire,expunge')
+    api_jobs = relationship('ApiJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge')
 
     def __repr__(self):
-        return '<{}>'.format(self.attendee.full_name)
+        return f"<Admin full_name='{self.attendee.full_name}'>"
 
     @staticmethod
     def admin_name():
@@ -60,6 +62,31 @@ class AdminAccount(MagModel):
             from uber.models import Session
             with Session() as session:
                 return session.admin_attendee().full_name
+        except Exception:
+            return None
+        
+    @staticmethod
+    def admin_or_volunteer_name():
+        try:
+            from uber.models import Session
+            with Session() as session:
+                admin = session.admin_attendee()
+                volunteer = session.kiosk_operator_attendee()
+                if volunteer and not admin:
+                    return volunteer.full_name + " (Volunteer)"
+                elif not admin:
+                    return session.current_supervisor_admin().attendee.full_name
+                else:
+                    return admin.full_name
+        except Exception:
+            return None
+        
+    @staticmethod
+    def supervisor_name():
+        try:
+            from uber.models import Session
+            with Session() as session:
+                return session.current_supervisor_admin().attendee.full_name
         except Exception:
             return None
 
@@ -91,17 +118,21 @@ class AdminAccount(MagModel):
 
     @property
     def write_access_set(self):
-        access_list = [list(group.access) for group in self.access_groups]
+        access_list = [list(group.access) for group in self.valid_access_groups]
         return set([item for sublist in access_list for item in sublist])
 
     @property
     def read_access_set(self):
-        access_list = [list(group.read_only_access) for group in self.access_groups]
+        access_list = [list(group.read_only_access) for group in self.valid_access_groups]
         return set([item for sublist in access_list for item in sublist])
 
     @property
     def read_or_write_access_set(self):
         return self.read_access_set.union(self.write_access_set)
+
+    @property
+    def valid_access_groups(self):
+        return [group for group in self.access_groups if group.is_valid]
 
     @property
     def access_groups_labels(self):
@@ -130,13 +161,16 @@ class AdminAccount(MagModel):
     def allowed_api_access_opts(self):
         no_access_set = self.invalid_api_accesses()
         return [(access, label) for access, label in c.API_ACCESS_OPTS if access not in no_access_set]
-    
+
     @property
     def viewable_guest_group_types(self):
+        if 'guest_admin' in self.read_or_write_access_set:
+            return [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin"
+                    in self.read_or_write_access_set or opt.lower() + "_admin" not in c.ADMIN_PAGES]
         return [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin" in self.read_or_write_access_set]
 
     @property
-    def is_admin(self):
+    def is_super_admin(self):
         return 'devtools' in self.write_access_set
 
     @property
@@ -223,12 +257,13 @@ class AdminAccount(MagModel):
 class PasswordReset(MagModel):
     admin_id = Column(UUID, ForeignKey('admin_account.id'), unique=True, nullable=True)
     attendee_id = Column(UUID, ForeignKey('attendee_account.id'), unique=True, nullable=True)
-    generated = Column(UTCDateTime, server_default=utcnow())
+    generated = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     hashed = Column(UnicodeText, private=True)
 
     @property
     def is_expired(self):
         return self.generated < datetime.now(UTC) - timedelta(hours=c.PASSWORD_RESET_HOURS)
+
 
 class AccessGroup(MagModel):
     """
@@ -255,6 +290,11 @@ class AccessGroup(MagModel):
     name = Column(UnicodeText)
     access = Column(MutableDict.as_mutable(JSONB), default={})
     read_only_access = Column(MutableDict.as_mutable(JSONB), default={})
+    start_time = Column(UTCDateTime, nullable=True)
+    end_time = Column(UTCDateTime, nullable=True)
+
+    def __repr__(self):
+        return f"<AccessGroup id='{self.id}' name='{self.name}'>"
 
     @presave_adjustment
     def _disable_api_access(self):
@@ -268,7 +308,18 @@ class AccessGroup(MagModel):
     def has_any_access(self, access_to, read_only=False):
         return self.has_access_level(access_to, self.LIMITED, read_only)
 
+    @property
+    def is_valid(self):
+        if self.start_time and self.start_time > datetime.utcnow().replace(tzinfo=UTC):
+            return False
+        if self.end_time and self.end_time < datetime.utcnow().replace(tzinfo=UTC):
+            return False
+        return True
+
     def has_access_level(self, access_to, access_level, read_only=False, max_level=False):
+        if not self.is_valid:
+            return
+
         import operator
         if max_level:
             compare = operator.eq
@@ -289,8 +340,9 @@ class WatchList(MagModel):
     birthdate = Column(Date, nullable=True, default=None)
     reason = Column(UnicodeText)
     action = Column(UnicodeText)
+    expiration = Column(Date, nullable=True, default=None)
     active = Column(Boolean, default=True)
-    attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True))
+    attendees = relationship('Attendee',  backref=backref('watch_list'), cascade='save-update,merge,refresh-expire,expunge')
 
     @property
     def full_name(self):
@@ -301,9 +353,52 @@ class WatchList(MagModel):
         return [name.strip().lower() for name in self.first_names.split(',')]
 
     @presave_adjustment
-    def _fix_birthdate(self):
+    def fix_birthdate(self):
         if self.birthdate == '':
             self.birthdate = None
+
+
+# Many to many association table to tie Attendees to Escalation Tickets
+attendee_escalation_ticket = Table(
+    'attendee_escalation_ticket',
+    MagModel.metadata,
+    Column('attendee_id', UUID, ForeignKey('attendee.id')),
+    Column('escalation_ticket_id', UUID, ForeignKey('escalation_ticket.id')),
+    UniqueConstraint('attendee_id', 'escalation_ticket_id'),
+    Index('ix_attendee_escalation_ticket_attendee_id', 'attendee_id'),
+    Index('ix_attendee_escalation_ticket_escalation_ticket_id', 'escalation_ticket_id'),
+)
+
+
+class EscalationTicket(MagModel):
+    attendees = relationship(
+        'Attendee', backref='escalation_tickets', order_by='Attendee.full_name',
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='attendee_escalation_ticket')
+    ticket_id_seq = Sequence('escalation_ticket_ticket_id_seq')
+    ticket_id = Column(Integer, ticket_id_seq, server_default=ticket_id_seq.next_value(), unique=True)
+    description = Column(UnicodeText)
+    admin_notes = Column(UnicodeText)
+    resolved = Column(UTCDateTime, nullable=True)
+
+    @property
+    def attendee_names(self):
+        return [a.full_name for a in self.attendees]
+
+
+class WorkstationAssignment(MagModel):
+    reg_station_id = Column(Integer)
+    printer_id = Column(UnicodeText)
+    minor_printer_id = Column(UnicodeText)
+    terminal_id = Column(UnicodeText)
+
+    @property
+    def separate_printers(self):
+        return self.minor_printer_id != '' and self.printer_id != self.minor_printer_id
+
+    @property
+    def minor_or_adult_printer_id(self):
+        return self.minor_printer_id or self.printer_id
 
 
 c.ACCESS_GROUP_WRITE_LEVEL_OPTS = AccessGroup.WRITE_LEVEL_OPTS

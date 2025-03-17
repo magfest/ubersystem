@@ -1,27 +1,49 @@
-{%- import 'macros.html' as macros -%}
-<!doctype html>
-<html>
-<head>
-    <title>{{ name }}'s shifts</title>
-    <link rel="stylesheet" href="../static/styles/bootstrap.min.css" />
+{% extends "preregistration/preregbase.html" %}
 
-    <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
-<link rel="stylesheet" href="../static/fullcalendar-5.3.2/lib/main.min.css" />
-<meta name="viewport"
- content="
-   height = device-height,
-   width = device-width,
-   initial-scale = 1.0,
-   minimum-scale = 1.0,
-   maximum-scale = 1.0,
-   user-scalable = no
-   " />
-{% block page_style %}{% endblock %}
-</head>
-<body>
-<div class="container-fluid">
-{% block main_content %} {% endblock %}
-</div>
-</body>
-{% block page_script %} {% endblock %}
-</html>
+{% block head_styles %}
+  {{ "deps/combined.min.css"|serve_static_content }}
+  <link rel="stylesheet" href="../static_views/styles/main.css" />
+  {{ "deps/bootstrap5/bootstrap.min.css"|serve_static_content }}
+  {{ "deps/bootstrap5/font-awesome.min.css"|serve_static_content }}
+  {{ "deps/bootstrap5/datatables.min.css"|serve_static_content }}
+
+    <!-- additional styles -->
+  {% block additional_styles %}
+      {% block page_styles %}{% endblock %}
+  {% endblock %}
+{% endblock %}
+
+{% block masthead %}{% endblock %}
+
+{% block backlink %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">
+      <img src="../static/images/favicon.png" alt="{{ c.EVENT_NAME }}" width="24" class="d-inline-block align-text-top">
+      {{ c.EVENT_NAME }} Staffing
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <ul class="navbar-nav me-auto mb-2 mb-lg-0" id="main-menu">
+      <li class="nav-item"><a class="nav-link{% if c.PAGE_PATH == '/staffing/index' %} active" aria-current="page"{% else %}"{% endif %} href="../staffing/index">Volunteer Checklist</a></li>
+      {% if c.AFTER_SHIFTS_CREATED and c.CURRENT_VOLUNTEER.shift_prereqs_complete %}
+      <li class="nav-item"><a class="nav-link{% if c.PAGE_PATH == '/staffing/shifts' %} active" aria-current="page"{% else %}"{% endif %} href="../staffing/shifts">Shifts</a></li>
+      <li class="nav-item"><a class="nav-link" href="../staffing/printable" target="_blank">Printable Shift Schedule</a></li>
+      {% endif %}
+    </ul>
+    <ul class="navbar-nav d-flex">
+      <li class="nav-item"><a href="{{ c.VOLUNTEER_PERKS_URL }}" target="_blank" class="nav-link"><i class="fa fa-question-circle"></i> Volunteering Perks</a></li>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="account-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <span>Logged in as: {{ c.CURRENT_VOLUNTEER.first_name }} {{ c.CURRENT_VOLUNTEER.last_name }}</span> <i title="Account Settings" class="fa fa-cog"></i>
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="account-dropdown">
+          <li><a class="dropdown-item" href="../preregistration/confirm?id={{ c.CURRENT_VOLUNTEER.id }}">View My Badge</a></li>
+          <li><a class="dropdown-item" href="../staffing/login">Logout</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</nav>
+{% endblock %}

@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
+from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
@@ -7,6 +8,7 @@ from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, SocialMediaMixin
@@ -21,12 +23,13 @@ class Event(MagModel):
     duration = Column(Integer)  # half-hour increments
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
+    public_description = Column(UnicodeText)
+    track = Column(UnicodeText)
 
     assigned_panelists = relationship('AssignedPanelist', backref='event')
-    applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"), 
+    applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"),
                                 cascade="save-update,merge")
     panel_feedback = relationship('EventFeedback', backref='event')
-    tournaments = relationship('TabletopTournament', backref='event', uselist=False)
     guest = relationship('GuestGroup', backref=backref('event', cascade="save-update,merge"),
                          cascade='save-update,merge')
 
@@ -52,6 +55,24 @@ class Event(MagModel):
         return self.start_time + timedelta(minutes=self.minutes)
 
     @property
+    def guidebook_data(self):
+        # This is for a Guidebook Sessions export, so it's not the same as a custom list
+        from uber.utils import normalize_newlines
+
+        description = self.public_description or self.description
+
+        return {
+            'name': self.name,
+            'start_date': self.start_time_local.strftime('%m/%d/%Y'),
+            'start_time': self.start_time_local.strftime('%I:%M %p'),
+            'end_date': self.end_time_local.strftime('%m/%d/%Y'),
+            'end_time': self.end_time_local.strftime('%I:%M %p'),
+            'location': self.location_label,
+            'track': self.track,
+            'description': normalize_newlines(description).replace('\n', ' '),
+            }
+
+    @property
     def guidebook_name(self):
         return self.name
 
@@ -69,14 +90,7 @@ class Event(MagModel):
 
     @property
     def guidebook_desc(self):
-        panelists_creds = '<br/><br/>' + '<br/><br/>'.join(
-            a.other_credentials for a in self.applications[0].applicants if a.other_credentials
-        ) if self.applications else ''
-        return self.description + panelists_creds
-
-    @property
-    def guidebook_location(self):
-        return self.event.location_label
+        return self.public_description or self.description
 
 
 class AssignedPanelist(MagModel):
@@ -99,12 +113,17 @@ class PanelApplication(MagModel):
     length_text = Column(UnicodeText)
     length_reason = Column(UnicodeText)
     description = Column(UnicodeText)
+    public_description = Column(UnicodeText)
     unavailable = Column(UnicodeText)
     available = Column(UnicodeText)
     affiliations = Column(UnicodeText)
     past_attendance = Column(UnicodeText)
+    department = Column(Choice(c.PANEL_DEPT_OPTS))
+    rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
+    granular_rating = Column(MultiChoice(c.PANEL_CONTENT_OPTS))
     presentation = Column(Choice(c.PRESENTATION_OPTS))
     other_presentation = Column(UnicodeText)
+    noise_level = Column(Choice(c.NOISE_LEVEL_OPTS))
     tech_needs = Column(MultiChoice(c.TECH_NEED_OPTS))
     other_tech_needs = Column(UnicodeText)
     need_tables = Column(Boolean, default=False)
@@ -114,15 +133,37 @@ class PanelApplication(MagModel):
     tabletop = Column(Boolean, default=False)
     cost_desc = Column(UnicodeText)
     livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
+    record = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
     panelist_bringing = Column(UnicodeText)
     extra_info = Column(UnicodeText)
-    applied = Column(UTCDateTime, server_default=utcnow())
+    applied = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+    accepted = Column(UTCDateTime, nullable=True)
+    confirmed = Column(UTCDateTime, nullable=True)
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
     comments = Column(UnicodeText, admin_only=True)
+    track = Column(UnicodeText, admin_only=True)
 
     applicants = relationship('PanelApplicant', backref='application')
 
     email_model_name = 'app'
+
+    @presave_adjustment
+    def update_event_info(self):
+        if self.event:
+            self.event.name = self.name
+            self.event.description = self.description
+            self.event.public_description = self.public_description
+            self.event.track = self.track
+    
+    @presave_adjustment
+    def set_default_dept(self):
+        if len(c.PANEL_DEPT_OPTS) <= 1 and not self.department:
+            self.department = c.PANELS
+
+    @presave_adjustment
+    def set_record(self):
+        if len(c.LIVESTREAM_OPTS) > 2 and not self.record:
+            self.record = c.OPT_OUT
 
     @property
     def email(self):
@@ -136,6 +177,11 @@ class PanelApplication(MagModel):
         return None
 
     @property
+    def group(self):
+        if self.submitter and self.submitter.attendee:
+            return self.submitter.attendee.group
+
+    @property
     def other_panelists(self):
         return [a for a in self.applicants if not a.submitter]
 
@@ -146,6 +192,16 @@ class PanelApplication(MagModel):
     @property
     def unmatched_applicants(self):
         return [a for a in self.applicants if not a.attendee_id]
+
+    @property
+    def confirm_deadline(self):
+        if c.PANELS_CONFIRM_DEADLINE and self.has_been_accepted and not self.confirmed and not self.poc_id:
+            confirm_deadline = timedelta(days=c.PANELS_CONFIRM_DEADLINE)
+            return self.accepted + confirm_deadline
+
+    @property
+    def after_confirm_deadline(self):
+        return self.confirm_deadline and self.confirm_deadline < datetime.now(UTC)
 
     @hybrid_property
     def has_been_accepted(self):
@@ -167,6 +223,8 @@ class PanelApplicant(SocialMediaMixin, MagModel):
     occupation = Column(UnicodeText)
     website = Column(UnicodeText)
     other_credentials = Column(UnicodeText)
+    guidebook_bio = Column(UnicodeText)
+    display_name = Column(UnicodeText)
 
     @property
     def has_credentials(self):
@@ -183,4 +241,4 @@ class EventFeedback(MagModel):
     headcount_starting = Column(Integer, default=0)
     headcount_during = Column(Integer, default=0)
     comments = Column(UnicodeText)
-    rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
+    rating = Column(Choice(c.PANEL_FEEDBACK_OPTS), default=c.UNRATED)

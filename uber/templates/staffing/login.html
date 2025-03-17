@@ -4,10 +4,10 @@
 {% block content %}
 
 <!-- Custom styles for this template -->
-<link href="../static/styles/login.css" rel="stylesheet">
+{{ "styles/login.css"|serve_static_content }}
 
 <div class="container">
-    {% if c.DEV_BOX or c.AFTER_SHIFTS_CREATED %}
+    {% if c.DEV_BOX or c.AFTER_VOLUNTEER_CHECKLIST_OPEN %}
         <form class="form-signin" role="form">
             <h2 class="form-signin-heading">Volunteer Login</h2>
             <input type="text" class="form-control" placeholder="First Name" name="first_name" value="{{ first_name }}" required autofocus />
@@ -19,8 +19,8 @@
         </form>
     {% else %}
         <div class="well">
-            Shifts are not yet available. If you are signed up as a volunteer, you will
-            be emailed when shifts become available.  We anticipate that volunteer shifts and the volunteer checklist will go live on {{ c.SHIFTS_CREATED }}.
+            The volunteer checklist is not yet available. If you are signed up as a volunteer, you will
+            be emailed when the checklist is live. We anticipate that the volunteer checklist will go live on {{ c.VOLUNTEER_CHECKLIST_OPEN|datetime_local }}.
             You should receive an email with more information at that time, thanks so much for volunteering!
         </div>
     {% endif %}

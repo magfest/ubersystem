@@ -1,10 +1,9 @@
 from collections import Counter, defaultdict, OrderedDict
 
-from geopy.distance import VincentyDistance
+from geopy.distance import geodesic
 from pockets.autolog import log
-from pytz import UTC
 import six
-from sqlalchemy import and_, func
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import literal
 
@@ -61,24 +60,27 @@ class RegistrationDataOneYear:
                 date_trunc_day(Attendee.registered),
                 func.count(date_trunc_day(Attendee.registered))
             ) \
-            .outerjoin(Attendee.group).outerjoin(Attendee.promo_code) \
+            .outerjoin(Attendee.group) \
             .filter(
                 (
-                    (Attendee.group_id != None) &
+                    (Attendee.group_id != None) &  # noqa: E711
                     (Attendee.paid == c.PAID_BY_GROUP) &  # if they're paid by group
                     (Group.tables == 0) &                 # make sure they aren't dealers
                     (Group.amount_paid > 0)               # make sure they've paid something
                 ) | (                                     # OR
                     (Attendee.paid == c.HAS_PAID)         # if they're an attendee, make sure they're fully paid
-                ) | (
-                    (Attendee.promo_code != None) &
-                    (PromoCode.group_id != None) &
-                    (PromoCode.cost > 0)
                 )
             ) \
             .group_by(date_trunc_day(Attendee.registered)) \
             .order_by(date_trunc_day(Attendee.registered)) \
             .all()  # noqa: E711
+
+        group_reg_per_day = session.query(
+            date_trunc_day(PromoCode.group_registered),
+            func.count(date_trunc_day(PromoCode.group_registered))
+            ).filter(PromoCode.cost > 0) \
+             .group_by(date_trunc_day(PromoCode.group_registered)) \
+             .order_by(date_trunc_day(PromoCode.group_registered)).all()
 
         # now, convert the query's data into the format we need.
         # SQL will skip days without registrations
@@ -87,10 +89,18 @@ class RegistrationDataOneYear:
         # create 365 elements in the final array
         self.registrations_per_day = self.num_days_to_report * [0]
 
-        for reg_data in reg_per_day:
-            day = reg_data[0]
-            reg_count = reg_data[1]
+        # merge attendee and promo code group reg
+        total_reg_per_day = defaultdict(int)
+        for k, v in dict(reg_per_day).items():
+            if not k:
+                continue
+            total_reg_per_day[k] += v
+        for k, v in dict(group_reg_per_day).items():
+            if not k:
+                continue
+            total_reg_per_day[k] += v
 
+        for day, reg_count in total_reg_per_day.items():
             day_offset = self.num_days_to_report - (self.end_date - day).days
             day_index = day_offset - 1
 
@@ -161,93 +171,51 @@ class Root:
         for label, opts in count_labels.items():
             for val, desc in opts:
                 counts[label][desc] = 0
-        stocks = c.BADGE_PRICES['stocks']
+        badge_stocks = c.BADGE_PRICES['stocks']
         for var in c.BADGE_VARS:
             badge_type = getattr(c, var)
-            counts['stocks'][c.BADGES[badge_type]] = stocks.get(var.lower(), 'no limit set')
-            counts['counts'][c.BADGES[badge_type]] = c.get_badge_count_by_type(badge_type)
+            counts['badge_stocks'][c.BADGES[badge_type]] = badge_stocks.get(var.lower(), 'no limit set')
+            counts['badge_counts'][c.BADGES[badge_type]] = c.get_badge_count_by_type(badge_type)
+
+        shirt_stocks = c.SHIRT_SIZE_STOCKS
+        for shirt_enum_key in c.PREREG_SHIRTS.keys():
+            counts['shirt_stocks'][c.PREREG_SHIRTS[shirt_enum_key]] = shirt_stocks.get(shirt_enum_key, 'no limit set')
+            counts['shirt_counts'][c.PREREG_SHIRTS[shirt_enum_key]] = \
+                c.REDIS_STORE.hget(c.REDIS_PREFIX + 'shirt_counts', shirt_enum_key)
 
         for a in session.query(Attendee).options(joinedload(Attendee.group)):
-            counts['paid'][a.paid_label] += 1
-            counts['ages'][a.age_group_label] += 1
-            for val in a.ribbon_ints:
-                counts['ribbons'][c.RIBBONS[val]] += 1
-            counts['badges'][a.badge_type_label] += 1
             counts['statuses'][a.badge_status_label] += 1
-            counts['checked_in']['yes' if a.checked_in else 'no'] += 1
-            if a.checked_in:
-                counts['checked_in_by_type'][a.badge_type_label] += 1
-            for val in a.interests_ints:
-                counts['interests'][c.INTERESTS[val]] += 1
-            if a.paid == c.PAID_BY_GROUP and a.group:
-                counts['groups']['paid' if a.group.amount_paid else 'free'] += 1
 
-            donation_amounts = list(counts['donation_tiers'].keys())
-            for index, amount in enumerate(donation_amounts):
-                next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
-                if a.amount_extra >= amount and a.amount_extra < next_amount:
-                    counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
-            if not a.checked_in:
-                is_paid = a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
-                key = 'paid' if is_paid else 'free'
-                counts['noshows'][key] += 1
+            if a.badge_status not in [c.INVALID_GROUP_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
+                counts['paid'][a.paid_label] += 1
+                if a.age_group_label:
+                    counts['ages'][a.age_group_label] += 1
+                else:
+                    counts['ages'][c.AGE_GROUPS[c.AGE_UNKNOWN]]
+                for val in a.ribbon_ints:
+                    counts['ribbons'][c.RIBBONS[val]] += 1
+                counts['badges'][a.badge_type_label] += 1
+                counts['checked_in']['yes' if a.checked_in else 'no'] += 1
+                if a.checked_in:
+                    counts['checked_in_by_type'][a.badge_type_label] += 1
+                for val in a.interests_ints:
+                    counts['interests'][c.INTERESTS[val]] += 1
+                if a.paid == c.PAID_BY_GROUP and a.group:
+                    counts['groups']['paid' if a.group.amount_paid else 'free'] += 1
+
+                donation_amounts = list(counts['donation_tiers'].keys())
+                for index, amount in enumerate(donation_amounts):
+                    next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
+                    if a.amount_extra >= amount and a.amount_extra < next_amount:
+                        counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
+                if not a.checked_in:
+                    is_paid = a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
+                    key = 'paid' if is_paid else 'free'
+                    counts['noshows'][key] += 1
 
         return {
             'counts': counts,
-            'total_registrations': session.query(Attendee).count()
         }
-
-    def affiliates(self, session):
-        class AffiliateCounts:
-            def __init__(self):
-                self.tally, self.total = 0, 0
-                self.amounts = {}
-
-            @property
-            def sorted(self):
-                return sorted(self.amounts.items())
-
-            def count(self, amount):
-                self.tally += 1
-                self.total += amount
-                self.amounts[amount] = 1 + self.amounts.get(amount, 0)
-
-        counts = defaultdict(AffiliateCounts)
-        for affiliate, amount in (session.query(Attendee.affiliate, Attendee.amount_extra)
-                                         .filter(Attendee.amount_extra > 0)):
-            counts['everything combined'].count(amount)
-            counts[affiliate or 'no affiliate selected'].count(amount)
-
-        return {
-            'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
-            'registrations': session.query(Attendee).filter_by(paid=c.NEED_NOT_PAY).count(),
-            'quantities': [(desc, session.query(Attendee).filter(Attendee.amount_extra >= amount).count())
-                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]
-        }
-
-    @csv_file
-    def checkins_by_hour(self, out, session):
-        def date_trunc_hour(*args, **kwargs):
-            # sqlite doesn't support date_trunc
-            if c.SQLALCHEMY_URL.startswith('sqlite'):
-                return func.strftime(literal('%Y-%m-%d %H:00'), *args, **kwargs)
-            else:
-                return func.date_trunc(literal('hour'), *args, **kwargs)
-
-        out.writerow(["time_utc", "count"])
-        query_result = session.query(
-            date_trunc_hour(Attendee.checked_in),
-            func.count(date_trunc_hour(Attendee.checked_in))
-        ) \
-            .filter(Attendee.checked_in.isnot(None)) \
-            .group_by(date_trunc_hour(Attendee.checked_in)) \
-            .order_by(date_trunc_hour(Attendee.checked_in)) \
-            .all()
-
-        for result in query_result:
-            hour = result[0]
-            count = result[1]
-            out.writerow([hour, count])
 
     def badges_sold(self, session):
         graph_data_current_year = RegistrationDataOneYear()
@@ -259,10 +227,11 @@ class Root:
 
     if c.MAPS_ENABLED:
         from uszipcode import SearchEngine
+
         zips_counter = Counter()
         zips = {}
         try:
-            center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)
+            center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)  # noqa: F821
         except Exception as e:
             log.error("Error calling SearchEngine: " + e)
 
@@ -275,6 +244,8 @@ class Root:
 
         @ajax
         def refresh(self, session, **params):
+            from uszipcode import SearchEngine
+
             zips = {}
             self.zips_counter = Counter()
             attendees = session.query(Attendee).all()
@@ -297,6 +268,8 @@ class Root:
         @csv_file
         @not_site_mappable
         def radial_zip_data(self, out, session, **params):
+            from uszipcode import SearchEngine
+
             if params.get('radius'):
                 try:
                     res = SearchEngine(db_file_dir="/srv/reggie/data").by_coordinates(
@@ -304,7 +277,8 @@ class Root:
                 except Exception as e:
                     log.error("Error calling SearchEngine: " + e)
                 else:
-                    out.writerow(['# of Attendees', 'City', 'State', 'Zipcode', 'Miles from Event', '% of Total Attendees'])
+                    out.writerow(['# of Attendees', 'City', 'State', 'Zipcode',
+                                  'Miles from Event', '% of Total Attendees'])
                     if len(res) > 0:
                         keys = self.zips.keys()
                         center_coord = (self.center.lat, self.center.lng)
@@ -312,11 +286,13 @@ class Root:
                         for x in res:
                             if x.zipcode in keys:
                                 out.writerow([self.zips_counter[x.zipcode], x.city, x.state, x.zipcode,
-                                            VincentyDistance((x.lat, x.lng), center_coord).miles,
+                                            geodesic((x.lat, x.lng), center_coord).miles,
                                             "%.2f" % float(self.zips_counter[x.zipcode] / total_count * 100)])
 
         @ajax
         def set_center(self, session, **params):
+            from uszipcode import SearchEngine
+
             if params.get("zip"):
                 try:
                     self.center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(params["zip"]))
@@ -328,19 +304,25 @@ class Root:
 
         @csv_file
         def attendees_by_state(self, out, session):
-            # Result of set(map(lambda x: x.state, SearchEngine(db_file_dir="/srv/reggie/data").ses.query(SimpleZipcode))) -- literally all the states uszipcode knows about
-            states = ['SD', 'IL', 'WY', 'NV', 'NJ', 'NM', 'UT', 'OR', 'TX', 'NE', 'MS', 'FL', 'VA', 'HI', 'KY', 'MO', 'NY', 'WV', 'DC', 'AR', 'MT', 'MD', 'SC', 'NC', 'KS', 'OH', 'PR', 'CO', 'IN', 'VT', 'LA', 'ND', 'AZ', 'AK', 'AL', 'CT', 'TN', 'PA', 'IA', 'WA', 'ME', 'NH', 'MA', 'ID', 'OK', 'WI', 'GA', 'CA', 'DE', 'MN', 'MI', 'RI']
+            from uszipcode import SearchEngine
+
+            # set(map(lambda x: x.state, SearchEngine(db_file_dir="/srv/reggie/data").ses.query(SimpleZipcode)))
+            states = ['SD', 'IL', 'WY', 'NV', 'NJ', 'NM', 'UT', 'OR', 'TX', 'NE', 'MS', 'FL', 'VA', 'HI',
+                      'KY', 'MO', 'NY', 'WV', 'DC', 'AR', 'MT', 'MD', 'SC', 'NC', 'KS', 'OH', 'PR', 'CO',
+                      'IN', 'VT', 'LA', 'ND', 'AZ', 'AK', 'AL', 'CT', 'TN', 'PA', 'IA', 'WA', 'ME', 'NH',
+                      'MA', 'ID', 'OK', 'WI', 'GA', 'CA', 'DE', 'MN', 'MI', 'RI']
             total_count = session.attendees_with_badges().count()
 
             out.writerow(['# of Attendees', 'State', '% of Total Attendees'])
 
             for state in states:
                 try:
-                    zip_codes = list(map(lambda x: x.zipcode, SearchEngine(db_file_dir="/srv/reggie/data").by_state(state, returns=None)))
+                    zip_codes = list(map(lambda x: x.zipcode,
+                                         SearchEngine(db_file_dir="/srv/reggie/data").by_state(state,
+                                                                                               returns=None)))
                 except Exception as e:
                     log.error("Error calling SearchEngine: " + e)
                 else:
                     current_count = session.attendees_with_badges().filter(Attendee.zip_code.in_(zip_codes)).count()
                     if current_count:
                         out.writerow([current_count, state, "%.2f" % float(current_count / total_count * 100)])
-

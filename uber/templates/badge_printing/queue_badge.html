@@ -1,50 +1,102 @@
 {% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
-<div class="panel">
-<form class="print-badge form-horizontal" method="post">
-    {{ csrf_token() }}
-    <input type="hidden" name="id" value="{{ attendee.id }}">
-    <div class="form-group">
-        <label for="printer_id" class="col-sm-3 control-label">Printer ID and Reg Station #</label>
-        <div class="col-sm-4">
-            <input type="text" name="printer_id" class="form-control" value="{{ printer_id }}" placeholder="Printer ID" />
+<script type="text/javascript">
+    $().ready(function() {
+        $("#print-badge-form").bind("keypress", function (e) {
+    if (e.keyCode == 13) {
+        e.preventDefault();
+    }
+    });
+    })
+</script>
+{% set can_print = "Queued" not in attendee.print_status and attendee.print_status not in ["Ready to Print", "Pending Payment"] %}
+<div class="row g-sm-3 align-items-end mb-3">
+    <div class="align-self-start col-12{% if can_print and attendee.times_printed < 1 %} col-sm-6{% endif %} d-flex align-items-start gap-3">
+        <div>
+            <div class="form-text">Print Status</div>
+            {{ attendee.print_status|safe }}
         </div>
-        <div class="col-sm-2">
-            <input type="number" name="reg_station" class="form-control" value="{{ reg_station }}" placeholder="Station #" />
+        {% if can_print and attendee.times_printed > 0 %}
+        <div>
+            <button id="print-badge-btn" type="button" class="btn btn btn-success mt-3" data-bs-toggle="collapse" data-bs-target="#reprint-badge-div" role="button" aria-expanded="false" aria-controls="reprint-badge-div">
+                Reprint Badge
+            </button>
         </div>
-    </div>
-
-    {% if attendee.times_printed > 0 %}
-        <div class="form-group">
-            <label for="fee_amount" class="col-sm-3 control-label">Reprint {% if c.BADGE_REPRINT_FEE %}Fee and {% endif %}Reason</label>
-            {% if c.BADGE_REPRINT_FEE %}
-            <div class="col-sm-2">
-                <div class="input-group">
-                    <span class="input-group-addon">$</span>
-                    <input type="number" class="form-control" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
+        <div class="alert alert-warning mb-2 flex-fill collapse" id="reprint-badge-div">
+            <p>{% if c.BADGE_REPRINT_FEE %}There is a ${{ c.BADGE_REPRINT_FEE }} charge for badge reprints.{% endif %}
+            Please enter the new name to be printed below.</p>
+            <div class="d-flex gap-3 align-items-start mb-3">
+                <div class="flex-fill">
+                    <div class="form-text">New Badge Name</div>
+                    <input type="text" name="badge_printed_name" class="form-control" form="print-badge-form" value="{{ attendee.badge_printed_name }}" />
+                </div>
+                {% if c.BADGE_REPRINT_FEE %}
+                <div class="flex-fill">
+                    <input type="hidden" name="fee_amount" form="print-badge-form" value="{{ c.BADGE_REPRINT_FEE }}" />
+                    <div class="form-text">Free Reprint?</div>
+                    <label>
+                        <input type="checkbox" class="form-check-input" form="print-badge-form" name="free_reprint" value="1"
+                               data-bs-toggle="collapse" data-bs-target="#free-reason-div" aria-expanded="false" aria-controls="free-reason-div" 
+                               onClick="$('#print-continue-btn').text(this.checked ? 'Queue Free Reprint' : 'Continue to Payment')"/>
+                        This badge reprint should be free.
+                    </label>
+                    <div class="collapse flex-fill" id="free-reason-div">
+                        <input type="text" class="form-control" form="print-badge-form" name="reprint_reason" placeholder="Explain why we are reprinting this badge for free." />
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-3 align-items-end mb-3">
+                <div class="flex-fill">
+                    <label for="printer_id" class="form-text">Printer ID</label>
+                    <input type="text" name="printer_id" class="form-control" form="print-badge-form" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" placeholder="Printer ID" />
+                </div>
+                <div class="flex-fill">
+                    <label for="reg_station" class="form-text">Reg Station #</label>
+                    <input type="number" name="reg_station" class="form-control" form="print-badge-form" value="{{ reg_station_id }}" placeholder="Station #" />
                 </div>
             </div>
-            {% endif %}
-            <div class="col-sm-{% if c.BADGE_REPRINT_FEE %}4{% else %}6{% endif %}">
-                <input type="text" class="form-control" name="reprint_reason" placeholder="Reason for reprinting." />
+            <div class="d-flex gap-1 align-items-end justify-content-end">
+                <button type="submit" form="print-badge-form" id="print-continue-btn" class="btn btn-success">Continue to Payment</button>
+                <button type="button" class="btn btn-secondary" data-bs-toggle="collapse" data-bs-target="#reprint-badge-div" role="button" aria-expanded="false" aria-controls="reprint-badge-div">
+                    Nevermind
+                </button>
             </div>
         </div>
-    {% endif %}
-
-    <div class="form-group">
-        <div class="col-sm-9 col-sm-offset-3">
-            <button type="submit" class="btn btn-success">Queue for Printing</button>
+        {% endif %}
+    </div>
+    {% if can_print and attendee.times_printed < 1 %}
+    <div class="col-12 col-sm-6">
+        <button id="print-badge-btn" type="button" class="btn btn-success" data-bs-toggle="collapse" data-bs-target="#print-badge-div" role="button" aria-expanded="false" aria-controls="print-badge-div" onClick="$(this).hide();">
+            Print Badge
+        </button>
+        <div class="collapse" id="print-badge-div">
+        <div class="d-flex gap-3 align-items-end">
+            <div>
+                <label for="printer_id" class="form-text">Printer ID</label>
+                <input type="text" name="printer_id" class="form-control" form="print-badge-form" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" placeholder="Printer ID" />
+            </div>
+            <div>
+                <label for="reg_station" class="form-text">Reg Station #</label>
+                <input type="number" name="reg_station" class="form-control" form="print-badge-form" value="{{ reg_station_id }}" placeholder="Station #" />
+            </div>
+            <div class="text-nowrap">
+                <button type="submit" form="print-badge-form" class="btn btn-success">Queue for Printing</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#print-badge-div" role="button" aria-expanded="false" aria-controls="print-badge-div" onClick="$('#print-badge-btn').show();">
+                    Nevermind
+                </button>
+            </div>
+        </div>
         </div>
     </div>
-</form>
+    {% endif %}
 </div>
 
 <script type="text/javascript">
-age = {{ attendee.age_now_or_at_con|default(0, true)}};
-
-if (age < 18) {
-    $.field('printer_id').val(printer_minor_id);
-} else if (age >= 18) {
-    $.field('printer_id').val(printer_default_id);
+age = {{ attendee.age_now_or_at_con|default(0, true) }};
+if (age < 18 && $.field('printer_id')) {
+    $.field('printer_id').val(minor_printer_id);
+} else if (age >= 18 && $.field('printer_id')) {
+    $.field('printer_id').val(printer_id);
 }
 
 printBadge = function ($form) {
@@ -55,16 +107,18 @@ printBadge = function ($form) {
         success: function (json) {
             if (json.success) {
                 if (json.message.includes('fee')) { 
-                    window.location = window.location + '&message=' + json.message
+                    const querystring = new URLSearchParams(window.location.search)
+                    querystring.set('message', json.message)
+                    window.location.search = querystring.toString()
                 } else {
-                    toastr.success(json.message);
+                    $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
                 }
             } else {
-            toastr.error(json.message);
+            showErrorMessage(json.message);
             }
         },
         error: function () {
-            toastr.error('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
 }
@@ -72,8 +126,8 @@ printBadge = function ($form) {
 $('.print-badge').on('submit', function (event) {
     var $form = $(this);
     event.preventDefault();
-    toastr.clear();
-    if($.val('printer_id') == printer_default_id && age < 18) {
+    hideMessageBox();
+    if($.val('printer_id') == printer_id && age < 18) {
         bootbox.confirm({
             backdrop: true,
             title: 'Please Load Minor Badge Stock',
@@ -81,7 +135,7 @@ $('.print-badge').on('submit', function (event) {
             ' onto printer "' + $.val('printer_id') + '" before printing this badge.</p>',
             buttons: {
             confirm: { label: 'I\'ve Loaded the Minor Badge Stock', className: 'btn-success' },
-            cancel: { label: 'Nevermind', className: 'btn-default' }
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function (result) {
             if (result) {
@@ -92,6 +146,12 @@ $('.print-badge').on('submit', function (event) {
     } else {
         printBadge($form);
     }
-});
+    });
+    
+    $().ready(function () {
+        const querystring = new URLSearchParams(window.location.search);
+        querystring.delete('message');
+        history.replaceState( {} , '', "{{ c.PAGE }}" + '?' + querystring.toString() );
+    });
 </script>
 {% endif %}

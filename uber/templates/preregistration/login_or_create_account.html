@@ -1,0 +1,156 @@
+{% import "forms/account.html" as account_fields with context %}
+{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+<div class="row justify-content-center">
+  <div class="col-10 col-sm-9 col-md-6">
+    <form id="account-form">
+      {{ csrf_token() }}
+      <div class="mb-3">
+          <label for="account-email" class="form-label">Email <span class="text-danger">*</span></label>
+          <input type="email" id="account-email" class="form-control account-form-input" name="account_email" value="{{ account_email or '' }}" placeholder="{{ c.EVENT_NAME|replace(' ','')|lower }}@example.com" required />
+      </div>
+      <div class="mb-3 d-none">
+        <label for="account-password" class="control-label">Password <span class="text-danger">*</span></label>
+        <input id="account-password" type="password" class="form-control account-form-input" name="account_password" value="{{ account_password or '' }}" placeholder="Password" />
+      </div>
+      <div class="mb-3 d-none">
+          <label for="new-password" class="control-label">Password <span class="text-danger">*</span></label>
+          <input id="new-password" type="password" class="form-control account-form-input" name="new_password" value="{{ account_password or '' }}" placeholder="Password" />
+          {{ account_fields.password_help }}
+      </div>
+      <div class="mb-3 d-none">
+          <label for="confirm-password" class="control-label">Confirm Password <span class="text-danger">*</span></label>
+          <input id="confirm-password" type="password" class="form-control account-form-input" name="confirm_password" value="{{ confirm_password or '' }}" placeholder="Confirm Password" />
+      </div>
+      <div class="mb-1"><div class="text-end"><a href="../preregistration/reset_password">Forgot your password?</a></div></div>
+      <div class="mb-1"><button id="login-submit" class="btn btn-primary w-100" type="submit" name="login">Login</button></div>
+      <div class="mb-1"><button id="create-submit" class="btn btn-outline-primary w-100" type="submit" name="create">Create Account</button></div>
+
+      <div class="mb-1"><button onClick="showCreatePrompts()" id="create-return" class="btn btn-outline-primary d-none w-100" type="button" name="create-return">Create Account</button></div>
+      <div class="mb-1"><button onClick="showLoginPrompts()" id="login-return" class="btn btn-outline-primary d-none w-100" type="button" name="login-return">Return to Login</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="sso-notice-modal" tabindex="-1" aria-labelledby="sso-notice" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="h5 modal-title" id="sso-notice">Are You {{ c.EVENT_NAME }} Staff?</span>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {% block sso_notice_desc %}
+        It looks like you're trying to use a {{ c.EVENT_NAME }} staff email to log into or create an account.
+        If you are trying to log into the administrative side of registration, or view/manage your staff registration,
+        please use the <a href="../accounts/homepage">staff SSO Login</a>. If you want to register separately as
+        an attendee, please use a non-staff email account to do so.
+        {% endblock %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-primary text-start" data-bs-dismiss="modal">Return to attendee registration</button>
+        <a href="../accounts/homepage" class="btn btn-primary">Go to staff login</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ account_fields.new_password_validation }}
+
+  <script type="text/javascript">
+    var checkAccountEmailPassed = false;
+    var currentAction = '';
+    var validatedEmail = '';
+
+    var checkAccountEmail = function($form, action='') {
+      $.post("../preregistration/validate_account_email", $form.serialize(), function (result) {
+        if (result.success) {
+          validatedEmail = $("#account-email").val();
+          checkAccountEmailPassed = true;
+          if (action == 'login') {
+            showLoginPrompts();
+          } else if (action == 'create') {
+            showCreatePrompts();
+          } else {
+            loginOrCreateAccount($form);
+          }
+        } else if (result.sso_email) {
+          var modal = bootstrap.Modal.getOrCreateInstance($('#sso-notice-modal'));
+          modal.show();
+        } else {
+          if (result.message) {
+            showErrorMessage(result.message);
+          }
+        }});
+        return false;
+    }
+
+    var showLoginPrompts = function() {
+      $("#new-password").prop('required', false).parents('.mb-3').addClass('d-none');
+      $("#confirm-password").prop('required', false).parents('.mb-3').addClass('d-none');
+      $("#account-password").val($("#new-password").val()).prop('required', true).parents('.mb-3').removeClass('d-none');
+      $("#account-password").focus();
+
+      $("#login-submit").removeClass('d-none');
+      $("#create-submit").addClass('d-none');
+      $("#login-return").addClass('d-none');
+      $("#create-return").removeClass('d-none');
+      currentAction = 'login';
+    }
+
+    var showCreatePrompts = function() {
+      $("#new-password").val($("#account-password").val()).prop('required', true).parents('.mb-3').removeClass('d-none');
+      $("#new-password").focus();
+      $("#confirm-password").prop('required', true).val('').parents('.mb-3').removeClass('d-none');
+      $("#account-password").prop('required', false).parents('.mb-3').addClass('d-none');
+
+      $("#login-submit").addClass('d-none');
+      $("#create-submit").removeClass('btn-outline-primary d-none').addClass('btn-primary');
+      $("#login-return").removeClass('d-none');
+      $("#create-return").addClass('d-none');
+      currentAction = 'create';
+    }
+
+    var loginOrCreateAccount = function($form) {
+      if (currentAction == 'login') {
+        $.post("../preregistration/login", $form.serialize(), function (result) {
+          if (result.success) {
+            successRedirect("../preregistration/homepage");
+          } else {
+            console.log(result.message)
+            showErrorMessage(result.message);
+          }
+        });
+      } else if (currentAction == 'create') {
+        $.post("../preregistration/create_account", $form.serialize(), function (result) {
+          if (result.success) {
+            successRedirect("../preregistration/form");
+          } else {
+            showErrorMessage(result.message);
+          }
+        });
+      }
+    }
+
+    var successRedirect = function(redirect_url) {
+      if ("{{ original_location|default('', true) }}") {
+        window.location = "{{ original_location }}";
+      } else {
+        window.location = redirect_url;
+      }
+    }
+
+    $("#account-form").submit(function (event) {
+      event.preventDefault();
+      if (!checkAccountEmailPassed) {
+        checkAccountEmail($(this), event.originalEvent.submitter.name);
+      } else {
+        if (validatedEmail != $("#account-email").val()) {
+          checkAccountEmail($(this));
+        } else {
+          loginOrCreateAccount($(this));
+        }
+      }
+      return false;
+    });
+  </script>
+{% endif %}

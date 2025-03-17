@@ -1,0 +1,89 @@
+---
+name: Build Docker Image
+
+on: [push, workflow_dispatch]
+
+jobs:
+  downstream:
+    # This job reads $DOCKER_BUILDS to look for any downstream docker containers that
+    # depend on this branch and adds matrix jobs to build them in parallel.
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          echo "matrix={\"include\":$(echo "${{ vars.DOCKER_BUILDS }}" | yq -o=json -I 0 e '.branches.${{ github.ref_name }} // [{"name":"magfest/ubersystem:${{ github.ref_name }}", "plugins":[]}]' -)}" >> $GITHUB_OUTPUT
+          cat $GITHUB_OUTPUT
+
+  build_downstream:
+    permissions:
+      contents: read
+      packages: write
+    needs: downstream
+    strategy:
+      matrix: ${{ fromJson(needs.downstream.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v1
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: |
+          echo -n "plugins=" >> $GITHUB_ENV
+          echo '${{ toJSON(matrix.plugins) }}' | jq -c >> $GITHUB_ENV
+          echo -n "plugin_names=" >> $GITHUB_ENV
+          echo '${{ toJSON(matrix.plugins) }}' | jq -c "[.[].name]" >> $GITHUB_ENV
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            PLUGINS=${{ env.plugins }}
+            PLUGIN_NAMES=${{ env.plugin_names }}
+          context: "."
+          push: true
+          tags: ghcr.io/${{ matrix.name }}
+
+  build:
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v1
+
+      - name: Login to GHCR
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+# TODO: Enable tests once we can run Postgres in CI
+#      - name: Build Test Docker Image
+#        uses: docker/build-push-action@v2
+#        with:
+#          build-args: BRANCH=${{ github.ref_name }}
+#          context: "."
+#          push: false
+#          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
+#          target: test
+
+#      - name: Execute Tests
+#        run: docker run ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v2
+        with:
+          build-args: BRANCH=${{ github.ref_name }}
+          context: "."
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}

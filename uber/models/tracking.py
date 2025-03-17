@@ -1,6 +1,7 @@
 import json
 import sys
 from datetime import datetime
+from markupsafe import Markup
 from threading import current_thread
 from urllib.parse import parse_qsl
 
@@ -10,47 +11,100 @@ from sqlalchemy.ext import associationproxy
 
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sideboard.lib import serializer
+from sqlalchemy import Sequence
+from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm.exc import NoResultFound
 
+from uber.serializer import serializer
 from uber.config import c
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.admin import AdminAccount
 from uber.models.email import Email
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
 
-__all__ = ['PageViewTracking', 'Tracking']
+__all__ = ['PageViewTracking', 'ReportTracking', 'Tracking', 'TxnRequestTracking']
 
 serializer.register(associationproxy._AssociationList, list)
+
+
+class ReportTracking(MagModel):
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    who = Column(UnicodeText)
+    supervisor = Column(UnicodeText)
+    page = Column(UnicodeText)
+    params = Column(MutableDict.as_mutable(JSONB), default={})
+
+    @property
+    def who_repr(self):
+        if self.supervisor:
+            return Markup(f'{self.who};<br/>{self.supervisor} (Supervisor)')
+        return self.who
+
+    @classmethod
+    def track_report(cls, params):
+        from uber.models import Session
+        with Session() as session:
+            session.add(ReportTracking(who=AdminAccount.admin_or_volunteer_name(),
+                                       supervisor=AdminAccount.supervisor_name() or '',
+                                       page=c.PAGE_PATH,
+                                       params={key: val for key, val in params.items()
+                                               if key not in ['self', 'out', 'session']}))
+            session.commit()
 
 
 class PageViewTracking(MagModel):
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
+    supervisor = Column(UnicodeText)
     page = Column(UnicodeText)
-    what = Column(UnicodeText)
+    which = Column(UnicodeText)
+
+    @property
+    def who_repr(self):
+        if self.supervisor:
+            return Markup(f'{self.who};<br/>{self.supervisor} (Supervisor)')
+        return self.who
 
     @classmethod
     def track_pageview(cls):
         url, query = cherrypy.request.path_info, cherrypy.request.query_string
+        params = dict(parse_qsl(query))
         # Track any views of the budget pages
         if "budget" in url:
-            what = "Budget page"
+            which = "Budget page"
         else:
-            # Only log the page view if there's a valid attendee ID
-            params = dict(parse_qsl(query))
+            # Only log the page view if there's a valid model ID
             if 'id' not in params or params['id'] == 'None':
                 return
 
-            # Looking at an attendee's details
-            if "registration" in url or "attendee" in url:
-                what = "Attendee id={}".format(params['id'])
-            # Looking at a group's details
-            elif "dealer_admin" in url or "group" in url:
-                what = "Group id={}".format(params['id'])
-
         from uber.models import Session
         with Session() as session:
-            session.add(PageViewTracking(who=AdminAccount.admin_name(), page=c.PAGE_PATH, what=what))
+            # Get instance repr
+            model = None
+            id = params.get('id')
+            try:
+                model = session.attendee(id)
+            except NoResultFound:
+                try:
+                    model = session.group(id)
+                except NoResultFound:
+                    try:
+                        model = session.art_show_application(id)
+                    except NoResultFound:
+                        pass
+            if model:
+                which = repr(model)
+            else:
+                return
+
+            session.add(PageViewTracking(
+                who=AdminAccount.admin_or_volunteer_name(),
+                supervisor=AdminAccount.supervisor_name() or '',
+                page=c.PAGE_PATH, which=which))
+            session.commit()
 
 
 class Tracking(MagModel):
@@ -58,12 +112,19 @@ class Tracking(MagModel):
     model = Column(UnicodeText)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
+    supervisor = Column(UnicodeText)
     page = Column(UnicodeText)
     which = Column(UnicodeText)
     links = Column(UnicodeText)
     action = Column(Choice(c.TRACKING_OPTS))
     data = Column(UnicodeText)
     snapshot = Column(UnicodeText)
+
+    @property
+    def who_repr(self):
+        if self.supervisor:
+            return Markup(f'{self.who};<br/>{self.supervisor} (Supervisor)')
+        return self.who
 
     @classmethod
     def format(cls, values):
@@ -81,7 +142,7 @@ class Tracking(MagModel):
                     return ''
                 opts = dict(column.type.choices)
                 value_opts = map(lambda s: int(s or 0), str(value).split(','))
-                return repr(','.join(opts[i] for i in value_opts if i in opts))
+                return repr(','.join(str(opts.get(i, opts.get(str(i), f"Unknown ({i})"))) for i in value_opts))
             elif isinstance(column.type, Choice) and value not in [None, '']:
                 opts = dict(column.type.choices)
                 return repr(opts.get(int(value), '<nonstandard>'))
@@ -94,7 +155,15 @@ class Tracking(MagModel):
     def differences(cls, instance):
         diff = {}
         for attr, column in instance.__table__.columns.items():
+            if attr in ['last_updated', 'last_synced', 'inventory_updated', 'unapproved_count']:
+                continue
+
+            if attr in ['currently_sending', 'last_send_time']:
+                return {}
+
             new_val = getattr(instance, attr)
+            if new_val:
+                new_val = instance.coerce_column_data(column, new_val)
             old_val = instance.orig_value_of(attr)
             if old_val != new_val:
                 """
@@ -133,7 +202,29 @@ class Tracking(MagModel):
         return diff
 
     @classmethod
+    def track_collection_change(cls, action, target, instance):
+        from uber.models import Session
+        if sys.argv == ['']:
+            who = 'server admin'
+        else:
+            who = AdminAccount.admin_or_volunteer_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+
+        with Session() as session:
+            session.add(Tracking(
+                model=target.__class__.__name__,
+                fk_id=target.id,
+                which=repr(target),
+                who=who,
+                supervisor=AdminAccount.supervisor_name() or '',
+                page=c.PAGE_PATH,
+                action=action,
+                data=repr(instance),
+            ))
+
+    @classmethod
     def track(cls, action, instance):
+        from uber.models import AutomatedEmail
+
         if action in [c.CREATED, c.UNPAID_PREREG, c.EDITED_PREREG]:
             vals = {
                 attr: cls.repr(column, getattr(instance, attr))
@@ -152,14 +243,14 @@ class Tracking(MagModel):
         links = ', '.join(
             '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
             for name, column in instance.__table__.columns.items() if column.foreign_keys
-                                                                   and 'creator' not in str(column)
-                                                                   and getattr(instance, name))
+            and 'creator' not in str(column)
+            and getattr(instance, name))
 
         if sys.argv == ['']:
             who = 'server admin'
         else:
-            who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
-            
+            who = AdminAccount.admin_or_volunteer_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+
         try:
             snapshot = json.dumps(instance.to_dict(), cls=serializer)
         except TypeError as e:
@@ -171,6 +262,7 @@ class Tracking(MagModel):
                 fk_id=instance.id,
                 which=repr(instance),
                 who=who,
+                supervisor=AdminAccount.supervisor_name() or '',
                 page=c.PAGE_PATH,
                 links=links,
                 action=action,
@@ -185,4 +277,25 @@ class Tracking(MagModel):
                 _insert(session)
 
 
-Tracking.UNTRACKED = [Tracking, Email, PageViewTracking]
+class TxnRequestTracking(MagModel):
+    incr_id_seq = Sequence('txn_request_tracking_incr_id_seq')
+    incr_id = Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True)
+    fk_id = Column(UUID, nullable=True)
+    workstation_num = Column(Integer, default=0)
+    terminal_id = Column(UnicodeText)
+    who = Column(UnicodeText)
+    requested = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+    resolved = Column(UTCDateTime, nullable=True)
+    success = Column(Boolean, default=False)
+    response = Column(MutableDict.as_mutable(JSONB), default={})
+    internal_error = Column(UnicodeText)
+
+    @presave_adjustment
+    def log_internal_error(self):
+        if self.internal_error and not self.orig_value_of('internal_error'):
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
+                               'last_error',
+                               self.internal_error)
+
+
+Tracking.UNTRACKED = [Tracking, Email, PageViewTracking, ReportTracking, TxnRequestTracking]

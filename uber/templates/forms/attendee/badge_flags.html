@@ -1,0 +1,61 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set badge_flags = badge_flags or forms['badge_flags'] %}
+{% set personal_info = personal_info or forms['personal_info'] %}
+{% set other_info = other_info or forms['other_info'] %}
+{% set badge_extras = badge_extras or forms['badge_extras'] %}
+{% set staffing_info = staffing_info or forms['staffing_info'] %}
+
+{# BLOCK NAMES in this form:
+    attendee_info
+    placeholder_js
+    badge_info
+    ribbon
+    group
+    paid_status
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block attendee_info %}
+{% if not admin_area and (attendee.placeholder or 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED) %}
+    {% if attendee.placeholder %}
+        <input type="hidden" name="placeholder" id="placeholder" value="False" />
+    {% else %}
+        <div class="row g-sm-3">
+            <div class="col">
+                <div class="form-text">Placeholder</div>
+                {{ form_macros.form_input(badge_flags.placeholder, checked=True) }}
+            </div>
+        </div>
+    {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block placeholder_js %}
+{% if personal_info %}
+{% set target_fields = personal_info.placeholder_optional_fields() if not badge_extras else personal_info.placeholder_optional_fields() + [badge_extras.shirt, badge_extras.staff_shirt] %}
+{{ form_macros.toggle_fields_js(badge_flags.placeholder, target_fields, off_values=[1], toggle_required=True, prop="", target_call_func="checkPlaceholder") }}
+<script type="text/javascript">
+    var checkPlaceholder = function() {
+        let is_placeholder = $('#{{ badge_flags.placeholder.id }}').prop('checked');
+        if (is_placeholder) {
+            $(this).prop('required', false);
+            $(this).siblings('label').children('.required-indicator').toggle(false);
+        }
+    }
+</script>
+{% endif %}
+{% endblock %}
+
+{% block badge_info %}
+{% endblock %}
+
+{% block ribbons %}
+{% endblock %}
+
+{% block group %}
+{% endblock %}
+
+{% block paid_status %}
+{% endblock %}

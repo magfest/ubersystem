@@ -1,4 +1,4 @@
-{% if not developer.agreed_coc or not developer.agreed_data_policy %}
+{% if (studio and studio.is_new) or not developer.agreed_coc or not developer.agreed_data_policy %}
 {# HTML doesn't render inside macro options #}
 {% set agreed_coc_label %}
 I agree to be bound by the <a href="{{ c.CODE_OF_CONDUCT_URL }}">Code of Conduct</a>.

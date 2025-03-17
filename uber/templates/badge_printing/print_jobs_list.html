@@ -3,23 +3,23 @@
 {% block content %}
 <strong>View print jobs:</strong>
 <div class="btn-group" style="padding-bottom:10px;">
-<button class="btn btn-default job-types" id="pending" onClick="loadPrintJobs('pending')">Pending</button>
-<button class="btn btn-default job-types" id="not_printed" onClick="loadPrintJobs('not_printed')">Waiting to Print</button>
-<button class="btn btn-default job-types" id="errors" onClick="loadPrintJobs('errors')">With Errors</button>
-<button class="btn btn-default job-types" id="created" onClick="loadPrintJobs('created')">Created By You</button>
-<button class="btn btn-default job-types" id="printed" onClick="loadPrintJobs('printed')">Printed</button>
+<button class="btn btn-outline-secondary job-types" id="pending" onClick="loadPrintJobs('pending')">Pending</button>
+<button class="btn btn-outline-secondary job-types" id="not_printed" onClick="loadPrintJobs('not_printed')">Waiting to Print</button>
+<button class="btn btn-outline-secondary job-types" id="errors" onClick="loadPrintJobs('errors')">With Errors</button>
+<button class="btn btn-outline-secondary job-types" id="created" onClick="loadPrintJobs('created')">Created By You</button>
+<button class="btn btn-outline-secondary job-types" id="printed" onClick="loadPrintJobs('printed')">Printed</button>
 </div>
 <div id="print_jobs"></div>
 <script type="text/javascript">
 var loadPrintJobs = function(flag) {
-  $('.job-types').removeClass('btn-primary btn-default').addClass('btn-default');
-  $('#' + flag).addClass('btn-primary').removeClass('btn-default');
+  $('.job-types').removeClass('btn-primary btn-outline-secondary').addClass('btn-outline-secondary');
+  $('#' + flag).addClass('btn-primary').removeClass('btn-outline-secondary');
     $('#print_jobs').load('../badge_printing/print_jobs?flag=' + flag, function(){
       if ($('#print_jobs').length) {
           $(window).trigger( 'runJavaScript' );
       } else {
           // We got redirected -- likely to the login page -- so load it properly
-          toastr.error("Loading failed.");
+          showErrorMessage("Loading failed.");
           window.location.hash = ""; // prevent refresh loops
           window.location.reload();
       }

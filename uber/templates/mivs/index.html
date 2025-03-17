@@ -21,7 +21,7 @@
   <h2>MAGFest Indie Videogame Showcase Application</h2>
   This is your application-in-progress for the MAGFest Indie Videogame Showcase for your studio
   <a href="studio">{{ studio.name }}</a>.  If you are not a member of {{ studio.name }} then please
-  <a href="logout">log out</a>.
+  <a href="logout">log out and create a new studio</a>.
 
   {% if studio.group %}
     <h3>Your Badges</h3>
@@ -86,7 +86,7 @@
     {% set game_edit_link %}[<a href="game?id={{ game.id }}">Edit</a>]{% endset %}
     <h4>
       {{ game.title }}
-      {% if c.HAS_MIVS_ADMIN_ACCESS or not game.submitted %}{{ game_edit_link }}{% endif %}
+      {% if c.HAS_MIVS_ADMIN_ACCESS or c.MIVS_SUBMISSIONS_OPEN %}{{ game_edit_link }}{% endif %}
     </h4>
 
     {% if game.status in c.FINAL_MIVS_GAME_STATUSES %}
@@ -95,6 +95,7 @@
       {% else %}You have already filled out this game's show information, but you can edit it{% endif %}
         <a href="show_info?id={{ game.id }}">here</a>.{% endif %}
     {% else %}
+      {% if game.submitted %}{% endif %}
       {% set needs_screenshots = game.screenshots|length < 2 %}
       {% set can_delete_screenshots = not game.submitted or game.screenshots|length > 2%}
       <div class="game-container">
@@ -147,10 +148,10 @@
               {% endfor %}
             </ul>
           {% else %}
-            You've met all the prerequisites to submit this game for consideration. After submitting you may no longer
-            edit the game details unless the judges kick the game back to you and requests edits. You will still be able
-            to manage your game's video, screenshots, and the game build information, such as build status and link,
-            after submitting. Our judges will not look at your game until you officially submit it by clicking this button:
+            You've met all the prerequisites to submit this game for consideration. This lets us know that your game
+            is ready for judging. <strong>You must submit your game by {{ c.MIVS_DEADLINE|datetime_local }}</strong>.
+            You may edit your game details after you submit it.
+            <br/><br/>
             <form method="post" action="submit_game" class="form-horizontal">
               {{ csrf_token() }}
               <input type="hidden" name="id" value="{{ game.id }}" />
@@ -182,6 +183,11 @@
                   <td><ul><li></li></ul></td>
                   <td>{{ code.type_label }}</td>
                   <td>{{ code.code }}</td>
+                  {% if c.HAS_MIVS_ADMIN_ACCESS and not code.unlimited_use %}
+                    <td>
+                      {% if code.judge %} Assigned to {{ code.judge.full_name }}{% else %}Unassigned{% endif %}
+                    </td>
+                  {% endif %}
                   <td>
                     <form method="post" action="delete_code">
                       {{ csrf_token() }}

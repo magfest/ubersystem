@@ -12,18 +12,25 @@ $("form[action='resend_email']").each(function(index) {
             dataType: 'json',
             data: data,
             success: function (json) {
-                toastr.clear();
+                if(loadForm != undefined) {
+                    hideMessageBox('attendee-modal-alert');
+                } else { hideMessageBox(); }
                 var message = json.message;
                 if (json.success) {
-                    toastr.info(message);
                     window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
-                    if(loadForm){loadForm("History");}
+                    if(loadForm != undefined){
+                        loadForm("History").then(function(result) {
+                            $("#attendee-modal-alert").addClass("alert-info").show().children('span').html(message);
+                        });
+                    } else { $("#message-alert").addClass("alert-info").show().children('span').html(message); };
                 } else {
-                    toastr.error(message);
+                    if(loadForm != undefined) {
+                        showErrorMessage(message, 'attendee-modal-alert');
+                    } else { showErrorMessage(message); }
                 }
             },
             error: function () {
-                toastr.error('Unable to connect to server, please try again.');
+                showErrorMessage('Unable to connect to server, please try again.');
             }
         });
     });

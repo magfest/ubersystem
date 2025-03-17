@@ -1,0 +1,34 @@
+{% extends "./preregistration/preregbase.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set title_text = "Claim a Group Badge" %}
+
+{% block content %}
+{% include 'preregistration/disclaimer_popup.html' %}
+<div class="card">
+    <div class="card-body">
+    {{ form_macros.form_validation('prereg-form', 'validate_badge_claim', include_disclaimers_modal=True) }}
+    <form novalidate method="post" action="claim_badge" id="prereg-form">
+        {{ csrf_token() }}
+
+        <div class="row g-sm-3">
+            <div class="col-6">
+                <label class="form-text">Group Code</label>
+                <div class="mb-3"><input type="text" class="form-control" name="promo_code_code" value="{{ attendee.promo_code_code }}"></div>
+            </div>
+        </div>
+        {% include "forms/attendee/badge_flags.html" %}
+        {% include "forms/attendee/badge_extras.html" %}
+        {% include "forms/attendee/personal_info.html" %}
+        {% include "forms/attendee/staffing_info.html" %}
+        {% include "forms/attendee/other_info.html" %}
+        {% include "forms/attendee/consents.html" %}
+
+        {# Deprecated form included for backwards compatibility with old plugins #}
+        {% include "regform.html" %}
+
+        <button type="submit" class="btn btn-primary">Claim Badge</button>
+    </form>
+    </div>
+</div>
+
+{% endblock %}

@@ -37,15 +37,19 @@
   <tr><td colspan="4"></td><td><strong>Tax</strong></td><td>{{ (receipt.tax / 100)|format_currency }}</td></tr>
   <tr><td colspan="4"></td><td><strong>Grand Total</strong></td><td>{{ (receipt.total / 100)|format_currency }}</td></tr>
   <tr></tr>
-  {% for payment in receipt.stripe_payments %}
+  {% for payment in receipt.card_payments %}
   <tr>
     <td colspan="4"></td><td><strong>Total Card {{ loop.index }}</strong></td><td>{{ (payment.amount / 100)|format_currency }}</td>
   </tr>
   {% endfor %}
-  <tr><td colspan="4"></td><td><strong>Total Paid Credit</strong></td><td>{{ (receipt.stripe_total / 100)|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Total Paid Credit</strong></td><td>{{ (receipt.card_total / 100)|format_currency }}</td></tr>
   <tr><td colspan="4"></td><td><strong>Total Paid Cash</strong></td><td>{{ (receipt.cash_total / 100)|format_currency }}</td></tr>
   <tr><td colspan="4"></td><td><strong>Amount Due:</strong></td><td>{{ (receipt.owed / 100)|format_currency }}</td></tr>
 </table>
+<br/>
+<div class="text-end">
+  Signature&nbsp; _________________________________________________________
+</div>
 {%- endmacro -%}
 
 {%- macro print_artist_invoice(app) -%}
@@ -53,7 +57,7 @@
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr><td width="25%"><strong>Artist Name</strong></td><td>{{ app.display_name }}</td></tr>
   <tr><td><strong>Legal Name</strong></td><td>{{ app.attendee.legal_first_name }} {{ app.attendee.legal_last_name }}</td></tr>
-    {% set address_model = app if app.delivery_method == c.BY_MAIL else app.attendee %}
+    {% set address_model = app if app.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW else app.attendee %}
   <tr><td><strong>Address</strong></td><td>{{ address_model.address1 }}</td></tr>
   {% if address_model.address2 %}
   <tr><td></td><td>{{ address_model.address2 }}</td></tr>

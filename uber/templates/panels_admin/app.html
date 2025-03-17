@@ -1,112 +1,143 @@
 {% import 'panel_macros.html' as panel_macros %}
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Panel Submission{% endblock %}}
+{% block title %}Panel Submission{% endblock %}
 {% block content %}
 {% include "panels_common.html" %}
 
-<style type="text/css">
-.form-group { margin-bottom: 0px; }
-</style>
+<h2>Panel Application <small><a href="index">View all panel applications</a></small></h2>
 
-<h1>Panel Application <small><a href="index">View all panel applications</a></small></h1>
-
-<div class="form-horizontal">
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Panel Status</label>
-        <div class="col-sm-6 form-control-static">
+<div class="card card-body">
+    <div class="row g-sm-3">
+        <div class="col-12 col-sm-4 form-control-static">
+        <label class="form-text">Panel Status</label>
             <form method="post" action="mark">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ app.id }}" />
                 {% if app.status != c.PENDING %}
-                    <b>{{ app.status_label }}</b>
+                    <b>{{ "Confirmed" if app.confirmed else app.status_label }}</b>
                     <br/>Change:
                 {% endif %}
                 {% if app.status != c.ACCEPTED %}
-                    <button name="status" value="{{ c.ACCEPTED }}">Accept</button>
+                    <button name="status" class="btn btn-success" value="{{ c.ACCEPTED }}">Accept</button>
                 {% endif %}
                 {% if app.status != c.WAITLISTED %}
-                    <button name="status" value="{{ c.WAITLISTED }}">Waitlist</button>
+                    <button name="status" class="btn btn-warning" value="{{ c.WAITLISTED }}">Waitlist</button>
                 {% endif %}
                 {% if app.status != c.DECLINED %}
-                    <button name="status" value="{{ c.DECLINED }}">Decline</button>
+                    <button name="status" class="btn btn-danger" value="{{ c.DECLINED }}">Decline</button>
                 {% endif %}
                 {% if app.status == c.ACCEPTED %}
-                    <button name="status" value="{{ c.CANCELLED }}">Cancel Panel</button>
+                    <button name="status" class="btn btn-outline-secondary" value="{{ c.CANCELLED }}">Cancel Panel</button>
                 {% endif %}
                 <br/>
                 {{ macros.popup_link("email_statuses", "Will this trigger an email?") }}
             </form>
         </div>
-    </div>
-
-    {% if app.poc_id %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Point of Contact</label>
-            <div class="col-sm-6 form-control-static">
-                <form method="post" action="set_poc">
-                    {{ csrf_token() }}
-                    <input type="hidden" name="app_id" value="{{ app.id }}" />
-                    <select name="poc_id">
-                        {{ options(c.PANEL_POC_OPTS, app.poc_id) }}
-                    </select>
-                    <input type="submit" value="Change Point of Contact" />
-                </form>
-            </div>
+        <div class="col-12 col-sm-4 form-control-static">
+        <label class="form-text">Panel Track</label>
+        <form method="post" action="update_track">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ app.id }}" />
+            <div class="row">
+                <div class="col-auto">
+                    <div class="input-group">
+                    <input type="text" class="form-control" name="track" value="{{ app.track }}" />
+                        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Use Existing Track <span class="caret"></span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-right">
+                        {% for track in current_tracks %}
+                        <li><a href="#" onClick="setTrack('{{ track[0] }}')">{{ track[0] }}</a></li>
+                        {% endfor %}
+                        </ul>
+                    </div><!-- /input-group -->
+                </div><!-- /col-auto -->
+                <div class="col-auto"><button type="submit" class="btn btn-primary">Update</button></div>
+            </div><!-- /row -->
+        </form>
         </div>
-    {% endif %}
-
-    {% if app.status == c.ACCEPTED %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Event</label>
-            <div class="col-sm-6 form-control-static">
+        {% if app.status == c.ACCEPTED %}
+            <div class="col-12 col-sm-4 form-control-static">
+                <label class="form-text">Event</label>
+                <br/>
                 {% if app.event_id %}
                     <a href="../schedule/form?id={{ app.event_id }}">{{ app.event.name }}</a>
                     (<a href="panel_feedback?event_id={{ app.event_id }}">leave feedback</a>)
                 {% else %}
                     <a href="associate?id={{ app.id }}">Click here</a> to associate
-                    this application with an event on the schedule
+                    this application with an event on the schedule.
                 {% endif %}
             </div>
-        </div>
-    {% endif %}
+        {% endif %}
+    </div>
+    <script type="text/javascript">
+        var setTrack = function(track) {
+            if ($.field('track')) {
+                $.field('track').val(track);
+            }
+        }
+    </script>
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Staff Comments</label>
-        <div class="col-sm-6 form-control-static">
+    <div class="row g-sm-3">
+        {% if app.poc_id %}
+            <div class="col-12 col-sm-6 form-control-static">
+            <label class="form-text">Point of Contact</label>
+                <form method="post" action="set_poc">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="app_id" value="{{ app.id }}" />
+                    <div class="row">
+                        <div class="col-6">
+                            <select class="form-select" name="poc_id">
+                                {{ options(c.PANEL_POC_OPTS, app.poc_id) }}
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <input type="submit" class="btn btn-outline-secondary" value="Change Point of Contact" />
+                        </div>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+
+        <div class="col-12 col-sm-6 form-control-static">
+            <label class="form-text">Staff Comments</label>
             <form method="post" action="update_comments">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ app.id }}" />
-                <textarea name="comments" rows="3" style="width:80%">{{ app.comments }}</textarea>
-                <br/> <input type="submit" value="Update Staff Comments" />
+                <textarea name="comments" class="form-control mb-2" rows="3" style="width:80%">{{ app.comments }}</textarea>
+                <input type="submit" class="btn btn-outline-primary" value="Update Staff Comments" />
             </form>
         </div>
     </div>
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Panel Name</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.name }}
-        </div>
-    </div>
-
+    <hr/>
     {% if app.poc and app.poc.guest_group %}
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Guest Type</label>
+      <div class="row">
+        <label class="form-text">Guest Type</label>
         <div class="col-sm-6 form-control-static">
             {{ app.poc.guest_group.group_type_label }} "{{ app.poc.group|form_link }}"
         </div>
     </div>
     {% endif %}
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Description</label>
+    <div class="row">
+        <label class="form-text">Panel Name</label>
         <div class="col-sm-6 form-control-static">
-            {{ app.description|linebreaksbr }}
+            {{ app.name }}
         </div>
     </div>
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Panel Type</label>
+    {% if c.PANEL_DEPT_OPTS|length > 1 %}
+    <div class="row">
+        <div class="col-12 col-sm-4 form-control-static">
+            <label class="form-text">Department</label>
+                <br/>{{ app.department_label }}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <label class="form-text">Panel Type</label>
         <div class="col-sm-6 form-control-static">
             {{ app.presentation_label }}
             {% if app.presentation == c.OTHER %}
@@ -115,32 +146,89 @@
         </div>
     </div>
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Expected Length</label>
+    <div class="row">
+        <label class="form-text">Description</label>
+        <div class="col-sm-6 form-control-static">
+            {{ app.description|linebreaksbr }}
+        </div>
+    </div>
+
+    {% if app.public_description %}
+    <div class="row">
+        <label class="form-text">Schedule Description</label>
+        <div class="col-sm-6 form-control-static">
+            {{ app.public_description|linebreaksbr }}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if c.PANEL_RATING_OPTS|length > 1 %}
+    <div class="row">
+        <label class="form-text">Rating</label>
+        <div class="col-sm-6 form-control-static">
+            {{ app.rating_label }}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if c.PANEL_CONTENT_OPTS|length > 1 %}
+    <div class="row">
+        <label class="form-text">Content</label>
+        <div class="col-sm-6 form-control-static">
+            {{ app.granular_rating_labels|join(', ') }}
+        </div>
+    </div>
+
+    <div class="row">
+        <label class="form-text">Opted in to MAGScouts?</label>
+        <div class="col-sm-6 form-control-static">
+            {{ "N/A" if app.magscouts_opt_in == c.NO_CHOICE else app.magscouts_opt_in_label }}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <label class="form-text">Expected Length</label>
         <div class="col-sm-6 form-control-static">
             {{ app.length_label if app.length != c.OTHER and not app.length_text else app.length_text }}
         </div>
     </div>
 
     {% if app.length_reason %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Reason for Length</label>
+        <div class="row">
+            <label class="form-text">Reason for Length</label>
             <div class="col-sm-6 form-control-static">
                 {{ app.length_reason }}
             </div>
         </div>
     {% endif %}
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">How do they feel about recording or livestreaming?</label>
+    <div class="row">
+        <label class="form-text">Noise Level</label>
         <div class="col-sm-6 form-control-static">
-            {{ app.livestream_label }}
+            {{ app.noise_level_label }}
         </div>
     </div>
 
+    <div class="row">
+        <label class="form-text">How do they feel about recording or livestreaming?</label>
+        {% if c.LIVE_STREAM_OPTS|length > 2 %}
+        <div class="col-sm-6 form-control-static">
+            {{ app.livestream_label }}
+        </div>
+        {% else %}
+        <div class="col-sm-6 form-control-static">
+            Recording: {{ app.record_label }}
+        </div>
+        <div class="col-sm-6 form-control-static">
+            Livestreaming: {{ app.livestream_label }}
+        </div>
+        {% endif %}
+    </div>
+
     {% if app.tables_desc %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Special Table Set-up</label>
+        <div class="row">
+            <label class="form-text">Special Table Set-up</label>
             <div class="col-sm-6 form-control-static">
                 {{ app.tables_desc }}
             </div>
@@ -148,27 +236,31 @@
     {% endif %}
 
     {% if app.cost_desc %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Upfront Cost and Materials</label>
+        <div class="row">
+            <label class="form-text">Upfront Cost and Materials</label>
             <div class="col-sm-6 form-control-static">
                 {{ app.cost_desc }}
             </div>
         </div>
     {% endif %}
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Availability</label>
+    {% if app.available %}
+    <div class="row">
+        <label class="form-text">Availability</label>
         <div class="col-sm-6 form-control-static">
-            {% if app.available %}{{ app.available|linebreaksbr }}{% else %}<i>Not submitted</i>{% endif %}
+            {{ app.available|linebreaksbr }}
         </div>
     </div>
+    {% endif %}
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Unavailability</label>
+    {% if app.unavailable %}
+    <div class="row">
+        <label class="form-text">Unavailability</label>
         <div class="col-sm-6 form-control-static">
-            {% if app.unavailable %}{{ app.unavailable|linebreaksbr }}{% else %}<i>Not submitted</i>{% endif %}
+            {{ app.unavailable|linebreaksbr }}
         </div>
     </div>
+    {% endif %}
 
     {% if app.tech_needs or app.other_tech_needs %}
         {{ macros.form_checkgroup(
@@ -184,8 +276,8 @@
     {% endif %}
 
     {% if app.presentation == c.MUSIC %}
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Loud Environment Requested</label>
+      <div class="row">
+        <label class="form-text">Loud Environment Requested</label>
         <div class="col-sm-6 form-control-static">
           {{ app.is_loud|yesno }}
         </div>
@@ -193,8 +285,8 @@
     {% endif %}
 
     {% if app.extra_info %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Extra Info for Internal Use</label>
+        <div class="row">
+            <label class="form-text">Extra Info for Internal Use</label>
             <div class="col-sm-6 form-control-static">
                 {{ app.extra_info }}
             </div>
@@ -202,8 +294,8 @@
     {% endif %}
 
     {% if app.panelist_bringing %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Panelist is bringing</label>
+        <div class="row">
+            <label class="form-text">Panelist is bringing</label>
             <div class="col-sm-6 form-control-static">
                 {{ app.panelist_bringing }}
             </div>
@@ -211,8 +303,8 @@
     {% endif %}
 
     {% if app.affiliations %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Affiliations</label>
+        <div class="row">
+            <label class="form-text">Affiliations</label>
             <div class="col-sm-6 form-control-static">
                 {{ app.affiliations|linebreaksbr }}
             </div>
@@ -220,19 +312,20 @@
     {% endif %}
 
     {% if app.past_attendance %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Past Attendance</label>
+        <div class="row">
+            <label class="form-text">Past Attendance</label>
             <div class="col-sm-6 form-control-static">
                 {{ app.past_attendance }}
             </div>
         </div>
     {% endif %}
 
-    <div class="form-group" style="margin-top: 15px;">
+    <div class="row" style="margin-top: 15px;">
       <div class="col-sm-9 col-sm-offset-3">
         <a href="form?id={{ app.id }}" class="btn btn-primary">Edit this application</a>
       </div>
     </div>
+</div>
 
     {{ panel_macros.app_panelists_form(app, is_readonly=True, is_admin=True) }}
 </div>

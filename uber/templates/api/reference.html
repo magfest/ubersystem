@@ -154,7 +154,7 @@
         };
 
         try {
-          toastr.clear();
+          hideMessageBox();
           $output.text('');
           $output.css({
             'border-color': '',
@@ -346,13 +346,13 @@
   -%}
   {% for service in services %}
     <div class="row">
-      <div class="col-sm-6 prose-column">
+      <div class="col-sm-6 prose-column prose-title">
         {% if loop.first %}<h1>Live Examples</h1>{% endif %}
         <h2>{{ service.name|replace('_', ' ')|title }} Service</h2>
       </div>
     </div>
     <div class="row">
-      <div class="col-sm-6 col-sm-push-6 code-column">
+      <div class="col-sm-6 order-sm-2 code-column">
         {% if service.doc %}<p class="doc">{{ service.doc|safe|linebreaksbr }}</p>{% endif %}
         <h4>Available Methods</h4>
         {% for method in service.methods %}
@@ -378,7 +378,7 @@
           </div>
         {% endfor %}
       </div>
-      <div class="col-sm-6 col-sm-pull-6 prose-column">
+      <div class="col-sm-6 order-sm-1 prose-column">
         <label>Request Body</label>
         <form method="post" action="../jsonrpc">
           {{ csrf_token() }}

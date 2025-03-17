@@ -1,69 +1,60 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Preregistraton Successful{% endblock %}
-{% block backlink %}{% endblock %}
+{% set title_text = "Registration Step 4 of 4: Preregistration Successful" %}
 {% block content %}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
+<div class="card">
+  <div class="card-body">
+    {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
-    <div class="row">
-      <div class="well col-md-offset-1 col-md-10">
-        <h1>Registration Complete</h1>
+    <h2>Registration Complete</h2>
+    <p>
+        Congratulations! Your registration was successful.
+    </p>
+    {% if total_cost|int > 0 %}
         <p>
-            Congratulations! Your registration was successful.
+            Your credit card was successfully charged for
+            <strong>{{ total_cost|format_currency }}</strong>, and you will receive a confirmation
+            email sent to you shortly. If you paid for other registrations, those
+            attendees will get their own confirmation email.
         </p>
-        {% if total_cost|int > 0 %}
-            <p>
-                Your credit card was successfully charged for
-                <strong>{{ total_cost|format_currency }}</strong>, and you will receive a confirmation
-                email sent to you shortly. If you paid for other registrations, those
-                attendees will get their own confirmation email.
-            </p>
-        {% else %}
-            <p>
-                You will receive a confirmation email sent to you shortly.
-                {% if preregs|length > 1 %}All attendees will get their own confirmation email.{% endif %}
-            </p>
-        {% endif %}
-      </div>
-    </div>
+    {% else %}
+        <p>
+            You will receive a confirmation email shortly.
+            {% if preregs|length > 1 %}All attendees will get their own confirmation email.{% endif %}
+        </p>
+    {% endif %}
 
-    <div class="row">
-      <div class="col-md-offset-1 col-md-10">
-
-        <p>The following preregistrations have been made from this computer:</p>
-
-        <table class="table table-striped">
+    <p>You can view your registrations below:</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Confirmation Link</th>
+        </tr>
+      </thead>
+      {% for prereg in preregs %}
+        {% if prereg.first_name %}
           <tr>
-            <td>Name</td>
-            <td>Confirmation Link</td>
+            <td>{{ prereg.full_name }}</td>
+            <td><a href="../preregistration/confirm?id={{ prereg.id }}" target="_blank">Click Here</a></td>
           </tr>
-          {% for prereg in preregs %}
-            {% if prereg.first_name %}
-              <tr>
-                <td>{{ prereg.full_name }}</td>
-                <td><a href="../preregistration/confirm?id={{ prereg.id }}" target="_blank">Click Here</a></td>
-              </tr>
-            {% else %}
-              <tr>
-                <td>{{ prereg.name }}</td>
-                <td colspan="3">(<a href="group_members?id={{ prereg.id }}" target="_blank">Click Here</a> to assign your group's badges)</td>
-              </tr>
-            {% endif %}
-          {% endfor %}
-        </table>
-      </div>
-    </div>
+        {% else %}
+          <tr>
+            <td>{{ prereg.name }}</td>
+            <td colspan="3">(<a href="group_members?id={{ prereg.id }}" target="_blank">Click Here</a> to assign your group's badges)</td>
+          </tr>
+        {% endif %}
+      {% endfor %}
+    </table>
 
-    <div class="row">
-      <div class="col-md-offset-1 col-md-10">
-        <a href="index" class="btn btn-primary">Add Another Registration</a>
-      </div>
-    </div>
+    <p>
+      <strong>If you are on a shared computer, we strongly recommend logging out using the button below.</strong>
+      This will remove the record (browser cookie) that stores the above registrations, protecting your personal 
+      information. All other cookie(s), which are purely functional, have already been cleared.
+    </p>
 
-    {% include "preregistration/disclaimers.html" %}
+    <a href="../preregistration/form" class="btn btn-primary">Add Another Registration</a>
+    <a href="../landing/index?clear_cookies=true" class="btn btn-danger">Log Out</a>
   </div>
 </div>
 

@@ -1,21 +1,42 @@
-{% extends "preregistration/preregbase.html" %}
-{% block title %}Pay for Badge{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Pay for Badge" %}
 {% block backlink %}
 {{ super() }}
 {% endblock %}
 {% block content %}
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-    <div class="panel-heading">
+<div class="card">
+    <div class="card-header">
         Registration Payment
       </div>
-    <div class="panel-body">
+    <div class="card-body">
         In order to complete your registration, please pay for the following items:
         {% include 'preregistration/receipt_table.html' %}
-        {{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, return_to=return_to) }}
-        {% if attendee.has_extras %}
-        <a href="reset_receipt?id={{ attendee.id }}&return_to={{ return_to }}" class="btn btn-danger">Cancel All Extras</a>
+        <div class="row">
+            <div class="col col-auto">
+                {{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, return_to=return_to) }}
+            </div>
+            {% if attendee.has_extras %}
+            <div class="col col-auto">
+                <form method="post" action="reset_receipt">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="id" value="{{ attendee.id }}"/>
+                    <input type="hidden" name="return_to" value="{{ return_to }}"/>
+                    <button class="btn btn-warning">Cancel All Extras</button>
+                </form>
+            </div>
+            {% endif %}
+            {% if not attendee.cannot_abandon_badge_reason %}
+            <div class="col col-auto">
+                <form method="post" action="abandon_badge">
+                    <input type="hidden" name="id" value="{{ attendee.id }}"/>
+                    {{ csrf_token() }}
+                    <button type="submit" class="btn btn-danger">
+                        I'm not coming
+                    </button>
+                </form>
+            </div>
         {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

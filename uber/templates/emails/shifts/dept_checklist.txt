@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-As a department head for {{ attendee.assigned_depts_labels|readable_join }} we need some information from you about: {{ conf.name|safe }}
+As a department head or checklist admin for {{ attendee.get_labels_for_memberships('dept_memberships_where_can_admin_checklist')|readable_join }} we need some information from you about: {{ conf.name|safe }}
 {% if conf.full_description %}
 {{ conf.full_description|safe }}{% endif %}{% if conf.slug == 'approve_setup_teardown' %}
 
@@ -10,10 +10,10 @@ Approvals here will affect setup/teardown permissions for your volunteers.
 Please complete the following steps by {{ conf.deadline|datetime_local }}:
 
 {% for membership in attendee.dept_memberships_as_checklist_admin -%}
-* {{ c.URL_BASE }}{{ conf|dept_checklist_path(membership.department_id) }}
+* {{ conf.name }}: {{ c.URL_BASE }}{{ conf|dept_checklist_path(membership.department_id) }}
 {% endfor %}{% if conf.slug == 'creating_shifts' %}
 
-If you need us to import your shifts from last time, let us know at stops@magwest.org.
+If you need us to import your shifts from last time, let us know at {{ c.STAFF_EMAIL|email_only }}.
 
 {% endif %}
 

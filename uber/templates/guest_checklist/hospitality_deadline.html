@@ -1,0 +1,40 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.hospitality_status) }}</td>
+    <td><b><a href="hospitality?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Hospitality Questionnaire{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('hospitality')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+      Please fill out a survey to help us make your MAGFest experience an even more positive one.
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+  <h2>{% block form_title %}Hospitality Questionnaire for {{ guest.group.name }}{% endblock %}</h2>
+
+  {% block form_desc %}
+    {% if guest.hospitality_status %}
+      You've already indicated that you have completed <a href="https://forms.gle/BvWEK1DYWiT7SkSc7" target="_blank">the hospitality survey</a>. If you need to update something, please contact us at {% if guest.group_type == c.BAND %}{{ c.BAND_EMAIL|email_only|email_to_link }}{% else %}{{ c.GUEST_EMAIL|email_only|email_to_link }}{% endif %}.
+    {% else %}
+        Please fill out <a href="https://forms.gle/BvWEK1DYWiT7SkSc7" target="_blank">this survey</a> to help us make your MAGFest experience an even more positive one.
+    {% endif %}
+  {% endblock %}
+
+  <br/><br/>
+
+  {% if guest.hospitality_status %}
+  <a href="index?id={{ guest.id }}" class="btn btn-default">Back to Checklist</a>
+  {% else %}
+  <form method="post" action="hospitality" class="form-horizontal" role="form">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_hospitality.db_id }}" />
+    {{ csrf_token() }}
+    {% block form_extra %}{% endblock %}
+    <button type="submit" name="completed" class="btn btn-primary" value="1">I Have Filled Out the Survey Above</button>
+  </form>
+  {% endif %}
+{% endif %}

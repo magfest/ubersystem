@@ -1,0 +1,26 @@
+{% set app_or_parent = application.parent_application if application.entry_type == c.GROUP_ENTRY else application %}
+
+<html>
+<head></head>
+<body>
+<p>
+    {{ application.attendee.full_name }},<br/>
+    Thank you for {{ action_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your {% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} entry details are below.
+</p>
+{% if new_conf %}
+<p>
+    <strong>IMPORTANT</strong>: Your previous lottery entry has been <strong>withdrawn</strong> and your old confirmation number is invalid. Your new confirmation number is below.
+</p>
+{% endif %}
+{% if not application.room_group_name and not application.parent_application %}
+<p>
+    If you know who you are rooming with, you can 
+    <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ application.id }}&create=True" target="_blank">create a room group</a> for up to four people total.
+    Room groups are given additional weighting in the lottery. Note that in order to join a room group you must have a valid registration for {{ c.EVENT_NAME }}.
+</p>
+{% endif %}
+<p>You can review{% if application.entry_type != c.GROUP_ENTRY %} and update{% endif %} your {% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} lottery entry by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
+{% set confirmation = True %}
+{% include 'emails/hotel/entry_details.html' with context %}
+</body>
+</html>

@@ -1,14 +1,24 @@
 Ahoy {{ game.studio.primary_contact_first_names }},
 
-Setup begins today for MAGFest! You can begin checking in at 6pm today. Please use the VIP Line to checkin at registration when you arrive onsite.
+Setup begins today for MAGFest! 
 
-If you need to view the indie handbook, it is available at https://docs.google.com/document/d/102ylB6tWLU4sGbduJ_VrBMfZwRzE3yerY075QD6Rnc0/
+When you arrive, you may go directly into hall C.  You do not need a badge. 
+
+The 2023 MIVS Indie Handbook has tons of information on Load In/Out (Section 4.20+): https://docs.google.com/document/d/1ecxBjipQH22o1Jewsa6_PmdBPYcwAo7OvgdYvlnxAUk/
 
 If you need help onsite:
 
-1) Text or call (443) 499-2707. This number is connected to all 3 MIVS Department Heads who can help when they arrive onsite.
+1. Come to the MIVS Operations booth in the center of Expo Hall C
 
-2) Ask through Discord or Google Groups
+2. Ask for help via the MIVS/IA Discord MIVS -> #help channel
+
+3. Text or call the MIVS DH Hotline: 650-485-1785 - this number is connected to the MIVS Department Heads who can help when they arrive onsite
+
+4. Email mivs@magfest.org and one of the MIVS Staffers will get back to you asap
+
+Please ensure your team is on the MIVS/IA Discord ( https://discord.com/invite/WK7F6DH7Ng ) and be sure to put your game name in your name for the server.
+
+Thank you and see everyone soon!
 
 Forever your Fan,
 The MIVS Team

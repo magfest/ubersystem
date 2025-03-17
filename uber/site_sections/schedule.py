@@ -9,9 +9,9 @@ from pockets import listify
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, schedule_view
+from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, schedule_view, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, AssignedPanelist, Attendee, Event, PanelApplication
+from uber.models import AssignedPanelist, Attendee, Event, PanelApplication
 from uber.utils import check, localized_now, normalize_newlines
 
 
@@ -76,6 +76,7 @@ class Root:
         for event in session.query(Event).order_by('start_time', 'duration', 'location').all():
             out.writerow([event.timespan(30), event.name, event.location_label])
 
+    @site_mappable(download=True)
     @schedule_view
     def xml(self, session):
         cherrypy.response.headers['Content-type'] = 'text/xml'
@@ -86,25 +87,7 @@ class Root:
             'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0].location))
         })
 
-    @schedule_view
-    def schedule_tsv(self, session):
-        cherrypy.response.headers['Content-Type'] = 'text/tsv'
-        cherrypy.response.headers['Content-Disposition'] = 'attachment;filename=Schedule-{}.tsv'.format(
-            int(localized_now().timestamp()))
-
-        schedule = defaultdict(list)
-        for event in session.query(Event).order_by('start_time').all():
-            schedule[event.location_label].append(dict(event.to_dict(), **{
-                'date': event.start_time_local.strftime('%m/%d/%Y'),
-                'start_time': event.start_time_local.strftime('%I:%M:%S %p'),
-                'end_time': (event.start_time_local + timedelta(minutes=event.minutes)).strftime('%I:%M:%S %p'),
-                'description': normalize_newlines(event.description).replace('\n', ' ')
-            }))
-
-        return render('schedule/schedule.tsv', {
-            'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0]['location']))
-        })
-
+    @site_mappable(download=True)
     def ical(self, session, **params):
         icalendar = ics.Calendar()
 
@@ -129,8 +112,8 @@ class Root:
                     name=event.name,
                     begin=event.start_time,
                     end=(event.start_time + timedelta(minutes=event.minutes)),
-                    description=normalize_newlines(event.description),
-                    created=event.created.when,
+                    description=normalize_newlines(event.public_description or event.description),
+                    created=event.created_info.when,
                     location=event.location_label))
 
         cherrypy.response.headers['Content-Type'] = \
@@ -142,26 +125,6 @@ class Root:
 
     if not c.HIDE_SCHEDULE:
         ical.restricted = False
-
-    @csv_file
-    def csv(self, out, session):
-        out.writerow(['Session Title', 'Date', 'Time Start', 'Time End', 'Room/Location',
-                      'Schedule Track (Optional)', 'Description (Optional)', 'Allow Checkin (Optional)',
-                      'Checkin Begin (Optional)', 'Limit Spaces? (Optional)', 'Allow Waitlist (Optional)'])
-        rows = []
-        for event in session.query(Event).order_by('start_time').all():
-            rows.append([
-                event.name,
-                event.start_time_local.strftime('%m/%d/%Y'),
-                event.start_time_local.strftime('%I:%M:%S %p'),
-                (event.start_time_local + timedelta(minutes=event.minutes)).strftime('%I:%M:%S %p'),
-                event.location_label,
-                '',
-                normalize_newlines(event.description).replace('\n', ' '),
-                '', '', '', ''
-            ])
-        for r in sorted(rows, key=lambda tup: tup[4]):
-            out.writerow(r)
 
     @csv_file
     def panels(self, out, session):
@@ -176,7 +139,7 @@ class Root:
                     event.start_time_local.strftime('%I%p %a').lstrip('0'),
                     '{} minutes'.format(event.minutes),
                     event.location_label,
-                    event.description,
+                    event.public_description or event.description,
                     panelist_names])
 
     @schedule_view
@@ -191,7 +154,7 @@ class Root:
                 'start_unix': int(mktime(event.start_time.utctimetuple())),
                 'end_unix': int(mktime(event.end_time.utctimetuple())),
                 'duration': event.minutes,
-                'description': event.description,
+                'description': event.public_description or event.description,
                 'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
             }
             for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])
@@ -240,6 +203,7 @@ class Root:
                 if event.is_new:
                     event.name = add_panel.name
                     event.description = add_panel.description
+                    event.public_description = add_panel.public_description
                     for pa in add_panel.applicants:
                         if pa.attendee_id:
                             assigned_panelist = AssignedPanelist(attendee_id=pa.attendee.id, event_id=event.id)
@@ -359,7 +323,10 @@ class Root:
         for panel in panel_applications:
             panels[panel.event.start_time][panel.event.location] = panel
 
-        curr_time, last_time = min(panels), max(panels)
+        if not panels:
+            raise HTTPRedirect('../accounts/homepage?message={}', "No panels have been scheduled yet!")
+
+        curr_time, last_time = min(panels).astimezone(c.EVENT_TIMEZONE), max(panels).astimezone(c.EVENT_TIMEZONE)
         out.writerow(['Panel Starts'] + [c.EVENT_LOCATIONS[room] for room in c.PANEL_ROOMS])
         while curr_time <= last_time:
             row = [curr_time.strftime('%H:%M %a')]

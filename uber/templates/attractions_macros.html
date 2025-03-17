@@ -21,44 +21,37 @@
 
 
 {% macro badge_num_form(label='Sign up', confirm_label='Is this right?') %}
-  <form class="form-horizontal badge-num-form" method="post" action="verify_badge_num" role="form">
-    <div class="form-group">
-      <label class="col-sm-offset-2 col-sm-8">
-        <span class="badge-num-label">{{label }}</span>
-        <span class="confirm-label" style="display: none;">{{ confirm_label }}</span>
-        <span>&nbsp;</span>
-      </label>
-      <div class="col-sm-offset-2 col-sm-8 slide-box">
-        <div class="badge-num-row row">
-          <div class="col-xs-6" style="padding-right: 7px;">
-            <input class="form-control input-lg text-center"
-                type="text"
-                name="badge_num"
-                placeholder="Badge #"
-                required="required"
-                min="1">
-          </div>
-          <div class="col-xs-6" style="padding-left: 8px;">
-            <button class="btn btn-lg btn-success" style="width: 100%">
-              <span class="glyphicon glyphicon-ok"></span> Sign up
-            </button>
-          </div>
+  <form class="badge-num-form" method="post" action="verify_badge_num" role="form">
+    <label class="form-text">
+      <span class="badge-num-label">{{ label }}</span>
+      <span class="confirm-label">{{ confirm_label }}</span>
+    </label>
+    <div class="badge-num-row">
+      <div class="input-group mb-3">
+        <input class="form-control input-lg text-center"
+          type="text"
+          name="badge_num"
+          placeholder="Badge #"
+          required="required"
+          min="1">
+          <button class="btn btn-lg btn-success">
+            <i class="fa fa-check"></i> Sign up
+          </button>
+      </div>
+    </div>
+    <div class="confirm-row row" style="display: none;">
+      <div class="col">
+        <div class="attendee">
+          <span class="name"></span>
+          <sup class="badge-num"></sup>
         </div>
-        <div class="confirm-row row" style="display: none;">
-          <div class="col-xs-12">
-            <div class="attendee form-control-static">
-              <span class="name"></span>
-              <sup class="badge-num"></sup>
-            </div>
-            <div class="controls pull-right">
-              <button class="btn btn-lg btn-danger">
-                <span class="glyphicon glyphicon-remove"></span>
-              </button>
-              <button class="btn btn-lg btn-success">
-                <span class="glyphicon glyphicon-ok"></span>
-              </button>
-            </div>
-          </div>
+        <div class="controls pull-right">
+          <button class="btn btn-lg btn-danger">
+            <i class="fa fa-remove"></i>
+          </button>
+          <button class="btn btn-lg btn-success">
+            <i class="fa fa-check"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -76,17 +69,17 @@
         type="text"
         class="form-control"
         value="{{ value.strftime('%-m/%-d/%Y %-I:%M %p') }}">
-    <span class="input-group-addon">
-      <span class="glyphicon glyphicon-calendar"></span>
+    <span class="input-group-text">
+      <i class="fa fa-calendar"></i>
     </span>
   </div>
   <script>
     $('#{{ html_id }} input[name="{{ field_name }}"]').datetimepicker({
       sideBySide: true,
       useCurrent: false,
-      defaultDate: '{{ value.isoformat() }}',
-      minDate: '{{ c.EPOCH.isoformat() }}',
-      maxDate: '{{ c.ESCHATON.isoformat() }}',
+      defaultDate: '{{ value.isoformat()[:-6] }}',
+      minDate: '{{ c.EPOCH.isoformat()[:-6] }}',
+      maxDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
       format: 'M/D/Y h:mm A'
     });
   </script>
@@ -105,7 +98,7 @@
             {% if min is not none %}min="{{ min }}"{% endif %}
             value="{{ 0 if is_class else timedelta_component(seconds=model[field_name], units='hours') }}"
             class="form-control {{ field_name ~ '_hours' }}">
-        <span class="input-group-addon">hours</span>
+        <span class="input-group-text">hours</span>
       </div>
     </div>
     <div class="col-xs-6" style="padding-left: 5px;">
@@ -115,7 +108,7 @@
             {% if min is not none %}min="{{ min }}"{% endif %}
             value="{{ 15 if is_class else timedelta_component(seconds=model[field_name], units='minutes') }}"
             class="form-control {{ field_name ~ '_minutes' }}">
-        <span class="input-group-addon">minutes</span>
+        <span class="input-group-text">minutes</span>
       </div>
     </div>
   </div>
@@ -148,7 +141,13 @@
       'description',
       type='textarea',
       is_required=True,
-      help="This description will be displayed to attendees when they're signing up.") }}
+      help="This description will be displayed to attendees on the attractions list.") }}
+  {{ macros.form_group(
+    attraction,
+    'full_description',
+    type='textarea',
+    is_required=True,
+    help="This description will be displayed to attendees when they're signing up. Leave blank to use the description.") }}
   <div class="form-group">
     <div class="col-sm-offset-3 col-sm-9">
       <label class="checkbox-label">
@@ -176,7 +175,7 @@
   <div class="form-group">
     <label class="col-sm-3 control-label">Belongs to Department</label>
     <div class="col-sm-6">
-      <select name="department_id" class="form-control">
+      <select name="department_id" class="form-select">
         <option value="">This attraction doesn't belong to any department</option>
         {% if not is_class
               and attraction.department_id
@@ -196,7 +195,7 @@
   <div class="form-group">
     <label class="col-sm-3 control-label">Attendance Restriction</label>
     <div class="col-sm-6">
-      <select name="restriction" class="form-control">
+      <select name="restriction" class="form-select">
         {%- set restriction = 0 if is_class else attraction.restriction -%}
         {{ options(attraction._RESTRICTION_OPTS, restriction) }}
       </select>
@@ -205,7 +204,7 @@
   <div class="form-group">
     <label class="col-sm-3 control-label">Required Checkin</label>
     <div class="col-sm-6">
-      <select name="advance_checkin" class="form-control">
+      <select name="advance_checkin" class="form-select">
         {%- set advance_checkin = 0 if is_class else attraction.advance_checkin -%}
         {{ options(attraction._ADVANCE_CHECKIN_OPTS, advance_checkin) }}
       </select>
@@ -219,10 +218,10 @@
           Attendees who have <b>not</b> checked in for an event will be notified:
         </div>
         <div class="form-inline notification">
-          <select name="advance_notices" class="form-control" style="width: auto; display: inline-block;">
+          <select name="advance_notices" class="form-select" style="width: auto; display: inline-block;">
             {{ options(attraction._ADVANCE_NOTICES_OPTS, attraction.advance_notices) }}
           </select>
-          <span class="glyphicon glyphicon-plus-sign"></span>
+          <i class="fa fa-plus-sign"></i>
         </div>
       </div>
     </div>

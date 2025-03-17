@@ -1,5 +1,11 @@
 {{ app.attendee.first_name }},
 
-Your payment of {{ app.total_cost|format_currency }} for space in the {{ c.EVENT_NAME }} Marketplace has been received. The Marketplace director will continue to be in touch with you to keep you informed of Marketplace rules and procedures.
+Your payment of {{ (app.amount_paid / 100)|format_currency }} for your {{ c.EVENT_NAME }} Artist Marketplace application "{{ app.name }}" has been received!
 
-{{ c.MARKETPLACE_APP_SIGNATURE }}
+If your plans change, you can cancel your application anytime until {{ c.MARKETPLACE_CANCEL_DEADLINE|datetime_local }} for a refund using this link: {{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}
+
+We fill spots as they are cancelled, so please don't delay cancelling if you know you won't need your spot!
+
+As a reminder, make sure you have read the {{ c.EVENT_NAME }} Artist Marketplace rules here: {{ c.ARTIST_MARKETPLACE_RULES_URL }}
+
+{{ c.ARTIST_MARKETPLACE_SIGNATURE }}

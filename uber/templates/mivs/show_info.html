@@ -25,7 +25,7 @@
   <h4>Gameplay Images</h4>
   Please mark your two best gameplay images, or upload new ones.
   <table>
-    {% for screenshot in game.screenshots %}
+    {% for screenshot in game.screenshots|rejectattr('is_header')|rejectattr('is_thumbnail') %}
       <tr>
         <td><ul><li></li></ul></td>
         <td><a target="_blank" href="{{ screenshot.url }}">{{ screenshot.filename }}</a></td>
@@ -49,8 +49,39 @@
     {% endfor %}
   </table>
   <a class="btn btn-primary" href="screenshot?game_id={{ game.id }}&use_in_promo=True">Upload a Screenshot</a>
-
+<br/><br/>
+  <h4>Guidebook Images</h4>
+  Please upload images to accompany {{ game.title }}'s entry on Guidebook.<br/><br/>
+  
   <form method="post" enctype="multipart/form-data" class="form-horizontal" action="show_info">
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Header Image</label>
+    <div class="col-sm-6">
+        <input type="file" name="header_image" />
+        {% if game.guidebook_header %}
+        <a target="_blank" href="{{ game.guidebook_header.url }}">{{ game.guidebook_header.filename }}</a>
+        {% endif %}
+    </div>
+    <p class="help-block col-sm-9 col-sm-offset-3">
+        A {{ c.GUIDEBOOK_HEADER_SIZE|format_image_size }} image to display on the schedule next to your game details.<br/>
+        {% if game.guidebook_header %}Uploading a file will replace the existing image.{% endif %}
+    </p>
+  </div>
+
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Thumbnail Image</label>
+    <div class="col-sm-6">
+        <input type="file" name="thumbnail_image" />
+        {% if game.guidebook_thumbnail %}
+        <a target="_blank" href="{{ game.guidebook_thumbnail.url }}">{{ game.guidebook_thumbnail.filename }}</a>
+        {% endif %}
+    </div>
+    <p class="help-block col-sm-9 col-sm-offset-3">
+        A {{ c.GUIDEBOOK_THUMBNAIL_SIZE|format_image_size }} image to display on the schedule next to your game name.<br/>
+        {% if game.guidebook_thumbnail %}Uploading a file will replace the existing image.{% endif %}
+    </p>
+  </div>
+  
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ game.id }}" />
 

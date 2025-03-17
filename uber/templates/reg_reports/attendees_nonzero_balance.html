@@ -1,0 +1,101 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title_text = "Attendees With Non-Zero Balances" %}
+{% block content %}
+{% include 'discrepancy_reports_header.html' with context %}
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-content-end mb-3 gap-2">
+            {% if include_discrepancies %}
+            <a href="attendees_nonzero_balance{{ '?include_no_receipts=True' if attendees_no_receipts else '' }}" class="btn btn-primary">Exclude Attendees with Receipt Discrepancies</a>
+            {% else %}
+            <a href="attendees_nonzero_balance{{ '?include_no_receipts=True&' if attendees_no_receipts else '?' }}include_discrepancies=True" class="btn btn-outline-primary">Include Attendees with Receipt Discrepancies</a>
+            {% endif %}
+            {% if attendees_no_receipts %}
+            <a href="attendees_nonzero_balance{{ '?include_discrepancies=True' if include_discrepancies else '' }}" class="btn btn-primary">Exclude Attendees without Receipts</a>
+            {% else %}
+            <a href="attendees_nonzero_balance{{ '?include_discrepancies=True&' if include_discrepancies else '?' }}include_no_receipts=True" class="btn btn-outline-primary">Include Attendees without Receipts</a>
+            {% endif %}
+        </div>
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Badge Status</th>
+            <th>Attendee</th>
+            <th>Email</th>
+            <th>Badge Type</th>
+            <th>Amount Owed</th>
+            <th>Paid</th>
+            <th>Refunded</th>
+            <th>Difference</th>
+            {% if c.HAS_REG_ADMIN_ACCESS %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for attendee, payment_total, refund_total, item_total in attendees_and_totals %}
+        {% set txn_total = payment_total - refund_total %}
+        <tr id="{{ attendee.id }}">
+            <td>
+                {{ attendee.badge_status_label }}
+            </td>
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee|form_link("true") }}
+            </td>
+            <td>
+                {{ attendee.email }}
+            </td>
+            <td>
+                {{ attendee.badge_type_label }}
+            </td>
+            <td>
+                {{ (item_total / 100)|format_currency }}
+            </td>
+            <td>
+                {{ (payment_total / 100)|format_currency }}
+            </td>
+            <td>
+                {{ (refund_total / 100)|format_currency }}
+            </td>
+            <td>
+                {{ ((item_total - txn_total) / 100)|format_currency }}
+            </td>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+            <td>
+                <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">View Receipt Items</a>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        {% for attendee in attendees_no_receipts %}
+        <tr id="{{ attendee.id }}">
+            <td>
+                {{ attendee.badge_status_label }}
+            </td>
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee|form_link("true") }}
+            </td>
+            <td>
+                {{ attendee.email }}
+            </td>
+            <td>
+                {{ attendee.badge_type_label }}
+            </td>
+            <td>
+                {{ attendee.default_cost|format_currency }}
+            </td>
+            <td>No Receipt</td>
+            <td>No Receipt</td>
+            <td>
+                {{ attendee.default_cost|format_currency }}
+            </td>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+            <td>
+                <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">Create Receipt</a>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

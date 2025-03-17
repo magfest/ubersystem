@@ -1,4 +1,4 @@
-  <div class="table-responsive panel panel-default">
+  <div class="card-body">
     <table class="datatable table table-striped" data-info="false">
       <thead>
       <tr>
@@ -9,16 +9,16 @@
       </tr>
       </thead>
       <tbody>
-      {% for group in groups if group.guest and group.guest.group_type == c.MIVS -%}
-        <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower if group.guest else "" }} group-row">
+      {% for group in guest_groups if group.guest.group_type == c.MIVS -%}
+        <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower|replace(' ','_') if group.guest else "" }} group-row">
           <td>
             <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
             <span class="guest_info">
                 {% if group.guest -%}
                   &nbsp;
                   <div class="btn-group" role="group" aria-label="...">
-                  <a href="checklist_info?id={{ group.guest.id }}" class="btn btn-xs btn-default"><span class="glyphicon glyphicon-cog" data-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></span></a>
-                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-xs btn-primary"><span class="glyphicon glyphicon-check" data-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></span></a>
+                  <a href="checklist_info?id={{ group.guest.id }}" class="btn btn-sm btn-outline-secondary"><i class="fa fa-cog" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></i></a>
+                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-sm btn-primary"><i class="fa fa-check" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></i></a>
                   </div>
                 {% endif %}
             </span>
@@ -32,4 +32,4 @@
     </table>
   </div>
 
-<p><a href="../mivs_admin/checklist_info_csv">Export all checklist data as a CSV file</a></p>
+<p><a href="../mivs_reports/checklist_info_csv">Export all checklist data as a CSV file</a></p>

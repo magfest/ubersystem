@@ -3,18 +3,19 @@
 <body>
 
 We're emailing you because you requested a new agent code for your art
-application. Your new code is <strong>{{ app.agent_code }}</strong>. If you
-had an agent assigned to your art application, you and they will also receive
-an email confirming their unassignment.
-
+application. Your new code is <strong>{{ agent_code.code }}</strong>.
+{% if c.ONE_AGENT_PER_APP %}If you had an agent assigned to your art application, you and they will also receive
+an email confirming their unassignment.{% endif %}
 
 <br/><br/>To assign an agent to your art application, send them the above code.
-They must then add the code to their registration, either while signing up or
-afterwards by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging in{% else %}using the confirmation link they received by email when they
-registered{% endif %}. You can check your
-<a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}">Art Show
-application </a> at any time to see your agent's status or assign a new agent.
-
+They must then add the code to their registration by 
+{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+<a href="{{ c.URL_BASE }}/preregistration/homepage" target="_blank">logging in</a> and updating their badge details after registering
+{% else %}using the confirmation link they received by email when they registered{% endif %}.
+You can check your
+<a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}">Art Show application</a>
+at any time to
+{% if c.ONE_AGENT_PER_APP %}see your agent's status or assign a new agent{% else %}manage your agent(s) and agent codes{% endif %}.
 
 <br/> <br/> You can always review the {{ c.EVENT_NAME }} Art Show rules
 <a href="{{ c.ART_SHOW_RULES_URL }}" target="_blank">here</a>.

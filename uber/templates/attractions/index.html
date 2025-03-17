@@ -11,9 +11,8 @@
   });
 </script>
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     {% block body %}
       <h1 class="text-center">Sign up for {{ c.EVENT_NAME }} Attractions</h1>
       <hr>
@@ -21,7 +20,7 @@
         {% for attraction in attractions %}
           <div class="attraction hover-btn">
             <a class="btn btn-success btn-next pull-right" href="{{ attraction.slug }}">
-              <span class="glyphicon glyphicon-chevron-right"></span>
+              <i class="fa fa-chevron-right"></i>
             </a>
             <div class="hover-btn-title">
               <h2><span class="bling-icon"></span> {{ attraction.name }}</h2>

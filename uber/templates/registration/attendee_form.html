@@ -1,9 +1,5 @@
 {% set admin_area=True %}
 <style type="text/css">
-.modal-dialog {
-  width: 98%;
-  padding: 0;
-}
 .gly-spin {
   -webkit-animation: spin 2s infinite linear;
   -moz-animation: spin 2s infinite linear;
@@ -47,21 +43,26 @@
 </style>
 <script type="text/javascript">
 $('#attendee_form').load(function() {$(window).trigger( 'runJavaScript' );});
+$('.nav-tabs button').first().tab('show');
 var attendeeID = '{{ attendee.id }}';
 loadForm = function(kw) {
-  var glyphicon_span = $('a[href="#attendee' + kw + '"]').children('span');
-  var glyphicon_class = glyphicon_span.attr('class');
-  var old_hash = window.location.hash;
-  glyphicon_span.removeClass().addClass('glyphicon glyphicon-repeat gly-spin');
-  $('#attendee' + kw).load('../registration/attendee_' + kw.toLowerCase() + '?id=' + attendeeID, function(response, status){
-    window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
-    if (status == 'success') {
-      $(window).trigger( 'runJavaScript' );
-      glyphicon_span.removeClass().addClass(glyphicon_class);
-    } else {
-      toastr.error("Unable to connect to server, please try again.");
-      glyphicon_span.removeClass().addClass(glyphicon_class);
-    }
+  return new Promise(function (resolve, reject) {
+    var glyphicon_span = $('#attendee' + kw + '-tab').children('i');
+    var glyphicon_class = glyphicon_span.attr('class');
+    var old_hash = window.location.hash;
+    glyphicon_span.removeClass().addClass('fa fa-repeat gly-spin');
+    $('#attendee' + kw).load('../registration/attendee_' + kw.toLowerCase() + '?id=' + attendeeID, function(response, status){
+      window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
+      if (status == 'success') {
+        $(window).trigger( 'runJavaScript' );
+        glyphicon_span.removeClass().addClass(glyphicon_class);
+        resolve(status);
+      } else {
+        showErrorMessage("Unable to connect to server, please try again.");
+        glyphicon_span.removeClass().addClass(glyphicon_class);
+        reject("Unable to connect to server, please try again.");
+      }
+    });
   });
 };
 var refreshTab = function() {
@@ -69,64 +70,73 @@ var refreshTab = function() {
   loadForm(currentTab.attr('id').slice(8));
 };
 {% if tab_view %}
-var tab = $('.nav-tabs a[href="#attendee{{ tab_view }}"]');
+var tab = $('#attendee{{ tab_view }}-tab');
 if(tab.length) {
   tab.tab('show');
 } else {
-  $('.nav-tabs a').first().tab('show');
+  $('.nav-tabs button').first().tab('show');
 }
 loadForm("{{ tab_view }}");
 {% endif %}
 </script>
 <div class="modal-header">
-  <button type="button" class="close" data-dismiss="modal">&times;</button>
   <h4 class="modal-title">Attendee Form{% if attendee.first_name %} - {{ attendee.full_name }}{% endif %}</h4>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
   </div>
   <div class="modal-body">
+    <div class="alert alert-dismissible" role="alert" id="attendee-modal-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('attendee-modal-alert')" aria-label="Close"></button></div>
+    
     <div role="tabpanel">
       <!-- Nav tabs -->
       {% if not attendee.is_new %}
       <ul class="nav nav-tabs" role="tablist">
-          <li role="presentation" class="active">
-          <a href="#attendeeData" aria-controls="attendeeData" role="tab" data-toggle="tab" onClick="loadForm('Data')">
-          <span class="glyphicon glyphicon-user"></span>&nbsp;Data
-          </a>
+          <li class="nav-item" role="presentation" class="active">
+            <button class="nav-link" id="attendeeData-tab" onClick="loadForm('Data')" data-bs-toggle="tab" data-bs-target="#attendeeData" type="button" role="tab" aria-controls="attendeeData">
+              <i class="fa fa-user"></i>&nbsp;Data
+            </button>
           </li>
           {% if attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS %}
-          <li role="presentation">
-          <a href="#attendeeShifts" aria-controls="attendeeShifts" role="tab" data-toggle="tab" onClick="loadForm('Shifts')">
-          <span class="glyphicon glyphicon-calendar"></span>&nbsp;Shifts
-          </a>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="attendeeShifts-tab" onClick="loadForm('Shifts')" data-bs-toggle="tab" data-bs-target="#attendeeShifts" type="button" role="tab" aria-controls="attendeeShifts">
+              <i class="fa fa-calendar"></i>&nbsp;Shifts
+            </button>
           </li>
           {% endif %}
-          <li role="presentation">
-          <a href="#attendeeHistory" aria-controls="attendeeHistory" role="tab" data-toggle="tab" onClick="loadForm('History')">
-          <span class="glyphicon glyphicon-time"></span>&nbsp;History
-          </a>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="attendeeHistory-tab" onClick="loadForm('History')" data-bs-toggle="tab" data-bs-target="#attendeeHistory" type="button" role="tab" aria-controls="attendeeHistory">
+              <i class="fa fa-time"></i>&nbsp;History
+            </button>
           </li>
           {% if attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS %}
-          <li role="presentation">
-          <a href="#attendeeWatchlist" aria-controls="attendeeWatchlist" role="tab" data-toggle="tab" onClick="loadForm('Watchlist')">
-          <span class="glyphicon glyphicon-ban-circle"></span>&nbsp;Watchlist Entry
-          </a>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="attendeeWatchlist-tab" onClick="loadForm('Watchlist')" data-bs-toggle="tab" data-bs-target="#attendeeWatchlist" type="button" role="tab" aria-controls="attendeeWatchlist">
+              <i class="fa fa-ban-circle"></i>&nbsp;Watchlist Entry
+            </button>
           </li>
           {% endif %}
-          <button class='btn btn-info pull-right' onClick="refreshTab()">
-          Refresh&nbsp;<span class="glyphicon glyphicon-refresh pull-right"></span>
-          </button>
+          <li class="nav-item ms-auto">
+            <button class="btn btn-info" onClick="refreshTab()">
+            Refresh&nbsp;<i class="fa fa-refresh"></i>
+            </button>
+            {% if c.HAS_REGISTRATION_ACCESS %}
+            <a class="btn btn-secondary" href="../registration/form?id={{ attendee.id }}" target="_blank">
+              Open Full Profile&nbsp;<i class="fa fa-external-link"></i>
+            </a>
+            {% endif %}
+          </li>
       </ul>
       {% endif %}
       <!-- Tab panes -->
       <div class="tab-content">
         <div role="tabpanel" class="tab-pane active" id="attendeeData">{% include 'registration/attendee_data.html' %}</div>
         {% if attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS %}
-        <div role="tabpanel" class="tab-pane" id="attendeeShifts"></div>
+        <div role="tabpanel" class="tab-pane" id="attendeeShifts" aria-labelledby="attendeeShifts-tab"></div>
         {% endif %}
         {% if not attendee.is_new %}
-        <div role="tabpanel" class="tab-pane" id="attendeeHistory"></div>
+        <div role="tabpanel" class="tab-pane" id="attendeeHistory" aria-labelledby="attendeeHistory-tab"></div>
         {% endif %}
         {% if attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS %}
-        <div role="tabpanel" class="tab-pane" id="attendeeWatchlist"></div>
+        <div role="tabpanel" class="tab-pane" id="attendeeWatchlist" aria-labelledby="attendeeWatchlist-tab"></div>
         {% endif %}
       </div>
   </div>

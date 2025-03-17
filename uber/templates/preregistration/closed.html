@@ -1,8 +1,8 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Preregistration is now closed{% endblock %}
+{% set title_text = "Preregistration is now closed" %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
-{{ c.EVENT_NAME }} preregistration will open in the summer.  We'll see you next year!
+{{ c.EVENT_NAME }} preregistration is now closed.  We'll see you {% if c.BEFORE_EPOCH %}at the event{% else %}next year{% endif %}!
 
 {% endblock %}

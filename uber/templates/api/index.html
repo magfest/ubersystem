@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}API Access{% if not admin_account.is_admin %} for {{ admin_account.attendee.full_name }}{% endif %}{% endblock %}
+{% block title %}API Access{% if not admin_account.is_super_admin %} for {{ admin_account.attendee.full_name }}{% endif %}{% endblock %}
 
 {% block content %}
 
@@ -26,7 +26,7 @@
         $.post('create_api_token', $createApiTokenForm.serialize(), function(result) {
           $btn.prop('disabled', false);
           if (result.error) {
-            toastr.error(result.error);
+            showErrorMessage(result.error);
           } else {
             window.location = 'index?message=Successfully created API token'
           }
@@ -45,9 +45,9 @@
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
           <h4 class="modal-title" id="new_token_title">
-            <span class="glyphicon glyphicon-plus"></span>
+            <i class="fa fa-plus"></i>
             New API Token
           </h4>
         </div>
@@ -75,7 +75,7 @@
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
-            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           </div>
         </form>
       </div>
@@ -83,29 +83,29 @@
   </div>
 
   <h1>
-    API Access{% if not admin_account.is_admin %} for {{ admin_account.attendee|form_link }}{% endif %}
-    <button type="button" class="btn btn-sm btn-primary pull-right" data-toggle="modal" data-target="#new_token">
-      <span class="glyphicon glyphicon-plus"></span>
+    API Access{% if not admin_account.is_super_admin %} for {{ admin_account.attendee|form_link }}{% endif %}
+    <button type="button" class="btn btn-sm btn-primary pull-right" data-bs-toggle="modal" data-bs-target="#new_token">
+      <i class="fa fa-plus"></i>
       New API Token
     </button>
   </h1>
 
   <h3>
     <a href="reference">
-      <span class="glyphicon glyphicon-question-sign"></span>
+      <i class="fa fa-question-sign"></i>
       Need help with the API?
     </a>
   </h3>
 
   <h3>
-    {% if admin_account.is_admin %}All{% else %}Your{% endif %} Tokens
+    {% if admin_account.is_super_admin %}All{% else %}Your{% endif %} Tokens
   </h3>
   {% if show_revoked %}
-    <a id="btn_show_revoked" href="index" class="btn btn-xs btn-plain">
+    <a id="btn_show_revoked" href="index" class="btn btn-sm btn-outline-secondary">
   {% else %}
-    <a id="btn_show_revoked" href="index?show_revoked=true" class="btn btn-xs btn-default">
+    <a id="btn_show_revoked" href="index?show_revoked=true" class="btn btn-sm btn-outline-secondary">
   {% endif %}
-      <span class="glyphicon glyphicon-filter"></span>
+      <i class="fa fa-filter"></i>
       Show Revoked Tokens
     </a>
 
@@ -118,7 +118,7 @@
           data-info="false">
         <thead>
           <tr>
-            {% if admin_account.is_admin %}<th>Owner</th>{% endif %}
+            {% if admin_account.is_super_admin %}<th>Owner</th>{% endif %}
             <th>Name</th>
             <th>Description</th>
             <th>Access</th>
@@ -130,7 +130,7 @@
         <tbody>
           {% for token in api_tokens %}
             <tr>
-              {% if admin_account.is_admin %}
+              {% if admin_account.is_super_admin %}
                 <td
                     data-order="{{ token.admin_account.attendee.full_name }}"
                     data-search="{{ token.admin_account.attendee.full_name }}">
@@ -150,7 +150,7 @@
                 {% else %}
                   <form method="post" action="revoke_api_token" role="form">
                     <input type="hidden" name="id" value="{{ token.id }}"/>
-                    <button class="btn btn-xs btn-danger" type="submit">Revoke</button>
+                    <button class="btn btn-sm btn-danger" type="submit">Revoke</button>
                   </form>
                 {% endif %}
               </td>

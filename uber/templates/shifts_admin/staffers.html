@@ -2,7 +2,9 @@
 {% block title %}Staffer Summary{% endblock %}
 {% block content %}
 {% include "shifts_admin/main_menu.html" %}
-
+{% if department_id == '' %}
+Please select a department above to view its staffers.
+{% else %}
 <div class="row">
     <div class="col-md-3">{{ attendees|length }} Staffers</div>
     <div class="col-md-3">{{ counts.regular_signups }} / {{ counts.regular_total }} Regular Hours Taken</div>
@@ -24,6 +26,7 @@
         <ul>
             <li>that no one is assigned to your department who shouldn't be, such as problem volunteers from previous years</li>
             <li>that no one is missing who you'd expect to be assigned here, such as staffers from previous years</li>
+            <li>that you have reviewed your department's <a href="../dept_admin/requests?department_id={{ department_id }}" target="_blank">membership requests list</a> and have added any new volunteers you want</li>
         </ul>
         <input type="submit" value="I Confirm This All Looks Good" />
         </form>
@@ -33,9 +36,12 @@
 
 <br/>
 <span style="font-size:14pt ; font-weight:bold"> Staffers Assigned to This Area</span>
-  (<a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ emails }}">email these staffers</a>
-  or <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ emails_with_shifts }}">email staffers with shifts here</a>)<b>:</b>
-<br/> <br/><a href="#attendee_form?id=None" class="btn btn-primary">Add new volunteer</a><br/><br/>
+  (<a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ emails }}">email these staffers</a>
+  or <a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ emails_with_shifts }}">email staffers with shifts here</a>)<b>:</b>
+<br/> <br/>
+<a href="#attendee_form?id=None" class="btn btn-primary">Add new volunteer</a>
+{% if department_id != 'All' %}<a href="../dept_admin/requests?department_id={{ department_id }}" class="btn btn-info" target="_blank">Review membership requests{% if requested_count %} ({{ requested_count }}){% endif %}</a>{% endif %}
+<br/><br/>
 
 <table class="table table-striped datatable">
 <thead><tr>
@@ -80,5 +86,5 @@
          </i> <br/>
     [L]: <i>Staffers marked with a "L" are working load-in and/or load-out</i>
 </div>
-
+{% endif %}
 {% endblock %}

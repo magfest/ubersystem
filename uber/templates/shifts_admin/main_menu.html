@@ -35,8 +35,11 @@
 <div class="jobs-menu form-inline">
   <div class="department-group form-group">
     <label for="department_id">Department</label>
-    <select id="department_id" onChange="mainMenuDropdownChanged()" class="form-control">
-      {% if c.ADMIN_DEPARTMENTS|length > 1 %}<option>All</option>{% endif %}
+    <select id="department_id" onChange="mainMenuDropdownChanged()" class="form-select">
+      {% if c.ADMIN_DEPARTMENTS|length > 1 %}
+        <option value="">Select a department</option>
+        <option value="All"{% if department_id == 'All' %} selected {% endif %}>All Departments</option>
+      {% endif %}
       {{ options(c.ADMIN_DEPARTMENT_OPTS, department_id) }}
     </select>
   </div>
@@ -45,7 +48,7 @@
   {% else %}
   <div class="page-group form-group">
     <label for="page">View</label>
-    <select id="page" onChange="mainMenuDropdownChanged()" class="form-control">
+    <select id="page" onChange="mainMenuDropdownChanged()" class="form-select">
       {{ options(c.JOB_PAGE_OPTS, c.PAGE) }}
     </select>
   </div>

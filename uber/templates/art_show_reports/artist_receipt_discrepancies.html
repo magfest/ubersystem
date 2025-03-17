@@ -1,0 +1,78 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Artists With Receipt Discrepancies{% endblock %}
+{% block content %}
+{% include 'discrepancy_reports_header.html' with context %}
+<div class="card">
+    <div class="card-body">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Artist</th>
+            <th>{{ c.ART_SHOW_APP_TERM|title }}</th>
+            <th>Artist Type</th>
+            <th>Current Cost</th>
+            <th>Receipt Total</th>
+            <th>Paid</th>
+            <th>Refunded</th>
+            <th>Total</th>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+                <th></th>
+                <th></th>
+            {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for app in apps %}
+        <tr id="{{ app.id }}">
+            <td data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}">
+                {{ app.attendee|form_link("true") }}
+            </td>
+            <td>
+                <a href="../art_show_admin/form?id={{ app.id }}" target="_blank" class="btn btn-primary">View</a>
+            </td>
+            <td>
+                {{ app.deliver_method_label }}
+            </td>
+            <td id="{{ app.id }}-cost">
+                {{ app.true_default_cost|format_currency }}
+            </td>
+            <td id="{{ app.id }}-receipt-total">
+                {{ (app.active_receipt.item_total / 100)|format_currency }}
+            </td>
+            <td>{{ (app.active_receipt.payment_total / 100)|format_currency }}</td>
+            <td>{{ (app.active_receipt.refund_total / 100)|format_currency }}</td>
+            <td>{{ (app.active_receipt.txn_total / 100)|format_currency }}</td>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+                <td>
+                    <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ app.id }}" target="_blank">View Receipt Items</a>
+                </td>
+                <td>
+                    <a class="btn btn-primary" href="#" onClick="refreshArtistAndReceipt('{{ app.id }}')">Refresh Artist & Receipt</a>
+                </td>
+            {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% if c.HAS_REG_ADMIN_ACCESS %}
+<script type="text/javascript">
+    var refreshArtistAndReceipt = function(appId) {
+        hideMessageBox();
+        $.post("../reg_admin/refresh_model_receipt",
+        {id: appId, csrf_token: csrf_token}, function(response) {
+            if (response.new_cost) {
+                $('#' + appId + '-cost').html(response.new_cost);
+                $('#' + appId + '-receipt-total').html(response.new_receipt_total);
+                $("#message-alert").addClass("alert-info").show().children('span').html(response.message);
+            } else {
+                $('#' + appId).remove()
+                $("#message-alert").addClass("alert-success").show().children('span').html(response.message);
+            }
+            
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}

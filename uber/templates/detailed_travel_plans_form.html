@@ -1,0 +1,98 @@
+{% import 'guests_macros.html' as guests_macros with context %}
+
+<script type="text/javascript">
+    var onModeChange = function(obj, suffix='') {
+      if (obj == undefined) { return false; }
+      if (suffix == '') { suffix = '_' + obj[0].name.split('_')[1]; }
+      if (suffix != '_' && suffix != '_text' && $.field('mode' + suffix)) {
+        setVisible($.field('mode_text' + suffix), $.val('mode' + suffix) == {{ c.OTHER }});
+        if ($.val('mode' + suffix) == {{ c.CAR }} || $.val('mode' + suffix) == {{ c.TAXI }}) {
+          $.field('arrival_details' + suffix).attr('required', false).parents('.form-group').hide();
+          $.field('departure_details' + suffix).attr('required', false).parents('.form-group').hide();
+        } else {
+          $.field('arrival_details' + suffix).attr('required', true).parents('.form-group').show();
+          $.field('departure_details' + suffix).attr('required', true).parents('.form-group').show();
+        }
+      }
+    };
+
+    var showOrHideDetailedTravels = function () {
+        var count = $.val('detailed_travels'),
+            $template = $('#travel_form_template > .card'),
+            $ops = $('#travels_container > .card');
+        setVisible('#travels_container', count);
+        if (count < $ops.size()) {
+            $ops.slice(count).remove();
+        } else {
+            for (var i = $ops.size() + 1; i <= count; i++) {
+                var suffix = '_' + i;
+                var $opPanel = $template.clone();
+                $opPanel.find('h2').text($opPanel.find('h2').text() + i);
+                $opPanel.find('input').attr('name', function() { return $(this).attr('name') + suffix } );
+                $opPanel.find('input').attr('id', function() { return $(this).attr('id') + suffix } );
+                $opPanel.find('select').attr('name', function() { return $(this).attr('name') + suffix } );
+                $opPanel.find('textarea').attr('name', function() { return $(this).attr('name') + suffix } );
+                $opPanel.find('select[name*="mode"]').on('change', function() {onModeChange($(this));});
+                $opPanel.appendTo('#travels_container');
+                onModeChange($opPanel.find('select[name*="mode"]'));
+                $('#arrival-time' + suffix).datetimepicker({
+                  sideBySide: true,
+                  useCurrent: false,
+                  defaultDate: '{{ c.EPOCH.isoformat()[:-6] }}',
+                  minDate: '{{ min_arrival_time.isoformat()[:-6] }}',
+                  maxDate: '{{ max_arrival_time.isoformat()[:-6] }}',
+                  format: 'M/D/Y h:mm A'
+                });
+                $('#departure-time' + suffix).datetimepicker({
+                  sideBySide: true,
+                  useCurrent: false,
+                  defaultDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
+                  minDate: '{{ min_departure_time.isoformat()[:-6] }}',
+                  maxDate: '{{ max_departure_time.isoformat()[:-6] }}',
+                  format: 'M/D/Y h:mm A'
+                });
+            }
+        }
+    };
+
+    $(function () {
+        showOrHideDetailedTravels();
+        $.field('detailed_travels').on('change', showOrHideDetailedTravels);
+
+        // Move the template out of the <form> tag to avoid validation errors
+        $('#travel_form_template').appendTo($('body'));
+    });
+
+</script>
+
+<div id="travel_form_template" style="display: none;">
+  <div class="card">
+    <div class="card-body">
+      <h2>Travel Plan #</h2>
+      {{ guests_macros.travel_form(GuestDetailedTravelPlan) }}
+    </div>
+  </div>
+</div>
+
+<div class="form-group">
+  <label class="col-sm-3 control-label"># of Travel Plans</label>
+  <div class="col-sm-6">
+    <select name="detailed_travels" class="form-control">
+      {{ int_options(1, 8, detailed_travel_plans|length) }}
+    </select>
+    Are some people traveling from or to different places apart from the group? If so, select the number of different travel itineraries above, then fill out each itinerary's details below.
+  </div>
+</div>
+
+<div id="travels_container">
+  {% for op in detailed_travel_plans %}
+    <div class="card">
+      <div class="card-body">
+        <h2>Travel Plan #{{ loop.index }}</h2>
+        {{ guests_macros.travel_form(
+            op,
+            suffix='_' ~ loop.index,) }}
+      </div>
+    </div>
+  {% endfor %}
+</div>

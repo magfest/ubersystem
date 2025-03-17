@@ -1,0 +1,11 @@
+<html>
+<head></head>
+<body>
+{{ attendee.first_name }},
+
+<br/><br/>
+This is a reminder that if you still want to come to {{ c.EVENT_NAME }} as an attendee, you must claim your badge by {{ c.PREREG_HOTEL_ELIGIBILITY_CUTOFF|datetime_local }}. Badges not claimed by this date will be purged from our system and you will have to repurchase a badge if you decide to attend.
+
+<br/><br/>Click here to claim your badge at any time before {{ c.PREREG_HOTEL_ELIGIBILITY_CUTOFF|datetime_local }}: <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}" target="_blank">{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}</a>
+
+<br/><br/><em>Important Note</em>: <strong>{{ c.PREREG_HOTEL_ELIGIBILITY_CUTOFF|datetime_local }} is also the cut-off date for eligibility in the {{ c.EVENT_NAME }} hotel lottery</strong>. If you do not claim your badge, you will NOT be eligible for the hotel lottery even if you repurchase a badge later. Make sure you claim your badge to keep your eligibility for the hotel lottery!

@@ -1,0 +1,34 @@
+{%- import 'macros.html' as macros -%}
+{{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
+
+{% if c.DEV_BOX %}
+  <div class="alert alert-info">
+    <strong> You are on a development box.
+      {% if not c.ATTENDEE_BADGE_AVAILABLE %}
+        Otherwise, you would be automatically redirected to <a href="../static_views/prereg_soldout.html">the "badges sold out" page</a>.
+      {% elif c.BEFORE_PREREG_OPEN %}
+        Otherwise, you would be automatically redirected to <a href="../static_views/prereg_not_yet_open.html">the "prereg not yet open" page</a>.
+      {% elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON %}
+        Otherwise, you would be automatically redirected to <a href="../static_views/prereg_closed.html">the "prereg closed" page</a>.
+      {% endif %}
+    </strong>
+  </div>
+{% endif %}
+
+{% if not is_prereg_dealer and c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+  <div class="alert alert-info">
+    <strong>{{ c.DEALER_TERM|capitalize }}s:</strong>
+    {% if c.BEFORE_DEALER_REG_START %}
+      {{ c.DEALER_REG_TERM|capitalize }} begins {{ c.DEALER_REG_START|datetime_local }}.
+    {% else %}
+      Please register <a href="dealer_registration">here</a>.
+    {% endif %}
+  </div>
+{% endif %}
+
+{% if c.REMAINING_BADGES < c.BADGES_LEFT_ALERTS[0]|int %}
+<div class="alert alert-{{ 'danger' if c.REMAINING_BADGES < c.BADGES_LEFT_ALERTS[-1]|int else 'warning' }}">
+  We have a {% if c.REMAINING_BADGES < c.BADGES_LEFT_ALERTS[-1]|int %}VERY {% endif %}limited number of badges left before we are sold out.
+  Please make sure to fully complete your registration to reserve your badge! You will see a confirmation page when your registration is complete.
+</div>
+{% endif %}

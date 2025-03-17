@@ -16,17 +16,24 @@
       });
   </script>
 
-  {% include 'prereg_masthead.html' %}
-  <div class="panel panel-default">
+  <div class="panel">
     <div class="panel-body">
       <h2>{{ c.EVENT_NAME }} Panel Submission Form</h2>
 
       {% if c.AFTER_PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS %}
         Unfortunately, the deadline for panel applications has passed and we are no longer accepting panel submissions.
+      {% elif c.BEFORE_PANELS_START and not c.HAS_PANELS_ADMIN_ACCESS %}
+        Panel applications will open {{ c.PANELS_START|datetime_local }}.
       {% else %}
         {% if c.AFTER_PANELS_DEADLINE and c.HAS_PANELS_ADMIN_ACCESS %}
           <span style="color:red">
             Panel applications have closed, but because you are a logged in
+            administrator you can submit a new application using this form.
+          </span>
+          <br/> <br/>
+        {% elif c.BEFORE_PANELS_START and c.HAS_PANELS_ADMIN_ACCESS %}
+          <span style="color:red">
+            Panel applications open {{ c.PANELS_START|datetime_local }}, but because you are a logged in
             administrator you can submit a new application using this form.
           </span>
           <br/> <br/>
@@ -35,11 +42,9 @@
         all. We WILL be contacting potential panelists for more information as necessary.
         To increase your odds of acceptance, fill this form out accurately and keep an eye out for communication from us.
         <br/><br/>
-        Please review the MAGFest COVID policy at <a href="{{ c.COVID_POLICIES_URL }}" target="_blank">{{ c.COVID_POLICIES_URL }}</a>.
-        <br/> <br/>
         Panel requests are due by {{ c.PANELS_DEADLINE|datetime_local('%-I:%M%p %Z on %A, %B %-e') }}.
         <br/> <br/>
-        We hope to send acceptance e-mails out no later than {{ c.EXPECTED_RESPONSE }}.
+        We hope to send acceptance emails out no later than {{ c.EXPECTED_RESPONSE }}.
         <br/> <br/>
         Contact us if there are any questions pertaining to the form at <b>{{ c.PANELS_EMAIL|email_only|email_to_link }}</b>.
         <br/> <br/>
@@ -101,6 +106,7 @@
             <p class="help-block col-sm-9 col-sm-offset-3">
               Please list all times during the event when you will NOT be available to hold your panel.
               This is used for scheduling purposes. Rescheduling based on information not given here will be very difficult.
+              <br/><br/>Panels run from 12 PM to 3 AM Thursday, 10 AM to 3 AM Friday, 10 AM to 3 AM Saturday, and 10 AM to 3 PM Sunday.
             </p>
           </div>
           <div class="form-group">
@@ -112,7 +118,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label class="col-sm-3 control-label">Is there anything else you would like to provide regarding your submission?</label>
+            <label class="col-sm-3 control-label optional-field">Is there anything else you would like to provide regarding your submission?</label>
             <div class="col-sm-6">
               <textarea class="form-control" name="extra_info" rows="4">{{ app.extra_info }}</textarea>
             </div>
@@ -125,8 +131,8 @@
             <div class="col-sm-9 col-sm-offset-3">
               <label class="checkbox-label" style="font-weight: normal;">
                 <input type="checkbox" name="verify_waiting"{% if verify_waiting %} checked{% endif %} />
-                I understand that I will not hear back until {{ c.EXPECTED_RESPONSE }},
-                <b>and I will not prematurely email {{ c.EVENT_NAME }} to check my panel status.</b>
+                <strong>I will not prematurely e-mail {{ c.EVENT_NAME }} to check my panel status</strong>,
+                with the understanding that {{ c.EVENT_NAME }} will send final determinations by the end of {{ c.EXPECTED_RESPONSE }}.
               </label>
             </div>
           </div>
@@ -146,14 +152,6 @@
                 selections for {{ c.EVENT_NAME_AND_YEAR }}. My information will not be shared with any outside parties.
               </label>
             <p class="help-block">For more information on our privacy practices please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.</p>
-            </div>
-          </div>
-          <div class="form-group">
-            <div class="col-sm-9 col-sm-offset-3">
-              <label class="checkbox-label" style="font-weight: normal;">
-                <input type="checkbox" name="covid_agreement"{% if covid_agreement %} checked{% endif %} />
-                I understand and agree with the {{ macros.popup_link(c.COVID_POLICIES_URL, c.EVENT_NAME_AND_YEAR ~ " COVID Policy") }}.
-              </label>
             </div>
           </div>
 

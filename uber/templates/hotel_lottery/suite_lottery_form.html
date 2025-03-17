@@ -1,0 +1,121 @@
+{% extends 'hotel_lottery/room_lottery_form.html' %}
+
+{% block last_step_js %}
+    if (step >= 6) {
+        $('#{{ room_text }}-lottery-form').submit();
+    }
+{% endblock %}
+
+{% block form_js %}
+{{ super() }}
+
+<script type="text/javascript">
+    var showOrHideRoomOpts = function() {
+        $('.hotel_and_room_type_ranking').toggle(!$('#room_opt_out').is(':checked'));
+    }
+    $().ready(function() {
+        showOrHideRoomOpts();
+        $('#room_opt_out').change(showOrHideRoomOpts);
+    });
+</script>
+{% endblock %}
+
+{% block ada_info %}{% endblock %}
+
+{% block terms %}
+{% if not read_only %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: {{ room_text.title() }} Policies
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block terms_desc %}
+            <p>
+                Suite entries are processed first and prioritized above standard room entries in the lottery. Suites are in extremely high demand, and necessitate special policies:
+                <ul>
+                    <li>A one night, non-refundable deposit is required and will be invoiced on confirmation of the suite.</li>
+                    <li>Cancellations must be received on or prior to {{ c.HOTEL_LOTTERY_SUITE_CUTOFF|datetime_local }}, otherwise all guests in that suite will be ineligible for future year suite lotteries in addition to forfeiting the deposit.</li>
+                    <li>All suites are directly managed by {{ c.EVENT_NAME }}. Suite confirmations are issued by the convention, not the hotel.</li>
+                    <li>Additional policies apply to suites. It is essential all attendees requesting a suite read and understand these policies, as you are required to comply as a condition of retaining the suite during the event, and for eligibility in future years.</li>
+                </ul>
+            </p>
+            <p>If awarded a suite, you will receive additional information via email regarding your suite.</p>
+    
+            <p>Suite policies, floor plans and other details pertaining to suites may be found on the Suite FAQ.</p>
+            {% endblock %}
+            {% block terms_form %}
+            <div class="row g-sm-3">
+                <div class="col-12">
+                    <strong>{{ form_macros.form_input(suite_lottery.suite_terms_accepted) }}</strong>
+                </div>
+            </div>
+
+            {% if not read_only and application.current_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block suite_type_ranking %}
+<div class="accordion-item">
+    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
+        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
+            Step {{ steps.counter }}: Suite Type Preference
+        </button>
+    </h3>
+    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
+        <div class="accordion-body">
+            {% block suite_ranking_desc %}
+            <p>
+                Rank your choice of suite type below by clicking and dragging hotels from "Available" to "Selected" in order of preference.
+                At least one selection is required. Not all suite types need be selected.
+                For additional room and amenity information, please see <a href="{{ c.HOTEL_LOTTERY_URL }}" target="_blank">our website</a>.
+            </p>
+            {% endblock %}
+            {% block suite_ranking_form %}
+            {{ form_macros.form_input(suite_lottery.suite_type_preference, readonly=read_only, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) }}
+            
+            {% if not read_only and application.current_step <= steps.counter %}
+            <div class="row justify-content-end">
+                <div class="col col-auto">
+                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
+                </div>
+            </div>
+            {% endif %}
+            {% if not read_only and application.status != c.COMPLETE %}
+            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
+                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+            </div>
+            {% endif %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
+{% endblock %}
+
+{% block room_opt_out %}
+<p>
+    In addition to your suite lottery entry, we <strong>strongly</strong> recommend opting into the standard room lottery
+    by ranking your preferred hotels and standard room types in this step.
+    However, if you want you can opt out of the room lottery using the checkbox below.
+</p>
+{{ form_macros.form_input(room_or_suite_lottery.room_opt_out, readonly=read_only) }}
+{% endblock %}

@@ -332,7 +332,8 @@
       $('#attractionevent input.gap_hours').val(hours * sign);
       $('#attractionevent input.gap_minutes').val(minutes * sign);
       $('#edit_event_gap input[name="id"]').val(eventId);
-      $('#edit_event_gap').modal('show');
+      var modal = bootstrap.Modal.getOrCreateInstance($('#edit_event_gap'));
+      modal.show();
     });
 
     $('#edit_event_gap').on('shown.bs.modal', function (event) {
@@ -365,7 +366,7 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           var $event = $button.closest('.event');
           $event.css({'height': $event.height(), 'min-height': ''});
@@ -381,7 +382,7 @@
           '<p>This cannot be undone.</p>',
         buttons: {
           confirm: { label: 'Delete Event', className: 'btn-danger' },
-          cancel: { label: 'Nevermind', className: 'btn-default' }
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
         },
         callback: function (result) {
           if (result) {
@@ -420,7 +421,7 @@
                  ' as long as this feature is open to the public.',
         buttons: {
           confirm: { label: 'Open Signups', className: 'btn-success' },
-          cancel: { label: 'Nevermind', className: 'btn-default' }
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
         },
         callback: function(result) {
           if (result) {
@@ -435,15 +436,15 @@
               },
               success: function(response, status) {
                 if (response['error']) {
-                    toastr.error('There was an error opening signups: ' + response['error']);
+                    showErrorMessage('There was an error opening signups: ' + response['error']);
                 } else {
-                    toastr.success('Signups for all ' + features[featureId] + ' events on ' + day + ' opened!', {timeOut: 2000});
+                    $("#message-alert").addClass("alert-success").show().children('span').html('Signups for all ' + features[featureId] + ' events on ' + day + ' opened!', {timeOut: 2000});
                     $('#' + featureId + '_' + location + '_' + day + ' .open-signups').hide();
                     $('#' + featureId + '_' + location + '_' + day + ' .close-signups').show();
                 }
               },
               error: function(response, status) {
-                toastr.error(response);
+                showErrorMessage(response);
               }
           });
           }
@@ -460,7 +461,7 @@
                  ' Events are automatically closed to signups when the event starts or when check-in closes.',
         buttons: {
           confirm: { label: 'Close Signups', className: 'btn-danger' },
-          cancel: { label: 'Nevermind', className: 'btn-default' }
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
         },
         callback: function(result) {
           if (result) {
@@ -475,15 +476,15 @@
               },
               success: function(response, status) {
                 if (response['error']) {
-                    toastr.error('There was an error closing signups: ' + response['error']);
+                    showErrorMessage('There was an error closing signups: ' + response['error']);
                 } else {
-                    toastr.success('Signups for all ' + features[featureId] + ' events on ' + day + ' closed!', {timeOut: 2000});
+                    $("#message-alert").addClass("alert-success").show().children('span').html('Signups for all ' + features[featureId] + ' events on ' + day + ' closed!', {timeOut: 2000});
                     $('#' + featureId + '_' + location + '_' + day + ' .close-signups').hide();
                     $('#' + featureId + '_' + location + '_' + day + ' .open-signups').show();
                 }
               },
               error: function(response, status) {
-                toastr.error(response);
+                showErrorMessage(response);
               }
           });
           }
@@ -511,13 +512,13 @@
                 '<p>This could cause scheduling conflicts.</p>',
               buttons: {
                 confirm: { label: 'Merge Rooms', className: 'btn-danger' },
-                cancel: { label: 'Nevermind', className: 'btn-default' }
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
               },
               callback: function(result) {
                 if (result) {
                   updateLocations(featureId, oldValue, newValue, function(response) {
                     if(response && response['error']) {
-                      toastr.error(response['error']);
+                      showErrorMessage(response['error']);
                       $select.val(oldValue);
                     } else {
                       window.location = window.location + '&message=Successfully merged rooms!';
@@ -531,7 +532,7 @@
           } else {
             updateLocations(featureId, oldValue, newValue, function(response) {
               if(response && response['error']) {
-                toastr.error(response['error']);
+                showErrorMessage(response['error']);
                 $select.val(oldValue);
               } else {
                 $select.data('initialValue', newValue);
@@ -556,7 +557,7 @@
       $('a[href="' + activeTab + '"]').tab('show');
     }
 
-    $('body').on('click', 'a[data-toggle="pill"]', function (e) {
+    $('body').on('click', 'a[data-bs-toggle="pill"]', function (e) {
       e.preventDefault();
       var tab_name = this.getAttribute('href');
       if (history.pushState) {
@@ -571,7 +572,7 @@
     });
 
     $(window).on('popstate', function () {
-      var anchor = location.hash || $('a[data-toggle="pill"]').first().attr('href');
+      var anchor = location.hash || $('a[data-bs-toggle="pill"]').first().attr('href');
       $('a[href="' + anchor + '"]').tab('show');
     });
   });
@@ -584,11 +585,11 @@
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
           </button>
           <h4 class="modal-title" id="edit_attraction_title">
-            <span class="glyphicon glyphicon-cog"></span>
+            <i class="fa fa-cog"></i>
             Edit {{ attraction.name }}
           </h4>
         </div>
@@ -598,7 +599,7 @@
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
-            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           </div>
         </form>
       </div>
@@ -610,11 +611,11 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
           </button>
           <h4 class="modal-title" id="edit_event_gap_title">
-            <span class="glyphicon glyphicon-time"></span>
+            <i class="fa fa-time"></i>
             Edit Time Between Events
           </h4>
         </div>
@@ -630,7 +631,7 @@
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
-            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
           </div>
         </form>
       </div>
@@ -651,9 +652,9 @@
       <input type="hidden" name="id" value="{{ attraction.id }}">
       <button
           type="submit"
-          class="btn btn-xs btn-danger"
+          class="btn btn-sm btn-danger"
           {% if attraction.features %}disabled="disabled"{% endif %}>
-        <span class="glyphicon glyphicon-remove"></span>
+        <i class="fa fa-remove"></i>
         Delete Attraction
       </button>
     </form>
@@ -662,21 +663,21 @@
   {% if can_admin_attraction -%}
     <button
         type="button"
-        class="btn btn-xs btn-primary"
-        data-toggle="modal"
-        data-target="#edit_attraction"
+        class="btn btn-sm btn-primary"
+        data-bs-toggle="modal"
+        data-bs-target="#edit_attraction"
         title="Edit the {{ attraction.name }} Attraction">
-      <span class="glyphicon glyphicon-cog"></span>
+      <i class="fa fa-cog"></i>
     </button>
   {%- endif %}
-  <a href="checkin?id={{ attraction.slug }}" class="btn btn-xs btn-primary">
-    <span class="glyphicon glyphicon-check"></span>
+  <a href="checkin?id={{ attraction.slug }}" class="btn btn-sm btn-primary">
+    <i class="fa fa-check"></i>
     Check In Attendees
   </a>
 </h1>
 
 <div class="attraction-info info-block">
-  <p>{{ attraction.description|linebreaksbr }}</p>
+  <p>{{ attraction.full_description|linebreaksbr }}</p>
 
   {% if attraction.restriction != attraction._NONE -%}
     <p>{{ attraction._RESTRICTIONS[attraction.restriction].split('–')|last|trim }}.</p>
@@ -725,10 +726,10 @@
 <h2>
   {{ attraction.name }} Features
   {% if can_admin_attraction -%}
-    <a class="btn btn-xs btn-primary"
+    <a class="btn btn-sm btn-primary"
         title="Add a new feature"
         href="feature?attraction_id={{ attraction.id }}">
-      <span class="glyphicon glyphicon-plus"></span>
+      <i class="fa fa-plus"></i>
       Add Feature
     </a>
   {%- endif %}
@@ -743,8 +744,8 @@
     <div class="col-sm-stacked">
       <ul class="nav nav-pills nav-sm-stacked">
         {% for feature in attraction.features %}
-          <li role="presentation" class="{% if loop.index0 == 0 %}active{% endif %}">
-            <a href="#feature_{{ feature.id }}" data-toggle="pill">
+          <li role="presentation" class="nav-item">
+            <a class="nav-link{% if loop.index0 == 0 %} active{% endif %}" href="#feature_{{ feature.id }}" data-bs-toggle="pill">
               <h3>{{ feature.name }}</h3>
             </a>
           </li>
@@ -759,16 +760,16 @@
               <h3 class="feature-title">
                 {% if can_admin_attraction -%}
                   <div class="controls pull-right">
-                    <a class="btn btn-xs btn-primary btn-fade"
+                    <a class="btn btn-sm btn-primary btn-fade"
                         title="Export signup list for {{ feature.name }}"
                         href="export_feature?id={{ feature.id }}"
                         download="download">
-                      <span class="glyphicon glyphicon-download-alt"></span>
+                      <i class="fa fa-download-alt"></i>
                     </a>
-                    <a class="btn btn-xs btn-primary btn-fade"
+                    <a class="btn btn-sm btn-primary btn-fade"
                         title="Edit the {{ feature.name }} feature"
                         href="feature?id={{ feature.id }}">
-                      <span class="glyphicon glyphicon-cog"></span>
+                      <i class="fa fa-cog"></i>
                     </a>
                     <form
                         method="post"
@@ -778,18 +779,18 @@
                         title="Delete the {{ feature.name }} feature">
                       {{ csrf_token() }}
                       <input type="hidden" name="id" value="{{ feature.id }}">
-                      <button type="submit" class="btn btn-xs btn-danger btn-fade">
-                        <span class="glyphicon glyphicon-remove"></span>
+                      <button type="submit" class="btn btn-sm btn-danger btn-fade">
+                        <i class="fa fa-remove"></i>
                       </button>
                     </form>
                   </div>
                 {%- endif %}
                 <span>{{ feature.name }}</span>
                 {% if can_admin_attraction -%}
-                  <a class="btn btn-xs btn-primary"
+                  <a class="btn btn-sm btn-primary"
                       title="Schedule a new {{ feature.name }} event"
                       href="event?feature_id={{ feature.id }}">
-                    <span class="glyphicon glyphicon-time"></span>
+                    <i class="fa fa-time"></i>
                     Schedule Event
                   </a>
                 {%- endif %}
@@ -824,7 +825,7 @@
                       <div class="room-col">
                         <div class="room-title">
                           {% if can_admin_attraction -%}
-                            <select class="form-control" data-feature-id="{{ feature.id }}" data-initial-value="{{ location }}">
+                            <select class="form-select" data-feature-id="{{ feature.id }}" data-initial-value="{{ location }}">
                               {% if used_location_opts %}
                                 {{ options(used_location_opts, location) }}
                                 <option disabled="disabled">––––––––––</option>
@@ -864,13 +865,13 @@
                                   style="min-height: {{ (event.duration // 90) - 6 }}px">
                                 {% if can_admin_attraction -%}
                                   <div class="controls pull-right">
-                                    <a class="btn btn-xs btn-primary btn-fade"
+                                    <a class="btn btn-sm btn-primary btn-fade"
                                         title="Edit this event"
                                         href="event?id={{ event.id }}">
-                                      <span class="glyphicon glyphicon-cog"></span>
+                                      <i class="fa fa-cog"></i>
                                     </a>
-                                    <button type="submit" class="btn btn-xs btn-danger btn-fade delete-event" data-event-id="{{ event.id }}" data-event-label="{{ feature.name }} at {{ event.start_time_label }}">
-                                      <span class="glyphicon glyphicon-remove"></span>
+                                    <button type="submit" class="btn btn-sm btn-danger btn-fade delete-event" data-event-id="{{ event.id }}" data-event-label="{{ feature.name }} at {{ event.start_time_label }}">
+                                      <i class="fa fa-remove"></i>
                                     </button>
                                   </div>
                                 {%- endif %}
@@ -897,21 +898,21 @@
                                 {% if overlap > 0 %}
                                   <div class="event-spacer text-center overlap">
                                     {%- if can_admin_attraction -%}<a href="#" data-event-id="{{ event.id }}" data-overlap="{{ overlap }}">{% endif %}
-                                      <span class="glyphicon glyphicon-time"></span>
+                                      <i class="fa fa-time"></i>
                                       {{ humanize_timedelta(seconds=overlap, separator=' ') }} overlap
                                     {% if can_admin_attraction -%}</a>{%- endif -%}
                                   </div>
                                 {% elif overlap < 0 %}
                                   <div class="event-spacer text-center gap" style="line-height: {{ [[(overlap // -180) + 6, 16]|sort|last, 100]|sort|first }}px">
                                     {%- if can_admin_attraction -%}<a href="#" data-event-id="{{ event.id }}" data-overlap="{{ overlap }}">{% endif %}
-                                      <span class="glyphicon glyphicon-time"></span>
+                                      <i class="fa fa-time"></i>
                                       {{ humanize_timedelta(seconds=overlap, separator=' ') }} available
                                     {% if can_admin_attraction -%}</a>{%- endif -%}
                                   </div>
                                 {% else %}
                                   <div class="event-spacer text-center">
                                     {%- if can_admin_attraction -%}<a href="#" data-event-id="{{ event.id }}" data-overlap="{{ overlap }}">
-                                      <span class="glyphicon glyphicon-time"></span>
+                                      <i class="fa fa-time"></i>
                                     </a>{%- endif -%}
                                   </div>
                                 {% endif %}

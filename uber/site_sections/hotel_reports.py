@@ -3,7 +3,7 @@ from datetime import timedelta
 import random
 
 from pockets.autolog import log
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -300,7 +300,7 @@ class Root:
 
         assigned = {
             ra.attendee for ra in session.query(RoomAssignment).options(
-            joinedload(RoomAssignment.attendee), joinedload(RoomAssignment.room)).all()}
+                joinedload(RoomAssignment.attendee), joinedload(RoomAssignment.room)).all()}
 
         unassigned = {hr.attendee for hr in reqs if hr.attendee not in assigned}
 
@@ -391,6 +391,43 @@ class Root:
                         prefix + ' Legal Name': attendee.legal_name,
                     })
                 out.writerow(list(row.values()))
+
+    @csv_file
+    def hotel_audit(self, out, session):
+        """All valid attendees provided to the hotels team for Maritz' audit"""
+        out.writerow([
+            'First Name',
+            'Last Name',
+            'Legal Name',
+            'City',
+            'State',
+            'Zip Code',
+            'Non-US?'
+        ])
+        engine = None
+        if c.MAPS_ENABLED:
+            from uszipcode import SearchEngine
+            try:
+                engine = SearchEngine(db_file_dir=c.MAPS_DIR)
+            except Exception as e:
+                log.error("Error calling SearchEngine: " + e)
+
+        for attendee in session.valid_attendees().filter(Attendee.is_unassigned == False):  # noqa: E712
+            city = ''
+            state = ''
+            if engine and attendee.zip_code and not attendee.international:
+                simple_zip = engine.by_zipcode(attendee.zip_code[:5])
+                city = simple_zip.city
+                state = simple_zip.state
+            out.writerow([
+                attendee.first_name,
+                attendee.last_name,
+                attendee.legal_name,
+                city,
+                state,
+                attendee.zip_code,
+                "Yes" if attendee.international else "No",
+            ])
 
     @csv_file
     def mark_center(self, out, session):
@@ -490,29 +527,22 @@ class Root:
                 out.writerow(list(row.values()))
 
     @csv_file
-    def requested_hotel_info(self, out, session):
-        eligibility_filters = []
-        if c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0:
-            eligibility_filters.append(Attendee.requested_hotel_info == True)  # noqa: E711
-        if c.PREREG_HOTEL_ELIGIBILITY_CUTOFF:
-            eligibility_filters.append(or_(
-                Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF,
-                and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code == None))
-            )
+    def attendee_hotel_pins(self, out, session):
+        hotel_query = session.query(Attendee).filter(Attendee.email != '', Attendee.is_valid == True,  # noqa: E712
+                                                     ~Attendee.badge_status.in_([c.REFUNDED_STATUS,
+                                                                                 c.NOT_ATTENDING,
+                                                                                 c.DEFERRED_STATUS]),
+                                                     or_(Attendee.badge_type != c.STAFF_BADGE,
+                                                         Attendee.hotel_eligible == True))  # noqa: E712
 
-        hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
-            Attendee.badge_status.notin_([c.INVALID_STATUS, c.REFUNDED_STATUS, c.PENDING_STATUS]),
-            Attendee.email != '',
-        )  # noqa: E712
-
-        attendees_without_hotel_pin = hotel_query.filter(*eligibility_filters).filter(or_(
-            Attendee.hotel_pin == None,
+        attendees_without_hotel_pin = hotel_query.filter(or_(
+            Attendee.hotel_pin == None,  # noqa: E711
             Attendee.hotel_pin == '',
         )).all()  # noqa: E711
 
         if attendees_without_hotel_pin:
-            hotel_pin_rows = session.query(Attendee.hotel_pin).filter(*eligibility_filters).filter(
-                Attendee.hotel_pin != None,
+            hotel_pin_rows = session.query(Attendee.hotel_pin).filter(
+                Attendee.hotel_pin != None,  # noqa: E711
                 Attendee.hotel_pin != '',
             ).all()  # noqa: E711
 
@@ -525,7 +555,7 @@ class Root:
                 a.hotel_pin = new_hotel_pin
             session.commit()
 
-        headers = ['First Name', 'Last Name', 'E-mail Address', 'LoginID']
+        headers = ['First Name', 'Last Name', 'Email Address', 'LoginID']
         for count in range(2, 21):
             headers.append('LoginID{}'.format(count))
 
@@ -534,19 +564,9 @@ class Root:
 
         hotel_results = sorted(hotel_query.all(), key=lambda a: a.legal_name or a.full_name)
 
-        matching_attendees = defaultdict(list)
-        for a in hotel_results:
-            matching_attendees[a.first_name, a.last_name, a.email].append(a)
-
         for a in hotel_results:
             row = [a.legal_first_name, a.legal_last_name, a.email, a.hotel_pin]
 
             if a.hotel_pin not in added:
                 added.add(a.hotel_pin)
-
-                for matching_attendee in matching_attendees[a.first_name, a.last_name, a.email]:
-                    if matching_attendee.id != a.id:
-                        row.append(matching_attendee.hotel_pin)
-                        added.add(matching_attendee.hotel_pin)
-
                 out.writerow(row)

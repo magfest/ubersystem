@@ -13,7 +13,9 @@
 </script>
 
 {% include "dept_checklist/dept_menu.html" %}
-
+{% if department_id == '' %}
+Please select a department above to view its hotel requests.
+{% else %}
 <h2> {{ department_name }} Hotel Requests </h2>
 
 <div class="center">
@@ -47,7 +49,7 @@
 
 {% if c.HOTEL_REQUESTS_URL %}
 <br>
-<a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/approvals?id={{ attendee.id }}&department={{ department_id }}"><h2>Click here to approve hotel requests from your staffers</h2></a>
+<a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/approvals?id={{ attendee.id }}&department={{ department_id }}&event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}"><h2>Click here to approve hotel requests from your staffers</h2></a>
 {% else %}
 <div style="font-weight: bold">
   {{ staffer_count }} eligible staffers
@@ -90,7 +92,7 @@
                     approved
                 {% else %}
                     <button onClick="setApproved('approved', '{{ request.id }}', this)">Approve</button>
-                    <button onClick="setApproved('n/a',      '{{ request.id }}', this)">Reject</button>
+                    <button onClick="setApproved('n/a', '{{ request.id }}', this)">Reject</button>
                 {% endif %}
             {% endif %}
         </td>
@@ -98,5 +100,5 @@
 {% endfor %}
 </table>
 {% endif %}
-
+{% endif %}
 {% endblock %}

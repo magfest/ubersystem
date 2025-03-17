@@ -13,6 +13,9 @@
 
 {% block title %}Receipt Items - {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% endblock %}
 {% block content %}
+<style>label {
+  display:block;
+}</style>
 <script type="text/javascript">
   var hideRow = function (id) {
     $('#' + id).hide('slow');
@@ -20,15 +23,14 @@
   var updateRow = function (id, selector, text) {
     $('#' + id + selector).html(text);
   };
-  var updateTotal = function (text, disable_button=true) {
+  var updateTotal = function (text) {
     $('#receipt_total').html(text);
-    $('.record_payment_refund').prop('disabled', disable_button);
   }
   var showForm = function(receiptId, whichForm) {
-    $('#' + receiptId + whichForm).removeClass('hidden')
+    $('#' + receiptId + whichForm).removeClass('d-none')
   };
   var hideForm = function(receiptId, whichForm) {
-    $('#' + receiptId + whichForm).addClass('hidden')
+    $('#' + receiptId + whichForm).addClass('d-none')
   };
   var deleteItem = function (itemId) {
     bootbox.confirm({
@@ -43,19 +45,52 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
         if(result) {
           $.post('remove_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
-            toastr.clear();
+            hideMessageBox();
             if (response.error) {
-              toastr.error(response.error);
+              showErrorMessage(response.error);
             } else {
-              toastr.info('Item deleted');
+              $("#message-alert").addClass("alert-info").show().children('span').html('Item deleted');
               hideRow(response.removed);
-              updateTotal(response.new_total, response.disable_button);
+              updateTotal(response.new_total);
+            }
+          }, 'json');
+        }
+      }
+    });
+  };
+
+  var compItem = function (itemId, refundable, processor_str) {
+    if (refundable == 'True' && processor_str != '') {
+      message_add = "Use the Refund Options button if you want to both comp and refund this item via " + processor_str + ".";
+    } else { message_add = ''; }
+    bootbox.confirm({
+      title: "Comp Receipt Item?",
+      message: "This will mark this item as comped, adding a credit to the receipt. " +
+               message_add,
+      buttons: {
+          confirm: {
+              label: 'Comp Item',
+              className: 'btn-success'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          $.post('comp_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
+            hideMessageBox();
+            if (response.error) {
+              showErrorMessage(response.error);
+            } else {
+              window.location = 'receipt_items?id={{ model.id }}&message=Receipt item comped'
             }
           }, 'json');
         }
@@ -74,15 +109,15 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
         if(result) {
           $.post('undo_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
-            toastr.clear();
+            hideMessageBox();
             if (response.error) {
-              toastr.error(response.error);
+              showErrorMessage(response.error);
             } else {
               window.location = 'receipt_items?id={{ model.id }}&message=Receipt item reverted'
             }
@@ -92,12 +127,23 @@
     });
   };
 
+  var refreshTxn = function(txnId) {
+    $.post('refresh_receipt_txn', {csrf_token: csrf_token, id: txnId}, function (response) {
+      if (response.refresh) {
+        window.location.href = 'receipt_items?id={{ model.id }}&message=' + response.message;
+      } else {
+        hideMessageBox();
+        $("#message-alert").addClass("alert-info").show().children('span').html(response.message);
+      }
+    }, 'json');
+  }
+
   var cancelTxn = function (txnId) {
     bootbox.confirm({
       title: "Cancel Transaction?",
       message: "This will permanently mark this transaction as cancelled. " +
-        "This cannot be undone, and should only be used for payments that " +
-        "were recorded incorrectly or that you are sure did not go through. " +
+        "This cannot be undone, and should only be used if the receipt total " +
+        "has changed since this payment was initiated. " +
         "Are you sure?",
       buttons: {
           confirm: {
@@ -106,19 +152,19 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
         if(result) {
           $.post('cancel_receipt_txn', {csrf_token: csrf_token, id: txnId}, function (response) {
-            toastr.clear();
+            hideMessageBox();
             if (response.error) {
-              toastr.error(response.error);
+              showErrorMessage(response.error);
             } else {
-              toastr.info('Transaction cancelled');
+              $("#message-alert").addClass("alert-info").show().children('span').html('Transaction cancelled');
               updateRow(response.cancelled, ' td:last', "<em>Cancelled " + response.time + ".</em>");
-              updateTotal(response.new_total, response.disable_button);
+              updateTotal(response.new_total);
             }
           }, 'json');
         }
@@ -127,48 +173,142 @@
   };
 
   var refundTxn = function (txnId, amount) {
-    var refundPrompt = bootbox.prompt({
+    var amountField = $("#refundTxnForm [name='amount']");
+    amountField.attr('placeholder', amount.substring(1));
+
+    var form = $("#refundTxnDiv").html();
+    $("#refundTxnDiv").html('');
+
+    bootbox.confirm({
       title: "Refund Transaction?",
-      message: "This will refund the attendee through Stripe. " +
-        "This cannot be undone. Are you sure?",
-      placeholder: amount,
+      message: form,
       buttons: {
           confirm: {
-              label: 'Refund',
-              className: 'btn-danger'
+              label: 'Process Refund',
+              className: 'btn-warning'
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
+        $("#refundTxnDiv").html(form);
         if(result) {
-          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: result}, function (response) {
-            toastr.clear();
+          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: $("#refundTxnForm [name='amount']").val() || 0}, function (response) {
+            hideMessageBox();
             if (response.error) {
-              toastr.error(response.error);
+              showErrorMessage(response.error);
             } else {
-              toastr.info('Transaction refunded');
+              $("#message-alert").addClass("alert-info").show().children('span').html('Transaction refunded');
               updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
-              updateTotal(response.new_total, response.disable_button);
+              updateTotal(response.new_total);
             }
           }, 'json');
         }
       }
     });
-    refundPrompt.init(function(){
-      $(this).find('.bootbox-form').prepend('<p>This will refund the attendee through Stripe. You can enter an amount below or leave it blank to refund the full amount.</p>')
-      $(this).find('.bootbox-input-text')
+  };
+
+  var resendReceipt = function(txnId) {
+    bootbox.confirm({
+      title: "Resend Receipt?",
+      message: "This will resend the payment receipt email for this transaction. " +
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+        "Receipts for badge payments are sent to the account owner, not the badge holder. " +
+        "All other receipts go to the respective badge holder. " +
+        {% endif %}
+        "Are you sure?",
+      buttons: {
+          confirm: {
+              label: 'Resend Receipt',
+              className: 'btn-primary'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          $.post('resend_receipt', {csrf_token: csrf_token, id: txnId}, function (response) {
+            hideMessageBox();
+            if (response.error) {
+              showErrorMessage(response.error);
+            } else {
+              $("#message-alert").addClass("alert-info").show().children('span').html('Receipt email sent!');
+            }
+          }, 'json');
+        }
+      }
+    });
+  }
+
+  var compOrUndoRefundItem = function (page_handler, itemId, amount, exclude_fees = false) {
+      $.post(page_handler, {csrf_token: csrf_token, id: itemId, amount: amount, exclude_fees: exclude_fees}, function (response) {
+        if (response.error) {
+          showErrorMessage(response.error);
+        } else {
+          window.location = 'receipt_items?id={{ model.id }}&message=' + response.message;
+        }
+      }, 'json');
+    }
+
+  var refundItem = function (itemId, amount, count, canRevert) {
+    var bootboxBtns = {
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary',
+          },
+          comp: {
+              label: 'Comp and Refund',
+              className: 'btn-success',
+              callback: function (result) {
+                if(result) {
+                  compOrUndoRefundItem('comp_refund_receipt_item', itemId, amount.substring(1))
+                }
+              }
+          }
+        }
+
+    if (canRevert == 'yes') {
+      bootboxBtns.revert = {
+        label: 'Undo and Refund',
+        className: 'btn-danger',
+        callback: function (result) {
+          if(result) {
+            compOrUndoRefundItem('undo_refund_receipt_item', itemId, amount.substring(1))
+          }
+        }
+      }
+      {% if not c.AUTHORIZENET_LOGIN_ID %}
+      bootboxBtns.revertExcludeFees = {
+        label: 'Undo and Refund Excluding Fees',
+        className: 'btn-danger',
+        callback: function (result) {
+          if(result) {
+            compOrUndoRefundItem('undo_refund_receipt_item', itemId, amount.substring(1), true)
+          }
+        }
+      }
+      {% endif %}
+    }
+    
+    bootbox.dialog({
+      title: "Refund Item?",
+      message: "This will refund this purchase in full (" + amount + " x" + count + "). " +
+      "If you need to refund an item without marking it as comped or reverting the change, " +
+      "please add a custom credit item so you can refund the transaction directly.",
+      buttons: bootboxBtns,
     });
   };
 
   var addPayment = function ($form, $btn) {
     $.post('add_receipt_txn', $form.serialize(), function(result) {
       $btn.prop('disabled', false);
-      toastr.clear();
+      hideMessageBox();
       if (result.error) {
-        toastr.error(result.error);
+        showErrorMessage(result.error);
       } else if (result.success) {
         window.location = 'receipt_items?id={{ model.id }}&message=Receipt item added'
       }
@@ -176,10 +316,20 @@
   };
 
   var fullRefund = function (receiptId) {
+    let message = '';
+    {% if group_leader_receipt_id and not receipt %}
+      message = "This will refund this attendee's group leader the cost of one badge.";
+    {% else %}
+      let extra_message = '';
+      {% if group_leader_receipt_id %}
+        extra_message = " for this attendee, plus the cost of one badge for their group leader";
+      {% endif %}
+      message = "This will refund ALL existing {{ processors_str }} transactions that have not already been refunded" + 
+                extra_message + ".";
+    {% endif %}
     bootbox.confirm({
       title: "Refund and Cancel Registration?",
-      message: "This will refund ALL existing Stripe transactions that have not already been refunded. " +
-               "It will also cancel this {{ model_str }}'s registration. Are you sure?",
+      message: message + " It will also cancel this {{ model_str }}'s registration. Are you sure?",
       buttons: {
           confirm: {
               label: 'Fully Refund and Cancel',
@@ -187,7 +337,7 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
@@ -203,17 +353,103 @@
     });
   };
 
+  var mostlyFullRefund = function (receiptId, fee_str, group_leader_fee_str = '') {
+    let message = '';
+    {% if group_leader_receipt_id and not receipt %}
+      message = "This will refund this attendee's group leader the cost of one badge minus " + fee_str + " in processing fees. It will also";
+    {% else %}
+      let extra_message = '';
+      {% if group_leader_receipt_id %}
+        extra_message = " It will also refund their group leader the cost of one badge minus " + group_leader_fee_str + " in processing fees, and it will";
+      {% else %}
+        extra_message = " It will also"
+      {% endif %}
+      message = "This will refund ALL existing {{ processors_str }} transactions that have not already been refunded, " + 
+                "minus " + fee_str + " in processing fees." + extra_message
+    {% endif %}
+
+    bootbox.confirm({
+      title: "Refund and Cancel Registration?",
+      message: message + " cancel this {{ model_str }}'s registration. Are you sure?",
+      buttons: {
+          confirm: {
+              label: 'Fully Refund and Cancel',
+              className: 'btn-danger'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          window.location = 'process_full_refund?id=' + receiptId + '&exclude_fees=True' +
+          {% if attendee %}
+          '&attendee_id={{ attendee.id }}'
+          {% else %}
+          '&group_id={{ group.id }}'
+          {% endif %}
+        }
+      }
+    });
+  };
+
+  var settleUp = function(txnId, refundAmt) {
+    bootbox.confirm({
+      title: "Refund " + refundAmt + "?",
+      message: "This will refund " + refundAmt +
+              " of this transaction. " +
+              " If refunding via cash, please simply record the refund. Please also " +
+              "make sure we actually owe this {{ model_str }} " + refundAmt + " before proceeding.",
+      buttons: {
+          confirm: {
+              label: 'Yes, Refund ' + refundAmt,
+              className: 'btn-success'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          window.location = 'settle_up?id=' + txnId
+        }
+      }
+    });
+  };
+
+  itemCategoryDict = {{ c.RECEIPT_DEPT_CATEGORIES|jsonize }}
+  itemCategoryList = {}
+  {% for key, val in c.RECEIPT_DEPT_CATEGORIES.items() %}
+  itemCategoryList[{{ key }}] = {{ c.RECEIPT_DEPT_CATEGORIES[key].keys()|list }}
+  {% endfor %}
+
+  var setItemCategories = function(item_id) {
+    dept = $("#department-" + item_id).val();
+    $("#category-" + item_id).html(function() {
+      html = ""
+      for (const key of itemCategoryList[dept]) {
+        html += '<option value="' + key + '">' + itemCategoryDict[dept][key] + '</option>';
+      }
+      return html;
+    });
+  }
+
   $().ready(function () {
+    $('#refundTxnForm').submit(function(event) {
+      return false;
+    })
     $("form[action='add_receipt_item']").submit(function(event){
       var $form = $(this);
       $btn = $form.find('button[type=submit]');
       event.preventDefault();
       $btn.prop('disabled', true);
       $.post('add_receipt_item', $form.serialize(), function(result) {
-        toastr.clear();
+        hideMessageBox();
         $btn.prop('disabled', false);
         if (result.error) {
-          toastr.error(result.error);
+          showErrorMessage(result.error);
         } else if (result.success) {
           window.location = 'receipt_items?id={{ model.id }}&message=Receipt item added'
         }
@@ -224,38 +460,286 @@
       var $form = $(this);
       $btn = $form.find('button[type=submit]');
       event.preventDefault();
-      $btn.prop('disabled', true);
-      var submitForm = false;
-      if (parseInt($("form[action='add_receipt_txn'] input[name='amount']").val()) > 0) {
-        bootbox.confirm({
-          title: "Add Payment?",
-          message: "If you add a payment equal to what the attendee currently owes, " +
-            "all open receipt items will be closed and marked as paid. " +
-            "This cannot be undone. Are you sure?",
-          buttons: {
-              confirm: {
-                  label: 'Add Payment',
-                  className: 'btn-success'
-              },
-              cancel: {
-                  label: 'Nevermind',
-                  className: 'btn-default'
-              }
-          },
-          callback: function (result) {
-            if(result) {
-              addPayment($form, $btn);
-            } else {
-              $btn.prop('disabled', false);
-            }
-          }
-        });
-      } else {
-        addPayment($form, $btn);
-      }
+      addPayment($form, $btn);
     });
+
+    
   });
 </script>
+{% macro receipt_item_macro(item, receipt=receipt) %}
+<div class="modal fade" id="receiptModal-{{ item.id }}" tabindex="-1" role="dialog" aria-labelledby="receiptModal-{{ item.id }}-title">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="receiptModal-{{ item.id }}-title">Edit Receipt Item</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form action="edit_receipt_item" method="post">
+          <input type="hidden" value="{{ item.id }}" name="id" />
+          {{ csrf_token() }}
+          <div class="row g-sm-3">
+            <div class="col-12 col-sm-4">
+              <div class="form-text">Added</div>
+              <div class="mb-3">{{ item.added|datetime_local("%b %-d, %-I:%M%p") }}</div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <div class="form-text">Closed</div>
+              <div class="mb-3">{{ item.closed|datetime_local("%b %-d, %-I:%M%p") if item.closed else "N/A" }}</div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <div class="form-text">Status</div>
+              <div class="mb-3">
+                {% if item.comped %}Comped
+                {% elif item.reverted %}Reverted
+                {% elif item.refundable %}Refundable
+                {% else %}
+                {{ "Closed" if item.closed else "Open" }}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="row g-sm-3">
+            <div class="col-12 col-sm-4">
+              <div class="form-text">Description</div>
+              <div class="mb-3">{{ item.desc }}</div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <div class="form-text">Quantity/Amount</div>
+              <div class="mb-3">
+                {{ (item.amount / 100)|format_currency(true) }}
+                {% if item.count and item.count > 1 %}
+                  x{{ item.count }}: {{ (item.count * item.amount / 100)|format_currency }}
+                {% endif %}
+              </div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <div class="form-text">Admin Notes</div>
+              <div class="mb-3">{{ item.admin_notes }}</div>
+            </div>
+          </div>
+          <div class="row g-sm-3">
+            <div class="col-12">
+              <div class="form-text">Transaction</div>
+              <div class="mb-3">
+                <table class="table table-hover table-borderless">
+                  <tr>
+                    <td width="1%" class="text-nowrap"><input class="form-check-input" type="radio" name="receipt_txn_id" id="receipt_txn_id_none-{{ item.id }}" value=""{% if not item.receipt_txn %} checked{% endif %}></td>
+                    <td colspan="4">
+                      <label class="form-check-label" for="receipt_txn_id_none-{{ item.id }}">None</label>
+                    </td>
+                  </tr>
+                  {% for txn in receipt.sorted_txns %}
+                  <tr>
+                    <td width="1%" class="text-nowrap"><input class="form-check-input" type="radio" name="receipt_txn_id" id="receipt_txn_id_{{ txn.id }}" value="{{ txn.id }}"{% if txn.cancelled or txn.is_pending_charge %} disabled{% endif %}{% if item.receipt_txn.id == txn.id %} checked{% endif %}></td>
+                    <td><label class="form-check-label" for="receipt_txn_id_{{ txn.id }}">{{ txn.added|datetime_local("%b %-d, %-I:%M%p") }}</label></td>
+                    <td>
+                      <label class="form-check-label" for="receipt_txn_id_{{ txn.id }}">{{ (txn.amount / 100)|format_currency }} {{ txn.method_label }} {{ "Payment" if txn.amount > 0 else "Refund" }}{% if txn.card_info %} ({{ txn.card_info }}){% endif %}</label>
+                    </td>
+                    <td><label class="form-check-label" for="receipt_txn_id_{{ txn.id }}">{{ txn.desc }}{{ " (" ~ processors[txn.method] ~ " ID: " ~ txn.stripe_id ~ ")" if txn.stripe_id else "" }}</td></label></td>
+                    <td><label class="form-check-label" for="receipt_txn_id_{{ txn.id }}">
+                      {% if txn.cancelled %}CANCELLED
+                      {% elif txn.is_pending_charge %}INCOMPLETE{% endif %}
+                      </label>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">
+              <label for="department-{{ item.id }}" class="form-text">Department</label>
+              <div class="mb-3">
+                <select name="department" id="department-{{ item.id }}" class="form-select" onChange="setItemCategories('{{ item.id }}')">
+                  {% for key, label in c.RECEIPT_ITEM_DEPT_OPTS %}
+                  <option value="{{ key }}"{% if item.department == key %} selected="selected"{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label for="category-{{ item.id }}" class="form-text">Category</label>
+              <div class="mb-3">
+                <select name="category" id="category-{{ item.id }}" class="form-select">
+                  {% for key, label in c.RECEIPT_DEPT_CATEGORIES[item.department].items() %}
+                  <option value="{{ key }}"{% if item.category == key %} selected="selected"{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="row g-sm-3">
+            <div class="col-12 col-sm-6"><button class="btn btn-primary">Update</button></div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro receipt_txn_macro(txn) %}
+<div class="modal fade" id="receiptModal-{{ txn.id }}" tabindex="-1" role="dialog" aria-labelledby="receiptModal-{{ txn.id }}-title">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title d-flex w-100" id="receiptModal-{{ txn.id }}-title">
+          <div class="flex-grow-1">View Receipt Transaction</div>
+          {% set stripe_url = txn.stripe_url %}
+          <div class="me-2">{% if stripe_url %}<a class="btn btn-sm btn-info" href="{{ stripe_url }}" target="_blank">View in {{ processors[txn.method] }} <i class="fa fa-external-link"></i></a>{% endif %}</div>
+        </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {% if txn.receipt_info %}
+        <ul class="nav nav-tabs mb-3" role="tablist" id="tabs-{{ txn.id }}">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="txn-tab-{{ txn.id }}" data-bs-toggle="tab" data-bs-target="#txn-{{ txn.id }}" type="button" role="tab" aria-controls="txn-{{ txn.id }}">
+              Transaction Info
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="response-tab-{{ txn.id }}" data-bs-toggle="tab" data-bs-target="#response-{{ txn.id }}" type="button" role="tab" aria-controls="response-{{ txn.id }}">
+              {{ processors[txn.method] }} Response Info
+            </button>
+        </ul>
+        <div class="tab-content">
+          <div role="tabpanel" class="tab-pane" id="response-{{ txn.id }}">
+            {% set response = txn.receipt_info.txn_info.response %}
+            {% if response %}
+            <div class="d-flex text-nowrap gap-3">
+              {% if response.response_code %}
+              <div class="flex-fill">
+                <div class="form-text">Response Code</div>
+                <div class="mb-3">{{ txn.receipt_info.response_code_str }}</div>
+              </div>
+              {% endif %}
+              {% if response.auth_code %}
+              <div class="flex-fill">
+                <div class="form-text">Auth Code</div>
+                <div class="mb-3">{{ response.auth_code }}</div>
+              </div>
+              {% endif %}
+              {% if response.message %}
+              <div class="flex-fill text-wrap">
+                <div class="form-text">Message</div>
+                <div class="mb-3">{{ response.message }}</div>
+              </div>
+              {% endif %}
+              {% if response.message_code %}
+              <div class="flex-fill">
+                <div class="form-text">Message Code</div>
+                <div class="mb-3">
+                  {{ response.message_code }}
+                  {% if txn.method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID %}
+                  (<a href="https://developer.authorize.net/api/reference/responseCodes.html#search={{ response.message_code }}" target="_blank">look up</a>)
+                  {% endif %}
+                </div>
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% set fraud_info = txn.receipt_info.txn_info.fraud_info %}
+            {% if fraud_info %}
+            <div class="row">
+              {% if fraud_info.avs %}
+              <div class="col-12 col-sm-4">
+                <div class="form-text">AVS Code</div>
+                <div class="mb-3">{{ txn.receipt_info.avs_str }} ({{ fraud_info.avs }})</div>
+              </div>
+              {% endif %}
+              {% if fraud_info.cvv %}
+              <div class="col-12 col-sm-4">
+                <div class="form-text">CVV Code</div>
+                <div class="mb-3">{{ txn.receipt_info.cvv_str }} ({{ fraud_info.cvv }})</div>
+              </div>
+              {% endif %}
+              {% if fraud_info.cavv %}
+              <div class="col-12 col-sm-4">
+                <div class="form-text">CAVV Code</div>
+                <div class="mb-3">{{ txn.receipt_info.cavv_str }} ({{ fraud_info.cavv }})</div>
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+          <div role="tabpanel" class="tab-pane active" id="txn-{{ txn.id }}">
+        {% endif %}
+        <div class="row g-sm-3">
+          <div class="col-12 col-sm-6">
+            <div class="form-text">Added</div>
+            <div class="mb-3">{{ txn.added|datetime_local("%b %-d, %-I:%M%p") }}</div>
+          </div>
+          <div class="col-12 col-sm-6">
+            <div class="form-text">Status</div>
+            <div class="mb-3">
+              {% if txn.cancelled %}
+              Cancelled {{ txn.cancelled|datetime_local("%b %-d, %-I:%M%p") }}
+              {% elif txn.is_pending_charge %}
+              Pending
+              {% else %}
+              Complete
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% if txn.method in [c.STRIPE, c.SQUARE, c.MANUAL] %}
+        <div class="row g-sm-3">
+          <div class="col-12 col-sm-6">
+            <div class="form-text">{{ processors[txn.method] }} ID(s)</div>
+            <div class="mb-3">
+              {% if txn.charge_id %}{{ txn.charge_id }}{% if txn.charge_id != txn.intent_id %} (Intent ID: {{ txn.intent_id }}){% endif %}
+              {% else %}{{ txn.intent_id }}
+              {% endif %}
+            </div>
+          </div>
+          {% if txn.paid %}
+          <div class="col-12 col-sm-6">
+            <div class="form-text">Refunded</div>
+            <div class="mb-3">
+              {{ (txn.refunded / 100)|format_currency }} Refunded{% if txn.refund_id %} via {{ processors[txn.method] }} ID {{ txn.refund_id }}{% endif %}{% if txn.amount_left %} ({{ (txn.amount_left / 100)|format_currency }} Remaining){% endif %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+        <div class="row g-sm-3">
+          <div class="col-12 col-sm-6">
+            <div class="form-text">Description</div>
+            <div class="mb-3">{{ txn.desc }}</div>
+          </div>
+          <div class="col-12 col-sm-6">
+            <div class="form-text">Amount</div>
+            <div class="mb-3">
+              {{ (txn.amount / 100)|format_currency(true) }}
+              {% if txn.txn_total and txn.txn_total != txn.amount %}
+              ({{ (txn.txn_total / 100)|format_currency }} across all receipts)
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="row g-sm-3">
+          <div class="col-12 col-sm-6">
+            <div class="form-text">{{ "Payment" if txn.amount > 0 else "Refund" }} Method</div>
+            <div class="mb-3">{{ txn.method_label }}</div>
+          </div>
+          <div class="col-12 col-sm-6">
+            <label for="department-{{ txn.id }}" class="form-text">Department</label>
+            <div class="mb-3">{{ txn.department_label }}</div>
+          </div>
+        </div>
+        {% if txn.receipt_info %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
 {% if art_show_app %}
 {{ macros.nav_menu(
   art_show_app, c.PAGE_PATH,
@@ -270,177 +754,234 @@
   {% include "registration/menu.html" if attendee else "group_admin/nav_menu.html" %}
 {% endif %}
 
-<h2>Receipt{% if other_receipts %}s{% endif %} for {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% if c.AT_THE_CON and model.badge_num %} ({{ model.badge }}){% endif %}</h2>
-  <div class="panel panel-body">
-  <p>Use this form to remove and add custom purchases and credits or non-Stripe payments and refunds for this {{ model_str }}.
-    You will not be able to remove purchases or credits that were created before a successful payment was made.
-    Confirmed Stripe payments or refunds that have a Stripe ID will also be locked.
-  </p>
-  
-  <p>
-    If a payment was made and confirmed through Stripe, you can refund part or all of it using the "Refund Transaction" button.
-    Note that some Stripe payments may appear on multiple receipts, for example, when someone registers multiple badges in one transaction.
-  </p>
+<h2>
+  Receipt Items for 
+  {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}
+  {% if c.AT_THE_CON and model.badge_num %} ({{ model.badge }}){% endif %}
+</h2>
 
-  <p>
-    Please always itemize purchases and credits. Items with the same price, and <em>only</em> items with the same price,
-    may be grouped into one purchase by setting the Amount as the per-item price and the Quantity field to how many items were purchased.
-  </p>
-  </div>
+See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> for information on how to use this page.
 
-{% macro receipt_item_form(type="purchase") %}
-<tr id="{{ receipt.id }}-{{ type }}-form" class="hidden">
-  <td colspan="7">
-    <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
-    <form method="post" action="add_receipt_item" class="form-inline pull-right">
+{% macro receipt_item_form(type="purchase", receipt=receipt) %}
+<tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
+  <td colspan="8">
+    <button type="button" class="btn-close pull-left" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')" aria-label="Close"></button>
+    <form method="post" action="add_receipt_item">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ receipt.id }}" />
       <input type="hidden" name="item_type" value="{{ type }}" />
-      <div class="form-group">
-        <label for="desc">Description</label>
-        <input type="text" name="desc" class="form-control" placeholder="{{ type|title }} Description" required>
-      </div>
-      <div class="form-group">
-        <label for="amount">Amount</label>
-        <div class="input-group">
-          <span class="input-group-addon">$</span>
-          <input type="number" name="amount" class="form-control" placeholder="0" required>
-          <span class="input-group-addon">.00</span>
+      <div class="row g-sm-3 justify-content-end">
+        <label for="department-{{ type }}" class="col-auto col-form-label">Department</label>
+        <div class="col-auto">
+          <select name="department" id="department-{{ type }}" class="form-select" onChange="setItemCategories('{{ type }}')">
+            {% for key, label in c.RECEIPT_ITEM_DEPT_OPTS %}
+              <option value="{{ key }}"{% if receipt.default_department == key %} selected="selected"{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
         </div>
+        <label for="category-{{ type }}" class="col-auto col-form-label">Category</label>
+        <div class="col-auto">
+          <select name="category" id="category-{{ type }}" class="form-select">
+            {% for key, label in c.RECEIPT_DEPT_CATEGORIES[receipt.default_department].items() %}
+            <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <label for="desc" class="col-auto col-form-label">Description</label>
+        <div class="col-auto">
+          <input type="text" name="desc" class="form-control" placeholder="{{ type|title }} Description" required>
+        </div>
+        <label for="amount" class="col-auto col-form-label">Amount</label>
+        <div class="col-auto">
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount" class="form-control" placeholder="0" required step=".01">
+          </div>
+        </div>
+        <label for="count" class="col-auto col-form-label">Quantity</label>
+        <div class="col-auto">
+            <input type="number" name="count" class="form-control" placeholder="1">
+        </div>
+        <button type="submit" class="col-2 btn {{ 'btn-primary' if type == 'purchase' else 'btn-success' }}">Record {{ type|title }}</button>
       </div>
-      <div class="form-group">
-        <label for="count">Quantity</label>
-          <input type="number" name="count" class="form-control" placeholder="1">
-      </div>
-      <button type="submit" class="btn {{ 'btn-primary' if type == 'purchase' else 'btn-success' }}">Add {{ type|title }}</button>
     </form>
   </td>
 </tr>
 {% endmacro %}
-{% macro receipt_txn_form(type="payment") %}
-<tr id="{{ receipt.id }}-{{ type }}-form" class="hidden">
-  <td colspan="7">
-    <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
-    <form method="post" action="add_receipt_txn" class="form-inline pull-right">
+{% macro receipt_txn_form(type="payment", receipt=receipt) %}
+<tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
+  <td colspan="8">
+    <button type="button" class="btn-close pull-left" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')" aria-label="Close"></button>
+    <form method="post" action="add_receipt_txn">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ receipt.id }}" />
       <input type="hidden" name="txn_type" value="{{ type }}" />
-      <div class="form-group">
-        <label for="amount">{{ type|title }} Method</label>
-        <select name="method" class="form-control">
-          <option value="">Select a Method</option>
-          {{ options(c.PAYMENT_METHOD_OPTS, c.CASH) }}
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="count">Amount</label>
-        <div class="input-group">
-          <span class="input-group-addon">$</span>
-          <input type="number" name="amount" class="form-control" placeholder="0" required>
-          <span class="input-group-addon">.00</span>
+      <div class="row g-sm-3 justify-content-end">
+        <label for="amount" class="col-auto col-form-label">{{ type|title }} Method</label>
+        <div class="col-auto">
+          <select name="method" class="form-select">
+            <option value="">Select a Method</option>
+            {{ options(c.PAYMENT_METHOD_OPTS, c.CASH) }}
+          </select>
         </div>
+        <label for="department" class="col-auto col-form-label">Department</label>
+        <div class="col-auto">
+          <select name="department" class="form-select">
+            {% for key, label in c.RECEIPT_ITEM_DEPT_OPTS %}
+              <option value="{{ key }}"{% if receipt.default_department == key %} selected="selected"{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <label for="count" class="col-auto col-form-label">Amount</label>
+        <div class="col-auto">
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount" class="form-control" placeholder="0" required>
+            <span class="input-group-text">.00</span>
+          </div>
+        </div>
+        <label for="desc" class="col-auto col-form-label">Description</label>
+        <div class="col-auto">
+          <input type="text" name="desc" class="form-control" placeholder="Transaction Description">
+        </div>
+        <button type="submit" class="col-2 btn {{ 'btn-info' if type == 'payment' else 'btn-warning' }}">Record {{ type|title }}</button>
       </div>
-      <div class="form-group">
-        <label for="desc">Description</label>
-        <input type="text" name="desc" class="form-control" placeholder="Transaction Description">
-      </div>
-      <button type="submit" class="btn {{ 'btn-info' if type == 'payment' else 'btn-warning' }}">Add {{ type|title }}</button>
     </form>
   </td>
 </tr>
   {% endmacro %}
 
 {% macro receipt_table(receipt, items) %}
-<ul class="nav nav-tabs" role="tablist">
-  <li role="presentation" class="active"><a href="#{{ receipt.id }}-home" aria-controls="{{ receipt.id }}-home" role="tab" data-toggle="tab">Receipt</a></li>
-  <li role="presentation"><a href="#{{ receipt.id }}-history" aria-controls="{{ receipt.id }}-history" role="tab" data-toggle="tab">History</a></li>
+<ul class="nav nav-tabs" role="tablist" id="tabs-{{ receipt.id }}">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="receipt-tab-{{ receipt.id }}" data-bs-toggle="tab" data-bs-target="#receipt-{{ receipt.id }}" type="button" role="tab" aria-controls="receipt-{{ receipt.id }}">
+      Receipt
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="history-tab-{{ receipt.id }}" data-bs-toggle="tab" data-bs-target="#history-{{ receipt.id }}" type="button" role="tab" aria-controls="history-{{ receipt.id }}">
+      History
+    </button>
 </ul>
 <div class="tab-content">
-  <div role="tabpanel" class="tab-pane active" id="{{ receipt.id }}-home">
+  <div role="tabpanel" class="tab-pane active" id="receipt-{{ receipt.id }}">
   <table class="table table-striped">
     <thead><tr>
       <th>Added</th>
       <th>Admin</th>
       <th>Type</th>
+      <th></th>
       <th>Description</th>
       <th>Amount</th>
       <th></th>
+      <th></th>
     </tr></thead>
     {% for item in items %}
-    {% set amount_left = item.amount - item.refunded if item.refunded else item.amount %}
-      <tr id="{{ item.id }}">
+      <tr id="{{ item.id }}"{% if highlight_id and item.id == highlight_id %} class="table-warning"{% endif %}>
         <td>{{ item.added|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td>{{ item.who }}</td>
         <td>
           {% if item.method %}
             {{ "Payment" if item.amount > 0 else "Refund" }} ({{ item.method_label }})
           {% else %}
-            {{ "Purchase" if item.amount > 0 else "Credit" }}
+            {{ "Purchase" if item.amount > 0 else "Credit" }} ({{ item.department_label }}: {{ item.category_label }})
           {% endif %}
         </td>
-        <td>{{ item.desc }}{{ " (Stripe ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
+        <td>{% if item.card_info %}{{ item.card_info }}{% endif %}
+          {% if item.method %}
+          <button type="button" data-bs-toggle="modal" data-bs-target="#receiptModal-{{ item.id }}" class="btn btn-sm btn-info">View</button>
+          {{ receipt_txn_macro(item) }}
+          {% else %}
+          <button type="button" data-bs-toggle="modal" data-bs-target="#receiptModal-{{ item.id }}" class="btn btn-sm btn-warning">View/Edit</button>
+          {{ receipt_item_macro(item, receipt) }}
+          {% endif %}
+        </td>
+        <td>{{ item.desc }}{{ " (" ~ processors[item.method] ~ " ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
         <td>
           {{ (item.amount / 100)|format_currency(true) }}
           {% if item.count and item.count > 1 %}
              x{{ item.count }}: {{ (item.count * item.amount / 100)|format_currency }}
           {% endif %}
-          </td>
+        </td>
         <td>
-          {% if item.cancelled %}
-            <em>Cancelled {{ item.cancelled|datetime_local }}</em>
-          {% elif item.closed %}
-            {% if item.revert_change and not receipt.closed %}
-              <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
-            {% else %}
-              <em>Payment finalized {{ item.closed|datetime_local }}</em>
-            {% endif %}
-          {% elif item.is_pending_charge or not item.stripe_id %}
-            {% if item.intent_id and not item.refund_id and not receipt.closed %}
-              <button class="btn btn-sm btn-danger" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
-            {# This should be updated when we associate receipt txns with items directly #}
-            {% elif item.method and not receipt.open_receipt_items|selectattr("added", "<", item.added)|list|length and receipt.current_receipt_amount == 0 %}
-              <em>Payment locked.</em>
-            {% elif not receipt.closed %}
-              {% if item.revert_change %}
-                <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
+          {% if item.refundable and not item.method %} {# disabling transaction refunds for now #}
+          <button class="btn btn-sm btn-warning text-nowrap"
+                  onClick="
+                  {% if item.method %}
+                  refundTxn('{{ item.id }}', '{{ (item.amount_left / 100)|format_currency }}')">
+                  Refund
+                  {% else %}
+                  refundItem('{{ item.id }}', '{{ (item.amount / 100)|format_currency }}', '{{ item.count }}', '{{ item.revert_change|yesno }}')">
+                  Refund Options
+                  {% endif %}
+          </button>
+          {% endif %}
+        </td>
+        <td class="text-nowrap">
+          {% if item.available_actions %}
+            {% for action in item.available_actions %}
+              {% if action == 'refresh_receipt_txn' %}
+              <button class="btn btn-sm btn-info text-nowrap" onClick="refreshTxn('{{ item.id }}')">Refresh from {{ processors[item.method] }}</button>
               {% endif %}
-              <button class="btn btn-sm btn-danger" onClick="deleteItem('{{ item.id }}')">
+              {% if action == 'cancel_receipt_txn' %}
+              <em class="text-wrap">This payment is pending. This {{ model_str }} can re-try the payment on their confirmation page.</em>
+              <br/><button class="btn btn-sm btn-danger text-nowrap" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
+              {% endif %}
+              {% if action == 'resend_receipt' %}
+              <button class="btn btn-sm btn-info text-nowrap" onClick="resendReceipt('{{ item.id }}')">Resend Receipt</button>
+              {% endif %}
+              {% if action == 'comp_receipt_item' %}
+              <button class="btn btn-sm btn-success text-nowrap" onClick="compItem('{{ item.id }}', '{{ item.refundable }}', '{{ processors[item.receipt_txn.method] if item.receipt_txn else '' }}')">Comp Item</button>
+              {% endif %}
+              {% if action == 'undo_receipt_item' %}
+              <button class="btn btn-sm btn-danger text-nowrap" onClick="undoItem('{{ item.id }}')">Undo Item</button>
+              {% endif %}
+              {% if action == 'remove_receipt_item' %}
+              <button class="btn btn-sm btn-danger text-nowrap" onClick="deleteItem('{{ item.id }}')">
                 Delete {{ "Transaction" if item.method else "Item" }}
               </button>
-            {% endif %}
-          {% elif item.charge_id and amount_left and not receipt.closed %}
-            <button class="btn btn-sm btn-warning" onClick="refundTxn('{{ item.id }}', '{{ (amount_left / 100)|format_currency }}')">Refund Transaction</button>
-            <span id="amt-refunded">{% if item.refunded %} ({{ (item.refunded / 100)|format_currency }} refunded){% endif %}</span>
+              {% endif %}
+            {% endfor %}
+          {% elif item.cancelled %}
+            <em>Cancelled {{ item.cancelled|datetime_local }}</em>
+          {% elif item.closed %}
+            <em>{{ item.closed_type }} {{ item.closed|datetime_local }}</em>
+          {% endif %}
+          {% if item.refunded %}
+          <em>{{ (item.refunded / 100)|format_currency }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ (item.amount_left / 100)|format_currency }} left){% endif %}
+          {% endif %}
+          {% if item.refundable and item.id in refund_txn_candidates %}
+          <button class="btn btn-sm btn-success" onClick="settleUp('{{ item.id }}', '{{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}')">Refund {{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}</button>
           {% endif %}
         </td>
       </tr>
     {% endfor %}
     <tr>
-      <td colspan="7">
+      <td colspan="8">
         <span class="pull-right"><strong>Total</strong>: <span id="receipt_total">{{ receipt.total_str }}</span></span>
       </td>
     </tr>
-    {{ receipt_item_form(type="purchase") }}
-    {{ receipt_item_form(type="credit") }}
-    {{ receipt_txn_form(type="payment") }}
-    {{ receipt_txn_form(type="refund") }}
+    {{ receipt_item_form(type="purchase", receipt=receipt) }}
+    {{ receipt_item_form(type="credit", receipt=receipt) }}
+    {{ receipt_txn_form(type="payment", receipt=receipt) }}
+    {{ receipt_txn_form(type="refund", receipt=receipt) }}
     {% if not receipt.closed %}
     <tr id="{{ receipt.id }}">
-      <td colspan="7">
+      <td colspan="8">
         <div class="btn-group pull-right" role="group">
-          <button class="btn btn-default">Add:</button>
+          <button class="btn btn-outline-secondary">Record:</button>
           <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-purchase-form')">Purchase</button>
           <button class="btn btn-success" onClick="showForm('{{ receipt.id }}', '-credit-form')">Credit</button>
-          <button class="btn btn-info record_payment_refund" onClick="showForm('{{ receipt.id }}', '-payment-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Payment</button>
-          <button class="btn btn-warning record_payment_refund" onClick="showForm('{{ receipt.id }}', '-refund-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Refund</button>
+          <button class="btn btn-info" onClick="showForm('{{ receipt.id }}', '-payment-form')">Payment</button>
+          <button class="btn btn-warning" onClick="showForm('{{ receipt.id }}', '-refund-form')">Refund</button>
         </div>
       </td>
     </tr>
     {% endif %}
   </table>
 </div>
-<div role="tabpanel" class="tab-pane" id="{{ receipt.id }}-history">
-  <table class="table-striped table-bordered table-condensed">
+<div role="tabpanel" class="tab-pane" id="history-{{ receipt.id }}">
+  <table class="table table-striped table-bordered table-sm">
     <thead><tr>
       <th>Which</th>
       <th>What</th>
@@ -453,7 +994,7 @@
         <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
-        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>
         <td valign="top">{{ tracked.data }}</td>
       </tr>
     {% endfor %}
@@ -462,40 +1003,67 @@
 </div>
 {% endmacro %}
 
-<div class="panel panel-default">
-  <div class="panel-heading">
-    <h3 class="panel-title">Current Receipt</h3>
+<div class="card mt-3">
+  <div class="card-header">
+    <h3 class="card-title">Current Receipt</h3>
   </div>
-<div class="panel-body">
+<div class="card-body">
+  {% if c.HAS_ART_SHOW_ADMIN_ACCESS %}
+    {% for receipt in model.art_show_receipts|selectattr("pieces") %}
+    {% if loop.first %}<p>This attendee has the following art show invoices: <br/>{% endif %}
+    <a href="../art_show_admin/pieces_bought?id={{ receipt.id }}" target="blank">Art Show Invoice #{{ receipt.invoice_num }}</a>{% if receipt.closed %} (Closed {{ receipt.closed|datetime_local("%b %-d %-I:%M%p") }}){% endif %}
+    {% if loop.last %}</p>{% else %} | {% endif %}
+    {% endfor %}
+  {% endif %}
 {% if receipt %}
   {{ receipt_table(receipt, receipt.all_sorted_items_and_txns) }}
   <button class="btn btn-danger" onClick="fullRefund('{{ receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
+  {% if not c.AUTHORIZENET_LOGIN_ID %}
+  OR
+  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ receipt.id }}', '{{ (receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt_id else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
+  {% endif %}
 {% else %}
-There are no active receipts for this {{ model_str }}.
+  There are no active receipts for this {{ model_str }}.
+  <br/><a href="create_receipt?id={{ model.id }}" class="btn btn-success">Create Default Receipt</a> <a href="create_receipt?id={{ model.id }}&blank=true" class="btn btn-info">Create Blank Receipt</a>
+  {% if group_leader_receipt_id and attendee and attendee.badge_status != c.REFUNDED_STATUS %}
+  <button class="btn btn-danger" onClick="fullRefund('{{ group_leader_receipt_id }}')">Refund Badge Cost To Group Leader</button>
+  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ group_leader_receipt_id }}', '{{ (group_processing_fee / 100)|format_currency }}')">Refund Badge Cost To Group Leader Excluding Processing Fees</a>
+  {% endif %}
 {% endif %}
 </div>
 </div>
 
 {% for other_receipt in other_receipts %}
-<div class="panel panel-default">
-  <div class="panel-heading">
-    <h3 class="panel-title">{{ other_receipt.owner_model }} Receipt</h3>
+<div class="card mt-3">
+  <div class="card-header">
+    <h3 class="card-title">{{ other_receipt.owner_model }} Receipt</h3>
   </div>
-<div class="panel-body">
+<div class="card-body">
   {{ receipt_table(other_receipt, other_receipt.all_sorted_items_and_txns) }}
 </div>
 </div>
 {% endfor %}
 
 {% for closed_receipt in closed_receipts %}
-<div class="panel panel-default">
-  <div class="panel-heading">
-    <h3 class="panel-title">Closed Receipt ({{ closed_receipt.closed|datetime_local }})</h3>
+<div class="card mt-3">
+  <div class="card-header">
+    <h3 class="card-title">Closed Receipt ({{ closed_receipt.closed|datetime_local }})</h3>
   </div>
-<div class="panel-body">
+<div class="card-body">
   {{ receipt_table(closed_receipt, closed_receipt.all_sorted_items_and_txns) }}
 </div>
 </div>
 {% endfor %}
+
+<div id="refundTxnDiv" class="d-none">
+  <p>This will refund this {{ model_str }} through {{ processors_str }}. You can enter an amount below or leave it blank to refund the full amount.</p>
+
+  <div class="form-horizontal" id="refundTxnForm">
+      <div class="input-group">
+        <span class="input-group-text">$</span>
+        <input type="text" class="form-control" name="amount">
+      </div>
+  </div>
+</div>
 
 {% endblock %}

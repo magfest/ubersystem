@@ -2,7 +2,7 @@
 {% block title %}Shifts{% endblock %}
 {% block page_styles %}
 <!--inside page_style -->
-<link rel="stylesheet" href="../static/fullcalendar-5.3.2/lib/main.min.css" />
+{{ "fullcalendar-5.3.2/lib/main.min.css"|serve_static_content }}
 
 <style>
   .button_row {
@@ -22,21 +22,25 @@
 {% block content %}
 
 {% include "shifts_admin/main_menu.html" %}
-
+{% if department_id == '' %}
+Please select a department above to view its shifts.
+{% else %}
 <div clas="row">
 {% if checklist.relevant %}
     {% if checklist.completed %}
-        You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  If that's not the case, please email {{ 'stops@magfest.org'|email_to_link }}.
+        You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  If that's not the case, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
     {% else %}
         {% if department.is_shiftless %}
-            This department is on record as not needing any shifts.  Please click the following link to confirm this so we know we don't need to make any shifts.  If this is in error and you'd like shifts for your people, please email {{ 'stops@magfest.org'|email_to_link }}.
+            This department is on record as not needing any shifts.  Please click the following link to confirm this so we know we don't need to make any shifts.  If this is in error and you'd like shifts for your people, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
         {% else %}
-            <p>We are able to import shifts from last year. If you want us to import last year’s shifts, please email {{ 'stops@magfest.org'|email_to_link }}. You will still be able to edit those shifts, add slots for additional volunteers, and create new shifts. 
-            If you choose to import last year’s shifts, please take the time to look them over and make any needed changes. After the import, you will need to return to this page and approve that they are correct by clicking "I Don’t Need To Do Anything Else Here."</p>
+            <p>We are able to import shifts from last year. If you want us to import last year's shifts, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
+                You will still be able to edit those shifts, add slots for additional volunteers, and create new shifts. If you choose to import last year’s shifts, please take the time to look them over and make any needed changes. After the import, you will need to return to this page and approve that they are correct by clicking "I Don’t Need To Do Anything Else Here."</p>
+
+            <p>If you want any shifts to be restricted to certain staffers, <strong>including setup or teardown shifts</strong>, please use the "roles" function when creating shifts. Shifts with specific roles will only be visible to staff that you have assigned to ALL of those roles.</p>
 
             <p>Otherwise, you can create shifts, and when you are done, click "I Don’t Need To Do Anything Else Here."</p>
         {% endif %}
-        <br/> <a href="#" onClick="$('#checkoff').show(); return false;">I Don't Need To Do Anything Else Here</a>
+        <p><a href="#" onClick="$('#checkoff').show(); return false;">I Don't Need To Do Anything Else Here</a></p>
         <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
         {{ csrf_token() }}
         <input type="hidden" name="department_id" value="{{ department.id }}" />
@@ -71,11 +75,12 @@
 <div class="row" style="margin-bottom:50px;"></div>
 
 
-
+{% endif %}
 {% endblock %}
 {% block page_scripts %}
-<script type="text/javascript" src="../static/js/moment.js"></script>
-<script type="text/javascript" src="../static/fullcalendar-5.3.2/lib/main.min.js"></script>
+{% if department_id != '' %}
+{{ "js/moment.js"|serve_static_content }}
+{{ "fullcalendar-5.3.2/lib/main.min.js"|serve_static_content }}
 <script type="text/javascript">
 
 $(document).ready(function() {
@@ -124,8 +129,8 @@ $(document).ready(function() {
             agendaEvent: {
                 type: 'timeGrid',
                 visibleRange: {
-                    start: '{{ c.EPOCH.strftime('%Y-%m-%d') }}',
-                    end: '{{ c.ESCHATON.strftime('%Y-%m-%d') }}'
+                    start: '{{ c.EPOCH }}',
+                    end: '{{ c.ESCHATON }}'
                 },
                 buttonText: 'Event',
             },
@@ -147,7 +152,7 @@ $(document).ready(function() {
             },
             listConDuration: {
                 type: 'list',
-                duration: { days: {{ c.CON_TOTAL_LENGTH }} },
+                duration: { days: {{ c.CON_TOTAL_DAYS }} },
                 buttonText: 'List'
             }
         },
@@ -177,5 +182,6 @@ $(document).ready(function() {
 });
 
 </script>
+{% endif %}
 {% endblock %}
 

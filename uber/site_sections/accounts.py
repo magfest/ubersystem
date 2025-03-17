@@ -1,10 +1,7 @@
 import uuid
-from collections import defaultdict
 
 import bcrypt
 import cherrypy
-from pockets.autolog import log
-from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -12,9 +9,10 @@ from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
                              department_id_adapter, not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
-from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
+from uber.models import AdminAccount, Attendee, PasswordReset, WorkstationAssignment
 from uber.tasks.email import send_email
-from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd, OAuthRequest
+from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
+                        create_new_hash)
 
 
 def valid_password(password, account):
@@ -24,14 +22,15 @@ def valid_password(password, account):
         pr = None
 
     all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
-    return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
+    return any(bcrypt.hashpw(password.encode('utf-8'),
+                             hashed.encode('utf-8')) == hashed.encode('utf-8') for hashed in all_hashed)
 
 
 @all_renderable()
 class Root:
     def index(self, session, message=''):
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS])
+            .filter(Attendee.first_name != '', Attendee.is_valid == True)  # noqa: E712
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -43,22 +42,36 @@ class Root:
                          .join(Attendee)
                          .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
+            'attendee_labels': sorted([label for val, label in attendees]),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
         }
 
     @csrf_protected
+    @ajax
     def update(self, session, password='', message='', **params):
-        account = session.admin_account(params)
+        if not params.get('attendee_id', '') and params.get('id', 'None') == 'None':
+            message = "Please select an attendee to create an admin account for."
 
-        if account.is_new:
-            if not c.AUTH_DOMAIN:
-                if c.AT_OR_POST_CON and not password:
-                    message = 'You must enter a password'
+        if not message:
+            if 'access_groups_ids' not in params:
+                params['access_groups_ids'] = []
+
+            account = session.admin_account(params)
+
+            if account.is_new and not c.SAML_SETTINGS:
+                if c.AT_OR_POST_CON:
+                    if not password:
+                        message = 'You must enter a password'
+                    elif params.get("check-password", "") != password:
+                        message = 'Your password and password confirmation do not match'
+                    password = password
                 else:
-                    password = password if c.AT_OR_POST_CON else genpasswd()
-                    account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                    password = genpasswd()
 
-        message = message or check(account)
+                if not message:
+                    account.hashed = create_new_hash(password)
+
+            message = message or check(account)
         if not message:
             message = 'Account settings uploaded'
             attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
@@ -78,10 +91,12 @@ class Root:
                     'New ' + c.EVENT_NAME + ' Admin Account',
                     body,
                     model=attendee.to_dict('id'))
+            session.commit()
+            return {'success': True, 'message': message}
         else:
             session.rollback()
 
-        raise HTTPRedirect('index?message={}', message)
+        return {'success': False, 'message': message}
 
     @csrf_protected
     def delete(self, session, id, **params):
@@ -137,6 +152,10 @@ class Root:
     def get_access_group(self, session, id):
         access_group = session.access_group(id)
         return {
+            'start_time': access_group.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y %-I:%M %A')
+            if access_group.start_time else '',
+            'end_time': access_group.end_time.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y %-I:%M %A')
+            if access_group.end_time else '',
             'access': access_group.access,
             'read_only_access': access_group.read_only_access,
         }
@@ -155,11 +174,23 @@ class Root:
 
     @public
     def login(self, session, message='', original_location=None, **params):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
+        if c.SAML_SETTINGS:
+            from uber.utils import prepare_saml_request
+            from onelogin.saml2.auth import OneLogin_Saml2_Auth
 
+            if original_location:
+                redirect_url = c.URL_ROOT + create_valid_user_supplied_redirect_url(original_location, default_url='')
+            else:
+                redirect_url = ''
+
+            req = prepare_saml_request(cherrypy.request)
+            auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
+            raise HTTPRedirect(auth.login(return_to=redirect_url))
+
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
         if 'email' in params:
             try:
-                account = session.get_account_by_email(params['email'])
+                account = session.get_admin_account_by_email(params['email'])
                 if not valid_password(params.get('password'), account):
                     message = 'Incorrect password'
             except NoResultFound:
@@ -167,19 +198,13 @@ class Root:
 
             if not message:
                 cherrypy.session['account_id'] = account.id
+
+                # Forcibly exit any volunteer kiosks that were running
+                cherrypy.session.pop('kiosk_operator_id', None)
+                cherrypy.session.pop('kiosk_supervisor_id', None)
+
                 ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
-
-        if c.AUTH_DOMAIN:
-            try:
-                request = OAuthRequest()
-                request.set_auth_url()
-            except Exception as ex:
-                log.error("Third-party OAuth failed: " + str(ex))
-                message = "OAuth Server is not working."
-            else:
-                cherrypy.session['oauth_state'] = request.state
-                raise HTTPRedirect(request.auth_uri)
 
         return {
             'message': message,
@@ -188,51 +213,30 @@ class Root:
         }
 
     @public
-    def process_login(self, session, code, state, original_location=None, **params):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
-        if not cherrypy.session.get('oauth_state'):
-            raise HTTPRedirect('login?message={}', 'Authentication session expired')
-
-        message = params.get('error', '')
-        if not message:
-            try:
-                request = OAuthRequest(state=cherrypy.session['oauth_state'])
-            except Exception as ex:
-                log.error("Processing third-party OAuth login failed: " + str(ex))
-                message = "There was a problem logging in. Try again or contact your administrator."
-            else:
-                request.set_token(code, state)
-                try:
-                    account = session.get_account_by_email(request.get_email())
-                except NoResultFound:
-                    message = 'Could not find your account. Please contact your administrator.'
-        
-        if not message:
-            cherrypy.session['account_id'] = account.id
-            cherrypy.session['oauth_state'] = None
-            ensure_csrf_token_exists()
-            raise HTTPRedirect(original_location)
-        
-        raise HTTPRedirect('../landing/index?message={}', message)
-
-    @public
     def homepage(self, session, message=''):
         if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in')
-        
+            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
+
+        reg_station_id = cherrypy.session.get('reg_station', '')
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(
+            reg_station_id=reg_station_id or -1).first()
+
         return {
             'message': message,
-            'site_sections': [key for key in session.access_query_matrix().keys() if getattr(c, 'HAS_' + key.upper() + '_ACCESS')]
+            'site_sections': [key for key in session.access_query_matrix().keys()
+                              if getattr(c, 'HAS_' + key.upper() + '_ACCESS')],
+            'reg_station_id': reg_station_id,
+            'workstation_assignment': workstation_assignment,
             }
-        
+
     @public
     @not_site_mappable
     def attendees(self, session, query=''):
         if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in')
-        
+            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
+
         attendees = session.access_query_matrix()[query].limit(c.ROW_LOAD_LIMIT).all() if query else None
-        
+
         return {
             'attendees': attendees,
             }
@@ -242,25 +246,26 @@ class Root:
         for key in list(cherrypy.session.keys()):
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
-        
-        if c.AUTH_DOMAIN:
-            raise HTTPRedirect(OAuthRequest().logout_uri)
 
-        raise HTTPRedirect('login?message={}', 'You have been logged out')
-        
+        if c.SAML_SETTINGS:
+            raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
+        else:
+            raise HTTPRedirect('login?message={}', 'You have been logged out.')
+
     @public
+    @not_site_mappable
     def process_logout(self):
         # We shouldn't need this, but Auth0 is throwing errors
-        # when I try to include a message to the redirect url
+        # when I try to include a message in the redirect url
         # so here we are
 
-        raise HTTPRedirect('../landing/index?message={}', 'You have been logged out')
+        raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
 
     @public
     def reset(self, session, message='', email=None):
         if email is not None:
             try:
-                account = session.get_account_by_email(email)
+                account = session.get_admin_account_by_email(email)
             except NoResultFound:
                 message = 'No account exists for email address {!r}'.format(email)
             else:
@@ -268,7 +273,7 @@ class Root:
                 if account.password_reset:
                     session.delete(account.password_reset)
                     session.commit()
-                session.add(PasswordReset(admin_account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt())))
+                session.add(PasswordReset(admin_account=account, hashed=create_new_hash(password)))
                 body = render('emails/accounts/password_reset.txt', {
                     'name': account.attendee.full_name,
                     'password':  password}, encoding=None)
@@ -294,7 +299,7 @@ class Root:
             updater_password=None,
             new_password=None,
             csrf_token=None,
-            confirm_new_password=None):
+            confirm_password=None):
 
         if updater_password is not None:
             new_password = new_password.strip()
@@ -303,12 +308,12 @@ class Root:
                 message = 'New password is required'
             elif not valid_password(updater_password, updater_account):
                 message = 'Your password is incorrect'
-            elif new_password != confirm_new_password:
+            elif new_password != confirm_password:
                 message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
                 account = session.admin_account(id)
-                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                account.hashed = create_new_hash(new_password)
                 raise HTTPRedirect('index?message={}', 'Account Password Updated')
 
         return {
@@ -324,10 +329,10 @@ class Root:
             old_password=None,
             new_password=None,
             csrf_token=None,
-            confirm_new_password=None):
+            confirm_password=None):
 
         if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in')
+            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         if old_password is not None:
             new_password = new_password.strip()
@@ -336,11 +341,11 @@ class Root:
                 message = 'New password is required'
             elif not valid_password(old_password, account):
                 message = 'Incorrect old password; please try again'
-            elif new_password != confirm_new_password:
+            elif new_password != confirm_password:
                 message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
-                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+                account.hashed = create_new_hash(new_password)
                 raise HTTPRedirect('homepage?message={}', 'Your password has been updated')
 
         return {'message': message}
@@ -388,14 +393,15 @@ class Root:
                 if match:
                     account = session.admin_account(params)
                     if account.is_new:
-                        if not c.AUTH_DOMAIN:
+                        if not c.SAML_SETTINGS:
                             password = genpasswd()
-                            account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                            account.hashed = create_new_hash(password)
                         account.attendee = match
                         session.add(account)
                         body = render('emails/accounts/new_account.txt', {
                             'account': account,
-                            'password': password if not c.AUTH_DOMAIN else ''
+                            'password': password if not c.SAML_SETTINGS else '',
+                            'creator': AdminAccount.admin_name()
                         }, encoding=None)
                         send_email.delay(
                             c.ADMIN_EMAIL,

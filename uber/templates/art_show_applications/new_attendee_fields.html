@@ -1,25 +1,23 @@
-<div class="form-group">
-  <label for="first_name" class="col-sm-3 control-label">Name</label>
-  <div class="col-sm-3">
-    <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
+<div class="row g-sm-3 new-badge">
+  <div class="col-12 col-sm-6">
+    <label for="first_name" class="form-text">Name</label>
+    <div class="input-group">
+      <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
+      <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
+    </div>
   </div>
-  <div class="col-sm-3">
-    <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
+  <div class="col-12 col-sm-6">
+    <label for="email" class="form-text">Email Address</label>
+    <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="email@example.com">
   </div>
-</div>
-
-<div class="form-group">
-  <label for="email" class="col-sm-3 control-label">Email Address</label>
-  <div class="col-sm-6">
-    <input type="email" type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
-  </div>
-</div>
-
-<div class="form-group">
-  <div class="col-sm-6 col-sm-offset-3">
-    <label class="optional-field">
-      <input type="checkbox" name="not_attending" value="1" {% if not_attending %}checked {% endif %}/>
+  {% if c.INDEPENDENT_ART_SHOW %}
+  <input type="hidden" name="not_attending" value="1">
+  {% else %}
+  <div class="col-12">
+    <label for="not_attending" class="form-check-label">
+      <input type="checkbox" class="form-check-input" id="not_attending" name="not_attending" value="1" {% if not_attending %}checked {% endif %}/>
       I don't plan on attending {{ c.EVENT_NAME }}.
     </label>
   </div>
+  {% endif %}
 </div>

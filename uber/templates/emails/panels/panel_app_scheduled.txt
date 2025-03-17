@@ -1,9 +1,11 @@
 {{ app.submitter.first_name }},
 
-"{{ app.name }}", the panel you submitted for {{ c.EVENT_NAME }}, has been scheduled.  {{ c.EVENT_NAME }} is {{ c.EPOCH|datetime_local("%A, %B %-d") }} through {{ c.ESCHATON|datetime_local("%A, %B %-d") }}, and your panel is currently scheduled for {{ app.event.timespan(minute_increment=30) }}.  This scheduling can be changed if absolutely necessary, but it was chosen based on your and others' declared availability.
+"{{ app.name }}", the panel you submitted for {{ c.EVENT_NAME }}, has been scheduled. {{ c.EVENT_NAME }} is {{ c.EPOCH|datetime_local("%A, %B %-d") }} through {{ c.ESCHATON|datetime_local("%A, %B %-d") }}, and your panel is currently scheduled for {{ app.event.timespan(minute_increment=30) }}.
+
+This scheduling can potentially be changed in the event of a cancellation or other request to switch, but was chosen based on yours and others' declared availability from your submission.
 
 If you have any questions or concerns, please don't hesitate to send them to {{ c.PANELS_EMAIL|email_only }}.
 
 Congratulations again, and we look forward to seeing you at {{ c.EVENT_NAME }}!
 
-{{ c.PEGLEGS_EMAIL_SIGNATURE }}
+{{ c.PANELS_EMAIL_SIGNATURE }}

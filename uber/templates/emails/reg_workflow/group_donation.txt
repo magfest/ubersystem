@@ -1,8 +1,9 @@
 {{ attendee.first_name }},
 
-Thanks so much for kicking in {{ attendee.amount_extra|format_currency }} with your {{ c.EVENT_NAME }} registration.  This provides you with these bonus items, which may be picked up at our merch booth:
+Thanks so much for pre-ordering {{ c.DONATION_TIERS[attendee.amount_extra] }} with your {{ c.EVENT_NAME }} registration.  This provides you with the following items, which may be picked up at our merch booth:
 {% for swag in attendee.donation_swag %}
 - {{ swag }}
 {% endfor %}
+Please note that pre-ordered merchandise is non-refundable; we reserve it just for you! If you do not pick up your merch during the event, you will be contacted after the event for a mailing address and shipping payment.
 
-{{ c.REGDESK_EMAIL_SIGNATURE }}
+{{ c.MERCH_EMAIL_SIGNATURE }}

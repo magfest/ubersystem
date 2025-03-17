@@ -8,6 +8,6 @@
         {% else %}
             Sign up
         {% endif %}
-        for shifts.
+        for shifts{% if c.BEFORE_SHIFTS_CREATED %} starting on {{ c.SHIFTS_CREATED.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}{% endif %}.
     </li>
 {% endif %}

@@ -1,11 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}You are already registered{% endblock %}
+{% set title_text = "You are already registered" %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2>You may already be registered</h2>
 
     We already have a {{ attendee.full_name }} with email address {{ attendee.email }} in our database with a
@@ -30,7 +29,7 @@
 
     If you have any questions then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.
 
-    {% if attendee.group and attendee.group.is_dealer and attendee.group.status != c.APPROVED %}
+    {% if attendee.group and attendee.group.is_dealer and attendee.group.status not in [c.APPROVED, c.SHARED] %}
         <br/> <br/>
         It looks like your {{ c.DEALER_REG_TERM }} application has not been approved yet. If your application
         is not approved, you will be able to purchase badges for yourself and the number of assistants on the application
@@ -38,9 +37,9 @@
         when these badges are available for purchase.
     {% endif %}
 
-    {% if attendee.badge_type == c.STAFF_BADGE and attendee.registered == c.STAFFERS_IMPORTED %}
+    {% if attendee.badge_type == c.STAFF_BADGE and attendee.registered == [c.PREREG_OPEN, c.DEALER_REG_START]|min %}
         <br/> <br/>
-        You were registered automatically for a complementary Staff badge as thanks for volunteering
+        You were registered automatically for a complimentary Staff badge as thanks for volunteering
         last year.  You should have already received an email letting you know about this; if you didn't
         then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> and let us know.
     {% endif %}
@@ -53,10 +52,11 @@
 
     <table style="width:auto" align="center">
     <tr>
-        {%- set next_page = 'hotel?id=' + id if c.PREREG_REQUEST_HOTEL_INFO_OPEN else 'index' -%}
+        {%- set url_string = ("?group_id=" ~ duplicate.group_id) if duplicate.badge_type == c.PSEUDO_DEALER_BADGE else ("?attendee_id=" ~ (duplicate.group.id if duplicate.group else duplicate.id)) %}
+        {%- set next_page = "additional_info" ~ url_string -%}
         <td><a href="{{ next_page }}">I'm someone else, let me register!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-        <td><a href="delete?id={% if duplicate.group %}{{ duplicate.group.id }}{% else %}{{ duplicate.id }}{% endif %}&message=Duplicate badge canceled">Well never mind then!</a></td>
+        <td><a href="delete{{ url_string }}&message=Duplicate badge canceled">Well never mind then!</a></td>
     </tr>
     </table>
   </div>

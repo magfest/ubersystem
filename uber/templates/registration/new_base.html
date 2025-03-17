@@ -2,12 +2,12 @@
 {% block title %}Recent At-the-Door Registrations{% endblock %}
 {% block content %}
 {% block adminheader %}
-<link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
+{{ "styles/styles.css"|serve_static_content }}
 
 {% if checked_in %}
     <a href="undo_new_checkin?id={{ checked_in }}">Undo</a>
 {% endif %}
-<script src="../static/js/servertimecheck.js" type="text/javascript"></script>
+{{ "js/servertimecheck.js"|serve_static_content }}
 
 {% if c.REG_USES_BARCODES and c.NUMBERED_BADGES %}
   {% include 'barcode_client.html' %}
@@ -46,12 +46,12 @@
                 mpoints:        0,
                 csrf_token:     csrf_token,
             }, function(json) {
-                toastr.remove();
+                hideMessageBox();
                 if (!json.success) {
-                    toastr.error(json.message);
+                    showErrorMessage(json.message);
                 } else {
                     $('#badge_num').val('');
-                    toastr.info(json.message);
+                    $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
                     window.location.replace('../merch_admin/arbitrary_charge_form?amount=' + $('#store_cash').val() +
                         '&description=' + json.message + '&sale_id=' + json.id);
                 }
@@ -95,17 +95,17 @@
                         dataType: 'json',
                         data: data,
                         success: function (json) {
-                            toastr.clear();
+                            hideMessageBox();
                             var message = json.message;
                             if (json.success) {
-                                toastr.info(message);
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
                                 refreshRow(currentForm);
                             } else {
-                                toastr.error(message);
+                                showErrorMessage(message);
                             }
                         },
                         error: function () {
-                            toastr.error('Unable to connect to server, please try again.');
+                            showErrorMessage('Unable to connect to server, please try again.');
                         }
                     });
 
@@ -139,18 +139,18 @@
                     dataType: 'json',
                     data: data,
                     success: function (json) {
-                        toastr.clear();
+                        hideMessageBox();
                         var message = json.message;
                         if (json.success) {
-                            toastr.info(message);
+                            $("#message-alert").addClass("alert-info").show().children('span').html(message);
                             // Refresh the form
                             refreshRow(currentForm);
                         } else {
-                            toastr.error(message);
+                            showErrorMessage(message);
                         }
                     },
                     error: function () {
-                        toastr.error('Unable to connect to server, please try again.');
+                        showErrorMessage('Unable to connect to server, please try again.');
                     }
                 });
             });
@@ -171,7 +171,7 @@
     {% else %}
         <a href="new?show_all=true">Click Here</a> to see all at-the-door registrations instead of only recent ones
     {% endif %}
-    <br/> <a href="index{% if c.AT_THE_CON %}?invalid=True{% endif %}">Click Here</a> to view the preregistered and checked in attendee list
+    <br/> <a href="index">Click Here</a> to view the preregistered and checked in attendee list
     {% if c.MERCH_ADMIN_ACCESS %}<br/> <a href="../merch_admin/arbitrary_charge_form">Click Here</a> to create arbitrary credit card charges or run a purchase{% endif %}
 </div>
 
@@ -276,9 +276,6 @@
                 </select>
                     <button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button>
                 </form>
-              <!-- this is causing major slowdowns, TODO: fix after the event!
-                 OR <br/>
-                {{ stripe_form('manual_reg_charge',Charge(attendee)) }} -->
             {% endif %}
         </td>
         {% if attendee.paid == c.PAID_BY_GROUP %}

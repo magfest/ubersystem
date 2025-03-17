@@ -1,5 +1,5 @@
-{% extends "preregistration/preregbase.html" %}
-{% block title %}Group Members{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Group Members" %}
 {% set attendee = group.buyer %}
 {% block content %}
   <script type="text/javascript">
@@ -8,90 +8,125 @@
           $('#code_link_'+code).toggle();
           return false;
       };
+      $().ready(function() {
+        $('[id^="code_form_"]').hide();
+      })
   </script>
-  {% include 'prereg_masthead.html' %}
-  <div class="panel panel-default">
-  <div class="panel-body">
+  <div class="card">
+  <div class="card-body">
     {% include 'confirm_tabs.html' with context %}
 
     <h2> Members of "{{ group.name }}" </h2>
-    You have bought {{ group.promo_codes|length }} promo codes for a total of {{ group.total_cost|format_currency }} (not including your badge).
-    {% if group.valid_codes %}Anyone can register a badge under this group using either an unclaimed promo code below or this group's universal code, <strong>{{ group.code }}</strong>.
-    {% else %}All promo codes have been claimed. Please email us at {{ c.REGDESK_EMAIL|email_to_link }} if a promo code was claimed in error.{% endif %}
-    <br/><br/><strong>Here are the promo codes for your group "{{ group.name }}" and who is using them:</strong>
-    <table>
-      {% for code in group.sorted_promo_codes %}
+    <p>You have bought {{ group.paid_codes|length }} promo codes for a total of {{ group.total_cost|format_currency }} (not including your badge).</p>
+
+    {% if receipt and receipt.current_amount_owed %}
+    <div class="alert alert-danger pb-0" role="alert">
+      <p>You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+      Please use the button below to pay in order to manage your group codes.</p>
+      <p>{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, return_to='group_promo_codes?id=' ~ group.id) }}</p>
+    </div>
+    {% else %}
+    <p>{% if group.valid_codes %}Anyone can claim one of the {{ group.valid_codes|length }} remaining badges in this group using either an unclaimed promo code below or this group's universal code, <strong>{{ group.code }}</strong>.
+    {% else %}All promo codes have been claimed. Please email us at {{ c.REGDESK_EMAIL|email_to_link }} if a promo code was claimed in error.{% endif %}</p>
+    <strong>Below are the promo codes for your group "{{ group.name }}" and who is using them:</strong>
+    <table class="table">
+      <thead>
         <tr>
-          <td><ul style="margin: 5px 0; padding-right: 0"><li></li></ul></td>
-          <td>{{ code.code }}</td>
-          {% if code.used_by %}
-            {% set attendee = code.used_by[0] %}
-            <td style="padding-right: 10px">
-              {{ attendee.full_name }}
-            </td>
-            <td style="padding-right: 10px">
-              {{ attendee.email|email_to_link }}
-            </td>
-          {% else %}
-            <td class="email_code">
-              <form class="form-inline" method="post" action="email_promo_code">
-                <a href="#" id="code_link_{{ code.code }}" onclick="toggleEmailForm('{{ code.code }}')">Send this code to someone</a>
-                <span id="code_form_{{ code.code }}" hidden>
-                  <input type="text" class="form-control" placeholder="email@example.com" name="email" required />
-                  <input type="hidden" name="code" value="{{ code.code }}" />
-                  <input type="hidden" name="group_id" value="{{ group.id }}" />
-                  <button type="submit" class="btn btn-primary">Send Code</button>
-                  <button type="button" class="btn btn-default" onclick="toggleEmailForm('{{ code.code }}')">Cancel</button>
-                </span>
-              </form>
-            </td>
-            <td>
-            {% if emailed_codes[code.code] %}(Last sent to: {{ emailed_codes[code.code] }}){% endif %}
-            </td>
-          {% endif %}
+          <th>Promo Code</th>
+          <th>Used By</th>
+          <th>Last Sent To</th>
+          <th></th>
         </tr>
-      {% endfor %}
-    </table>
+      </thead>
+    {% for code in group.sorted_promo_codes %}
+    <tr>
+      <td>{{ code.code }}</td>
+      {% if code.valid_used_by %}
+      {% set attendee = code.valid_used_by[0] %}
+        <td>
+          {{ attendee.full_name }} ({{ attendee.email|email_to_link }})
+        </td>
+      {% else %}
+        <td>
+          <a href="#" id="code_link_{{ code.code }}" onclick="toggleEmailForm('{{ code.code }}')">Send this code to someone</a>
+          <form id="code_form_{{ code.code }}" class="row" method="post" action="email_promo_code">
+            <input type="hidden" name="code" value="{{ code.code }}" />
+            <input type="hidden" name="group_id" value="{{ group.id }}" />
+            <div class="col-6">
+              <input type="text" class="form-control " placeholder="email@example.com" name="email" required />
+            </div>
+            <div class="col-6">
+              <button type="submit" class="btn btn-primary">Send Code</button>
+              <button type="button" class="btn btn-outline-secondary" onclick="toggleEmailForm('{{ code.code }}')">Cancel</button>
+            </div>
+          </form>
+        </td>
+      {% endif %}
+      <td>{% if emailed_codes[code.code] %}{{ emailed_codes[code.code] }}{% endif %}</td>
+      <td>{% if code.refunded %}<em>Refunded</em>{% endif %}</td>
+      </tr>
+    {% endfor %}
+  </table>
 
     <br/>
 
     {% if group.min_badges_addable %}
       <div id="add" style="display:none">
-        <form class="form-inline" method="get" action="add_promo_codes">
+        <p>
+          Enter the number of extra codes to purchase for <strong>{{ c.GROUP_PRICE|format_currency }}</strong> per code.&nbsp;
+            {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
+            {%- if hours_remaining > 0 -%}
+              You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}
+              remaining to add individual codes. After that you'll have to add at
+              least {{ c.MIN_GROUP_ADDITION }} codes at a time.
+            {%- else -%}
+              You can't add fewer than {{ group.min_badges_addable }} codes to an existing group.
+            {%- endif -%}
+        </p>
+        <form class="row" method="get" action="add_promo_codes">
           <input type="hidden" name="id" value="{{ group.id }}" />
-          <p>
-            Enter the number of extra codes to purchase for <strong>{{ c.GROUP_PRICE|format_currency }}</strong> per code.&nbsp;
-              {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
-              {%- if hours_remaining > 0 -%}
-                You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}
-                remaining to add individual codes. After that you'll have to add at
-                least {{ c.MIN_GROUP_ADDITION }} codes at a time.
-              {%- else -%}
-                You can't add fewer than {{ group.min_badges_addable }} codes to an existing group.
-              {%- endif -%}
-          </p>
-          <select class="form-control" name="count">
-            {{ int_options(group.min_badges_addable, 10) }}
-          </select>
-          <input class="btn btn-primary" type="submit" value="Add Promo Codes">
+          <input type="hidden" id="estimatedCost" name="estimated_cost" value="{{ c.GROUP_PRICE|default(0, true) }}" />
+          <div class="col-8 col-sm-4">
+            <select class="form-select" id="newBadgeCount" name="count">
+              {{ int_options(group.min_badges_addable, 10) }}
+            </select>
+          </div>
+          <div class="col">
+            <button class="btn btn-primary" id="newBadgeSubmit" type="submit">
+              Add Promo Code
+            </button>
+          </div>
         </form>
       </div>
 
+      {% if c.REMAINING_BADGES > 50 and (not c.AT_THE_CON and not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY)  %}
       <script type="text/javascript">
           $(function() {
             {% if attendee.amount_unpaid %}
-              $('<div class="disabled" title="Please pay for your current registration and extras before buying more codes">' +
+              $('<div class="disabled" title="Please pay for your current registration and extras before buying more codes.">' +
                   '<button disabled class="btn btn-primary">Click here to add more promo codes</button>' +
                   '</div>').insertAfter($("#add"));
             {% else %}
+            var newBadgePrice = {{ c.GROUP_PRICE|default(0, true) }};
+            var newBadgeSubmitText = 'Add Promo Code(s)';
+            var updateBadgeEstimate = function() {
+              if(newBadgePrice == 0) { return; }
+              $('#estimatedCost').val(newBadgePrice * parseInt($('#newBadgeCount').val()));
+              $('#newBadgeSubmit').text(newBadgeSubmitText + " for $" + $('#estimatedCost').val());
+            }
                 $('<button class="btn btn-primary">Click here to add more promo codes</button>').click(function(e){
                     $(e.target).hide();
                     $("#add").show();
+                    updateBadgeEstimate();
                 }).insertAfter($("#add"));
+                $('#newBadgeCount').change(function() {updateBadgeEstimate();});
             {% endif %}
           });
       </script>
+      {% endif %}
 
     {% endif %}
+    {% endif %}
+  </div>
   </div>
 {% endblock %}

@@ -1,0 +1,11 @@
+{{ app.submitter.first_name }},
+
+Congratulations again for your panel submission ({{ app.name }}) being accepted for {{ c.EVENT_NAME_AND_YEAR }}!
+
+You still haven't confirmed that you can host the panel your submitted. You may do so by clicking the following link: {{ c.URL_BASE }}/panels/confirm_panel?id={{ app.id }}
+
+If you don't confirm you can run the panel by {{ app.confirm_deadline|datetime_local }}, your application will automatically be waitlisted.
+
+If you cannot make it, please contact us at {{ c.PANELS_EMAIL|email_only }} to let us know. Thank you!
+
+{{ c.PANELS_EMAIL_SIGNATURE }}

@@ -1,0 +1,8 @@
+"{{ guest.group.name }}" has just updated their charity intent to "{{ guest.charity.donating_label }}"{% if guest.charity.donating != c.NOT_DONATING %}
+
+
+They have said they can donate the following:
+{{ guest.charity.desc }}{% endif %}
+
+
+Their group leader is {{ guest.group.leader.full_name }} and their email address is {{ guest.group.leader.email }}.

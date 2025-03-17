@@ -1,0 +1,358 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Hotel Lottery Application for " ~ application.attendee.full_name %}
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set lottery_room_group = lottery_room_group or forms['lottery_room_group'] %}
+
+{% block content %}
+<script type="text/javascript">
+    var setStep = function (selector) {
+        $('.collapse').hide();
+        $(selector).show();
+        if (selector == '#select-action') {
+            const querystring = new URLSearchParams(window.location.search);
+            querystring.delete('action');
+            history.replaceState( {} , '', "{{ c.PAGE }}" + '?' + querystring.toString() );
+        } else if (selector == '#group-lookup') {
+            $('#join-group').show();
+        }
+    }
+
+    var lookupRoomGroup = function(event) {
+        event.preventDefault();
+        hideMessageBox();
+        $.ajax({
+              method: 'POST',
+              url: 'room_group_search',
+              dataType: 'json',
+              data: $(this).serialize(),
+              success: function (json) {
+                if (json.success) {
+                    $('#group-found').show();
+                    $('#group-lookup').hide();
+                    $('.group-name').text(json.room_group_name);
+                    $('.leader-name').text(json.leader_name);
+                    $('.conf-num').text(json.invite_code);
+                    $('#room_group_id').val(json.room_group_id)
+                } else {
+                    showErrorMessage(json.error);
+                }
+              },
+              error: function () {
+                  showErrorMessage('Unable to connect to server, please try again.');
+              }
+          });
+    }
+
+    removeConfirm = function(event){
+        var formToSubmit = this;
+        event.preventDefault();
+        name = $(this).find('[name=member_name]').first().val();
+        bootbox.confirm({
+            title: "Remove Group Member?",
+            message: "<p>This will remove " + name + " from your room group.</p>" + 
+                     "<p>They will be notified via email. They may be able to join again unless you disband the group.</p>" +
+                     "<p>Are you sure?</p>",
+            buttons: {
+                confirm: {
+                    label: 'Yes, Remove ' + name,
+                    className: 'btn-danger'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    formToSubmit.submit();
+                }
+            }
+        });
+    }
+
+    disbandConfirm = function(event){
+        var formToSubmit = this;
+        event.preventDefault();
+        bootbox.confirm({
+            title: "Disband Room Group?",
+            message: "<p>This remove all group members from your group. They will be notified via email.</p>" + 
+                     "<p>This will not withdraw you from the lottery, but it WILL generate a new confirmation number for your lottery entry.</p>" +
+                     "<p>Are you sure?</p>",
+            buttons: {
+                confirm: {
+                    label: 'Yes, Disband My Group',
+                    className: 'btn-danger'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    formToSubmit.submit();
+                }
+            }
+        });
+    }
+
+    joinConfirm = function(event) {
+        var formToSubmit = this;
+        event.preventDefault();
+        bootbox.confirm({
+            title: "Join Room Group?",
+            message: "<p>This will withdraw your current lottery entry and generate a new confirmation number.</p>" + 
+                     "<p>You will ONLY be entered for the suite and/or room lottery if your group has an entry for it. " +
+                     "You will be able to view your group's lottery entries after joining.</p>" +
+                     "<p>Are you sure you want to join this group?</p>",
+            buttons: {
+                confirm: {
+                    label: 'Yes, Join Group',
+                    className: 'btn-success'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    formToSubmit.submit();
+                }
+            }
+        });
+    }
+
+    $().ready(function () {
+        {% if action %}
+        $('#confirm').show();
+        {% elif create %}
+        $('#create-group').show()
+        {% else %}
+        $('#select-action').show();
+        {% endif %}
+
+        $('#group-lookup-form').submit(lookupRoomGroup);
+        $("#remove-member").submit(removeConfirm);
+        if($('#disband-group').length) { $("#disband-group").submit(disbandConfirm); }
+
+        {% if application.status == c.COMPLETE %}
+        $("#join-group-form").submit(joinConfirm);
+        {% endif %}
+    })
+</script>
+
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
+<div class="card">
+    <div class="card-body">
+        <div id="select-action" class="collapse">
+            {% if application.room_group_name or application.parent_application %}
+                {{ form_macros.form_validation('update-group', 'validate_hotel_lottery', form_list=['LotteryRoomGroup']) }}
+                <h2>Your Room Group</h2>
+                {% if application.parent_application %}
+                <p>
+                    You are in room group "{{ application.parent_application.room_group_name }}".
+                    {{ application.parent_application.group_leader_name }} is your group leader.
+                    Your confirmation number is <strong>{{ application.confirmation_num }}</strong>.
+                </p>
+                {% else %}
+                    <p>Your room group name is "{{ application.room_group_name }}" and your group has {{ application.group_members|length + 1 }} group member(s), including yourself. You can edit your group name{% if application.group_members|length > 0 %} and view your group's members{% endif %} below.</p>
+                    <p>In order to join your group, group members need both the confirmation number (<strong>{{ application.confirmation_num }}</strong>) and your current email address (<strong>{{ application.attendee.email }}</strong>).</p>
+                    {% if application.attendee.managers and application.attendee.managers[0].hotel_eligible_attendees|length > 1 %}
+                    <p><strong>Other badges on your account are NOT automatically part of your room group.</strong> On your <a href="../preregistration/homepage">homepage</a>, click the "Enter Hotel Lottery" button next to your other badge(s) to enter the lottery as them and have them join your room group.</p>
+                    {% endif %}
+                    <p>Room group members will be able to view your initials ({{ application.group_leader_name }}) and most of the details of your lottery entry. They will NOT see your check-in name{% if application.entry_type == c.ROOM_ENTRY %} or any ADA-related requests{% endif %}.</p>
+                    
+                    <div class="row g-sm-3">
+                        <div class="col-12 col-sm-6">
+                            <form method="post" action="save_group" id="update-group">
+                                {{ csrf_token() }}
+                                <input type="hidden" name="id" value="{{ application.id }}">
+                                {{ form_macros.form_input(lottery_room_group.room_group_name) }}
+                                <button type="submit" class="btn btn-primary mb-3">Update Group Name</button>
+                            </form>
+                        </div>
+                        {% if False %}
+                        <div class="col-12 col-sm-6">
+                            <form method="post" action="new_invite_code">
+                                <input type="hidden" name="id" value="{{ application.id }}">
+                                {{ form_macros.form_input(lottery_room_group.invite_code) }}
+                                <button type="submit" class="btn btn-warning mb-3">Generate New Code</button>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if application.group_members %}
+                    <p>
+                        Here are the members of your room group:
+                        <table class="table table-borderless">
+                            {% for member in application.group_members %}
+                            <tr>
+                                <td>{{ member.attendee.full_name }}</td>
+                                <td>
+                                    <form method="post" action="remove_group_member" id="remove-member">
+                                        <input type="hidden" name="id" value="{{ application.id }}">
+                                        {{ csrf_token() }}
+                                        <input type="hidden" name="member_id" value="{{ member.id }}">
+                                        <input type="hidden" name="member_name" value="{{ member.attendee.full_name }}">
+                                        {% if c.HOTEL_LOTTERY_OPEN %}
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            Remove
+                                        </button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                    </p>
+                    {% endif %}
+                {% endif %}
+                {% if application.room_group_name %}
+                <form method="post" action="delete_group" id="disband-group">
+                {% endif %}
+                    <p class="mb-0 pull-right">
+                        <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
+                        <input type="hidden" name="id" value="{{ application.id }}">
+                            {{ csrf_token() }}
+                            {% if application.room_group_name %}
+                            <button class="btn btn-danger" onClick="disbandConfirm()">Disband Group</button>
+                            {% endif %}
+                    </p>
+                {% if application.room_group_name %}
+                </form>
+                {% endif %}
+            {% else %}
+                <h2>Room Group Information</h2>
+                {% include 'hotel_lottery/room_group_info.html' with context %}
+
+                {% if application.status != c.COMPLETE %}
+                <p class="mb-0">
+                    <button class="btn btn-primary" onClick="setStep('#join-group')">Continue</button>
+                {% else %}
+                <h2>Room Group Options</h2>
+                <p class="mb-0">
+                <button class="btn btn-primary" onClick="setStep('#join-group')">Join Room Group</button>
+                <button class="btn btn-info" onClick="setStep('#create-group')">Create Room Group</button>
+                {% endif %}
+                <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
+                </p>
+            {% endif %}
+        </div>
+        <div id="join-group" class="collapse">
+            <h2>Join Room Group
+                {% if application.status == c.COMPLETE %}<button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button>
+                {% else %}<a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>{% endif %}
+            </h2>
+            <div class="show" id="group-lookup">
+                <p>Enter a group confirmation number and email address below to look up a room group.</p>
+                <form method="post" id="group-lookup-form" action="room_group_search">
+                <input type="hidden" name="member_id" value="{{ application.id }}" />
+                {{ csrf_token() }}
+                <div class="row g-sm-3">
+                    {% if False %}
+                    <div class="col-12 col-sm-4">
+                        <div class="form-text">Invite Code</div>
+                        <input type="text" class="form-control" id="invite_code" name="invite_code" placeholder="XXX-XXX-XXX">
+                    </div>
+                    {% endif %}
+                    <div class="col-12 col-sm-4">
+                        <div class="form-text">Confirmation Number</div>
+                        <input type="text" class="form-control" id="confirmation_num" name="confirmation_num" placeholder="##########">
+                    </div>
+                    <div class="col-12 col-sm-4">
+                        <div class="form-text">Group Leader's Email</div>
+                        <input type="text" class="form-control" id="leader_email" name="leader_email" placeholder="x@y.com">
+                    </div>
+                    <div class="col-12 col-sm-4">
+                        <br/>
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </div>
+                </div>
+                </form>
+            </div>
+            <div class="collapse" id="group-found">
+                <p>
+                    We found the group "<span class='group-name'></span>" (confirmation number <strong><span class='conf-num'></span></strong>).
+                    This group's group leader is <span class='leader-name'></span> They will be able to see your first and last name ({{ application.attendee.full_name }}).
+                </p>
+                <form method="post" action="join_group" id="join-group-form">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    <input type="hidden" id="room_group_id" name="room_group_id" value="">
+                    <div class="row g-sm-3">
+                        <div class="col-12 col-sm-6">
+                            <button type="button" class="btn btn-outline-secondary" onClick="setStep('#group-lookup')">
+                                Back
+                            </button>
+                            <button type="submit" class="btn btn-primary">Join Group "<span class='group-name'></span>"</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div id="create-group" class="collapse">
+            {% if not application.room_group_name %}
+            {# This div's contents are behind an if-check because otherwise they interfere with group update validations #}
+
+            {{ form_macros.form_validation('create-group-form', 'validate_hotel_lottery', form_list=['LotteryRoomGroup']) }}
+            <h2>Create Room Group <button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button></h2>
+        
+            <p>
+                Please enter a name for your room group below. People joining your room group will be shown this name,
+                plus your first and last initials ({{ application.group_leader_name }}), to help them identify your group.
+            </p>
+            <form method="post" action="save_group" id="create-group-form">
+                {{ csrf_token() }}
+                <div class="row g-sm-3">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    <div class="col-12 col-sm-6">
+                        {{ form_macros.form_input(lottery_room_group.room_group_name) }}
+                    </div>
+                </div>
+                <div class="row g-sm-3">
+                    <div class="col-12 col-sm-6">
+                        <button type="submit" class="btn btn-primary">Create Room Group</button>
+                    </div>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+        <div id="confirm" class="collapse">
+            <h2>Room Group {{ action.title() }}</h2>
+            
+            {% if action == 'created' %}
+                <p>You have successfully created the room group "{{ application.room_group_name }}"!</p>
+                <p>
+                    Your group confirmation number is <strong>{{ application.confirmation_num }}</strong>.
+                </p>
+            {% elif action == 'updated' %}
+                <p>You have updated your room group name to "{{ application.room_group_name }}".</p>
+            {% else %}
+                <p>You have successfully joined group "{{ application.parent_application.room_group_name }}"!</p>
+                {% if new_conf %}
+                <p>Your previous confirmation number is now invalid. Your new confirmation number is below.</p>
+                {% endif %}
+                <p>
+                    <strong>Entry Received</strong>: {{ application.last_submitted|datetime_local }}
+                    <br/><strong>Confirmation Number</strong>: {{ application.confirmation_num }}
+                    <br/><strong>Entry Email Address</strong>: {{ application.attendee.email }}
+                    {% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %}
+                    <br/><strong>Staff Lottery Close</strong>: {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local }}
+                    {% endif %}
+                    {% if c.HOTEL_LOTTERY_OPEN %}
+                    <br/><strong>Lottery Close</strong>: {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}
+                    {% endif %}
+                </p>
+            {% endif %}
+            {% if action == 'created' %}
+            <button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Room Group Options</button>
+            <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
+            {% else %}
+            <a class="btn btn-primary" href="index?attendee_id={{ application.attendee.id }}">View Room Group</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

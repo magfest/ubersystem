@@ -69,8 +69,8 @@ def _copy_department_shifts(service, to_department, from_department, dept_role_m
 class Root:
     def pending_badges(self, session, message=''):
         return {
-            'pending_badges': session.query(Attendee)\
-                .filter_by(badge_status=c.PENDING_STATUS).filter_by(staffing=True).filter(Attendee.paid != c.PENDING),
+            'pending_badges': session.query(Attendee).filter_by(
+                badge_status=c.PENDING_STATUS).filter_by(staffing=True).filter(Attendee.paid != c.PENDING),
             'message': message,
         }
 

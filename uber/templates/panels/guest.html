@@ -5,10 +5,9 @@
 {% block content %}
   {% include "panels_common.html" %}
 
-  {% include 'prereg_masthead.html' %}
-  <div class="panel panel-default">
+  <div class="panel">
     <div class="panel-body">
-    {% if c.APP_LIMIT and attendee.panel_applications|length >= c.APP_LIMIT %}
+    {% if c.APP_LIMIT and attendee.submitted_panels|length >= c.APP_LIMIT %}
       You have already submitted the maximum number of panels ({{ c.APP_LIMIT }}). Please contact your liaison if
       you need to change a panel or submit more ideas.
 
@@ -16,13 +15,13 @@
     {% else %}
       {% if c.APP_LIMIT %}
         You may submit up to {{ c.APP_LIMIT }} panel ideas.
-        {% if attendee.panel_applications %}
-          You have already submitted {{ attendee.panel_applications|length }}.
+        {% if attendee.submitted_panels %}
+          You have already submitted {{ attendee.submitted_panels|length }}.
         {% endif %}
       {% endif %}
       <form method="post" action="guest" class="form-horizontal" role="form">
 
-      <input type="hidden" name="poc_id" value="{{ poc_id }}" />
+      <input type="hidden" name="attendee_id" value="{{ attendee_id }}" />
       <input type="hidden" name="return_to" value="{{ return_to }}" />
 
       <h3>Panel Information</h3>
@@ -30,18 +29,19 @@
 
       <h3>Additional Information</h3>
       <div class="form-group">
-        <label class="col-sm-3 control-label">When are your preferred panel times?</label>
+        <label class="col-sm-3 control-label">When are you NOT available?</label>
         <div class="col-sm-6">
-          <textarea class="form-control" name="available" rows="4" required="required">{{ app.available }}</textarea>
+          <textarea class="form-control" name="unavailable" rows="4" required="required">{{ app.unavailable }}</textarea>
         </div>
         <div class="clearfix"></div>
         <p class="help-block col-sm-9 col-sm-offset-3">
-          Please let us know the time slot you would prefer for this panel. Panel times can’t be guaranteed, but we’ll
-          do our best to accommodate preferences.
+          Please let us know of any schedule conflicts due to prior obligations, travel times, or other needs.
+          (e.g. you made a deal with a fairy godmother to get here and have to be back in your room by midnight.)
+          Panels run from 12 PM to 3 AM Thursday, 10 AM to 3 AM Friday, 10 AM to 3 AM Saturday, and 10 AM to 3 PM Sunday.
         </p>
       </div>
       <div class="form-group">
-        <label class="col-sm-3 control-label">Is there anything else you would like to provide regarding your submission?</label>
+        <label class="col-sm-3 control-label optional-field">Is there anything else you would like to provide regarding your submission?</label>
         <div class="col-sm-6">
           <textarea class="form-control" name="extra_info" rows="4">{{ app.extra_info }}</textarea>
         </div>
@@ -57,7 +57,7 @@
       <div class="form-group">
         <div class="col-sm-6 col-sm-offset-3">
           <button type="submit" class="btn btn-primary">Submit Panel Idea</button>
-          {% if not c.APP_LIMIT or attendee.panel_applications|length < c.APP_LIMIT %}
+          {% if not c.APP_LIMIT or attendee.submitted_panels|length < c.APP_LIMIT %}
             <button type="submit" name="ignore_return_to" value="1" class="btn btn-success">Submit and Add Another Panel</button>
           {% endif %}
         </div>

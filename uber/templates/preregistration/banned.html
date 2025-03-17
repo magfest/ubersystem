@@ -1,26 +1,26 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}You may be banned from {{ c.EVENT_NAME }}!{% endblock %}
+{% set title_text = "You may be banned from " ~ c.EVENT_NAME ~ "!" %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2> You may be banned from {{ c.EVENT_NAME }}! </h2>
 
     <p>
       Our list of banned people includes someone named <b>{{ attendee.full_name }}</b>. Every banned attendee has
-      been told they are banned, so if this is not a mistake then you should definitely know it.  However, if you
-      just happen to have the same name as someone who has been banned, then go ahead and continue.  If we see someone
+      been told they are banned, so if this is not a mistake then you should definitely know it. However, if you
+      just happen to have the same name as someone who has been banned, then go ahead and continue. If we see someone
       on our banned list complete their registration then we'll contact you to verify that you're someone else.
     </p>
 
     <table style="width:auto" align="center">
       <tr>
-        {%- set next_page = 'hotel?id=' + id if c.PREREG_REQUEST_HOTEL_INFO_OPEN else 'index' -%}
+        {%- set url_string = ("?group_id=" ~ attendee.group_id) if attendee.badge_type == c.PSEUDO_DEALER_BADGE else ("?attendee_id=" ~ (attendee.group.id if attendee.group else attendee.id)) %}
+        {%- set next_page = "additional_info" ~ url_string -%}
         <td><a href="{{ next_page }}">I'm someone else, let me register!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-        <td><a href="delete?id={{ attendee.id }}">Well never mind then!</a></td>
+        <td><a href="delete{{ url_string }}">Well never mind then!</a></td>
       </tr>
     </table>
 

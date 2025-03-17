@@ -1,0 +1,40 @@
+{% extends "./preregistration/preregbase.html" %}
+{% import "forms/account.html" as account_fields with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set title_text = "Dealer Registration Step 1 of 4: Table Info" %}
+{% block content %}
+{% set original_location = ".." ~ c.PAGE_PATH %}
+<div class="card">
+  <div class="card-body">
+    {% include 'forms/prereg_intro.html' %}
+
+  {{ form_macros.form_validation('dealer-form', 'validate_dealer') }}
+
+{#- The action is set to "post_form" or "post_dealer" in order to bypass the NGINX cache. -#}
+<form novalidate method="post" id="dealer-form" action="post_dealer" class="form-horizontal" role="form">
+{% if edit_id %}
+    <input type="hidden" name="edit_id" value="{{ edit_id }}" />
+{% endif %}
+{{ csrf_token() }}
+<input type="hidden" name="is_prereg" value="True" />
+
+<h2 class="h3 text-center mt-3">{{ c.DEALER_APP_TERM|title }} Info</h2>
+
+  {% include "forms/group/table_info.html" %}
+
+<h2 class="h3 text-center">{{ c.DEALER_TERM|title }} Contact Info</h2>
+  {% include "forms/dealer_contact_intro.html" %}
+  {% include "forms/group/contact_info.html" %}
+
+  {# Deprecated forms included for backwards compatibility with old plugins #}
+  {% include "groupform.html" %}
+
+  {% if edit_id %}
+      <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update</button>
+  {% endif %}
+  <button type="submit" class="btn btn-{% if edit_id %}outline-{% endif %}primary" value="Next">Next</button>
+</form>
+</div>
+</div>
+{{ "js/warn-before-logout-dealer.js"|serve_static_content }}
+{% endblock %}

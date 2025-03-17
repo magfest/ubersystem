@@ -56,7 +56,7 @@
           signupId = $button.data('signupId');
       checkinSignup(signupId, function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           var $checkinTd = $button.closest('td'),
               $cancelButton = $checkinTd.closest('tr').find('.controls button'),
@@ -74,7 +74,7 @@
           signupId = $button.data('signupId');
       undoCheckinSignup(signupId, function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           var $checkinTd = $button.closest('td'),
               $cancelButton = $checkinTd.closest('tr').find('.controls button'),
@@ -97,19 +97,19 @@
         message: '<p>Are you sure you want to cancel the signup for ' + attendeeName + '?</p>',
         buttons: {
           confirm: { label: 'Cancel Signup', className: 'btn-danger' },
-          cancel: { label: 'Nevermind', className: 'btn-default' }
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
         },
         callback: function (result) {
           if (result) {
             cancelSignup(signupId, function(response) {
               if(response && response['error']) {
-                toastr.error(response['error'], '', {timeOut: 3000});
+                showErrorMessage(response['error'], '', {timeOut: 3000});
               } else {
                 var $signupRow = $button.closest('tr');
                 $signupRow.fadeOut(function() {
                   $attendeesTable.DataTable().row($signupRow).remove().draw();
                 });
-                toastr.success('Signup for ' + attendeeName + ' successfully cancelled', '', {timeOut: 3000});
+                $("#message-alert").addClass("alert-success").show().children('span').html('Signup for ' + attendeeName + ' successfully cancelled', '', {timeOut: 3000});
               }
             });
           }
@@ -121,9 +121,9 @@
 
 <h2 class="event-title">
   {%- if event.is_new -%}
-    <span class="glyphicon glyphicon-plus"></span> New event for the {{ attraction|form_link }} attraction
+    <i class="fa fa-plus"></i> New event for the {{ attraction|form_link }} attraction
   {%- else -%}
-    <span class="glyphicon glyphicon-cog"></span> Edit the {{ event.feature.name }} event for the {{ attraction|form_link }} attraction
+    <i class="fa fa-cog"></i> Edit the {{ event.feature.name }} event for the {{ attraction|form_link }} attraction
   {%- endif -%}
 </h2>
 
@@ -192,9 +192,9 @@
       <input type="submit" name="save" class="btn btn-primary" value="Save">
       <div class="btn-group save_another">
         <button type="submit" name="save_another_0" class="btn btn-primary">Save & Add Another</button>
-        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <span class="caret"></span>
-          <span class="sr-only">Toggle Dropdown</span>
+          <span class="visually-hidden">Toggle Dropdown</span>
         </button>
         <ul class="dropdown-menu">
           <li><a href="#"><input type="submit" name="save_another_300" value="After 5 minute break"></a></li>
@@ -206,7 +206,7 @@
           <li><a href="#"><input type="submit" name="save_another_3600" value="After 1 hour break"></a></li>
         </ul>
       </div>
-      <a href="form?id={{ attraction.id }}" type="button" class="btn btn-default">Cancel</a>
+      <a href="form?id={{ attraction.id }}" type="button" class="btn btn-outline-secondary">Cancel</a>
     </div>
   </div>
 </form>
@@ -232,15 +232,15 @@
           <td>#{{ signup.attendee.badge_num }}</td>
           <td>{{ signup.signup_time|datetime_local('%A, %b %-e at %-I:%M%p') }}</td>
           <td class="checkin {% if signup.is_checked_in %} checked-in{% endif %}" data-order="{{ signup.checkin_time }}">
-            <button class="btn btn-warning btn-xs checked-in-visible" data-signup-id="{{ signup.id }}">
-              <span class="glyphicon glyphicon-check"></span>
+            <button class="btn btn-warning btn-sm checked-in-visible" data-signup-id="{{ signup.id }}">
+              <i class="fa fa-check"></i>
               Undo
             </button>
             <span class="checkin_time checked-in-visible">
               {{ signup.checkin_time_local|datetime('%A, %b %-e at %-I:%M%p') }}
             </span>
-            <button class="btn btn-success btn-xs checked-in-hidden" data-signup-id="{{ signup.id }}">
-              <span class="glyphicon glyphicon-check"></span>
+            <button class="btn btn-success btn-sm checked-in-hidden" data-signup-id="{{ signup.id }}">
+              <i class="fa fa-check"></i>
               Check In Now
             </button>
           </td>
@@ -248,11 +248,11 @@
             <span {% if signup.is_checked_in -%}
                 title="You cannot cancel a signup that has already checked in" {% endif -%}
                 style="display: inline-block;">
-              <button class="btn btn-xs btn-danger"
+              <button class="btn btn-sm btn-danger"
                   {%- if signup.is_checked_in %} disabled="disabled"{% endif %}
                   data-signup-id="{{ signup.id }}"
                   data-attendee-name="{{ signup.attendee.full_name }}">
-                <span class="glyphicon glyphicon-remove"></span>
+                <i class="fa fa-remove"></i>
               </button>
             </span>
           </td>

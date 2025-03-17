@@ -1,4 +1,4 @@
-{% extends "guests/agreement-base.html" %}{% set group_type=guest.group_type_label|lower %}
+{% extends "guests/agreement-base.html" %}{% set group_type=guest.group_type_label|lower|replace(' ','_') %}
 
 {# By default, this page renders exactly what's in the base template. #}
 {# Downstream plugins may override this file and change base blocks, so leave this file in place. #}

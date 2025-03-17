@@ -1,11 +1,12 @@
 from datetime import datetime
+import traceback
 
 from pockets import groupify, listify
 from sqlalchemy import func, or_
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Email
 from uber.tasks.email import send_email
@@ -14,22 +15,27 @@ from uber.utils import get_page
 
 @all_renderable()
 class Root:
-    def index(self, session, page='1', search_text=''):
+    def index(self, session, page='1', search_text='', subject=False):
         emails = session.query(Email).order_by(Email.when.desc())
         search_text = search_text.strip()
         if search_text:
-            emails = emails.icontains(Email.to, search_text)
+            if subject:
+                emails = emails.icontains(Email.subject, search_text)
+            else:
+                emails = emails.icontains(Email.to, search_text)
         return {
             'page': page,
             'emails': get_page(page, emails),
             'count': emails.count(),
-            'search_text': search_text
+            'search_text': search_text if not subject else '',
+            'subject_search_text': search_text if subject else ''
         }
 
     def sent(self, session, **params):
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
 
     def pending(self, session, message=''):
+        AutomatedEmail.reconcile_fixtures(cleanup=False)
         emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
             AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
         emails = []
@@ -75,13 +81,15 @@ class Root:
             'examples': examples,
             'message': message,
         }
-    
+
     def update_dates(self, session, ident, **params):
-        email = session.query(AutomatedEmail).filter_by(ident=ident).first()
-        email.apply(params, restricted=False)
-        session.add(email)
-        session.commit()
+        AutomatedEmail.update_fixture(session, ident, **params)
         raise HTTPRedirect('pending_examples?ident={}&message={}', ident, 'Email send dates updated')
+
+    def reset_fixture_attr(self, session, ident, key):
+        AutomatedEmail.reset_fixture_attr(session, ident, key)
+        raise HTTPRedirect('pending_examples?ident={}&message={}',
+                           ident, f'{key} has been reset to its original value')
 
     def test_email(self, session, subject=None, body=None, from_address=None, to_address=None, **params):
         """
@@ -107,6 +115,7 @@ class Root:
             'message': output_msg,
         }
 
+    @public
     @ajax
     def resend_email(self, session, id):
         """
@@ -121,7 +130,7 @@ class Root:
                 if email.automated_email and email.fk:
                     email.automated_email.send_to(email.fk, delay=False, raise_errors=True)
                 else:
-                    send_email(
+                    send_email.delay(
                         c.ADMIN_EMAIL,
                         email.fk_email,
                         email.subject,
@@ -131,6 +140,7 @@ class Root:
                         ident=email.ident)
                 session.commit()
             except Exception:
+                traceback.print_exc()
                 return {'success': False, 'message': 'Email not sent: unknown error.'}
             else:
                 return {'success': True, 'message': 'Email resent.'}
@@ -143,7 +153,7 @@ class Root:
             automated_email.approved = True
             raise HTTPRedirect(
                 'pending?message={}',
-                '"{}" approved and will be sent out {}'.format(automated_email.subject, 
+                '"{}" approved and will be sent out {}'.format(automated_email.subject,
                                                                "shortly" if not automated_email.active_when_label
                                                                else automated_email.active_when_label))
         raise HTTPRedirect('pending?message={}{}', 'Unknown automated email: ', ident)

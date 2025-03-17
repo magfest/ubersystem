@@ -2,36 +2,33 @@
 <head></head>
 <body>
 
-You have successfully submitted an application for the {{ c.EVENT_NAME }} Marketplace
+<p>You have successfully submitted an application for the {{ c.EVENT_NAME }} Artist Marketplace
 this coming {{ event_dates() }}. Below is a copy of your application. You may
-<a href="{{ c.URL_BASE }}/marketplace_applications/edit?id={{ app.id }}">update it here</a>.
+<a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}">update your application anytime here</a>.</p>
 
 <ul>
-    {% if app.business_name %}<li><strong>Business Name</strong>: {{ app.business_name }}</li>{% endif %}
-    <li><strong>Total Price</strong>: {{ app.potential_cost|format_currency }}</li>
-    <li><strong>Description</strong>: {{ app.description }}</li>
-    <li><strong>Categories</strong>: {{ app.categories_labels|join(', ') }}{% if app.categories_text %}{% if app.categories_labels%} / {% endif %}Other: {{ app.categories_text }}{% endif %}</li>
+    <li><strong>Business Name</strong>: {{ app.name }}</li>
+    {% if app.display_name %}<li><strong>Display Name</strong>: {{ app.display_name }}</li>{% endif %}
+    <li><strong>Email</strong>: {{ app.email_address }}</li>
+    {% if app.website %}<li><strong>Website</strong>: {{ app.website }}</li>{% endif %}
     {% if app.tax_number %}<li><strong>Illinois Business Tax Number</strong>: {{ app.tax_number }}</li>{% endif %}
-    {% if app.special_needs %}<li><strong>Special Requests</strong>: {{ app.special_needs }}</li>{% endif %}
 </ul>
 
-Should your application be approved, you will be required to pay a {{ app.potential_cost|format_currency }} fee to complete your reservation.
-{% if app.attendee.badge_status == c.NEW_STATUS %}
-You MUST complete your {{ c.EVENT_NAME }} registration before you will be able to pay for your marketplace space. You
-may complete your registration
-<a href="{{ c.URL_BASE }}//preregistration/confirm?id={{ app.attendee_id }}">here</a>.
-{% endif %}
+<p>
+    Should your application be accepted, you will be required to pay a {{ (app.default_cost / 100)|format_currency }} fee to complete your reservation.
+</p>
 
-<br/><br/>
-{% if c.AFTER_MARKETPLACE_WAITLIST %}
-    Because our Marketplace is currently full, your submission has been automatically placed on our waitlist.  We'll let
-    you know if your application is later approved.
-{% else %}
-    We will review your request and provide you with a payment link once your application has been approved.
-{% endif %}
+<p>
+    {% if c.AFTER_MARKETPLACE_WAITLIST %}
+        Because our Marketplace is currently full, your submission has been automatically placed on our waitlist.  We'll let
+        you know if your application is later accepted.
+    {% else %}
+        We will email you if your application is accepted, at which time you will be able to pay for your spot.
+    {% endif %}
+</p>
 
-<br/> <br/> You can always review the {{ c.EVENT_NAME }} Marketplace rules
-<a href="{{ c.MARKETPLACE_RULES_URL }}" target="_blank">here</a>.
+<p> You can always review the {{ c.EVENT_NAME }} Marketplace rules
+<a href="{{ c.ARTIST_MARKETPLACE_RULES_URL }}" target="_blank">here</a>.</p>
 
 </body>
 </html>

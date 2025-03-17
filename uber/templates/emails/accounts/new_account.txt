@@ -2,7 +2,7 @@
 
 {{ creator }} has created an admin account for you on the {{ c.EVENT_NAME }} registration system.
 
-Use the following link to log in: {{ c.URL_BASE }}/accounts/login/
+Use the following link to log in: {{ c.URL_BASE }}/accounts/login
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}Please note this is NOT the account you use to manage your personal registration information.{% endif %}
 
 
@@ -17,6 +17,6 @@ You{% if account.write_access_set %} also{% endif %} have read-only access to:
 {% endfor %}{% endif %}
 
 The email address we used is: {{ account.attendee.email }}
-{% if c.AUTH_DOMAIN %}You will be able to access your account using your SSO login. Please contact {{ c.ADMIN_EMAIL|email_only }} for details.{% else %}Your password is: {{ password|safe }}
+{% if c.SAML_SETTINGS %}You will be able to access your account using your SSO login. Please contact {{ c.ADMIN_EMAIL|email_only }} for details.{% else %}Your password is: {{ password|safe }}
 
 You may change your password after logging in.{% endif %}

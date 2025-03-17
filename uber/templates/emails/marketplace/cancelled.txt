@@ -1,0 +1,4 @@
+"{{ app.name }}"{% if app.display_name %} ({{ app.display_name }}){% endif %} has just cancelled their application in the Artist Marketplace.
+
+View their application here: {{ c.URL_BASE }}/marketplace_admin/form?id={{ app.id }}
+List of applications: {{ c.URL_BASE }}/marketplace_admin/index

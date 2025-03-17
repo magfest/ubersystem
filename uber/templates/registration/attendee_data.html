@@ -1,51 +1,42 @@
 {% set admin_area=True %}
-{% set clientside_bool=True %}
-{% set badge_status_ro=not c.HAS_REG_ADMIN_ACCESS %}
-{% import "fields/attendee.html" as attendee_fields with context %}
+{% import "forms/macros.html" as form_macros with context %}
 <script src="//cdnjs.cloudflare.com/ajax/libs/validate.js/0.13.1/validate.min.js"></script>
 <script type="text/javascript">
 createDateTextEntries();
-{% if attendee.is_new %}
-$.field('placeholder').prop('checked', true);
-{% endif %}
-var saveAndClose = function() {
-  $("#attendee_form").submit();
-  $("#attendee_modal").modal('hide');
-};
+hideMessageBox('attendee-modal-alert');
   
-var updateAttendee = function(event){
-    event.preventDefault();
-    toastr.clear();
+var updateAttendee = function(submit_button_name=''){
+    hideMessageBox('attendee-modal-alert');
 
     var formData = $("#attendee_form").serializeArray();
     var old_hash = window.location.hash;
-    $.each(validate.collectFormValues($("#attendee_form"), {nullify:false}), function(k, v) {
-        if (v === false || v === null) {
-        formData.push({name: k, value: (v === null) ? "" : v});
-        } else if (v === true) {
-        formData.find(input => input.name == k).value = v;
-        }
-    });
     $.ajax({
         method: 'POST',
         url: '../registration/update_attendee',
         data: formData,
         success: function (json) {
             if (json.success) {
-              toastr.info(json.message);
-              {% if attendee.is_new %}
-              old_hash = "#attendee_form?id=" + json.id
-              window.location = window.location.href.replace(location.hash, "") + old_hash;
-              {% else %}
-              window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
-              loadForm("Data");
-              {% endif %}
+              if (submit_button_name == 'save_and_close') {
+                {# TODO: We really need better modal handling #}
+                $('#attendee_modal .btn-close').trigger('click');
+                $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+              } else {
+                {% if attendee.is_new %}
+                old_hash = "#attendee_form?id=" + json.id
+                window.location = window.location.href.replace(location.hash, "") + old_hash;
+                {% else %}
+                window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
+                loadForm("Data").then(function(result) {
+                  $("#attendee-modal-alert").addClass("alert-info").show().children('span').html(json.message);
+                });
+                {% endif %}
+              }
             } else {
-              toastr.error(json.message);
+              showErrorMessage(json.message, 'attendee-modal-alert');
             }
         },
         error: function () {
-            toastr.error('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.', 'attendee-modal-alert');
         }
     });
     setTimeout(function(){ 
@@ -54,6 +45,28 @@ var updateAttendee = function(event){
         }
       }, 1000);
 };
+var deleteAttendee = function(confirm_msg) {
+  event.preventDefault();
+  var formData = $("#delete_attendee").serializeArray();
+  if (confirm(confirm_msg) == true) {
+    $.ajax({
+        method: 'POST',
+        url: '../registration/delete_attendee',
+        data: formData,
+        success: function (json) {
+            if (json.success) {
+              $('#attendee_modal .btn-close').trigger('click');
+              $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+            } else {
+              showErrorMessage(json.message, 'attendee-modal-alert');
+            }
+        },
+        error: function () {
+            showErrorMessage('Unable to connect to server, please try again.', 'attendee-modal-alert');
+        }
+    });
+  }
+}
 $(window).on("runJavaScript", function () {
 if($.field('return_to')) {
     $.field('return_to').val(window.location.pathname + window.location.search);
@@ -62,82 +75,83 @@ if($.field('return_to')) {
 </script>
 {% set save_buttons %}
   {% set save_text = save_text or 'Create' if attendee.is_new else 'Save' %}
-  <div class="pull-right">
-      <button type="button" onClick="saveAndClose()" class="btn btn-primary">{{ save_text }} & Close</button>
-      <button type="submit" form="attendee_form" class="btn btn-primary">{{ save_text }}</button>
-      <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+  <div class="text-end col">
+
+    <button type="submit" form="attendee_form" name="save_and_close" value="1" class="btn btn-primary">{{ save_text }} & Close</button>
+    <button type="submit" form="attendee_form" class="btn btn-primary">{{ save_text }}</button>
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
 {% endset %}
+
 {% if not attendee.is_new %}
-<div class="row" style="padding: 10px;">
+<div class="row g-sm-3 mt-1 mb-3">
+  <div class="col">
+    {% if not attendee.is_new %}
+    <a class="btn btn-primary" href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">View as Attendee</a>
+    {% endif %}
+    <form method="post" class="d-inline" id="delete_attendee" action="../registration/delete_attendee" onSubmit="deleteAttendee('{% if attendee.unassigned_group_reg %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}')">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      {% if return_to %}
+      <input type="hidden" name="return_to" value="{{ return_to }}" />
+      {% else %}
+      <input type="hidden" name="return_to" value="" />
+      {% endif %}
+  </form>
+  <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.unassigned_group_reg %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
+                  {% if attendee.cannot_delete_badge_reason %} style="background-color:#BCBCBC" title="{{ attendee.cannot_delete_badge_reason }}" disabled {% endif %}/>
+  {% if c.HAS_SECURITY_ADMIN_ACCESS %}
+  <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
+  {% endif %}
+
+  {% if attendee.paid != c.LOST_BADGE %}
+      <form method="post" class="d-inline" action="lost_badge">
+          <input type="hidden" name="id" value="{{ attendee.id }}" />
+          <input type="submit" class="btn btn-outline-danger" value="Report Lost Badge">
+      </form>
+  {% endif %}
+  </div>
 {{ save_buttons }}
 </div>
 {% endif %}
-<form method="post" action="../registration/update_attendee" id="attendee_form" onSubmit="updateAttendee(event)" class="form-horizontal">
+{% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
+{% include 'registration/attendee_pending_warning.html' %}
+{% endif %}
+{% if attendee.regdesk_info %}
+<div class="alert alert-info">
+    <div class="form-text">Special Instructions</div>
+    <div class="mb-3">
+        <strong>{{ attendee.regdesk_info }}</strong>
+        <p class="form-text"><em>You can update these instructions below.</em></p>
+    </div>
+</div>
+{% endif %}
+
+{% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
+<form class="print-badge" id="print-badge-form" action="../badge_printing/add_job_to_queue" method="post">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ attendee.id }}">
+</form>
+{% endif %}
+
+{{ form_macros.form_validation('attendee_form', '../registration/validate_attendee', callback="updateAttendee(submit_button_name)") }}
+<form novalidate method="post" action="../registration/update_attendee" id="attendee_form">
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ attendee.db_id }}" />
-  {% if attendee.is_new %}
-    {{ attendee_fields.is_placeholder }}
-    {{ attendee_fields.group_link }}
-    {{ attendee_fields.badge_type }}
-    {{ attendee_fields.ribbons }}
-    {{ attendee_fields.name }}
-    {{ attendee_fields.age }}
-    {{ attendee_fields.email }}
-    {{ attendee_fields.paid }}
-    {{ attendee_fields.admin_notes }}
-  {% else %}
-    {{ attendee_fields.created }}
-    {{ attendee_fields.signed_up }}
-    {{ attendee_fields.last_updated }}
-    {{ attendee_fields.checked_in }}
-    {{ attendee_fields.attendee_account }}
-    {{ attendee_fields.is_placeholder }}
-    {{ attendee_fields.badge_status }}
-    {% if c.HAS_ACCOUNTS_ACCESS %}
-      {{ attendee_fields.admin_access }}
-    {% endif %}
-    {{ attendee_fields.group_link }}
-    {{ attendee_fields.badge_type }}
-    {{ attendee_fields.ribbons }}
-    {{ attendee_fields.name }}
-    {{ attendee_fields.badge_printed_name }}
-    {{ attendee_fields.age }}
-    {{ attendee_fields.email }}
-    {{ attendee_fields.emergency_contact }}
-    {{ attendee_fields.cellphone }}
-    {{ attendee_fields.paid }}
-    {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
-      {{ attendee_fields.staffing }}
-      {{ attendee_fields.job_interests }}
-      {{ attendee_fields.assigned_depts }}
-      {{ attendee_fields.setup_teardown }}
-    {% endif %}
-
-    {{ attendee_fields.for_review }}
-    {{ attendee_fields.admin_notes }}
-  {% endif %}
+  {% include "forms/attendee/admin_badge_flags.html" %}
+  <hr/>
+  {% include "forms/attendee/personal_info.html" %}
+  {% include "forms/attendee/other_info.html" %}
+  <hr/>
+  {% include "forms/attendee/admin_badge_extras.html" %}
+  <hr/>
+  {% include "forms/attendee/admin_staffing_info.html" %}
+  <hr/>
+  {% include "forms/attendee/admin_consents.html" %}
+  {% include "forms/attendee/badge_admin_notes.html" %}
 </form>
-{% if not attendee.is_new %}
-{{ attendee_fields.print_badge }}
-{% endif %}
 <div class="modal-footer">
-  <div class="form-group">
-  {% if not attendee.is_new %}
-  <div class="pull-left row">
-      <form method="post" id="delete_attendee" action="../registration/delete_attendee" class="form form-inline" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
-      {{ csrf_token() }}
-      <input type="hidden" name="id" value="{{ attendee.id }}" />
-      <input type="hidden" name="return_to" value="" />
-      </form>
-    <button type="submit" form="delete_attendee" class="btn btn-danger" {% if attendee.paid == c.HAS_PAID %} style="background-color:#BCBCBC" title="Cannot delete a paid badge." disabled {% endif %}>
-      {% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}
-    </button>
-    {% if c.HAS_SECURITY_ADMIN_ACCESS %}
-    <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
-    {% endif %}
-  </div>
-  {% endif %}
+  <div class="row">
   {{ save_buttons }}
   </div>
 </div>

@@ -1,5 +1,5 @@
 {% import 'macros.html' as macros %}
-{% if c.HOURS_FOR_FOOD %}
+{% if c.HOURS_FOR_FOOD and c.PRE_CON %}
 <li>
     {{ macros.checklist_image(attendee.food_restrictions) }}
     {% if not attendee.placeholder %}

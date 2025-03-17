@@ -4,7 +4,7 @@
 {% include "guests_common.html" %}
 
 <style type="text/css">
-    .panel-body > h1, .panel-body > h2 { margin-top: 10px; }
+    .card-body > h1, .card-body > h2 { margin-top: 10px; }
     table { max-width: 100%; }
     table td, table th { padding: 5px; }
     table td ul { margin: 0px; }
@@ -18,8 +18,7 @@
         padding-top: 7px;
     }
 </style>
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
+<div class="panel">
   <div class="panel-body">
     {% block body %}{% endblock %}
   </div>

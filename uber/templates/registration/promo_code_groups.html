@@ -7,6 +7,7 @@
     <table id="group-table" class="table table-striped datatable" data-info="false" data-page-length="-1">
       <thead>
       <tr>
+        <th>Registered</th>
         <th>Group Name</th>
         <th>Group Buyer</th>
         <th>Group Promo Code</th>
@@ -19,6 +20,7 @@
       <tbody>
       {% for group in groups -%}
         <tr id="{{ group.id }}">
+          <td data-order="{{ group.registered }}">{{ group.registered|datetime_local("%b %-d %-I:%M%p") }}</td>
           <td data-order="{{ group.name }}">
             <a href="promo_code_group_form?id={{ group.id }}">{{ group.name }}</a>
           </td>
@@ -28,8 +30,8 @@
           <td>{{ group.code }}</td>
           <td>{{ total_counts[group.id] or '0' }}</td>
           <td>{{ used_counts[group.id] or '0' }}</td>
-          <td>{{ total_costs[group.id] or '0' }}</td>
-          <td>{{ group.buyer.amount_unpaid }}</td>
+          <td>{{ total_costs[group.id]|format_currency or '$0' }}</td>
+          <td>{{ group.buyer.amount_unpaid|format_currency }}</td>
         </tr>
       {% endfor -%}
       </tbody>

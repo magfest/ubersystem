@@ -41,7 +41,9 @@
 {% elif judge.status == c.NEXT_YEAR %}
   Sorry you won't be able to judge this year. We'll be in touch next year and hope you can join us then.
 {% elif judge.status == c.CANCELLED %}
-  Thank you for updating your preference, we'll be removing you from the judging list going forward. Thanks for all the work you've put into judging for MIVS in the past. If you change your mind, email {{ '{{ c.MIVS_EMAIL|email_only }}'|email_to_link }}.
+  Thank you for updating your preference, we'll be removing you from the judging list going forward. Thanks for all the work you've put into judging for MIVS in the past. If you change your mind, email {{ c.MIVS_EMAIL|email_only|email_to_link }}.
+{% elif judge.status == c.DISQUALIFIED %}
+  Unfortunately, since you did not complete reviewing your assigned games before the deadline, you have been disqualified as a judge for this year. If this doesn't sound right, email {{ c.MIVS_EMAIL|email_only|email_to_link }}.
 {% else %}
 <h2>Your Preferences</h2>
   In order to help us match you with the right kinds of games, please tell us what genres you prefer to play and what
@@ -63,10 +65,27 @@
       </div>
       <div class="clearfix"></div>
       <div class="col-sm-6 col-sm-offset-3">
-        If you selected PC as a platform, please include your PC specs below.
-        <input id="platforms-other" class="form-control" type="text" name="platforms_text" value="{{ judge.platforms_text }}" placeholder="Other platform(s)"/>
+        <input id="vr_text" class="form-control" type="text" name="vr_text" value="{{ judge.vr_text }}" placeholder="VR/AR platform(s)"/>
+      </div>
+      <script type="text/javascript">
+        var showOrHideVRText = function() {
+            setVisible('#vr_text', $(":checkbox[name=platforms][value={{ c.VR }}]").prop("checked"));
+        };
+  
+        $(function () {
+          showOrHideVRText();
+            $(":checkbox[name=platforms]").click(showOrHideVRText);
+        });
+      </script>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">PC Specs and Other Platforms</label>
+      <div class="col-sm-6">
+        <textarea name="platforms_text" class="form-control" rows="4" placeholder="List your PC specs and any other platforms you own.">{{ judge.platforms_text }}</textarea>
       </div>
     </div>
+
     <div class="form-group">
       <div class="col-sm-6 col-sm-offset-2">
         <button type="submit" class="btn btn-primary">Update Preferences</button>

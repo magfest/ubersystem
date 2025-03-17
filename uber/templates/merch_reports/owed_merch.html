@@ -1,35 +1,47 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Attendees Owed Merch{% endblock %}
 {% block content %}
-<h3>Attendees Owed Merch</h3>
-<p>The below list is all attendees who selected a kick-in level but were not marked as receiving their merch.</p> 
-<table class="table table-striped datatable">
-<thead><tr>
-    <th>Name</th>
-    <th>Name on ID</th>
-    <th>Email Address</th>
-    <th>Merch</th>
-    <th>Shirt Size</th>
-    <th>Badge #</th>
-    <th>Money Owed</th>
-    <th>Checked In</th>
-    <th>Admin Notes</th>
-</tr></thead>
-{% for attendee in attendees %}
-    <tr>
-        <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> {{ attendee|form_link }}</a> </td>
-        <td>{{ attendee.legal_name }}</td>
-        <td>{{ attendee.email|email_to_link }}</td>
-        <td>{{ attendee.merch }}</td>
-        <td>{{ attendee.shirt_label }}</td>
-        <td>{{ attendee.badge_num }}</td>
-        <td>{{ attendee.amount_unpaid|format_currency }}</td>
-        <td>{{ attendee.checked_in|datetime_local }}</td>
-        <td>{{ attendee.admin_notes }}</td>
-    </tr>
-{% endfor %}
-	<caption align="bottom">
-		<ul class="pagination"></ul>
-	</caption>
-</table>
+<h3>Attendees Owed Merch</h3>    
+<div class="card card-body">
+    <div class="d-flex justify-content-between">
+        <p>
+            The below list is all attendees who {% if c.BADGE_TYPE_PRICES %}upgraded their badge{% else %}selected a kick-in level{% endif %}
+            but were not marked as receiving their merch.
+        </p>
+        <a href="owed_merch_csv">
+            <i class="fa fa-download"></i> Download CSV
+        </a>
+    </div>
+    <table class="table table-striped datatable">
+    <thead><tr>
+        <th>Name</th>
+        <th>Name on ID</th>
+        <th>Email Address</th>
+        <th>Merch</th>
+        <th>Extra Merch</th>
+        <th>Shirt Size</th>
+        <th>Badge #</th>
+        <th>Money Owed</th>
+        <th>Checked In</th>
+        <th>Admin Notes</th>
+    </tr></thead>
+    {% for attendee in attendees %}
+        <tr>
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> {{ attendee|form_link }}</a> </td>
+            <td>{{ attendee.legal_name }}</td>
+            <td>{{ attendee.email|email_to_link }}</td>
+            <td>{{ attendee.merch }}</td>
+            <td>{{ attendee.extra_merch }}</td>
+            <td>{{ attendee.shirt_label }}</td>
+            <td>{{ attendee.badge_num }}</td>
+            <td>{{ attendee.amount_unpaid|format_currency }}</td>
+            <td>{{ attendee.checked_in|datetime_local }}</td>
+            <td>{{ attendee.admin_notes }}</td>
+        </tr>
+    {% endfor %}
+        <caption align="bottom">
+            <ul class="pagination"></ul>
+        </caption>
+    </table>
+</div>
 {% endblock %}

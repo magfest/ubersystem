@@ -1,7 +1,6 @@
 import random
 import re
 import string
-import textwrap
 from collections import OrderedDict
 from datetime import datetime
 
@@ -9,7 +8,7 @@ import six
 from pytz import UTC
 from dateutil import parser as dateparser
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import func, select, CheckConstraint
+from sqlalchemy import exists, func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import Index, ForeignKey
 from sqlalchemy.types import Integer
@@ -18,7 +17,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, Choice
-from uber.utils import localized_now
+from uber.utils import localized_now, RegistrationCode
 
 
 __all__ = ['PromoCodeWord', 'PromoCodeGroup', 'PromoCode']
@@ -135,7 +134,7 @@ c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord._PARTS_OF_SPEECH
 class PromoCodeGroup(MagModel):
     name = Column(UnicodeText)
     code = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow())
+    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     buyer_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     buyer = relationship(
         'Attendee', backref='promo_code_groups',
@@ -156,32 +155,53 @@ class PromoCodeGroup(MagModel):
         codes, so we use that class' generator method.
         """
         if not self.code:
-            self.code = PromoCode.generate_random_code()
+            self.code = RegistrationCode.generate_random_code(PromoCode.code)
 
     @hybrid_property
     def normalized_code(self):
-        return self.normalize_code(self.code)
+        return RegistrationCode.normalize_code(self.code)
 
     @normalized_code.expression
     def normalized_code(cls):
-        return func.replace(func.replace(func.lower(cls.code), '-', ''), ' ', '')
+        return RegistrationCode.sql_normalized_code(cls.code)
 
     @property
     def email(self):
         return self.buyer.email if self.buyer else None
 
-    @property
+    @hybrid_property
     def total_cost(self):
-        return sum(code.cost for code in self.promo_codes if code.cost)
+        return sum(code.cost for code in self.paid_codes if code.cost)
+
+    @total_cost.expression
+    def total_cost(cls):
+        return select([func.sum(PromoCode.cost)]
+                      ).where(PromoCode.group_id == cls.id).where(PromoCode.refunded == False  # noqa: E712
+                                                                  ).label('total_cost')
+
+    @property
+    def paid_codes(self):
+        return [code for code in self.promo_codes if not code.refunded]
 
     @property
     def valid_codes(self):
         return [code for code in self.promo_codes if code.is_valid]
 
     @property
+    def unused_codes(self):
+        # Bypasses codes' expiration date; only use this to count
+        # how many codes in a group went unused
+        return [code for code in self.promo_codes if code.uses_count == 0]
+
+    @property
+    def used_promo_codes(self):
+        return [code for code in self.promo_codes if code.valid_used_by]
+
+    @property
     def sorted_promo_codes(self):
-        return list(sorted(self.promo_codes, key=lambda pc: (not pc.used_by,
-                                                             pc.used_by[0].full_name if pc.used_by else pc.code)))
+        return list(sorted(self.promo_codes, key=lambda pc: (not pc.valid_used_by,
+                                                             pc.valid_used_by[0].full_name
+                                                             if pc.valid_used_by else pc.code)))
 
     @property
     def hours_since_registered(self):
@@ -266,7 +286,6 @@ class PromoCode(MagModel):
 
             Note:
                 This property is declared as a backref in the Attendee class.
-
         uses_allowed (int): The total number of times this promo code may be
             used. A value of None means this promo code may be used an
             unlimited number of times.
@@ -289,24 +308,14 @@ class PromoCode(MagModel):
         (_FIXED_PRICE, 'Fixed Price'),
         (_PERCENT_DISCOUNT, 'Percent Discount')]
 
-    _AMBIGUOUS_CHARS = {
-        '0': 'OQD',
-        '1': 'IL',
-        '2': 'Z',
-        '5': 'S',
-        '6': 'G',
-        '8': 'B'}
-
-    _UNAMBIGUOUS_CHARS = string.digits + string.ascii_uppercase
-    for _, s in _AMBIGUOUS_CHARS.items():
-        _UNAMBIGUOUS_CHARS = re.sub('[{}]'.format(s), '', _UNAMBIGUOUS_CHARS)
-
+    
     code = Column(UnicodeText)
     discount = Column(Integer, nullable=True, default=None)
     discount_type = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
     cost = Column(Integer, nullable=True, default=None)
+    admin_notes = Column(UnicodeText)
 
     group_id = Column(UUID, ForeignKey('promo_code_group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(
@@ -361,6 +370,15 @@ class PromoCode(MagModel):
     def is_expired(cls):
         return cls.expiration_date < localized_now()
 
+    @hybrid_property
+    def group_registered(self):
+        if self.group_id:
+            return self.group.registered
+
+    @group_registered.expression
+    def group_registered(cls):
+        return select([PromoCodeGroup.registered]).where(PromoCodeGroup.id == cls.group_id).label('group_registered')
+
     @property
     def is_free(self):
         return not self.discount or (
@@ -389,11 +407,15 @@ class PromoCode(MagModel):
 
     @hybrid_property
     def normalized_code(self):
-        return self.normalize_code(self.code)
+        return RegistrationCode.normalize_code(self.code)
 
     @normalized_code.expression
     def normalized_code(cls):
-        return func.replace(func.replace(func.lower(cls.code), '-', ''), ' ', '')
+        return RegistrationCode.sql_normalized_code(cls.code)
+
+    @property
+    def valid_used_by(self):
+        return list(set([attendee for attendee in self.used_by if attendee.is_valid]))
 
     @property
     def uses_allowed_str(self):
@@ -402,12 +424,14 @@ class PromoCode(MagModel):
 
     @hybrid_property
     def uses_count(self):
-        return len(self.used_by)
+        return len(self.valid_used_by)
 
     @uses_count.expression
     def uses_count(cls):
         from uber.models.attendee import Attendee
-        return select([func.count(Attendee.id)]).where(Attendee.promo_code_id == cls.id).label('uses_count')
+        return select([func.count(Attendee.id)]).where(Attendee.promo_code_id == cls.id
+                                                       ).where(Attendee.is_valid == True  # noqa: E712
+                                                               ).label('uses_count')
 
     @property
     def uses_count_str(self):
@@ -427,6 +451,16 @@ class PromoCode(MagModel):
         uses = self.uses_remaining
         return 'Unlimited uses' if uses is None else '{} use{} remaining'.format(uses, '' if uses == 1 else 's')
 
+    @hybrid_property
+    def refunded(self):
+        return self.used_by and self.used_by[0].badge_status == c.REFUNDED_STATUS
+
+    @refunded.expression
+    def refunded(cls):
+        from uber.models import Attendee
+        return exists().select_from(Attendee).where(cls.id == Attendee.promo_code_id
+                                                    ).where(Attendee.badge_status == c.REFUNDED_STATUS)
+
     @presave_adjustment
     def _attribute_adjustments(self):
         # If 'uses_allowed' is empty, then this is an unlimited use code
@@ -434,13 +468,13 @@ class PromoCode(MagModel):
             self.uses_allowed = None
 
         # If 'discount' is empty, then this is a full discount, free badge
-        if self.discount == '':
+        if not self.discount:
             self.discount = None
 
         self.code = self.code.strip() if self.code else ''
         if not self.code:
             # If 'code' is empty, then generate a random code
-            self.code = self.generate_random_code()
+            self.code = RegistrationCode.generate_random_code(PromoCode.code)
         else:
             # Replace multiple whitespace characters with a single space
             self.code = re.sub(r'\s+', ' ', self.code)
@@ -472,141 +506,6 @@ class PromoCode(MagModel):
             discounted_price = int(price * ((100.0 - self.discount) / 100.0))
 
         return min(max(discounted_price, 0), price)
-
-    @classmethod
-    def _generate_code(cls, generator, count=None):
-        """
-        Helper method to limit collisions for the other generate() methods.
-
-        Arguments:
-            generator (callable): Function that returns a newly generated code.
-            count (int): The number of codes to generate. If `count` is `None`,
-                then a single code will be generated. Defaults to `None`.
-
-        Returns:
-            If an `int` value was passed for `count`, then a `list` of newly
-            generated codes is returned. If `count` is `None`, then a single
-            `str` is returned.
-        """
-        from uber.models import Session
-        with Session() as session:
-            # Kind of inefficient, but doing one big query for all the existing
-            # codes will be faster than a separate query for each new code.
-            old_codes = set(s for (s,) in session.query(cls.code).all())
-
-        # Set an upper limit on the number of collisions we'll allow,
-        # otherwise this loop could potentially run forever.
-        max_collisions = 100
-        collisions = 0
-        codes = set()
-        while len(codes) < (1 if count is None else count):
-            code = generator().strip()
-            if not code:
-                break
-            if code in codes or code in old_codes:
-                collisions += 1
-                if collisions >= max_collisions:
-                    break
-            else:
-                codes.add(code)
-        return (codes.pop() if codes else None) if count is None else codes
-
-    @classmethod
-    def generate_random_code(cls, count=None, length=9, segment_length=3):
-        """
-        Generates a random promo code.
-
-        With `length` = 12 and `segment_length` = 3::
-
-            XXX-XXX-XXX-XXX
-
-        With `length` = 6 and `segment_length` = 2::
-
-            XX-XX-XX
-
-        Arguments:
-            count (int): The number of codes to generate. If `count` is `None`,
-                then a single code will be generated. Defaults to `None`.
-            length (int): The number of characters to use for the code.
-            segment_length (int): The length of each segment within the code.
-
-        Returns:
-            If an `int` value was passed for `count`, then a `list` of newly
-            generated codes is returned. If `count` is `None`, then a single
-            `str` is returned.
-        """
-
-        # The actual generator function, called repeatedly by `_generate_code`
-        def _generate_random_code():
-            letters = ''.join(random.choice(cls._UNAMBIGUOUS_CHARS) for _ in range(length))
-            return '-'.join(textwrap.wrap(letters, segment_length))
-
-        return cls._generate_code(_generate_random_code, count=count)
-
-    @classmethod
-    def generate_word_code(cls, count=None):
-        """
-        Generates a promo code consisting of words from `PromoCodeWord`.
-
-        Arguments:
-            count (int): The number of codes to generate. If `count` is `None`,
-                then a single code will be generated. Defaults to `None`.
-
-        Returns:
-            If an `int` value was passed for `count`, then a `list` of newly
-            generated codes is returned. If `count` is `None`, then a single
-            `str` is returned.
-        """
-        from uber.models import Session
-        with Session() as session:
-            words = PromoCodeWord.group_by_parts_of_speech(
-                session.query(PromoCodeWord).order_by(PromoCodeWord.normalized_word).all())
-
-        # The actual generator function, called repeatedly by `_generate_code`
-        def _generate_word_code():
-            code_words = []
-            for part_of_speech, _ in PromoCodeWord._PART_OF_SPEECH_OPTS:
-                if words[part_of_speech]:
-                    code_words.append(random.choice(words[part_of_speech]))
-            return ' '.join(code_words)
-
-        return cls._generate_code(_generate_word_code, count=count)
-
-    @classmethod
-    def disambiguate_code(cls, code):
-        """
-        Removes ambiguous characters in a promo code supplied by an attendee.
-
-        Arguments:
-            code (str): A promo code as typed by an attendee.
-
-        Returns:
-            str: A copy of `code` with all ambiguous characters replaced by
-                their unambiguous equivalent.
-        """
-        code = cls.normalize_code(code)
-        if not code:
-            return ''
-        for unambiguous, ambiguous in cls._AMBIGUOUS_CHARS.items():
-            ambiguous_pattern = '[{}]'.format(ambiguous.lower())
-            code = re.sub(ambiguous_pattern, unambiguous.lower(), code)
-        return code
-
-    @classmethod
-    def normalize_code(cls, code):
-        """
-        Normalizes a promo code supplied by an attendee.
-
-        Arguments:
-            code (str): A promo code as typed by an attendee.
-
-        Returns:
-            str: A copy of `code` converted to all lowercase, with dashes ("-")
-                and whitespace characters removed.
-        """
-        if not code:
-            return ''
-        return re.sub(r'[\s\-]+', '', code.lower())
 
 
 c.PROMO_CODE_DISCOUNT_TYPE_OPTS = PromoCode._DISCOUNT_TYPE_OPTS

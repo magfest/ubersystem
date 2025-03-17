@@ -10,28 +10,34 @@
 <table class="table datatable" data-page-length="-1">
 <thead>
     <tr>
+        <th>Department</th>
         <th>Panel Name</th>
         <th>Panel Type</th>
+        <th>Track</th>
         <th>Submitted By</th>
         <th>Applied</th>
         <th>Status</th>
         <th>Point of Contact</th>
         <th>Guest?</th>
         <th>Tabletop?</th>
+        {% if c.PANEL_RATING_OPTS|length > 1 %}<th>Rating</th>{% endif %}
+        {% if c.PANEL_CONTENT_OPTS|length > 1 %}<th>MAGScouts?</th>{% endif %}
     </tr>
 </thead>
 <tbody>
 {% for app in apps %}
     <tr>
+        <td>{{ app.department_label }}</td>
         <td><a href="app?id={{ app.id }}">{{ app.name }}</a></td>
         <td>{{ app.presentation_label }}</td>
+        <td>{{ app.track }}</td>
         <td>{{ app.submitter.full_name }}</td>
         <td>{{ app.applied_local|datetime("%Y-%m-%d") }}</td>
         <td>
             {% if app.event_id %}
                 <a href="../schedule/form?id={{ app.event_id }}">{{ app.status_label }}</a>
             {% else %}
-                {{ app.status_label }}
+                {{ "Confirmed" if app.confirmed else app.status_label }}
             {% endif %}
         </td>
         <td>
@@ -39,8 +45,10 @@
                 <a href="assigned_to?id={{ app.poc_id }}">{{ app.poc.full_name }}</a>
             {% endif %}
         </td>
-        <td>{% if app.poc and app.poc.guest_group %}{{ app.poc.guest_group.group_type_label }} "{{ app.poc.group|form_link }}"{% else %}No{% endif %}</td>
+        <td>{% if app.group and app.group.guest %}{{ app.group.guest.group_type_label }} "{{ app.group|form_link }}"{% else %}No{% endif %}</td>
         <td>{{ app.tabletop|yesno("Yes,No") }}</td>
+        {% if c.PANEL_RATING_OPTS|length > 1 %}<td>{{ app.rating_label }}</td>{% endif %}
+        {% if c.PANEL_CONTENT_OPTS|length > 1 %}<td>{{ "N/A" if app.magscouts_opt_in == c.NO_CHOICE else app.magscouts_opt_in_label }}</td>{% endif %}
     </tr>
 {% endfor %}
 </tbody>

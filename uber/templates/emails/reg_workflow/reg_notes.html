@@ -29,12 +29,5 @@
 
 {% if c.CODE_OF_CONDUCT_URL %}
     <br><br>
-    Registered attendees agree to the {{ c.EVENT_NAME }} code of conduct by picking up their badge.
-    You can review the code of conduct anytime by <a href="{{ c.CODE_OF_CONDUCT_URL }}">clicking here</a>.
-{% endif %}
-
-{% if c.PREREG_FAQ_URL %}
-    <br><br>
-    Got a question? Most common questions are answered in our FAQ.
-    Be sure to check the FAQ by <a href="{{ c.PREREG_FAQ_URL }}">clicking here</a>!
+    Registered attendees agree to the <a href="{{ c.CODE_OF_CONDUCT_URL }}">{{ c.EVENT_NAME }} code of conduct</a> by picking up their badge.
 {% endif %}

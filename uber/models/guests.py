@@ -3,9 +3,10 @@ import re
 import shutil
 import uuid
 from collections import defaultdict
+from datetime import datetime, timedelta
 
-from pockets import uniquify
-from residue import JSON, CoerceUTF8 as UnicodeText, UUID
+from pockets import uniquify, classproperty, sluggify
+from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
@@ -21,7 +22,7 @@ from uber.utils import filename_extension
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
     'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph',
-    'GuestInterview', 'GuestTravelPlans']
+    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality']
 
 
 class GuestGroup(MagModel):
@@ -36,6 +37,7 @@ class GuestGroup(MagModel):
 
     wants_mc = Column(Boolean, nullable=True)
     needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
+    badges_assigned = Column(Boolean, default=False)
     info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
     bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
     taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -46,6 +48,7 @@ class GuestGroup(MagModel):
     autograph = relationship('GuestAutograph', backref=backref('guest', load_on_pending=True), uselist=False)
     interview = relationship('GuestInterview', backref=backref('guest', load_on_pending=True), uselist=False)
     travel_plans = relationship('GuestTravelPlans', backref=backref('guest', load_on_pending=True), uselist=False)
+    hospitality = relationship('GuestHospitality', backref=backref('guest', load_on_pending=True), uselist=False)
 
     email_model_name = 'guest'
 
@@ -63,30 +66,34 @@ class GuestGroup(MagModel):
             return self.status(name.rsplit('_', 1)[0])
         else:
             return super(GuestGroup, self).__getattr__(name)
-        
+
     @presave_adjustment
     def empty_strings_to_zero(self):
         if not self.payment:
             self.payment = 0
-        
+
         if not self.vehicles:
             self.vehicles = 0
-        
+
         if not self.num_hotel_rooms:
             self.num_hotel_rooms = 0
 
     def deadline_from_model(self, model):
-        name = str(self.group_type_label).upper() + "_" + str(model).upper() + "_DEADLINE"
+        name = str(self.group_type_label).upper().replace(' ', '_') + "_" + str(model).upper() + "_DEADLINE"
         return getattr(c, name, None)
-    
+
     @property
     def sorted_checklist_items(self):
         checklist_items = []
         for item in c.GUEST_CHECKLIST_ITEMS:
             if self.deadline_from_model(item['name']):
                 checklist_items.append(item)
-                
-        return sorted(checklist_items, key= lambda i: self.deadline_from_model(i['name']))
+
+        return sorted(checklist_items, key=lambda i: self.deadline_from_model(i['name']))
+
+    @property
+    def uses_detailed_travel_plans(self):
+        return  # Disabled for now
 
     @property
     def all_badges_claimed(self):
@@ -126,10 +133,16 @@ class GuestGroup(MagModel):
         return "Not Needed" if not self.payment else self.status('taxes')
 
     @property
+    def merch_status(self):
+        if self.merch and self.merch.selling_merch == c.ROCK_ISLAND and not self.merch.poc_address1:
+            return None
+        return self.status('merch')
+
+    @property
     def panel_status(self):
-        application_count = len(self.group.leader.panel_applications)
+        application_count = len(self.group.leader.submitted_panels)
         return '{} Panel Application(s)'.format(application_count) \
-            if self.group.leader.panel_applications else self.status('panel')
+            if self.group.leader.submitted_panels else self.status('panel')
 
     @property
     def mc_status(self):
@@ -179,33 +192,43 @@ class GuestGroup(MagModel):
         if subclass:
             return getattr(subclass, 'status', getattr(subclass, 'id'))
         return ''
-
+    
     @property
-    def guidebook_name(self):
-        return self.group.name if self.group else ''
-
-    @property
-    def guidebook_subtitle(self):
-        return self.group_type_label
-
-    @property
-    def guidebook_desc(self):
-        return self.bio.desc if self.bio else ''
-
-    @property
-    def guidebook_image(self):
-        return self.bio.pic_filename if self.bio else ''
+    def guidebook_header(self):
+        # Temp: we need real header/thumbnail images later
+        if self.bio:
+            return self.bio
+        return ''
 
     @property
     def guidebook_thumbnail(self):
-        return self.bio.pic_filename if self.bio else ''
+        if self.bio:
+            return self.bio
+        return ''
+    
+    @property
+    def guidebook_edit_link(self):
+        return f"../guests/bio?guest_id={self.id}"
+    
+    @property
+    def guidebook_data(self):
+        return {
+            'guidebook_name': self.group.name if self.group else '',
+            'guidebook_subtitle': self.group_type_label,
+            'guidebook_desc': self.bio.desc if self.bio else '',
+            'guidebook_location': '',
+            'guidebook_header': self.guidebook_images[0][0],
+            'guidebook_thumbnail': self.guidebook_images[0][1],
+        }
 
     @property
     def guidebook_images(self):
         if not self.bio:
-            return ['', '']
+            return ['', ''], ['', '']
+        
+        prepend = sluggify(self.group.name) + '_'
 
-        return [self.bio.pic_filename], [self.bio]
+        return [prepend + self.bio.pic_filename, prepend + self.bio.pic_filename], [self.bio, self.bio]
 
 
 class GuestInfo(MagModel):
@@ -228,6 +251,11 @@ class GuestBio(MagModel):
     website = Column(UnicodeText)
     facebook = Column(UnicodeText)
     twitter = Column(UnicodeText)
+    instagram = Column(UnicodeText)
+    twitch = Column(UnicodeText)
+    bandcamp = Column(UnicodeText)
+    discord = Column(UnicodeText)
+    spotify = Column(UnicodeText)
     other_social_media = Column(UnicodeText)
     teaser_song_url = Column(UnicodeText)
 
@@ -275,6 +303,7 @@ class GuestStagePlot(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
     filename = Column(UnicodeText)
     content_type = Column(UnicodeText)
+    notes = Column(UnicodeText)
 
     @property
     def url(self):
@@ -324,8 +353,21 @@ class GuestMerch(MagModel):
 
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
     selling_merch = Column(Choice(c.GUEST_MERCH_OPTS), nullable=True)
+    delivery_method = Column(Choice(c.GUEST_MERCH_DELIVERY_OPTS), nullable=True)
+    payout_method = Column(Choice(c.GUEST_MERCH_PAYOUT_METHOD_OPTS), nullable=True)
+    paypal_email = Column(UnicodeText)
+    check_payable = Column(UnicodeText)
+    check_zip_code = Column(UnicodeText)
+    check_address1 = Column(UnicodeText)
+    check_address2 = Column(UnicodeText)
+    check_city = Column(UnicodeText)
+    check_region = Column(UnicodeText)
+    check_country = Column(UnicodeText)
+
+    arrival_plans = Column(UnicodeText)
+    merch_events = Column(UnicodeText)
     inventory = Column(JSON, default={}, server_default='{}')
-    bringing_boxes = Column(UnicodeText)
+    inventory_updated = Column(UTCDateTime, nullable=True)
     extra_info = Column(UnicodeText)
     tax_phone = Column(UnicodeText)
 
@@ -378,11 +420,15 @@ class GuestMerch(MagModel):
 
     @property
     def rock_island_url(self):
-        return '../guest_admin/rock_island?id={}'.format(self.guest_id)
+        return '../guest_reports/rock_island?id={}'.format(self.guest_id)
 
     @property
     def rock_island_csv_url(self):
-        return '../guest_admin/rock_island_csv?id={}'.format(self.guest_id)
+        return '../guest_reports/rock_island_csv?id={}'.format(self.guest_id)
+    
+    @property
+    def rock_island_square_export_url(self):
+        return f'../guest_reports/rock_island_square_xlsx?id={self.guest_id}'
 
     @property
     def status(self):
@@ -573,6 +619,7 @@ class GuestMerch(MagModel):
             if persist_files:
                 self._prune_inventory_file(item, inventory, prune_missing=True)
             self.inventory = inventory
+            self.inventory_updated = datetime.now()
         return item
 
     def set_inventory(self, inventory, *, persist_files=True):
@@ -580,12 +627,14 @@ class GuestMerch(MagModel):
             self._save_inventory_files(inventory)
             self._prune_inventory_files(inventory, prune_missing=True)
         self.inventory = inventory
+        self.inventory_updated = datetime.now()
 
     def update_inventory(self, inventory, *, persist_files=True):
         if persist_files:
             self._save_inventory_files(inventory)
             self._prune_inventory_files(inventory, prune_missing=False)
         self.inventory = dict(self.inventory, **inventory)
+        self.inventory_updated = datetime.now()
 
 
 class GuestCharity(MagModel):
@@ -607,6 +656,8 @@ class GuestAutograph(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
     num = Column(Integer, default=0)
     length = Column(Integer, default=60)  # session length in minutes
+    rock_island_autographs = Column(Boolean, nullable=True)
+    rock_island_length = Column(Integer, default=60)  # session length in minutes
 
     @presave_adjustment
     def no_length_if_zero_autographs(self):
@@ -629,6 +680,51 @@ class GuestInterview(MagModel):
 
 class GuestTravelPlans(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
-    modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS))
+    modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
     modes_text = Column(UnicodeText)
     details = Column(UnicodeText)
+    completed = Column(Boolean, default=False)
+
+    @property
+    def num_detailed_travel_plans(self):
+        return len(self.detailed_travel_plans)
+
+
+class GuestHospitality(MagModel):
+    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    completed = Column(Boolean, default=False)
+
+
+class GuestDetailedTravelPlan(MagModel):
+    travel_plans_id = Column(UUID, ForeignKey('guest_travel_plans.id'), nullable=True)
+    travel_plans = relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
+                                backref=backref('detailed_travel_plans'),
+                                cascade='save-update,merge,refresh-expire,expunge')
+    mode = Column(Choice(c.GUEST_TRAVEL_OPTS))
+    mode_text = Column(UnicodeText)
+    traveller = Column(UnicodeText)
+    companions = Column(UnicodeText)
+    luggage_needs = Column(UnicodeText)
+    contact_email = Column(UnicodeText)
+    contact_phone = Column(UnicodeText)
+    arrival_time = Column(UTCDateTime)
+    arrival_details = Column(UnicodeText)
+    departure_time = Column(UTCDateTime)
+    departure_details = Column(UnicodeText)
+    extra_details = Column(UnicodeText)
+
+    @classproperty
+    def min_arrival_time(self):
+        return c.EPOCH - timedelta(days=7)
+
+    @classproperty
+    def max_arrival_time(self):
+        return c.ESCHATON
+
+    @classproperty
+    def min_departure_time(self):
+        return c.EPOCH
+
+    @classproperty
+    def max_departure_time(self):
+        return c.ESCHATON + timedelta(days=7)

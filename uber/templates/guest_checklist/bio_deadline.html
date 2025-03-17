@@ -21,10 +21,9 @@
     </td>
   </tr>
 {% else %}
-  <h2>{% block form_title %}Bio Info for {{ guest.group.name }}{% endblock %}</h2>
+  <h2>{% block form_title %}Social Media Info for {{ guest.group.name }}{% endblock %}</h2>
   {% block form_desc %}
-    Please provide a short bio for our website.  Everything else is optional, but if you provide a picture and any social media
-    information, we'll include that as well.
+    Please provide a short bio and a photo for our social media and website announcements. Everything else is optional, but if you provide social media information, we'll include that as well. (Lengthy bios may be shortened for certain platforms)
   {% endblock %}
 
   <form method="post" action="bio" class="form-horizontal" role="form" enctype="multipart/form-data">
@@ -43,8 +42,8 @@
       guest_bio,
       'member_info',
       type='textarea',
-      label="Group Member Info",
-      help="Please list the names and pronouns for the members of your group, in case our social media or streaming teams need them!") }}
+      label="Group Member(s)",
+      help="Please list the names and pronouns for performing members of your group, in case our social media or streaming teams need them!") }}
 
     <div class="form-group">
       <label class="col-sm-3 control-label optional-field">Website</label>
@@ -66,6 +65,43 @@
         <input type="text" class="form-control" name="twitter" value="{{ guest_bio.twitter }}" />
       </div>
     </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Instagram</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="instagram" value="{{ guest_bio.instagram }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Twitch</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="twitch" value="{{ guest_bio.twitch }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Bandcamp</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="bandcamp" value="{{ guest_bio.bandcamp }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Discord</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="discord" value="{{ guest_bio.discord }}" />
+      </div>
+    </div>
+
+    {% if guest.group_type == c.BAND %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Spotify</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="spotify" value="{{ guest_bio.spotify }}" />
+      </div>
+    </div>
+    {% endif %}
 
     <div class="form-group">
       <label class="col-sm-3 control-label optional-field">Other Social Media</label>
@@ -98,7 +134,7 @@
 
     <div class="form-group">
       <div class="col-sm-6 col-sm-offset-3">
-        <button type="submit" class="btn btn-primary">Upload Bio Info</button>
+        <button type="submit" class="btn btn-primary">Upload Info</button>
       </div>
     </div>
   </form>

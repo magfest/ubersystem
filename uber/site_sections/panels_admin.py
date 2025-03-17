@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import cherrypy
 from pockets import groupify
@@ -25,7 +25,8 @@ class Root:
     def app(self, session, id, message='', csrf_token='', explanation=None):
         return {
             'message': message,
-            'app': session.panel_application(id)
+            'app': session.panel_application(id),
+            'current_tracks': [track for track in session.query(PanelApplication.track).distinct().all() if track[0]],
         }
 
     def form(self, session, message='', **params):
@@ -62,6 +63,8 @@ class Root:
     @csrf_protected
     def mark(self, session, status, **params):
         app = session.panel_application(params)
+        if app.status != c.ACCEPTED and int(status) == c.ACCEPTED:
+            app.accepted = datetime.now()
         app.status = int(status)
         if not app.poc:
             app.poc_id = session.admin_attendee().id
@@ -72,6 +75,12 @@ class Root:
         app = session.panel_application(app_id)
         app.poc = session.attendee(poc_id)
         raise HTTPRedirect('app?id={}&message={}{}', app.id, 'Point of contact was updated to ', app.poc.full_name)
+
+    @csrf_protected
+    def update_track(self, session, id, **params):
+        app = session.panel_application(id)
+        app.track = params.get('track', '')
+        raise HTTPRedirect('app?id={}&message={}', app.id, 'Track updated')
 
     def edit_panelist(self, session, **params):
         is_post = cherrypy.request.method == 'POST'
@@ -276,7 +285,7 @@ class Root:
             out.writerow([
                 app.name,
                 app.description,
-                app.length,
+                app.length_label,
                 app.unavailable,
                 app.past_attendance,
                 app.affiliations,

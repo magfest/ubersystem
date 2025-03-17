@@ -1,11 +1,11 @@
 <html>
 <head>
     <title> {{ c.EVENT_NAME }} - {{ c.DEALER_TERM|title }} Arrangements </title>
-    <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
+    {{ "styles/styles.css"|serve_static_content }}
     <style type="text/css">
         li { padding-top:10px }
     </style>
-    <script type="text/javascript" src="../static/deps/combined.min.js"></script>
+    {{ "deps/combined.min.js"|serve_static_content }}
     <script type="text/javascript">
         $(function() {
             $.get("dealerRules.html", function(rules) {

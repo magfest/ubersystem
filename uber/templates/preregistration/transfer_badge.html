@@ -1,13 +1,72 @@
-{% extends "base.html" %}
-{% import "fields/attendee.html" as attendee_fields with context %}
-{% block backlink %}{% endblock %}
-{% block title %}Transfer Your {{ c.EVENT_NAME }} Registration{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
+
+{% set title_text = "Transfer Your " ~ c.EVENT_NAME ~ " Registration" %}
 {% block content %}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    <h2> Transfer {{ old.full_name }}'s Registration </h2>
+<div class="card">
+  <div class="card-body">
+    <h2>Transfer {{ old.full_name }}'s Registration</h2>
+
+    {% if duplicate_bypass %}
+    <div class="alert alert-warning">
+      <h3>You may already be registered!</h3>
+      <p>
+        We already have a {{ duplicate.full_name }} with email address {{ duplicate.email }} in our database with a
+        {% if duplicate.paid == c.PAID_BY_GROUP and duplicate.group.status == c.WAITLISTED %}
+            waitlisted
+        {% elif duplicate.paid == c.HAS_PAID or duplicate.paid == c.PAID_BY_GROUP or duplicate.promo_code and duplicate.promo_code.group %}
+            paid
+        {% elif duplicate.paid == c.NEED_NOT_PAY %}
+            complimentary
+        {% elif duplicate.paid == c.NOT_PAID %}
+            unpaid
+        {% else %}
+            {{ duplicate.paid_label }}
+        {% endif %}
+        {{ duplicate.badge_type_label }}
+        {% if duplicate.ribbon %}
+            ({{ duplicate.ribbon_labels|join(", ") }})
+        {% endif %}
+        badge{% if duplicate.group or duplicate.promo_code and duplicate.promo_code.group %}
+        {% set group = duplicate.group or duplicate.promo_code.group %}
+            (with the group {{ group.name }}){% endif %}.
+      </p>
+
+      <p>If you have any questions then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.</p>
+
+      {% if duplicate.group and duplicate.group.is_dealer and duplicate.group.status not in [c.APPROVED, c.SHARED] %}
+        <p>
+          It looks like your {{ c.DEALER_REG_TERM }} application has not been approved yet. If your application
+          is not approved, you will be able to purchase badges for yourself and the number of assistants on the application
+          at the pre-registration price of {{ duplicate.badge_cost|format_currency }} when the waitlist is exhausted. You will receive an email
+          when these badges are available for purchase.
+        </p>
+      {% endif %}
+
+      {% if duplicate.badge_type == c.STAFF_BADGE and duplicate.registered == [c.PREREG_OPEN, c.DEALER_REG_START]|min %}
+        <p>
+          You were registered automatically for a complimentary Staff badge as thanks for volunteering
+          last year.  You should have already received an email letting you know about this; if you didn't
+          then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> and let us know.
+        </p>
+      {% endif %}
+
+    <p>If you're absolutely sure that this is someone else, you can continue below.</p>
+      <button class="btn btn-info" form="transfer-badge">I'm someone else, let me register!</button>
+    </div>
+    {% elif ban_bypass %}
+    <div class="alert alert-danger">
+      <h3>You may be banned from {{ c.EVENT_NAME }}!</h3>
+      <p>
+        Our list of banned people includes someone named <b>{{ attendee.full_name }}</b>. Every banned attendee has
+        been told they are banned, so if this is not a mistake then you should definitely know it. However, if you
+        just happen to have the same name as someone who has been banned, then go ahead and continue. If we see someone
+        on our banned list complete their registration then we'll contact you to verify that you're someone else.
+      </p>
+      <button class="btn btn-info" form="transfer-badge">I'm someone else, let me register!</button>
+    </div>
+    {% endif %}
 
     <p>
       By filling out this form, you will be transferring {{ old.full_name }}'s {{ c.EVENT_NAME }} registration
@@ -15,25 +74,30 @@
       our Registration Desk; that will belong to whomever the badge is transferred.
     </p>
 
-    <form method="POST" action="transfer_badge" class="form-horizontal">
-      {{ csrf_token() }}
-      <input type="hidden" name="id" value="{{ attendee.id }}" />
+    {% if receipt and receipt.current_amount_owed %}
+    <div class="alert alert-danger" role="alert">
+      This badge currently has an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+      You will be prompted for payment after transferring the badge.
+    </div>
+    {% endif %}
 
-      {{ attendee_fields.prereg_intro }}
-      {{ attendee_fields.name }}
-      {{ attendee_fields.staffing }}
-      {{ attendee_fields.job_interests }}
-      {{ attendee_fields.age }}
-      {{ attendee_fields.email }}
-      {{ attendee_fields.address }}
-      {{ attendee_fields.emergency_contact }}
-      {{ attendee_fields.cellphone }}
-      {{ attendee_fields.promo_code }}
-      {{ attendee_fields.interests }}
-      {{ attendee_fields.found_how }}
-      {{ attendee_fields.comments }}
-      {{ attendee_fields.can_spam }}
-      {{ attendee_fields.pii_consent_checkbox }}
+    {{ form_macros.form_validation('transfer-badge') }}
+
+    <form method="POST" novalidate action="transfer_badge" id="transfer-badge">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ old.id }}" />
+      {% if ban_bypass %}
+        <input type="hidden" name="ban_bypass" value="True" />
+      {% endif %}
+      {% if duplicate_bypass %}
+        <input type="hidden" name="duplicate_bypass" value="True" />
+      {% endif %}
+
+      {% include "forms/attendee/personal_info.html" %}
+      {% include "forms/attendee/staffing_info.html" %}
+      {% include "forms/attendee/other_info.html" %}
+      {% include "forms/attendee/consents.html" %}
+
       {# Deprecated form included for backwards compatibility with old plugins #}
       {% include "regform.html" %}
 

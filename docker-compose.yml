@@ -1,0 +1,80 @@
+# docker-compose for development of ubersystem
+x-uber: &uber
+  build: .
+  env_file:
+      - path: ./.env
+        required: false
+  environment:
+    - PYTHONSTARTUP=/app/.pythonstartup.py
+    - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
+    - uber_cherrypy_server_socket_port=80
+    - uber_cherrypy_server_socket_host=0.0.0.0
+    - uber_cherrypy_server_socket_timeout=1
+    - uber_cherrypy_tools_sessions_host=redis
+    - uber_cherrypy_tools_sessions_prefix=uber
+    - uber_cherrypy_tools_sessions_storage_type=redis
+    - uber_loggers_cherrypy_access=DEBUG
+    - uber_redis_host=redis
+    - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber
+    - uber_hostname=localhost
+    - uber_dev_box=True
+  volumes:
+    - .:/app/
+    - ${PLUGIN_DIR_SRC:-./README.md}:${PLUGIN_DIR_TARGET:-/tmp/README.md}
+
+name: ${PLUGIN_NAME:-uber}
+
+services:
+  web:
+    <<: *uber
+    ports:
+      - 80:80
+  celery-beat:
+    <<: *uber
+    command: ['celery-beat']
+  celery-worker:
+    <<: *uber
+    command: ['celery-worker']
+  db:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=uber_db
+      - POSTGRES_USER=uber_db
+      - POSTGRES_DB=uber_db
+  redis:
+    image: redis
+  rabbitmq:
+    ports:
+      - "5672"
+    image: rabbitmq:alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=celery
+      - RABBITMQ_DEFAULT_PASS=celery
+      - RABBITMQ_DEFAULT_VHOST=uber
+  python-repl:
+    container_name: ${COMPOSE_PROJECT_NAME}-python
+    <<: *uber
+    stdin_open: true
+    tty: true
+    command: ['python']
+    profiles: ["dev"]
+  flower:
+    container_name: ${COMPOSE_PROJECT_NAME}-flower
+    image: mher/flower:2.0
+    environment:
+      - CELERY_BROKER_URL=amqp://celery:celery@rabbitmq:5672/uber
+      - FLOWER_PORT=5555
+    ports:
+      - 5555:5555
+    profiles: ["dev"]
+  nginx:
+    image: nginx
+    volumes:
+      - ./dev-nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./ssl-key.pem:/root/ssl/key.pem
+      - ./ssl-cert.pem:/root/ssl/cert.pem
+    ports:
+      - "443:443"
+    depends_on:
+      - web
+    profiles: ["ssl"]

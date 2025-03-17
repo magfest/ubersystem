@@ -9,8 +9,8 @@ this coming {{ event_dates() }}. Below is a copy of your application. You may
 after logging into your account{% endif %}.
 <ul>
     <li><strong>Table Name</strong>: {{ group.name }}</li>
-    <li><strong>Tables</strong>: {{ group.tables }} table{{ group.tables|pluralize }} ({{ group.table_cost|format_currency }}) </li>
-    <li><strong>Badges</strong>: {{ group.badges }} badge{{ group.badges|pluralize }} ({{ group.badge_cost|format_currency }}) </li>
+    <li><strong>Tables</strong>: {{ group.tables }} table{{ group.tables|pluralize }} ({{ group.default_table_cost|format_currency }}) </li>
+    <li><strong>Badges</strong>: {{ group.badges }} badge{{ group.badges|pluralize }} ({{ group.default_badge_cost|format_currency }}) </li>
     <li><strong>Total Price</strong> {{ group.cost|format_currency }}</li>
     <li><strong>What do you sell?</strong> {{ group.wares }}</li>
     <li><strong>Description</strong>: {{ group.description }}</li>
@@ -32,11 +32,6 @@ you will receive a waitlist or declined email.
 application at the pre-registration price of {{ c.BADGE_PRICE|format_currency }}, if the application is not approved. PLEASE DO NOT BUY A BADGE
 IF YOU APPLIED FOR A MARKETPLACE SPOT. Your ability to purchase the badges will happen after the waitlist is exhausted if you are
 not approved to vend.
-
-{% if group.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN -%}
-    <br/> <br/>
-    {% include "preregistration/hotel_disclaimer.html" %}
-{%- endif %}
 
 <br/> <br/> <u>{{ c.DEALER_LOC_TERM|title }} Rules and Information</u>
 {% include "static_views/dealerRules.html" %}

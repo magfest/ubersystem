@@ -1,0 +1,51 @@
+{% extends "./preregistration/preregbase.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% if is_prereg_dealer %}
+{% set title_text = "Dealer Registration Step 3 of 4: Additional Info" %}
+{% else %}
+{% set title_text = "Registration Step 2 of 4: Additional Info" %}
+{% endif %}
+{% block content %}
+{% if not editing %}
+{% include 'preregistration/disclaimer_popup.html' %}
+{% endif %}
+<div class="card">
+  <div class="card-body">
+    {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
+
+    {{ form_macros.form_validation('prereg-form', form_list=['PreregOtherInfo'], include_disclaimers_modal=not editing) }}
+
+    {% if is_prereg_dealer %}
+    <div class="text-end">
+      <a href="dealer_registration?edit_id={{ attendee.group_id }}" class="btn btn-outline-primary mt-3">Edit Application</a>
+      <a href="form?dealer_id={{ attendee.group_id }}" class="btn btn-info mt-3">Edit Personal Info</a>
+    </div>
+    {% endif %}
+
+    <form novalidate method="post" id="prereg-form" action="additional_info" class="form-horizontal" role="form">
+      <input type="hidden" name="is_prereg" value="True" />
+      {% if is_prereg_dealer %}
+      <input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
+      {% else %}
+      <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+      {% endif %}
+      {{ csrf_token() }}
+      {% include "forms/attendee/prereg_other_info.html" %}
+      &nbsp;
+      {% if is_prereg_dealer %}
+      <button type="submit" class="btn btn-primary mt-3" value="Submit Application">Submit Application</button>
+      {% elif editing %}
+      <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
+      {% else %}
+      <button type="submit" class="btn btn-primary mt-3" value="Add to Cart">Add to Cart</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% if is_prereg_dealer %}
+{{ "js/warn-before-logout-dealer.js"|serve_static_content }}
+{% else %}
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
+{{ "js/warn-before-logout.js"|serve_static_content }}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,26 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set contact_info = contact_info or forms['contact_info'] %}
+
+{# BLOCK NAMES in this form:
+    contact_info
+    address
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block contact_info %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">
+      {{ form_macros.form_input(contact_info.email_address) }}
+    </div>
+  
+    <div class="col-12 col-sm-6">
+      {{ form_macros.form_input(contact_info.phone) }}
+    </div>
+  </div>
+{% endblock %}
+
+{% block address %}
+    {{ form_macros.address_fields(group, contact_info) }}
+{% endblock %}

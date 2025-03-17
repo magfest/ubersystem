@@ -1,24 +1,7 @@
 {% set admin_area=True %}
 <script type="text/javascript">
-var updateWatchlist = function () {
-  $(this).submit(function (event) {
-    event.preventDefault();
-    var old_hash = window.location.hash;
-    $.post($(this).attr('action'), $(this).serializeArray())
-    .success(function (json) {
-        toastr.info(json.message);
-        loadForm("Watchlist");
-        window.location.hash = old_hash;
-    })
-    .fail(function(message) {
-        toastr.error(message);
-        window.location.hash = old_hash;
-    });
-  })
-  }
-$("form[name='confirm_entry']").submit(function (event) {
-  var formToSubmit = this;
-  event.preventDefault();
+  let confirmEntry = function() {
+  var formToSubmit = $('#confirm-entry');
   bootbox.confirm({
       title: 'Confirm Watchlist Entry?',
       message: 'When you "confirm" a watchlist entry, that entry will be permanently associated with this ' +
@@ -31,38 +14,63 @@ $("form[name='confirm_entry']").submit(function (event) {
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
           if (result) {
-            updateWatchlist();
+            formToSubmit.submit();
           }
       }
   });
+  };
+$(function () {
+  $("form[action*='/security_admin/']").submit(function (event) {
+    event.preventDefault();
+    var old_hash = window.location.hash;
+    console.log($(this).serializeArray())
+    $.post($(this).attr('action'), $(this).serializeArray())
+    .success(function (json) {
+        if(window.loadForm !== undefined) {
+          $("#attendee-modal-alert").addClass("alert-info").show().children('span').html(json.message);
+          loadForm("Watchlist");
+        } else {
+          $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+        }
+        window.location.hash = old_hash;
+    })
+    .fail(function(message) {
+        if(window.loadForm !== undefined) {
+          showErrorMessage(message, 'attendee-modal-alert');
+        } else { showErrorMessage(message); }
+        window.location.hash = old_hash;
+    });
+  })
 });
   </script>
 
   <h2>{% if not attendee.watchlist_id %}Possible Watchlist Entries{% else %}Watchlist Entry{% endif %}
-    for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+    for {{ attendee.full_name }} ({{ attendee.badge }})</h2>
+  <div class="card card-body mb-3">
   {% if attendee.badge_status == c.WATCHED_STATUS %}
-    <div class="form-group">
-      <form class="form-inline" role="form" method="post" onSubmit="updateWatchlist()" action="../security_admin/update_watchlist_entry">
+      <form role="form" method="post" action="../security_admin/update_watchlist_entry">
         {{ csrf_token() }}
         <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
-        <button class="btn btn-success" type="submit" name="ignore">
-          Ignore Watchlist Entries
+        <input type="hidden" name="ignore" value="true"/>
+        <button class="btn btn-success" type="submit">
+          Clear for Check-In
         </button>
-        Set attendee to "Completed" status, allowing them to check in without altering any watchlist entries.
+        <div class="form-text">Sets attendee to "Completed" status, allowing them to check in without altering any watchlist entries.</div>
       </form>
-    </div>
+  {% else %}
+  <p>{{ attendee.full_name }} currently has a badge status of {{ attendee.badge_status_label }} and is{% if attendee.cannot_check_in_reason %} NOT{% endif %} ready to check in.</p>
   {% endif %}
 
   {% if attendee.watchlist_id %}
-    Below is the confirmed watchlist entry for this attendee. All other possible watchlist entries are ignored.
+    <br/><p>Below is the confirmed watchlist entry for this attendee. All other possible watchlist entries are ignored.
     <br/><strong>Reason</strong>: {{ attendee.watch_list.reason }}
     <br/><strong>Action</strong>: {{ attendee.watch_list.action }}
-    <br/>
+    </p>
     <form class="form-inline" role="form" method="post" onSubmit="updateWatchlist()" action="../security_admin/update_watchlist_entry">
       {{ csrf_token() }}
       <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
@@ -73,12 +81,15 @@ $("form[name='confirm_entry']").submit(function (event) {
         Watchlist Entry
       </button>
     </form>
+  </div>
   {% else %}
+  </div>
     {% for list in active_entries, inactive_entries %}
       {% set active = loop.cycle(True, False) %}
-      <div class="panel panel-default">
-      <div class="panel-heading"><h3 class="panel-title">{{ loop.cycle('Active', 'Inactive') }} Entries</h3></div>
-      <div class="panel-body">
+      {% if list %}
+      <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title">{{ loop.cycle('Active', 'Inactive') }} Entries</h3></div>
+      <div class="card-body">
         {% if active %}
           Active watchlist entries attempt to match themselves to new attendees,
           even if another attendee is already confirmed as matching. If an attendee
@@ -86,10 +97,7 @@ $("form[name='confirm_entry']").submit(function (event) {
           is put 'on hold' and prevented from checking in until an admin intervenes.
         {% else %}Inactive watchlist entries do not attempt to match any new attendees.
           Generally, entries should only be inactive if they have expired or are otherwise
-          no longer meant to affect check-in.{% endif %}</div>
-
-      <table class="table">
-      <div>
+          no longer meant to affect check-in.{% endif %}
         <table class="table">
           <tr>
             <th>Watchlist First Names</th>
@@ -98,7 +106,7 @@ $("form[name='confirm_entry']").submit(function (event) {
             <th>Watchlist DOB</th>
             <th>Watchlist Reason</th>
             <th>Watchlist Action</th>
-            <th>{{ loop.cycle('Deactivate', 'Activate') }}</th>
+            <th>{{ loop.cycle('Deactivate Entry', 'Activate Entry') }}</th>
             <th>Confirm as Correct Match</th>
           </tr>
           {% for entry in list %}
@@ -121,20 +129,21 @@ $("form[name='confirm_entry']").submit(function (event) {
               </form>
             </td>
             <td>
-              <form class="form-inline" role="form" method="post" name="confirm_entry" action="../security_admin/update_watchlist_entry">
+              <form class="form-inline" role="form" method="post" id="confirm-entry" action="../security_admin/update_watchlist_entry">
                 {{ csrf_token() }}
                 <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
                 <input type="hidden" name="watchlist_id" value="{{ entry.id }}"/>
                 <input type="hidden" name="confirm" value="1"/>
-                <button class="btn btn-info">
+                <button type="button" class="btn btn-info" onClick="confirmEntry()">
                   Confirm Watchlist Entry
                 </button>
               </form>
             </td>
           {% endfor %}
         </table>
+        </div>
       </div>
+      {% endif %}
     {% endfor %}
-  </div>
   {% endif %}
   

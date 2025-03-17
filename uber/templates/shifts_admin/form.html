@@ -28,9 +28,9 @@
 
 <h2>
   {%- if job.is_new -%}
-    <span class="glyphicon glyphicon-plus"></span> New Job
+    <i class="fa fa-plus"></i> New Job
   {%- else -%}
-    <span class="glyphicon glyphicon-cog"></span> Edit {{ job.name }}
+    <i class="fa fa-cog"></i> Edit {{ job.name }}
   {%- endif -%}
 </h2>
 
@@ -78,7 +78,7 @@
                       },
                       cancel: {
                           label: 'Nevermind',
-                          className: 'btn-default'
+                          className: 'btn-outline-secondary'
                       }
                   },
                   callback: function (result) {
@@ -119,8 +119,8 @@
         type="text"
         class="form-control"
         value="{{ job.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if job.start_time else '' }}">
-        <span class="input-group-addon">
-          <span class="glyphicon glyphicon-calendar"></span>
+        <span class="input-group-text">
+          <i class="fa fa-calendar"></i>
         </span>
       </div>
     </div>
@@ -143,9 +143,9 @@
     $('#start-time').datetimepicker({
       sideBySide: true,
       useCurrent: false,
-      defaultDate: '{{ min_date.isoformat() }}',
-      minDate: '{{ min_date.isoformat() }}',
-      maxDate: '{{ max_date.isoformat() }}',
+      defaultDate: '{{ min_date.isoformat()[:-6] }}',
+      minDate: '{{ min_date.isoformat()[:-6] }}',
+      maxDate: '{{ max_date.isoformat()[:-6] }}',
       format: 'M/D/Y h:mm A'
     });
   </script>

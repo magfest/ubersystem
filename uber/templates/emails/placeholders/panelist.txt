@@ -1,7 +1,7 @@
 {% if attendee.first_name %}{{ attendee.first_name }},
 
-{% endif %}Thanks for coming out to {{ c.EVENT_NAME }} as a Panelist!  We've added you to our registration database for your complementary badge, but we don't have all of your personal information.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID and proof of vaccination ({{ c.COVID_POLICIES_URL }}) to {{ c.EVENT_NAME }}.
+{% endif %}Thanks for coming out to {{ c.EVENT_NAME }} as a Panelist!  We've added you to our registration database for your complementary badge, but we don't have all of your personal information.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to {{ c.EVENT_NAME }}.
 
 Please let us know if you have any questions.
 
-{{ c.PEGLEGS_EMAIL_SIGNATURE }}
+{{ c.PANELS_EMAIL_SIGNATURE }}

@@ -10,6 +10,7 @@
       {% block deadline_text %}
         {% if guest.needs_rehearsal is none %}
           Please use the above link to let us know if you will need rehearsal space onsite.
+          Note that Rehearsal Time is provided on a first come, first serve basis and slots are limited.
         {% else %}
           You have already told us you <strong>{{ guest.rehearsal_status }}</strong> need rehearsal space.
           You can use the link above to change your answer before the deadline.
@@ -23,14 +24,21 @@
   <h2>{% block form_title %}Need Rehearsal Space Onsite?{% endblock %}</h2>
 
   {% block form_desc %}
-  This year, we have reserved rehearsal space for acts that includes a basic backline of 
-  drum kit, guitar amps, bass amp, and vocal mic/small PA. We cannot guarantee rehearsal space; 
-  priority will go to acts that are remote/large/complicated. Rehearsal space/time will be reserved 
-  by us after collating all requests. You will receive notice of whether we are able to reserve space 
-  for you no later than December 15.
-  {% endblock %}
+  <p>MAGFest has private rehearsal space available (separate from the stage) where your act can rehearse. 
+  A line/sound check IS NOT a rehearsal, so if you will need extra time to rehearse, please fill this out.</p>
 
-  <br/> <br/>
+  <p>Our rehearsal space has a basic backline of drum kit, guitar amp, bass amp, and vocal mic/small PA. 
+    We cannot guarantee rehearsal space; priority will go to acts that are remote/large/complicated. 
+    Rehearsal space/time will be reserved by us after collating all requests. You will receive notice of 
+    whether we are able to reserve space for you no later than {{ c.EXPECTED_REHEARSAL_RESPONSE }}.</p>
+
+  <p>All performers are also provided time for a line check immediately prior to their sets. A line check is 
+    only to verify that the FOH audio engineer can hear your instruments in their headset so they can relay 
+    them to the PA system in the room when the performance begins.</p>
+
+  <p>Full sound checks at mainstage are limited and not all performers will be able to get one. Our booking 
+    team will be in touch via email about scheduling sound checks.</p>
+  {% endblock %}
 
   <form method="post" action="rehearsal" class="form-horizontal" role="form">
     <input type="hidden" name="guest_id" value="{{ guest.id }}" />

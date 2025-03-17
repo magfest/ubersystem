@@ -1,19 +1,19 @@
 import re
 from datetime import datetime
-from inspect import getargspec, getmembers, ismethod
+from inspect import signature, getmembers, ismethod
 
 import cherrypy
 import pytz
 import stripe
 from pockets import unwrap
-from pockets.autolog import log
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ApiToken
-from uber.utils import Charge, check
+from uber.utils import check
+from uber.payments import ReceiptManager
 
 
 @all_renderable()
@@ -22,7 +22,7 @@ class Root:
     def index(self, session, show_revoked=False, message='', **params):
         admin_account = session.current_admin_account()
         api_tokens = session.query(ApiToken)
-        if not admin_account.is_admin:
+        if not admin_account.is_super_admin:
             api_tokens = api_tokens.filter_by(admin_account_id=admin_account.id)
         if not show_revoked:
             api_tokens = api_tokens.filter(ApiToken.revoked_time == None)  # noqa: E711
@@ -38,7 +38,7 @@ class Root:
         }
 
     def reference(self, session):
-        from uber.server import jsonrpc_services as jsonrpc
+        from uber.api import jsonrpc_services as jsonrpc
         newlines = re.compile(r'(^|[^\n])\n([^\n]|$)')
         admin_account = session.current_admin_account()
         services = []
@@ -49,9 +49,9 @@ class Root:
                 if not method_name.startswith('_'):
                     method = unwrap(method)
                     doc = method.__doc__ or ''
-                    args = getargspec(method).args
+                    args = dict(signature(method).parameters)
                     if 'self' in args:
-                        args.remove('self')
+                        del args['self']
                     access = getattr(method, 'required_access', set())
                     required_access = sorted([opt[4:].title() for opt in access])
                     methods.append({
@@ -99,10 +99,10 @@ class Root:
 
     def api_jobs(self, session, message=''):
         return {
-            'jobs': session.query(ApiJob).filter(ApiJob.cancelled == None).limit(5000).all(),
+            'jobs': session.query(ApiJob).filter(ApiJob.cancelled == None).limit(5000).all(),  # noqa: E711
             'message': message,
         }
-    
+
     def delete_api_job(self, session, id, message='', **params):
         api_job = session.api_job(id)
         if not api_job:
@@ -134,9 +134,9 @@ class Root:
         raise HTTPRedirect('api_jobs?message={}', message)
 
     def requeue_incomplete_jobs(self, session, message='', **params):
-        to_requeue = session.query(ApiJob).filter(ApiJob.cancelled == None,
-                                                  ApiJob.completed == None,
-                                                  ApiJob.queued != None)
+        to_requeue = session.query(ApiJob).filter(ApiJob.cancelled == None,  # noqa: E711
+                                                  ApiJob.completed == None,  # noqa: E711
+                                                  ApiJob.queued != None)  # noqa: E711
         for job in to_requeue:
             job.queued = None
             job.errors = ''
@@ -159,10 +159,10 @@ class Root:
             event = stripe.Webhook.construct_event(
                 payload, sig_header, c.STRIPE_ENDPOINT_SECRET
             )
-        except ValueError as e:
+        except ValueError:
             cherrypy.response.status = 400
             return "Invalid payload: " + payload
-        except stripe.error.SignatureVerificationError as e:
+        except stripe.error.SignatureVerificationError:
             cherrypy.response.status = 400
             return "Invalid signature: " + sig_header
 
@@ -172,7 +172,7 @@ class Root:
 
         if event and event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
-            matching_txns = Charge.mark_paid_from_intent_id(payment_intent['id'], payment_intent.charges.data[0].id)
+            matching_txns = ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
             if not matching_txns:
                 cherrypy.response.status = 400
                 return "No matching Stripe transactions"

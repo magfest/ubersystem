@@ -59,7 +59,7 @@
     $(document.body).on('click', '.btn-inherent_role', function(event) {
       event.preventDefault();
       var $btn = $(this),
-          hasRole = !$btn.hasClass('btn-default'),
+          hasRole = !$btn.hasClass('btn-outline-secondary'),
           role = $btn.data('role'),
           $btnGroup = $btn.closest('.btn-group'),
           attendeeId = $btnGroup.data('attendee_id');
@@ -74,9 +74,10 @@
       }, function(result) {
           $btn.prop('disabled', false);
           if (result.error) {
-            toastr.error(result.error);
+            showErrorMessage(result.error);
           } else {
-            $btn.toggleClass('btn-default')
+            $btn.toggleClass('btn-secondary');
+            $btn.toggleClass('btn-outline-secondary');
           }
       }, 'json');
     });
@@ -100,36 +101,36 @@
       {%- if is_admin_dept_head -%}
       <button
           type="button"
-          class="btn btn-xs btn-inherent_role btn-{% if is_dept_head %}plain{% else %}default{% endif %}"
+          class="btn btn-sm btn-inherent_role btn-{% if not is_dept_head %}outline-{% endif %}secondary"
           data-role="dept_head"
           {% if is_dept_head %}
             title="Remove {{ attendee.full_name }} as a department head of the {{ department.name }} department"
           {% else %}
             title="Make {{ attendee.full_name }} a department head of the {{ department.name }} department"
           {% endif %}>
-        <span class="glyphicon glyphicon-user"></span>
+        <i class="fa fa-user"></i>
       </button>{%- endif -%}
       <button
           type="button"
-          class="btn btn-xs btn-inherent_role btn-{% if is_poc %}plain{% else %}default{% endif %}"
+          class="btn btn-sm btn-inherent_role btn-{% if not is_poc %}outline-{% endif %}secondary"
           data-role="poc"
           {% if is_poc %}
             title="Remove {{ attendee.full_name }} as a point of contact of the {{ department.name }} department"
           {% else %}
             title="Make {{ attendee.full_name }} a point of contact of the {{ department.name }} department"
           {% endif %}>
-        <span class="glyphicon glyphicon-envelope"></span>
+        <i class="fa fa-envelope"></i>
       </button>{#- strip whitespace -#}
       <button
           type="button"
-          class="btn btn-xs btn-inherent_role btn-{% if is_checklist_admin %}plain{% else %}default{% endif %}"
+          class="btn btn-sm btn-inherent_role btn-{% if not is_checklist_admin %}outline-{% endif %}secondary"
           data-role="checklist_admin"
           {% if is_checklist_admin %}
             title="Remove {{ attendee.full_name }} as a checklist admin of the {{ department.name }} department"
           {% else %}
             title="Make {{ attendee.full_name }} a checklist admin of the {{ department.name }} department"
           {% endif %}>
-        <span class="glyphicon glyphicon-edit"></span>
+        <i class="fa fa-edit"></i>
       </button>
     {%- else -%}
       <small title="This member doesn't have an admin account">
@@ -142,7 +143,7 @@
 {% macro inherent_role_list(role, title, icon, link_href=None, link_text=None) -%}
   <div class="col-sm-4 inherent_role inherent_role_{{ role }}">
     <h3>
-      <span class="glyphicon glyphicon-{{ icon }}"></span>
+      <i class="fa fa-{{ icon }}"></i>
       {{ title }}
       {% if link_href %}<small class="pull-right"><a href="{{ link_href }}">{{ link_text }}</a></small>{% endif %}
     </h3>
@@ -153,7 +154,7 @@
             <tr>
               <td>
                 {%- if not attendee.admin_account  -%}
-                  <span class="glyphicon glyphicon-ban-circle" title="This member doesn't have an admin account"></span>
+                  <i class="fa fa-ban-circle" title="This member doesn't have an admin account"></i>
                 {%- endif %}
                 {{ attendee|form_link }}
               </td>
@@ -181,9 +182,9 @@
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
           <h4 class="modal-title" id="edit_department_title">
-            <span class="glyphicon glyphicon-cog"></span>
+            <i class="fa fa-cog"></i>
             Edit {{ department.name }}
           </h4>
         </div>
@@ -219,24 +220,6 @@
               </div>
             </div>
             <div class="form-group">
-              <label class="col-sm-3 control-label">Setup/Teardown Approval?</label>
-              <div class="col-sm-9">
-                <div class="form-control-static checkbox">
-                  {{ macros.checkbox(department, 'is_setup_approval_exempt', label='Setup approval exempt') }}
-                  &nbsp;
-                  {{ macros.checkbox(department, 'is_teardown_approval_exempt', label='Teardown approval exempt') }}
-                </div>
-                <div class="help-block">
-                  These settings determine whether members of this department require
-                  approval to work setup/teardown shifts for this department.
-                  <br><br>
-                  Unless most of the department's work is done during setup/teardown,
-                  these should remain unchecked (members of the department should
-                  probably require approval to work setup/teardown).
-                </div>
-              </div>
-            </div>
-            <div class="form-group">
               <label class="col-sm-3 control-label optional-field">Max Consecutive Hours</label>
               <div class="col-sm-6">
                   <input
@@ -254,7 +237,7 @@
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
-            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           </div>
         </form>
       </div>
@@ -265,8 +248,8 @@
 <h1>
   {{ department.name }} Department
   {% if is_admin_dept_head -%}
-    <button type="button" class="btn btn-xs btn-primary" data-toggle="modal" data-target="#edit_department">
-      <span class="glyphicon glyphicon-cog"></span>
+    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#edit_department">
+      <i class="fa fa-cog"></i>
     </button>
     <form
         method="post"
@@ -282,7 +265,7 @@
       <input
           type="submit"
           value="Delete Department"
-          class="btn btn-xs btn-danger"
+          class="btn btn-sm btn-danger"
           {% if department.member_count > 1 %}disabled="disabled"{% endif %}>
     </form>
   {%- endif %}
@@ -298,31 +281,24 @@
 {%- endif %}
 {%- endif %}
 <p>This department {% if department.solicits_volunteers %}solicits{% else %}<b>does not</b> solicit{% endif %} volunteers.</p>
-{% if department.is_setup_approval_exempt or department.is_teardown_approval_exempt %}
-  <p>
-    Members of this department <b>do not need approval</b> to work
-    {%- if department.is_setup_approval_exempt %} setup{%- endif -%}
-    {%- if department.is_teardown_approval_exempt %}{% if department.is_setup_approval_exempt %} or{% endif %} teardown{% endif %} shifts.
-  </p>
-{% endif %}
 {% if is_admin_checklist_admin or can_admin_dept -%}
   <p>
     <a href="../dept_checklist/index?department_id={{ department.id }}">
-      <span class="glyphicon glyphicon-edit"></span>
+      <i class="fa fa-edit"></i>
       View Department Checklist
     </a>
   </p>
 {%- endif %}
 <p>
   <a href="../shifts_admin/index?department_id={{ department.id }}">
-    <span class="glyphicon glyphicon-time"></span>
+    <i class="fa fa-time"></i>
     View Department Jobs
   </a>
 </p>
 {% if is_admin_dept_member or can_admin_dept -%}
   <p>
     <a href="mailto:{{ department.pocs|selectattr('email')|map(attribute='email')|join(',') }}">
-      <span class="glyphicon glyphicon-envelope"></span>
+      <i class="fa fa-envelope"></i>
       Email Points of Contact
     </a>
   <p>
@@ -340,10 +316,10 @@
         Roles
         {% if can_admin_dept -%}
           <a
-              class="btn btn-xs btn-primary"
+              class="btn btn-sm btn-primary"
               title="Create a new department role"
               href="role?department_id={{ department.id }}">
-            <span class="glyphicon glyphicon-plus"></span>
+            <i class="fa fa-plus"></i>
           </a>
         {%- endif %}
       </h3>
@@ -375,10 +351,10 @@
                   {% if can_admin_dept -%}
                     <td class="controls">
                       <a
-                          class="btn btn-xs btn-primary"
+                          class="btn btn-sm btn-primary"
                           title="Edit the {{ role.name }} department role"
                           href="role?id={{ role.id }}">
-                        <span class="glyphicon glyphicon-cog"></span>
+                        <i class="fa fa-cog"></i>
                       </a>
                       <form
                           method="post"
@@ -388,8 +364,8 @@
                           title="Delete the {{ role.name }} department role">
                         {{ csrf_token() }}
                         <input type="hidden" name="id" value="{{ role.id }}">
-                        <button type="submit" class="btn btn-xs btn-danger">
-                          <span class="glyphicon glyphicon-remove"></span>
+                        <button type="submit" class="btn btn-sm btn-danger">
+                          <i class="fa fa-remove"></i>
                         </button>
                       </form>
                     </td>
@@ -409,7 +385,7 @@
       <h3>Members</h3>
       <p>
         <a href="requests?department_id={{ department.id }}">
-          <span class="glyphicon glyphicon-bell"></span>
+          <i class="fa fa-bell"></i>
           View membership requests
         </a>
       </p>
@@ -417,8 +393,8 @@
         {% set member_emails = department.member_emails %}
         {% if member_emails %}
           <p>
-            <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ member_emails|join(',') }}">
-              <span class="glyphicon glyphicon-envelope"></span>
+            <a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ member_emails|join(',') }}">
+              <i class="fa fa-envelope"></i>
               Email all members
             </a>
           </p>
@@ -426,12 +402,17 @@
         {% set members_with_shifts_emails = department.members_with_shifts_emails %}
         {% if members_with_shifts_emails %}
           <p>
-            <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ members_with_shifts_emails|join(',') }}">
-              <span class="glyphicon glyphicon-envelope"></span>
+            <a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ members_with_shifts_emails|join(',') }}">
+              <i class="fa fa-envelope"></i>
               Email members with shifts
             </a>
           </p>
         {% endif %}
+        <p>
+          <a href="dept_members_export?department_id={{ department.id }}">
+            <i class="fa fa-download"></i> Download CSV
+          </a>
+        </p>
         <div class="table-responsive">
           <table class="table table-hover datatable" data-page-length="25">
             <thead>
@@ -444,7 +425,7 @@
                 {% if c.AT_OR_POST_CON %}
                   <th>Worked</th>
                 {% endif %}
-                {% if c.AT_THE_CON %}
+                {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
                   <th>Checked In</th>
                 {% endif %}
                 {% if can_admin_dept -%}
@@ -473,7 +454,7 @@
                       <a href="#attendee_form?id={{ attendee.id }}&tab_view=Shifts">{{ attendee.worked_hours }}</a>
                     </td>
                   {% endif %}
-                  {% if c.AT_THE_CON %}
+                  {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
                     <td>{{ attendee.checked_in|yesno("Checked In, Not Checked In") }}</td>
                   {% endif %}
                   {% if can_admin_dept -%}
@@ -488,8 +469,8 @@
                         {{ csrf_token() }}
                         <input type="hidden" name="department_id" value="{{ department.id }}" />
                         <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
-                        <button type="submit" class="btn btn-xs btn-danger">
-                          <span class="glyphicon glyphicon-remove"></span>
+                        <button type="submit" class="btn btn-sm btn-danger">
+                          <i class="fa fa-remove"></i>
                         </button>
                       </form>
                     </td>

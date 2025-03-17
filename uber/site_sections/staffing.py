@@ -1,17 +1,35 @@
 import cherrypy
-from datetime import timedelta
+from datetime import datetime, timedelta
+from pockets.autolog import log
+import ics
+from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import safe_string
 from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, public
 from uber.errors import HTTPRedirect
-from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now
+from uber.models import Attendee, Job, Shift
+from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now, extract_urls
+
+
+def _convert_urls(desc):
+    urls = extract_urls(desc)
+    if not urls:
+        return desc
+
+    for url in urls:
+        new_url = url
+        if not url.startswith('http'):
+            new_url = 'https://' + url
+        desc = desc.replace(url, f'<a href="{new_url}" target="_blank">{url}</a>')
+    return desc
 
 
 @all_renderable()
 class Root:
     def index(self, session, message=''):
-        if c.UBER_SHUT_DOWN or c.AT_THE_CON:
+        if c.UBER_SHUT_DOWN:
             return render('staffing/printable.html', {'attendee': session.logged_in_volunteer()})
         else:
             return {
@@ -41,21 +59,23 @@ class Root:
         }
 
     @check_shutdown
-    def shirt_size(self, session, message='', shirt=None, staff_shirt=None, num_event_shirts=None, csrf_token=None):
+    def shirt_size(self, session, message='', **params):
         attendee = session.logged_in_volunteer()
-        if shirt is not None or staff_shirt is not None:
-            check_csrf(csrf_token)
-            if (shirt and not int(shirt)) or (
-                attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
-                message = 'You must select a shirt size'
-            else:
-                if shirt:
-                    attendee.shirt = int(shirt)
-                if staff_shirt:
-                    attendee.staff_shirt = int(staff_shirt)
-                if c.STAFF_EVENT_SHIRT_OPTS and c.BEFORE_VOLUNTEER_SHIRT_DEADLINE and num_event_shirts:
-                    attendee.num_event_shirts = int(num_event_shirts)
-                raise HTTPRedirect('index?message={}', 'Shirt info uploaded')
+        if cherrypy.request.method == "POST":
+            check_csrf(params.get('csrf_token'))
+            test_attendee = Attendee(**attendee.to_dict())
+            test_attendee.apply(params)
+
+            if c.STAFF_EVENT_SHIRT_OPTS and test_attendee.gets_staff_shirt and test_attendee.num_event_shirts == -1:
+                message = "Please indicate your preference for shirt type."
+            elif not test_attendee.shirt_size_marked:
+                message = "Please select a shirt size."
+
+            if not message:
+                for attr in ['shirt', 'staff_shirt', 'num_event_shirts', 'shirt_opt_out']:
+                    if params.get(attr):
+                        setattr(attendee, attr, int(params.get(attr)))
+                raise HTTPRedirect('index?message={}', 'Shirt info uploaded.')
 
         return {
             'message': message,
@@ -64,7 +84,8 @@ class Root:
         }
 
     @check_shutdown
-    def volunteer_agreement(self, session, message='', agreed_to_terms=None, agreed_to_terms_1=None, agreed_to_terms_2=None, csrf_token=None):
+    def volunteer_agreement(self, session, message='', agreed_to_terms=None, agreed_to_terms_1=None,
+                            agreed_to_terms_2=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
         if csrf_token is not None:
             check_csrf(csrf_token)
@@ -72,7 +93,8 @@ class Root:
                 attendee.agreed_to_volunteer_agreement = True
                 raise HTTPRedirect('index?message={}', 'Agreement received')
             elif agreed_to_terms_1 or agreed_to_terms_2:
-                message = "You must agree to both the terms of the agreement and the volunteering policies and guidelines"
+                message = "You must agree to both the terms of the agreement and "\
+                    "the volunteering policies and guidelines"
             else:
                 message = "You must agree to the terms of the agreement"
 
@@ -83,7 +105,7 @@ class Root:
             'agreed_to_terms_2': agreed_to_terms_2,
             'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
-        
+
     @check_shutdown
     def emergency_procedures(self, session, message='', reviewed_procedures=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
@@ -100,7 +122,7 @@ class Root:
             'attendee': attendee,
             'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
-        
+
     @check_shutdown
     def credits(self, session, message='', name_in_credits='', csrf_token=None):
         attendee = session.logged_in_volunteer()
@@ -110,12 +132,12 @@ class Root:
             message = "Thank you for providing a name for the credits roll!" if name_in_credits \
                 else "You have opted out of having your name in the credits roll."
             raise HTTPRedirect('index?message={}', message)
-            
+
         return {
             'message': message,
             'attendee': attendee,
         }
-            
+
     @check_shutdown
     @public
     def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message=''):
@@ -193,76 +215,187 @@ class Root:
         }
 
     @check_shutdown
-    def shifts(self, session, view='', start=''):
-        joblist = session.jobs_for_signups()
-        con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
-
+    def shifts(self, session, **params):
         volunteer = session.logged_in_volunteer()
-        assigned_dept_ids = set(volunteer.assigned_depts_ids)
-        has_public_jobs = False
-        for job in joblist:
-            job['is_public_to_volunteer'] = job['is_public'] and job['department_id'] not in assigned_dept_ids
-            if job['is_public_to_volunteer']:
-                has_public_jobs = True
 
         has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
         has_teardown = volunteer.can_work_teardown or any(
             d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
 
-        if has_setup and has_teardown:
-            cal_length = c.CON_TOTAL_LENGTH
-        elif has_setup:
-            cal_length = con_days + c.SETUP_SHIFT_DAYS
-        elif has_teardown:
-            cal_length = con_days + 2  # There's no specific config for # of shift signup days
+        if has_setup:
+            start = c.SETUP_JOB_START
         else:
-            cal_length = con_days
+            start = c.EPOCH
+
+        end = c.TEARDOWN_JOB_END if has_teardown else c.ESCHATON
+
+        total_duration = 0
+        event_dates = []
+        day = start
+        while day <= end:
+            total_duration += 1
+            if c.EPOCH <= day and day <= c.ESCHATON:
+                event_dates.append(day.strftime('%Y-%m-%d'))
+            day += timedelta(days=1)
+
+        default_filters = [{'id': 'public_assigned', 'title': "Assigned Shifts (Public)"}]
+        for department in volunteer.assigned_depts:
+            default_filters.append({
+                'id': department.id,
+                'title': department.name,
+            })
+        other_filters = [
+            {'id': 'public', 'title': "Public Shifts",},
+            ]
+        
+        requested_hotel_nights = volunteer.hotel_requests.nights_ints if volunteer.hotel_requests else []
 
         return {
-            'jobs': joblist,
-            'has_public_jobs': has_public_jobs,
-            'name': session.logged_in_volunteer().full_name,
-            'hours': session.logged_in_volunteer().weighted_hours,
+            'has_public_jobs': session.query(Job).filter(Job.is_public == True).count(),
+            'depts_with_roles': [membership.department.name for membership in volunteer.dept_memberships_with_role],
+            'assigned_depts_list': [(dept.id, dept.name) for dept in volunteer.assigned_depts],
+            'hours': volunteer.weighted_hours,
             'assigned_depts_labels': volunteer.assigned_depts_labels,
-            'view': view,
-            'start': start,
-            'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
-            'cal_length': cal_length
+            'default_filters': default_filters,
+            'all_filters': default_filters + other_filters,
+            'start': start.date(),
+            'total_duration': total_duration,
+            'highlighted_dates': event_dates,
+            'setup_duration': 0 if not has_setup else (c.EPOCH - c.SETUP_JOB_START).days,
+            'teardown_duration': 0 if not has_teardown else (c.TEARDOWN_JOB_END - c.ESCHATON).days,
+            'requested_setup_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.SETUP_NIGHTS],
+            'requested_teardown_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.TEARDOWN_NIGHTS],
         }
+    
+    @ajax_gettable
+    def get_available_jobs(self, session, all=False, highlight=False, **params):
+        joblist = session.jobs_for_signups(all=all)
+
+        volunteer = session.logged_in_volunteer()
+        assigned_dept_ids = set(volunteer.assigned_depts_ids)
+        event_list = []
+
+        for job in joblist:
+            resource_id = job.department_id
+            bg_color = "#0d6efd"
+            if job.is_public and job.department_id not in assigned_dept_ids:
+                resource_id = "public"
+                bg_color = "#0dcaf0"
+            if highlight and len(job.shifts) == 0:
+                bg_color = "#dc3545"
+            event_list.append({
+                'id': job.id,
+                'resourceIds': [resource_id],
+                'allDay': False,
+                'start': job.start_time_local.isoformat(),
+                'end': job.end_time_local.isoformat(),
+                'title': f"{job.name}",
+                'backgroundColor': bg_color,
+                'extendedProps': {
+                    'department_name': job.department_name,
+                    'desc': _convert_urls(job.description),
+                    'desc_text': job.description,
+                    'weight': job.weight,
+                    'slots': f"{job.slots_taken}/{job.slots}",
+                    'is_public': job.is_public,
+                    'assigned': False,
+                    }
+            })
+        return event_list
+    
+    @ajax_gettable
+    def get_assigned_jobs(self, session, **params):
+        volunteer = session.logged_in_volunteer()
+        event_list = []
+        jobs = session.query(Job).filter(Job.shifts.any(attendee_id=volunteer.id)).options(joinedload(Job.shifts))
+
+        for job in jobs:
+            if job.is_public and job.department_id not in set(volunteer.assigned_depts_ids):
+                resource_id = "public_assigned"
+            else:
+                resource_id = job.department_id
+            event_list.append({
+                'id': job.id,
+                'resourceIds': [resource_id],
+                'allDay': False,
+                'start': job.start_time_local.isoformat(),
+                'end': job.end_time_local.isoformat(),
+                'title': f"{job.name}",
+                'backgroundColor': '#198754',
+                'extendedProps': {
+                    'department_name': job.department_name,
+                    'desc': _convert_urls(job.description),
+                    'desc_text': job.description,
+                    'weight': job.weight,
+                    'slots': f"{job.slots_taken}/{job.slots}",
+                    'is_public': job.is_public,
+                    'is_setup': job.is_setup,
+                    'is_teardown': job.is_teardown,
+                    'assigned': True,
+                    }
+            })
+        return event_list
+
+    def shifts_ical(self, session, **params):
+        attendee = session.logged_in_volunteer()
+        icalendar = ics.Calendar()
+
+        calname = "".join(filter(str.isalnum, attendee.full_name)) + "_Shifts"
+
+        for shift in attendee.shifts:
+            icalendar.events.add(ics.Event(
+                name=shift.job.name,
+                location=shift.job.department_name,
+                begin=shift.job.start_time,
+                end=(shift.job.start_time + timedelta(minutes=shift.job.duration)),
+                description=shift.job.description))
+
+        cherrypy.response.headers['Content-Type'] = \
+            'text/calendar; charset=utf-8'
+        cherrypy.response.headers['Content-Disposition'] = \
+            'attachment; filename="{}.ics"'.format(calname)
+
+        return icalendar
 
     @check_shutdown
     @ajax_gettable
-    def jobs(self, session):
-        return {'jobs': session.jobs_for_signups()}
+    def jobs(self, session, all=False):
+        return {'jobs': session.jobs_for_signups(all=all)}
 
     @check_shutdown
     @ajax
-    def sign_up(self, session, job_id):
-        return {
-            'error': session.assign(session.logged_in_volunteer().id, job_id),
-            'jobs': session.jobs_for_signups()
-        }
+    def sign_up(self, session, job_id, **params):
+        volunteer = session.logged_in_volunteer()
+        message = session.assign(volunteer.id, job_id)
+        if message:
+            return {'success': False, 'message': message}
+        return {'success': True, 'message': "Signup complete!", 'hours': volunteer.weighted_hours}
 
     @check_shutdown
     @ajax
-    def drop(self, session, job_id):
+    def drop(self, session, job_id, all=False):
         if c.AFTER_DROP_SHIFTS_DEADLINE:
             return {
-                'error': "You can no longer drop shifts.",
-                'jobs': session.jobs_for_signups()
+                'success': False,
+                'message': "You can no longer drop shifts."
             }
         try:
-            shift = session.shift(job_id=job_id, attendee_id=session.logged_in_volunteer().id)
+            volunteer = session.logged_in_volunteer()
+            shift = session.shift(job_id=job_id, attendee_id=volunteer.id)
             session.delete(shift)
             session.commit()
-        except Exception:
-            pass
+        except NoResultFound:
+            return {
+                'success': True,
+                'message': "You've already dropped or have been unassigned from this shift.",
+                'hours': volunteer.weighted_hours
+            }
         finally:
-            return {'jobs': session.jobs_for_signups()}
+            return {'success': True, 'message': "Shift dropped.", 'hours': volunteer.weighted_hours}
 
     @public
-    def login(self, session, message='',  first_name='', last_name='', email='', zip_code='', original_location=None):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='index')
+    def login(self, session, message='', first_name='', last_name='', email='', zip_code='', original_location=None):
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/staffing/index')
 
         if first_name or last_name or email or zip_code:
             try:

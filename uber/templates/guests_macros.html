@@ -1,5 +1,149 @@
 {% import 'macros.html' as macros %}
 
+{% macro travel_form(travel_plan, suffix='', is_readonly=False, is_admin=False) %}
+{%- set is_class = travel_plan is class -%}
+{% if not is_class %}
+<input type="hidden" name="id{{ suffix }}" value="{{ travel_plan.id }}" />
+{% endif %}
+<div class="form-group">
+  <label class="col-sm-3 control-label">Travel Mode</label>
+  <div class="col-sm-6">
+      <select name="mode{{ suffix }}" class="form-control">{{ options(c.GUEST_TRAVEL_OPTS, travel_plan.mode) }}</select>
+  </div>
+  <div class="clearfix"></div>
+  <div class="col-sm-6 col-sm-offset-3" style="margin-top: 15px;">
+      <input type="input" class="form-control" name="mode_text{{ suffix }}" value="{{ travel_plan.mode_text if not is_class else '' }}" placeholder="Other (Please Specify)" />
+  </div>
+</div>
+
+{{ macros.form_group(
+  travel_plan,
+  'traveller',
+  suffix=suffix,
+  label="Traveller Name",
+  placeholder="The full name of the point of contact for this itinerary.",
+  is_required=True,
+  is_readonly=is_readonly,
+  is_admin=is_admin) }}
+
+{{ macros.form_group(
+  travel_plan,
+  'companions',
+  suffix=suffix,
+  type="textarea",
+  label="Companion Name(s)",
+  placeholder="All other travellers on this itinerary.",
+  is_readonly=is_readonly,
+  is_admin=is_admin) }}
+
+{{ macros.form_group(
+  travel_plan,
+  'luggage_needs',
+  suffix=suffix,
+  type="textarea",
+  label="Special Luggage Needs?",
+  placeholder="Anything we should know about handling your luggage?",
+  is_readonly=is_readonly,
+  is_admin=is_admin) }}
+
+{{ macros.form_group(
+  travel_plan,
+  'contact_email',
+  suffix=suffix,
+  type='email',
+  label="Contact Email",
+  placeholder="The email to contact you while travelling.",
+  is_required=True,
+  is_readonly=is_readonly,
+  is_admin=is_admin) }}
+
+{{ macros.form_group(
+  travel_plan,
+  'contact_phone',
+  suffix=suffix,
+  type='text',
+  label="Contact Phone #",
+  placeholder="The phone number to contact you while travelling.",
+  is_required=True,
+  is_readonly=is_readonly,
+  is_admin=is_admin) }}
+
+<div class="form-group">
+  <label class="col-sm-3 control-label">Arrival Time</label>
+  <div class="col-sm-6">
+    <div class="input-group">
+      <input
+      id="arrival-time{{ suffix }}"
+      name="arrival_time{{ suffix }}"
+      type="text"
+      class="form-control"
+      value="{{ travel_plan.arrival_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if travel_plan.arrival_time and not is_class else '' }}"
+      required="required">
+      <span class="input-group-addon">
+        <span class="glyphicon glyphicon-calendar"></span>
+      </span>
+    </div>
+  </div>
+</div>
+
+{{ macros.form_group(
+  travel_plan,
+  'arrival_details',
+  suffix=suffix,
+  type="textarea",
+  label="Arrival Details",
+  placeholder="For example, the airport or station you're arriving at, the airline, and the flight/train/bus #s.",
+  is_required=True,
+  is_readonly=is_readonly,
+  is_admin=is_admin) }}
+
+<div class="form-group">
+  <label class="col-sm-3 control-label">Departure Time</label>
+  <div class="col-sm-6">
+    <div class="input-group">
+      <input
+      id="departure-time{{ suffix }}"
+      name="departure_time{{ suffix }}"
+      type="text"
+      class="form-control"
+      value="{{ travel_plan.departure_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if travel_plan.departure_time and not is_class else '' }}"
+      required="required">
+      <span class="input-group-addon">
+        <span class="glyphicon glyphicon-calendar"></span>
+      </span>
+    </div>
+  </div>
+</div>
+
+{{ macros.form_group(
+  travel_plan,
+  'departure_details',
+  suffix=suffix,
+  type="textarea",
+  label="Departure Details",
+  placeholder="For example, the airport or station you're departing from, the airline, and the flight/train/bus #s.",
+  is_required=True,
+  is_readonly=is_readonly,
+  is_admin=is_admin) }}
+
+{{ macros.form_group(
+  travel_plan,
+  'extra_details',
+  suffix=suffix,
+  type="textarea",
+  label="Any additional notes or information?",
+  placeholder="Enter anything else we should know here.",
+  is_readonly=is_readonly,
+  is_admin=is_admin) }}
+
+{% if suffix %}
+<script type="text/javascript">
+  $('input[name="mode{{ suffix }}"]').on('change', function() {onModeChange($(this), "{{ suffix }}");});
+  onModeChange($('input[name="mode{{ suffix }}"]'), "{{ suffix }}");
+</script>
+{% endif %}
+{% endmacro %}
+
 {% macro inventory_image(item=None, name='image', class='', suppress_preview=False) -%}
   {%- set inventory_url = guest_merch.inventory_url(item.id, name) -%}
   <a href="{{ inventory_url }}" target="_blank" class="preview image-preview {{ class }}">
@@ -99,7 +243,7 @@
   </div>
   {% if show_quantity %}
     <div class="form-group">
-      <label class="col-sm-3 control-label">Quantity</label>
+      <label class="col-sm-3 control-label">Estimated Quantity</label>
       <div class="col-sm-6">
         <input class="form-control" type="number" name="inventory_quantity{{ suffix }}" value="{{ item.quantity }}" placeholder="How many do you have for sale?" min="0" required />
       </div>
@@ -139,7 +283,7 @@
         </div>
         <div class="clearfix"></div>
         <div class="panel panel-default panel-sizes">
-          <table class="table table-condensed">
+          <table class="table table-striped table-sm">
             <tbody>
               {% for cut_value, cut_label in cuts_opts %}
                 {% for size_value, size_label in sizes_opts %}
@@ -164,6 +308,15 @@
 
 {% macro cd_inventory_form(type, item=None, suffix='') -%}
   {% call base_inventory_form(type, item=item, suffix=suffix) %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Medium</label>
+      <div class="col-sm-6">
+        <select class="form-control" name="inventory_media{{ suffix }}" required>
+          <option value="">Select an option...</option>
+          {{ options(c.ALBUM_MEDIA_OPTS, item.media) }}
+        </select>
+      </div>
+    </div>
     <div class="form-group">
       <label class="col-sm-3 control-label">Sample Tracks</label>
       <div class="col-sm-6">
@@ -258,12 +411,18 @@
         <div class="inventory-item-name data-item">
           <dd>{{ item.name }}</dd>
         </div>
+        {% if item.media %}
+        <div class="inventory-item-media data-item">
+          <dt>Media</dt>
+          <dd>{{ c.ALBUM_MEDIAS[item.media|int] }}</dd>
+        </div>
+        {% endif %}
         <div class="inventory-item-price data-item">
           <dt>Price</dt>
           <dd>{{ item.price|format_currency }}</dd>
         </div>
         <div class="inventory-item-quantity data-item">
-          <dt>Quantity</dt>
+          <dt>Estimated Quantity</dt>
           <dd>{{ quantity }}</dd>
         </div>
       </dl>

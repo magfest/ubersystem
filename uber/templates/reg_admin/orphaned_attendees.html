@@ -1,21 +1,19 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Attendees Without Accounts{% endblock %}
 {% block content %}
-<div class="panel panel-default">
-    <div class="panel-heading">
-        <h3 class="panel-title">Attendees Without Accounts</h3>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Attendees Without Accounts</h3>
     </div>
-    <div class="panel-body">
+    <div class="card-body">
         <form class="form email-form form-inline" method="post" action="add_all_accounts">
             <input type="hidden" name="show_all" value="{{ show_all }}" />
             {{ csrf_token() }}
             <div class="input-group col-sm-7">
                 <input type="text" class="form-control" name="email_contains" value="{{ email_contains }}" placeholder="Enter a string to limit matched attendees, e.g., furfest.org" />
-                <span class="input-group-btn">
-                    <button type="submit" class="btn btn-primary">
-                    Add Accounts for {% if show_all %}ALL{% else %}All Valid{% endif %} Attendees
-                    </button>
-                </span>
+                <button type="submit" class="btn btn-primary">
+                Add Accounts for {% if show_all %}ALL{% else %}All Valid{% endif %} Attendees
+                </button>
             </div>
         </form>
         <br/>
@@ -25,7 +23,7 @@
         <a href="orphaned_attendees?show_all=True" class="btn btn-info pull-left">Show All Attendees</a>
         {% endif %}
     </div>
-    <div class="table-responsive">
+    <div class="card-body">
         <table class="table table-striped datatable">
         <thead>
             <tr>
@@ -64,12 +62,10 @@
                 {{ csrf_token() }}
                 <div class="row">
                 <div class="input-group col-sm-12">
-                    <input type="email" name="account_email" class="form-control" placeholder="{{ attendee.email }}" />
-                    <span class="input-group-btn">
-                        <button type="submit" class="btn btn-primary">
-                            <span class="glyphicon glyphicon-plus"></span> Add Account
-                        </button>
-                    </span>
+                    <input type="email" name="account_email" class="form-control" placeholder="{{ attendee.group_leader_account.email if attendee.group_leader_account else attendee.email }}" />
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa fa-plus"></i> Add Account
+                    </button>
                 </div>
                 </div>
                 </form>
@@ -79,7 +75,7 @@
         </tbody>
         </table>
     </div>
-    <div class="panel-footer">
+    <div class="card-footer">
         <button class="btn btn-primary" onClick="addMultipleAccounts()">Add Selected Accounts</button>
     </div>
 </div>

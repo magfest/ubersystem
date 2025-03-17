@@ -1,25 +1,10 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Merch Booth{% endblock %}
+{% set title_text = "Merch Booth Ops" %}
 {% block content %}
 
-{% include 'barcode_client.html' %}
-
-<style type="text/css">
-    #give .merch-list { color: red; }
-</style>
+{% block adminheader %}
 
 <script type="text/javascript">
-
-    var $shirtOpts = $('<select/>').attr('id', 'shirt');
-    $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
-        $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));
-    });
-
-    var $staffShirtOpts = $('<select/>').attr('id', 'staff-shirt');
-    $.each({{ c.MERCH_STAFF_SHIRT_OPTS|jsonize }}, function(i,size) {
-        $staffShirtOpts.append($('<option/>').val(size[0]).text(size[1]));
-    });
-
     /**
      * Given the list of items returned by Attendee.merch_list, return a nested
      * list of those items for display when that attendee's merch is checked.
@@ -44,57 +29,28 @@
             .append($merchList);
     };
 
-    var recordSale = function () {
-        $.post('record_sale', {
-            id:         'None',
-            what:       $('#what_select').val() || $('#what_text').val() || '',
-            cash:       $('#store_cash').val(),
-            mpoints:    $('#store_mpoints').val(),
-            csrf_token: csrf_token
-        }, function(json) {
-            $('#message').html(json.message);
-            if (json.success) {
-                $('#message').append(' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>');
-            }
-        }, 'json');
-    };
-
-    var undoSale = function (id) {
-        $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
-            $('#message').html(message);
-        });
-    };
-
-    var showOrHideWhatText = function (pageLoading) {
-        $('#store_mpoints').val('0');
-        if($('#what_select').val() === '') {
-            $('#what_text').show().focus();
-            $('#store_cash').val('');
-        }
-        else {
-            var prices = {{ c.STORE_PRICES|jsonize }};
-            $('#what_text').val('').hide();
-            $('#store_cash').val( prices[$('#what_select').val()] );
-            if (!pageLoading) {
-                $('#store_amount').focus();
-            }
-        }
-    };
+    let showMPointForm = function () {
+        resetForms();
+        $("#mpoint-form").addClass('show');
+    }
 
     var recordMPointExchange = function () {
         $.post('record_old_mpoint_exchange', {
-            badge_num:  $('#ex_badge_num').val(),
-            amount:     $('#ex_mpoints').val(),
+            badge_num_or_qr_code:  $('#badge_num_or_qr_code').val(),
+            amount: $('#num_mpoints').val(),
             csrf_token: csrf_token
         }, function(json) {
-            $('#message').html(json.message);
+            resetForms();
             if (json.success) {
-                $('#ex_badge_num,#ex_mpoints').val('');
+                $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+                $('#num_mpoints').val('');
                 $("#message").append(' &nbsp; ').append(
                     $('<a href="#">Undo</a>').click(function(){
                         undoMPointExchange(json.id);
                         return false;
                     }));
+            } else {
+                showErrorMessage(json.message);
             }
        }, 'json');
     };
@@ -105,7 +61,7 @@
     };
 
     var giveMerch = function (noShirt, id, staffMerch, shirtSize, giveSwadge) {
-        $('#give button').attr('disabled', true);
+        $('[id^=give-merch-btn]').attr('disabled', true);
         var params = {
             id: id,
             no_shirt: noShirt,
@@ -115,17 +71,21 @@
             give_swadge: giveSwadge ? 'true' : ''
         };
         $.post('give_merch', params, function(json) {
-            $('#give').html('');
-            $('#badge_num').val('');
-            $('#message').html(json.message);
-            if (json.success) {
-                $('#message')
+            $('[id^=give-merch-btn]').attr('disabled', false);
+
+            if (!json.success) {
+                $("#message-alert").addClass('alert-warning').show().children('span').html(json.message);
+            } else {
+                resetForms();
+                $("#message-alert").addClass('alert-info').show().children('span').html(json.message);
+                $('#message-alert').children('span')
                     .append(' &nbsp; ')
                     .append(
                         $('<a href="#">Undo</a>').click(function(){
                             takeBackMerch(id, staffMerch);
                             return false;
                          }));
+                $('#badge_num_or_qr_code').focus();
             }
         }, 'json');
     };
@@ -136,179 +96,361 @@
             staff_merch: staffMerch
         };
         $.post('take_back_merch', params, function (message) {
-            $('#message').html(message);
+            $("#message-alert").addClass("alert-info").show().children('span').html(message);
+            $('#badge_num_or_qr_code').focus();
         });
     };
 
+    let resetForms = function () {
+        resetDiscountInfo();
+        resetMerchInfo();
+    }
+
+    let resetDiscountInfo = function () {
+        $("#message-alert").hide();
+        $("#discount-info").find('.alert').empty();
+        $('#redeem-discount').off('click.redeemdiscount').attr('disabled', false);
+        $("#discount-info").hide();
+    };
+
     var checkDiscount = function () {
-        var $num = $('#dis_badge_num'),
-            $confirm = $('#discount_confirm'),
-            $checkButton = $('#discount_check');
-        var reset = function () {
-            toastr.clear();
-            $confirm.empty();
-            $checkButton.show();
-            $num.prop('disabled', false).val('');
+        resetForms();
+        var params = {
+            badge_num_or_qr_code: $('#badge_num_or_qr_code').val(),
+            csrf_token: csrf_token
         };
-        $num.prop('disabled', true);
-        $confirm.empty();
-        $checkButton.hide();
-        toastr.clear();
-        var params = {badge_num: $num.val(), csrf_token: csrf_token};
-        $.post('redeem_merch_discount', params, function (checkResponse) {
-            if (!checkResponse.message) {
-                reset();
-                toastr.error(checkResponse.error || 'An unexpected error occurred');
+        $.post('redeem_merch_discount', params, function (json) {
+            if (!json.message) {
+                resetForms();
+                showErrorMessage(json.error || 'An unexpected error occurred.');
             } else {
-                toastr[checkResponse.warning ? 'warning' : 'info'](checkResponse.message);
-                $confirm.append(
-                    $('<button></button>').click(function () {
-                        params.apply = 'true';
-                        $.post('redeem_merch_discount', params, function (applyResponse) {
-                            reset();
-                            toastr.info(applyResponse.message || applyResponse.error);
-                        });
-                    }).text(checkResponse.warning ? 'Redeem Anyway' : 'Redeem')
-                ).append('<span>&nbsp;&nbsp;</span>').append(
-                    $('<button>Cancel</button>').click(reset)
-                );
+                let alertClass = json.warning ? 'alert-warning' : 'alert-info';
+                $("#discount-info").show().find('.alert').addClass(alertClass).html(json.message);
+
+                $('#redeem-discount').on('click.redeemdiscount', function () {
+                    $('#redeem-discount').attr('disabled', true);
+                    params.apply = 'true';
+                    $.post('redeem_merch_discount', params, function (json) {
+                        resetForms();
+                        let alertClass = json.error ? 'alert-danger' : 'alert-info';
+                        $("#message-alert").addClass("alert-info").show().children('span').html(json.message || json.error);
+                        $('#badge_num_or_qr_code').focus();
+                    });
+                }).text(json.warning ? 'Redeem Discount Anyway' : 'Redeem Discount');
             }
         });
     };
 
+    let resetMerchInfo = function() {
+        merchPending = '';
+        if (savedInput != '') {
+            $('#badge_num_or_qr_code').val(savedInput);
+            savedInput = '';
+        }
+
+        $("#message-alert").removeClass('alert-info').removeClass('alert-danger');
+        $("#mpoint-form").removeClass('show');
+        
+        $('#merch-info').hide().find('.alert').html('');
+        $(`#shirt-size`).closest('.col').hide();
+        $('[id$=shirt-size]').hide();
+        $('[id^=give-merch-btn]').off('click.givemerch').attr('disabled', false).closest('.row').hide();
+    }
+
+    let merchPending = '';
+    let savedInput = '';
+
+    let checkMerch = function(id) {
+        let staffMerch = id == '#check_staff_merch' ? 'true' : '';
+        let params = {
+            csrf_token: csrf_token,
+            staff_merch: staffMerch,
+            badge_num_or_qr_code: $('#badge_num_or_qr_code').val(),
+        };
+        resetForms();
+        $.ajax({
+            method: 'POST',
+            url: 'check_merch',
+            dataType: 'json',
+            data: params,
+            success: function (json) {
+                if (!json.id) {
+                    showErrorMessage(json.message);
+                } else {
+                    let shirtFieldID = staffMerch ? "staff-shirt-size" : "shirt-size";
+                    $('#merch-info').show().find('.alert').empty().append(
+                        createMerchList(json.message, json.merch_items)
+                    );
+
+                    merchPending = json.display_name;
+                    if (json.shirt != {{ c.NO_SHIRT }}) {
+                        $(`#${shirtFieldID}`).show().closest('.col').show();
+                        $(`#${shirtFieldID} :input`).val(Math.max(json.shirt, 0));
+                    }
+
+                    $('#give-merch-btn').on('click.givemerch', function() {
+                        shirt_val = $(`#${shirtFieldID} :input`).is(":visible") ? $(`#${shirtFieldID} :input`).val() : ''
+                        giveMerch('', json.id, staffMerch, shirt_val, json.gets_swadge);
+                    });
+
+                    {% if c.OUT_OF_SHIRTS %}
+                        $('#give-merch-btn-no-shirt').on('click.givemerch', function() {
+                            shirt_val = $(`#${shirtFieldID} :input`).is(":visible") ? $(`#${shirtFieldID} :input`).val() : ''
+                            giveMerch('no_shirt', json.id, staffMerch, shirt_val, json.gets_swadge);
+                        });
+                    {% endif %}
+
+                    $('#give-merch-btn').closest('.row').show();
+                }
+            },
+            error: function () {
+                showErrorMessage('Unable to connect to server, please try again.');
+            }
+        });
+    }
+
+    let checkAction = function(callback, id='') {
+        if (merchPending != '') {
+            bootbox.confirm({
+                title: `Mark this person as receiving their merch?`,
+                message: `<p>You have not marked ${merchPending} as receiving merch! Did you give them their merch?</p>`,
+                buttons: {
+                confirm: { label: `Yes, I gave ${merchPending} their merch!`, className: 'btn-primary' },
+                cancel: { label: `No, I did not give them their merch`, className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                if (result) {
+                    savedInput = $('#badge_num_or_qr_code').val();
+                    $('#give-merch-btn').trigger('click');
+                } else { 
+                    resetForms();
+                    if (callback != undefined) { callback(id); }
+                }
+                }
+            });
+        } else if (callback != undefined) { callback(id); }
+    }
+
+    let kioskConfirm = function() {
+        bootbox.confirm({
+            title: `Launch Kiosk Mode`,
+            message: `<p>Kiosk mode allows volunteers without admin accounts to run merch pickup by logging in
+                with their badge number. You will be logged out of your account. Are you sure?</p>`,
+            buttons: {
+                confirm: { label: `Launch Kiosk Mode`, className: 'btn-primary' },
+                cancel: { label: `Cancel`, className: 'btn-outline-secondary' }
+            },
+            callback: function (result) {
+            if (result) {
+                window.location = "index?enter_kiosk=True";
+            }
+            }
+        });
+    }
+
+    let kioskLogin = function () {
+        $.post('log_in_volunteer', {
+            badge_num:  $('#kiosk_badge_num').val(),
+            csrf_token: csrf_token
+        }, function(json) {
+            if (json.success) {
+                let volunteerLogin = bootstrap.Modal.getInstance(document.getElementById('volunteer-login'));
+                volunteerLogin.hide();
+                $('#kiosk-operator-name').text(json.operator_name);
+                $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
+            } else {
+                showErrorMessage(json.message, 'modal-message-alert');
+            }
+       }, 'json');
+    }
+
     $(function() {
-        $('body').barcodeField({
-          targetField: 'input.badge_num:focus',
-          blurOnKeys: ['~', '\\'],
-          detectBadgeNum: true
-        });
-
-        $('#message').ajaxError(function () {
-            toastr.error('Oh noes - the web server is down or something!!!!!');
-        });
-
         $('input[type=text],input[type=number]').on('focus', function(event){
             var field = event.target;
             setTimeout(function(){ field.select(); }, 1);
         });
 
-        showOrHideWhatText(true);
-        $('#what_text,#store_amount').keypress(function(e){
-            if( (e.keyCode || e.which) == 13 ) { // ENTER
-                recordSale();
-            }
-        });
-
-        $('#ex_badge_num,#ex_mpoints,#cash').keypress(function(e){
-            if( (e.keyCode || e.which) == 13 ) { // ENTER
+        $('#num_mpoints').keypress(function(e){
+            if( (e.keyCode || e.which) == 13 ) {
                 recordMPointExchange();
             }
         });
 
-        $('#dis_badge_num').keypress(function (e) {
-            if ( (e.keyCode || e.which) == 13 ) {  // ENTER
-                checkDiscount();
+        $('#badge_num_or_qr_code').keydown(function(event){
+            if(event.keyCode == 13) {
+                checkAction(checkMerch, '#check_merch');
             }
         });
 
+        $('#kiosk_badge_num').keypress(function(e){
+            if( (e.keyCode || e.which) == 13 ) {
+                kioskLogin();
+            }
+        });
+
+        $(document).on("ajaxError", function() {
+            showErrorMessage('Unable to connect to server, please try again.');
+        } );
+
+        resetForms();
+        {% if message %}
+        $("#message-alert").addClass("alert-info").show()
+        {% endif %}
+
+        replaceQueryParamInUrl('enter_kiosk');
+        replaceQueryParamInUrl('exit_kiosk');
+        replaceQueryParamInUrl('volunteer_logout');
+
+        let volunteerLogin = new bootstrap.Modal(document.getElementById('volunteer-login'), {keyboard: false});
+        {% if supervisor and not logged_in_volunteer %}
+        $('#modal-message-alert').hide();
+        volunteerLogin.show()
+        {% endif %}
+
         $.each(['#check_merch', '#check_staff_merch'], function (i, id) {
-            $(id).on('click', function() {
-                var staffMerch = id == '#check_staff_merch' ? 'true' : '';
-                var params = {
-                    csrf_token: csrf_token,
-                    staff_merch: staffMerch,
-                    badge_num: $('#badge_num').val(),
-                };
-                $('#give,#message').html('');
-                $.post('check_merch', params, function (resp) {
-                    if (!resp.id) {
-                        $('#message').html(resp.message);
-                    } else {
-                        $('#give').empty().append(
-                            createMerchList(resp.message, resp.merch_items)
-                        );
-                        if (resp.shirt != {{ c.NO_SHIRT }} && !staffMerch) {
-                            $('#give').append('Choose a shirt size:').append($shirtOpts);
-                            $('#give #shirt').val(resp.shirt);
-                        }
-                        if (resp.staff_shirt != {{ c.NO_SHIRT }} && staffMerch) {
-                            $('#give').append('Choose staff shirt size:').append($staffShirtOpts);
-                            $('#give #staff-shirt').val(resp.shirt);
-                        }
-
-                        if (resp.swadges_available || !resp.gets_swadge) {
-                            $('#give').append(
-                                $('<button>Give Merch</button>').click(function () {
-                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), resp.gets_swadge);
-                                })
-                            );
-                        } else {
-                            $('#give').append(
-                                $('<button>Give Merch WITH Swadge</button>').click(function () {
-                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), true);
-                                })
-                            );
-                            $('#give').append(
-                                $('<button>Give Merch WITHOUT Swadge</button>').click(function () {
-                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), false);
-                                })
-                            );
-                        }
-
-                        {% if c.OUT_OF_SHIRTS %}
-                            $("#give").append(
-                                $('<button>Give Merch Without Shirt</button>').click(function () {
-                                    giveMerch('no_shirt', resp.id, staffMerch, $('#shirt').val());
-                                })
-                            );
-                        {% endif %}
-                    }
-                }, 'json');
-            });
+            $(id).on('click', function() { checkAction(checkMerch, id); });
         });
     });
 </script>
+{% endblock adminheader %}
+{% block admin_controls %}
 
-<div id="message" style="color:red ; margin-bottom:10px">&nbsp;</div>
-
-<div class="center" style="margin-bottom:10px ; font-style:italic">
-    Square not working?  In a pinch, you can create arbitrary charges <a href="arbitrary_charge_form">here</a>.
-    <br/>See outstanding t-shirt counts <a href="../merch_reports/shirt_counts">here</a>.
-    <br/>To have one person pick up merch for others, <a href="multi_merch_pickup">click here</a>.
+<div class="modal fade" id="volunteer-login" tabindex="-1" role="dialog" data-bs-backdrop="static" aria-labelledby="volunteer-login-title">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="volunteer-login-title">Volunteer Login</h4>
+        </div>
+        <div class="modal-body">
+            <div class="alert alert-dismissible" role="alert" id="modal-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('modal-message-alert')" aria-label="Close"></button></div>
+            <p>Welcome to the merch booth kiosk! Please enter your badge number below to log in.</p>
+            <div class="d-flex align-items-end gap-2">
+                <div>
+                    <label class="form-text">Badge #</label>
+                    <input class="form-control" type="text" id="kiosk_badge_num" placeholder="" />
+                </div>
+                <div>
+                    <button type="button" class="btn btn-primary" onClick="kioskLogin()">Log In</button>
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
 </div>
 
-<table>
-<tr>
-    <td> Last year's MPoints turned in: &nbsp;</td>
-    <td> Badge num: <input type="number" id="ex_badge_num" class="badge_num" min="1" max="99999" /> </td>
-    <td> exchanged <input type="number" id="ex_mpoints" min="1" max="9999" /> MPoints </td>
-    <td> <input type="submit" id="record_mpe" value="Record Exchange" onClick="recordMPointExchange()" /> </td>
-</tr>
-</tr><tr display="none"> <td colspan="4"> ---OR--- </td> </tr>
-    <td> Apply a merch discount </td>
-    <td>
-        Badge num: <input type="number" id="dis_badge_num" class="badge_num" min="1" max="99999" />
-        <input type="submit" id="discount_check" value="Check Eligibility" onClick="checkDiscount()" />
-        &nbsp;
-        <span id="discount_confirm"></span>
-    <td></td>
-    <td></td>
-<tr> <td colspan="4"> ---OR--- </td>
-<tr>
-    <td> Give Merch </td>
-    <td colspan="2">
-        Badge Number: <input type="number" id="badge_num"  class="badge_num"min="1" max="99999" />
-        <input type="submit" id="check_merch" value="Check Merch" />
-        {% if c.SEPARATE_STAFF_MERCH %}
-            <input type="submit" id="check_staff_merch" value="Check Staff Merch" />
+<div class="d-flex justify-content-between mb-1 align-items-center">
+    <h2>Merch Booth</h2>
+    {% if supervisor %}
+    <a href="index?volunteer_logout=True" class="btn btn-outline-primary">Volunteer Log Out</a>
+    {% endif %}
+</div>
+<div class="card">
+    <div class="card-header">At-Con Operations</div>
+  <div class="card-body">
+    <div class="d-flex justify-content-between gap-1">
+        <div>Enter or scan the badge number or check-in QR code and select an action.</div>
+        <div>
+        {% if not c.SPIN_TERMINAL_AUTH_KEY %}<a href="arbitrary_charge_form" target="_blank" class="btn btn-success">Create Arbitrary Charge</a>{% endif %}
+        <a href="multi_merch_pickup" target="_blank" class="btn btn-primary">Multi-Merch Pickup</a>
+        {% if not supervisor %}
+        <button type="button" class="btn btn-outline-primary" onClick="kioskConfirm()">Launch Kiosk Mode</button>
         {% endif %}
-    </td>
-    <td colspan="2"></td>
-</tr>
-<tr>
-    <td></td>
-    <td id="give" colspan="4"></td>
-</tr>
-</table>
+        </div>
+    </div>
+    {{ csrf_token() }}
+    <div class="row g-sm-3 align-items-end">
+      <div class="col-12 col-sm-4">
+        <label class="form-text">Badge #/Check-in Code</label>
+        <div class="mb-3">
+          <input class="focus form-control" type="text" id="badge_num_or_qr_code" placeholder="" />
+        </div>
+      </div>
+      <div class="col">
+        <label class="form-text">Select an action</label>
+        <div class="mb-3">
+        {% if 'give_merch' in c.MERCH_OPS %}
+            <button type="button" id="check_merch" class="btn btn-primary">Check Merch</button>
+            {% if c.SEPARATE_STAFF_MERCH %}
+            <button type="button" id="check_staff_merch" class="btn btn-outline-primary">Check Staff Merch</button>
+            {% endif %}
+        {% endif %}
+        {% if 'discount' in c.MERCH_OPS %}
+        <button type="button" class="btn btn-info" onClick="checkAction(checkDiscount)">Check Discount Eligibility</button>
+        {% endif %}
+        {% if 'mpoints' in c.MERCH_OPS %}
+        <button type="button" class="btn btn-success" onClick="checkAction(showMPointForm)">M-Point Exchange</button>
+        {% endif %}
+        </div>
+      </div>
+    </div>
+    <div id="mpoint-form" class="collapse">
+    Enter the number of MPoints exchanged below.<br/>
+      <div class="row g-sm-3 row-cols-auto align-items-end">
+        <div class="col">
+          <label class="form-text"># MPoints</label>
+          <div class="mb-3">
+            <input class="form-control" type="number" id="num_mpoints" min="1" max="9999" />
+          </div>
+        </div>
+        <div class="col">
+          <div class="mb-3">
+            <button type="button" class="btn btn-success" onClick="recordMPointExchange()">Confirm Exchange</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="discount-info" class="mb-3">
+        <div class="row g-sm-3">
+            <div class="col-12 col-sm-6 alert">
+            </div>
+        </div>
+        <div class="row g-sm-3 row-cols-auto align-items-end">
+            <div class="col">
+            <button type="button" class="btn btn-primary" id="redeem-discount">Redeem Discount</button>
+            <button type="button" class="btn btn-outline-secondary" onClick="resetDiscountInfo()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div id="merch-info">
+        <div class="row g-sm-3">
+            <div class="col-12 col-sm-6 pb-0 alert alert-info">
+            </div>
+        </div>
+        <div class="row g-sm-3 row-cols-auto align-items-end">
+        <div class="col">
+            <div id="shirt-size">
+                <div class="form-text">Shirt Size</div>
+                <select class="form-select">
+                    {{ options(c.SHIRT_OPTS, '') }}
+                </select>
+            </div>
+            <div id="staff-shirt-size">
+                <div class="form-text">Staff Shirt Size</div>
+                <select class="form-select">
+                    {{ options(c.STAFF_SHIRT_OPTS, '') }}
+                </select>
+            </div>
+        </div>
+        <div class="col">
+            <button type="button" id="give-merch-btn" class="btn btn-primary">Give Merch</button>
+            {% if c.OUT_OF_SHIRTS %}
+            <button type="button" id="give-merch-btn-no-shirt" class="btn btn-outline-primary">Give Merch Without Shirt</button>
+            {% endif %}
+        </div>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock admin_controls %}
+<br/>
+{% if c.HAS_MERCH_REPORTS_ACCESS %}
+<div class="card">
+    <div class="card-header">Merch Reports</div>
+  <div class="card-body">
+    <a href="../merch_reports/shirt_counts" target="_blank" class="btn btn-outline-primary">Outstanding Shirt Counts</a>
+    <a href="../merch_reports/owed_merch" target="_blank" class="btn btn-outline-primary">Attendees Owed Merch</a>
 
+  </div>
+</div>
+{% endif %}
 {% endblock %}

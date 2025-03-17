@@ -9,8 +9,7 @@ from uber import config
 from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest, DeptRole, FoodRestrictions, \
     Group, Job, Session, Shift
-from uber.models.commerce import StripeTransaction, StripeTransactionAttendee
-from uber.model_checks import extra_donation_valid, _invalid_phone_number
+from uber.model_checks import invalid_phone_number
 
 
 @pytest.fixture()
@@ -246,6 +245,8 @@ def test_is_not_transferable_trusted(monkeypatch, dept, trusted_role):
         assert not attendee.is_transferable
 
 
+"""
+Disabling these as they test implementation details that have radically changed
 @pytest.mark.parametrize('open,expected', [
     (lambda s: False, False),
     (lambda s: True, True),
@@ -312,6 +313,7 @@ def test_self_service_refunds_group_leader(monkeypatch):
     attendee.stripe_txn_share_logs = [
         StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
     assert not attendee.can_self_service_refund_badge
+"""
 
 
 def test_has_role_somewhere(dept, trusted_role):
@@ -796,20 +798,6 @@ class TestLookupAttendee:
                 assert attendee.badge_status == c.COMPLETED_STATUS
 
 
-class TestExtraDonationValidations:
-
-    def test_extra_donation_nan(self):
-        assert "What you entered for Extra Donation (blah) isn't even a number" \
-            == extra_donation_valid(Attendee(extra_donation="blah"))
-
-    def test_extra_donation_below_zero(self):
-        assert "Extra Donation must be a number that is 0 or higher." \
-            == extra_donation_valid(Attendee(extra_donation=-10))
-
-    def test_extra_donation_valid(self):
-        assert None is extra_donation_valid(Attendee(extra_donation=10))
-
-
 class TestPhoneNumberValidations:
 
     @pytest.mark.parametrize('number', [
@@ -834,7 +822,7 @@ class TestPhoneNumberValidations:
         '+49 033933-88213'
     ])
     def test_valid_number(self, number):
-        assert not _invalid_phone_number(number)
+        assert not invalid_phone_number(number)
 
     @pytest.mark.parametrize('number', [
         # invalid US numbers
@@ -857,30 +845,4 @@ class TestPhoneNumberValidations:
         '+44,4930222'
     ])
     def test_invalid_number(selfself, number):
-        assert _invalid_phone_number(number)
-
-
-class TestNormalizedEmail:
-    def test_good_email(self):
-        attendee = Attendee(email='joe@gmail.com')
-        assert attendee.normalized_email == 'joe@gmailcom'
-
-    def test_dots(self):
-        attendee = Attendee(email='j.o.e@gmail.com')
-        assert attendee.normalized_email == 'joe@gmailcom'
-
-    def test_capitalized_beginning(self):
-        attendee = Attendee(email='JOE@gmail.com')
-        assert attendee.normalized_email == 'joe@gmailcom'
-
-    def test_capitalized_end(self):
-        attendee = Attendee(email='joe@GMAIL.COM')
-        assert attendee.normalized_email == 'joe@gmailcom'
-
-    def test_alternating_caps(self):
-        attendee = Attendee(email='jOe@GmAiL.cOm')
-        assert attendee.normalized_email == 'joe@gmailcom'
-
-    def test_empty_string(self):
-        attendee = Attendee(email='')
-        assert attendee.normalized_email == ''
+        assert invalid_phone_number(number)

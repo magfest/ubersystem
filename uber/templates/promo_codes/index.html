@@ -17,7 +17,45 @@ table form {
 }
 </style>
 
-<script>
+<script type="text/javascript">
+  var updateAll = function() {
+    let bigData = ''
+    $('[id^=update_promo_code_]').each(function() {
+      let serializedData = new URLSearchParams($(this).serialize());
+
+      if (bigData == '') {
+        bigData = 'csrf_token=' + serializedData.get('csrf_token')
+      }
+
+      bigData = bigData + '&id=' + serializedData.get('id')
+
+      for (const [key, value] of serializedData) {
+        if (key != 'csrf_token' && key != 'id') {
+          bigData = bigData + '&' + key + '_' + serializedData.get('id') + '=' + value
+        }
+      }
+    })
+    $.ajax({
+      method: 'POST',
+      url: 'update_all',
+      dataType: 'json',
+      data: bigData,
+      success: function (json) {
+        hideMessageBox();
+        var message = json.message;
+        if (json.success) {
+          $("#message-alert").addClass("alert-info").show().children('span').html(message);
+          window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+        } else {
+          showErrorMessage(message);
+        }
+      },
+      error: function () {
+          showErrorMessage('Unable to connect to server, please try again.');
+      }
+    });
+  }
+
 $(document).ready(function() {
     $('table').on('click', '.delete-button', function(event) {
         event.preventDefault();
@@ -31,7 +69,7 @@ $(document).ready(function() {
                 'paid, will lose their discounted badge price. This cannot be undone.',
             buttons: {
                 confirm: { label: 'Delete Promo Code', className: 'btn-danger' },
-                cancel: { label: 'Nevermind', className: 'btn-default' }
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function(result) {
                 if (result) {
@@ -46,28 +84,32 @@ $(document).ready(function() {
 <h1>
   Promo Codes
   <small><a href="generate_promo_codes">Generate new promo codes</a></small>
-  <button class="btn btn-sm btn-danger pull-right" data-toggle="modal" data-target="#modal-delete-unused">
-    Delete Unused
+  <button class="btn btn-sm btn-danger pull-right" data-bs-toggle="modal" data-bs-target="#modal-delete-unused">
+    Delete Unused Codes
   </button>
+  <a class="btn btn-sm btn-info pull-right me-2" href="export_promo_codes">
+    Download All Codes
+  </a>
 </h1>
-  <ul class="nav nav-tabs" role="tablist">
-  <li {% if show == "admin" %}class="active"{% endif %}><a href="index?show=admin">Discount Codes</a></li>
-  <li {% if show == "group" %}class="active"{% endif %}><a href="index?show=group">Promo Code Group Codes</a></li>
-  <li {% if show == "overused" %}class="active"{% endif %}><a href="index?show=overused">Overused</a></li>
-  <li {% if show == "all" %}class="active"{% endif %}><a href="index?show=all">All</a></li>
+<div class="card card-body">
+  <ul class="nav nav-tabs">
+  <li class="nav-item"><a class="nav-link{% if show == "admin" %} active{% endif %}" href="index?show=admin">Discount Codes</a></li>
+  <li class="nav-item"><a class="nav-link{% if show == "group" %} active{% endif %}" href="index?show=group">Promo Code Group Codes</a></li>
+  <li class="nav-item"><a class="nav-link{% if show == "overused" %} active{% endif %}" href="index?show=overused">Overused</a></li>
+  <li class="nav-item"><a class="nav-link{% if show == "all" %} active{% endif %}" href="index?show=all">All</a></li>
 </ul>
 <br/>
 <div id="modal-delete-unused" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="title-delete-unused">
   <div class="modal-dialog modal-sm" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="title-delete-unused">Delete all unused promo codes?</h4>
       </div>
       <div class="modal-footer">
         <form method="post" action="delete_promo_codes" class="form-horizontal">
           {{ csrf_token() }}
-          <button type="button" class="btn btn-default" data-dismiss="modal">Nevermind</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Nevermind</button>
           <button type="submit" class="btn btn-danger">Delete Unused</button>
         </form>
       </div>
@@ -75,7 +117,7 @@ $(document).ready(function() {
   </div>
 </div>
 <div class="table-responsive">
-  <table id="promo_code_list" class="table table-striped datatable form-horizontal">
+  <table id="promo_code_list" class="table table-striped datatable">
     <thead>
       <tr>
         <th>Promo Code</th>
@@ -84,7 +126,9 @@ $(document).ready(function() {
         <th>Discount</th>
         <th>Allowed Uses</th>
         <th>Number of Uses</th>
-        {% if show != 'admin' %}
+        {% if show == 'admin' %}
+        <th>Admin Notes</th>
+        {% else %}
         <th>Promo Code Group</th>
         {% endif %}
         <th></th>
@@ -121,11 +165,15 @@ $(document).ready(function() {
         <td data-order="{{ promo_code.uses_count }}">
           {{ promo_code.uses_count_str }}, {{ promo_code.uses_remaining_str }}
           <br>
-          {% for attendee in promo_code.used_by %}
+          {% for attendee in promo_code.valid_used_by %}
           <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}
           {% endfor %}
         </td>
-        {% if show != 'admin' %}
+        {% if show == 'admin' %}
+        <td data-search="{{ promo_code.admin_notes }}">
+          <input type="text" form="update_promo_code_{{ promo_code.id }}" name="admin_notes" class="form-control" size="30" placeholder="E.g., intended usage, department" value="{{ promo_code.admin_notes }}">
+        </td>
+        {% else %}
         <td>
           <a href="promo_code_group_form?id={{ promo_code.group.id }}" target="_blank">{{ promo_code.group.name }}</a>
         </td>
@@ -135,7 +183,7 @@ $(document).ready(function() {
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ promo_code.id }}" />
             <button type="submit" class="btn btn-sm btn-primary update-button">
-              <span class="glyphicon glyphicon-ok"></span>
+              <i class="fa fa-check"></i>
             </button>
           </form>
           <form method="post" action="delete_promo_codes">
@@ -145,7 +193,7 @@ $(document).ready(function() {
             <div title="Promo codes that have already been used cannot be deleted" style="display: inline-block;">
             {% endif %}
             <button class="btn btn-sm btn-danger delete-button {% if promo_code.uses_count > 0 %}disabled{% endif %}" data-code="{{ promo_code.code }}">
-              <span class="glyphicon glyphicon-trash"></span>
+              <i class="fa fa-trash"></i>
             </button>
             {% if promo_code.uses_count > 0 %}
             </div>
@@ -156,5 +204,12 @@ $(document).ready(function() {
       {% endfor %}
     </tbody>
   </table>
+<div class="d-flex justify-content-end mt-3">
+  <div class="flex-grow-1"></div>
+  <div>
+    <button type="button" class="btn btn-primary" onClick="updateAll()">Update All</button>
+  </div>
+</div>
+</div>
 </div>
 {% endblock %}

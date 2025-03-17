@@ -92,7 +92,7 @@ var addPromoCodeWords = function(partOfSpeechIndex) {
             $.each(response.words, function(index, word) {
                 var html = '<span class="label label-' + style + ' ' + partOfSpeech + '" style="display: none;"> ' +
                   '<span class="word"> ' + word + ' </span> ' +
-                  '<a href="#"><span class="glyphicon glyphicon-remove"></span></a> ' +
+                  '<a href="#"><i class="fa fa-remove"></i></a> ' +
                   '</span> ';
                 $labels.append(html);
             });
@@ -147,18 +147,18 @@ var deleteAllPromoCodeWords = function(partOfSpeechIndex) {
 var onDiscountTypeChanged = function() {
     var $discountType = $('#discount-group select'),
         value = $discountType.val(),
-        $addon = $('#discount-group .input-group-addon'),
-        $help = $('#discount-group .discount-type-desc');
+        $addon = $('#discount-group .input-group-text'),
+        $help = $('#discount-type-desc');
 
     if (value == 2) {
         $addon.text('%');
-        $help.text('Reduces the badge price by a percentage');
+        $help.text('Reduces the badge price by a percentage.');
     } else if (value == 1) {
         $addon.text('$');
-        $help.text('Sets the badge price to a fixed dollar amount');
+        $help.text('Sets the badge price to a fixed dollar amount.');
     } else {
         $addon.text('$');
-        $help.text('Reduces the badge price by a fixed dollar amount');
+        $help.text('Reduces the badge price by a fixed dollar amount.');
     }
 };
 
@@ -207,7 +207,7 @@ $(document).ready(function() {
             message: '<h4>Clear all promo code ' + partOfSpeech + 's?</h4>',
             buttons: {
                 confirm: { label: 'Clear All ' + _.startCase(partOfSpeech) + 's', className: 'btn-danger' },
-                cancel: { label: 'Nevermind', className: 'btn-default' }
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function(result) {
                 if (result) {
@@ -229,142 +229,146 @@ $(document).ready(function() {
 });
 </script>
 
-<h1>
+<h2>
   Generate Promo Codes
   <small><a href="index">View all promo codes</a></small>
-</h1>
+</h2>
 
-<div class="" style="max-width: 720px;">
+<div class="card card-body">
   <form method="post" action="generate_promo_codes" class="form-horizontal">
     {{ csrf_token() }}
 
-    <div class="form-group">
-      <label for="is_single_promo_code" class="col-sm-3 control-label">How many?</label>
-      <div class="col-sm-9">
-        <input type="hidden" name="is_single_promo_code" value="{{ is_single_promo_code }}">
-        <div id="promo-code-tabs" class="btn-group" role="tablist">
-          <a
-              href="#promo-code-single"
-              aria-controls="promo-code-single"
-              role="tab"
-              data-toggle="tab"
-              data-is_single_promo_code="1"
-              class="btn btn-default {% if is_single_promo_code %}active{% endif %}">
-            Just one promo code
-          </a>
-          <a
-              href="#promo-code-multi"
-              aria-controls="promo-code-multi"
-              role="tab"
-              data-toggle="tab"
-              data-is_single_promo_code="0"
-              class="btn btn-default {% if not is_single_promo_code %}active{% endif %}">
-            A bunch of promo codes
-          </a>
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        <label for="is_single_promo_code" class="form-text">How many?</label>
+        <div class="mb-3">
+          <input type="hidden" name="is_single_promo_code" value="{{ is_single_promo_code }}">
+          <div id="promo-code-tabs" class="nav btn-group" role="tablist">
+            <a
+                href="#"
+                aria-controls="promo-code-single"
+                role="tab"
+                data-bs-toggle="tab"
+                data-bs-target="#promo-code-single"
+                data-is_single_promo_code="1"
+                class="btn btn-outline-secondary {% if is_single_promo_code %}active{% endif %}">
+              Just one promo code
+            </a>
+            <a
+                href="#"
+                aria-controls="promo-code-multi"
+                data-bs-target="#promo-code-multi"
+                role="tab"
+                data-bs-toggle="tab"
+                data-is_single_promo_code="0"
+                class="btn btn-outline-secondary {% if not is_single_promo_code %}active{% endif %}">
+              A bunch of promo codes
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6">
+        <div class="tab-content">
+          <div id="promo-code-single" role="tabpanel" class="tab-pane {% if is_single_promo_code %}active{% endif %}">
+            <label for="code" class="form-text">Promo code</label>
+            <div class="mb-3">
+              <input type="text" name="code" value="{{ code }}" class="form-control" placeholder="Enter a custom code, or leave blank to generate a random one" />
+            </div>
+          </div>
+    
+          <div id="promo-code-multi" role="tabpanel" class="tab-pane {% if not is_single_promo_code %}active{% endif %}">
+            <label for="count" class="form-text">Number of codes</label>
+            <div class="mb-3">
+              <input type="number" name="count" value="{{ count }}" class="form-control" min="1" max="1000"/>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="tab-content">
-      <div id="promo-code-single" role="tabpanel" class="tab-pane {% if is_single_promo_code %}active{% endif %}">
-        <div class="form-group">
-          <label for="code" class="col-sm-3 control-label">Promo code</label>
-          <div class="col-sm-8">
-            <input type="text" name="code" value="{{ code }}" class="form-control" placeholder="Enter a custom code, or leave blank to generate a random one" />
-          </div>
-        </div>
-      </div>
-
-      <div id="promo-code-multi" role="tabpanel" class="tab-pane {% if not is_single_promo_code %}active{% endif %}">
-        <div class="form-group">
-          <label for="count" class="col-sm-3 control-label">Number of codes</label>
-          <div class="col-sm-8">
-            <input type="number" name="count" value="{{ count }}" class="form-control" min="1" max="1000"/>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <div class="checkbox col-sm-9 col-sm-offset-3">
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        <div class="form-check">
         <label>
-          <input type="checkbox" name="use_words" value="1"{% if use_words %} checked{% endif %} onchange="onUseWordsChanged()"/>
+          <input type="checkbox" class="form-check-input" name="use_words" value="1"{% if use_words %} checked{% endif %} onchange="onUseWordsChanged()"/>
           Use word list to generate promo codes
         </label>
-      </div>
-    </div>
-
-    <div id="length-group" style="display: none;">
-      <div class="form-group">
-        <label for="length" class="col-sm-3 control-label">Number of characters</label>
-        <div class="col-sm-3">
-          <input type="number" name="length" value="{{ length }}" class="form-control" min="1"/>
         </div>
-        <label for="segment_length" class="col-sm-2 control-label text-nowrap" style="padding-top: 7px;">per segment</label>
-        <div class="col-sm-3">
-          <input type="number" name="segment_length" value="{{ segment_length }}" class="form-control" min="1"/>
+        <div class="row" id="length-group">
+          <div class="col-sm-6">
+            <label for="length" class="form-text">Number of characters</label>
+            <input type="number" name="length" value="{{ length }}" class="form-control" min="1"/>
+          </div>
+          <div class="col-sm-6">
+            <label for="segment_length" class="form-text">per segment</label>
+            <input type="number" name="segment_length" value="{{ segment_length }}" class="form-control" min="1"/>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="form-group">
-      <label for="expiration_date" class="col-sm-3 control-label">Expiration date</label>
-      <div class="col-sm-8">
+      <div class="col-12 col-sm-6">
+        <label for="expiration_date" class="form-text">Expiration date</label>
+        <div class="mb-3">
         <input type="text" name="expiration_date" value="{{ expiration_date_local }}" class="form-control expiration-date" />
-      </div>
-      <div class="col-sm-9 col-sm-offset-3 help-block">
-        Promo codes will expire on 11:59pm of this date in the event's timezone
+        <div class="form-text">Promo codes will expire on 11:59pm of this date in the event's timezone.</div>
+        </div>
       </div>
     </div>
 
-    <div id="discount-group" class="form-group">
-      <label class="col-sm-3 control-label">
-        <select class="form-control width-auto" name="discount_type" onchange="onDiscountTypeChanged()">
-          {{ options(c.PROMO_CODE_DISCOUNT_TYPE_OPTS, discount_type) }}
-        </select>
-        <div class="help-block discount-type-desc">
-          Reduces the badge price by a fixed dollar amount
-        </div>
-      </label>
-      <div class="col-sm-8">
+    <div id="discount-group" class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        <label for="discount_type" class="form-text">Discount Type</label>
+          <select class="form-select" name="discount_type" onchange="onDiscountTypeChanged()">
+            {{ options(c.PROMO_CODE_DISCOUNT_TYPE_OPTS, discount_type) }}
+          </select>
+          <div id="discount-type-desc" class="form-text">
+            Reduces the badge price by a fixed dollar amount.
+          </div>
+      </div>
+      <div class="col-12 col-sm-6">
+        <label for="discount" class="form-text">Discount</label>
         <div class="input-group">
-          <span class="input-group-addon">$</span>
-          <input type="text" class="form-control" name="discount" value="{{ discount }}" placeholder="Free badge"/>
+          <span class="input-group-text">$</span>
+          <input type="text" class="form-control" name="discount" value="{{ discount }}" placeholder="Free badge."/>
+        </div>
+        <div class="form-text">
+          Leave blank for a full discount, free badge.
         </div>
       </div>
-      <div class="col-sm-9 help-block">
-        Leave blank for a full discount, free badge
+    </div>
+
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
+        <label for="uses_allowed" class="form-text">Number of uses</label>
+        <div class="mb-3">
+          <input type="number" name="uses_allowed" value="{{ uses_allowed }}" class="form-control" min="0" placeholder="Unlimited use"/>
+          <div class="form-text">
+            Leave blank for unlimited use codes.
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6">
+        <label for="admin_notes" class="form-text">Admin Notes</label>
+        <div class="mb-3">
+          <textarea name="admin_notes" class="form-control" rows="4">{{ admin_notes }}</textarea>
+        </div>
       </div>
     </div>
 
-    <div class="form-group">
-      <label for="uses_allowed" class="col-sm-3 control-label">Number of uses</label>
-      <div class="col-sm-8">
-        <input type="number" name="uses_allowed" value="{{ uses_allowed }}" class="form-control" min="0" placeholder="Unlimited use"/>
-      </div>
-      <div class="col-sm-9 col-sm-offset-3 help-block">
-        Leave blank for unlimited use codes
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label for="" class="col-sm-3 control-label"></label>
-      <div class="col-sm-9">
+    <div class="row g-sm-3">
+      <div class="col-12 col-sm-6">
         <button type="submit" class="btn btn-primary">Generate Promo Codes</button>
         <button type="submit" class="btn btn-primary" name="export" value="1">Generate and Export as CSV</button>
       </div>
     </div>
   </form>
-</div>
 
 {% if promo_codes %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<br/>
     <form method="post" action="delete_promo_codes">
       <input type="hidden" name="id" value="{% for code in promo_codes -%}{{code.id}}{% if not loop.last %},{% endif %}{%- endfor %}"/>
       <button class="btn btn-danger">Undo Generate Promo Codes</button>
     </form>
-  </div>
+  <br/>
   <table class="table table-striped datatable">
     <thead>
       <tr>
@@ -372,6 +376,7 @@ $(document).ready(function() {
         <th>Expiration Date</th>
         <th>Discount</th>
         <th>Allowed Uses</th>
+        <th>Admin Notes</th>
       </tr>
     </thead>
     {% for code in promo_codes %}
@@ -380,16 +385,18 @@ $(document).ready(function() {
       <td>{{ code.expiration_date|datetime_local("%Y-%m-%d %-I:%M%p") }}</td>
       <td>{{ code.discount_str }}</td>
       <td>{{ code.uses_allowed_str }}</td>
+      <td>{{ code.admin_notes }}</td>
     </tr>
     {% endfor %}
   </table>
 </div>
 {% else %}
+</div>
 <hr>
 {% endif %}
 
-<div id="word-list">
-  <h1>Promo Code Words</h1>
+<h1>Promo Code Words</h1>
+<div id="word-list" class="card card-body">
   <p class="help-block">
     Promo codes are generated by randomly choosing a word from each non-empty category in the following order:
     {% for i, s in c.PROMO_CODE_WORD_PARTS_OF_SPEECH.items() %}{{s}}{% if not loop.last %} {% endif %}{% endfor %}.
@@ -406,7 +413,7 @@ $(document).ready(function() {
     <div id="{{part_of_speech}}s" class="words col-sm-6 col-md-3">
       <h4>
         {{part_of_speech|title}}s
-        <button class="btn btn-clear btn-xs btn-default pull-right" data-part_of_speech_index="{{part_of_speech_index}}">
+        <button class="btn btn-clear btn-sm btn-outline-secondary pull-right" data-part_of_speech_index="{{part_of_speech_index}}">
           Clear All
         </button>
       </h4>
@@ -414,7 +421,7 @@ $(document).ready(function() {
         {% for word in word_list -%}
         <span class="label label-{{style}} {{part_of_speech}}">
           <span class="word">{{ word }}</span>
-          <a href="#"><span class="glyphicon glyphicon-remove"></span></a>
+          <a href="#"><i class="fa fa-remove"></i></a>
         </span>
         {%- endfor %}
       </div>

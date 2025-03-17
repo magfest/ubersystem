@@ -2,11 +2,19 @@
 <head></head>
 <body>
 
-    You have created an account for {{ c.EVENT_NAME }} with the following registrations:
+    An account has been created using the email address {{ account.email }}{% if account.valid_attendees %} with the following registrations:
     <ul>{% for attendee in account.valid_attendees %}
         <li>{{ attendee.full_name }} ({{ attendee.badge_type_label }}): {{ attendee.email|email_to_link }}</li>
         {% endfor %}
     </ul>
-    You can add additional registrations or manage them by <a href="{{ c.URL_BASE }}/preregistration/homepage" target="_blank">logging into your account</a>.
+    {% else %}.{% endif %}
+    {% if not account.valid_attendees %}If you have not already registered for this year, you may do so{% else %}You can add additional registrations or manage them{% endif %} by <a href="{{ c.URL_BASE }}/preregistration/homepage" target="_blank">logging into your account</a>.
+    
+    <br/><br/>If you have any questions please email {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
+
+    <br/><br/>Thank you and we look forward to seeing you at the convention!
+    
+    <br/><br/>{{ c.REGDESK_EMAIL_SIGNATURE|linebreaksbr }}
+    
 </body>
 </html>

@@ -1,12 +1,73 @@
-{% set readonly = app.status != c.UNAPPROVED and not admin_area %}
-{% set group = app %}
-{% import "fields/group.html" as group_fields with context %}
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set artist_marketplace_form = artist_marketplace_form or forms['artist_marketplace_form'] %}
 
-{{ macros.form_group(app, 'business_name', label="Business Name",
-help="The name you want to use for your table, if different from your first and last name." if not admin_area else "",
-placeholder=app.attendee.full_name, is_readonly=readonly) }}
+{# BLOCK NAMES in this form:
+    attendee_app_info (admin-only)
+    status_cost (admin-only)
+    name
+    email
+    website_tax
+    seating_accessibility
+    terms
 
-{{ group_fields.categories }}
-{{ group_fields.description }}
-{{ group_fields.special_needs }}
-{{ macros.form_group(app, 'tax_number', label='Illinois Business Tax Number')}}
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block attendee_app_info %}
+{% endblock %}
+
+{% block status_cost %}
+{% endblock %}
+
+{% block names %}
+<div class="row g-sm-3 row-cols-sm-2">
+    <div class="col">
+        {{ form_macros.form_input(artist_marketplace_form.name, readonly=read_only) }}
+    </div>
+    <div class="col">
+        {{ form_macros.form_input(artist_marketplace_form.display_name, readonly=read_only) }}
+    </div>
+</div>
+{% endblock %}
+
+{% block email %}
+{% set copy_email_field = form_macros.toggle_checkbox(artist_marketplace_form.copy_email, [artist_marketplace_form.email_address], hide_on_checked=True, toggle_required=True, prop="disabled") %}
+<div class="row g-sm-3">
+    <div class="col-12">
+        {{ form_macros.form_input(artist_marketplace_form.email_address, readonly=read_only, extra_field=copy_email_field if app.is_new else None) }}
+    </div>
+</div>
+{% endblock %}
+
+{% block website_tax %}
+<div class="row g-sm-3 row-cols-sm-2">
+    <div class="col">
+        {{ form_macros.form_input(artist_marketplace_form.website, readonly=read_only) }}
+    </div>
+    <div class="col">
+        {{ form_macros.form_input(artist_marketplace_form.tax_number, readonly=read_only) }}
+    </div>
+</div>
+{% endblock %}
+
+{% block seating_accessibility %}
+{% if app.status == c.ACCEPTED or admin_area %}
+<div class="row g-sm-3 row-cols-sm-2">
+    <div class="col">
+        {{ form_macros.form_input(artist_marketplace_form.seating_requests, readonly=read_only) }}
+    </div>
+    <div class="col">
+        {{ form_macros.form_input(artist_marketplace_form.accessibility_requests, readonly=read_only) }}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block terms %}
+<div class="row g-sm-3">
+    <div class="col-12">
+        {{ form_macros.form_input(artist_marketplace_form.terms_accepted, readonly=not app.is_new and not admin_area) }}
+    </div>
+</div>
+{% endblock %}

@@ -6,6 +6,7 @@ https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/L
 """
 
 import binascii
+import bleach
 import html
 import inspect
 import json
@@ -15,16 +16,15 @@ import re
 import sys
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
-from uuid import uuid4
 
 import cherrypy
 import jinja2
 import phonenumbers
 from dateutil.relativedelta import relativedelta
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from phonenumbers import PhoneNumberFormat
 from pockets import fieldify, unfieldify, listify, readable_join
-from sideboard.lib import serializer
+from uber.serializer import serializer
 
 from uber.config import c
 from uber.decorators import render
@@ -34,7 +34,8 @@ from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now,
 # This used to be available as markupsafe.text_type, but that was removed in version 1.1.0
 text_type = str
 if sys.version_info[0] == 2:
-    text_type = unicode
+    text_type = unicode  # noqa: F821
+
 
 def safe_string(text):
     if isinstance(text, Markup):
@@ -94,9 +95,16 @@ def timedelta_filter(dt, *args, **kwargs):
 def full_datetime_local(dt):
     return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
+
+@JinjaEnv.jinja_filter
+def short_datetime_local(dt):
+    return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%-I:%M %p %b %-d, %Y')
+
+
 @JinjaEnv.jinja_filter
 def full_date_local(dt):
     return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y')
+
 
 @JinjaEnv.jinja_export
 def now():
@@ -128,6 +136,20 @@ def hour_day_local(dt):
 def timestamp(dt):
     from time import mktime
     return '' if not dt else str(int(mktime(dt.timetuple())))
+
+
+@JinjaEnv.jinja_filter
+def timestamp_to_dt(timestamp):
+    from datetime import datetime
+    return '' if not timestamp else datetime.fromtimestamp(int(float(timestamp)))
+
+
+@JinjaEnv.jinja_filter
+def tpn_to_terminal_id(tpn):
+    reverse_lookup = {v: k for k, v in c.TERMINAL_ID_TABLE.items()}
+    if tpn in reverse_lookup:
+        return (reverse_lookup[tpn][:3] + "-" + reverse_lookup[tpn][3:]).upper()
+    return tpn + " (ID not found)"
 
 
 @JinjaEnv.jinja_filter
@@ -175,7 +197,7 @@ def icon_yesno(value, icon=None, color=None):
     icon = icon or 'ok-sign,remove-sign,question-sign'
     color = color or 'success,danger,info'
     icon_opts, color_opts = icon.split(','), color.split(',')
-    html = "<span class='glyphicon glyphicon-{} text-{}'></span>"
+    html = "<i class='fa fa-{} text-{}'></i>"
     if len(icon_opts) < 2 or len(color_opts) < 2:
         return value  # Invalid arg.
     try:
@@ -196,13 +218,21 @@ def icon_yesno(value, icon=None, color=None):
 def format_phone(val, country='US'):
     if not val:
         return
-        
+
     try:
         return phonenumbers.format_number(
                             phonenumbers.parse(val, country),
                             PhoneNumberFormat.NATIONAL)
     except Exception:
         return val
+
+
+@JinjaEnv.jinja_filter
+def format_image_size(val):
+    if not val or len(val) != 2:
+        return
+    
+    return f"{val[0]}x{val[1]}px"
 
 
 @JinjaEnv.jinja_filter
@@ -239,9 +269,9 @@ def url_to_link(url=None, text=None, target=None, is_relative=True):
         url = 'http://' + url
 
     return safe_string('<a href="{}"{}>{}</a>'.format(
-        jinja2.escape(url),
-        ' target="{}"'.format(jinja2.escape(target)) if target else '',
-        jinja2.escape(text)))
+        escape(url),
+        ' target="{}"'.format(escape(target)) if target else '',
+        escape(text)))
 
 
 @JinjaEnv.jinja_filter
@@ -251,7 +281,16 @@ def email_to_link(email=None):
     """
     if not email:
         return ''
-    return safe_string('<a href="mailto:{0}">{0}</a>'.format(jinja2.escape(email)))
+    return safe_string('<a href="mailto:{0}">{0}</a>'.format(escape(email)))
+
+
+@JinjaEnv.jinja_filter
+def popup_link(href, text='<sup>?</sup>', extra_classes=''):
+    return safe_string("<a onClick='window.open(&quot;{href}&quot;, &quot;info&quot;, "
+                       "&quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus();"
+                       "return false;' {classes}href='{href}'>{text}</a>".format(href=href, text=text,
+                                                                                 classes=f'class="{extra_classes}" '
+                                                                                 if extra_classes else ''))
 
 
 @JinjaEnv.jinja_filter
@@ -293,18 +332,38 @@ def remove_newlines(string):
     return string.replace('\n', ' ')
 
 
+@JinjaEnv.jinja_filter
+def sanitize_html(text, **kw):
+    if not kw:
+        kw = {'tags': ['br'] + list(bleach.sanitizer.ALLOWED_TAGS)}
+
+    return Markup(bleach.clean(text, **kw))
+
+
+@JinjaEnv.jinja_filter
+def serve_static_content(relative_url):
+    hash = c.STATIC_HASH_LIST.get(relative_url, None)
+    hash_str = f' integrity="{hash}" crossorigin="anonymous"' if hash and c.STATIC_URL.startswith('http') else ''
+    if relative_url.endswith('.css'):
+        return Markup(f'<link rel="stylesheet" type="text/css" href="{c.STATIC_URL}{relative_url}"{hash_str} />')
+    elif relative_url.endswith('.js'):
+        return Markup(f'<script type="text/javascript" src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
+    else:
+        return "WARNING: Unsupported static content!"
+
+
 form_link_site_sections = {}
 
 
 @JinjaEnv.jinja_filter
-def form_link(model, new_window=False):
+def form_link(model, new_window=False, prepend=''):
     if not model:
         return ''
 
-    from uber.models import Attendee, AttendeeAccount, Attraction, Department, Group, Job, PanelApplication
-    
+    from uber.models import Attendee, AttendeeAccount, Attraction, Department, Group, Job, PanelApplication, LotteryApplication
+
     page = 'form'
-        
+
     if c.HAS_REGISTRATION_ACCESS:
         attendee_section = '../registration/'
     else:
@@ -321,19 +380,21 @@ def form_link(model, new_window=False):
         Department: '../dept_admin/',
         Group: '../group_admin/',
         Job: '../jobs/',
-        PanelApplication: '../panels_admin/'}
+        PanelApplication: '../panels_admin/',
+        LotteryApplication: '../hotel_lottery_admin/'}
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
-    name = getattr(model, 'name', getattr(model, 'full_name', getattr(model, 'email', model)))
+    name = getattr(model, 'name', getattr(model, 'full_name', getattr(model, 'email', getattr(model, 'confirmation_num', model))))
+    extra_html = ' target="_blank"' if new_window and page != '#attendee_form' else ''
 
     if site_section or cls == Attendee and page == '#attendee_form':
         return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(
-                                                           site_section, 
-                                                           page, 
-                                                           model.id, 
-                                                           ' target="_blank"' if new_window else '',
-                                                           jinja2.escape(name)))
+                                                           site_section,
+                                                           page,
+                                                           model.id,
+                                                           extra_html,
+                                                           prepend + escape(name)))
     return name
 
 
@@ -391,14 +452,14 @@ def pluralize(number, singular='', plural='s'):
 @JinjaEnv.jinja_filter
 def maybe_red(amount, comp):
     if amount >= comp:
-        return safe_string('<span style="color:red ; font-weight:bold">{}</span>'.format(jinja2.escape(amount)))
+        return safe_string('<span style="color:red ; font-weight:bold">{}</span>'.format(escape(amount)))
     else:
         return amount
 
 
 @JinjaEnv.jinja_filter
 def maybe_last_year(day):
-    return 'last year' if day <= c.STAFFERS_IMPORTED else day
+    return 'last year' if day <= min(c.PREREG_OPEN, c.DEALER_REG_START) else day
 
 
 @JinjaEnv.jinja_filter
@@ -513,7 +574,7 @@ def options(options, default='""'):
             val = val.strftime(c.TIMESTAMP_FORMAT)
         else:
             selected = 'selected="selected"' if str(val) == str(default) else ''
-        val = html.escape(str(val), quote=False).replace('"',  '&quot;').replace('\n', '')
+        val = html.escape(str(val), quote=False).replace('"', '&quot;').replace('\n', '')
         desc = html.escape(str(desc), quote=False).replace('"', '&quot;').replace('\n', '')
         results.append('<option value="{}" {}>{}</option>'.format(val, selected, desc))
     return safe_string('\n'.join(results))
@@ -529,13 +590,21 @@ def int_options(minval, maxval, default=1):
     return safe_string('\n'.join(results))
 
 
+@JinjaEnv.jinja_export
+def int_choices(minval, maxval):
+    results = []
+    for i in range(minval, maxval+1):
+        results.append((i, str(i)))
+    return results
+
+
 RE_LOCATION = re.compile(r'(\(.*?\))')
 
 
 @JinjaEnv.jinja_export
 def location_part(location, index=0):
     parts = RE_LOCATION.split(c.EVENT_LOCATIONS[location])
-    parts = [jinja2.escape(s.strip(' ()')) for s in parts if s.strip()]
+    parts = [escape(s.strip(' ()')) for s in parts if s.strip()]
     return parts[index] if parts else ''
 
 
@@ -629,7 +698,7 @@ def format_location(location, separator='<br>', spacer='above', text_class='text
 
     """
     parts = RE_LOCATION.split(c.EVENT_LOCATIONS[location])
-    parts = [jinja2.escape(s.strip()) for s in parts if s.strip()]
+    parts = [escape(s.strip()) for s in parts if s.strip()]
     if spacer and len(parts) < 2:
         parts.insert(0 if spacer == 'above' else 1, '&nbsp;')
     return safe_string(separator.join(
@@ -651,7 +720,12 @@ def pages(page, count):
             else:
                 path += ('&' if '?' in path else '?') + page_qs
             pages.append('<li class="page-item"><a class="page-link" href="{}">{}</a></li>'.format(path, pagenum))
-    return safe_string('<ul class="pagination">' + ' '.join(map(str, pages)) + '</ul>')
+    extra_class = ''
+    if len(pages) == 1:
+        extra_class = ' pagination-lg'
+    elif len(pages) > 100:
+        extra_class = ' pagination-sm'
+    return safe_string(f'<ul class="pagination flex-wrap{extra_class}">{' '.join(map(str, pages))}</ul>')
 
 
 @JinjaEnv.jinja_filter
@@ -660,7 +734,7 @@ def linebreaksbr(text):
     is_markup = isinstance(text, Markup)
     text = normalize_newlines(text)
     if not is_markup:
-        text = text_type(jinja2.escape(text))
+        text = text_type(escape(text))
     text = text.replace('\n', '<br />')
     return safe_string(text)
 
@@ -673,12 +747,14 @@ def csrf_token():
 
 
 @JinjaEnv.jinja_export
-def stripe_form(action, model=None, **params):
-    new_params = {'params': {}}
+def stripe_form(action, model=None, text="Pay with Card", **params):
+    new_params = {'params': {}, 'text': text}
     for key, val in params.items():
         new_params['params'][key] = val
     new_params['action'] = action
     new_params['id'] = model.id if model else None
+    new_params['cc_full_name'] = model.full_name if hasattr(model, 'full_name') else params.get('full_name', '')
+    new_params['cc_zip_code'] = model.zip_code if hasattr(model, 'zip_code') else params.get('zip_code', '')
 
     return safe_string(render('preregistration/stripeForm.html', new_params).decode('utf-8'))
 
@@ -733,7 +809,7 @@ def price_notice(label, takedown, amount_extra=0, discount=0):
         if takedown < c.EPOCH:
             return safe_string(
                 '<div class="prereg-type-closing">{} closes at 11:59pm {} on {}</div>'.format(
-                    jinja2.escape(label), takedown.strftime('%Z'), takedown.strftime('%A, %b %e')))
+                    escape(label), takedown.strftime('%Z'), takedown.strftime('%A, %b %e')))
         else:
             return ''
 

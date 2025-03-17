@@ -1,32 +1,135 @@
 import ast
-import decimal
+import csv
 import hashlib
 import inspect
+import math
 import os
+import pycountry
 import pytz
 import re
+import redis
+import six
+import yaml
+import json
 import uuid
+import threading
+import logging
+import functools
+import validate
+import configobj
+import pathlib
+from tempfile import NamedTemporaryFile
+from copy import deepcopy
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
 from hashlib import sha512
+from markupsafe import Markup
 from itertools import chain
 
 import cherrypy
 import signnow_python_sdk
-import stripe
-from pockets import keydefaultdict, nesteddefaultdict, unwrap
+from pockets import nesteddefaultdict, unwrap, cached_property
 from pockets.autolog import log
-from sideboard.lib import cached_property, parse_config, request_cached_property
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload, subqueryload
 
 import uber
 
+plugins_dir = pathlib.Path(__file__).parents[1] / "plugins"
+
+def reset_threadlocal():
+    threadlocal.reset(username=cherrypy.session.get("username"))
+
+cherrypy.tools.reset_threadlocal = cherrypy.Tool('before_handler', reset_threadlocal, priority=51)
+cherrypy.config.update({"tools.reset_threadlocal.on": True})
+
+class threadlocal(object):
+    """
+    This class exposes a dict-like interface on top of the threading.local
+    utility class; the "get", "set", "setdefault", and "clear" methods work the
+    same as for a dict except that each thread gets its own keys and values.
+
+    Ubersystem clears out all existing values and then initializes some specific
+    values in the following situations:
+
+    1) CherryPy page handlers have the 'username' key set to whatever value is
+        returned by cherrypy.session['username'].
+
+    2) Service methods called via JSON-RPC have the following two fields set:
+        -> username: as above
+        -> websocket_client: if the JSON-RPC request has a "websocket_client"
+            field, it's value is set here; this is used internally as the
+            "originating_client" value in notify() and plugins can ignore this
+
+    3) Service methods called via websocket have the following three fields set:
+        -> username: as above
+        -> websocket: the WebSocketDispatcher instance receiving the RPC call
+        -> message: the RPC request body; this is present on the initial call
+            but not on subscription triggers in the broadcast thread
+    """
+    _threadlocal = threading.local()
+
+    @classmethod
+    def get(cls, key, default=None):
+        return getattr(cls._threadlocal, key, default)
+
+    @classmethod
+    def set(cls, key, val):
+        return setattr(cls._threadlocal, key, val)
+
+    @classmethod
+    def setdefault(cls, key, val):
+        val = cls.get(key, val)
+        cls.set(key, val)
+        return val
+
+    @classmethod
+    def clear(cls):
+        cls._threadlocal.__dict__.clear()
+
+    @classmethod
+    def get_client(cls):
+        """
+        If called as part of an initial websocket RPC request, this returns the
+        client id if one exists, and otherwise returns None.  Plugins probably
+        shouldn't need to call this method themselves.
+        """
+        return cls.get('client') or cls.get('message', {}).get('client')
+
+    @classmethod
+    def reset(cls, **kwargs):
+        """
+        Plugins should never call this method directly without a good reason; it
+        clears out all existing values and replaces them with the key-value
+        pairs passed as keyword arguments to this function.
+        """
+        cls.clear()
+        for key, val in kwargs.items():
+            cls.set(key, val)
 
 def dynamic(func):
     setattr(func, '_dynamic', True)
     return func
 
+def request_cached_property(func):
+    """
+    Sometimes we want a property to be cached for the duration of a request,
+    with concurrent requests each having their own cached version.  This does
+    that via the threadlocal class, such that each HTTP request CherryPy serves
+    and each RPC request served via JSON-RPC will have its own
+    cached value, which is cleared and then re-generated on later requests.
+    """
+    name = func.__module__ + '.' + func.__name__
+
+    @property
+    @functools.wraps(func)
+    def with_caching(self):
+        val = threadlocal.get(name)
+        if val is None:
+            val = func(self)
+            threadlocal.set(name, val)
+        return val
+    return with_caching
 
 def create_namespace_uuid(s):
     return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
@@ -79,7 +182,10 @@ class _Overridable:
             if not _val:
                 _dt = None
             elif ' ' in _val:
-                _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
+                if ':' in _val:
+                    _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H:%M'))
+                else:
+                    _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val, '%Y-%m-%d %H'))
             else:
                 _dt = self.EVENT_TIMEZONE.localize(datetime.strptime(_val + ' 23:59', '%Y-%m-%d %H:%M'))
             setattr(self, _opt.upper(), _dt)
@@ -108,6 +214,8 @@ class _Overridable:
 
     def make_integer_enums(self, config_section):
         def is_intstr(s):
+            if not isinstance(s, six.string_types):
+                return isinstance(s, int)
             if s and s[0] in ('-', '+'):
                 return str(s[1:]).isdigit()
             return str(s).isdigit()
@@ -175,7 +283,6 @@ class Config(_Overridable):
     For all of the datetime config options, we also define BEFORE_ and AFTER_ properties, e.g. you can
     check the booleans returned by c.BEFORE_PLACEHOLDER_DEADLINE or c.AFTER_PLACEHOLDER_DEADLINE
     """
-
     def get_oneday_price(self, dt):
         return self.BADGE_PRICES['single_day'].get(dt.strftime('%A'), self.DEFAULT_SINGLE_DAY)
 
@@ -192,7 +299,7 @@ class Config(_Overridable):
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
             # we're not on-site (because on-site pricing doesn't involve checking badges sold)
-            if not dt and not c.AT_THE_CON:
+            if not dt and not c.AT_THE_CON and self.PRICE_LIMITS:
                 badges_sold = self.BADGES_SOLD
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
@@ -202,6 +309,9 @@ class Config(_Overridable):
 
     def get_group_price(self, dt=None):
         return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
+
+    def get_table_price(self, table_count):
+        return sum(c.TABLE_PRICES[i] for i in range(1, 1 + int(float(table_count))))
 
     def get_badge_count_by_type(self, badge_type):
         """
@@ -215,19 +325,8 @@ class Config(_Overridable):
             count = session.query(Attendee).filter(
                 Attendee.paid != c.NOT_PAID,
                 Attendee.badge_type == badge_type,
-                Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])).count()
+                Attendee.has_badge == True).count()  # noqa: E712
         return count
-
-    def get_printed_badge_deadline_by_type(self, badge_type):
-        """
-        Returns either PRINTED_BADGE_DEADLINE for custom badge types or the latter of PRINTED_BADGE_DEADLINE and
-        SUPPORTER_BADGE_DEADLINE if the badge type is not preassigned (and only has a badge name if they're a supporter)
-        """
-        return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES \
-            else max(c.PRINTED_BADGE_DEADLINE, c.SUPPORTER_BADGE_DEADLINE)
-
-    def after_printed_badge_deadline_by_type(self, badge_type):
-        return uber.utils.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
 
     def has_section_or_page_access(self, include_read_only=False, page_path=''):
         access = uber.models.AdminAccount.get_access_set(include_read_only=include_read_only)
@@ -241,9 +340,34 @@ class Config(_Overridable):
 
         if section_and_page in access or section in access:
             return True
-        
-        if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin', 'band_admin', 'mivs_admin']):
+
+        if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin',
+                                                                  'band_admin', 'mivs_admin']):
             return True
+        
+    def update_name_problems(self):
+        c.PROBLEM_NAMES = {}
+        file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')
+        try:
+            result = csv.DictReader(open(file_loc))
+        except FileNotFoundError:
+            return "File not found!"
+        
+        for row in result:
+            c.PROBLEM_NAMES[row['text']] = [row[f"canonical_form_{x}"] for x in range(1, 4)
+                                            if row[f"canonical_form_{x}"]]
+
+    
+    @property
+    def CHERRYPY(self):
+        return _config['cherrypy']
+    
+    @property
+    def RECEIPT_CATEGORY_OPTS(self):
+        opts = []
+        for key, dict in c.RECEIPT_DEPT_CATEGORIES.items():
+            opts.extend([(key, val) for key, val in dict.items()])
+        return opts
 
     @property
     def DEALER_REG_OPEN(self):
@@ -254,14 +378,50 @@ class Config(_Overridable):
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS else self.AFTER_DEALER_REG_DEADLINE
-            
+    
+    @property
+    def DEALER_INDEFINITE_TERM(self):
+        if c.DEALER_TERM.startswith(("a", "e", "i", "o", "u")):
+            return "an " + c.DEALER_TERM
+        else:
+            return "a " + c.DEALER_TERM
+
+    @property
+    def TABLE_OPTS(self):
+        return [(x, str(x)) for x in list(range(1, c.MAX_TABLES + 1))]
+
+    @property
+    def ADMIN_TABLE_OPTS(self):
+        return [(0, '0')] + c.TABLE_OPTS
+
+    @property
+    def PREREG_TABLE_OPTS(self):
+        return [(count, '{}: ${}'.format(desc, self.get_table_price(count)))
+                for count, desc in c.TABLE_OPTS]
+
     @property
     def ART_SHOW_OPEN(self):
         return self.AFTER_ART_SHOW_REG_START and self.BEFORE_ART_SHOW_DEADLINE
+    
+    @property
+    def ART_SHOW_HAS_FEES(self):
+        return c.COST_PER_PANEL or c.COST_PER_TABLE or c.ART_MAILING_FEE
+    
+    @property
+    def MARKETPLACE_CANCEL_DEADLINE(self):
+        return min(self.EPOCH, self.PREREG_TAKEDOWN) if self.PREREG_TAKEDOWN else self.EPOCH
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
         return self.BEFORE_REFUND_CUTOFF and (self.AFTER_REFUND_START or not self.REFUND_START)
+    
+    @property
+    def HOTEL_LOTTERY_OPEN(self):
+        return c.AFTER_HOTEL_LOTTERY_FORM_START and c.BEFORE_HOTEL_LOTTERY_FORM_DEADLINE
+    
+    @property
+    def STAFF_HOTEL_LOTTERY_OPEN(self):
+        return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
 
     @request_cached_property
     @dynamic
@@ -277,9 +437,15 @@ class Config(_Overridable):
     @dynamic
     def ATTENDEE_BADGE_COUNT(self):
         """
-        c.ATTENDEE_BADGE_COUNT is already provided via getattr, but redefining it here lets us cache it per request.
+        Adds paid promo codes to the badge count, since these are promised badges and this property is used for our
+        badge sales cap. Free PC groups are excluded as they often have far more badges than will ever be claimed.
         """
-        return self.get_badge_count_by_type(c.ATTENDEE_BADGE)
+        from uber.models import Session, PromoCode, PromoCodeGroup
+        base_count = self.get_badge_count_by_type(c.ATTENDEE_BADGE)
+        with Session() as session:
+            pc_code_count = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0,
+                                                                                 PromoCode.uses_remaining > 0).count()
+        return base_count + pc_code_count
 
     @request_cached_property
     @dynamic
@@ -300,16 +466,17 @@ class Config(_Overridable):
         else:
             with Session() as session:
                 attendees = session.query(Attendee)
-                individuals = attendees.filter(or_(
+                individuals = attendees.filter(Attendee.has_badge == True, or_(  # noqa: E712
                     Attendee.paid == self.HAS_PAID,
                     Attendee.paid == self.REFUNDED)
                 ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
 
                 group_badges = attendees.join(Attendee.group).filter(
+                    Attendee.has_badge == True,  # noqa: E712
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 
-                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).count()
+                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0).count()
 
                 return individuals + group_badges + promo_code_badges
 
@@ -349,7 +516,7 @@ class Config(_Overridable):
     @property
     def PREREG_BADGE_TYPES(self):
         types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE]
-        if c.AGE_GROUP_CONFIGS[c.UNDER_13]['can_register']:
+        if c.UNDER_13 in c.AGE_GROUP_CONFIGS and c.AGE_GROUP_CONFIGS[c.UNDER_13]['can_register']:
             types.append(self.CHILD_BADGE)
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
@@ -369,44 +536,35 @@ class Config(_Overridable):
         }
 
     @property
+    def FORMATTED_BADGE_TYPES(self):
+        badge_types = []
+        if c.AT_THE_CON and self.ONE_DAYS_ENABLED and self.ONE_DAY_BADGE_AVAILABLE:
+            badge_types.append({
+                'name': 'Single Day',
+                'desc': 'Can be upgraded to a weekend badge later.',
+                'value': c.ONE_DAY_BADGE,
+                'price': c.ONEDAY_BADGE_PRICE
+            })
+        badge_types.append({
+            'name': 'Attendee',
+            'desc': 'Allows access to the convention for its duration.',
+            'value': c.ATTENDEE_BADGE,
+            'price': c.get_attendee_price()
+            })
+        for badge_type in c.BADGE_TYPE_PRICES:
+            badge_types.append({
+                'name': c.BADGES[badge_type],
+                'desc': 'Donate extra to get an upgraded badge with perks.',
+                'value': badge_type,
+                'price': c.BADGE_TYPE_PRICES[badge_type]
+            })
+        return badge_types
+
+    @request_cached_property
     @dynamic
-    def SWADGES_AVAILABLE(self):
-        """
-        TODO: REMOVE THIS AFTER SUPER MAGFEST 2018.
-
-        This property addresses the fact that our "swag badges" (aka swadges)
-        arrived more than a day late.  Normally this would have been just a
-        normal part of our merch.  However, we now have a bunch of people who
-        have already received our merch without the swadge.  So we basically
-        have three groups of people:
-
-        1) People who have already received their merch are marked as not
-            having received their swadge.
-
-        2) Until the swadges arrive, instead of the "Give Merch" button, we
-            want "Give Merch Without Swadge" and "Give Merch Including Swadge"
-            buttons.
-
-        3) After the "Give Merch With Swadge" button has been pressed for the
-            first time, we want to revert to the single "Give Merch" button,
-            which is assumed to include the Swadge because those have arrived.
-
-        This property controls whether we're in state (2) or (3) above.  We
-        perform a database query to see if there are any attendees who have
-        got_swadge set.  Once we've found that once we cache that result here
-        on the "c" object and no longer perform the query.  The reason why we
-        do this instead of adding a new config option is to allow us to know
-        that the swadges are present without having to restart the server
-        during our busiest time of the weekend.
-        """
-        if getattr(self, '_swadges_available', False):
-            return True
-
-        with uber.models.Session() as session:
-            got = session.query(uber.models.Attendee).filter_by(got_swadge=True).first()
-            if got:
-                self._swadges_available = True
-            return bool(got)
+    def SOLD_OUT_BADGE_TYPES(self):
+        # Override in event plugin based on your specific badge types
+        return []
 
     @property
     def kickin_availability_matrix(self):
@@ -417,6 +575,8 @@ class Config(_Overridable):
 
     @property
     def PREREG_DONATION_OPTS(self):
+        # TODO: Remove this once the admin form is converted to the new form system
+
         if not self.SHARED_KICKIN_STOCKS:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS
                     if amt not in self.kickin_availability_matrix or self.kickin_availability_matrix[amt]]
@@ -432,9 +592,11 @@ class Config(_Overridable):
 
     @property
     def FORMATTED_DONATION_DESCRIPTIONS(self):
+        # TODO: Remove this once the admin form is converted to the new form system
+
         """
         A list of the donation descriptions, formatted for use on attendee-facing pages.
-        
+
         This does NOT filter out unavailable kick-ins so we can use it on attendees' confirmation pages
         to show unavailable kick-ins they've already purchased. To show only available kick-ins, use
         PREREG_DONATION_DESCRIPTIONS.
@@ -462,7 +624,103 @@ class Config(_Overridable):
         return [dict(tier[1]) for tier in donation_list]
 
     @property
+    def UNAVAILABLE_REG_TYPES(self):
+        unavailable_types = []
+
+        if c.GROUPS_ENABLED and c.AFTER_GROUP_PREREG_TAKEDOWN:
+            unavailable_types.append(c.PSEUDO_GROUP_BADGE)
+
+        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and not c.CHILD_BADGE_AVAILABLE:
+            unavailable_types.append(c.CHILD_BADGE)
+
+        return unavailable_types
+
+    @property
+    def FORMATTED_REG_TYPES(self):
+        # Returns a formatted list to help attendees select between different types of registrations,
+        # particularly between individual reg, group reg, and a child badge. Note that all values should
+        # correspond to a badge type and will change the hidden badge type input on the prereg page.
+
+        reg_type_opts = [{
+            'name': "Attendee",
+            'desc': "A single registration; you can register more before paying.",
+            'value': c.ATTENDEE_BADGE,
+            'price': c.BADGE_PRICE,
+            }]
+
+        if c.GROUPS_ENABLED and (c.BEFORE_GROUP_PREREG_TAKEDOWN or not c.AT_THE_CON):
+            reg_type_opts.append({
+                'name': "Group Leader",
+                'desc': Markup(f"Register a group of {c.MIN_GROUP_SIZE} people or more at ${c.GROUP_PRICE} per badge."
+                               "<br/><br/><span class='form-text'>Please purchase badges for children 12 and under "
+                               "separate from your group.</span>"),
+                'value': c.PSEUDO_GROUP_BADGE,
+                'price': c.GROUP_PRICE,
+            })
+
+        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
+            reg_type_opts.append({
+                'name': "12 and Under",
+                'desc': Markup(f"Attendees 12 and younger at the start of {c.EVENT_NAME} must be accompanied "
+                               "by an adult with a valid Attendee badge. <br/><br/>"
+                               "<span class='form-text text-danger'>Price is always half that of the Single "
+                               "Attendee badge price. Badges for attendees 5 and younger are free.</span>"),
+                'value': c.CHILD_BADGE,
+                'price': str(c.BADGE_PRICE - math.ceil(c.BADGE_PRICE / 2)),
+            })
+
+        return reg_type_opts
+
+    @property
+    def SOLD_OUT_MERCH_TIERS(self):
+        if not self.SHARED_KICKIN_STOCKS:
+            return [price for price, available in self.kickin_availability_matrix.items() if available is False]
+
+        if self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
+            return [price for price, name in self.DONATION_TIERS.items() if price >= self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            return [price for price, name in self.DONATION_TIERS.items() if price >= self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SEASON_AVAILABLE:
+            return [price for price, name in self.DONATION_TIERS.items() if price >= self.SEASON_LEVEL]
+
+        return []
+
+    @property
+    def AVAILABLE_MERCH_TIERS(self):
+        return sorted([price for price, name in self.DONATION_TIERS.items() if price not in self.SOLD_OUT_MERCH_TIERS])
+
+    @property
+    def FORMATTED_MERCH_TIERS(self):
+        # Formats the data from DONATION_TIER_DESCRIPTIONS to match what the 'card_select' form macro expects.
+
+        donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
+
+        merch_tiers = []
+
+        for entry in donation_list:
+            tier = entry[1].copy()
+            if '|' in tier['description']:
+                item_list = tier['description'].split('|')
+                formatted_desc = item_list[0]
+                for item in item_list[1:]:
+                    formatted_desc += "<hr class='m-2'>" + item
+                tier['desc'] = Markup(formatted_desc)
+            else:
+                tier['desc'] = tier['description']
+
+            tier.pop('description', '')
+            tier.pop('merch_items', '')
+
+            merch_tiers.append(tier)
+
+        return merch_tiers
+
+    @property
     def PREREG_DONATION_DESCRIPTIONS(self):
+        # TODO: Remove this once the admin form is converted to the new form system
+
         donation_list = self.FORMATTED_DONATION_DESCRIPTIONS
 
         # include only the items that are actually available for purchase
@@ -474,52 +732,65 @@ class Config(_Overridable):
             donation_list = [tier for tier in donation_list if tier['price'] < self.SHIRT_LEVEL]
         elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SUPPORTER_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SEASON_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SEASON_LEVEL]
 
-        return [tier for tier in donation_list if 
-                (tier['price'] >= c.SHIRT_LEVEL and tier['price'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or 
-                (tier['price'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or 
+        return [tier for tier in donation_list if
+                (tier['price'] >= c.SHIRT_LEVEL and tier['price'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or
+                (tier['price'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or
                 tier['price'] < c.SHIRT_LEVEL]
+
+    @property
+    def FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE(self):
+        """
+        A list of the donation descriptions, formatted for use on attendee-facing pages.
+        """
+        donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['value'])
+
+        # add in all previous descriptions.  the higher tiers include all the lower tiers
+        for entry in donation_list:
+            all_desc_and_links = \
+                [(tier[1]['description'], tier[1]['link']) for tier in donation_list
+                    if tier[1]['value'] > 0 and tier[1]['value'] < entry[1]['value']] \
+                + [(entry[1]['description'], entry[1]['link'])]
+
+            # maybe slight hack. descriptions and links are separated by '|' characters so we can have multiple
+            # items displayed in the donation tiers.  in an ideal world, these would already be separated in the INI
+            # and we wouldn't have to do it here.
+            entry[1]['all_descriptions'] = []
+            for item in all_desc_and_links:
+                descriptions = item[0].split('|')
+                links = item[1].split('|')
+                entry[1]['all_descriptions'] += list(zip(descriptions, links))
+
+        return [dict(tier[1]) for tier in donation_list]
+
+    @property
+    def PREREG_DONATION_DESCRIPTIONS_EXCLUSIVE(self):
+        donation_list = self.FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE
+
+        # include only the items that are actually available for purchase
+        if not self.SHARED_KICKIN_STOCKS:
+            donation_list = [tier for tier in donation_list
+                             if tier['value'] not in self.kickin_availability_matrix
+                             or self.kickin_availability_matrix[tier['value']]]
+        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['value'] < self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['value'] < self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['value'] < self.SEASON_LEVEL]
+
+        return [tier for tier in donation_list if
+                (tier['value'] >= c.SHIRT_LEVEL and tier['value'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or
+                (tier['value'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or
+                tier['value'] < c.SHIRT_LEVEL]
 
     @property
     def PREREG_DONATION_TIERS(self):
         return dict(self.PREREG_DONATION_OPTS)
-
-    @property
-    def PREREG_REQUEST_HOTEL_INFO_DEADLINE(self):
-        """
-        The datetime at which the "Request Hotel Info" checkbox will NO LONGER
-        be shown during preregistration.
-        """
-        return self.PREREG_OPEN + timedelta(
-            hours=max(0, self.PREREG_REQUEST_HOTEL_INFO_DURATION))
-
-    @property
-    def PREREG_REQUEST_HOTEL_INFO_ENABLED(self):
-        """
-        Boolean which indicates whether the "Request Hotel Info" checkbox is
-        enabled generally, whether or not the deadline has passed.
-        """
-        return self.PREREG_REQUEST_HOTEL_INFO_DURATION > 0
-
-    @property
-    def PREREG_REQUEST_HOTEL_INFO_OPEN(self):
-        """
-        Boolean which indicates whether the "Request Hotel Info" checkbox is
-        enabled and currently open with preregistration.
-        """
-        if not self.PREREG_REQUEST_HOTEL_INFO_ENABLED:
-            return False
-        return not self.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE
-
-    @property
-    def PREREG_HOTEL_INFO_EMAIL_DATE(self):
-        """
-        Date at which the hotel booking link email becomes available to send.
-        """
-        return self.PREREG_REQUEST_HOTEL_INFO_DEADLINE + \
-            timedelta(hours=max(0, self.PREREG_HOTEL_INFO_EMAIL_WAIT_DURATION))
 
     @property
     def ONE_WEEK_OR_TAKEDOWN_OR_EPOCH(self):
@@ -555,12 +826,16 @@ class Config(_Overridable):
                         opts.append((badge, day_name + ' Badge (${})'.format(price)))
                     day += timedelta(days=1)
             elif self.ONE_DAY_BADGE_AVAILABLE:
-                opts.append((self.ONE_DAY_BADGE,  'Single Day Badge (${})'.format(self.ONEDAY_BADGE_PRICE)))
+                opts.append((self.ONE_DAY_BADGE, 'Single Day Badge (${})'.format(self.ONEDAY_BADGE_PRICE)))
         return opts
 
     @property
     def PREREG_AGE_GROUP_OPTS(self):
         return [opt for opt in self.AGE_GROUP_OPTS if opt[0] != self.AGE_UNKNOWN]
+
+    @property
+    def NOW_OR_AT_CON(self):
+        return c.EPOCH.date() if date.today() <= c.EPOCH.date() else uber.utils.localized_now().date()
 
     @property
     def AT_OR_POST_CON(self):
@@ -584,16 +859,20 @@ class Config(_Overridable):
         return cherrypy.request.query_string
 
     @property
+    def QUERY_STRING_NO_MSG(self):
+        from urllib.parse import parse_qsl, urlencode
+
+        query = parse_qsl(cherrypy.request.query_string, keep_blank_values=True)
+        query = [(key, val) for (key, val) in query if key != 'message']
+        return urlencode(query)
+
+    @property
     def PAGE_PATH(self):
         return cherrypy.request.path_info
 
     @property
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
-
-    @property
-    def PATH(self):
-        return cherrypy.request.path_info.replace(cherrypy.request.path_info.split('/')[-1], '').strip('/')
 
     @request_cached_property
     @dynamic
@@ -612,12 +891,46 @@ class Config(_Overridable):
         try:
             from uber.models import Session, AdminAccount, Attendee
             with Session() as session:
-                attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts']
+                attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']
                 admin_account = session.query(AdminAccount) \
                     .filter_by(id=cherrypy.session.get('account_id')) \
                     .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts)).one()
 
                 return admin_account.attendee.to_dict(attrs)
+        except Exception:
+            return {}
+
+    @request_cached_property
+    @dynamic
+    def CURRENT_VOLUNTEER(self):
+        try:
+            from uber.models import Session, Attendee
+            with Session() as session:
+                attrs = Attendee.to_dict_default_attrs + ['logged_in_name']
+                attendee = session.logged_in_volunteer()
+                return attendee.to_dict(attrs)
+        except Exception:
+            return {}
+        
+    @request_cached_property
+    @dynamic
+    def CURRENT_KIOSK_SUPERVISOR(self):
+        try:
+            from uber.models import Session
+            with Session() as session:
+                admin_account = session.current_supervisor_admin()
+                return admin_account.attendee.to_dict()
+        except Exception:
+            return {}
+    
+    @request_cached_property
+    @dynamic
+    def CURRENT_KIOSK_OPERATOR(self):
+        try:
+            from uber.models import Session
+            with Session() as session:
+                attendee = session.kiosk_operator_attendee()
+                return attendee.to_dict()
         except Exception:
             return {}
 
@@ -670,7 +983,8 @@ class Config(_Overridable):
             if current_admin.full_shifts_admin:
                 return [(d.id, d.name) for d in query]
             else:
-                return [(d.id, d.name) for d in query if d.id in current_admin.attendee.assigned_depts_ids]
+                return [(d.id, d.name) for d in query if d.id in
+                        [str(d.id) for d in current_admin.attendee.dept_memberships_with_inherent_role]]
 
     @request_cached_property
     @dynamic
@@ -684,8 +998,33 @@ class Config(_Overridable):
     def get_kickin_count(self, kickin_level):
         from uber.models import Session, Attendee
         with Session() as session:
-            count = session.query(Attendee).filter_by(amount_extra=kickin_level).count()
+            count = session.query(Attendee).filter_by(amount_extra=kickin_level).filter(
+                    ~Attendee.badge_status.in_([c.INVALID_GROUP_STATUS, c.INVALID_STATUS,
+                                                c.IMPORTED_STATUS, c.REFUNDED_STATUS])).count()
         return count
+
+    def get_shirt_count(self, shirt_enum_key):
+        from uber.models import Session, Attendee
+        with Session() as session:
+            shirt_count = 0
+
+            base_filters = [Attendee.shirt == shirt_enum_key,
+                            ~Attendee.badge_status.in_([c.INVALID_GROUP_STATUS, c.INVALID_STATUS,
+                                                        c.IMPORTED_STATUS, c.REFUNDED_STATUS])]
+            base_query = session.query(Attendee).filter(*base_filters)
+
+            # Paid event shirts
+            shirt_count += base_query.filter(Attendee.amount_extra >= c.SHIRT_LEVEL).count()
+
+            if c.SHIRTS_PER_STAFFER > 0:
+                staff_event_shirts = session.query(func.sum(Attendee.num_event_shirts)).filter(*base_filters).filter(
+                    Attendee.badge_type == c.STAFF_BADGE, Attendee.num_event_shirts != -1).scalar()
+                shirt_count += staff_event_shirts or 0
+
+            if c.HOURS_FOR_SHIRT:
+                shirt_count += base_query.filter(Attendee.ribbon.contains(c.VOLUNTEER_RIBBON)).count()
+
+        return shirt_count
 
     @request_cached_property
     @dynamic
@@ -745,30 +1084,33 @@ class Config(_Overridable):
                       if opt not in public_pages and not opt.startswith('_')]
             for section in dir(site_sections) if section not in public_site_sections and not section.startswith('_')
         }
-        
+
     @request_cached_property
     def SITE_MAP(self):
         public_site_sections, public_pages, pages = self.GETTABLE_SITE_PAGES
-        
-        accessible_site_sections = {section: pages for section, pages in pages.items() 
-                                    if c.has_section_or_page_access(page_path=section, include_read_only=True)}
-        for section in accessible_site_sections:
-            accessible_site_sections[section] = [page for page in accessible_site_sections[section] 
-                                                 if c.has_section_or_page_access(page_path=page['path'], include_read_only=True)]
-            
+
+        accessible_site_sections = defaultdict(list)
+        for section in pages:
+            accessible_pages = [page for page in pages[section]
+                                if c.has_section_or_page_access(page_path=page['path'], include_read_only=True)]
+            if accessible_pages:
+                accessible_site_sections[section] = accessible_pages
+
         return sorted(accessible_site_sections.items())
-    
+
     @cached_property
     def GETTABLE_SITE_PAGES(self):
         """
-        Introspects all available pages in the application and returns several data structures for use in displaying them.
+        Introspects all available pages in the application and returns several data structures for use
+        in displaying them.
         Returns:
-            public_site_sections (list): a list of site sections that are accessible to the public, e.g., 'preregistration'
-            public_pages (list): a list of individual pages in non-public site sections that are accessible to the public,
-                prepended by their site section; e.g., 'registration_register' for registration/register
-            pages (defaultdict(list)): a dictionary with keys corresponding to site sections, each key containing a list
-                of key/value pairs for each page inside that section.
-                Example: 
+            public_site_sections (list): a list of site sections that are accessible to the public, e.g.,
+                'preregistration'
+            public_pages (list): a list of individual pages in non-public site sections that are accessible to the
+                public, prepended by their site section; e.g., 'registration_register' for registration/register
+            pages (defaultdict(list)): a dictionary with keys corresponding to site sections, each key containing
+                a list of key/value pairs for each page inside that section.
+                Example:
                     pages['registration'] = [
                         {'name': 'Arbitrary Charge Form', 'path': '/merch_admin/arbitrary_charge_form'},
                         {'name': 'Comments', 'path': '/registration/comments'},
@@ -791,12 +1133,13 @@ class Config(_Overridable):
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(unwrap(method))
                     has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
-                    if not getattr(method, 'ajax', False) and (getattr(method, 'site_mappable', False) 
+                    if not getattr(method, 'ajax', False) and (getattr(method, 'site_mappable', False)
                                                                or has_defaults and not spec.varkw) \
-                        and not getattr(method, 'not_site_mappable', False):
+                            and not getattr(method, 'not_site_mappable', False):
                         pages[module_name].append({
                             'name': name.replace('_', ' ').title(),
-                            'path': '/{}/{}'.format(module_name, name)
+                            'path': '/{}/{}'.format(module_name, name),
+                            'is_download': getattr(method, 'site_map_download', False)
                         })
         return public_site_sections, public_pages, pages
 
@@ -825,9 +1168,8 @@ class Config(_Overridable):
         with Session() as session:
             return sorted([
                 (a.attendee.id, a.attendee.full_name)
-                for a in session.query(AdminAccount)
-                                .options(joinedload(AdminAccount.attendee))
-                                if 'panels_admin' in a.read_or_write_access_set
+                for a in session.query(AdminAccount).options(joinedload(AdminAccount.attendee))
+                if 'panels_admin' in a.read_or_write_access_set
             ], key=lambda tup: tup[1], reverse=False)
 
     def __getattr__(self, name):
@@ -869,33 +1211,10 @@ class Config(_Overridable):
                 return False
             else:
                 return int(count_check) < int(stock_setting)
-        elif hasattr(_secret, name):
-            return getattr(_secret, name)
         elif name.lower() in _config['secret']:
             return _config['secret'][name.lower()]
         else:
             raise AttributeError('no such attribute {}'.format(name))
-
-
-class SecretConfig(_Overridable):
-    """
-    This class is for properties which we don't want to be used as Javascript
-    variables.  Properties on this class can be accessed normally through the
-    global c object as if they were defined there.
-    """
-
-    @property
-    def SQLALCHEMY_URL(self):
-        """
-        Support reading the DB connection info from an environment var (used with Docker containers)
-        DB_CONNECTION_STRING should contain the full Postgres URI
-        """
-        db_connection_string = os.environ.get('DB_CONNECTION_STRING')
-
-        if db_connection_string is not None:
-            return db_connection_string
-        else:
-            return _config['secret']['sqlalchemy_url']
 
 
 class AWSSecretFetcher:
@@ -905,8 +1224,11 @@ class AWSSecretFetcher:
     """
 
     def __init__(self):
+        self.start_session()
+
+    def start_session(self):
         import boto3
-        
+
         aws_session = boto3.session.Session(
             aws_access_key_id=c.AWS_ACCESS_KEY,
             aws_secret_access_key=c.AWS_SECRET_KEY
@@ -917,9 +1239,14 @@ class AWSSecretFetcher:
             region_name=c.AWS_REGION
         )
 
+        self.session_expiration = datetime.now() + timedelta(hours=6)
+
     def get_secret(self, secret_name):
         import json
         from botocore.exceptions import ClientError
+
+        if not self.client:
+            self.start_session()
 
         try:
             get_secret_value_response = self.client.get_secret_value(
@@ -958,18 +1285,7 @@ class AWSSecretFetcher:
         log.error("Could not retrieve secret from AWS. Is the secret name (\"{}\") correct?".format(secret_name))
 
     def get_all_secrets(self):
-        self.get_auth0_secret()
         self.get_signnow_secret()
-
-    def get_auth0_secret(self):
-        if not c.AWS_AUTH0_SECRET_NAME:
-            return
-
-        auth0_secret = self.get_secret(c.AWS_AUTH0_SECRET_NAME)
-        if auth0_secret:
-            c.AUTH_DOMAIN = auth0_secret.get('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
-            c.AUTH_CLIENT_ID = auth0_secret.get('CLIENT_ID', '') or c.AUTH_CLIENT_ID
-            c.AUTH_CLIENT_SECRET = auth0_secret.get('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
 
     def get_signnow_secret(self):
         if not c.AWS_SIGNNOW_SECRET_NAME:
@@ -977,20 +1293,117 @@ class AWSSecretFetcher:
 
         signnow_secret = self.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
         if signnow_secret:
-            c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('ACCESS_TOKEN', '') or c.SIGNNOW_ACCESS_TOKEN
             c.SIGNNOW_CLIENT_ID = signnow_secret.get('CLIENT_ID', '') or c.SIGNNOW_CLIENT_ID
             c.SIGNNOW_CLIENT_SECRET = signnow_secret.get('CLIENT_SECRET', '') or c.SIGNNOW_CLIENT_SECRET
+            return signnow_secret
+
+def get_config_files(plugin_name, module_dir):
+    config_files_str = os.environ.get(f"{plugin_name.upper()}_CONFIG_FILES", "")
+    absolute_config_files = []
+    if config_files_str:
+        config_files = [pathlib.Path(x) for x in config_files_str.split(";")]
+        for path in config_files:
+            if path.is_absolute():
+                if not path.exists():
+                    raise ValueError(f"Config file {path} specified in {plugin_name.upper()}_CONFIG_FILES does not exist!")
+                absolute_config_files.append(path)
+            else:
+                if not (module_dir.parents[0] / path).exists():
+                    raise ValueError(f"Config file {module_dir.parents[0] / path} specified in {plugin_name.upper()}_CONFIG_FILES does not exist!")
+                absolute_config_files.append(module_dir.parents[0] / path)
+    return absolute_config_files
+
+def normalize_name(name):
+    return name.replace(".", "_")
+
+def load_section_from_environment(path, section):
+    """
+    Looks for configuration in environment variables. 
+    
+    Args:
+        path (str): The prefix of the current config section. For example,
+            uber.ini:
+                [cherrypy]
+                server.thread_pool: 10
+            would translate to uber_cherrypy_server.thread_pool
+        section (configobj.ConfigObj): The section of the configspec to search
+            for the current path in.
+    """
+    config = {}
+    for setting in section:
+        if setting == "__many__":
+            prefix = f"{path}_"
+            for envvar in os.environ:
+                if envvar.startswith(prefix) and not envvar.split(prefix, 1)[1] in [normalize_name(x) for x in section]:
+                    config[envvar.split(prefix, 1)[1]] = os.environ[envvar]
+        else:
+            if isinstance(section[setting], configobj.Section):
+                child_path = f"{path}_{setting}"
+                child = load_section_from_environment(child_path, section[setting])
+                if child:
+                    config[setting] = child
+            else:
+                name = normalize_name(f"{path}_{setting}")
+                if name in os.environ:
+                    config[setting] = yaml.safe_load(os.environ.get(normalize_name(name)))
+    return config
+
+def parse_config(plugin_name, module_dir):
+    specfile = module_dir / 'configspec.ini'
+    spec = configobj.ConfigObj(str(specfile), interpolation=False, list_values=False, encoding='utf-8', _inspec=True)
+
+    # to allow more/better interpolations
+    root_conf = ['root = "{}"\n'.format(module_dir.parents[0]), 'module_root = "{}"\n'.format(module_dir)]
+    temp_config = configobj.ConfigObj(root_conf, interpolation=False, encoding='utf-8')
+
+    for config_path in get_config_files(plugin_name, module_dir):
+        # this gracefully handles nonexistent files
+        file_config = configobj.ConfigObj(str(config_path), encoding='utf-8', interpolation=False)
+        if os.environ.get("LOG_CONFIG", "false").lower() == "true":
+            print(f"File config for {plugin_name} from {config_path}")
+            print(json.dumps(file_config, indent=2, sort_keys=True))
+        temp_config.merge(file_config)
+
+    environment_config = load_section_from_environment(plugin_name, spec)
+    if os.environ.get("LOG_CONFIG", "false").lower() == "true":
+        print(f"Environment config for {plugin_name}")
+        print(json.dumps(environment_config, indent=2, sort_keys=True))
+    temp_config.merge(configobj.ConfigObj(environment_config, encoding='utf-8', interpolation=False))
+
+    # combining the merge files to one file helps configspecs with interpolation
+    with NamedTemporaryFile(delete=False) as config_outfile:
+        temp_config.write(config_outfile)
+        temp_name = config_outfile.name
+
+    config = configobj.ConfigObj(temp_name, encoding='utf-8', configspec=spec)
+
+    validation = config.validate(validate.Validator(), preserve_errors=True)
+    os.unlink(temp_name)
+
+    if validation is not True:
+        raise RuntimeError('configuration validation error(s) (): {!r}'.format(
+            configobj.flatten_errors(config, validation))
+        )
+
+    return config
 
 
 c = Config()
-_secret = SecretConfig()
-_config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
+_config = parse_config("uber", pathlib.Path("/app/uber"))  # outside this module, we use the above c global instead of using this directly
+db_connection_string = os.environ.get('DB_CONNECTION_STRING')
+
+for conf, val in _config['secret'].items():
+    conf_env = os.environ.get(conf.upper())
+
+    if conf_env is not None:
+        setattr(c, conf.upper(), conf_env)
+    elif conf == "sqlalchemy_url" and db_connection_string is not None:  # Backwards compatibility
+        setattr(c, conf.upper(), db_connection_string)
+    else:
+        setattr(c, conf.upper(), val)
 
 if c.AWS_SECRET_SERVICE_NAME:
-    aws_secrets_client = AWSSecretFetcher()
-    aws_secrets_client.get_all_secrets()
-else:
-    aws_secrets_client = None
+    AWSSecretFetcher().get_all_secrets()
 
 signnow_python_sdk.Config(client_id=c.SIGNNOW_CLIENT_ID,
                           client_secret=c.SIGNNOW_CLIENT_SECRET,
@@ -1011,6 +1424,12 @@ def _unrepr(d):
 
 _unrepr(_config['appconf'])
 c.APPCONF = _config['appconf'].dict()
+c.SENTRY = _config['sentry'].dict()
+c.HSTS = _config['hsts'].dict()
+c.REDISCONF = _config['redis'].dict()
+c.REDIS_PREFIX = c.REDISCONF['prefix']
+c.REDIS_STORE = redis.Redis(host=c.REDISCONF['host'], port=c.REDISCONF['port'],
+                            db=c.REDISCONF['db'], decode_responses=True)
 
 c.BADGE_PRICES = _config['badge_prices']
 for _opt, _val in chain(_config.items(), c.BADGE_PRICES.items()):
@@ -1030,13 +1449,13 @@ c.make_dates(_config['dates'])
 c.DATA_DIRS = {}
 c.make_data_dirs(_config['data_dirs'])
 
-if "sqlite" in _config['secret']['sqlalchemy_url']:
+if "sqlite" in c.SQLALCHEMY_URL:
     # SQLite does not suport pool_size and max_overflow,
     # so disable them if sqlite is used.
     c.SQLALCHEMY_POOL_SIZE = -1
     c.SQLALCHEMY_MAX_OVERFLOW = -1
 
-## Set database connections to recycle after 10 minutes
+# Set database connections to recycle after 10 minutes
 c.SQLALCHEMY_POOL_RECYCLE = 3600
 
 c.PRICE_BUMPS = {}
@@ -1044,13 +1463,13 @@ c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
     try:
         if ' ' in _opt:
-            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d %H%M'))
+            price_date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d %H%M'))
         else:
-            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
+            price_date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
     except ValueError:
         c.PRICE_LIMITS[int(_opt)] = _val
     else:
-        c.PRICE_BUMPS[date] = _val
+        c.PRICE_BUMPS[price_date] = _val
 c.ORDERED_PRICE_LIMITS = sorted([val for key, val in c.PRICE_LIMITS.items()])
 
 
@@ -1082,7 +1501,8 @@ for _badge_type, _price in _config['badge_type_prices'].items():
     except AttributeError:
         pass
 
-c.MAX_BADGE_TYPE_UPGRADE = sorted(c.BADGE_TYPE_PRICES, key=c.BADGE_TYPE_PRICES.get, reverse=True)[0] if c.BADGE_TYPE_PRICES else None
+c.MAX_BADGE_TYPE_UPGRADE = sorted(c.BADGE_TYPE_PRICES, key=c.BADGE_TYPE_PRICES.get,
+                                  reverse=True)[0] if c.BADGE_TYPE_PRICES else None
 
 c.make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
 c.AGE_GROUP_CONFIGS = {}
@@ -1090,17 +1510,21 @@ for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
 
+c.RECEIPT_DEPT_CATEGORIES = {}
+for _name, _val in _config['enums']['receipt_item_dept'].items():
+    _val = getattr(c, _name.upper())
+    c.RECEIPT_DEPT_CATEGORIES[_val] = {getattr(c, key.upper()): val for key, val in _config['enums'][_name].items()}
+
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
-c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
-c.ADMIN_TABLE_OPTS = [decimal.Decimal(x) for x in range(0, 9)]
 
 # Let admins remove door payment methods by making their label blank
 c.DOOR_PAYMENT_METHOD_OPTS = [opt for opt in c.DOOR_PAYMENT_METHOD_OPTS if opt[1]]
 c.DOOR_PAYMENT_METHODS = {key: val for key, val in c.DOOR_PAYMENT_METHODS.items() if val}
 
+c.TERMINAL_ID_TABLE = {k.lower().replace('-', ''): v for k, v in _config['secret']['terminal_ids'].items()}
+
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
-c.DISCOUNTABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DISCOUNTABLE_BADGE_TYPES]
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
 
@@ -1117,8 +1541,8 @@ c.START_TIME_OPTS = [
     (dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
 
 c.SETUP_JOB_START = c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS)
-c.TEARDOWN_JOB_END = c.ESCHATON + timedelta(days=1, hours=23) # Allow two full days for teardown shifts
-c.CON_TOTAL_LENGTH = int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).seconds / 3600)
+c.TEARDOWN_JOB_END = c.ESCHATON + timedelta(days=1, hours=23)  # Allow two full days for teardown shifts
+c.CON_TOTAL_DAYS = -(-(int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).total_seconds() // 3600)) // 24)
 c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
@@ -1148,13 +1572,30 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
             c.PREASSIGNED_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
+c.COUNTRY_OPTS = ['']
+c.COUNTRY_ALT_SPELLINGS = {}
+for country in list(pycountry.countries):
+    country_name = country.name if "Taiwan" not in country.name else "Taiwan"
+    country_dict = country.__dict__['_fields']
+    alt_spellings = [val for val in map(lambda x: country_dict.get(x), ['alpha_2', 'common_name']) if val]
+    if country_name == 'United States':
+        alt_spellings.extend(["USA", "United States of America"])
+    elif country_name == 'United Kingdom':
+        alt_spellings.extend(["Great Britain", "England", "UK", "Wales", "Scotland", "Northern Ireland"])
+
+    c.COUNTRY_ALT_SPELLINGS[country_name] = " ".join(alt_spellings)
+    c.COUNTRY_OPTS.append(country_name)
+
+c.REGION_OPTS_US = [('', 'Select a state')] + sorted(
+    [(region.name, region.name) for region in list(pycountry.subdivisions.get(country_code='US'))])
+c.REGION_OPTS_CANADA = [('', 'Select a province')] + sorted(
+    [(region.name, region.name) for region in list(pycountry.subdivisions.get(country_code='CA'))])
+
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 
-c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])
-
 c.JOB_PAGE_OPTS = (
-    ('index',    'Calendar View'),
-    ('signups',  'Signups View'),
+    ('index', 'Calendar View'),
+    ('signups', 'Signups View'),
     ('staffers', 'Staffer Summary'),
 )
 c.WEIGHT_OPTS = (
@@ -1166,9 +1607,12 @@ c.WEIGHT_OPTS = (
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibility', 'required_roles_ids', 'extra15']
 
 c.PREREG_SHIRT_OPTS = sorted(c.PREREG_SHIRT_OPTS if c.PREREG_SHIRT_OPTS else c.SHIRT_OPTS)[1:]
+c.PREREG_SHIRTS = {key: val for key, val in c.PREREG_SHIRT_OPTS}
 c.STAFF_SHIRT_OPTS = sorted(c.STAFF_SHIRT_OPTS if len(c.STAFF_SHIRT_OPTS) > 1 else c.SHIRT_OPTS)
-c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.SHIRT_OPTS))
-c.MERCH_STAFF_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.STAFF_SHIRT_OPTS))
+c.SHIRT_OPTS = sorted(c.SHIRT_OPTS)
+shirt_label_lookup = {val: key for key, val in c.SHIRT_OPTS}
+c.SHIRT_SIZE_STOCKS = {shirt_label_lookup[val]: key for key, val in c.SHIRT_STOCK_OPTS}
+
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
 c.DONATION_TIER_ITEMS = {}
@@ -1179,6 +1623,7 @@ for _ident, _tier in c.DONATION_TIER_DESCRIPTIONS.items():
     except ValueError:
         pass
 
+    _tier['value'] = price
     _tier['price'] = price
     if price:  # ignore the $0 kickin level
         c.DONATION_TIER_ITEMS[price] = _tier['merch_items'] or _tier['description'].split('|')
@@ -1190,10 +1635,22 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND]
 
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
-# Allows 0-9, a-z, A-Z, and a handful of punctuation characters
-c.INVALID_BADGE_PRINTED_CHARS = r'[^a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
-c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
+c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
+for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
+    opts = []
+    for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
+        if isinstance(item, dict):
+            item.__hash__ = lambda x: hash(x.name + x.description)
+            base_key = f"HOTEL_LOTTERY_{name.upper()}"
+            dict_key = int(sha512(base_key.encode()).hexdigest()[:7], 16)
+            setattr(c, base_key, dict_key)
+            opts.append((dict_key, item))
+    setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
 
+# Allows 0-9, a-z, A-Z, and a handful of punctuation characters
+c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
+c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
+c.update_name_problems()
 
 try:
     _items = sorted([int(step), url] for step, url in _config['volunteer_checklist'].items() if url)
@@ -1203,7 +1660,9 @@ except ValueError:
 else:
     c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
-stripe.api_key = c.STRIPE_SECRET_KEY
+if not c.AUTHORIZENET_LOGIN_ID:
+    import stripe
+    stripe.api_key = c.STRIPE_SECRET_KEY
 
 
 # plugins can use this to append paths which will be included as <script> tags, e.g. if a plugin
@@ -1211,14 +1670,23 @@ stripe.api_key = c.STRIPE_SECRET_KEY
 # all of the pages on the site except for preregistration pages (for performance)
 c.JAVASCRIPT_INCLUDES = []
 
+# If receiving static content from a CDN, define a dictionary of strings where the key is the
+# relative URL of the resource (e.g., theme/prereg.css) and the value is the hash for that resource
+c.STATIC_HASH_LIST = {}
+
+if not c.ALLOW_SHARED_TABLES:
+    c.DEALER_STATUS_OPTS = [(key, val) for key, val in c.DEALER_STATUS_OPTS if key != c.SHARED]
+dealer_status_label_lookup = {val: key for key, val in c.DEALER_STATUS_OPTS}
+c.DEALER_EDITABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_EDITABLE_STATUS_LIST]
+c.DEALER_CANCELLABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_CANCELLABLE_STATUS_LIST]
+
 
 # A list of models that have properties defined for exporting for Guidebook
 c.GUIDEBOOK_MODELS = [
-    ('GuestGroup_guest', 'Guests'),
-    ('GuestGroup_band', 'Bands'),
+    ('GuestGroup_guest', 'Guest'),
+    ('GuestGroup_band', 'Band'),
     ('MITSGame', 'MITS'),
     ('IndieGame', 'MIVS'),
-    ('Event_panels', 'Panels'),
     ('Group_dealer', 'Marketplace'),
 ]
 
@@ -1230,7 +1698,7 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_subtitle', 'Sub-Title (i.e. Location, Table/Booth, or Title/Sponsorship Level)'),
     ('guidebook_desc', 'Description (Optional)'),
     ('guidebook_location', 'Location/Room'),
-    ('guidebook_image', 'Image (Optional)'),
+    ('guidebook_header', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
 ]
 
@@ -1383,21 +1851,46 @@ c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GRO
 
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
+    {'name': 'bio', 'header': 'Announcement Info Provided'},
+    {'name': 'performer_badges', 'header': 'Performer Badges'},
     {'name': 'panel', 'header': 'Panel'},
-    {'name': 'mc', 'header': 'MC'},
-    {'name': 'bio', 'header': 'Bio Provided'},
-    {'name': 'info', 'header': 'Agreement Completed'},
-    {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},
-    {'name': 'merch', 'header': 'Merch'},
-    {'name': 'charity', 'header': 'Charity'},
-    {'name': 'badges', 'header': 'Badges Claimed'},
-    {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
     {'name': 'autograph'},
+    {'name': 'info', 'header': 'Agreement Completed'},
+    {'name': 'merch', 'header': 'Merch'},
     {'name': 'interview'},
-    {'name': 'travel_plans'},
+    {'name': 'mc', 'header': 'MC'},
+    {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
     {'name': 'rehearsal'},
+    {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},
+    {'name': 'badges', 'header': 'Badges Claimed'},
+    {'name': 'hospitality'},
+    {'name': 'travel_plans'},
+    {'name': 'charity', 'header': 'Charity'},
 ]
 
 # Generate the possible template prefixes per step
 for item in c.GUEST_CHECKLIST_ITEMS:
     item['deadline_template'] = ['guest_checklist/', item['name'] + '_deadline.html']
+
+c.SAML_SETTINGS = {}
+if c.SAML_SP_SETTINGS["privateKey"]:
+    sp_settings = {
+            "entityId": c.URL_BASE + "/saml/metadata",
+            "assertionConsumerService": {
+                "url": c.URL_BASE + "/saml/acs",
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+            },
+            "singleLogoutService": {
+                "url": c.URL_BASE + "/saml/logout",
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+            },
+            "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+            "x509cert": c.SAML_SP_SETTINGS["x509cert"],
+            "privateKey": c.SAML_SP_SETTINGS["privateKey"]
+        }
+    c.SAML_SETTINGS["idp"] = c.SAML_IDP_SETTINGS
+    c.SAML_SETTINGS["sp"] = sp_settings
+    if c.DEV_BOX:
+        c.SAML_SETTINGS["debug"] = True
+    else:
+        c.SAML_SETTINGS["strict"] = True

@@ -14,19 +14,6 @@
   .confirm-row .attendee {
     font-size: 1.5em;
   }
-
-  .slide-box {
-    position: relative;
-    height: 3.125em;
-  }
-
-  .slide-box .row {
-    position: absolute;
-    height: 2.8125em;
-    width: 100%;
-    top: 0;
-    left: 15px;
-  }
 </style>
 
 <script>
@@ -85,16 +72,16 @@
 
       var attendeeData = $form.closest('.modal').data('attendee');
       if (attendeeData && ('' + badgeNum) === ('' + attendeeData['badge_num'])) {
-        toastr.warning("Hey, that's you!", '', {timeOut: 3000});
+        $("#message-alert").addClass("alert-warning").show().children('span').html("Hey, that's you!", '', {timeOut: 3000});
         $badgeNum.focus();
         return;
       }
 
       var errorMessage = function(response) {
         if (response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], 'badge-signup-alert');
         } else {
-          toastr.error('Unrecognized badge number: ' + badgeNum, '', {timeOut: 3000});
+          showErrorMessage('Unrecognized badge number: ' + badgeNum, 'badge-signup-alert');
         }
         $badgeNum.focus();
       };
@@ -107,6 +94,7 @@
           csrf_token: csrf_token
         },
         success: function(response, status) {
+          $form.closest('.modal')
           if (response && response['first_name'] && response['badge_num']) {
             updateGreeting(response['first_name'], response['badge_num'], $form.find('.confirm-row'));
             showBadgeNumConfirm($form);

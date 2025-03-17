@@ -1,5 +1,5 @@
 {% import 'macros.html' as macros %}
-{% if c.VOLUNTEER_CREDITS_ROLL %}
+{% if c.VOLUNTEER_CREDITS_ROLL and c.PRE_CON %}
 <li>
     {{ macros.checklist_image(attendee.name_in_credits != None) }}
     {% if attendee.name_in_credits == None %} 

@@ -1,7 +1,7 @@
 {{ guest.group.name }},
 
-Congratulations again on being accepted to perform at {{ c.EVENT_NAME }}!  We're putting together performer bios to put on our website, and you have not yet filled out this information.  You may do so at {{ c.URL_BASE }}/guests/bio?guest_id={{ guest.id }}
+Congratulations again on being accepted to perform at {{ c.EVENT_NAME }}!  We're putting together performer bios and information for social media announcements and to put on our website, and you have not yet filled out this information.  You may do so at {{ c.URL_BASE }}/guests/bio?guest_id={{ guest.id }}
 
-Failing to share your bio information by {{ c.BAND_BIO_DEADLINE|datetime_local }} may result in your band's information not being included on our website.
+Failing to share your bio information by {{ c.BAND_BIO_DEADLINE|datetime_local }} makes it difficult to include your band's information on our website in a timely fashion, and makes it more difficult to promote your appearance in social media.
 
 {{ c.BAND_EMAIL_SIGNATURE }}

@@ -9,17 +9,14 @@ Your {{ group.is_dealer|yesno(c.DEALER_REG_TERM + ",group") }} ({{ group.name }}
     <br/> <br/>
     Some of your badges are not yet assigned to a specific person. If you assign these badges
     now then it will take much less time for their owners to pick them up at the event. Preassigning
-    badges also allows individual members of your group to kick in extra money to upgrade their badge
-    tier or order bonus items. You may preassign your badges on your
+    badges also allows individual members of your group to preorder merch or donate
+    extra money. You may preassign your badges on your
     <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">group management page</a>.
     The individual registration links on the group management page can be filled out by you, or distributed
     to your group members for them to fill out themselves.
 
-    <b>Your</b> registration confirmation number is {{ group.leader_id }}, and you can update your information or kick in
-    {% if group.leader.amount_extra %}
-    even more
-    {% endif %}
-    extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader_id }}">here</a>.
+    <b>Your</b> registration confirmation number is {{ group.leader_id }}, and you can update your information, preorder merch,
+    or donate extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader_id }}">here</a>.
 
     {% if not group.is_dealer %}
         <br/> <br/>
@@ -28,27 +25,21 @@ Your {{ group.is_dealer|yesno(c.DEALER_REG_TERM + ",group") }} ({{ group.name }}
     {% endif %}
 {% endif %}
 
-{% if group.leader.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN %}
-    <br/> <br/>
-    {% include "preregistration/hotel_disclaimer.html" %}
-{% endif %}
-
 {% if c.CONSENT_FORM_URL and group.leader.age_group_conf['consent_form'] %}
     <br/> <br/>
-    Because you are under 18, you must bring a signed and notarized parental permission
-    to be granted admission to {{ c.EVENT_NAME }}.  You may download the consent form
-    <a href="{{ c.CONSENT_FORM_URL }}">by clicking here</a>.
+    Because you are under 18, you must bring a <a href="{{ c.CONSENT_FORM_URL }}">signed and notarized parental
+    consent form</a> to be granted admission to {{ c.EVENT_NAME }}.
     <br/> <br/>
-    You may <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader.id }}">click here</a>
-    to edit your info if you are over 18.
+    If you are over 18, update your date of birth on your
+     <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader.id }}">badge confirmation page</a>.
 {% endif %}
 
 <br/> <br/>
-Badges are not mailed out before the event, so badges for your group will be available for pickup at the
-registration desk when you arrive at {{ c.EVENT_NAME }}. Inform your group to bring a photo ID and <a href="{{ c.COVID_POLICIES_URL }}" target="_blank">proof of vaccination</a> to the registration
-desk, where they'll be provided with their badge. If anyone in your group ordered bonus items such as a
-ribbon, t-shirt, or supporter package, they can pick those up at our merchandise booth. The location and
-hours of the registration desk and merchandise booth will be e-mailed prior to the event.
+Badges are not mailed out before the event, so your group members may pick up their badge at the
+registration desk when they arrive at {{ c.EVENT_NAME }}. Inform your group to bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to the registration
+desk, where they'll be provided with their badge. If anyone in your group pre-ordered a t-shirt or other merch package,
+they can pick those up at our merchandise booth. The location and
+hours of the registration desk and merchandise booth will be emailed prior to the event.
 <br/> <br/>
 You can always <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">use this link</a> to manage your group.
 

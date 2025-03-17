@@ -2,7 +2,7 @@
 <head></head>
 <body>
 
-You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME }} this coming {{ event_dates() }}
+You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME_AND_YEAR }} this coming {{ event_dates() }}
 {% if attendee.promo_code_id %}
     using promotional code {{ attendee.promo_code.code }}
 {% endif %}
@@ -16,10 +16,7 @@ You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME }} this co
 {% else %}
     and your payment of {{ (attendee.amount_paid / 100)|format_currency }} has been received.
 {% endif %}
-Your registration confirmation number is {{ attendee.id }}, and you can update your information or kick in
-{% if attendee.amount_extra %}
-    even more
-{% endif %}
+Your registration confirmation number is {{ attendee.id }}, and you can update your information, preorder merch, or donate
 extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">here</a>.
 
 {% if attendee.is_group_leader %}
@@ -29,15 +26,15 @@ extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id 
 
 <br/> <br/>
 
-Badges are not mailed out before the event, so your badge will be available for pickup at the registration desk when you arrive at {{ c.EVENT_NAME }}.  Simply bring a photo ID and <a href="{{ c.COVID_POLICIES_URL }}" target="_blank">proof of vaccination</a> to the registration desk, where you'll be provided with your badge.
-{% if c.DONATIONS_ENABLED %}
-    If you ordered bonus items such as a ribbon, t-shirt, or supporter package, you can pick those up at our merchandise booth.
-    The location and hours of the registration desk and merchandise booth will be e-mailed prior to the event.
+Badges are not mailed out before the event, so your badge will be available for pickup at the registration desk when you arrive at {{ c.EVENT_NAME }}.  Simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to the registration desk, where you'll be provided with your badge.
+{% if c.DONATIONS_ENABLED and not attendee.amount_extra %}
+    If you order any merchandise, you can pick those up at our merchandise booth.
+    The location and hours of the registration desk and merchandise booth will be emailed prior to the event.
 {% endif %}
 
 {% if attendee.amount_extra %}
     <br/> <br/>
-    Your additional contribution of {{ attendee.amount_extra|format_currency }} provides you with these bonus items, which may be picked up at our merch booth:
+    Your preordered {{ c.DONATION_TIERS[attendee.amount_extra] }} merch provides you with the following items, which may be picked up at our merch booth:
     <ul style="margin-bottom: 0">
     {% for swag in attendee.donation_swag|list %}
         <li>{{ swag }}</li>
@@ -53,11 +50,6 @@ Badges are not mailed out before the event, so your badge will be available for 
         <li>{{ addon }}</li>
     {% endfor %}
     </ul>
-{% endif %}
-
-{% if attendee.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN %}
-    <br/> <br/>
-    {% include "preregistration/hotel_disclaimer.html" %}
 {% endif %}
 
 {% include "emails/reg_workflow/reg_notes.html" %}

@@ -1,11 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block backlink %}{% endblock %}
-{% block title %}Credit Card Retry Error{% endblock %}
+{% set title_text = "Credit Card Retry Error" %}
 {% block content %}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2> Credit Card Retry Failed </h2>
     <p>
       You've been redirected here because there was a problem with your credit card transaction and you (probably) hit refresh

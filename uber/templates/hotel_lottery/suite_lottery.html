@@ -1,0 +1,62 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Hotel Suite Lottery Application for " ~ application.attendee.full_name %}
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set suite_lottery = suite_lottery or forms['suite_lottery'] %}
+
+{% block content %}
+{% include 'hotel_lottery/withdraw_confirm.html' with context %}
+
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
+<div class="card">
+    <div class="card-body">
+        {{ form_macros.form_validation('suite-lottery-form', 'validate_hotel_lottery', form_list=['SuiteLottery'], callback="goToNextStep(response)", always_use_callback=False) }}
+
+        {% if application.attendee.age_now_or_at_con and application.attendee.age_now_or_at_con < 21 %}
+        <div class="alert alert-danger">
+            Our records show that you will not be 21 years old by the start of {{ c.EVENT_NAME }}.
+            You will not be able to complete this application if you will not be 21 on your earliest selected check-in date.
+            If you believe this is an error, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
+        </div>
+        {% endif %}
+
+        <h2>Suite Lottery <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
+        {% if application.status != c.COMPLETE %}
+        <p>
+            Please read the instructions for each step below carefully. Any completed steps (steps with a <i class='fa fa-check'></i>) will be saved if you leave and come back later, but your lottery entry is <strong>NOT</strong> complete until you see the confirmation screen.
+        </p>
+        <p>You can review or edit completed (<i class='fa fa-check'></i>) steps by clicking the name of the step. Changes to completed steps are saved when you click the "Save and Continue" button on your current step.</p>
+        {% elif not c.HOTEL_LOTTERY_OPEN %}
+        <p>
+            <strong><span class="text-danger">The hotel lottery is now closed.</span></strong>
+            You can view your entry details below. Your entry is already being processed; any changes you make will NOT affect your potential room award.
+        </p>
+        {% else %}
+        <p>
+            Click or tap any of the steps below to update that step's information, then click "Update Suite Lottery Entry" to save your changes.
+        </p>
+        {% endif %}
+        
+
+        <form novalidate method="post" id="suite-lottery-form" action="suite_lottery">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ application.id }}">
+            <input type="hidden" name="entry_type" value="{{ c.SUITE_ENTRY }}">
+        <div class="accordion mb-3" id="suite-lottery-accordion">
+            {% set read_only = False %}
+            {% include 'hotel_lottery/suite_lottery_form.html' with context %}
+        </div>
+            <div class="row g-sm-3 mb-3">
+                <div class="col-12">
+                    <a id="return-btn" class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">{% if not application.entry_type %}Cancel and {% endif %}Return to Options</a>
+                    {% if application.status == c.COMPLETE %}
+                    <button type="submit" name="current_step" value="999"  class="btn btn-primary pull-right">
+                        Update Suite Lottery Entry
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

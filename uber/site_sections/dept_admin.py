@@ -3,7 +3,7 @@ from sqlalchemy.orm import subqueryload
 from datetime import timedelta
 
 from uber.config import c
-from uber.custom_tags import pluralize, yesno
+from uber.custom_tags import pluralize, yesno, readable_join
 from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protected, csv_file, department_id_adapter, \
     requires_dept_admin, site_mappable
 from uber.errors import HTTPRedirect
@@ -189,9 +189,29 @@ class Root:
 
         out.writerow(headers)
         for attendee in requesting_attendees:
-            row = [attendee.full_name, attendee.email, attendee.badge, yesno(attendee.placeholder, 'Yes,No')]
-            if requested_any:
-                row.append(yesno(attendee in department.unassigned_explicitly_requesting_attendees, 'Yes,No'))
+            if attendee.is_valid:
+                row = [attendee.full_name, attendee.email, attendee.badge, yesno(attendee.placeholder, 'Yes,No')]
+                if requested_any:
+                    row.append(yesno(attendee in department.unassigned_explicitly_requesting_attendees, 'Yes,No'))
+
+                out.writerow(row)
+
+    @department_id_adapter
+    @csv_file
+    def dept_members_export(self, out, session, department_id, message='', **params):
+        department = session.query(Department).get(department_id)
+        headers = ['Name', 'Legal Name', 'Email', 'Phone Number', 'Emergency Contact',
+                   'Weighted Hours', 'Badge Status', 'Placeholder', 'Has Shifts', 'Roles']
+
+        out.writerow(headers)
+        for attendee in department.members:
+            row = [attendee.full_name, attendee.legal_name, attendee.email, attendee.cellphone,
+                   attendee.ec_name + ": " + attendee.ec_phone,
+                   attendee.weighted_hours_in(department),
+                   attendee.badge_status_label,
+                   yesno(attendee.placeholder, 'Yes,No'),
+                   yesno(attendee.weighted_hours_in(department) > 0, 'Yes,No'),
+                   readable_join([role.name for role in attendee.dept_roles])]
 
             out.writerow(row)
 

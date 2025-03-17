@@ -2,6 +2,6 @@
 {% set snippet=False %}
 {% block body %}
 
-{%- include ['guest_checklist/' ~ guest.group_type_label|lower ~ '_stage_plot_deadline.html', 'guest_checklist/stage_plot_deadline.html'] -%}
+{%- include ['guest_checklist/' ~ guest.group_type_label|lower|replace(' ','_') ~ '_stage_plot_deadline.html', 'guest_checklist/stage_plot_deadline.html'] -%}
 
 {% endblock %}

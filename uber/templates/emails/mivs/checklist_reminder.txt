@@ -1,22 +1,15 @@
-Ahoy {{ guest.group.studio.primary_contact_first_names }},
+Ahoy {{ studio.primary_contact_first_names }},
 
-{% set two_days, one_day, overdue = guest.group.studio.checklist_items_due_soon_grouped %}
-{% if two_days %}
-The following items are due two days from now:
-{% for name, url in two_days %}
--{{ name }}: {{ c.URL_BASE }}/guests/{{ url }}?guest_id={{ guest.id }}
-{% endfor %}
-{% endif %}
-{% if one_day %}
-The following items are due tomorrow:
-{% for name, url in one_day %}
--{{ name }}: {{ c.URL_BASE }}/guests/{{ url }}?guest_id={{ guest.id }}
+{% if due_soon %}
+The following items are due soon:
+{% for key, name in due_soon %}
+-{{ name }}: {{ c.URL_BASE }}/guests/mivs_{{ key }}?guest_id={{ studio.group.guest.id }} (Deadline: {{ studio.checklist_deadline(key)|datetime_local("%A, %B %e") }})
 {% endfor %}
 {% endif %}
 {% if overdue %}
 The following items are overdue:
-{% for name, url in overdue %}
--{{ name }}: {{ c.URL_BASE }}/guests/{{ url }}?guest_id={{ guest.id }}
+{% for key, name in overdue %}
+-{{ name }}: {{ c.URL_BASE }}/guests/mivs_{{ key }}?guest_id={{ studio.group.guest.id }}
 {% endfor %}
 {% endif %}
 

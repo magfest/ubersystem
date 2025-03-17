@@ -11,7 +11,8 @@ app, c.PAGE_PATH,
 
 <h2>Changelog for {{ app.attendee.full_name }}'s Marketplace Application</h2>
 
-<table class="table-striped table-bordered table-condensed">
+<div class="card card-body">
+<table class="table table-striped table-bordered table-sm">
 <thead><tr>
     <th>Which</th>
     <th>What</th>
@@ -24,10 +25,82 @@ app, c.PAGE_PATH,
         <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
-        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>
         <td valign="top">{{ tracked.data }}</td>
     </tr>
 {% endfor %}
 </table>
 
+<h3>Page View History</h3>
+
+  <table class="table table-striped table-bordered table-sm">
+    <thead><tr>
+      <th>When</th>
+      <th>Who</th>
+      <th>Page Path</th>
+    </tr></thead>
+    {% for view in pageviews %}
+      <tr>
+        <td valign="top" style="white-space:nowrap">{{ view.when|full_datetime_local }}</td>
+        <td valign="top" style="white-space:nowrap">{{ view.who_repr }}</td>
+        <td valign="top">{{ view.page }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+
+<h3>Receipt Changes</h3>
+<table class="table table-striped table-bordered table-sm">
+    <thead>
+    <tr>
+        <th>Added</th>
+        <th>Admin</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Amount</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for item in receipt_items %}
+        <tr>
+            <td>{{ item.added|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+            <td>{{ item.who }}</td>
+            <td>
+                {% if item.method %}
+                  {{ "Payment" if item.amount > 0 else "Refund" }} ({{ item.method_label }})
+                {% else %}
+                  {{ "Purchase" if item.amount > 0 else "Credit" }} ({{ item.department_label }}: {{ item.category_label }})
+                {% endif %}
+            </td>
+            <td>{{ item.desc }}{{ " (" ~ processors[item.method] ~ " ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
+            <td>
+                {{ (item.amount / 100)|format_currency(true) }}
+                {% if item.count and item.count > 1 %}
+                   x{{ item.count }}: {{ (item.count * item.amount / 100)|format_currency }}
+                {% endif %}
+            </td>
+            <td>
+                {% if item.refunded %}
+                <em>{{ (item.refunded / 100)|format_currency }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ (item.amount_left / 100)|format_currency }} left){% endif %}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% for email in emails  %}
+    {% if loop.first %}<h3>Automated Emails</h3>{% endif %}
+    <h4> {{ email.subject }} ({{ email.when|full_datetime_local }}) </h4>
+    {{ macros.preview_email(email) }}
+    {% if not read_only %}
+      <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ email.id }}" />
+        <button class="btn btn-primary" type="submit">Resend Email</button>
+      </form>
+    {% endif %}
+    <hr/>
+{% endfor %}
+</div>
 {% endblock %}

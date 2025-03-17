@@ -15,7 +15,7 @@
     $(function () {
         $("form[action*='/shifts_admin/']").submit(function(event){
             event.preventDefault();
-            toastr.clear();
+            hideMessageBox();
             var formURL = $(this).attr('action');
             var old_hash = window.location.hash;
             $.ajax({
@@ -27,18 +27,20 @@
                     if (json.success) {
                         // non-modal pages don't have a loadForm function, so we
                         // use that to tell whether we're in a modal form
-                        if (window.loadForm) {
-                            toastr.info(json.message);
+                        if (window.loadForm !== undefined) {
+                            $("#attendee-modal-alert").addClass("alert-info").show().children('span').html(json.message);
                             window.loadForm('Shifts');
                         } else {
-                            location.search += '&message=' + json.message;
+                          const querystring = new URLSearchParams(window.location.search)
+                          querystring.set('message', json.message)
+                          window.location.search = querystring.toString()
                         }
                     } else {
-                        toastr.error(json.message);
+                        showErrorMessage(json.message);
                     }
                 },
                 error: function () {
-                    toastr.error('Unable to connect to server, please try again.');
+                    showErrorMessage('Unable to connect to server, please try again.');
                 }
             });
         });
@@ -59,7 +61,7 @@
     });
 </script>
 
-<h2>{{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+<h2>{{ attendee.full_name }} {% if c.AT_THE_CON and attendee.badge_num %}({{ attendee.badge }}){% endif %}</h2>
 
 <table width="100%">
 <tr>
@@ -71,7 +73,7 @@
         <select name="job_id" {% if not jobs %}disabled="disabled"{% endif %}>
             {{ options(jobs) }}
         </select>
-        <input type="submit" value="Assign" class="btn btn-xs btn-success" {% if not jobs %}disabled="disabled"{% endif %}/>
+        <input type="submit" value="Assign" class="btn btn-sm btn-success" {% if not jobs %}disabled="disabled"{% endif %}/>
       </form>
     </td>
     <td width="50%" align="right">
@@ -80,7 +82,7 @@
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
         <input type="text" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_minutes / 60 }}" style="width:3.5em" />
-        <input type="submit" value="Update" class="btn btn-xs btn-primary"/>
+        <input type="submit" value="Update" class="btn btn-sm btn-primary"/>
       </form>
     </td>
 </tr>
@@ -91,7 +93,7 @@
 {% if attendee.shifts %}
     <b>
         Shifts signed up for by {{ attendee.full_name }}
-        {% if c.AT_THE_CON %}
+        {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
             {% if attendee.checked_in %}
                 <i>[checked in]</i>
             {% else %}
@@ -130,11 +132,11 @@
             <td>{{ shift.job.weighted_hours }}</td>
             <td id="shift_status_{{ shift.id }}"></td>
             <td id="shift_rating_{{ shift.id }}"></td>
-            <td class="text-right">
+            <td class="text-end">
               <form method="post" action="../shifts_admin/unassign_shift">
                 {{ csrf_token() }}
                 <input type="hidden" name="shift_id" value="{{ shift.id }}" />
-                <input type="submit" value="Unassign" class="btn btn-xs btn-warning"/>
+                <input type="submit" value="Unassign" class="btn btn-sm btn-warning"/>
               </form>
             </td>
           </tr>

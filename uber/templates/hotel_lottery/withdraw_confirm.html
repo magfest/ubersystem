@@ -1,0 +1,56 @@
+<script type="text/javascript">
+withdrawConfirmSuite = function() {
+    var formToSubmit = this;
+    event.preventDefault();
+
+    bootbox.confirm({
+    backdrop: true,
+    title: 'Withdraw From Suite Lottery?',
+    message: '<p>Are you sure you want to withdraw from the suite lottery?</p>' +
+        '<p>This will <strong>delete your lottery entry</strong>. '+
+        {% if application.group_members %}
+        'Unless you re-enter the lottery, you and your group members ' +
+        {% else %}
+        'Unless you join a room group or re-enter the lottery, you ' +
+        {% endif %}
+        'will not be eligible for a suite booking.</p>'
+        {% if application.group_members %} + '<p>Your group members will be notified of the cancellation.</p>'{% endif %},
+    buttons: {
+        confirm: { label: 'Yes, Withdraw', className: 'btn-danger' },
+        cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+    },
+    callback: function (result) {
+        if (result) {
+            formToSubmit.submit();
+        }
+    }
+    });
+}
+
+withdrawConfirm = function() {
+    var formToSubmit = this;
+    event.preventDefault();
+
+    bootbox.confirm({
+    backdrop: true,
+    title: 'Withdraw From Hotel Lottery?',
+    message: '<p>Are you sure you want to withdraw from the {{ c.EVENT_NAME }} hotel lottery?</p>' +
+        '<p>This will <strong>delete {% if application.wants_suite %}BOTH your suite and room lottery entries{% else %}your lottery entry{% endif %}{% if application.group_members %} and disband your group{% endif %}</strong>. ' +
+        'You will need to re-enter the hotel lottery from the beginning to be eligible for a room or suite.</p>',
+    buttons: {
+        confirm: { label: 'Yes, Withdraw', className: 'btn-danger' },
+        cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+    },
+    callback: function (result) {
+        if (result) {
+            formToSubmit.submit();
+        }
+    }
+    });
+}
+
+$().ready(function() {
+    $("#withdraw-suite").submit(withdrawConfirmSuite);
+    $("#withdraw-lottery").submit(withdrawConfirm);
+});
+</script>
