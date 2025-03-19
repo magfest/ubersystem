@@ -90,7 +90,7 @@ class Root:
                         getattr(app.event, 'name', app.name),
                         getattr(app.event, 'description', app.description),
                         getattr(app.event, 'public_description', app.public_description),
-                        f"{app.event.minutes} minutes" if app.event else f"{app.length_label} (expected)",
+                        f"{app.event.duration} minutes" if app.event else f"{app.length_label} (expected)",
                         app.department_label,
                         app.other_presentation if app.presentation == c.OTHER else app.presentation_label,
                         getattr(app.event, 'location_label', '(not scheduled)'),

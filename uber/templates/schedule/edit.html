@@ -2,7 +2,28 @@
 {% block title %}Schedule{% endblock %}
 {% block content %}
 {% include "panels_common.html" %}
-{% include "schedule_common.html" %}
+
+<div class="schedule-header">
+    <div id="room_toggle">
+    <label>Show</label>
+    <label class="radio-label"><input type="radio" name="room_toggle" class="toggle" value="show_all" checked="checked"> All</label>
+    <label class="radio-label"><input type="radio" name="room_toggle" class="toggle" value="show_music"> Music</label>
+    <label class="radio-label"><input type="radio" name="room_toggle" class="toggle" value="show_panels"> Panels</label>
+    <label class="radio-label"><input type="radio" name="room_toggle" class="toggle" value="show_other"> Other</label>
+    </div>
+    <div id="room_filter">
+    <form method="post" action="ical" class="form-horizontal" role="form">
+        <div class="d-flex gap-3">
+        <label class="col-form-label" for="room_filter_text">Filter</label>
+        <div>
+        <input type="text" name="filter" class="filter form-control" id="room_filter_text" autofocus="autofocus" placeholder="Room Name">
+        <input type="hidden" id="filtered_locations" name="locations" />
+        </div>
+        <button class="btn btn-primary form-inline">Export to iCal</button>
+        </div>
+        </form>
+    </div>
+</div>
 
 <style type="text/css">
 
@@ -22,380 +43,289 @@
   background: #ff6;
 }
 
+.schedule-header {
+    margin-bottom: 10px;
+}
+
+.schedule-header > div:after {
+    content: '';
+    display: block;
+    clear: both;
+}
+
+label.radio-label {
+    font-weight: normal;
+    margin-left: 7px;
+}
+
+#room_toggle {
+    display: inline-block;
+}
+
+#room_filter {
+    float: right;
+}
+
 </style>
 
-<script type="text/javascript">
-    var SLOT_COUNT = {{ c.PANEL_SCHEDULE_LENGTH }};
-    var EVENTS = {{ events|jsonize }};
-    var EPOCH = moment('{{ c.PANELS_EPOCH|datetime_local("%Y-%m-%d %H:%M:%S") }}', 'YYYY-MM-DD HH:mm:ss');
+{{ "event-calendar-3.10.0/event-calendar.min.css"|serve_static_content }}
+{{ "event-calendar-3.10.0/event-calendar.min.js"|serve_static_content }}
 
-    var swapProps = function(x, y) {
-        $.each($.makeArray(arguments).slice(2), function(i,name) {
-            var temp = x[name];
-            x[name] = y[name];
-            y[name] = temp;
-        });
-    };
-    var dedup = function(xs) {
-        var deduped = [], d = {};
-        $.each(xs, function(i, x) {
-            if (d[x] === undefined) {
-                deduped.push(x);
-            }
-            d[x] = true;
-        });
-        return deduped;
-    };
+<style>
+    .ec-timeline .ec-time, .ec-timeline .ec-line {
+        width: 150px;
+    }
+    .ec {
+        width: 100%;
+    }
+    .ec-header, .ec-body {
+        width: {{ c.EVENT_LOCATIONS|length * 148 + 90 }}px;
+    }
 
-    var slotToDate = function(slot) {
-      return EPOCH.clone().add(30 * slot, 'minutes');
-    };
+.ec-header .ec-day {
+    min-height: auto;
+    overflow: visible;
+}
 
-    var hasDay = function(d) {
-       return !d.minute() && (d <= EPOCH || d.hour() == 0 || d.hour() == 12);
-    };
+.ec-event {
+    border-color: white;
+    border-width: thin;
+    border-style: solid;
+}
 
-    var formatDate = function(d) {
-        if (d.minute()) {
-            return d.format('h:mm');
-        } else if (hasDay(d)) {
-            return d.format('ddd ha');
-        } else {
-            return d.format('ha');
-        }
-    };
+h2.ec-title {
+    display: inline;
+}
 
-    var $cell = function(loc, slot) {
-        return $("#row" + slot + " .loc" + loc);
-    };
-    var $cells = function(event) {
-        var $xs = $();
-        for(var i=0; i<event.duration; i++) {
-            $xs = $xs.add($cell(event.location, event.start_slot + i));
-        }
-        return $xs;
-    };
+.offset-scroll {
+    scroll-margin-top: 500px;
+}
+</style>
 
-    var shortestIndex = function(xs) {
-        var pos = 0, shortest = xs[0];
-        $.each(xs, function(i,s) {
-            if (s.length < shortest.length) {
-                pos = i;
-                shortest = s;
-            }
-        });
-        return pos;
-    };
-    var splitName = function(event) {
-        var xs = event.name.split(/\s+/);
-        while (xs.length > event.duration || (xs.length > 1 && xs[shortestIndex(xs)].length <= 3)) {
-            var i = shortestIndex(xs);
-            var shortest = xs.splice(i, 1)[0];
-            if (xs[i] && (!xs[i-1] || xs[i].length < xs[i-1].length)) {
-                xs[i] = shortest + " " + xs[i];
-            } else {
-                xs[i-1] += " " + shortest;
-            }
-        }
-        return xs;
-    };
-
-    var CHECK_CHUNK = SLOT_COUNT;
-    var markConflicts = function(startIndex) {
-        var stopIndex = (startIndex || 0) + CHECK_CHUNK;
-        for(var slot = startIndex || 0; slot < stopIndex && slot < SLOT_COUNT; slot++) {
-            var panelists = {};
-            $("#row" + slot + " td").each(function(i, td) {
-                var event = $(td).data("event");
-                if (event) {
-                    $.each(event.panelists, function(id, name) {
-                        panelists[id] = panelists[id] || {name: name, events: []};
-                        panelists[id].events.push(event);
-                    });
-                }
-            });
-            $.each(panelists, function(id, panelist) {
-                if (panelist.events.length > 1) {
-                    var names = $.map(panelist.events, function(event) { return "'" + event.name + "'"; }).join(" and ");
-                    $.each(panelist.events, function(i,event) {
-                        var warning = panelist.name + " is assigned to " + names + ".";
-                        $cells(event).addClass("conflict").each(function(i,td){
-                            var warnings = $(td).data("warnings") || [];
-                            warnings.push(warning);
-                            $(td).data("warnings", warnings);
-                        });
-                    });
-                }
-            });
-        };
-        if (stopIndex < SLOT_COUNT) {
-            setTimeout(function() { markConflicts(stopIndex); }, 1);
-        } //else console.log(new Date(), new Date().getMilliseconds(), "all conflicts marked");
-    };
-    var conflictsMarked = false;
-    var checkConflicts = function() {
-        if (conflictsMarked) {
-            $.each(EVENTS, function(i, event) {
-                $cells(event).removeClass("conflict");
-            });
-        }
-        //console.log(new Date(), new Date().getMilliseconds(), "previous conflicts cleared");
-        markConflicts();
-        conflictsMarked = true;
-    };
-
-    var clearEvents = function() {
-        $.each(arguments, function(i,event) {
-            $cells(event).removeData("event")
-                         .removeClass("box top middle bottom conflict")
-                         .find('.content').css({
-                            'max-height': '',
-                            'min-height': ''
-                         }).text("");
-        });
-    };
-    var renderEvents = function() {
-        $.each(arguments, function(_, event) {
-            $cells(event).each(function(i, td) {
-                $(td).data('event', event)
-                     .addClass(event.duration == 1 ? 'box' : i==0 ? 'top' : i==(event.duration - 1) ? 'bottom' : 'middle');
-                if (i == 0) {
-                  var parentHeight = $(td).parent().height() || 30;
-                  var padding = event.duration - 1 ? 3 : 0;
-                  var height = (event.duration * parentHeight) - padding;
-                  $(td).find('div.content').css({
-                    'max-height': height + 'px',
-                    'min-height': height + 'px'
-                  }).text(event.name);
-                }
-            });
-        });
-    };
-    var RENDER_CHUNK = 999;
-    var renderAll = function(startIndex) {
-        startIndex = startIndex || 0;
-        var stopIndex = startIndex + RENDER_CHUNK;
-        renderEvents.apply(null, EVENTS.slice(startIndex, stopIndex));
-        if (EVENTS[stopIndex]) {
-            setTimeout(function() { renderAll(stopIndex); }, 1);
-        } else {
-            //console.log(new Date(), new Date().getMilliseconds(), "events rendered");
-            setTimeout(scrollToHash, 1);
-            setTimeout(checkConflicts, 2); //checkConflicts();
-        }
-    };
-    var scrollToHash = function() {
-        if (location.hash) {
-            var top = $("#row" + location.hash.substr(1)).position().top;
-            $(document.body).scrollTop(top);
-        }
-    };
-
-    var selectedEvent = null;
-    var clearSelected = function() {
-        if (selectedEvent) {
-            $cells(selectedEvent).removeClass("selected");
-        }
-    };
-    var menuActions = {
-        edit: function(event) {
-            window.location = "form?id=" + event.id;
-        },
-        create: function($td) {
-            var slot = $td.parent("tr").data("slot");
-            var startTime = EPOCH.clone().add(30 * slot, 'minutes').format("YYYY-MM-DD HH:mm:ss");
-            window.location = "form?id=None&location=" + $td.data("location") + "&start_time=" + startTime;
-        },
-        move: function(event) {
-            clearSelected();
-            $cells(event).addClass("selected");
-            selectedEvent = event;
-        },
-        showWarnings: function(event) {
-            alert(dedup($cells(event).data("warnings")).join("\n"));
-        },
-        moveHere: function($td) {
-            var params = {
-                id: selectedEvent.id,
-                csrf_token: csrf_token,
-                location: $td.data("location"),
-                start_slot: $td.parent("tr").data("slot")
-            };
-            $.post("move", params, function(resp) {
-                if (resp.error) {
-                    alert(resp.error);
-                } else {
-                    clearSelected();
-                    clearEvents(selectedEvent);
-                    $.extend(selectedEvent, params);
-                    renderEvents(selectedEvent);
-                    selectedEvent = null;
-                    checkConflicts();
-                }
-            }, "json");
-        },
-        swap: function(event) {
-            $.post("swap", {id1: event.id, id2: selectedEvent.id, csrf_token: csrf_token}, function(resp) {
-                if (resp.error) {
-                    alert(resp.error);
-                } else {
-                    clearSelected();
-                    clearEvents(event, selectedEvent);
-                    swapProps(event, selectedEvent, "location", "start_slot");
-                    renderEvents(event, selectedEvent);
-                    selectedEvent = null;
-                    checkConflicts();
-                }
-            }, "json");
-        }
-    };
-    var setUpMenu = function() {
-        $.contextMenu({
-            autoHide: true,
-            trigger: "left",
-            selector: "#schedule_rooms tbody .content",
-            build: function($content, e) {
-                var $td = $content.closest('td');
-                var event = $td.data("event");
-                var $box = event ? $cells(event) : $td;
-                $box.addClass("clicked");
-                $(document.body).one("contextmenu:hide", function(e) {
-                    $box.removeClass("clicked");
-                });
-                var emptyItems = {
-                    create: {name: "Create New Event"}
-                };
-                var eventItems = {
-                    edit: {name: "Edit"},
-                    move: {name: "Move"}
-                };
-                if (selectedEvent) {
-                    emptyItems.moveHere = {name: "Move '" + selectedEvent.name + "' here"};
-                    if (event && event.id != selectedEvent.id) {
-                        eventItems.swap = {name: "Swap with '" + selectedEvent.name + "'"};
-                    }
-                }
-                if (event && $td.data("warnings")) {
-                    eventItems.showWarnings = {name: "Show Conflicts"};
-                }
-                return {
-                    callback: function(menuItem, opts) {
-                        var action = menuActions[menuItem];
-                        if (action) {
-                            action(event || $td);
-                        }
-                    },
-                    items: event ? eventItems : emptyItems
-                };
-            }
-        });
-    };
-
-    var panel_rooms = {{ c.PANEL_ROOMS|jsonize }};
-    var music_rooms = {{ c.MUSIC_ROOMS|jsonize }};
-    var getRoomClass = function(room) {
-      var roomClass = 'room_' + room;
-      if (panel_rooms.indexOf(room) >= 0) {
-        return roomClass + ' panels';
-      } else if (music_rooms.indexOf(room) >= 0) {
-        return roomClass + ' music';
-      } else {
-        return roomClass + ' other';
-      }
-    };
-
-    $(function(){
-        $('#mainContainer').css('display', 'none');
-
-        //console.log(new Date(), new Date().getMilliseconds(), "document.onReady");
-        var $scheduleRooms = $("#schedule_rooms");
-        var $scheduleRoomsHead = $scheduleRooms.find("thead tr");
-        var $scheduleRoomsBody = $scheduleRooms.find("tbody");
-
-        var $scheduleTimes = $("#schedule_times");
-        var $scheduleTimesBody = $scheduleTimes.find("tbody");
-
-        var $emptyRow = $("<tr/>");
-
-        $.each({{ c.EVENT_LOCATION_OPTS|jsonize }}, function(i,loc) {
-            if (loc[1].indexOf(' (') >= 0) {
-                loc[1] = '<span class="text-nowrap">' + loc[1].replace(' (', '</span><br><span class="text-nowrap">(').replace(')', ')</span>');
-            } else {
-                loc[1] = '<span class="text-nowrap">' + loc[1].trim() + '</span>';
-            }
-            var roomClass = getRoomClass(loc[0]);
-            $scheduleRoomsHead.append( $("<th/>").html(loc[1]).addClass(roomClass) );
-            $emptyRow.append(
-                $("<td/>").data("location", loc[0])
-                          .addClass("loc" + loc[0])
-                          .html("&nbsp;").addClass(roomClass) );
-        });
-        for(var i = 0; i < SLOT_COUNT; i++) {
-            var d = slotToDate(i);
-            $scheduleTimesBody.append(
-                $('<tr/>').addClass('row' + i)
-                         .data('row_class', 'row' + i)
-                         .data("slot", i)
-                         .prepend(
-                            $('<td class="time">' +
-                                '<div class="content-wrapper">' +
-                                  '<div class="content">' +
-                                    formatDate(d) +
-                                  '</div>' +
-                                '</div>' +
-                              '</td>').toggleClass('has-day', hasDay(d))));
-
-            var newRow = $emptyRow.clone(true)
-                         .addClass('row' + i)
-                         .data('row_class', 'row' + i)
-                         .data("slot", i)
-                         .attr("id", "row" + i)
-            newRow.children('td').html(
-              '<div class="content-wrapper">' +
-                '<div class="content" style="z-index:' + (SLOT_COUNT - i) + ';"></div>' +
-              '</div>');
-            $scheduleRoomsBody.append(newRow);
-        }
-        $scheduleRoomsBody.on('mouseenter', 'td', function(e) {
-            var event = $(e.currentTarget).data('event');
-            if (event) {
-              var $eventCells = $cells(event);
-              $scheduleRoomsBody.find('td.highlight').not($eventCells).removeClass('highlight');
-              $eventCells.addClass('highlight');
-            } else {
-              $scheduleRoomsBody.find('td.highlight').removeClass('highlight');
-            }
-        });
-
-        $scheduleRoomsBody.on('mouseleave', function(e) {
-          $scheduleRoomsBody.find('td.highlight').removeClass('highlight');
-        });
-
-        setUpMenu();
-        //console.log(new Date(), new Date().getMilliseconds(), "empty table initialized");
-        renderAll();
-
-        $('#mainContainer').css('display', '');
-    });
-</script>
-
-<div class="schedule-table">
-  <div class="schedule-times-container">
-    <div class="schedule-times">
-      <table id="schedule_times" cellspacing="0" cellpadding="0">
-        <thead><tr><th>&nbsp;<br>&nbsp;</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </div>
-  <div class="schedule-rooms-container">
-    <div class="schedule-rooms">
-      <table id="schedule_rooms" cellspacing="0" cellpadding="0">
-        <thead><tr></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </div>
+<div id="event-schedule">
 </div>
 
+<script type="text/javascript">
+
+let ec;
+let currentDate = '{{ current_date }}';
+let panelLocations = {{ panel_locations|safe }};
+let musicLocations = {{ music_locations|safe }};
+let otherLocations = {{ other_locations|safe }};
+let allLocations = panelLocations.concat(musicLocations).concat(otherLocations).sort((a, b) => a.title.localeCompare(b.title));
+
+filtered_locs = [];
+var updateiCalFilter = function(locations) {
+    let locationIDs = [];
+    locations.forEach(function(el) { locationIDs.push(el.id) });
+    $('#filtered_locations').val(JSON.stringify(locationIDs));
+};
+
+var setCalWidth = function(roomCount) {
+    width = roomCount * 148 + 90;
+    $('.ec-header').css('width', `${width}px`);
+    $('.ec-body').css('width', `${width}px`);
+}
+
+$(function() {
+var $scheduleTable = $('.schedule-table'),
+    $scheduleRooms = $('.schedule-rooms');
+
+$('#room_toggle').on('change', '.toggle', function() {
+    var selected = $("[name='room_toggle']:checked");
+    var currLocations;
+    if (selected.length > 0) {
+        console.log(selected.val())
+        switch(selected.val()) {
+            case 'show_music':
+                currLocations = musicLocations;
+                break;
+            case 'show_panels':
+                currLocations = panelLocations;
+                break;
+            case 'show_other':
+                currLocations = otherLocations;
+                break;
+            case 'show_all':
+            default:
+                currLocations = allLocations;
+                break;
+        }
+    }
+    ec.setOption('resources', currLocations);
+    setCalWidth(currLocations.length);
+    updateiCalFilter(currLocations);
+});
+
+var roomTrie = {{ c.ROOM_TRIE|jsonize }};
+$('#room_filter_text').on('keyup', function() {
+    var text = $(this).val().toLowerCase(),
+        textLength = text.length,
+        rooms = roomTrie;
+
+    if (textLength <= 0) {
+        ec.setOption('resources', allLocations);
+        setCalWidth(allLocations.length);
+        updateiCalFilter(allLocations);
+        return;
+    }
+
+    for (var i = 0; i < textLength; i++) {
+        var s = text.charAt(i);
+        rooms = rooms[s];
+        if (!rooms) {
+            break;
+        }
+    }
+
+    if (rooms && rooms['__rooms__']) {
+        var matchingLocations = [];
+        $.each(rooms['__rooms__'], function(location, index) {
+            matchingLocations.push(location);
+        });
+        
+        var currLocations = allLocations.filter(function(el) { return matchingLocations.includes(el.id.toString()); });
+        ec.setOption('resources', currLocations);
+        setCalWidth(currLocations.length);
+        updateiCalFilter(currLocations);
+    } else {
+        ec.setOption('resources', []);
+        setCalWidth(0);
+        updateiCalFilter([]);
+    }
+});
+
+var delay = (function(){
+    var timer = 0;
+    return function(callback, ms){
+    clearTimeout (timer);
+    timer = setTimeout(callback, ms);
+    };
+})();
+
+});
+
+let renderEvent = function (info) {
+    let eventInfo = info.event;
+    if (eventInfo.display == 'pointer') {
+      return;
+    }
+
+    let extraClasses = '';
+    if ({{ c.PANEL_ROOMS|jsonize }}.includes(eventInfo.id)) {
+        extraClasses += ' panel-room';
+    }
+    if ({{ c.MUSIC_ROOMS|jsonize }}.includes(eventInfo.id)) {
+        extraClasses += ' music-room';
+    }
+
+    html = `<h2 class="offset-scroll h6 mb-0 p-1${extraClasses}" id="event-${eventInfo.id}">${eventInfo.title}</h2>`;
+    return {
+      html: html,
+    }
+}
+
+let dateChange = function (info) {
+    if (info.view.type == 'resourceTimeGridDay' && ec && currentDate != info.startStr) {
+        currentDate = info.startStr
+        if (info.startStr == '{{ c.PANELS_EPOCH.date() }}T00:00:00') {
+            ec.setOption('slotMinTime', '{{ c.PANELS_EPOCH.hour }}');
+        } else {
+            ec.setOption('slotMinTime', '00:00:00');
+        }
+        if (info.startStr == '{{ c.PANELS_ESCHATON.date() }}T00:00:00') {
+            ec.setOption('slotMaxTime', '{{ c.PANELS_ESCHATON.hour }}');
+        } else {
+            ec.setOption('slotMaxTime', '24:00:00');
+        }
+    }
+}
+
+let updateEvent = function (info) {
+    console.log(info.event.start.toString());
+    tz_offset = info.event.start.getTimezoneOffset() * 60000;
+    if (info.oldEvent.start.toISOString() == info.event.start.toISOString()
+        && typeof info.endDelta == 'undefined' && info.oldEvent.resourceIds == info.event.resourceIds) {
+        return
+    }
+
+    let seconds = 0;
+    
+    if (typeof info.endDelta != 'undefined') {
+        seconds = info.endDelta.seconds
+    }
+    $.ajax({
+        method: 'POST',
+        url: 'update_event',
+        dataType: 'json',
+        data: {
+        id: info.event.id,
+        start_time: new Date(info.event.start - tz_offset).toISOString().slice(0, -1),
+        delta_seconds: seconds,
+        location_id: info.event.resourceIds[0],
+        csrf_token: csrf_token
+        },
+        success: function (json) {
+        hideMessageBox();
+        var message = json.message;
+        if (json.success) {
+            $("#message-alert").addClass("alert-success").show().children('span').html(message);
+        } else {
+            showErrorMessage(json.message);
+        }
+        },
+        error: function () {
+        showErrorMessage('Unable to connect to server, please try again.');
+        }
+    });
+}
+
+ec = new EventCalendar(document.getElementById('event-schedule'), {
+    view: 'resourceTimeGridDay',
+    date: '{{ current_date }}',
+    slotMinTime: '{{ c.PANELS_EPOCH.hour if current_date == (c.PANELS_EPOCH.date() ~ "T00:00:00") else "00:00:00" }}',
+    allDaySlot: false,
+    scrollTime: '{{ c.PANELS_EPOCH.hour }}',
+    headerToolbar: {
+        start: 'prev,next title',
+        center: '',
+        end: '',
+    },
+    titleFormat: {weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric'},
+    pointer: true,
+    nowIndicator: true,
+    slotDuration: {minutes: 15},
+    validRange: {
+        start: '{{ c.PANELS_EPOCH.date() }}',
+        end: '{{ c.PANELS_ESCHATON.date() }}',
+    },
+    views: {
+        resourceTimelineDay: {
+            slotWidth: 150,
+        },
+        /* Views to be added later
+        resourceTimelineWeek: {
+            slotWidth: 150,
+            duration: {days: '{{ c.PANEL_SCHEDULE_DAYS }}'},
+        },
+        listWeek: {duration: {days: '{{ c.PANEL_SCHEDULE_DAYS }}'}}
+         */
+    },
+    events: {{ events|safe }},
+    eventContent: renderEvent,
+    resources: allLocations,
+    eventClick: function (info) { window.location = `form?id=${info.event.id}` },
+    dateClick: function (info) { window.location = `form?location=${info.resource.id}&start_time=${info.dateStr}` },
+    datesSet: dateChange,
+    eventDrop: updateEvent,
+    eventResize: updateEvent,
+});
+
+{% if current_event %}
+$().ready(function () {
+    replaceQueryParamInUrl('view_event');
+    location.href = "#event-{{ current_event }}";
+});
+{% endif %}
+</script>
 {% endblock %}

@@ -20,7 +20,7 @@ __all__ = ['AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant', 'Pane
 class Event(MagModel):
     location = Column(Choice(c.EVENT_LOCATION_OPTS))
     start_time = Column(UTCDateTime)
-    duration = Column(Integer)  # half-hour increments
+    duration = Column(Integer, default=60)
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
     public_description = Column(UnicodeText)
@@ -34,25 +34,15 @@ class Event(MagModel):
                          cascade='save-update,merge')
 
     @property
-    def half_hours(self):
-        half_hours = set()
-        for i in range(self.duration):
-            half_hours.add(self.start_time + timedelta(minutes=30 * i))
-        return half_hours
-
-    @property
     def minutes(self):
-        return (self.duration or 0) * 30
-
-    @property
-    def start_slot(self):
-        if self.start_time:
-            start_delta = self.start_time_local - c.EPOCH
-            return int(start_delta.total_seconds() / (60 * 30))
+        minutes = set()
+        for i in range(int(self.duration)):
+            minutes.add(self.start_time + timedelta(minutes=i))
+        return minutes
 
     @property
     def end_time(self):
-        return self.start_time + timedelta(minutes=self.minutes)
+        return self.start_time + timedelta(minutes=self.duration)
 
     @property
     def guidebook_data(self):
