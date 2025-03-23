@@ -135,6 +135,20 @@ if($.field('return_to')) {
 {% endif %}
 
 {{ form_macros.form_validation('attendee_form', '../registration/validate_attendee', callback="updateAttendee(submit_button_name)") }}
+<script type="text/javascript">
+    function checkStaffing(ribbons,badgeType){
+        console.log("HMD running check staffing function");
+        let staffing = false;
+        if( badgeType === {{ c.STAFF_BADGE }} || badgeType === {{ c.CONTRACTOR_BADGE }}){
+            staffing = true;
+        }
+        if( ribbons.includes({{  c.VOLUNTEER_RIBBON }})) {
+            staffing = true;
+        }
+        console.log("HMD returning value " + staffing);
+        return staffing;
+    }
+</script>
 <form novalidate method="post" action="../registration/update_attendee" id="attendee_form"
       x-data="{
         badge_placeholder: {{ attendee.placeholder | javascript_bool }},
@@ -142,20 +156,17 @@ if($.field('return_to')) {
         badge_type : {{ attendee.badge_type }},
         staffing: {{ attendee.staffing | javascript_bool }}
         }"
-
-      x-init="$watch('badge_ribbons',
+      x-init="
+            staffing = checkStaffing(Alpine.raw(badge_ribbons), badge_type);
+            $watch('badge_ribbons',
                 (ribbons) => {
-                    console.log(Alpine.raw(ribbons))
-                    if (Alpine.raw(ribbons).includes({{ c.VOLUNTEER_RIBBON }})) { staffing=true }
+                    console.log('HMD WATCH badgeRibbons HAS RUN');
+                    staffing = checkStaffing(Alpine.raw(ribbons), badge_type);
                 });
               $watch('badge_type',
                  (btype) => {
-                    console.log(btype);
-                    if( btype == {{ c.STAFF_BADGE }} || btype == {{ c.CONTRACTOR_BADGE }}){
-                        staffing = true;
-                        //This does trigger the above watcher, but that's alright.
-                        badge_ribbons = badge_ribbons.filter( ribbon => ribbon != {{ c.VOLUNTEER_RIBBON }} );
-                     }
+                    console.log('HMD WATCH badgeType HAS RUN');
+                    staffing = checkStaffing(Alpine.raw(badge_ribbons), btype);
               })"
 >
   {{ csrf_token() }}
