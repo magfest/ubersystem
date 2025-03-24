@@ -1,5 +1,5 @@
 alembic==1.13.1
-authorizenet @ git+https://github.com/magfest/sdk-python.git@3cfb93da8b9988d6112a5c08b3c8d4d3f1e7d808
+authorizenet @ git+https://github.com/magfest/sdk-python.git@f5af78f4332a2721ec1d204fec41c3fe5ff5f7b5
 aztec-code-generator==0.11
 bcrypt==4.1.2
 bleach==6.1.0
