@@ -1,4 +1,5 @@
 import json
+import six
 from datetime import datetime, timedelta
 from functools import wraps
 from uber.models.admin import PasswordReset
@@ -2194,24 +2195,29 @@ class Root:
         return {"success": True}
 
     @ajax
-    def get_receipt_preview(self, session, id, **params):
+    def get_receipt_preview(self, session, id, col_names=[], new_vals=[], **params):
         try:
             attendee = session.attendee(id)
         except Exception as ex:
             return {'error': "Can't get attendee: " + str(ex)}
 
-        if not params.get('col_name'):
-            return {'error': "Can't calculate cost change without the column name"}
+        if not col_names:
+            return {'error': "Can't calculate cost change without the column names"}
+
+        if isinstance(col_names, six.string_types):
+            col_names = [col_names]
+        if isinstance(new_vals, six.string_types):
+            new_vals = [new_vals]
 
         preview_attendee = Attendee(**attendee.to_dict())
-        new_val = params.get('val')
 
-        column = preview_attendee.__table__.columns.get(params['col_name'])
-        if column is not None:
-            new_val = preview_attendee.coerce_column_data(column, new_val)
-        setattr(preview_attendee, params['col_name'], new_val)
+        for col_name, new_val in zip(col_names, new_vals):
+            column = preview_attendee.__table__.columns.get(col_name)
+            if column is not None:
+                new_val = preview_attendee.coerce_column_data(column, new_val)
+            setattr(preview_attendee, col_name, new_val)
         
-        changes_list = ReceiptManager.process_receipt_change(attendee, params['col_name'],
+        changes_list = ReceiptManager.process_receipt_change(attendee, col_names[-1],
                                                              who='non-admin',
                                                              new_model=preview_attendee)
         only_change = changes_list[0] if changes_list else ("", 0, 0)
