@@ -26,7 +26,7 @@ pytz==2024.1
 pyyaml==6.0.1
 redis==5.0.3
 requests==2.31.0
-residue @ git+https://github.com/magfest/residue.git@3935b8cce36f85f9c8a7837c52a88ee096f24d3d
+residue @ git+https://github.com/magfest/residue.git@7e54dc756de01aa2d0152731ce678303ed88080c
 rpctools @ git+https://github.com/appliedsec/rpctools.git@4e4108c3b7b4b6c482e515b1eeea2d79568cf065
 sentry-sdk==1.45.0
 signnow_python_sdk==2.0.1
