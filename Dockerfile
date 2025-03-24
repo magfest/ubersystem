@@ -7,7 +7,7 @@ WORKDIR /app
 ENV PYTHONPATH=/app
 ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.cargo/bin
 
-ADD https://astral.sh/uv/install.sh /tmp/install-uv.sh
+ADD https://github.com/astral-sh/uv/releases/download/0.6.8/uv-installer.sh /tmp/install-uv.sh
 
 # We're upgrading to edge because lxml comes with its own libxml2 which must match the system version for xmlsec to work
 # We can remove this once python ships a docker container with a libxml2 that matches lxml
