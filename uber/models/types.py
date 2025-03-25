@@ -226,11 +226,32 @@ class Choice(TypeDecorator):
         return int(value)
 
 
-class MultiChoice(TypeDecorator):
+class UniqueList(TypeDecorator):
     """
-    Utility class for storing the results of a group of checkboxes.  Each value
+    Utility class for storing a list of unique strings or integers.
+    The list is stored as a comma-separate string.
+    """
+    impl = UnicodeText
+
+    def process_bind_param(self, value, dialect):
+        """
+        A unique list may be in one of three forms: a single string,
+        a single integer, or a list of strings. We want to end up with a single
+        comma-separated string. We also want to make sure an object has only
+        unique values in its UniqueList columns. Therefore, we listify() the
+        object to make sure it's in list form, we convert it to a set to
+        make all the values unique, and we map the values inside it to strings
+        before joining them with commas because the join function can't handle
+        a list of integers.
+        """
+        return ','.join(map(str, list(set(listify(value))))) if value else ''
+
+
+class MultiChoice(UniqueList):
+    """
+    Utility class for storing the results of a group of checkboxes. Each value
     is represented by an integer, so we store them as a comma-separated string.
-    This can be marginally more convenient than a many-to-many table.  Like the
+    This can be marginally more convenient than a many-to-many table. Like the
     Choice class, this takes an array of tuples of integers and strings.
     """
     impl = UnicodeText
@@ -238,20 +259,7 @@ class MultiChoice(TypeDecorator):
     def __init__(self, choices, **kwargs):
         self.choices = choices
         self.choices_dict = dict(choices)
-        TypeDecorator.__init__(self, **kwargs)
-
-    def process_bind_param(self, value, dialect):
-        """
-        Our MultiChoice options may be in one of three forms: a single string,
-        a single integer, or a list of strings. We want to end up with a single
-        comma-separated string. We also want to make sure an object has only
-        unique values in its MultiChoice columns. Therefore, we listify() the
-        object to make sure it's in list form, we convert it to a set to
-        make all the values unique, and we map the values inside it to strings
-        before joining them with commas because the join function can't handle
-        a list of integers.
-        """
-        return ','.join(map(str, list(set(listify(value))))) if value else ''
+        UniqueList.__init__(self, **kwargs)
 
     def process_result_value(self, value, dialect):
         """

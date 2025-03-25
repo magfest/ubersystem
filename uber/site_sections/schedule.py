@@ -1,75 +1,25 @@
 import json
 import ics
+import pytz
+import cherrypy
+
 from collections import defaultdict
 from datetime import datetime, time, timedelta
+from dateutil import parser as dateparser
 from time import mktime
-
-import cherrypy
 from pockets import listify
+from pockets.autolog import log
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, schedule_view, site_mappable
+from uber.decorators import ajax, ajax_gettable, all_renderable, cached, csrf_protected, csv_file, render, schedule_view, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AssignedPanelist, Attendee, Event, PanelApplication
 from uber.utils import check, localized_now, normalize_newlines
 
 
-def get_schedule_data(session, message):
-    schedule = defaultdict(lambda: defaultdict(list))
-    for event in session.query(Event).all():
-        schedule[event.start_time_local][event.location].append(event)
-        for i in range(1, event.duration):
-            half_hour = event.start_time_local + timedelta(minutes=30 * i)
-            schedule[half_hour][event.location].append(c.EVENT_BOOKED)
-
-    max_simul = {}
-    for id, name in c.EVENT_LOCATION_OPTS:
-        max_events = 1
-        for i in range(c.PANEL_SCHEDULE_LENGTH):
-            half_hour = c.EPOCH + timedelta(minutes=30 * i)
-            max_events = max(max_events, len(schedule[half_hour][id]))
-        max_simul[id] = max_events
-
-    for half_hour in schedule:
-        for location in schedule[half_hour]:
-            for event in schedule[half_hour][location]:
-                if isinstance(event, Event):
-                    simul = max(len(schedule[half_hour][event.location]) for half_hour in event.half_hours)
-                    event.colspan = 1 if simul > 1 else max_simul[event.location]
-                    for i in range(1, event.duration):
-                        schedule[half_hour + timedelta(minutes=30 * i)][event.location].remove(c.EVENT_BOOKED)
-                        schedule[half_hour + timedelta(minutes=30 * i)][event.location].append(event.colspan)
-
-    for half_hour in schedule:
-        for id, name in c.EVENT_LOCATION_OPTS:
-            span_sum = sum(getattr(e, 'colspan', e) for e in schedule[half_hour][id])
-            for i in range(max_simul[id] - span_sum):
-                schedule[half_hour][id].append(c.EVENT_OPEN)
-
-        schedule[half_hour] = sorted(
-            schedule[half_hour].items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
-
-    max_simul = [(id, c.EVENT_LOCATIONS[id], colspan) for id, colspan in max_simul.items()]
-    return {
-        'message': message,
-        'schedule': sorted(schedule.items()),
-        'max_simul': sorted(max_simul, key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
-    }
-
-
 @all_renderable()
 class Root:
-    @cached
-    @schedule_view
-    def index(self, session, message=''):
-        if c.ALT_SCHEDULE_URL:
-            raise HTTPRedirect(c.ALT_SCHEDULE_URL)
-        else:
-            # external view attendees can look at with no admin menus/etc
-            # we cache this view because it takes a while to generate
-            return get_schedule_data(session, message)
-
     @schedule_view
     @csv_file
     def time_ordered(self, out, session):
@@ -111,7 +61,7 @@ class Root:
                 icalendar.events.add(ics.Event(
                     name=event.name,
                     begin=event.start_time,
-                    end=(event.start_time + timedelta(minutes=event.minutes)),
+                    end=(event.start_time + timedelta(minutes=event.duration)),
                     description=normalize_newlines(event.public_description or event.description),
                     created=event.created_info.when,
                     location=event.location_label))
@@ -137,7 +87,7 @@ class Root:
                 out.writerow([
                     event.name,
                     event.start_time_local.strftime('%I%p %a').lstrip('0'),
-                    '{} minutes'.format(event.minutes),
+                    '{} minutes'.format(event.duration),
                     event.location_label,
                     event.public_description or event.description,
                     panelist_names])
@@ -153,7 +103,7 @@ class Root:
                 'end': event.end_time_local.strftime('%I%p %a').lstrip('0'),
                 'start_unix': int(mktime(event.start_time.utctimetuple())),
                 'end_unix': int(mktime(event.end_time.utctimetuple())),
-                'duration': event.minutes,
+                'duration': event.duration,
                 'description': event.public_description or event.description,
                 'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
             }
@@ -173,7 +123,7 @@ class Root:
                                                  Event.start_time >= now - timedelta(hours=6),
                                                  Event.start_time <= now).all()
             for event in approx:
-                if now in event.half_hours:
+                if now in event.minutes:
                     current.append(event)
 
             next_events = session.query(Event).filter(
@@ -194,6 +144,21 @@ class Root:
         event = session.event(params, allowed=['location', 'start_time'])
         if 'name' in params:
             session.add(event)
+
+            hours = params.get('duration_hours', 0)
+            minutes = params.get('duration_minutes', 0)
+
+            try:
+                hours = int(hours)
+            except ValueError:
+                hours = 0
+
+            try:
+                minutes = int(minutes)
+            except ValueError:
+                minutes = 0
+
+            event.duration = hours * 60 + minutes
 
             # Associate a panel app with this event, and if the event is new, use the panel app's name and title
             if 'panel_id' in params and params['panel_id']:
@@ -220,7 +185,7 @@ class Root:
                     if attendee_id not in old_panelist_ids:
                         attendee = session.attendee(id=attendee_id)
                         session.add(AssignedPanelist(event=event, attendee=attendee))
-                raise HTTPRedirect('edit#{}', event.start_slot and (event.start_slot - 1))
+                raise HTTPRedirect('edit?view_event={}', event.id)
 
         assigned_panelists = sorted(event.assigned_panelists, reverse=True, key=lambda a: a.attendee.first_name)
 
@@ -238,32 +203,12 @@ class Root:
 
     @csrf_protected
     def delete(self, session, id):
-        session.delete(session.event(id))
-        raise HTTPRedirect('edit?message={}', 'Event successfully deleted')
-
-    @ajax
-    def move(self, session, id, location, start_slot):
         event = session.event(id)
-        event.location = int(location)
-        event.start_time = c.EPOCH + timedelta(minutes=30 * int(start_slot))
-        resp = {'error': check(event)}
-        if not resp['error']:
-            session.commit()
-        return resp
+        date = event.start_time
+        session.delete(session.event(id))
+        raise HTTPRedirect('edit?message={}&view_date={}', 'Event successfully deleted', date)
 
-    @ajax
-    def swap(self, session, id1, id2):
-        from uber.model_checks import overlapping_events
-        e1, e2 = session.event(id1), session.event(id2)
-        e1.location, e2.location = e2.location, e1.location
-        e1.start_time, e2.start_time = e2.start_time, e1.start_time
-
-        resp = {'error': overlapping_events(e1, e2.id) or overlapping_events(e2, e1.id)}
-        if not resp['error']:
-            session.commit()
-        return resp
-
-    def edit(self, session, message=''):
+    def edit(self, session, message='', view_date=c.PANELS_EPOCH.date(), view_event=''):
         panelists = defaultdict(dict)
         assigned_panelists = session.query(AssignedPanelist).options(
             joinedload(AssignedPanelist.event), joinedload(AssignedPanelist.attendee)).all()
@@ -271,16 +216,64 @@ class Root:
         for ap in assigned_panelists:
             panelists[ap.event.id][ap.attendee.id] = ap.attendee.full_name
 
-        events = []
-        for e in session.query(Event).order_by('start_time').all():
-            d = {attr: getattr(e, attr) for attr in ['id', 'name', 'duration', 'start_slot', 'location', 'description']}
-            d['panelists'] = panelists[e.id]
-            events.append(d)
+        if view_event:
+            event = session.event(view_event)
+            view_date = event.start_time_local.date()
+
+        event_list = []
+        for event in session.query(Event).order_by('start_time').all():
+            event_list.append({
+                'id': event.id,
+                'resourceIds': [f"{event.location}"],
+                'start': event.start_time_local.strftime('%Y-%m-%d %H:%M:%S'),
+                'end': event.end_time_local.strftime('%Y-%m-%d %H:%M:%S'),
+                'title': event.name,
+                'backgroundColor': "#198754" if event.id == view_event else "#0d6efd",
+                'extendedProps': {
+                    'desc': event.description,
+                    }
+            })
+
+        panel_locations = []
+        music_locations = []
+        other_locations = []
+        for id, title in c.EVENT_LOCATIONS.items():
+            if id in c.PANEL_ROOMS:
+                panel_locations.append({
+                    'id': id,
+                    'title': title,
+                })
+            if id in c.MUSIC_ROOMS:
+                music_locations.append({
+                    'id': id,
+                    'title': title,
+                })
+            if id not in c.PANEL_ROOMS and id not in c.MUSIC_ROOMS:
+                other_locations.append({
+                    'id': id,
+                    'title': title,
+                })
 
         return {
-            'events':  events,
+            'events': event_list,
+            'panel_locations': panel_locations,
+            'music_locations': music_locations,
+            'other_locations': other_locations,
+            'current_date': f"{view_date}T00:00:00",
+            'current_event': view_event,
             'message': message
         }
+    
+    @ajax
+    def update_event(self, session, id, start_time, delta_seconds, location_id):
+        event = session.event(id)
+        if not event:
+            return {'success': False, 'message': "Event not found. Try refreshing the page."}
+        event.start_time = c.EVENT_TIMEZONE.localize(dateparser.parse(start_time)).astimezone(pytz.UTC)
+        event.duration = event.duration + (int(delta_seconds) / 60)
+        event.location = location_id
+        session.commit()
+        return {'success': True, 'message': f"{event.name} has been updated!"}
 
     def panelists_owed_refunds(self, session):
         return {
@@ -289,28 +282,6 @@ class Root:
                                             .options(joinedload(Attendee.group))
                                             .order_by(Attendee.full_name).all()
                           if a.paid_for_badge and not a.has_been_refunded]
-        }
-
-    @schedule_view
-    def panelist_schedule(self, session, id):
-        attendee = session.attendee(id)
-        events = defaultdict(lambda: defaultdict(lambda: (1, '')))
-        for ap in attendee.assigned_panelists:
-            for timeslot in ap.event.half_hours:
-                rowspan = ap.event.duration if timeslot == ap.event.start_time else 0
-                events[timeslot][ap.event.location_label] = (rowspan, ap.event.name)
-
-        schedule = []
-        when = min(events)
-        locations = sorted(set(sum([list(locations) for locations in events.values()], [])))
-        while when <= max(events):
-            schedule.append([when, [events[when][where] for where in locations]])
-            when += timedelta(minutes=30)
-
-        return {
-            'attendee': attendee,
-            'schedule': schedule,
-            'locations': locations
         }
     
     @csv_file

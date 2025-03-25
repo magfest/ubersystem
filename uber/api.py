@@ -1484,7 +1484,7 @@ class ScheduleLookup:
                     'end': event.end_time_local.strftime('%I%p %a').lstrip('0'),
                     'start_unix': int(mktime(event.start_time.utctimetuple())),
                     'end_unix': int(mktime(event.end_time.utctimetuple())),
-                    'duration': event.minutes,
+                    'duration': event.duration,
                     'description': event.public_description or event.description,
                     'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
                 }

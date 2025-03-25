@@ -1813,7 +1813,8 @@ c.MITS_DESC_BY_AGE = {age: c.MITS_AGE_DESCRIPTIONS[age] for age in c.MITS_AGES}
 # panels
 # =============================
 
-c.PANEL_SCHEDULE_LENGTH = int((c.PANELS_ESCHATON - c.PANELS_EPOCH).total_seconds() // 3600) * 2
+c.PANEL_SCHEDULE_DAYS = math.ceil((c.PANELS_ESCHATON - c.PANELS_EPOCH.replace(hour=0)).total_seconds() / 86400)
+c.PANEL_SCHEDULE_LENGTH = int((c.PANELS_ESCHATON - c.PANELS_EPOCH).total_seconds() // 3600)
 c.EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.strftime('%I:%M %a'))
                            for dt in [c.EPOCH + timedelta(minutes=i * 30) for i in range(c.PANEL_SCHEDULE_LENGTH)]]
 c.EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
