@@ -35,7 +35,7 @@ import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow, UniqueList
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     RegistrationCode, valid_email, valid_password
 from uber.payments import ReceiptManager
@@ -491,8 +491,12 @@ class MagModel:
                     return int(value[:-2])
                 else:
                     return int(float(value))
-
-            elif isinstance(column.type, (MultiChoice)):
+            elif isinstance(column.type, UniqueList):
+                if isinstance(value, list):
+                    return ','.join(map(lambda x: str(x).strip(), value))
+                else:
+                    return str(value).strip()
+            elif isinstance(column.type, MultiChoice):
                 if isinstance(value, list):
                     value = ','.join(map(lambda x: str(x).strip(), value))
                 else:

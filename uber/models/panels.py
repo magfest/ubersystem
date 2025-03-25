@@ -11,7 +11,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
-    MultiChoice, SocialMediaMixin
+    MultiChoice, SocialMediaMixin, UniqueList
 
 
 __all__ = ['AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
@@ -132,6 +132,7 @@ class PanelApplication(MagModel):
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
     comments = Column(UnicodeText, admin_only=True)
     track = Column(UnicodeText, admin_only=True)
+    tags = Column(UniqueList, admin_only=True)
 
     applicants = relationship('PanelApplicant', backref='application')
 

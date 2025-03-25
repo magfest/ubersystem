@@ -2,8 +2,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import cherrypy
+import json
 from pockets import groupify
 from pockets.autolog import log
+from sqlalchemy import func, literal_column
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
@@ -23,10 +25,14 @@ class Root:
         }
 
     def app(self, session, id, message='', csrf_token='', explanation=None):
+        all_tags = session.query(
+            func.string_agg(PanelApplication.tags, literal_column("','"))
+        ).all()
         return {
             'message': message,
             'app': session.panel_application(id),
-            'current_tracks': [track for track in session.query(PanelApplication.track).distinct().all() if track[0]],
+            'panel_tags': list(set([tag for tag in all_tags[0][0].split(',') if tag != ''])
+                               ) if all_tags[0] else '[]',
         }
 
     def form(self, session, message='', **params):
@@ -81,6 +87,15 @@ class Root:
         app = session.panel_application(id)
         app.track = params.get('track', '')
         raise HTTPRedirect('app?id={}&message={}', app.id, 'Track updated')
+
+    @csrf_protected
+    def update_tags(self, session, id, **params):
+        app = session.panel_application(id)
+        if not params.get('tags'):
+            app.tags = ''
+        else:
+            app.tags = [tag['value'] for tag in json.loads(params.get('tags'))]
+        raise HTTPRedirect('app?id={}&message={}', app.id, 'Tags updated')
 
     def edit_panelist(self, session, **params):
         is_post = cherrypy.request.method == 'POST'
