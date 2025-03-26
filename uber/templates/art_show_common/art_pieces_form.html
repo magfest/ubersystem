@@ -129,6 +129,7 @@
   <h3 class="card-title">Art Show Information</h3>
   <form method="post" action="../art_show_applications/edit" role="form">
     <input type="hidden" name="id" value="{{ app.id }}" />
+    <input type="hidden" name="attendee_id" value="{{ app.attendee.id }}" />
     <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
     {{ csrf_token() }}
     {% if admin_area %}
