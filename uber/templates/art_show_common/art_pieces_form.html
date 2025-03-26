@@ -473,11 +473,12 @@
             toggleQuickSale.call($(this).find('input[type=checkbox][name=no_quick_sale]'));
             showOrHidePrint.call($(this).find('input[type=radio][name=type]'));
             disableOrEnablePrices.call($(this).find('input[type=radio][name=for_sale]'));
-
-            var alertId = $(this).siblings('.alert-dismissible').first().prop('id');
-            hideMessageBox(alertId);
-            $(this).on('submit', function(e) { saveArtShowPiece(e, $(this), alertId) });
         });
+        $('#art-show-piece-table').on('submit', 'form[action*=save_art_show_piece]', function(e) {
+          var alertId = $(this).siblings('.alert-dismissible').first().prop('id');
+          hideMessageBox(alertId);
+          saveArtShowPiece(e, $(this), alertId);
+        })
 
         $('#add_piece_modal').on('click', addPieceModal);
         $('#art-show-piece-table').on('click', '.edit_piece_modal', editPieceModal);
