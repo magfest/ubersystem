@@ -321,17 +321,18 @@
         {% if not app.checked_in or admin_area %}
         <td>
           {% if piece.status == c.EXPECTED or admin_area %}
+          <div class="d-flex gap-1">
           <form method="post" action="../art_show_applications/remove_art_show_piece">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ piece.id }}" />
             <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
-            <button type="button" class="btn btn-danger remove_piece" data-name="{{ piece.name }}">
+            <button type="button" class="btn btn-sm btn-danger remove_piece" data-name="{{ piece.name }}">
               <i class="fa fa-remove"></i>
             </button>
           </form>
           {% endif %}
           {% if piece.status in [c.EXPECTED, c.RECEIVED, c.NOT_RECEIVED] or admin_area %}
-          <button type="button" class="btn btn-primary edit_piece_modal">
+          <button type="button" class="btn btn-sm btn-primary edit_piece_modal">
             <i class="fa fa-pencil"></i>
           </button>
           {% endif %}
@@ -340,9 +341,10 @@
             <input type="hidden" name="id" value="{{ app.id }}" />
             <input type="hidden" name="piece_id" value="{{ piece.id }}" />
             {{ csrf_token() }}
-          <button type="submit" class="btn btn-outline-secondary">Print Bid Sheet</button>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Print Bid Sheet</button>
           </form>
           {% endif %}
+          </div>
         </td>
         {% endif %}
       </tr>
@@ -465,11 +467,12 @@
             toggleQuickSale.call($(this).find('input[type=checkbox][name=no_quick_sale]'));
             showOrHidePrint.call($(this).find('input[type=radio][name=type]'));
             disableOrEnablePrices.call($(this).find('input[type=radio][name=for_sale]'));
-
-            var alertId = $(this).siblings('.alert-dismissible').first().prop('id');
-            hideMessageBox(alertId);
-            $(this).on('submit', function(e) { saveArtShowPiece(e, $(this), alertId) });
         });
+        $('#art-show-piece-table').on('submit', 'form[action*=save_art_show_piece]', function(e) {
+          var alertId = $(this).siblings('.alert-dismissible').first().prop('id');
+          hideMessageBox(alertId);
+          saveArtShowPiece(e, $(this), alertId);
+        })
 
         $('#add_piece_modal').on('click', addPieceModal);
         $('#art-show-piece-table').on('click', '.edit_piece_modal', editPieceModal);
@@ -479,7 +482,7 @@
             return true;
         });
 
-        $('.remove_piece').on('click', function (event) {
+        $('#art-show-piece-table').on('click', '.remove_piece', function (event) {
             event.preventDefault();
             var pieceRow = $(this).closest('.piece-row'),
                 dataTable = pieceRow.closest('table').DataTable(),
@@ -508,7 +511,7 @@
                                 } else {
                                     dataTable.row(pieceRow).remove();
                                     dataTable.draw();
-                                    $("#message-alert").addClass("alert-success").show().children('span').html('', pieceName + ' successfully removed!', {timeOut: 2000});
+                                    $("#message-alert").addClass("alert-success").show().children('span').html(pieceName + ' successfully removed!');
                                 }
                             },
                             error: function(response, status) {
