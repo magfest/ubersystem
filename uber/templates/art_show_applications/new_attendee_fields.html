@@ -1,5 +1,6 @@
-<div class="row g-sm-3 new-badge">
-  <div class="col-12 col-sm-6">
+{% set readonly = not app.editable and not admin_area %}
+<div class="row g-sm-3 new-badge mb-3">
+  <div class="col-12 col-sm-4">
     <label for="first_name" class="form-text">Name</label>
     <div class="input-group">
       <input type="text" name="attendee_first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">

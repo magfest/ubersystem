@@ -1,4 +1,4 @@
-{% set readonly = app.status != c.UNAPPROVED and not admin_area %}
+{% set readonly = not app.editable and not admin_area %}
 {% set max_tables = c.MAX_ART_TABLES if not admin_area else 30 %}
 {% set max_panels = c.MAX_ART_PANELS if not admin_area else 30 %}
 

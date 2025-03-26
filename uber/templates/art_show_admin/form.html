@@ -19,7 +19,9 @@ app, c.PAGE_PATH,
     <div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div>
   </div>
 {% endif %}
+{% if not app.is_new %}
 <p><a class="btn btn-primary" href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View as Attendee</a></p>
+{% endif %}
 
 <div class="card">
   <div class="card-body">

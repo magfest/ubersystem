@@ -71,7 +71,7 @@
             </div>
           </form>
         {% endif %}
-      {% elif app.status != c.UNAPPROVED %}
+      {% elif not app.editable %}
       Unfortunately, since your {{ c.ART_SHOW_APP_TERM }} has been {{ app.status_label|lower }}, you may no longer edit it. However,
       you may still view the details of your {{ c.ART_SHOW_APP_TERM }} below. <br/><br/>
       {% endif %}
@@ -85,13 +85,13 @@
       <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
       {% include 'art_show_applications/new_attendee_fields.html' %}
       {% include "region_opts.html" %}
-      {{ macros.address_form(app, label_prefix="Mailing", use_bs5=True, is_readonly=not app.is_new and app.status != c.UNAPPROVED and not admin_area) }}
+      {{ macros.address_form(app, label_prefix="Mailing", use_bs5=True, is_readonly=not app.is_new and not app.editable and not admin_area) }}
       <h3 class="mt-3">{{ c.ART_SHOW_APP_TERM|title }} Details</h3>
       {% endif %}
 
       {% include 'art_show_applications/art_show_form.html' %}
 
-      {% if app.status == c.UNAPPROVED %}
+      {% if app.editable %}
       <div class="form-group">
         <div class="col-sm-6 col-sm-offset-3">
           <button type="submit" class="btn btn-primary">Update {{ c.ART_SHOW_APP_TERM|title }}</button>
