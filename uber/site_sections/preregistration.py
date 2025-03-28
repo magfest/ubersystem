@@ -2243,19 +2243,19 @@ class Root:
             return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
         session.add_all(receipt_items)
 
-        # Get around locked field restrictions by applying the parameters directly
-        attendee.apply(params, restricted=False, ignore_csrf=True)
-
         forms = load_forms(params, attendee, ['BadgeExtras'])
 
-        all_errors = validate_model(forms, attendee)
+        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
         if all_errors:
             # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
             message = ' '.join([item for sublist in all_errors.values() for item in sublist])
 
         if message:
-            session.rollback()
             return {'error': message}
+
+        for form in forms.values():
+            # "is_admin" bypasses the locked fields, which includes purchaseable upgrades
+            form.populate_obj(attendee, is_admin=True)
 
         session.commit()
 
