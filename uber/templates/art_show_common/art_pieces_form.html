@@ -10,7 +10,7 @@
 {%- macro piece_modal(real_piece=None) -%}
 {% set piece = ArtShowPiece if not real_piece else real_piece %}
 {%- set is_class = piece is class -%}
-<div class="modal fade" id="piece_{{ real_piece.id or 'new' }}" role="dialog" tabindex="-1">
+<div class="modal fade piece-dialog" id="piece_{{ real_piece.id or 'new' }}" role="dialog" tabindex="-1">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -463,16 +463,25 @@
         $('input[type=radio][name=type]').on('change', showOrHidePrint);
         $('input[type=radio][name=for_sale]').on('change', disableOrEnablePrices);
         $('input[type=checkbox][name=no_quick_sale]').on('change', toggleQuickSale);
-        $('form[action*=save_art_show_piece]').each(function() {
+        $('#art-show-piece-table form[action*=save_art_show_piece]').each(function() {
             toggleQuickSale.call($(this).find('input[type=checkbox][name=no_quick_sale]'));
             showOrHidePrint.call($(this).find('input[type=radio][name=type]'));
             disableOrEnablePrices.call($(this).find('input[type=radio][name=for_sale]'));
+
+            var alertId = $(this).siblings('.alert-dismissible').first().prop('id');
+            hideMessageBox(alertId);
+            $(this).on('submit', function(e) { saveArtShowPiece(e, $(this), alertId) });
         });
-        $('#art-show-piece-table').on('submit', 'form[action*=save_art_show_piece]', function(e) {
-          var alertId = $(this).siblings('.alert-dismissible').first().prop('id');
-          hideMessageBox(alertId);
-          saveArtShowPiece(e, $(this), alertId);
-        })
+
+        $('.piece-dialog form[action*=save_art_show_piece]').each(function() {
+            toggleQuickSale.call($(this).find('input[type=checkbox][name=no_quick_sale]'));
+            showOrHidePrint.call($(this).find('input[type=radio][name=type]'));
+            disableOrEnablePrices.call($(this).find('input[type=radio][name=for_sale]'));
+
+            var alertId = $(this).siblings('.alert-dismissible').first().prop('id');
+            hideMessageBox(alertId);
+            $(this).on('submit', function(e) { saveArtShowPiece(e, $(this), alertId) });
+        });
 
         $('#add_piece_modal').on('click', addPieceModal);
         $('#art-show-piece-table').on('click', '.edit_piece_modal', editPieceModal);
