@@ -2208,6 +2208,8 @@ class Root:
             col_names = [col_names]
         if isinstance(new_vals, six.string_types):
             new_vals = [new_vals]
+        
+        update_col = params.get('update_col', col_names[-1])
 
         preview_attendee = Attendee(**attendee.to_dict())
 
@@ -2217,7 +2219,7 @@ class Root:
                 new_val = preview_attendee.coerce_column_data(column, new_val)
             setattr(preview_attendee, col_name, new_val)
         
-        changes_list = ReceiptManager.process_receipt_change(attendee, col_names[-1],
+        changes_list = ReceiptManager.process_receipt_change(attendee, update_col,
                                                              who='non-admin',
                                                              new_model=preview_attendee)
         only_change = changes_list[0] if changes_list else ("", 0, 0)

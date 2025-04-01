@@ -33,7 +33,7 @@
     var lastAmountExtra; // I hate JavaScript
     var upgradeModal = bootstrap.Modal.getOrCreateInstance($('#upgradeModal'))
     
-    var updateReceiptPreview = function(colName, val=0) {
+    var updateReceiptPreview = function(colName, val=0, updateCol='') {
         if (colName == 'amount_extra' && lastAmountExtra !== undefined && val == lastAmountExtra) {
             return;
         } else if (colName == 'amount_extra') {
@@ -60,6 +60,8 @@
             {name: 'csrf_token', value: csrf_token},
             {name: 'id', value: "{{ attendee.id }}"}
         ];
+
+        if (updateCol != '') { data.push({name: 'update_col', value: updateCol}) }
 
         colName.forEach(element => {
             data.push({name: 'col_names', value: element})
