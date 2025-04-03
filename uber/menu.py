@@ -125,6 +125,7 @@ c.MENU = MenuItem(name='Root', submenu=[
     MenuItem(name='Schedule', submenu=[
         MenuItem(name=get_external_schedule_menu_name(), href='../schedule/'),
         MenuItem(name='Edit Schedule', href='../schedule/edit'),
+        MenuItem(name='Schedule Changes', href='../schedule_reports/'),
     ]),
 
     MenuItem(name='Statistics', submenu=[

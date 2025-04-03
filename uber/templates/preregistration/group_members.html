@@ -181,7 +181,7 @@
 {% endfor %}
 </table>
 
-{% if group.status not in [c.CANCELLED, c.DECLINED] %}
+{% if group.status not in [c.CANCELLED, c.DECLINED] and c.REMAINING_BADGES > 50 %}
         <br/>{% if group.is_dealer and group.min_badges_addable %}
         You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional {{ c.DEALER_HELPER_TERM }} badges.<br/><br/>
         {% elif group.is_dealer and group.status != c.SHARED %}
@@ -228,7 +228,7 @@
       </form>
     </div>
 
-    {% if c.REMAINING_BADGES > 50 and (not c.AT_THE_CON and not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY) %}
+    {% if not c.AT_THE_CON and not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY %}
     <script type="text/javascript">
         {% if receipt and receipt.current_amount_owed %}
             $(function(){

@@ -105,7 +105,7 @@ class Root:
     def accepted_games_xlsx(self, out, session):
         rows = []
         for game in session.query(IndieGame).filter_by(status=c.ACCEPTED):
-            screenshots = game.best_screenshot_download_filenames()
+            screenshots = game.accepted_image_download_filenames()
             rows.append([
                 game.studio.name, game.studio.website,
                 game.title, game.brief_description, game.link_to_webpage,
@@ -127,9 +127,9 @@ class Root:
         output = self.accepted_games_xlsx(set_headers=False)
         zip_file.writestr('mivs_accepted_games.xlsx', output)
         for game in session.query(IndieGame).filter_by(status=c.ACCEPTED):
-            filenames = game.best_screenshot_download_filenames()
-            screenshots = game.best_screenshot_downloads()
-            for filename, screenshot in zip(filenames, screenshots):
+            filenames = game.accepted_image_download_filenames()
+            images = game.accepted_image_downloads()
+            for filename, screenshot in zip(filenames, images):
                 if filename:
                     filepath = os.path.join(c.MIVS_GAME_IMAGE_DIR, screenshot.id)
                     zip_file.write(filepath, os.path.join('mivs_accepted_game_images', filename))

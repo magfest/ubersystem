@@ -932,7 +932,7 @@ class Root:
 
         attendee_ids = json.loads(attendee_ids)
 
-        ticket = EscalationTicket(description=description)
+        ticket = EscalationTicket(description=description, who=AdminAccount.admin_name() or 'non-admin')
         for id in attendee_ids:
             try:
                 attendee = session.attendee(id)
@@ -1325,7 +1325,7 @@ class Root:
             'what': what,
             'page': page,
             'action': action,
-            'count': feed.count(),
+            'count': feed.limit(10000).count(),
             'feed': get_page(page, feed),
             'action_opts': [opt for opt in c.TRACKING_OPTS if opt[0] != c.AUTO_BADGE_SHIFT],
             'who_opts': [

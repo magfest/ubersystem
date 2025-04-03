@@ -2,7 +2,7 @@
     {% for place, events in schedule %}
         <place name="{{ place }}">
             {% for event in events %}
-                <event name="{{ event.name }}" start="{{ event.start_time|datetime("%Y-%m-%d %H:%i:%s") }}" duration="{{ event.minutes }}">{{ event.public_description|default(event.description|default("NO DESCRIPTION")) }}</event>
+                <event name="{{ event.name }}" start="{{ event.start_time|datetime("%Y-%m-%d %H:%i:%s") }}" duration="{{ event.duration }}">{{ event.public_description|default(event.description|default("NO DESCRIPTION")) }}</event>
             {% endfor %}
         </place>
     {% endfor %}

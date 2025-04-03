@@ -137,28 +137,15 @@ def check_placeholder_registrations():
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_pending_badges():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
-        emails = [[
-            'Staff',
-            c.STAFF_EMAIL,
-            Attendee.badge_type == c.STAFF_BADGE,
-            'staffing_admin'
-        ], [
-            'Attendee',
-            c.REGDESK_EMAIL,
-            Attendee.badge_type != c.STAFF_BADGE,
-            'registration'
-        ]]
-        subject = c.EVENT_NAME + ' Pending {} Badge Report for ' + localized_now().strftime('%Y-%m-%d')
+        subject = c.EVENT_NAME + ' Pending Badges Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
-            for badge_type, to, per_email_filter, site_section in emails:
-                pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
-                                                         Attendee.paid != c.PENDING,
-                                                         per_email_filter).all()
-                if pending and session.no_email(subject.format(badge_type)):
-                    body = render('emails/daily_checks/pending.html',
-                                  {'pending': pending, 'site_section': site_section}, encoding=None)
-                    send_email.delay(c.REPORTS_EMAIL, to, subject.format(badge_type), body,
-                                     format='html', model='n/a')
+            pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
+                                                        Attendee.paid != c.PENDING).all()
+            if pending and session.no_email(subject):
+                body = render('emails/daily_checks/pending.html',
+                                {'pending': pending}, encoding=None)
+                send_email.delay(c.REPORTS_EMAIL, c.STAFF_EMAIL, subject, body,
+                                    format='html', model='n/a')
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -205,6 +192,23 @@ def invalidate_at_door_badges():
 
 
 @celery.schedule(timedelta(days=1))
+def invalidate_dealer_badges():
+    if not c.DEALER_BADGE_DEADLINE or not c.AFTER_DEALER_BADGE_DEADLINE:
+        return
+
+    with Session() as session:
+        pending_badges = session.query(Attendee).filter(Attendee.admin_notes.contains('Converted badge'),
+                                                        Attendee.placeholder,
+                                                        Attendee.paid == c.NOT_PAID,
+                                                        Attendee.badge_status != c.INVALID_STATUS)
+        for badge in pending_badges:
+            badge.badge_status = c.INVALID_STATUS
+            session.add(badge)
+
+        session.commit()
+
+
+@celery.schedule(timedelta(days=1))
 def email_pending_attendees():
     if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or not c.PRE_CON:
         return
@@ -216,6 +220,7 @@ def email_pending_attendees():
         pending_badges = session.query(Attendee).filter(
             Attendee.paid == c.PENDING,
             Attendee.badge_status == c.PENDING_STATUS,
+            Attendee.transfer_code == '',
             Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)).order_by(Attendee.registered)
         for badge in pending_badges:
             # Update `compare_date` to prevent early deletion of badges registered before a certain date

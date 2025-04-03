@@ -106,6 +106,9 @@ class IndieStudio(MagModel):
 
     @property
     def primary_contact_first_names(self):
+        if not self.primary_contacts:
+            return ''
+
         if len(self.primary_contacts) == 1:
             return self.primary_contacts[0].first_name
 
@@ -365,36 +368,45 @@ class IndieGame(MagModel, ReviewMixin):
             img for img in self.images
             if img.is_screenshot and img.use_in_promo]
 
-    def best_screenshot_downloads(self, count=2):
-        all_images = reversed(sorted(
-            self.images,
+    def accepted_image_downloads(self, count=2):
+        all_screenshots = reversed(sorted(
+            [image for image in self.images if not image.is_header and not image.is_thumbnail],
             key=lambda img: (
                 img.is_screenshot and img.use_in_promo,
                 img.is_screenshot,
                 img.use_in_promo)))
 
         screenshots = []
-        for i, screenshot in enumerate(all_images):
+        for i, screenshot in enumerate(all_screenshots):
             if os.path.exists(screenshot.filepath):
                 screenshots.append(screenshot)
                 if len(screenshots) >= count:
                     break
+        if self.guidebook_header:
+            screenshots.append(self.guidebook_header)
+        if self.guidebook_thumbnail:
+            screenshots.append(self.guidebook_thumbnail)
         return screenshots
 
-    def best_screenshot_download_filenames(self, count=2):
+    def accepted_image_download_filenames(self, count=2):
         nonchars = re.compile(r'[\W]+')
-        best_screenshots = self.best_screenshot_downloads(count)
+        accepted_images = self.accepted_image_downloads(count)
         screenshots = []
-        for i, screenshot in enumerate(best_screenshots):
+        for i, screenshot in enumerate(accepted_images):
             if os.path.exists(screenshot.filepath):
                 name = '_'.join([s for s in self.title.lower().split() if s])
                 name = nonchars.sub('', name)
-                filename = '{}_{}.{}'.format(
-                    name, len(screenshots) + 1, screenshot.extension.lower())
+                if screenshot.is_header:
+                    filename = f'{name}_header.{screenshot.extension.lower()}'
+                elif screenshot.is_thumbnail:
+                    filename = f'{name}_icon.{screenshot.extension.lower()}'
+                else:
+                    filename = '{}_{}.{}'.format(
+                        name, len(screenshots) + 1, screenshot.extension.lower())
                 screenshots.append(filename)
-                if len(screenshots) >= count:
+                if len(screenshots) >= (count + 2):
                     break
-        return screenshots + ([''] * (count - len(screenshots)))
+        return screenshots + ([''] * ((count + 2) - len(screenshots)))
 
     @property
     def promo_image(self):
@@ -510,15 +522,12 @@ class IndieGame(MagModel, ReviewMixin):
 
         header = self.guidebook_header
         thumbnail = self.guidebook_thumbnail
-
-        if not header:
-            header = self.images[0]
-        if not thumbnail:
-            thumbnail = self.images[1] if len(self.images) > 1 else self.images[0]
-
         prepend = sluggify(self.title) + '_'
 
-        return [prepend + header.filename, prepend + thumbnail.filename], [header, thumbnail]
+        header_name = (prepend + header.filename) if header else ''
+        thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
+        
+        return [header_name, thumbnail_name], [header, thumbnail]
 
 
 class IndieGameImage(MagModel):

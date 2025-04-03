@@ -40,36 +40,37 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 
 {% block add_ons %}
+{% if c.ADDONS_ENABLED %}
 {{ badge_extras.amount_extra(id=id_upgrade_prepend ~ "amount_extra") }}
-
-{% if c.DONATIONS_ENABLED and (not receipt or upgrade_modal) %}
-    <div class="row g-sm-3">
-    {{ form_macros.card_select(badge_extras.amount_extra,
-                                attendee.available_amount_extra_opts, disabled_opts=c.SOLD_OUT_MERCH_TIERS,
-                                target_field_id=id_upgrade_prepend ~ "amount_extra") }}
-    </div>
-    {% if not attendee.gets_staff_shirt or c.STAFF_SHIRTS_OPTIONAL or c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
-        {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True, 
-                                        closest_hide_selector='.row' if not attendee.gets_staff_shirt else '.form-floating',
-                                        source_field_id=id_upgrade_prepend ~ "amount_extra") }}
-    {% endif %}
-{% else %}
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-6">
-            <div class="form-text">{{ badge_extras.amount_extra.label.text }}</div>
-            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label or "None" }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
+    {% if not receipt or upgrade_modal %}
+        <div class="row g-sm-3">
+        {{ form_macros.card_select(badge_extras.amount_extra,
+                                    attendee.available_amount_extra_opts, disabled_opts=c.SOLD_OUT_MERCH_TIERS,
+                                    target_field_id=id_upgrade_prepend ~ "amount_extra") }}
         </div>
-    </div>
+        {% if not attendee.gets_staff_shirt or c.STAFF_SHIRTS_OPTIONAL or c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
+            {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True, 
+                                            closest_hide_selector='.row' if not attendee.gets_staff_shirt else '.form-floating',
+                                            source_field_id=id_upgrade_prepend ~ "amount_extra") }}
+        {% endif %}
+    {% else %}
+        <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">
+                <div class="form-text">{{ badge_extras.amount_extra.label.text }}</div>
+                <div class="form-control-plaintext h5">{{ attendee.amount_extra_label or "None" }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
+            </div>
+        </div>
+    {% endif %}
 {% endif %}
 {% endblock %}
 
 {% block perk_info %}
-{% if (c.DONATIONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt or admin_area %}
+{% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt or admin_area %}
 <div class="row g-sm-3{% if c.STAFF_SHIRTS_OPTIONAL %} mb-3{% endif %}">
     {% if attendee.gets_staff_shirt and not c.STAFF_SHIRTS_OPTIONAL and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
         <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.staff_shirt, required=True) }}</div>
     {% endif %}
-    {% if (c.DONATIONS_ENABLED and (not receipt or upgrade_modal)) or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS) or admin_area %}
+    {% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS) or admin_area %}
         <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.shirt) }}</div>
     {% endif %}
 </div>

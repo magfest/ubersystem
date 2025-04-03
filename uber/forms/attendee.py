@@ -68,7 +68,7 @@ class PersonalInfo(AddressForm, MagForm):
         else validators.Optional()])
     age_group = SelectField('Age Group', validators=[
         validators.DataRequired("Please select your age group.") if not c.COLLECT_EXACT_BIRTHDATE
-        else validators.Optional()], choices=c.AGE_GROUPS)
+        else validators.Optional()], choices=c.AGE_GROUP_OPTS)
     ec_name = StringField('Emergency Contact Name', validators=[
         validators.DataRequired("Please tell us the name of your emergency contact.")
         ], render_kw={'placeholder': 'Who we should contact if something happens to you'})
@@ -406,7 +406,7 @@ class Consents(MagForm):
         label = base_label
         if c.HOTELS_ENABLED:
             label += ', hotel accommodations'
-        if c.DONATIONS_ENABLED:
+        if c.ADDONS_ENABLED:
             label += ', donations'
         if c.ACCESSIBILITY_SERVICES_ENABLED:
             label += ', accessibility needs'
@@ -417,7 +417,7 @@ class Consents(MagForm):
 
 
 class AdminConsents(Consents):
-    attractions_opt_out = HiddenBoolField('Can Sign Up for Attractions')
+    attractions_opt_out = HiddenBoolField('Attractions Signups Locked')
     pii_consent = HiddenBoolField()
 
     def can_spam_label(self):

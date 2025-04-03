@@ -112,6 +112,10 @@ class GuestGroup(MagModel):
         return self.group.email
 
     @property
+    def gets_emails(self):
+        return self.group.gets_emails
+
+    @property
     def normalized_group_name(self):
         # Lowercase
         name = self.group.name.strip().lower()
@@ -223,9 +227,9 @@ class GuestGroup(MagModel):
 
     @property
     def guidebook_images(self):
-        if not self.bio:
+        if not self.bio or not self.bio.pic_filename:
             return ['', ''], ['', '']
-        
+
         prepend = sluggify(self.group.name) + '_'
 
         return [prepend + self.bio.pic_filename, prepend + self.bio.pic_filename], [self.bio, self.bio]

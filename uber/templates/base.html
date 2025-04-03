@@ -48,7 +48,14 @@
         
         <script type="text/javascript">
             $(window).on("runJavaScript", function () {
-              $('[data-bs-toggle="tooltip"]').tooltip();
+                {% if bootstrap5 %}
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl)
+                    })
+                {% else %}
+                $('[data-bs-toggle="tooltip"]').tooltip();
+                {% endif %}
             })
 
             {% if not c.DEV_BOX %}jQuery.migrateMute = true;{% endif %}
@@ -82,7 +89,7 @@
         {% endif %}
     {% endblock %}
 
-    {% if c.DEV_BOX %}<meta name="robots" content="noindex">{% endif %}
+    {% if c.DEV_BOX or c.PAGE_PATH not in c.INDEXABLE_PAGE_PATHS %}<meta name="robots" content="noindex">{% endif %}
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">

@@ -285,6 +285,7 @@ class Root:
                 if not message:
                     header_pic = add_new_image(header_image, game)
                     header_pic.is_header = True
+                    header_pic.is_screenshot = False
                     if not check_image_size(header_pic.filepath, c.GUIDEBOOK_HEADER_SIZE):
                         message = f"Your header image must be {format_image_size(c.GUIDEBOOK_HEADER_SIZE)}."
             elif not game.guidebook_header:
@@ -296,6 +297,7 @@ class Root:
                     if not message:
                         thumbnail_pic = add_new_image(thumbnail_image, game)
                         thumbnail_pic.is_thumbnail = True
+                        thumbnail_pic.is_screenshot = False
                         if not check_image_size(thumbnail_pic.filepath, c.GUIDEBOOK_THUMBNAIL_SIZE):
                             message = f"Your thumbnail image must be {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)}."
                 elif not game.guidebook_thumbnail:

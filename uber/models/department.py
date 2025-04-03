@@ -98,6 +98,10 @@ class DeptMembership(MagModel):
         return exists().select_from(dept_membership_dept_role) \
             .where(cls.id == dept_membership_dept_role.c.dept_membership_id)
 
+    @property
+    def dept_roles_names(self):
+        return readable_join([role.name for role in self.dept_roles])
+
 
 class DeptMembershipRequest(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
@@ -138,6 +142,18 @@ class DeptRole(MagModel):
     @dept_membership_count.expression
     def dept_membership_count(cls):
         return func.count(cls.dept_memberships)
+    
+    @hybrid_property
+    def normalized_name(self):
+        return self.normalize_name(self.name)
+
+    @normalized_name.expression
+    def normalized_name(cls):
+        return func.replace(func.replace(func.lower(cls.name), '_', ''), ' ', '')
+
+    @classmethod
+    def normalize_name(cls, name):
+        return name.lower().replace('_', '').replace(' ', '')
 
     @classproperty
     def _extra_apply_attrs(cls):
@@ -288,6 +304,9 @@ class Department(MagModel):
     @property
     def members_with_shifts_emails(self):
         return [a.email for a in self.members if a.weighted_hours_in(self) > 0]
+    
+    def member_emails_role(self, role):
+        return [a.email for a in self.members if a.email and (a.has_badge or a.weighted_hours_in(self) > 0) and a.has_role(role)]
 
     @classmethod
     def to_id(cls, department):

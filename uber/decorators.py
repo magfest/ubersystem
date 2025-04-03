@@ -16,9 +16,11 @@ from functools import wraps
 from io import StringIO, BytesIO
 from itertools import count
 from threading import RLock
+import tempfile
 
 import cherrypy
 from cherrypy.lib import profiler
+from cherrypy.lib.static import serve_file
 import six
 import xlsxwriter
 from pockets import argmod, unwrap
@@ -310,17 +312,19 @@ def multifile_zipfile(func):
 
     @wraps(func)
     def zipfile_out(self, session, **kwargs):
-        zipfile_writer = BytesIO()
-        with zipfile.ZipFile(zipfile_writer, mode='w') as zip_file:
-            func(self, zip_file, session, **kwargs)
+        zip_filename = func.__name__ + datetime.now().strftime('%Y%m%d_%H%M') + '.zip'
+        with tempfile.NamedTemporaryFile(dir=c.UPLOADED_FILES_DIR, delete_on_close=False) as zipfile_writer:
+            with zipfile.ZipFile(zipfile_writer.name, mode='w') as zip_file:
+                func(self, zip_file, session, **kwargs)
 
-        # must do this after creating the zip file as other decorators may have changed this
-        # for example, if a .zip file is created from several .csv files, they may each set content-type.
-        cherrypy.response.headers['Content-Type'] = 'application/zip'
-        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename=' + func.__name__ + '.zip'
+            cherrypy.response.headers['Cache-Control'] = 'no-store'
+            track_report(kwargs)
 
-        track_report(kwargs)
-        return zipfile_writer.getvalue()
+            return serve_file(
+                zipfile_writer.name,
+                disposition="attachment",
+                name=zip_filename,
+                content_type='application/zip')
     return zipfile_out
 
 

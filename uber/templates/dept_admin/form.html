@@ -338,6 +338,7 @@
                 <th># With Role</th>
                 {% if can_admin_dept -%}
                   <th class="controls" data-orderable="false"></th>
+                  <th class="controls" data-orderable="false"></th>
                 {%- endif %}
               </tr>
             </thead>
@@ -349,6 +350,12 @@
                   <td>{{ role.description }}</td>
                   <td>{{ member_count }} member{{ member_count|pluralize }}</td>
                   {% if can_admin_dept -%}
+                  <td class="controls">
+                    <a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ department.member_emails_role(role)|join(',') }}">
+                      <i class="fa fa-envelope"></i>
+                      Email all {{ role.name }} members
+                    </a>
+                  </td>
                     <td class="controls">
                       <a
                           class="btn btn-sm btn-primary"

@@ -2,13 +2,6 @@
 {% block title %}Shifts{% endblock %}
 {% block content %}
 
-<style type="text/css">
-  #jobs-container #volunteers { top: 149px; }
-  @media (min-width: 768px) {
-    #jobs-container #volunteers { top: 115px; }
-  }
-</style>
-
 {% include "shifts_admin/main_menu.html" %}
 {% if department_id == '' %}
 Please select a department above to view its signups.
@@ -28,9 +21,8 @@ Please select a department above to view its signups.
     {% endif %}
   </div>
 {% endif %}
-
 <a href="signups?department_id={{ department_id }}&toggle_filter=signups_hide_filled" class="btn btn-sm 
-        {% if hide_filled %}btn-outline-secondary{% else %}btn-outline-secondary{% endif %}">
+    {% if hide_filled %}btn-outline-secondary{% else %}btn-outline-secondary{% endif %}">
   <i class="fa fa-filter"></i>
   Hide Filled Shifts
 </a>
@@ -52,7 +44,19 @@ Please select a department above to view its signups.
   <i class="fa fa-filter"></i>
   Show Non Public
 </a>
-<br/><br/>
+
+{% if attendees %}
+  <div id="volunteers" class="position-sticky top-0 float-end card card-body">
+      <b>Assign someone to any of these positions</b> <br/>
+      <select id="attendee" class="form-select">
+          <option value="">Select a volunteer</option>
+          {% for attendee in attendees %}
+              <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
+          {% endfor %}
+      </select>
+  </div>
+  <div class="clearfix d-xl-none"></div>
+{% endif %}
 
 <script type="text/javascript">
   {% if hide_filled %}
@@ -64,7 +68,7 @@ Please select a department above to view its signups.
     replaceQueryParamInUrl('toggle_filter'); // prevent re-toggling filter on refresh
   });
   </script>
-<div id="jobs-container">
+<div id="jobs-container" class="mt-3">
 {% include "shifts_admin/job_renderer.html" %}
 </div>
 {% endif %}

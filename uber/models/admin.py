@@ -377,6 +377,7 @@ class EscalationTicket(MagModel):
         secondary='attendee_escalation_ticket')
     ticket_id_seq = Sequence('escalation_ticket_ticket_id_seq')
     ticket_id = Column(Integer, ticket_id_seq, server_default=ticket_id_seq.next_value(), unique=True)
+    who = Column(UnicodeText)
     description = Column(UnicodeText)
     admin_notes = Column(UnicodeText)
     resolved = Column(UTCDateTime, nullable=True)

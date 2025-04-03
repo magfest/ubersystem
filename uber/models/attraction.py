@@ -145,7 +145,7 @@ class Attraction(MagModel):
     @property
     def unused_location_opts(self):
         locs = set(e.location for e in self.events)
-        return [(loc, s) for loc, s in c.EVENT_LOCATION_OPTS if loc not in locs]
+        return sorted([(loc, s) for loc, s in c.EVENT_LOCATION_OPTS if loc not in locs], key=lambda x: x[1])
 
     @property
     def advance_checkin_label(self):

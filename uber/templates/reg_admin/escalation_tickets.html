@@ -97,6 +97,7 @@
         {% block tableheadings %}
         <th>Ticket ID</th>
         <th>Created</th>
+        <th>Admin</th>
         <th>Attendees</th>
         <th>Problem</th>
         <th>Admin Notes</th>
@@ -112,6 +113,7 @@
             <td data-order="{{ ticket.created }}">
                 {{ ticket.created|time_day_local }}
             </td>
+            <td>{{ ticket.who }}</td>
             <td>
                 {% for attendee in ticket.attendees %}
                 {{ attendee|form_link(true) }}{% if not loop.last %} / {% endif %}

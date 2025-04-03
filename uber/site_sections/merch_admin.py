@@ -4,7 +4,7 @@ from pockets import listify
 from sqlalchemy import or_
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, credit_card, public, kiosk_login
+from uber.decorators import ajax, all_renderable, credit_card, public, kiosk_login, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange
@@ -47,6 +47,7 @@ def attendee_from_id_or_badge_num(session, badge_num_or_qr_code):
 
 @all_renderable()
 class Root:
+    @site_mappable
     @kiosk_login()
     def index(self, session, message='', **params):
         if params.get('enter_kiosk'):

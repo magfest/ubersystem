@@ -873,6 +873,22 @@ class Config(_Overridable):
     @property
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
+    
+    @property
+    def INDEXABLE_PAGE_PATHS(self):
+        """
+        Even if we ban crawlers via robots.txt, if anyone publishes a link to a protected
+        page it will end up on Bing, private UUID and all. Instead we want to ban indexing
+        via the meta tag for everything except these pages.
+        """
+        index_pages = ['/landing/', '/landing/index', '/pregistration/form', '/accounts/login']
+        if c.SHIFTS_CREATED:
+            index_pages.append('/staffing/login')
+        if c.TRANSFERABLE_BADGE_TYPES:
+            index_pages.append('/preregistration/start_badge_transfer')
+        if not c.ATTENDEE_ACCOUNTS_ENABLED:
+            index_pages.append('/preregistration/check_if_preregistered')
+        return index_pages
 
     @request_cached_property
     @dynamic
@@ -1509,6 +1525,7 @@ c.AGE_GROUP_CONFIGS = {}
 for _name, _section in _config['age_groups'].items():
     _val = getattr(c, _name.upper())
     c.AGE_GROUP_CONFIGS[_val] = dict(_section.dict(), val=_val)
+c.AGE_GROUP_OPTS = [(key, value['desc']) for key,value in c.AGE_GROUP_CONFIGS.items()]
 
 c.RECEIPT_DEPT_CATEGORIES = {}
 for _name, _val in _config['enums']['receipt_item_dept'].items():
@@ -1679,6 +1696,7 @@ if not c.ALLOW_SHARED_TABLES:
 dealer_status_label_lookup = {val: key for key, val in c.DEALER_STATUS_OPTS}
 c.DEALER_EDITABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_EDITABLE_STATUS_LIST]
 c.DEALER_CANCELLABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_CANCELLABLE_STATUS_LIST]
+c.DEALER_ACCEPTED_STATUSES = [c.APPROVED, c.SHARED] if c.ALLOW_SHARED_TABLES else [c.APPROVED]
 
 
 # A list of models that have properties defined for exporting for Guidebook
@@ -1795,7 +1813,8 @@ c.MITS_DESC_BY_AGE = {age: c.MITS_AGE_DESCRIPTIONS[age] for age in c.MITS_AGES}
 # panels
 # =============================
 
-c.PANEL_SCHEDULE_LENGTH = int((c.PANELS_ESCHATON - c.PANELS_EPOCH).total_seconds() // 3600) * 2
+c.PANEL_SCHEDULE_DAYS = math.ceil((c.PANELS_ESCHATON - c.PANELS_EPOCH.replace(hour=0)).total_seconds() / 86400)
+c.PANEL_SCHEDULE_LENGTH = int((c.PANELS_ESCHATON - c.PANELS_EPOCH).total_seconds() // 3600)
 c.EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.strftime('%I:%M %a'))
                            for dt in [c.EPOCH + timedelta(minutes=i * 30) for i in range(c.PANEL_SCHEDULE_LENGTH)]]
 c.EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]

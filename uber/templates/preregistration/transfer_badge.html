@@ -6,6 +6,22 @@
 
 <div class="card">
   <div class="card-body">
+    <div class="alert alert-info">
+      <p><em><strong>Want to transfer your badge without exchanging personal information?</strong></em></p>
+      <p>
+        Send the recipient your badge transfer code (<strong>{{ old.transfer_code }}</strong>) or this URL:
+        <code style="user-select: all;">{{ c.URL_BASE }}/preregistration/start_badge_transfer?code={{ old.transfer_code }}</code>
+      </p>
+      <p>Once they fill out the form and send you their transfer code, enter it below to complete the transfer.</p>
+      <form method="post" class="d-flex gap-2" action="complete_badge_transfer">
+        <div><input type="text" class="form-control" name="code" placeholder="XXX-XXX-XXX" /></div>
+        <div>
+          <input type="hidden" name="id" value="{{ old.id }}" />
+          <button type="submit" class="btn btn-primary">Transfer My Badge</button>
+        </div>
+      </form>
+    </div>
+
     <h2>Transfer {{ old.full_name }}'s Registration</h2>
 
     {% if duplicate_bypass %}
@@ -35,7 +51,7 @@
 
       <p>If you have any questions then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.</p>
 
-      {% if duplicate.group and duplicate.group.is_dealer and duplicate.group.status not in [c.APPROVED, c.SHARED] %}
+      {% if duplicate.group and duplicate.group.is_dealer and duplicate.group.status not in c.DEALER_ACCEPTED_STATUSES %}
         <p>
           It looks like your {{ c.DEALER_REG_TERM }} application has not been approved yet. If your application
           is not approved, you will be able to purchase badges for yourself and the number of assistants on the application
@@ -47,7 +63,7 @@
       {% if duplicate.badge_type == c.STAFF_BADGE and duplicate.registered == [c.PREREG_OPEN, c.DEALER_REG_START]|min %}
         <p>
           You were registered automatically for a complimentary Staff badge as thanks for volunteering
-          last year.  You should have already received an email letting you know about this; if you didn't
+          last year. You should have already received an email letting you know about this; if you didn't
           then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> and let us know.
         </p>
       {% endif %}

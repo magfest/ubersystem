@@ -30,7 +30,7 @@ class Root:
         return ''
 
     def index(self, session, message='', show_all=None):
-        groups = session.viewable_groups()
+        groups = session.viewable_groups().options(joinedload(Group.attendees))
         dealer_counts = defaultdict(int)
 
         if not show_all:
@@ -51,13 +51,14 @@ class Root:
                 case c.SHARED:
                     dealer_counts['approved'] += group.tables
 
-        guest_groups = groups.join(Group.guest)
+        guest_groups = groups.filter(Group.guest != None)
 
         return {
             'message': message,
             'show_all': show_all,
-            'all_groups': groups.options(joinedload(Group.attendees), joinedload(Group.active_receipt)).all(),
-            'guest_groups': guest_groups.options(joinedload(Group.attendees)),
+            'all_groups': groups,
+            'guest_groups': guest_groups,
+            'dealer_groups': dealer_groups.options(joinedload(Group.active_receipt)),
             'guest_checklist_items': GuestGroup(group_type=c.GUEST).sorted_checklist_items,
             'band_checklist_items': GuestGroup(group_type=c.BAND).sorted_checklist_items,
             'num_dealer_groups': dealer_counts['total'],
@@ -119,7 +120,7 @@ class Root:
 
         signnow_last_emailed = None
         signnow_signed = False
-        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status in [c.APPROVED, c.SHARED]:
+        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status in c.DEALER_ACCEPTED_STATUSES:
             if cherrypy.request.method == 'POST':
                 signnow_request = SignNowRequest(session=session, group=group,
                                                  ident="terms_and_conditions", create_if_none=True)
@@ -202,7 +203,7 @@ class Root:
                     group.guest.group_type = group.guest_group_type
 
                 if group.is_new and group.is_dealer:
-                    if group.status in [c.APPROVED, c.SHARED] and group.amount_unpaid:
+                    if group.status in c.DEALER_ACCEPTED_STATUSES and group.amount_unpaid:
                         raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                     elif group.status == c.APPROVED:
                         raise HTTPRedirect(
@@ -211,7 +212,7 @@ class Root:
                         raise HTTPRedirect(
                             'index?message={}', group.name + ' is uploaded as ' + group.status_label)
                 elif group.is_dealer:
-                    if group.status in [c.APPROVED, c.SHARED] and group.orig_value_of('status') not in [c.APPROVED,
+                    if group.status in c.DEALER_ACCEPTED_STATUSES and group.orig_value_of('status') not in [c.APPROVED,
                                                                                                         c.SHARED]:
                         for attendee in group.attendees:
                             attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)

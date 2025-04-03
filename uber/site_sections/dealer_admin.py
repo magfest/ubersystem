@@ -32,11 +32,16 @@ def convert_dealer_badge(session, attendee, admin_note=''):
     if attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY]:
         params['paid'] = c.NOT_PAID
         params['badge_status'] = c.NEW_STATUS
+        params['overridden_price'] = c.get_attendee_price(attendee.registered_local)
+        attendee.can_transfer = False
 
     receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
 
     for key, val in params.items():
         setattr(attendee, key, val)
+
+    # Helps track whether or not the badge has been 'claimed'
+    attendee.placeholder = True
 
     session.add(attendee)
     session.commit()
@@ -118,6 +123,8 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
         elif not delete_group:
             attendee.badge_status = c.INVALID_GROUP_STATUS
             attendee.paid = c.NOT_PAID
+        else:
+            session.delete(attendee)
 
         if delete_group:
             attendee.group = None
@@ -201,7 +208,7 @@ class Root:
         return {'group': group}
 
     @ajax
-    def unapprove(self, session, id, action, email_text, message=''):
+    def unapprove(self, session, id, action, email_text, convert=False, message=''):
         assert action in ['waitlisted', 'declined']
         group = session.group(id)
         subject = 'Your {} {} has been {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM, action)
@@ -215,8 +222,10 @@ class Root:
                 model=group.to_dict('id'))
         if action == 'waitlisted':
             group.status = c.WAITLISTED
-        else:
+        elif convert == True:
             message = decline_and_convert_dealer_group(session, group)
+        else:
+            group.status = c.DECLINED
         session.commit()
         return {'success': True,
                 'message': message}

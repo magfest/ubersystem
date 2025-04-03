@@ -19,6 +19,7 @@ from urllib.request import urlopen
 import cherrypy
 import phonenumbers
 from pockets.autolog import log
+from pockets import sluggify
 from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
@@ -597,20 +598,6 @@ Event.required = [
 ]
 
 
-@validation.Event
-def overlapping_events(event, other_event_id=None):
-    existing = {}
-    for e in event.session.query(Event).filter(Event.location == event.location,
-                                               Event.id != event.id,
-                                               Event.id != other_event_id).all():
-        for hh in e.half_hours:
-            existing[hh] = e.name
-
-    for hh in event.half_hours:
-        if hh in existing:
-            return '"{}" overlaps with the time/duration you specified for "{}"'.format(existing[hh], event.name)
-
-
 PanelApplication.required = [
     ('name', 'Panel Name'),
     ('description', 'Panel Description'),
@@ -667,7 +654,7 @@ def specify_nonstandard_time(app):
 
 @validation.PanelApplication
 def select_livestream_opt(app):
-    if not app.livestream:
+    if not app.livestream and c.CAN_LIVESTREAM:
         return 'Please select your preference for recording/livestreaming.' \
             if len(c.LIVESTREAM_OPTS) > 2 else 'Please tell us if we can livestream your panel.'
     
@@ -713,10 +700,29 @@ Attraction.required = [
     ('description', 'Description')
 ]
 
+@validation.Attraction
+def slug_not_existing(attraction):
+    with Session() as session:
+        slug = sluggify(attraction.name)
+        if session.query(Attraction).filter(Attraction.id != attraction.id,
+                                            Attraction.slug == slug).first():
+            return f"Another attraction has an identical URL to this one ({slug}). \
+                Please make sure this attraction's name is different from others, not including punctuation."
+
 AttractionFeature.required = [
     ('name', 'Name'),
     ('description', 'Description')
 ]
+
+
+@validation.AttractionFeature
+def slug_not_existing(feature):
+    with Session() as session:
+        slug = sluggify(feature.name)
+        if session.query(AttractionFeature).filter(AttractionFeature.id != feature.id,
+                                                   AttractionFeature.slug == slug).first():
+            return f"Another attraction feature has an identical URL to this one ({slug}). \
+                Please make sure this feature's name is different from others, not including punctuation."
 
 
 @validation.AttractionEvent
@@ -1064,6 +1070,11 @@ def media_max_length(piece):
     if len(piece.media) > 15:
         return "The description of the piece's media must be 15 characters or fewer."
 
+
+# This is still required for creating an attendee from an art show app, will need to refactor later
+Attendee.required = [('first_name', 'First Name'),
+                     ('last_name', 'Last Name'),
+                     ('email', 'Email')]
 
 # New validations, which return a tuple with the field name (or an empty string) and the message
 @prereg_validation.Attendee

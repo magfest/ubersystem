@@ -35,7 +35,7 @@ import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow, UniqueList
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     RegistrationCode, valid_email, valid_password
 from uber.payments import ReceiptManager
@@ -149,6 +149,10 @@ class MagModel:
     
     def bcc_emails_for_ident(self, ident=''):
         # A list of emails to blind-carbon-copy for an automated email with a particular ident
+        return
+
+    def replyto_emails_for_ident(self, ident=''):
+        # A list of emails to set as reply-to for an automated email with a particular ident
         return
 
     @property
@@ -491,8 +495,12 @@ class MagModel:
                     return int(value[:-2])
                 else:
                     return int(float(value))
-
-            elif isinstance(column.type, (MultiChoice)):
+            elif isinstance(column.type, UniqueList):
+                if isinstance(value, list):
+                    return ','.join(map(lambda x: str(x).strip(), value))
+                else:
+                    return str(value).strip()
+            elif isinstance(column.type, MultiChoice):
                 if isinstance(value, list):
                     value = ','.join(map(lambda x: str(x).strip(), value))
                 else:
@@ -853,12 +861,15 @@ class Session(SessionManager):
             if group_id:
                 subqueries.append(self.query(Group).filter(Group.id == group_id))
 
-            for key, val in c.GROUP_TYPE_OPTS:
-                if val.lower() + '_admin' in admin.read_or_write_access_set:
-                    subqueries.append(
-                        self.query(Group).join(
-                            GuestGroup, Group.id == GuestGroup.group_id).filter(
-                                GuestGroup.group_type == key))
+            if 'guest_admin' in admin.read_or_write_access_set:
+                subqueries.append(self.query(Group).join(
+                    GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        ~GuestGroup.group_type.in_([c.BAND, c.MIVS])))
+
+            if 'band_admin' in admin.read_or_write_access_set:
+                subqueries.append(self.query(Group).join(
+                    GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        GuestGroup.group_type == c.BAND))
 
             if 'dealer_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).filter(Group.is_dealer))
@@ -884,28 +895,25 @@ class Session(SessionManager):
             admin = self.current_admin_account()
             return_dict = {'created': self.query(Attendee).filter(
                 or_(Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id))}
-            # Guest groups
-            for group_type, badge_and_ribbon_filter in [(c.BAND,
-                                                         and_(Attendee.badge_type == c.GUEST_BADGE,
-                                                              Attendee.ribbon.contains(c.BAND))),
-                                                        (c.GUEST,
-                                                         and_(Attendee.badge_type == c.GUEST_BADGE,
-                                                              ~Attendee.ribbon.contains(c.BAND)))]:
-                return_dict[c.GROUP_TYPES[group_type].lower() + '_admin'] = (
-                    self.query(Attendee).join(Group, Attendee.group_id == Group.id)
-                        .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
-                            or_(
-                                or_(
-                                    badge_and_ribbon_filter,
-                                    and_(
-                                        Group.id == Attendee.group_id,
-                                        GuestGroup.group_id == Group.id,
-                                        GuestGroup.group_type == group_type,
-                                        )
-                                )
-                            )
-                        )
-                )
+
+            return_dict['band_admin'] = self.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id).join(
+                GuestGroup, Group.id == GuestGroup.group_id).filter(
+                    or_(Attendee.ribbon.contains(c.BAND),
+                        and_(
+                            Attendee.group_id != None,
+                            Group.id == Attendee.group_id,
+                            GuestGroup.group_id == Group.id,
+                            GuestGroup.group_type == c.BAND)))
+            
+            return_dict['guest_admin'] = self.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id).join(
+                GuestGroup, Group.id == GuestGroup.group_id).filter(
+                    ~Attendee.ribbon.contains(c.BAND),
+                    or_(Attendee.badge_type == c.GUEST_BADGE,
+                        and_(
+                            Attendee.group_id != None,
+                            Group.id == Attendee.group_id,
+                            GuestGroup.group_id == Group.id,
+                            ~GuestGroup.group_type.in_([c.BAND, c.MIVS]))))
 
             return_dict['panels_admin'] = self.query(Attendee).outerjoin(PanelApplicant).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
@@ -1110,27 +1118,17 @@ class Session(SessionManager):
                     return None, \
                            'This badge is invalid. Please contact registration.'
             else:
-                attendee_params = {
-                    attr: params.get(attr, '')
-                    for attr in ['first_name', 'last_name', 'email']}
+                attendee_params = {}
+                for key, val in params.items():
+                    if key.startswith('attendee_'):
+                        attendee_params[key.replace('attendee_', '')] = val
                 attendee = self.attendee(attendee_params, restricted=True,
                                          ignore_csrf=True)
                 attendee.placeholder = True
-                if not params.get('email', ''):
-                    message = 'Email address is a required field.'
+                if c.ATTENDEE_ACCOUNTS_ENABLED and self.current_attendee_account():
+                    self.add_attendee_to_account(attendee, self.current_attendee_account())
                 elif c.ATTENDEE_ACCOUNTS_ENABLED:
-                    if self.current_attendee_account():
-                        self.add_attendee_to_account(attendee, self.current_attendee_account())
-                    else:
-                        password = params.get('account_password')
-                        if password and password != params.get('confirm_password'):
-                            message = 'Password confirmation does not match.'
-                        else:
-                            message = valid_password(password) or valid_email(params.get('email', ''))
-                        if not message:
-                            new_account = self.create_attendee_account(params.get('email', ''), password=password)
-                            self.add_attendee_to_account(attendee, new_account)
-                            cherrypy.session['attendee_account_id'] = new_account.id
+                    message = "Please log in to complete your application."
             return attendee, message
 
         def create_admin_account(self, attendee, password='', generate_pwd=True, **params):
@@ -2070,6 +2068,9 @@ class Session(SessionManager):
             """
             job = self.job(job_id)
             attendee = self.attendee(attendee_id)
+
+            if not attendee.has_badge:
+                return f'This badge is currently {attendee.badge_status_label} and cannot sign up for shifts.'
 
             if not attendee.has_required_roles(job):
                 return 'You cannot assign an attendee to this shift who does not have the required roles: {}'.format(

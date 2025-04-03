@@ -11,7 +11,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
-    MultiChoice, SocialMediaMixin
+    MultiChoice, SocialMediaMixin, UniqueList
 
 
 __all__ = ['AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
@@ -20,7 +20,7 @@ __all__ = ['AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant', 'Pane
 class Event(MagModel):
     location = Column(Choice(c.EVENT_LOCATION_OPTS))
     start_time = Column(UTCDateTime)
-    duration = Column(Integer)  # half-hour increments
+    duration = Column(Integer, default=60)
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
     public_description = Column(UnicodeText)
@@ -34,25 +34,15 @@ class Event(MagModel):
                          cascade='save-update,merge')
 
     @property
-    def half_hours(self):
-        half_hours = set()
-        for i in range(self.duration):
-            half_hours.add(self.start_time + timedelta(minutes=30 * i))
-        return half_hours
-
-    @property
     def minutes(self):
-        return (self.duration or 0) * 30
-
-    @property
-    def start_slot(self):
-        if self.start_time:
-            start_delta = self.start_time_local - c.EPOCH
-            return int(start_delta.total_seconds() / (60 * 30))
+        minutes = set()
+        for i in range(int(self.duration)):
+            minutes.add(self.start_time + timedelta(minutes=i))
+        return minutes
 
     @property
     def end_time(self):
-        return self.start_time + timedelta(minutes=self.minutes)
+        return self.start_time + timedelta(minutes=self.duration)
 
     @property
     def guidebook_data(self):
@@ -69,7 +59,7 @@ class Event(MagModel):
             'end_time': self.end_time_local.strftime('%I:%M %p'),
             'location': self.location_label,
             'track': self.track,
-            'description': normalize_newlines(description).replace('\n', ' '),
+            'description': description,
             }
 
     @property
@@ -142,6 +132,7 @@ class PanelApplication(MagModel):
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
     comments = Column(UnicodeText, admin_only=True)
     track = Column(UnicodeText, admin_only=True)
+    tags = Column(UniqueList, admin_only=True)
 
     applicants = relationship('PanelApplicant', backref='application')
 
@@ -149,11 +140,13 @@ class PanelApplication(MagModel):
 
     @presave_adjustment
     def update_event_info(self):
-        if self.event:
+        if self.event and any([getattr(self.event, key, '') != getattr(self, key, '') for key in [
+                'name', 'description', 'public_description', 'track']]):
             self.event.name = self.name
             self.event.description = self.description
             self.event.public_description = self.public_description
             self.event.track = self.track
+            self.event.last_updated = self.last_updated
     
     @presave_adjustment
     def set_default_dept(self):
@@ -195,7 +188,7 @@ class PanelApplication(MagModel):
 
     @property
     def confirm_deadline(self):
-        if c.PANELS_CONFIRM_DEADLINE and self.has_been_accepted and not self.confirmed and not self.poc_id:
+        if c.PANELS_CONFIRM_DEADLINE and self.has_been_accepted and not self.confirmed and not (self.group and self.group.guest):
             confirm_deadline = timedelta(days=c.PANELS_CONFIRM_DEADLINE)
             return self.accepted + confirm_deadline
 
@@ -210,7 +203,7 @@ class PanelApplication(MagModel):
 
 class PanelApplicant(SocialMediaMixin, MagModel):
     app_id = Column(UUID, ForeignKey('panel_application.id', ondelete='cascade'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'), nullable=True)
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     submitter = Column(Boolean, default=False)
     first_name = Column(UnicodeText)
     last_name = Column(UnicodeText)

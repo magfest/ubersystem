@@ -335,7 +335,7 @@ def get_age_conf_from_birthday(birthdate, today=None):
     age = get_age_from_birthday(birthdate, today)
 
     for val, age_group in c.AGE_GROUP_CONFIGS.items():
-        if val != c.AGE_UNKNOWN and age_group['min_age'] <= age and age <= age_group['max_age']:
+        if val != c.AGE_UNKNOWN and age_group['min_age'] <= age <= age_group['max_age']:
             return age_group
 
     return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
@@ -662,7 +662,7 @@ class GuidebookUtils():
 
     @classmethod
     def get_guidebook_models(cls, session, selected_model=''):
-        from uber.models import GuestBio, MITSPicture, IndieGameImage
+        from uber.models import Group, GuestBio, MITSPicture, IndieGameImage
 
         model_cls = cls.parse_guidebook_model(selected_model)
         model_query = session.query(model_cls)
@@ -676,7 +676,7 @@ class GuidebookUtils():
             model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.bio)
             stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
         elif '_dealer' in selected_model:
-            model_query = model_query.filter_by(is_dealer=True)
+            model_query = model_query.filter(model_cls.status.in_([c.APPROVED])).filter_by(is_dealer=True)
         elif 'IndieGame' in selected_model:
             model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.images)
             stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < IndieGameImage.last_updated)
@@ -1683,10 +1683,23 @@ class TaskUtils:
         if dept:
             return (id, dept)
         return None
+    
+    @staticmethod
+    def _guess_dept_role(session, dept, id_name):
+        from uber.models import DeptRole
+
+        id, name = id_name
+        role = session.query(DeptRole).filter(DeptRole.department_id == dept.id, or_(
+            DeptRole.id == id,
+            DeptRole.normalized_name == DeptRole.normalize_name(name))).first()
+
+        if role:
+            return role
+        return None
 
     @staticmethod
     def attendee_import(import_job):
-        from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptMembershipRequest
+        from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptRole
         from functools import partial
 
         with uber.models.Session() as session:
@@ -1759,7 +1772,7 @@ class TaskUtils:
                 checklist_admin_depts = attendee.pop('checklist_admin_depts', {})
                 dept_head_depts = attendee.pop('dept_head_depts', {})
                 poc_depts = attendee.pop('poc_depts', {})
-                requested_depts = attendee.pop('requested_depts', {})
+                roles_depts = attendee.pop('roles_depts', {})
 
                 attendee.update({
                     'staffing': True,
@@ -1769,25 +1782,18 @@ class TaskUtils:
                 attendee = Attendee().apply(attendee, restricted=False)
 
                 for id, dept in assigned_depts.items():
-                    attendee.dept_memberships.append(DeptMembership(
+                    dept_membership = DeptMembership(
                         department=dept,
                         attendee=attendee,
                         is_checklist_admin=bool(id in checklist_admin_depts),
                         is_dept_head=bool(id in dept_head_depts),
                         is_poc=bool(id in poc_depts),
-                    ))
-
-                requested_anywhere = requested_depts.pop('All', False)
-                requested_depts = {d[0]: d[1] for d in map(partial(TaskUtils._guess_dept, session),
-                                                           requested_depts.items()) if d}
-
-                if requested_anywhere:
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
-                for id, dept in requested_depts.items():
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(
-                        department=dept,
-                        attendee=attendee,
-                    ))
+                    )
+                    for role_tuple in roles_depts.get(id, []):
+                        role = TaskUtils._guess_dept_role(session, dept, role_tuple)
+                        if role:
+                            dept_membership.dept_roles.append(role)
+                    attendee.dept_memberships.append(dept_membership)
 
             session.add(attendee)
 

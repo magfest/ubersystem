@@ -111,7 +111,7 @@
 {% if c.COLLECT_EXACT_BIRTHDATE %}
   {{ form_macros.form_input(personal_info.birthdate, admin_text=attendee.age_group_conf.desc) }}
 {% else %}
-  TBD
+  {{ form_macros.form_input(personal_info.age_group) }}
 {% endif %}
   </div>
 

@@ -2,6 +2,7 @@
 {% set title_text = "Merch Booth Ops" %}
 {% block content %}
 
+{% include 'barcode_client.html' %}
 {% block adminheader %}
 
 <script type="text/javascript">
@@ -265,6 +266,12 @@
     }
 
     $(function() {
+        $('body').barcodeField({
+          targetField: '#badge_num_or_qr_code',
+          blurOnKeys: ['~', '\\'],
+          detectBadgeNum: true
+        });
+
         $('input[type=text],input[type=number]').on('focus', function(event){
             var field = event.target;
             setTimeout(function(){ field.select(); }, 1);

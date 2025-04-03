@@ -1,13 +1,23 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Self-Service Refunds{% endblock %}
+{% set title = "Self-Service Refunds" %}
 {% block content %}
 
 <h1>
   Self-Service {{ c.PAYMENT_METHODS[c.STRIPE] }} Refunds
 </h1>
-<p>
-  Below is a list of all refunds that were processed by non-admins. Note that if someone paid multiple times (e.g., buying a badge, then later buying an upgrade), they will have a refund transaction for each payment.
-</p>
+
+<div class="row mt-3 justify-content-between align-items-end">
+  <div class="col">
+    <p>
+      Below is a list of all refunds that were processed by non-admins. Note that if someone paid multiple times (e.g., buying a badge, then later buying an upgrade), they will have a refund transaction for each payment.
+    </p>
+  </div>
+  <div class="col col-auto mb-3">
+      <a href="self_service_refunds_csv">
+          <i class="fa fa-download"></i> Download CSV
+      </a>
+  </div>
+</div>
 
 {% for cls in refund_models.keys() %}
 <div class="card">

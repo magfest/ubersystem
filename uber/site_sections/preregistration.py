@@ -1,4 +1,5 @@
 import json
+import six
 from datetime import datetime, timedelta
 from functools import wraps
 from uber.models.admin import PasswordReset
@@ -21,7 +22,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, BadgePickupGroup,
                         ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
-    valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday
+    valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager, SpinTerminalRequest
 
 
@@ -1247,7 +1248,7 @@ class Root:
         signnow_document = None
         signnow_link = ''
 
-        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status in [c.APPROVED, c.SHARED]:
+        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status in c.DEALER_ACCEPTED_STATUSES:
             signnow_request = SignNowRequest(session=session, group=group, ident="terms_and_conditions",
                                              create_if_none=True)
 
@@ -1545,6 +1546,160 @@ class Root:
             message += ' Please pay your application fee below.'
         raise HTTPRedirect(f'group_members?id={id}&message={message}')
 
+    def start_badge_transfer(self, session, message='', **params):
+        transfer_code = params.get('code', '').strip()
+        transfer_badge = None
+
+        if transfer_code:
+            transfer_badges = session.query(Attendee).filter(
+                Attendee.normalized_transfer_code == RegistrationCode.normalize_code(transfer_code))
+            if transfer_badges.count() == 1:
+                transfer_badge = transfer_badges.first()
+            elif transfer_badges.count() > 1:
+                log.error(f"ERROR: {transfer_badges.count()} attendees have transfer code {transfer_code}!")
+                transfer_badge = transfer_badges.filter(Attendee.has_badge == True).first()
+                
+        attendee = Attendee()
+        form_list = ['PersonalInfo', 'OtherInfo', 'StaffingInfo', 'Consents']
+        forms = load_forms(params, attendee, form_list)
+
+        if cherrypy.request.method == 'POST' and params.get('first_name', None):
+            for form in forms.values():
+                if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+                    form['legal_name'].data = ''
+                form.populate_obj(attendee)
+            
+            if attendee.banned and not params.get('ban_bypass', None):
+                return {
+                    'message': message,
+                    'transfer_badge': transfer_badge,
+                    'attendee': attendee,
+                    'forms': forms,
+                    'code': transfer_code,
+                    'ban_bypass': True,
+                }
+            
+            if not params.get('duplicate_bypass', None):
+                duplicate = session.attendees_with_badges().filter_by(first_name=attendee.first_name,
+                                                                      last_name=attendee.last_name,
+                                                                      email=attendee.email).first()
+                if duplicate:
+                    return {
+                        'message': message,
+                        'transfer_badge': transfer_badge,
+                        'duplicate': duplicate,
+                        'attendee': attendee,
+                        'forms': forms,
+                        'code': transfer_code,
+                        'ban_bypass': params.get('ban_bypass', None),
+                        'duplicate_bypass': True,
+                    }
+            
+            if not message:
+                session.add(attendee)
+                attendee.badge_status = c.PENDING_STATUS
+                attendee.paid = c.PENDING
+                attendee.transfer_code = RegistrationCode.generate_random_code(Attendee.transfer_code)
+                session.commit()
+
+                subject = c.EVENT_NAME + ' Pending Badge Code'
+                body = render('emails/reg_workflow/pending_code.txt',
+                                {'attendee': attendee}, encoding=None)
+                send_email.delay(
+                    c.REGDESK_EMAIL,
+                    attendee.email_to_address,
+                    subject,
+                    body,
+                    model=attendee.to_dict('id'))
+
+                raise HTTPRedirect('confirm?id={}&message={}', attendee.id,
+                                   f"Success! Your pending badge's transfer code is {attendee.transfer_code}.")
+
+        return {
+            'message': message,
+            'transfer_badge': transfer_badge,
+            'attendee': attendee,
+            'forms': forms,
+            'code': transfer_code,
+        }
+    
+    def complete_badge_transfer(self, session, id, code, message='', **params):
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('transfer_badge?id={}&message={}', id, "Please submit the form to transfer your badge.")
+
+        code = code.strip()
+
+        old = session.attendee(id)
+        if not old.is_transferable:
+            raise HTTPRedirect('../landing/index?message={}', 'This badge is not transferable.')
+        
+        if not code:
+            raise HTTPRedirect('transfer_badge?id={}&message={}', id, 'Please enter a transfer code.')
+
+        transfer_badges = session.query(Attendee).filter(
+            Attendee.normalized_transfer_code == RegistrationCode.normalize_code(code))
+
+        if transfer_badges.count() == 1:
+            transfer_badge = transfer_badges.first()
+        elif transfer_badges.count() > 1:
+            log.error(f"ERROR: {transfer_badges.count()} attendees have transfer code {code}!")
+            transfer_badge = transfer_badges.filter(Attendee.badge_status == c.PENDING_STATUS).first()
+        else:
+            transfer_badge = None
+        
+        if not transfer_badge or transfer_badge.badge_status != c.PENDING_STATUS:
+            raise HTTPRedirect('transfer_badge?id={}&message={}', id,
+                               f"Could not find a badge to transfer to with transfer code {code}.")
+        
+        old_attendee_dict = old.to_dict()
+        del old_attendee_dict['id']
+        for attr in old_attendee_dict:
+            if attr not in c.UNTRANSFERABLE_ATTRS:
+                setattr(transfer_badge, attr, old_attendee_dict[attr])
+        receipt = session.get_receipt_by_model(old)
+
+        old.badge_status = c.INVALID_STATUS
+        old.append_admin_note(f"Automatic transfer to attendee {transfer_badge.id}.")
+        transfer_badge.badge_status = c.NEW_STATUS
+        transfer_badge.append_admin_note(f"Automatic transfer from attendee {old.id}.")
+
+        subject = c.EVENT_NAME + ' Registration Transferred'
+        new_body = render('emails/reg_workflow/badge_transferee.txt',
+                          {'attendee': transfer_badge, 'transferee_code': transfer_badge.transfer_code,
+                           'transferer_code': old.transfer_code}, encoding=None)
+        old_body = render('emails/reg_workflow/badge_transferer.txt',
+                          {'attendee': old, 'transferee_code': transfer_badge.transfer_code,
+                           'transferer_code': old.transfer_code}, encoding=None)
+
+        try:
+            send_email.delay(
+                c.REGDESK_EMAIL,
+                [transfer_badge.email_to_address, c.REGDESK_EMAIL],
+                subject,
+                new_body,
+                model=transfer_badge.to_dict('id'))
+            send_email.delay(
+                c.REGDESK_EMAIL,
+                [old.email_to_address],
+                subject,
+                old_body,
+                model=old.to_dict('id'))
+        except Exception:
+            log.error('Unable to send badge change email', exc_info=True)
+
+        session.add(transfer_badge)
+        transfer_badge.transfer_code = ''
+        session.commit()
+        if receipt:
+            session.add(receipt)
+            receipt.owner_id = transfer_badge.id
+            session.commit()
+        
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            raise HTTPRedirect('../preregistration/homepage?message={}', "Badge transferred.")
+        else:
+            raise HTTPRedirect('../landing/index?message={}', "Badge transferred.")
+
     @id_required(Attendee)
     @requires_account(Attendee)
     @log_pageview
@@ -1553,9 +1708,13 @@ class Root:
 
         if not old.is_transferable:
             raise HTTPRedirect('../landing/index?message={}', 'This badge is not transferable.')
-        if not old.is_valid:
+        if not old.has_badge:
             raise HTTPRedirect('../landing/index?message={}',
                                'This badge is no longer valid. It may have already been transferred.')
+        
+        if not old.transfer_code:
+            old.transfer_code = RegistrationCode.generate_random_code(Attendee.transfer_code)
+            session.commit()
 
         old_attendee_dict = old.to_dict()
         del old_attendee_dict['id']
@@ -1936,14 +2095,15 @@ class Root:
                 message = 'Your information has been updated'
 
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
-            if not receipt:
-                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-            if not receipt.current_amount_owed or receipt.pending_total or (c.AFTER_PREREG_TAKEDOWN
-                                                                            and c.SPIN_TERMINAL_AUTH_KEY):
-                raise HTTPRedirect(page + 'message=' + message)
-            elif receipt.current_amount_owed and not receipt.pending_total:
-                # TODO: could use some cleanup, needed because of how we handle the placeholder attr
-                raise HTTPRedirect('new_badge_payment?id={}&message={}&return_to={}', attendee.id, message, return_to)
+            if attendee.is_valid:
+                if not receipt:
+                    receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                if not receipt.current_amount_owed or receipt.pending_total or (c.AFTER_PREREG_TAKEDOWN
+                                                                                and c.SPIN_TERMINAL_AUTH_KEY):
+                    raise HTTPRedirect(page + 'message=' + message)
+                elif receipt.current_amount_owed and not receipt.pending_total:
+                    # TODO: could use some cleanup, needed because of how we handle the placeholder attr
+                    raise HTTPRedirect('new_badge_payment?id={}&message={}&return_to={}', attendee.id, message, return_to)
 
         session.refresh_receipt_and_model(attendee)
         session.commit()
@@ -2035,24 +2195,31 @@ class Root:
         return {"success": True}
 
     @ajax
-    def get_receipt_preview(self, session, id, **params):
+    def get_receipt_preview(self, session, id, col_names=[], new_vals=[], **params):
         try:
             attendee = session.attendee(id)
         except Exception as ex:
             return {'error': "Can't get attendee: " + str(ex)}
 
-        if not params.get('col_name'):
-            return {'error': "Can't calculate cost change without the column name"}
+        if not col_names:
+            return {'error': "Can't calculate cost change without the column names"}
+
+        if isinstance(col_names, six.string_types):
+            col_names = [col_names]
+        if isinstance(new_vals, six.string_types):
+            new_vals = [new_vals]
+        
+        update_col = params.get('update_col', col_names[-1])
 
         preview_attendee = Attendee(**attendee.to_dict())
-        new_val = params.get('val')
 
-        column = preview_attendee.__table__.columns.get(params['col_name'])
-        if column is not None:
-            new_val = preview_attendee.coerce_column_data(column, new_val)
-        setattr(preview_attendee, params['col_name'], new_val)
+        for col_name, new_val in zip(col_names, new_vals):
+            column = preview_attendee.__table__.columns.get(col_name)
+            if column is not None:
+                new_val = preview_attendee.coerce_column_data(column, new_val)
+            setattr(preview_attendee, col_name, new_val)
         
-        changes_list = ReceiptManager.process_receipt_change(attendee, params['col_name'],
+        changes_list = ReceiptManager.process_receipt_change(attendee, update_col,
                                                              who='non-admin',
                                                              new_model=preview_attendee)
         only_change = changes_list[0] if changes_list else ("", 0, 0)
@@ -2078,19 +2245,19 @@ class Root:
             return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
         session.add_all(receipt_items)
 
-        # Get around locked field restrictions by applying the parameters directly
-        attendee.apply(params, restricted=False, ignore_csrf=True)
-
         forms = load_forms(params, attendee, ['BadgeExtras'])
 
-        all_errors = validate_model(forms, attendee)
+        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
         if all_errors:
             # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
             message = ' '.join([item for sublist in all_errors.values() for item in sublist])
 
         if message:
-            session.rollback()
             return {'error': message}
+
+        for form in forms.values():
+            # "is_admin" bypasses the locked fields, which includes purchaseable upgrades
+            form.populate_obj(attendee, is_admin=True)
 
         session.commit()
 
