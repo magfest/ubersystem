@@ -1327,7 +1327,7 @@ class Root:
             'action': action,
             'count': feed.limit(10000).count(),
             'feed': get_page(page, feed),
-            'action_opts': [opt for opt in c.TRACKING_OPTS if opt[0] != c.AUTO_BADGE_SHIFT],
+            'action_opts': c.TRACKING_OPTS,
             'who_opts': [
                 who for [who] in session.query(model).distinct().order_by(model.who).values(model.who)]
         }
