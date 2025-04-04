@@ -194,11 +194,13 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
     ]
 
     marketplace_import_fields = [
-        'business_name',
-        'categories',
-        'categories_text',
-        'description',
-        'special_needs',
+        'name',
+        'display_name',
+        'email_address',
+        'website',
+        'tax_number',
+        'seating_requests',
+        'accessibility_requests',
         'admin_notes',
     ]
 
@@ -220,8 +222,8 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         if include_apps:
             if a.art_show_applications:
                 d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
-            if a.marketplace_applications:
-                d['marketplace_app'] = a.marketplace_applications[0].to_dict(marketplace_import_fields)
+            if a.marketplace_application:
+                d['marketplace_app'] = a.marketplace_application.to_dict(marketplace_import_fields)
 
         if include_depts:
             assigned_depts = {}
