@@ -29,7 +29,7 @@ from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthda
     localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode
 
 
-__all__ = ['Attendee', 'AttendeeAccount', 'BadgePickupGroup', 'FoodRestrictions']
+__all__ = ['Attendee', 'AttendeeAccount', 'BadgeInfo', 'BadgePickupGroup', 'FoodRestrictions']
 
 
 RE_NONDIGIT = re.compile(r'\D+')
@@ -147,6 +147,48 @@ name_suffixes = [
 normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffixes]
 
 
+class BadgeInfo(MagModel):
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True, default=None)
+    attendee = relationship('Attendee', backref=backref('allocated_badges', cascade='merge,refresh-expire,expunge'),
+                            foreign_keys=attendee_id,
+                            cascade='save-update,merge,refresh-expire,expunge', single_parent=True)
+    active = Column(Boolean, default=False)
+    picked_up = Column(UTCDateTime, nullable=True, default=None)
+    reported_lost = Column(UTCDateTime, nullable=True, default=None)
+    ident = Column(Integer, default=0, index=True)
+
+    __table_args__ = (
+        Index('ix_badge_info_attendee_id', attendee_id.desc()),
+    )
+
+    def assign(self, attendee_id):
+        if self.attendee:
+            return
+
+        self.attendee_id = attendee_id
+        self.active = True
+
+    def unassign(self):
+        if self.picked_up:
+            return
+
+        self.attendee_id = None
+        self.active = False
+
+    def report_lost(self):
+        if not self.attendee:
+            return
+
+        self.reported_lost = datetime.now(UTC)
+        self.active = False
+    
+    def check_in(self):
+        if not self.attendee:
+            return
+
+        self.picked_up = self.attendee.checked_in or datetime.now(UTC)
+
+
 class Attendee(MagModel, TakesPaymentMixin):
     watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
@@ -175,6 +217,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Attendee.id',
         single_parent=True)
+    
+    active_badge = relationship(
+        'BadgeInfo',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_(BadgeInfo.attendee_id == Attendee.id,'
+        'BadgeInfo.active == True)',
+        uselist=False)
 
     # NOTE: The cascade relationships for promo_code do NOT include
     # "save-update". During the preregistration workflow, before an Attendee
@@ -226,7 +275,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     admin_notes = Column(UnicodeText, admin_only=True)
 
     public_id = Column(UUID, default=lambda: str(uuid4()))
-    badge_num = Column(Integer, default=None, nullable=True, admin_only=True)
     badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, index=True, admin_only=True)
     ribbon = Column(MultiChoice(c.RIBBON_OPTS), admin_only=True)
@@ -473,8 +521,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         Index('ix_attendee_paid_group_id', paid, group_id),
         Index('ix_attendee_badge_status_badge_type', badge_status, badge_type),
     ]
-    if not c.SQLALCHEMY_URL.startswith('sqlite'):
-        _attendee_table_args.append(UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'))
 
     __table_args__ = tuple(_attendee_table_args)
     _repr_attr_names = ['full_name']
@@ -485,12 +531,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         d.pop('attraction_event_signups', None)
         d.pop('receipt_changes', None)
         return d
-
-    @predelete_adjustment
-    def _shift_badges(self):
-        is_skipped = getattr(self, '_skip_badge_shift_on_delete', False)
-        if self.badge_num and not is_skipped:
-            self.session.shift_badges(self.badge_type, self.badge_num + 1, down=True)
 
     @presave_adjustment
     def _misc_adjustments(self):
@@ -607,7 +647,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def _badge_adjustments(self):
         from uber.badge_funcs import needs_badge_num
-        from uber.tasks.registration import assign_badge_num
 
         if self.badge_type == c.PSEUDO_DEALER_BADGE:
             self.ribbon = add_opt(self.ribbon_ints, c.DEALER_RIBBON)
@@ -615,12 +654,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.badge_type = self.badge_type_real
 
         old_type = self.orig_value_of('badge_type')
-        old_num = self.orig_value_of('badge_num')
 
-        if old_type != self.badge_type or old_num != self.badge_num:
-            self.session.update_badge(self, old_type, old_num)
-        elif needs_badge_num(self) and not self.badge_num:
-            assign_badge_num.delay(self.id)
+        if old_type != self.badge_type or needs_badge_num(self) and not self.badge_num:
+            self.session.update_badge(self)
 
     @presave_adjustment
     def _use_promo_code(self):
@@ -652,9 +688,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def assign_number_after_payment(self):
         if c.AT_THE_CON:
-            if self.has_personalized_badge and not self.badge_num:
-                if not self.amount_unpaid:
-                    self.badge_num = self.session.get_next_badge_num(self.badge_type)
+            if self.has_personalized_badge and not self.badge_num and not self.amount_unpaid:
+                self.session.update_badge(self)
 
     @presave_adjustment
     def match_account_if_exists(self):
@@ -693,6 +728,30 @@ class Attendee(MagModel, TakesPaymentMixin):
                 return f"Pending Payment"
         else:
             return "Print Job Errored"
+        
+    @property
+    def badge_num(self):
+        if self.active_badge:
+            return self.active_badge.ident
+    
+    @badge_num.setter
+    def badge_num(self, value):
+        if self.badge_num and self.badge_num == value:
+            return
+        elif value == '' or value is None:
+            if self.badge_num:
+                self.session.add(self.active_badge)
+                self.active_badge.unassign()
+            return
+
+        badge = self.session.query(BadgeInfo).filter(BadgeInfo.ident == value,
+                                                     BadgeInfo.attendee_id == None).first()
+        if badge:
+            if self.badge_num:
+                self.session.add(self.active_badge)
+                self.active_badge.unassign()
+            badge.assign(self.id)
+            self.session.add(badge)
 
     @property
     def age_now_or_at_con(self):
@@ -712,7 +771,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.age_now_or_at_con is not None and self.age_now_or_at_con < 18 \
                     and self.badge_type == c.ATTENDEE_BADGE:
                 self.badge_type = c.CHILD_BADGE
-                self.session.set_badge_num_in_range(self)
+                self.session.update_badge(self)
                 if self.age_now_or_at_con < 13:
                     self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
 
@@ -729,7 +788,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
             if self.badge_type == c.CHILD_BADGE and self.age_now_or_at_con is not None and self.age_now_or_at_con >= 18:
                 self.badge_type = c.ATTENDEE_BADGE
-                self.session.set_badge_num_in_range(self)
+                self.session.update_badge(self)
                 self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
 
     @property
@@ -752,7 +811,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
         if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             self.badge_type = c.ATTENDEE_BADGE
-            self.badge_num = None
         del self.shifts[:]
 
     @property

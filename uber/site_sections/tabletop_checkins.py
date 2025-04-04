@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy.sql import label
 
 from uber.decorators import ajax, ajax_gettable, all_renderable, csv_file
-from uber.models import Attendee, TabletopCheckout, TabletopGame
+from uber.models import Attendee, BadgeInfo, TabletopCheckout, TabletopGame
 from uber.utils import localized_now
 
 
@@ -96,9 +96,8 @@ def _attendees(session):
         'id': id,
         'name': name,
         'badge': num
-    } for (id, name, num) in session.query(Attendee.id, Attendee.full_name, Attendee.badge_num)
-                                    .filter(Attendee.badge_num != 0)
-                                    .order_by(Attendee.badge_num).all()]
+    } for (id, name, num) in session.query(Attendee.id, Attendee.full_name, BadgeInfo.ident).join(Attendee.active_badge)
+                                    .order_by(BadgeInfo.ident).all()]
 
 
 def _attendee(a):

@@ -15,7 +15,6 @@ next_week = datetime.now(pytz.UTC) + timedelta(days=7)
 def patch_config(monkeypatch):
     monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', next_week)
     monkeypatch.setattr(c, 'NUMBERED_BADGES', True)
-    monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', True)
 
 
 @pytest.fixture
