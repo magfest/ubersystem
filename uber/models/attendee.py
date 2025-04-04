@@ -2348,6 +2348,7 @@ class AttendeeAccount(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='attendee_attendee_account')
     imported = Column(Boolean, default=False)
+    unused_years = Column(Integer, default=0)
 
     email_model_name = 'account'
 

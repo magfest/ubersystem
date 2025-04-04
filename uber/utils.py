@@ -1811,6 +1811,7 @@ class TaskUtils:
                     account.email = normalize_email(account.email)
                     account.imported = True
                     session.add(account)
+                account.unused_years = 0
                 attendee.managers.append(account)
 
             from sqlalchemy.exc import IntegrityError
@@ -1948,6 +1949,15 @@ class TaskUtils:
                     session.rollback()
                 session.commit()
 
+            # This is the only import that may import 'empty' accounts
+            # We sunset accounts that have been empty for 3 years in another task
+            if not account.attendees:
+                account.unused_years += 1
+            else:
+                account.unused_years = 0
+            session.add(account)
+            session.commit()
+
     @staticmethod
     def group_import(import_job):
         # Import groups, then their attendees, then those attendee's accounts
@@ -2033,6 +2043,7 @@ class TaskUtils:
                         account.email = normalize_email(account.email)
                         account.imported = True
                         session.add(account)
+                    account.unused_years = 0
                     new_attendee.managers.append(account)
 
                 session.add(new_attendee)

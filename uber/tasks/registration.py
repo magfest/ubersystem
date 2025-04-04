@@ -477,6 +477,15 @@ def create_badge_pickup_groups():
             session.commit()
 
 
+@celery.schedule(timedelta(days=60))
+def sunset_empty_accounts():
+    with Session() as session:
+        empty_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.unused_years > 2)
+        for account in empty_accounts:
+            session.delete(account)
+        session.commit()
+
+
 @celery.task
 def import_attendee_accounts(accounts, admin_id, admin_name, target_server, api_token):
     already_queued = 0
