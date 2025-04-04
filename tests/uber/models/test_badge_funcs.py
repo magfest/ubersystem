@@ -35,9 +35,9 @@ def teardown_range_check(request):
 
 def check_ranges(session):
     for badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
-        actual = [a.badge_num for a in session.query(Attendee)
+        actual = [a.badge_num for a in session.query(Attendee).outerjoin(Attendee.active_badge)
                                               .filter_by(badge_type=badge_type)
-                                              .order_by(Attendee.badge_num).all()
+                                              .order_by(BadgeInfo.ident).all()
                   if not a.is_unassigned]
         expected = list(range(*c.BADGE_RANGES[badge_type])[:len(actual)])
         assert actual == expected

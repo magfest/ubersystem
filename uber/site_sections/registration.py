@@ -23,7 +23,7 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
     requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import (Attendee, AdminAccount, Email, EscalationTicket, Group, Job, PageViewTracking, TxnRequestTracking,
+from uber.models import (Attendee, AdminAccount, BadgeInfo, Email, EscalationTicket, Group, Job, PageViewTracking, TxnRequestTracking,
                          PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
                          WorkstationAssignment)
 from uber.site_sections.preregistration import check_if_can_reg
@@ -470,8 +470,9 @@ class Root:
         group = session.promo_code_group(params)
         badges_are_free = params.get('badges_are_free')
         buyer_id = params.get('buyer_id')
-        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
+        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident) \
+            .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '',
+                                                     Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
             for id, name, badge_type, badge_num in attendee_attrs]
@@ -1302,7 +1303,6 @@ class Root:
             model = PageViewTracking
         elif tracking_type == 'action':
             model = Tracking
-            filters.append(Tracking.action != c.AUTO_BADGE_SHIFT)
 
         feed = session.query(model).filter(*filters).order_by(model.when.desc())
         what = what.strip()
