@@ -86,4 +86,4 @@ jobs:
           build-args: BRANCH=${{ github.ref_name }}
           context: "."
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          tags: ghcr.io/${{ vars.UBER_REPO || github.repository }}:${{ github.ref_name }}
