@@ -1163,6 +1163,7 @@ class Session(SessionManager):
             if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
                 attendee.managers.clear()
             if attendee not in account.attendees:
+                account.unused_years = 0
                 account.attendees.append(attendee)
 
         def match_attendee_to_account(self, attendee):
