@@ -81,8 +81,8 @@
           {% include "forms/group/contact_info.html" %}
         {% endif %}
         {% include "groupextra.html" %}
-        {% if group.status in c.DEALER_EDITABLE_STATUSES %}
         <div id="dealer-actions">
+        {% if group.status in c.DEALER_EDITABLE_STATUSES %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
         {% endif %}
         {% if group.status in c.DEALER_CANCELLABLE_STATUSES %}
@@ -95,7 +95,7 @@
           <input type="hidden" name="id" value="{{ group.id }}" />
         </form>
       {% endif %}
-    {% endif%}
+    {% endif %}
 
 <hr/>
 <h2 class="h5"> Members of "{{ group.name }}" </h2>
