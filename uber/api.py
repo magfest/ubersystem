@@ -26,7 +26,7 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership,
+from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
@@ -624,7 +624,7 @@ class AttendeeLookup:
         restrictions.
         """
         with Session() as session:
-            attendee_query = session.query(Attendee).filter_by(badge_num=badge_num)
+            attendee_query = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             attendee = attendee_query.first()
             if attendee:
@@ -1514,7 +1514,7 @@ class BarcodeLookup:
         # Note: A decrypted barcode can yield a valid badge num,
         # but that badge num may not be assigned to an attendee.
         with Session() as session:
-            query = session.query(Attendee).filter_by(badge_num=badge_num)
+            query = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num)
             fields, query = _attendee_fields_and_query(full, query)
             attendee = query.first()
             if attendee:

@@ -1,6 +1,6 @@
 from uber.config import c
 from uber.decorators import all_renderable, multifile_zipfile, xlsx_file
-from uber.models import Attendee
+from uber.models import Attendee, BadgeInfo
 from uber.reports import PersonalizedBadgeReport, PrintedBadgeReport
 
 
@@ -42,17 +42,17 @@ class Root:
             out,
             session,
             Attendee.badge_type.in_([c.STAFF_BADGE, c.CONTRACTOR_BADGE]),
-            Attendee.badge_num != None,  # noqa: E711
+            Attendee.active_badge != None,  # noqa: E711
             badge_type_override='Staff',
-            order_by='badge_num')
+            order_by=BadgeInfo.ident)
 
         # part 2, include some extra for safety margin
         minimum_extra_amount = c.BLANK_STAFF_BADGES
 
         max_badges = max(c.BADGE_RANGES[c.STAFF_BADGE][1], c.BADGE_RANGES[c.CONTRACTOR_BADGE][1])
-        last_taken_badge = session.query(Attendee).filter(Attendee.badge_num < max_badges
-                                                          ).order_by(Attendee.badge_num.desc()).first().badge_num
-        last_taken_badge = last_taken_badge or 0
+        last_taken_badge = session.query(BadgeInfo).filter(BadgeInfo.ident < max_badges, BadgeInfo.attendee_id != None
+                                                          ).order_by(BadgeInfo.ident.desc()).first()
+        last_taken_badge = last_taken_badge.ident if last_taken_badge else 0
         start_badge = max(last_taken_badge, max_badges - minimum_extra_amount + 1)
         end_badge = max_badges
 

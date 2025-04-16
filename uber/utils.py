@@ -1870,7 +1870,7 @@ class TaskUtils:
 
     @staticmethod
     def attendee_account_import(import_job):
-        from uber.models import Attendee, AttendeeAccount
+        from uber.models import Attendee, AttendeeAccount, BadgeInfo
 
         with uber.models.Session() as session:
             service, message, target_url = get_api_service_from_server(import_job.target_server,
@@ -1925,7 +1925,7 @@ class TaskUtils:
                     if not c.SSO_EMAIL_DOMAINS:
                         # Try to match staff to their existing badge, which would be newer than the one we're importing
                         old_badge_num = attendee['badge_num']
-                        existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
+                        existing_staff = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == old_badge_num).first()
                         if existing_staff:
                             existing_staff.managers.append(account)
                             session.add(existing_staff)
