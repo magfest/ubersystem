@@ -1,7 +1,7 @@
 """Separate badge numbers into their own table
 
 Revision ID: 6d8333eaf58a
-Revises: f5a569d11539
+Revises: b36e0ca2ac50
 Create Date: 2025-04-04 09:00:54.335351
 
 """
@@ -9,7 +9,7 @@ Create Date: 2025-04-04 09:00:54.335351
 
 # revision identifiers, used by Alembic.
 revision = '6d8333eaf58a'
-down_revision = 'f5a569d11539'
+down_revision = 'b36e0ca2ac50'
 branch_labels = None
 depends_on = None
 
