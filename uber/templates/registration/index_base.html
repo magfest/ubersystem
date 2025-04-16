@@ -290,13 +290,13 @@
                 {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
                     {% if attendee.checked_in %}
                             <td>
-                                {% if attendee.paid == c.LOST_BADGE %}
+                                {% if not attendee.active_badge and attendee.lost_badges %}
                                     <strong>Badge reported as lost!</strong>
-                                {% else %}
+                                {% elif attendee.active_badge %}
                                     {{ hour_day_local(attendee.checked_in) }} <br/>
                                     <form method="post" action="lost_badge">
                                         <input type="hidden" name="id" value="{{ attendee.id }}" />
-                                        <input type="submit" value="Report Lost Badge">
+                                        <input type="submit" class="btn btn-sm btn-warning" value="Report Lost Badge">
                                     </form>
                                 {% endif %}
                             </td>

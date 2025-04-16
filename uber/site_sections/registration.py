@@ -248,7 +248,7 @@ class Root:
                             attendee.amount_unpaid_if_valid)
                         stay_on_form = True
                     else:
-                        attendee.checked_in = localized_now()
+                        attendee.check_in()
                         session.commit()
                         message = '{} saved and checked in as {}{}.'.format(
                             attendee.full_name, attendee.badge, attendee.accoutrements)
@@ -701,7 +701,7 @@ class Root:
                 session.add_to_print_queue(attendee, printer_id,
                                            cherrypy.session.get('reg_station'))
 
-                attendee.checked_in = localized_now()
+                attendee.check_in()
                 checked_in[attendee.id] = {
                     'badge':      attendee.badge,
                     'paid':       attendee.paid_label,
@@ -766,7 +766,7 @@ class Root:
                 printer_messages.append(f"There was a problem with printing {attendee.full_name}'s "
                                         f"badge: {' '.join(errors)}")
             else:
-                attendee.checked_in = localized_now()
+                attendee.check_in()
                 checked_in[attendee.id] = {
                     'badge':      attendee.badge,
                     'paid':       attendee.paid_label,
@@ -899,7 +899,7 @@ class Root:
         pre_badge = attendee.badge_num
         success, increment = False, False
 
-        attendee.checked_in = localized_now()
+        attendee.check_in()
         success = True
         session.commit()
         increment = True
@@ -919,7 +919,8 @@ class Root:
     @csrf_protected
     def undo_checkin(self, session, id, pre_badge):
         attendee = session.attendee(id, allow_invalid=True)
-        attendee.checked_in, attendee.badge_num = None, pre_badge if pre_badge else None
+        attendee.undo_checkin()
+        attendee.badge_num = pre_badge if pre_badge else None
         session.add(attendee)
         session.commit()
         return 'Attendee successfully un-checked-in'
@@ -954,12 +955,31 @@ class Root:
 
     def lost_badge(self, session, id):
         a = session.attendee(id, allow_invalid=True)
-        a.for_review += "Automated message: Badge reported lost on {}. Previous payment type: {}.".format(
-            localized_now().strftime('%m/%d, %H:%M'), a.paid_label)
-        a.paid = c.LOST_BADGE
+        a.for_review += "Automated message: Badge reported lost on {}.".format(
+            localized_now().strftime('%m/%d, %H:%M'))
+        a.active_badge.report_lost()
         session.add(a)
         session.commit()
         raise HTTPRedirect('index?message={}', 'Badge has been recorded as lost.')
+
+    def activate_badge(self, session, id):
+        badge = session.badge_info(id)
+        attendee = session.attendee(badge.attendee_id, allow_invalid=True)
+        if attendee.active_badge:
+            attendee.active_badge.active = False
+            session.add(attendee.active_badge)
+        badge.activate()
+        session.add(badge)
+        raise HTTPRedirect('form?id={}&message={}', badge.attendee_id, 'Badge reactivated.')
+
+    def undo_badge_pickup(self, session, id):
+        badge = session.badge_info(id)
+        attendee_id = badge.attendee_id
+        badge.picked_up = None
+        badge.attendee_id = None
+        session.add(badge)
+        raise HTTPRedirect('form?id={}&message={}', attendee_id,
+                           f'Badge #{badge.ident} unchecked-in and available for reassignment.')
 
     @public
     @check_atd
@@ -1232,7 +1252,7 @@ class Root:
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('index?message={}', 'You must set your reg station number')
 
-        attendee.checked_in = localized_now()
+        attendee.check_in()
         attendee.reg_station = cherrypy.session.get('reg_station')
         message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
         checked_in = attendee.id

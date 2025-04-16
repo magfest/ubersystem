@@ -162,28 +162,37 @@ class BadgeInfo(MagModel):
     )
 
     def assign(self, attendee_id):
-        if self.attendee:
+        if self.attendee_id:
+            if self.attendee_id == attendee_id:
+                self.active = True
             return
 
         self.attendee_id = attendee_id
         self.active = True
 
     def unassign(self):
-        if self.picked_up:
-            return
+        if not self.picked_up:
+            self.attendee_id = None
 
-        self.attendee_id = None
         self.active = False
 
+    def activate(self):
+        if not self.attendee_id:
+            return
+        
+        self.active = True
+        if self.attendee.checked_in:
+            self.check_in()
+
     def report_lost(self):
-        if not self.attendee:
+        if not self.attendee_id:
             return
 
         self.reported_lost = datetime.now(UTC)
         self.active = False
     
     def check_in(self):
-        if not self.attendee:
+        if not self.attendee_id:
             return
 
         self.picked_up = self.attendee.checked_in or datetime.now(UTC)
@@ -552,10 +561,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
 
-        if (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and self.badge_num and not self.checked_in and self.is_new \
-                and self.badge_type not in c.PREASSIGNED_BADGE_TYPES:
-            self.checked_in = datetime.now(UTC)
-
         if self.birthdate:
             self.age_group = self.age_group_conf['val']
 
@@ -751,7 +756,29 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.session.add(self.active_badge)
                 self.active_badge.unassign()
             badge.assign(self.id)
+            if self.checked_in:
+                badge.check_in()
             self.session.add(badge)
+    
+    @property
+    def lost_badges(self):
+        return [badge for badge in self.allocated_badges if badge.active == False and badge.reported_lost != None]
+    
+    def check_in(self):
+        self.checked_in = datetime.now(UTC)
+
+        if not self.active_badge:
+            new_badge = self.session.get_next_badge_num(self.badge_type_real)
+            if not new_badge:
+                return
+            new_badge.assign(self.id)
+            new_badge.check_in()
+        else:
+            self.active_badge.check_in()
+    
+    def undo_checkin(self):
+        self.checked_in = None
+        self.active_badge.picked_up = None
 
     @property
     def age_now_or_at_con(self):
