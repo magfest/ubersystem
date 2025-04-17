@@ -189,7 +189,7 @@
 <form novalidate method="post" id="attendee-form" action="form"
       x-data="{
         badge_placeholder: {{ attendee.placeholder | javascript_bool }},
-        badge_ribbons: {{ attendee.ribbon | tojson }},
+        badge_ribbons: {{ attendee.ribbon | javascript_array }},
         badge_type : {{ attendee.badge_type }},
         staffing: {{ attendee.staffing | javascript_bool }}
         }"
