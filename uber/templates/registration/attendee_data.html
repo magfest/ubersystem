@@ -152,7 +152,7 @@ if($.field('return_to')) {
 <form novalidate method="post" action="../registration/update_attendee" id="attendee_form"
       x-data="{
         badge_placeholder: {{ attendee.placeholder | javascript_bool }},
-        badge_ribbons: {{ attendee.ribbon | javascript_array }},
+        badge_ribbons: {{ attendee.ribbon | tojson }},
         badge_type : {{ attendee.badge_type }},
         staffing: {{ attendee.staffing | javascript_bool }}
         }"
