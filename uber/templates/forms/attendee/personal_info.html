@@ -30,8 +30,18 @@
     {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
 
 <div class="row g-sm-3">
-<div class="col-12 col-sm-6">{{ form_macros.alpine_form_input(personal_info.first_name) }}</div>
-<div class="col-12 col-sm-6">{{ form_macros.alpine_form_input(personal_info.last_name, value=attendee_last_name) }}</div>
+<div class="col-12 col-sm-6">
+    <div class="form-floating mb-3">
+        {{ personal_info.first_name(class="form-control") }}
+        {{ form_macros.alpine_form_label(personal_info.first_name) }}
+    </div>
+</div>
+<div class="col-12 col-sm-6">
+    <div class="form-floating mb-3">
+        {{ personal_info.last_name(class="form-control", value=attendee_last_name) }}
+        {{ form_macros.alpine_form_label(personal_info.last_name) }}
+    </div>
+</div>
 </div>
 
 {% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
@@ -39,8 +49,12 @@
   <div class="col-12 col-sm-6">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, hide_on_checked=True, prop="disabled",
                    checked=attendee.first_name != '' and attendee.legal_name == '') }}
   </div>
-
-  <div class="col-12 col-sm-6">{{ form_macros.alpine_form_input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?')) }}
+  <div class="col-12 col-sm-6">
+      <div class="form-floating mb-3">
+      {{ personal_info.legal_name(class="form-control") }}
+      {{ form_macros.alpine_form_label(personal_info.legal_name) }}
+      {{ form_macros.form_input_extras(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?')) }}
+      </div>
   </div>
 </div>
 {% else %}
@@ -62,6 +76,15 @@
 {% set attendee_email = attendee.masked_email if limited_read else attendee.email %}
 
 <div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+        <div class="form-floating mb-3">
+            {{ personal_info.email(class='form-control',value=attendee_email,{':required':'isEmailRequired',':disabled':'copyEmail'})  }}
+            {{ form_macros.alpine_form_label(personal_info.email, required_if='isEmailRequired') }}
+        </div>
+    {% if is_prereg_dealer %}
+        {{ personal_info.copy_email(class='form-control',alpine_props={'x-model.boolean':'copyEmail'}) }}
+    {% endif %}
+  </div>
   <div class="col-12 col-sm-6">
     {{ form_macros.alpine_form_input(personal_info.email, value=attendee_email, alpine_props={':required':'isEmailRequired', ':disabled':'copyEmail'}) }}
       {% if is_prereg_dealer %}

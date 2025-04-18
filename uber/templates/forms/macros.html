@@ -191,6 +191,8 @@
 {%- endmacro %}
 
 {% macro alpine_form_label(field, label_text='', required=None, required_if=None) %}
+    {% set label_text = label_text or field.label.text %}
+    {% set required = required or field.flags.required %}
     <label for="{{ field.label.field_id }}"
     {% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>
         <span class="form-label">{{ label_text }}</span>
