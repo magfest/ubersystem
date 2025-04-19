@@ -17,7 +17,22 @@
                         csrf_token: csrf_token
                   },
                   success: (response) => {
-                      console.log("HMD Got response");
+                      console.log("HMD Got checkout response");
+                      this.games =  response.games;
+                  }
+                });
+            },
+            returnGame(chosenGame) {
+                $.ajax({
+                  type: 'POST',
+                  url: 'returned',
+                  dataType: 'json',
+                  data: {
+                        game_id: chosenGame.id,
+                        csrf_token: csrf_token
+                  },
+                  success: (response) => {
+                      console.log("HMD Got return response");
                       this.games =  response.games;
                   }
                 });
@@ -55,7 +70,7 @@
                          <td x-data="{attendee: game.checked_out.attendee}">
                              <a target="_blank" :href="'#attendee_form?id=' + attendee.id " x-text="attendee.name"></a>
                              <span x-show="attendee.badge"> (Badge #<span x-text="attendee.badge"></span>)</span>
-                            <button class="btn btn-primary btn-sm">On Click return Game</button>
+                            <button @click="returnGame(game)" class="btn btn-primary btn-sm">Game was returned</button>
                         </td>
                      </template>
                     <template x-if="!game.checked_out">
