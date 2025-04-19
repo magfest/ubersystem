@@ -2,30 +2,31 @@
 {% block title %}Tabletop Checkins{% endblock %}
 {% block content %}
     <script>
-        let GAMES = {{ games|jsonize }};          // Temporarily use old angular method setting global with this custom filter.
-        let ATTENDEES = {{ attendees|jsonize }};  // Replace with safe json x-data
-        let checkout = function checkout(chosenGame, chosenAttendee) {
-            $.ajax({
-              type: 'POST',
-              url: 'checkout',
-              dataType: 'json',
-              data: {
-                    game_id: chosenGame.id,
-                    attendee_id: chosenAttendee.id,
-                    csrf_token: csrf_token
-              },
-              success: function(response){
-                  console.log("HMD Got response");
-                //Games.set(response.data.games);
-              }
-            });
+    function gameData(){
+        return {
+            games: {{ games | jsonize }},
+            attendees: {{ attendees | jsonize }},
+            checkout(chosenGame, chosenAttendee) {
+                 $.ajax({
+                  type: 'POST',
+                  url: 'checkout',
+                  dataType: 'json',
+                  data: {
+                        game_id: chosenGame.id,
+                        attendee_id: chosenAttendee.id,
+                        csrf_token: csrf_token
+                  },
+                  success: (response) => {
+                      console.log("HMD Got response");
+                      this.games =  response.games;
+                  }
+                });
+            }
         }
+    }
     </script>
     <div class="card-body"
-         x-data="{
-            games: GAMES,
-            attendees: ATTENDEES
-        }"
+         x-data="gameData()"
     >
         <h2> Tabletop Games </h2>
         <a href="add">Add a Game</a>
