@@ -78,7 +78,7 @@
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
         <div class="form-floating mb-3">
-            {{ personal_info.email(class='form-control',value=attendee_email,{':required':'isEmailRequired',':disabled':'copyEmail'})  }}
+            {{ personal_info.email(class='form-control', value=attendee_email, **{':required': 'isEmailRequired', ':disabled': 'copyEmail'}) }}
             {{ form_macros.alpine_form_label(personal_info.email, required_if='isEmailRequired') }}
         </div>
     {% if is_prereg_dealer %}
