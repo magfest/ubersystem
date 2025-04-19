@@ -171,41 +171,10 @@
 {% endif %}
 
 {{ form_macros.form_validation('attendee-form') }}
+{% include 'registration/alpine_registration_components.html' %}
 
-<script type="text/javascript">
-    function checkStaffing(ribbons,badgeType){
-        console.log("HMD running check staffing function");
-        let staffing = false;
-        if( badgeType === {{ c.STAFF_BADGE }} || badgeType === {{ c.CONTRACTOR_BADGE }}){
-            staffing = true;
-        }
-        if( ribbons.includes({{  c.VOLUNTEER_RIBBON }})) {
-            staffing = true;
-        }
-        console.log("HMD returning value " + staffing);
-        return staffing;
-    }
-</script>
 <form novalidate method="post" id="attendee-form" action="form"
-      x-data="{
-        badge_placeholder: {{ attendee.placeholder | javascript_bool }},
-        badge_ribbons: {{ attendee.ribbon | javascript_array }},
-        badge_type : {{ attendee.badge_type }},
-        staffing: {{ attendee.staffing | javascript_bool }}
-        }"
-
-      x-init="
-            staffing = checkStaffing(Alpine.raw(badge_ribbons), badge_type);
-            $watch('badge_ribbons',
-                (ribbons) => {
-                    console.log('HMD WATCH badgeRibbons HAS RUN');
-                    staffing = checkStaffing(Alpine.raw(ribbons), badge_type);
-                });
-              $watch('badge_type',
-                 (btype) => {
-                    console.log('HMD WATCH badgeType HAS RUN');
-                    staffing = checkStaffing(Alpine.raw(badge_ribbons), btype);
-              })"
+      x-data="attendee_metadata"
 >
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
