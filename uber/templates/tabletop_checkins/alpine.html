@@ -1,0 +1,119 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Tabletop Checkins{% endblock %}
+{% block content %}
+    <script>
+        let GAMES = {{ games|jsonize }};          // Temporarily use old angular method setting global with this custom filter.
+        let ATTENDEES = {{ attendees|jsonize }};  // Replace with safe json x-data
+        let checkout = function checkout(chosenGame, chosenAttendee) {
+            $.ajax({
+              type: 'POST',
+              url: 'checkout',
+              dataType: 'json',
+              data: {
+                    game_id: chosenGame.id,
+                    attendee_id: chosenAttendee.id,
+                    csrf_token: csrf_token
+              },
+              success: function(response){
+                  console.log("HMD Got response");
+                //Games.set(response.data.games);
+              }
+            });
+        }
+    </script>
+    <div class="card-body"
+         x-data="{
+            games: GAMES,
+            attendees: ATTENDEES
+        }"
+    >
+        <h2> Tabletop Games </h2>
+        <a href="add">Add a Game</a>
+
+        <h4>Game Check-In / Check-Out</h4>
+        <span>HMD TODO filter games by a search.</span>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Game</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+             <template x-for="game in games" :key="game.id">
+                 <tr>
+                     <td x-text="game.code"></td>
+                     <td><a :href="'checkout_history?id='+game.id" x-text="game.name"></a></td>
+                     <td>
+                         <a target="_blank" :href="'#attendee_form?id=' + game.attendee.id " x-text="game.attendee.name"></a>
+                     </td>
+                     <template x-if="game.checked_out">
+                         <td x-data="{attendee: game.checked_out.attendee}">
+                             <a target="_blank" :href="'#attendee_form?id=' + attendee.id " x-text="attendee.name"></a>
+                             <span x-show="attendee.badge"> (Badge #<span x-text="attendee.badge"></span>)</span>
+                            <button class="btn btn-primary btn-sm">On Click return Game</button>
+                        </td>
+                     </template>
+                    <template x-if="!game.checked_out">
+                        <td x-data="{
+                            selected_display: ' Check out to:',
+                            checkout_search: '',
+                            checkout_attendee: undefined,
+                            get selected_display(){
+                                if(!this.checkout_attendee){
+                                    return 'Select an attendee';
+                                }
+                                return this.checkout_attendee.name;
+                            },
+                            get display_attendees() {
+                                let inputValue = this.checkout_search;
+                                if (inputValue && inputValue.trim().length >= 3) {
+                                    inputValue = inputValue.trim().toLowerCase();
+                                    return this.attendees.filter((attendee) =>
+                                        attendee.displayText.toLowerCase().includes(inputValue));
+                                } else {
+                                   return this.attendees.slice(0,500);
+                                }
+                            }
+                        }">
+                              <div class="dropdown mb-3">
+                                <button class="btn btn-outline-secondary dropdown-toggle col-12"
+                                        type="button"
+                                        id="attendee-select"
+                                        data-bs-toggle="dropdown"
+                                        aria-expanded="false"
+                                        x-text="selected_display">
+                                </button>
+                                <ul class="dropdown-menu pt-0 col-12" id="attendee-select-list"
+                                    aria-labelledby="attendee-select">
+                                    <input type="text" id="attendee-select-search"
+                                           class="form-control
+                                                  border-0 border-bottom
+                                                  shadow-none mb-2"
+                                           placeholder="Search..."
+                                           autocomplete="off"
+                                           x-model="checkout_search"
+                                    >
+                                    <template x-for="attendee in display_attendees" :key="attendee.id">
+                                        <li>
+                                          <a href="#" class="dropdown-item"
+                                             x-on:click="checkout_attendee = attendee"
+                                             x-text="attendee.name"></a>
+                                        </li>
+                                    </template>
+                                </ul>
+                                  <button :disabled="!checkout_attendee" class="btn btn-primary btn-sm"
+                                  @click="checkout(game, checkout_attendee)">Checkout</button>
+                              </div>
+                        </td>
+                    </template>
+                     <td x-show="game.returned">Returned</td>
+                     <td x-show="!game.returned"><button class="btn btn-primary btn-sm">Return to Owner</button></td>
+                 </tr>
+            </template>
+        </table>
+    </div>
+{% endblock %}

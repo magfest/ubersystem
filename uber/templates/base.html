@@ -46,6 +46,7 @@
         {{ "deps/bootstrap3/bootbox.min.js"|serve_static_content }}
         {{ "deps/bootstrap3/datatables.min.js"|serve_static_content }}
         {% endif %}
+        <script defer src="https://unpkg.com/alpinejs-component@latest/dist/component.min.js"></script>
         <script type="text/javascript">
             $(window).on("runJavaScript", function () {
                 {% if bootstrap5 %}
