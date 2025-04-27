@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% include 'tabletop_checkins/alpine_components.html' %}
 {% block title %}Tabletop Checkins{% endblock %}
 {% block content %}
     <script>
@@ -17,7 +18,6 @@
                             csrf_token: csrf_token
                       },
                       success: (response) => {
-                          console.log("HMD Got checkout response");
                           this.games =  response.games;
                       }
                     });
@@ -32,7 +32,6 @@
                             csrf_token: csrf_token
                       },
                       success: (response) => {
-                          console.log("HMD Got return response");
                           this.games =  response.games;
                       }
                     });
@@ -47,7 +46,6 @@
                             csrf_token: csrf_token
                       },
                       success: (response) => {
-                          console.log("HMD Got owner return response");
                           this.games =  response.games;
                       }
                    });
@@ -87,56 +85,10 @@
                         </td>
                      </template>
                     <template x-if="!game.checked_out">
-                        <td x-data="{
-                            selected_display: ' Check out to:',
-                            checkout_search: '',
-                            checkout_attendee: undefined,
-                            get selected_display(){
-                                if(!this.checkout_attendee){
-                                    return 'Select an attendee';
-                                }
-                                return this.checkout_attendee.name;
-                            },
-                            get display_attendees() {
-                                let inputValue = this.checkout_search;
-                                if (inputValue && inputValue.trim().length >= 3) {
-                                    inputValue = inputValue.trim().toLowerCase();
-                                    return this.attendees.filter((attendee) =>
-                                        attendee.displayText.toLowerCase().includes(inputValue));
-                                } else {
-                                   return this.attendees.slice(0,500);
-                                }
-                            }
-                        }">
-                              <div class="dropdown mb-3">
-                                <button class="btn btn-outline-secondary dropdown-toggle col-12"
-                                        type="button"
-                                        id="attendee-select"
-                                        data-bs-toggle="dropdown"
-                                        aria-expanded="false"
-                                        x-text="selected_display">
-                                </button>
-                                <ul class="dropdown-menu pt-0 col-12" id="attendee-select-list"
-                                    aria-labelledby="attendee-select">
-                                    <input type="text" id="attendee-select-search"
-                                           class="form-control
-                                                  border-0 border-bottom
-                                                  shadow-none mb-2"
-                                           placeholder="Search..."
-                                           autocomplete="off"
-                                           x-model="checkout_search"
-                                    >
-                                    <template x-for="attendee in display_attendees" :key="attendee.id">
-                                        <li>
-                                          <a href="#" class="dropdown-item"
-                                             @click="checkout_attendee = attendee"
-                                             x-text="attendee.name"></a>
-                                        </li>
-                                    </template>
-                                </ul>
-                                  <button :disabled="!checkout_attendee" class="btn btn-primary btn-sm"
-                                  @click="checkout(game, checkout_attendee)">Checkout</button>
-                              </div>
+                        <td x-data="attendeeSearch('Check out to:')">
+                           <x-component template="attendeeSearch" styles="global"></x-component>
+                           <button :disabled="!selectedAttendee" class="btn btn-primary btn-sm"
+                              @click="checkout(game, selectedAttendee)">Checkout</button>
                         </td>
                     </template>
                      <td x-show="game.returned">Returned</td>

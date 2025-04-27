@@ -1,0 +1,55 @@
+<template id="attendeeSearch">
+    <div class="dropdown mb-3">
+        <button class="btn btn-outline-secondary dropdown-toggle col-12"
+                type="button"
+                id="attendee-select"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                x-text="selected_display">
+        </button>
+        <ul class="dropdown-menu pt-0 col-12" id="attendee-select-list"
+            aria-labelledby="attendee-select">
+            <input type="text" id="attendee-select-search"
+                   class="form-control
+                          border-0 border-bottom
+                          shadow-none mb-2"
+                   placeholder="Search..."
+                   autocomplete="off"
+                   x-model="search"
+            >
+            <template x-for="attendee in display_attendees" :key="attendee.id">
+                <li>
+                    <a href="#" class="dropdown-item"
+                       @click="selectedAttendee = attendee"
+                       x-text="attendee.name"></a>
+                </li>
+            </template>
+        </ul>
+    </div>
+</template>
+
+<script>
+  function attendeeSearch(placeholder) {
+    return {
+      placeholder: placeholder,
+      search: null,
+      selectedAttendee: null,
+      get selected_display(){
+        if(!this.selectedAttendee){
+            return this.placeholder;
+        }
+        return this.selectedAttendee.name;
+      },
+      get display_attendees() {
+        let inputValue = this.search;
+        if (inputValue && inputValue.trim().length >= 3) {
+            inputValue = inputValue.trim().toLowerCase();
+            return this.attendees.filter((attendee) =>
+                attendee.name.toLowerCase().includes(inputValue));
+        } else {
+           return this.attendees.slice(0,500);
+        }
+      }
+    }
+  }
+</script>
