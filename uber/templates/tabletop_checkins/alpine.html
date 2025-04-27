@@ -95,13 +95,12 @@
                     <td x-text="game.code"></td>
                     <td><a :href="'checkout_history?id='+game.id" x-text="game.name"></a></td>
                     <td>
-                        <a target="_blank" :href="'#attendee_form?id=' + game.attendee.id "
+                        <a :href="'#attendee_form?id=' + game.attendee.id "
                            x-text="game.attendee.name"></a>
                     </td>
                     <template x-if="game.checked_out && !game.returned">
                         <td x-data="{attendee: game.checked_out.attendee}">
-                            <a target="_blank" :href="'#attendee_form?id=' + attendee.id " x-text="attendee.name"></a>
-                            <span x-show="attendee.badge"> (Badge #<span x-text="attendee.badge"></span>)</span>
+                            <a :href="'#attendee_form?id=' + attendee.id " x-text="attendee.displayText"></a>
                             <button @click="returnGame(game)" class="btn btn-primary btn-sm">Game was returned</button>
                         </td>
                     </template>

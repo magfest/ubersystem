@@ -8,15 +8,14 @@
         if(!this.selectedAttendee){
             return this.placeholder;
         }
-        return this.selectedAttendee.name;
+        return this.selectedAttendee.displayText;
       },
       get display_attendees() {
         let inputValue = this.search;
         if (inputValue && inputValue.trim().length >= 3) {
             inputValue = inputValue.trim().toLowerCase();
             return attendeeList.filter((attendee) => {
-                let searchable = attendee.name + " " + attendee.badge;
-                return searchable.toLowerCase().includes(inputValue);
+                return attendee.displayText.toLowerCase().includes(inputValue);
             })
         } else {
            return attendeeList.slice(0,maxDisplay);

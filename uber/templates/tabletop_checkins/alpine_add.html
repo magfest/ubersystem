@@ -33,7 +33,13 @@
                                 csrf_token: csrf_token
                             },
                             success: (response) => {
+                                //Reach back to the parent page and add to games.
                                 this.games = response.games;
+                                //Reset data on this page for next use and close modal.
+                                this.gameName = '';
+                                this.selectedAttendee = null;
+                                this.gameCode = getGameId();
+                                $('#close-add-game').click();
                             }
                         });
                     }
@@ -46,34 +52,26 @@
                 </h4>
             </div>
             <div class="modal-body">
-                <div class="container">
-                    <div class="row">
-                        <div class="col">
-                            <label for="game-code"><span class="form-label">
-                                        Game Code
-                                    </span></label>
-                            <span id="game=code" x-text="gameCode"></span>
-                        </div>
+                <div class="d-flex flex-column">
+                    <div class="mb-3">
+                        <label for="game-code"><span class="form-label">
+                                    Game Code
+                                </span></label>
+                        <span id="game=code" x-text="gameCode"></span>
                     </div>
-                    <div class="row">
-                        <div class="col">
-                            <label for="game-name">
-                                <span class="form-label">Game Name:</span>
-                                <span class="required-indicator text-danger">*</span>
-                            </label>
-                            <input type="text" x-model="gameName" id="game-name">
-                        </div>
+                    <div class="mb-3">
+                        <label for="game-name">
+                            <span class="form-label">Game Name:</span>
+                            <span class="required-indicator text-danger">*</span>
+                        </label>
+                        <input type="text" x-model="gameName" id="game-name">
                     </div>
-                    <div class="row">
-                        <div class="col">
-                            {% include 'tabletop_checkins/attendee_search_template.html' %}
-                        </div>
+                    <div class="mb-3">
+                        {% include 'tabletop_checkins/attendee_search_template.html' %}
                     </div>
-                    <div class="row">
-                        <div class="col">
-                            <button class="btn btn-primary" @click="createGame()">Upload</button>
-                            <button class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
-                        </div>
+                    <div class="mb-3">
+                        <button class="btn btn-primary" @click="createGame()" :disabled="!selectedAttendee || !gameName">Upload</button>
+                        <button id="close-add-game" class="btn btn-danger"  data-bs-dismiss="modal">Cancel</button>
                     </div>
 
                 </div>
