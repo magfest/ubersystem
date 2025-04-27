@@ -24,6 +24,9 @@
                        x-text="attendee.displayText"></a>
                 </li>
             </template>
+            <template x-if="searchMore">
+                <li><a class="dropdown-item text-muted">More attendees exist! Please use search.</a></li>
+            </template>
         </ul>
     </div>
 </div>

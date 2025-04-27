@@ -7,6 +7,7 @@
       selectAttendee(attendee){
           this.selectedAttendee = attendee
       },
+      searchMore: attendeeList.length > maxDisplay,
       get selected_display(){
         if(!this.selectedAttendee){
             return this.placeholder;
