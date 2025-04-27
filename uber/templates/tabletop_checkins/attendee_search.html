@@ -1,12 +1,9 @@
 <script>
-  function attendeeSearch(placeholder) {
+  function attendeeSearch({placeholder, attendeeList, maxDisplay=100}) {
     return {
       placeholder: placeholder,
       search: null,
       selectedAttendee: null,
-      toggleOpen(){
-         this.open = !this.open;
-      },
       get selected_display(){
         if(!this.selectedAttendee){
             return this.placeholder;
@@ -17,10 +14,12 @@
         let inputValue = this.search;
         if (inputValue && inputValue.trim().length >= 3) {
             inputValue = inputValue.trim().toLowerCase();
-            return this.attendees.filter((attendee) =>
-                attendee.name.toLowerCase().includes(inputValue));
+            return attendeeList.filter((attendee) => {
+                let searchable = attendee.name + " " + attendee.badge;
+                return searchable.toLowerCase().includes(inputValue);
+            })
         } else {
-           return this.attendees.slice(0,500);
+           return attendeeList.slice(0,maxDisplay);
         }
       }
     }

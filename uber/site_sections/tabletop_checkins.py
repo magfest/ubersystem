@@ -15,6 +15,12 @@ class Root:
             'attendees': _attendees(session)
         }
 
+    def alpine(self, session):
+        return {
+            'games': _games(session),
+            'attendees': _attendees(session)
+        }
+
     def checkout_history(self, session, id):
         return {
             'game': session.tabletop_game(id),
@@ -92,13 +98,14 @@ class Root:
 
 
 def _attendees(session):
+
     return [{
         'id': id,
         'name': name,
         'badge': num
     } for (id, name, num) in session.query(Attendee.id, Attendee.full_name, Attendee.badge_num)
                                     .filter(Attendee.badge_num != 0)
-                                    .order_by(Attendee.badge_num).all()]
+                                    .order_by(Attendee.full_name.asc()).all()]
 
 
 def _attendee(a):

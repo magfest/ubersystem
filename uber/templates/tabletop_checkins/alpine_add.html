@@ -1,0 +1,83 @@
+<script>
+    function randInt(x) {
+        return Math.floor(x * Math.random());
+    }
+
+    function choice(xs) {
+        return xs[randInt(xs.length)];
+    }
+
+    function getGameId() {
+        var id = '';
+        for (var i = 0; i < 3; i++) {
+            id += choice('ABCDEFGHJKMNPRSTUVWXYZ') + (2 + randInt(8));
+        }
+        return id;
+    }
+</script>
+<div id="add-game-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="add-game-title"
+     x-data="attendeeSearch({placeholder: 'Select Owner:', attendeeList: attendees, maxDisplay: 8})">
+    <div class="modal-dialog modal-dialog-centered modal-xl" role="document"
+         x-data="{
+                    gameCode: getGameId(),
+                    gameName: '',
+                    createGame() {
+                        $.ajax({
+                            type: 'POST',
+                            url: 'add_game',
+                            dataType: 'json',
+                            data: {
+                                code: this.gameCode,
+                                name: this.gameName,
+                                attendee_id: selectedAttendee.id,
+                                csrf_token: csrf_token
+                            },
+                            success: (response) => {
+                                this.games = response.games;
+                            }
+                        });
+                    }
+                }"
+    >
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="add-game-title">
+                    Add A Game
+                </h4>
+            </div>
+            <div class="modal-body">
+                <div class="container">
+                    <div class="row">
+                        <div class="col">
+                            <label for="game-code"><span class="form-label">
+                                        Game Code
+                                    </span></label>
+                            <span id="game=code" x-text="gameCode"></span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <label for="game-name">
+                                <span class="form-label">Game Name:</span>
+                                <span class="required-indicator text-danger">*</span>
+                            </label>
+                            <input type="text" x-model="gameName" id="game-name">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            {% include 'tabletop_checkins/attendee_search_template.html' %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <button class="btn btn-primary" @click="createGame()">Upload</button>
+                            <button class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
