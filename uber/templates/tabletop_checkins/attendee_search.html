@@ -1,0 +1,28 @@
+<script>
+  function attendeeSearch(placeholder) {
+    return {
+      placeholder: placeholder,
+      search: null,
+      selectedAttendee: null,
+      toggleOpen(){
+         this.open = !this.open;
+      },
+      get selected_display(){
+        if(!this.selectedAttendee){
+            return this.placeholder;
+        }
+        return this.selectedAttendee.name;
+      },
+      get display_attendees() {
+        let inputValue = this.search;
+        if (inputValue && inputValue.trim().length >= 3) {
+            inputValue = inputValue.trim().toLowerCase();
+            return this.attendees.filter((attendee) =>
+                attendee.name.toLowerCase().includes(inputValue));
+        } else {
+           return this.attendees.slice(0,500);
+        }
+      }
+    }
+  }
+</script>

@@ -1,0 +1,100 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% include 'tabletop_checkins/attendee_search.html' %}
+{% block title %}Tabletop Checkins{% endblock %}
+{% block content %}
+    <script>
+        function gameData(){
+            return {
+                games: {{ games | jsonize }},
+                attendees: {{ attendees | jsonize }},
+                checkout(chosenGame, chosenAttendee) {
+                     $.ajax({
+                      type: 'POST',
+                      url: 'checkout',
+                      dataType: 'json',
+                      data: {
+                            game_id: chosenGame.id,
+                            attendee_id: chosenAttendee.id,
+                            csrf_token: csrf_token
+                      },
+                      success: (response) => {
+                          this.games =  response.games;
+                      }
+                    });
+                },
+                returnGame(chosenGame) {
+                    $.ajax({
+                      type: 'POST',
+                      url: 'returned',
+                      dataType: 'json',
+                      data: {
+                            game_id: chosenGame.id,
+                            csrf_token: csrf_token
+                      },
+                      success: (response) => {
+                          this.games =  response.games;
+                      }
+                    });
+                },
+                returnToOwner(chosenGame){
+                   $.ajax({
+                      type: 'POST',
+                      url: 'return_to_owner',
+                      dataType: 'json',
+                      data: {
+                            game_id: chosenGame.id,
+                            csrf_token: csrf_token
+                      },
+                      success: (response) => {
+                          this.games =  response.games;
+                      }
+                   });
+                }
+            }
+        }
+    </script>
+    <div class="card-body" x-data="gameData()">
+        <h2> Tabletop Games </h2>
+        <a href="add">Add a Game</a>
+
+        <h4>Game Check-In / Check-Out</h4>
+        <span>HMD TODO filter games by a search.</span>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Game</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+             <template x-for="game in games" :key="game.id">
+                 <tr>
+                     <td x-text="game.code"></td>
+                     <td><a :href="'checkout_history?id='+game.id" x-text="game.name"></a></td>
+                     <td>
+                         <a target="_blank" :href="'#attendee_form?id=' + game.attendee.id " x-text="game.attendee.name"></a>
+                     </td>
+                     <template x-if="game.checked_out">
+                         <td x-data="{attendee: game.checked_out.attendee}">
+                             <a target="_blank" :href="'#attendee_form?id=' + attendee.id " x-text="attendee.name"></a>
+                             <span x-show="attendee.badge"> (Badge #<span x-text="attendee.badge"></span>)</span>
+                            <button @click="returnGame(game)" class="btn btn-primary btn-sm">Game was returned</button>
+                        </td>
+                     </template>
+                    <template x-if="!game.checked_out">
+                        <td x-data="attendeeSearch('Check out to:')">
+                            {% include 'tabletop_checkins/attendee_search_template.html' %}
+                           <button :disabled="!selectedAttendee" class="btn btn-primary btn-sm"
+                              @click="checkout(game, selectedAttendee)">Checkout</button>
+                        </td>
+                    </template>
+                     <td x-show="game.returned">Returned</td>
+                     <td x-show="!game.returned"><button @click="returnToOwner(game)" class="btn btn-primary btn-sm">Return to Owner</button></td>
+                 </tr>
+            </template>
+        </table>
+    </div>
+{% endblock %}
