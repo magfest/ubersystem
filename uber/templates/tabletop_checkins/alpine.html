@@ -8,25 +8,39 @@
                 games: {{ games | jsonize }},
                 gameSearch: '',
                 checkedOutOnly: false,
+                availableOnly: false,
                 get display_games() {
                     let inputValue = this.gameSearch;
                     if (inputValue && inputValue.trim().length > 0) {
                         inputValue = inputValue.trim().toLowerCase();
                         return this.games.filter((game) => {
                             let searchable = game.name + " " + game.code;
-                            let checkout = this.checkedOutOnly ? game.checked_out : true;
+                            let checkout = true;
+
+                            if (this.availableOnly) {
+                                checkout = !game.checked_out;
+                            } else if (this.checkedOutOnly) {
+                                checkout = game.checked_out;
+                            }
                             return searchable.toLowerCase().includes(inputValue) && checkout;
                         })
                     } else {
-                        if(this.checkedOutOnly){
+                        if (this.checkedOutOnly) {
                             return this.games.filter((game) => game.checked_out);
+                        }
+                        if (this.availableOnly) {
+                            return this.games.filter((game) => !game.checked_out);
                         }
                         return this.games;
                     }
                 },
-                toggleCheckedOut(){
-                    console.log("HMD toggle Checked out");
+                toggleCheckedOut() {
                     this.checkedOutOnly = !this.checkedOutOnly
+                    this.availableOnly = false
+                },
+                toggleAvailable() {
+                    this.availableOnly = !this.availableOnly
+                    this.checkedOutOnly = false
                 },
                 attendees: {{ attendees | jsonize }},
                 checkout(chosenGame, chosenAttendee) {
@@ -77,13 +91,14 @@
     </script>
     <div class="card">
         <div class="card-header">
-           <h2 class="card-title"> Tabletop Games </h2>
+            <h2 class="card-title"> Tabletop Games </h2>
         </div>
         <div class="card-body" x-data="gameData()">
             <h4 class="mb-3 text-center">Game Check-In / Check-Out</h4>
             <div class="row mb-2">
                 <div class="col-auto">
-                   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-game-modal">Add a Game</button>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-game-modal">Add a Game
+                    </button>
                 </div>
             </div>
             <div class="row mb-2">
@@ -98,10 +113,14 @@
                     >
                 </div>
                 <div class="col-auto">
-                   <button class="btn btn-info" @click="toggleCheckedOut()">
-                       <span x-show="!checkedOutOnly">View Checked Out</span>
-                       <span x-show="checkedOutOnly">View All</span>
-                   </button>
+                    <button class="btn btn-info" @click="toggleCheckedOut()">
+                        <span x-show="!checkedOutOnly">View Checked Out</span>
+                        <span x-show="checkedOutOnly">View All</span>
+                    </button>
+                    <button class="btn btn-info" @click="toggleAvailable()">
+                        <span x-show="!availableOnly">View Available</span>
+                        <span x-show="availableOnly">View All</span>
+                    </button>
                 </div>
             </div>
             <!-- include the add game form modal and all it's logic -->
@@ -127,13 +146,15 @@
                         </td>
                         <template x-if="game.checked_out && !game.returned">
                             <td class="text-center" x-data="{attendee: game.checked_out.attendee}">
-                                Checked out by: <a :href="'#attendee_form?id=' + attendee.id " x-text="attendee.displayText"></a>
+                                Checked out by: <a :href="'#attendee_form?id=' + attendee.id "
+                                                   x-text="attendee.displayText"></a>
                                 <button @click="returnGame(game)" class="btn btn-primary btn-sm">Game was returned
                                 </button>
                             </td>
                         </template>
                         <template x-if="!game.checked_out && !game.returned">
-                            <td class="text-center" x-data="attendeeSearch({placeholder: 'Check out to:', attendeeList: attendees})">
+                            <td class="text-center"
+                                x-data="attendeeSearch({placeholder: 'Check out to:', attendeeList: attendees})">
                                 {% include 'tabletop_checkins/attendee_search_template.html' %}
                                 <button :disabled="!selectedAttendee" class="btn btn-primary btn-sm"
                                         @click="checkout(game, selectedAttendee)">Checkout
