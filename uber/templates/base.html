@@ -36,7 +36,6 @@
         {{ "deps/combined.min.js"|serve_static_content }}
         {{ "deps/jquery/jquery-migrate-3.4.1.js"|serve_static_content }}
         {{ "js/common-static.js"|serve_static_content }}
-        <script defer src="https://unpkg.com/alpinejs-component@latest/dist/component.min.js"></script>
         {{ "js/alpine.3.14.8.min.js"|serve_static_content(defer=true) }}
         {% if bootstrap5 %}
         {{ "deps/bootstrap5/bootstrap.bundle.min.js"|serve_static_content }}

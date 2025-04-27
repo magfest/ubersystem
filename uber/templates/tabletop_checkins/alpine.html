@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% include 'tabletop_checkins/alpine_components.html' %}
+{% include 'tabletop_checkins/attendee_search.html' %}
 {% block title %}Tabletop Checkins{% endblock %}
 {% block content %}
     <script>
@@ -86,7 +86,7 @@
                      </template>
                     <template x-if="!game.checked_out">
                         <td x-data="attendeeSearch('Check out to:')">
-                           <x-component template="attendeeSearch" styles="global"></x-component>
+                            {% include 'tabletop_checkins/attendee_search_template.html' %}
                            <button :disabled="!selectedAttendee" class="btn btn-primary btn-sm"
                               @click="checkout(game, selectedAttendee)">Checkout</button>
                         </td>
