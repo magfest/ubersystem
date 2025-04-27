@@ -66,64 +66,76 @@
             }
         }
     </script>
-    <div class="card-body" x-data="gameData()">
-        <h2> Tabletop Games </h2>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-game-modal">Add a Game</button>
-        {% include 'tabletop_checkins/alpine_add.html' %}
-        <h4>Game Check-In / Check-Out</h4>
-        <input type="text" id="game-search"
-               class="form-control
-                          border-0 border-bottom
-                          shadow-none mb-2"
-               placeholder="Filter Games..."
-               autocomplete="off"
-               x-model="gameSearch"
-        >
-        <table class="table table-bordered table-sm">
-            <thead>
-            <tr>
-                <th>ID</th>
-                <th>Game</th>
-                <th>Owner</th>
-                <th>Status</th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody>
-            <template x-for="game in display_games" :key="game.id">
+    <div class="card">
+        <div class="card-header">
+           <h2 class="card-title"> Tabletop Games </h2>
+        </div>
+        <div class="card-body" x-data="gameData()">
+            <h4 class="mb-3 text-center">Game Check-In / Check-Out</h4>
+            <div class="row mb-2">
+                <div class="col-auto">
+                   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-game-modal">Add a Game</button>
+                </div>
+                <div class="col-auto">
+                    <label class="col-form-label" for="game-search">Filter Games:</label>
+                </div>
+                <div class="col-4">
+                    <input type="text" id="game-search"
+                           class="form-control"
+                           autocomplete="off"
+                           x-model="gameSearch"
+                    >
+                </div>
+            </div>
+            <!-- include the add game form modal and all it's logic -->
+            {% include 'tabletop_checkins/alpine_add.html' %}
+            <table class="table table-bordered table-sm">
+                <thead>
                 <tr>
-                    <td x-text="game.code"></td>
-                    <td><a :href="'checkout_history?id='+game.id" x-text="game.name"></a></td>
-                    <td>
-                        <a :href="'#attendee_form?id=' + game.attendee.id "
-                           x-text="game.attendee.name"></a>
-                    </td>
-                    <template x-if="game.checked_out && !game.returned">
-                        <td x-data="{attendee: game.checked_out.attendee}">
-                            <a :href="'#attendee_form?id=' + attendee.id " x-text="attendee.displayText"></a>
-                            <button @click="returnGame(game)" class="btn btn-primary btn-sm">Game was returned</button>
-                        </td>
-                    </template>
-                    <template x-if="!game.checked_out && !game.returned">
-                        <td x-data="attendeeSearch({placeholder: 'Check out to:', attendeeList: attendees})">
-                            {% include 'tabletop_checkins/attendee_search_template.html' %}
-                            <button :disabled="!selectedAttendee" class="btn btn-primary btn-sm"
-                                    @click="checkout(game, selectedAttendee)">Checkout
-                            </button>
-                        </td>
-                    </template>
-                    <template x-if="game.returned">
-                        <td>
-                            Not Available
-                        </td>
-                    </template>
-                    <td x-show="game.returned">Returned</td>
-                    <td x-show="!game.returned">
-                        <button @click="returnToOwner(game)" class="btn btn-primary btn-sm">Return to Owner</button>
-                    </td>
+                    <th>ID</th>
+                    <th>Game</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                    <th></th>
                 </tr>
-            </template>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                <template x-for="game in display_games" :key="game.id">
+                    <tr>
+                        <td x-text="game.code"></td>
+                        <td><a :href="'checkout_history?id='+game.id" x-text="game.name"></a></td>
+                        <td>
+                            <a :href="'#attendee_form?id=' + game.attendee.id "
+                               x-text="game.attendee.name"></a>
+                        </td>
+                        <template x-if="game.checked_out && !game.returned">
+                            <td class="text-center" x-data="{attendee: game.checked_out.attendee}">
+                                Checked out by: <a :href="'#attendee_form?id=' + attendee.id " x-text="attendee.displayText"></a>
+                                <button @click="returnGame(game)" class="btn btn-primary btn-sm">Game was returned
+                                </button>
+                            </td>
+                        </template>
+                        <template x-if="!game.checked_out && !game.returned">
+                            <td class="text-center" x-data="attendeeSearch({placeholder: 'Check out to:', attendeeList: attendees})">
+                                {% include 'tabletop_checkins/attendee_search_template.html' %}
+                                <button :disabled="!selectedAttendee" class="btn btn-primary btn-sm"
+                                        @click="checkout(game, selectedAttendee)">Checkout
+                                </button>
+                            </td>
+                        </template>
+                        <template x-if="game.returned">
+                            <td class="text-center">
+                                Not Available
+                            </td>
+                        </template>
+                        <td x-show="game.returned">Returned</td>
+                        <td x-show="!game.returned">
+                            <button @click="returnToOwner(game)" class="btn btn-primary btn-sm">Return to Owner</button>
+                        </td>
+                    </tr>
+                </template>
+                </tbody>
+            </table>
+        </div>
     </div>
 {% endblock %}

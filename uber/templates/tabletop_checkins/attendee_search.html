@@ -1,9 +1,12 @@
 <script>
-  function attendeeSearch({placeholder, attendeeList, maxDisplay=100}) {
+  function attendeeSearch({placeholder, attendeeList, maxDisplay=100, minSearch=1}) {
     return {
       placeholder: placeholder,
       search: null,
       selectedAttendee: null,
+      selectAttendee(attendee){
+          this.selectedAttendee = attendee
+      },
       get selected_display(){
         if(!this.selectedAttendee){
             return this.placeholder;
@@ -12,7 +15,7 @@
       },
       get display_attendees() {
         let inputValue = this.search;
-        if (inputValue && inputValue.trim().length >= 3) {
+        if (inputValue && inputValue.trim().length >= minSearch) {
             inputValue = inputValue.trim().toLowerCase();
             return attendeeList.filter((attendee) => {
                 return attendee.displayText.toLowerCase().includes(inputValue);

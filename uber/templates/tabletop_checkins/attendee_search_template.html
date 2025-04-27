@@ -20,7 +20,7 @@
             <template x-for="attendee in display_attendees" :key="attendee.id">
                 <li>
                     <a href="#" class="dropdown-item"
-                       @click="selectedAttendee = attendee"
+                       @click="selectAttendee(attendee)"
                        x-text="attendee.displayText"></a>
                 </li>
             </template>
