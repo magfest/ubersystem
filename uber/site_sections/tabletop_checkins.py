@@ -15,12 +15,6 @@ class Root:
             'attendees': _attendees(session)
         }
 
-    def alpine(self, session):
-        return {
-            'games': _games(session),
-            'attendees': _attendees(session)
-        }
-
     def checkout_history(self, session, id):
         return {
             'game': session.tabletop_game(id),
@@ -100,9 +94,7 @@ def _attendees(session):
     attendees = [
         {
             'id': id,
-            'displayText': '{} - {}'.format(name.title(), ' #({})'.format(badge_num) if badge_num else ''),
-            'name': name,
-            'badge': badge_num
+            'displayText': '{} - {}'.format(name.title(), ' #({})'.format(badge_num) if badge_num else '')
         }
         for id, name, badge_num in attendee_attrs
     ]
@@ -112,9 +104,7 @@ def _attendees(session):
 def _attendee(a):
     return a and {
         'id': a.id,
-        'name': a.full_name,
-        'displayText': '{} - {}'.format(a.full_name.title(), ' #({})'.format(a.badge_num) if a.badge_num else ''),
-        'badge': a.badge_num
+        'displayText': '{} - {}'.format(a.full_name.title(), ' #({})'.format(a.badge_num) if a.badge_num else '')
     }
 
 

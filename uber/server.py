@@ -175,67 +175,6 @@ class StaticViews:
         guessed_content_type = mimetypes.guess_type(content_filename)[0]
         return cherrypy.lib.static.serve_fileobj(content, name=content_filename, content_type=guessed_content_type)
 
-
-class AngularJavascript:
-    @cherrypy.expose
-    def magfest_js(self):
-        """
-        We have several Angular apps which need to be able to access our constants like c.ATTENDEE_BADGE and such.
-        We also need those apps to be able to make HTTP requests with CSRF tokens, so we set that default.
-        """
-        cherrypy.response.headers['Content-Type'] = 'text/javascript'
-
-        consts = {}
-        for attr in dir(c):
-            try:
-                consts[attr] = getattr(c, attr, None)
-            except Exception:
-                pass
-
-        js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
-        return '\n'.join([
-            'angular.module("magfest", [])',
-            '.constant("c", {})'.format(js_consts),
-            '.constant("magconsts", {})'.format(js_consts),
-            '.run(function ($http) {',
-            '   $http.defaults.headers.common["CSRF-Token"] = "{}";'.format(c.CSRF_TOKEN),
-            '});'
-        ])
-
-    @cherrypy.expose
-    def static_magfest_js(self):
-        """
-        We have several Angular apps which need to be able to access our constants like c.ATTENDEE_BADGE and such.
-        We also need those apps to be able to make HTTP requests with CSRF tokens, so we set that default.
-
-        The static_magfest_js() version of magfest_js() omits any config
-        properties that generate database queries.
-        """
-        cherrypy.response.headers['Content-Type'] = 'text/javascript'
-
-        consts = {}
-        for attr in dir(c):
-            try:
-                prop = getattr(Config, attr, None)
-                if prop:
-                    fget = getattr(prop, 'fget', None)
-                    if fget and getattr(fget, '_dynamic', None):
-                        continue
-                consts[attr] = getattr(c, attr, None)
-            except Exception:
-                pass
-
-        js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
-        return '\n'.join([
-            'angular.module("magfest", [])',
-            '.constant("c", {})'.format(js_consts),
-            '.constant("magconsts", {})'.format(js_consts),
-            '.run(function ($http) {',
-            '   $http.defaults.headers.common["CSRF-Token"] = "{}";'.format(c.CSRF_TOKEN),
-            '});'
-        ])
-
-
 @all_renderable(public=True)
 class Root:
     def index(self):
@@ -260,7 +199,6 @@ class Root:
         raise HTTPRedirect(path)
 
     static_views = StaticViews()
-    angular = AngularJavascript()
 
 
 mount_site_sections(c.MODULE_ROOT)
