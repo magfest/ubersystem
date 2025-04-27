@@ -7,17 +7,26 @@
             return {
                 games: {{ games | jsonize }},
                 gameSearch: '',
+                checkedOutOnly: false,
                 get display_games() {
                     let inputValue = this.gameSearch;
                     if (inputValue && inputValue.trim().length > 0) {
                         inputValue = inputValue.trim().toLowerCase();
                         return this.games.filter((game) => {
                             let searchable = game.name + " " + game.code;
-                            return searchable.toLowerCase().includes(inputValue);
+                            let checkout = this.checkedOutOnly ? game.checked_out : true;
+                            return searchable.toLowerCase().includes(inputValue) && checkout;
                         })
                     } else {
+                        if(this.checkedOutOnly){
+                            return this.games.filter((game) => game.checked_out);
+                        }
                         return this.games;
                     }
+                },
+                toggleCheckedOut(){
+                    console.log("HMD toggle Checked out");
+                    this.checkedOutOnly = !this.checkedOutOnly
                 },
                 attendees: {{ attendees | jsonize }},
                 checkout(chosenGame, chosenAttendee) {
@@ -76,6 +85,8 @@
                 <div class="col-auto">
                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-game-modal">Add a Game</button>
                 </div>
+            </div>
+            <div class="row mb-2">
                 <div class="col-auto">
                     <label class="col-form-label" for="game-search">Filter Games:</label>
                 </div>
@@ -85,6 +96,12 @@
                            autocomplete="off"
                            x-model="gameSearch"
                     >
+                </div>
+                <div class="col-auto">
+                   <button class="btn btn-info" @click="toggleCheckedOut()">
+                       <span x-show="!checkedOutOnly">View Checked Out</span>
+                       <span x-show="checkedOutOnly">View All</span>
+                   </button>
                 </div>
             </div>
             <!-- include the add game form modal and all it's logic -->
