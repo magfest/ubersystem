@@ -1421,7 +1421,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @group_name.expression
     def group_name(cls):
         return select([Group.name]).where(Group.id == cls.group_id).label('group_name')
-    
+
+    @group_name.setter
+    def group_name(self, value):
+        if self.group:
+            self.group.name = value
+
     @property
     def group_leader_account(self):
         if self.group and self.group.leader and self.group.leader.managers:
