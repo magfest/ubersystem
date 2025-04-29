@@ -1,5 +1,6 @@
 import json
 import six
+import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 from uber.models.admin import PasswordReset
@@ -9,7 +10,7 @@ import cherrypy
 from collections import defaultdict
 from pockets import listify
 from pockets.autolog import log
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -1427,6 +1428,13 @@ class Root:
     @csrf_protected
     def unset_group_member(self, session, id):
         attendee = session.attendee(id)
+        if attendee.paid != c.PAID_BY_GROUP:
+            attendee.group = None
+            raise HTTPRedirect(
+                'group_members?id={}&message={}',
+                attendee.group_id,
+                'Attendee successfully removed from the group.')
+        
         try:
             send_email.delay(
                 c.REGDESK_EMAIL,
@@ -1500,7 +1508,32 @@ class Root:
         else:
             raise HTTPRedirect('group_payment?id={}&count={}&message={}', group.id, count,
                                f"{count} badges have been added to your group! Please pay for them below.")
-    
+
+    @ajax
+    @requires_account(Group)
+    def find_group_member(self, session, id, confirmation_id, first_name, last_name, **params):
+        confirmation_id = confirmation_id.strip()
+        try:
+            uuid.UUID(confirmation_id)
+        except ValueError:
+            return {'success': False, 'message': f"Invalid confirmation ID format: {confirmation_id}"}
+        
+        attendee = session.query(Attendee).filter(or_(Attendee.id == confirmation_id,
+                                                      Attendee.public_id == confirmation_id),
+                                                      Attendee.first_name == first_name.strip(),
+                                                      Attendee.last_name == last_name.strip()).first()
+        if not attendee:
+            return {'success': False, 'message': f"Badge not found. Please check confirmation ID, first name, and last name."}
+        if not attendee.is_valid:
+            return {'success': False, 'message': f"This is not a valid badge."}
+        if attendee.group:
+            return {'success': False, 'message': f"This badge is already in a group."}
+        
+        group = session.group(id)
+        attendee.group = group
+        session.commit()
+        return {'success': True, 'message': f"{c.DEALER_HELPER_TERM} successfully added!"}
+
     @id_required(Group)
     @requires_account(Group)
     def group_payment(self, session, id, count=0, message=''):
