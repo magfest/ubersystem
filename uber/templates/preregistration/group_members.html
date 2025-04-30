@@ -94,7 +94,8 @@
       {% include 'preregistration/dealer_group_members.html' with context %}
       <h2 class="h5">"{{ group.name }}" Information</h2>
       {{ form_macros.form_validation('group-form', 'validate_dealer' if group.is_dealer else 'validate_group') }}
-      <form method="post" action="group_members" role="form">
+      <form novalidate method="post" id="group-form" action="group_members" role="form">
+        {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ group.id }}" />
         {% if forms and 'group_info' in forms %}
           {% include "forms/group/group_info.html" %}
