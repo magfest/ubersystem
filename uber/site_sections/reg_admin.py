@@ -745,7 +745,8 @@ class Root:
             session.refresh(receipt)
 
             for txn in receipt.refundable_txns:
-                if txn.department == getattr(model, 'department', c.OTHER_RECEIPT_ITEM):
+                if txn.department == getattr(model, 'department', c.OTHER_RECEIPT_ITEM
+                                             ) or getattr(model, 'is_dealer', None) and txn.department == c.DEALER_RECEIPT_ITEM:
                     refund_amount = txn.amount_left
                     if exclude_fees:
                         processing_fees = txn.calc_processing_fee(refund_amount)
