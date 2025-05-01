@@ -213,7 +213,7 @@
 {% if is_preview %}
 <strong>The following badges are currently available:</strong>
 {% else %}
-<fieldset>
+<fieldset id="{{ target_field.id }}-select">
   <legend class="mt-3 mb-0 form-text">
     {{ kwargs['label'] if 'label' in kwargs else target_field.label.text }}{% if label_required %}<span class="required-indicator text-danger"> *</span>{% endif %}
   </legend>
