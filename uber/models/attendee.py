@@ -934,6 +934,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def available_badge_type_opts(self):
         if self.is_new or self.badge_type == c.ATTENDEE_BADGE and self.is_unpaid:
             return c.FORMATTED_BADGE_TYPES
+        
+        if self.badge_type == c.ONE_DAY_BADGE or self.is_presold_oneday:
+            return c.FORMATTED_BADGE_TYPES
 
         badge_type_price = c.BADGE_TYPE_PRICES[self.badge_type] if self.badge_type in c.BADGE_TYPE_PRICES else 0
 
