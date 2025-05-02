@@ -47,10 +47,6 @@ class Root:
             all_checkouts_count,
         ])
 
-    @ajax_gettable
-    def badged_attendees(self, session):
-        return _attendees(session)
-
     @ajax
     def add_game(self, session, code, name, attendee_id):
         session.add(TabletopGame(code=code, name=name, attendee_id=attendee_id))
@@ -92,19 +88,23 @@ class Root:
 
 
 def _attendees(session):
-    return [{
-        'id': id,
-        'name': name,
-        'badge': num
-    } for (id, name, num) in session.query(Attendee.id, Attendee.full_name, BadgeInfo.ident).join(Attendee.active_badge)
-                                    .order_by(BadgeInfo.ident).all()]
+    attendee_attrs = session.query(Attendee.id, Attendee.full_name, Attendee.badge_num) \
+        .filter(Attendee.first_name != '', Attendee.is_valid == True).order_by(Attendee.full_name.asc())
+
+    attendees = [
+        {
+            'id': id,
+            'displayText': '{} - {}'.format(name.title(), ' #({})'.format(badge_num) if badge_num else '')
+        }
+        for id, name, badge_num in attendee_attrs
+    ]
+    return attendees
 
 
 def _attendee(a):
     return a and {
         'id': a.id,
-        'name': a.full_name,
-        'badge': a.badge_num
+        'displayText': '{} - {}'.format(a.full_name.title(), ' #({})'.format(a.badge_num) if a.badge_num else '')
     }
 
 

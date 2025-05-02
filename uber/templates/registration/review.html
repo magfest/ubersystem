@@ -1,13 +1,18 @@
-{% extends "registration/review-base.html" %}
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Recent Changes{% endblock %}
+{% block content %}
 
-{# By default, this page renders exactly what's in the base template. #}
-{# Downstream plugins may override this file and change base blocks, so leave this file in place. #}
+<h2> Attendee Review Notes </h2>
 
+<ul>
+{% for attendee in attendees %}
+    <li>
+        <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> <br/>
+        {{ attendee.for_review|linebreaksbr }} <br/>
+        {% block extra scoped %}{% endblock %}<br/>
+        <br/>
+    </li>
+{% endfor %}
+</ul>
 
-{# This is kind of a hack, it defines a way that admins can force marking someone as hotel eligible. #}
-{# When we switch from Django to Jinja2, this can be injected into the main registration form #}
-{% block extra %}
-    {% if 'hotel eligib' in attendee.for_review|lower and not attendee.hotel_eligible and c.HAS_HOTEL_ADMIN_ACCESS %}
-        ++++++ <a href="../hotel_admin/mark_hotel_eligible?id={{ attendee.id }}">Admin: Force mark as hotel eligible</a>
-    {% endif %}
-{% endblock extra %}
+{% endblock %}

@@ -1,0 +1,30 @@
+<script>
+  function attendeeSearch({placeholder, attendeeList, maxDisplay=100, minSearch=1}) {
+    return {
+      placeholder: placeholder,
+      search: null,
+      selectedAttendee: null,
+      selectAttendee(attendee){
+          this.selectedAttendee = attendee
+      },
+      searchMore: attendeeList.length > maxDisplay,
+      get selected_display(){
+        if(!this.selectedAttendee){
+            return this.placeholder;
+        }
+        return this.selectedAttendee.displayText;
+      },
+      get display_attendees() {
+        let inputValue = this.search;
+        if (inputValue && inputValue.trim().length >= minSearch) {
+            inputValue = inputValue.trim().toLowerCase();
+            return attendeeList.filter((attendee) => {
+                return attendee.displayText.toLowerCase().includes(inputValue);
+            })
+        } else {
+           return attendeeList.slice(0,maxDisplay);
+        }
+      }
+    }
+  }
+</script>

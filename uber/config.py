@@ -1133,7 +1133,7 @@ class Config(_Overridable):
                         {'name': 'Discount', 'path': '/registration/discount'},
                     ]
         """
-        public_site_sections = ['static_views', 'angular', 'public', 'staffing']
+        public_site_sections = ['static_views', 'public', 'staffing']
         public_pages = []
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
