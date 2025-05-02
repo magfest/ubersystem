@@ -1,0 +1,32 @@
+<div id="attendeeSearch" class="d-inline-block">
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                type="button"
+                id="attendee-select"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                x-text="selected_display">
+        </button>
+        <ul class="dropdown-menu pt-0" id="attendee-select-list"
+            aria-labelledby="attendee-select">
+            <input type="text" id="attendee-select-search"
+                   class="form-control
+                          border-0 border-bottom
+                          shadow-none mb-2"
+                   placeholder="Search..."
+                   autocomplete="off"
+                   x-model="search"
+            >
+            <template x-for="attendee in display_attendees" :key="attendee.id">
+                <li>
+                    <a href="#" class="dropdown-item"
+                       @click="selectAttendee(attendee)"
+                       x-text="attendee.displayText"></a>
+                </li>
+            </template>
+            <template x-if="searchMore">
+                <li><a class="dropdown-item text-muted">More attendees exist! Please use search.</a></li>
+            </template>
+        </ul>
+    </div>
+</div>
