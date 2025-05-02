@@ -1,5 +1,6 @@
 from uber.barcode import get_badge_num_from_barcode
 from uber.decorators import all_renderable, ajax, any_admin_access
+from uber.models import BadgeInfo
 
 
 @all_renderable()
@@ -13,15 +14,15 @@ class Root:
         badge_num = -1
         msg = "Success."
         attendee = None
-        try:
-            # Important note: a barcode encodes just a badge_number. However,
-            # that doesn't mean that this badge number has been assigned to an
-            # attendee yet, so Attendee may come back as None if they aren't
-            # checked in yet.
-            badge_num = get_badge_num_from_barcode(barcode)['badge_num']
-            attendee = session.attendee(badge_num=badge_num)
-        except Exception as e:
-            msg = "Failed: " + str(e)
+
+        badge_num = get_badge_num_from_barcode(barcode)['badge_num']
+        badge = session.query(BadgeInfo).filter(BadgeInfo.ident == badge_num).first()
+        if not badge:
+            msg = "Failed: this badge number does not exist."
+        elif not badge.attendee:
+            msg = "Failed: no attendee associated with this badge number."
+        else:
+            attendee = badge.attendee
 
         return {
             'message': msg,

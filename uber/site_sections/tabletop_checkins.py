@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy.sql import label
 
 from uber.decorators import ajax, ajax_gettable, all_renderable, csv_file
-from uber.models import Attendee, TabletopCheckout, TabletopGame
+from uber.models import Attendee, BadgeInfo, TabletopCheckout, TabletopGame
 from uber.utils import localized_now
 
 

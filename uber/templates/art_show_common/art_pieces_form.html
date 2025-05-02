@@ -10,7 +10,7 @@
 {%- macro piece_modal(real_piece=None) -%}
 {% set piece = ArtShowPiece if not real_piece else real_piece %}
 {%- set is_class = piece is class -%}
-<div class="modal fade" id="piece_{{ real_piece.id or 'new' }}" role="dialog" tabindex="-1">
+<div class="modal fade piece-dialog" id="piece_{{ real_piece.id or 'new' }}" role="dialog" tabindex="-1">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -129,6 +129,7 @@
   <h3 class="card-title">Art Show Information</h3>
   <form method="post" action="../art_show_applications/edit" role="form">
     <input type="hidden" name="id" value="{{ app.id }}" />
+    <input type="hidden" name="attendee_id" value="{{ app.attendee.id }}" />
     <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
     {{ csrf_token() }}
     {% if admin_area %}
@@ -320,17 +321,18 @@
         {% if not app.checked_in or admin_area %}
         <td>
           {% if piece.status == c.EXPECTED or admin_area %}
+          <div class="d-flex gap-1">
           <form method="post" action="../art_show_applications/remove_art_show_piece">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ piece.id }}" />
             <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
-            <button type="button" class="btn btn-danger remove_piece" data-name="{{ piece.name }}">
+            <button type="button" class="btn btn-sm btn-danger remove_piece" data-name="{{ piece.name }}">
               <i class="fa fa-remove"></i>
             </button>
           </form>
           {% endif %}
           {% if piece.status in [c.EXPECTED, c.RECEIVED, c.NOT_RECEIVED] or admin_area %}
-          <button type="button" class="btn btn-primary edit_piece_modal">
+          <button type="button" class="btn btn-sm btn-primary edit_piece_modal">
             <i class="fa fa-pencil"></i>
           </button>
           {% endif %}
@@ -339,9 +341,10 @@
             <input type="hidden" name="id" value="{{ app.id }}" />
             <input type="hidden" name="piece_id" value="{{ piece.id }}" />
             {{ csrf_token() }}
-          <button type="submit" class="btn btn-outline-secondary">Print Bid Sheet</button>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Print Bid Sheet</button>
           </form>
           {% endif %}
+          </div>
         </td>
         {% endif %}
       </tr>
@@ -460,7 +463,13 @@
         $('input[type=radio][name=type]').on('change', showOrHidePrint);
         $('input[type=radio][name=for_sale]').on('change', disableOrEnablePrices);
         $('input[type=checkbox][name=no_quick_sale]').on('change', toggleQuickSale);
-        $('form[action*=save_art_show_piece]').each(function() {
+        $('#art-show-piece-table form[action*=save_art_show_piece]').each(function() {
+            var alertId = $(this).siblings('.alert-dismissible').first().prop('id');
+            hideMessageBox(alertId);
+            $(this).on('submit', function(e) { saveArtShowPiece(e, $(this), alertId) });
+        });
+
+        $('.piece-dialog form[action*=save_art_show_piece]').each(function() {
             toggleQuickSale.call($(this).find('input[type=checkbox][name=no_quick_sale]'));
             showOrHidePrint.call($(this).find('input[type=radio][name=type]'));
             disableOrEnablePrices.call($(this).find('input[type=radio][name=for_sale]'));
@@ -478,7 +487,7 @@
             return true;
         });
 
-        $('.remove_piece').on('click', function (event) {
+        $('#art-show-piece-table').on('click', '.remove_piece', function (event) {
             event.preventDefault();
             var pieceRow = $(this).closest('.piece-row'),
                 dataTable = pieceRow.closest('table').DataTable(),
@@ -507,7 +516,7 @@
                                 } else {
                                     dataTable.row(pieceRow).remove();
                                     dataTable.draw();
-                                    $("#message-alert").addClass("alert-success").show().children('span').html('', pieceName + ' successfully removed!', {timeOut: 2000});
+                                    $("#message-alert").addClass("alert-success").show().children('span').html(pieceName + ' successfully removed!');
                                 }
                             },
                             error: function(response, status) {

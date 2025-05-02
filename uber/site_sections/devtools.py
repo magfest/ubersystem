@@ -19,7 +19,6 @@ from pytz import UTC
 from sqlalchemy.types import Date, Boolean, Integer
 from sqlalchemy import text
 
-from uber.badge_funcs import badge_consistency_check
 from uber.decorators import all_renderable, csv_file, public, site_mappable
 from uber.models import Choice, UniqueList, MultiChoice, Session, UTCDateTime
 from uber.tasks.health import ping
@@ -149,18 +148,6 @@ class Root:
             out += '--------- {} ---------\n{}\n\n\n'.format(func.__name__.replace('_', ' ').upper(), func())
         return {
             'diagnostics_data': out,
-        }
-
-    def badge_number_consistency_check(self, session, run_check=None):
-        errors = []
-
-        if run_check:
-            errors = badge_consistency_check(session)
-
-        return {
-            'errors_found': len(errors) > 0,
-            'errors': errors,
-            'ran_check': run_check,
         }
 
     def csv_import(self, message='', all_instances=None):

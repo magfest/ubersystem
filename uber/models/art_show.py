@@ -184,6 +184,10 @@ class ArtShowApplication(MagModel):
         return self.artist_name or self.attendee.full_name
 
     @property
+    def editable(self):
+        return self.status == c.UNAPPROVED
+
+    @property
     def incomplete_reason(self):
         if self.status != c.APPROVED:
             return self.status_label

@@ -1,21 +1,22 @@
-"""Add ready flag for badge print jobs
+"""Add missing indices
 
-Revision ID: 5c20136eea08
-Revises: f5a569d11539
-Create Date: 2024-11-28 23:07:18.873318
+Revision ID: b36e0ca2ac50
+Revises: 94aa84890142
+Create Date: 2025-04-04 08:58:46.502699
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = '5c20136eea08'
-down_revision = 'f5a569d11539'
+revision = 'b36e0ca2ac50'
+down_revision = '94aa84890142'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects import postgresql
+import residue
 
 
 try:
@@ -52,8 +53,12 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('print_job', sa.Column('ready', sa.Boolean(), server_default='True', nullable=False))
+    op.drop_constraint('uq_indie_developer_attendee_id', 'indie_developer', type_='unique')
+    op.create_unique_constraint(op.f('uq_lottery_application_attendee_id'), 'lottery_application', ['attendee_id'])
+    op.create_index(op.f('ix_receipt_item_fk_id'), 'receipt_item', ['fk_id'], unique=False)
 
 
 def downgrade():
-    op.drop_column('print_job', 'ready')
+    op.drop_index(op.f('ix_receipt_item_fk_id'), table_name='receipt_item')
+    op.drop_constraint(op.f('uq_lottery_application_attendee_id'), 'lottery_application', type_='unique')
+    op.create_unique_constraint('uq_indie_developer_attendee_id', 'indie_developer', ['attendee_id'])

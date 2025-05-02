@@ -1071,6 +1071,11 @@ def media_max_length(piece):
         return "The description of the piece's media must be 15 characters or fewer."
 
 
+# This is still required for creating an attendee from an art show app, will need to refactor later
+Attendee.required = [('first_name', 'First Name'),
+                     ('last_name', 'Last Name'),
+                     ('email', 'Email')]
+
 # New validations, which return a tuple with the field name (or an empty string) and the message
 @prereg_validation.Attendee
 def reasonable_total_cost(attendee):

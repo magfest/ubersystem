@@ -421,6 +421,14 @@ class Group(MagModel, TakesPaymentMixin):
         return self.dealer_max_badges - self.badges
 
     @property
+    def can_add_existing_badges(self):
+        """
+        Enables the "Add by confirmation number" button on the group members page,
+        as long as the group is paid up and has no T&C to sign.
+        """
+        return False
+
+    @property
     def hours_since_registered(self):
         if not self.registered:
             return 0

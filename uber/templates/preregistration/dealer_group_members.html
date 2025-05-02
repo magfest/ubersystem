@@ -1,0 +1,85 @@
+{% block status %}
+{% if group.status in c.DEALER_ACCEPTED_STATUSES %}
+    <div class="alert alert-success pb-0" role="alert">
+    <p>Congratulations, your {{ c.DEALER_APP_TERM }} has been <strong>approved</strong>!</p>
+    {% if group.cost %}
+      <p>Here is your group's cost breakdown:</p>
+      <ul>
+        {% if group.auto_recalc %}
+          {% if group.tables %}
+            <li>{{ group.default_table_cost|format_currency }} for {% if group.tables_repr %}a {{ group.tables_repr }}{% else %}{{ group.tables }} table{{ group.tables|pluralize }}{% endif %}</li>
+          {% endif %}
+          {% if group.badges_purchased %}
+            <li>{{ group.default_badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}</li>
+          {% endif %}
+        {% else %}
+          <li>{{ group.cost|format_currency }} total cost</li>
+        {% endif %}
+        <li>{{ (group.amount_paid / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far{% endif %}</li>
+        {% if group.amount_unpaid %}
+          <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
+        {% endif %}
+        </ul>
+        {% if c.SIGNNOW_DEALER_FOLDER_ID and not c.SIGNNOW_DEALER_TEMPLATE_ID %}
+        <p>
+          Your next step will be to sign our terms and conditions for vending at {{ c.EVENT_NAME }}, but we're still preparing them!
+          Sit tight and we'll email them to you when they're ready, after which you can pay for your membership on this page.
+        </p>
+        {% elif not c.SIGNNOW_DEALER_FOLDER_ID or signnow_document and signnow_document.signed %}
+          {% if group.amount_unpaid %}
+            {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
+              <p>Please see the help desk at Registration to complete your payment.</p>
+            {% elif incomplete_txn %}
+              <p>You currently have an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.</p>
+              <p>Click here to complete your payment: {{ stripe_form('finish_pending_group_payment', group, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}</p>
+            {% else %}
+              <p>{{ stripe_form('process_group_payment', group) }}</p>
+            {% endif %}
+          {% endif %}
+        {% endif %}
+    {% endif %}
+    </div>
+{% elif group.status == c.CANCELLED %}
+    <div class="alert alert-info pb-0" role="alert">
+      <p>You have <strong>cancelled</strong> your {{ c.DEALER_APP_TERM }}. If this was a mistake, please contact us at
+      {{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}.</p>
+    </div>
+{% else %}
+    <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }} pb-0" role="alert">
+      <p>Your {{ c.DEALER_APP_TERM }} {{ 'is' if group.status == c.UNAPPROVED else 'has been' }} <strong>{{ group.status_label }}</strong>.</p>
+      {% if group.status != c.UNAPPROVED and group.leader and group.leader.paid == c.PAID_BY_GROUP and c.DEALER_BADGE_PRICE == c.INITIAL_ATTENDEE %}
+        <p>If you'd like to attend the event regardless of your application status, you can purchase your badge now by clicking the button below. Your {{ c.DEALER_APP_TERM }} will remain {{ group.status_label }}.</p>
+        <p><a class="btn btn-success" href="../preregistration/purchase_dealer_badge?id={{ group.leader.id }}">Purchase Badge Now</a></p>
+      {% endif %}
+      {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and group.leader %}
+        <p>If you would like, you may instead
+        <a href="../marketplace/index?attendee_id={{ group.leader.id }}" target="_blank">apply for a table in the Marketplace.</a></p>
+      {% endif %}
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block terms %}
+{% if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status in c.DEALER_ACCEPTED_STATUSES %}
+  {% if signnow_document and signnow_document.signed %}
+  <span id="tc-link">
+    <a href="../preregistration/download_signnow_document?id={{ group.id }}" class="btn btn-info" role="button">
+      <i class="fa fa-download"></i> Terms and Conditions
+    </a>
+  </span>
+  <script type="text/javascript">
+    $(function() {
+      $('#tc-link').appendTo($("#dealer-actions"));
+    });
+  </script>
+  {% elif signnow_link %}
+  <div class="alert alert-danger pb-0" role="alert">
+    <p>We need you to sign our terms and conditions for vending at {{ c.EVENT_NAME }}.</p>
+    <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
+      Review and Sign
+    </a></p>
+    <p>Make sure to click "Finish" at the bottom of the page to confirm your signature.</p>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}

@@ -1,15 +1,15 @@
-"""Add ready flag for badge print jobs
+"""Add unused years count to attendee accounts
 
-Revision ID: 5c20136eea08
-Revises: f5a569d11539
-Create Date: 2024-11-28 23:07:18.873318
+Revision ID: 94aa84890142
+Revises: 0a7104b8792a
+Create Date: 2025-04-03 12:55:41.305235
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = '5c20136eea08'
-down_revision = 'f5a569d11539'
+revision = '94aa84890142'
+down_revision = '0a7104b8792a'
 branch_labels = None
 depends_on = None
 
@@ -52,8 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('print_job', sa.Column('ready', sa.Boolean(), server_default='True', nullable=False))
+    op.add_column('attendee_account', sa.Column('unused_years', sa.Integer(), server_default='0', nullable=False))
 
 
 def downgrade():
-    op.drop_column('print_job', 'ready')
+    op.drop_column('attendee_account', 'unused_years')

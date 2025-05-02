@@ -8,7 +8,7 @@ from sqlalchemy.orm import subqueryload
 
 from uber.decorators import ajax, all_renderable
 from uber.errors import HTTPRedirect
-from uber.models.attraction import Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup
+from uber.models import Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup, BadgeInfo
 from uber.site_sections.preregistration import check_post_con
 
 
@@ -25,7 +25,7 @@ def _attendee_for_badge_num(session, badge_num, options=None):
     except Exception:
         return None
 
-    query = session.query(Attendee).filter_by(badge_num=badge_num)
+    query = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num)
     if options:
         query = query.options(options)
     return query.first()
