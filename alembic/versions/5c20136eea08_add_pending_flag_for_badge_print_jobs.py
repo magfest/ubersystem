@@ -1,7 +1,7 @@
 """Add ready flag for badge print jobs
 
 Revision ID: 5c20136eea08
-Revises: f5a569d11539
+Revises: ebf8fdbfc585
 Create Date: 2024-11-28 23:07:18.873318
 
 """
@@ -9,7 +9,7 @@ Create Date: 2024-11-28 23:07:18.873318
 
 # revision identifiers, used by Alembic.
 revision = '5c20136eea08'
-down_revision = 'f5a569d11539'
+down_revision = 'ebf8fdbfc585'
 branch_labels = None
 depends_on = None
 

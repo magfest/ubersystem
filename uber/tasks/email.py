@@ -43,17 +43,17 @@ def send_email(
         format='text',
         cc=(),
         bcc=(),
-        replyto=(),
+        replyto=[],
         model=None,
         ident=None,
         automated_email=None,
         session=None):
 
-    to, cc, bcc, replyto = map(lambda x: listify(x if x else []), [to, cc, bcc, replyto])
-    original_to, original_cc, original_bcc, original_replyto = to, cc, bcc, replyto
+    to, cc, bcc = map(lambda x: listify(x if x else []), [to, cc, bcc])
+    original_to, original_cc, original_bcc = to, cc, bcc
     ident = ident or subject
     if c.DEV_BOX:
-        to, cc, bcc, replyto = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc, replyto])
+        to, cc, bcc = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc])
 
     record_email = False
 
@@ -107,7 +107,6 @@ def send_email(
                 to=','.join(original_to),
                 cc=','.join(original_cc),
                 bcc=','.join(original_bcc),
-                replyto=','.join(original_replyto),
                 ident=ident,
                 **fk_kwargs)
 

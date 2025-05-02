@@ -80,19 +80,7 @@ class Root:
             session.commit()
 
         if cherrypy.request.method == 'POST':
-            if c.INDEPENDENT_ART_SHOW:
-                attendee_params = {}
-                for key in [param for param in params if param.startswith('attendee_')]:
-                    val = params.pop(key)
-                    attendee_params[key.replace('attendee_', '')] = val
-
-                attendee = session.attendee(attendee_params, restricted='art_show_applications' in return_to,
-                                            ignore_csrf=True)
-                message = check(attendee, prereg='art_show_applications' in return_to)
-                if not message:
-                    session.add(attendee)
-            if not message:
-                message = check(app, prereg='art_show_applications' in return_to)
+            message = check(app, prereg='art_show_applications' in return_to)
             if not message:
                 session.add(app)
                 session.commit()  # Make sure we update the DB or the email will be wrong!
@@ -200,7 +188,6 @@ class Root:
             else:
                 session.delete(piece)
                 session.commit()
-                return {}
 
         return {'error': message}
 

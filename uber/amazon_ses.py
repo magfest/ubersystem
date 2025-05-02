@@ -31,12 +31,6 @@ class AmazonSES:
                     destinations[objName] = [a for a in addresses]
                 else:
                     destinations[objName] = addresses.split(', ')
-
-        if not isinstance(replyToAddresses, str) and getattr(replyToAddresses, '__iter__', False):
-            replyToEmails = [a for a in replyToAddresses]
-        else:
-            replyToEmails = replyToAddresses.split(', ')
-
         if not returnPath:
             returnPath = source
         message_dict = {}
@@ -56,7 +50,7 @@ class AmazonSES:
                         'Data': message['subject'],
                     },
                 },
-                ReplyToAddresses=replyToEmails,
+                ReplyToAddresses=replyToAddresses,
                 ReturnPath=returnPath or source,
             )
             log.info("Sent email. Response: " + str(response))
