@@ -84,7 +84,7 @@ def update_problem_names():
                                                                                             flags="i")).all()
 
         attendee_ids = [attendee.id for attendee in attendees]
-        current_problem_names = c.REDIS_STORE.hkeys(c.REDIS_PREFIX + 'problem_name_ids')
+        current_problem_names = c.REDIS_STORE.smembers(c.REDIS_PREFIX + 'problem_name_ids')
         no_longer_problems = set(current_problem_names) - set(attendee_ids)
         for id in no_longer_problems:
             rsession.hdel(c.REDIS_PREFIX + 'word_matches', id)
