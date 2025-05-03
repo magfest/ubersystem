@@ -13,8 +13,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber.config import c
 from uber.custom_tags import readable_join
 from uber.decorators import render
-from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePickupGroup, Email,
-                         ReceiptInfo, ReceiptTransaction, Session, TerminalSettlement)
+from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePickupGroup, Email, Group, ModelReceipt,
+                         ReceiptInfo, ReceiptItem, ReceiptTransaction, Session, TerminalSettlement)
 from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils
@@ -496,6 +496,40 @@ def create_badge_pickup_groups():
                 pickup_group.build_from_account(account)
                 session.add(pickup_group)
             session.commit()
+
+
+@celery.schedule(timedelta(days=14))
+def reassign_purchaser_ids():
+    with Session() as session:
+        purchaser_ids = session.query(
+            ReceiptItem.purchaser_id).filter(ReceiptItem.purchaser_id != None).join(
+                ModelReceipt).join(Attendee, ModelReceipt.owner_id == Attendee.id
+                                   ).filter(Attendee.is_valid == True).group_by(ReceiptItem.purchaser_id).all()
+        group_purchaser_ids = session.query(
+            ReceiptItem.purchaser_id).filter(ReceiptItem.purchaser_id != None).join(
+                ModelReceipt).join(Group, ModelReceipt.owner_id == Group.id
+                                   ).filter(Group.is_valid == True).group_by(ReceiptItem.purchaser_id).all()
+        purchaser_id_list = [r for r, in purchaser_ids] + [r for r, in group_purchaser_ids]
+        invalid_attendees = session.query(Attendee).filter(Attendee.is_valid == False, Attendee.id.in_(purchaser_id_list))
+        for attendee in invalid_attendees:
+            alt_id = None
+            valid_dupe = session.query(Attendee).filter(Attendee.is_valid == True,
+                                                        Attendee.first_name == attendee.first_name,
+                                                        Attendee.last_name == Attendee.last_name,
+                                                        Attendee.email == attendee.email).first()
+            if valid_dupe:
+                alt_id = valid_dupe.id
+            elif c.ATTENDEE_ACCOUNTS_ENABLED:
+                alt_id = attendee.managers[0].fallback_purchaser_id
+            elif attendee.badge_pickup_group:
+                alt_id = attendee.badge_pickup_group.fallback_purchaser_id
+
+            if alt_id:
+                receipt_items = session.query(ReceiptItem).filter(ReceiptItem.purchaser_id == attendee.id).join(
+                    ModelReceipt).join(Attendee, ModelReceipt.owner_id == Attendee.id).filter(Attendee.is_valid == True)
+                for item in receipt_items:
+                    item.purchaser_id = alt_id
+                    session.add(item)
 
 
 @celery.schedule(timedelta(days=60))

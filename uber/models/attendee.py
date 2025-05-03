@@ -2467,6 +2467,37 @@ class AttendeeAccount(MagModel):
     @normalized_email.expression
     def normalized_email(cls):
         return func.replace(func.lower(func.trim(cls.email)), '.', '')
+    
+    @property
+    def fallback_purchaser_id(self):
+        """
+        We assign a purchaser_id to receipt items to track the buyer of a multi-badge cart.
+        However, sometimes the purchaser later becomes invalid or may even be deleted.
+        This helps us reassign invalid purchaser IDs to the most likely candidate, given
+        that we no longer have the prereg cart itself to work with.
+        """
+        if not self.valid_attendees:
+            return
+
+        valid_adults = [a for a in self.valid_attendees if a.birthdate and a.age_now_or_at_con > 18]
+        group_leaders = []
+        matching_emails = []
+
+        if not valid_adults:
+            return sorted(self.valid_attendees, key=lambda a: a.created)[0].id
+
+        for purchaser in valid_adults:
+            if purchaser.is_group_leader:
+                group_leaders.append(purchaser)
+            if purchaser.email == self.email:
+                matching_emails.append(purchaser)
+
+        if group_leaders:
+            return sorted(group_leaders, key=lambda a: a.created)[0].id
+        elif matching_emails:
+            return sorted(matching_emails, key=lambda a: a.created)[0].id
+
+        return sorted(valid_adults, key=lambda a: a.created)[0].id
 
     @property
     def is_sso_account(self):
@@ -2546,6 +2577,24 @@ class BadgePickupGroup(MagModel):
                 self.attendees.append(attendee)
 
     @property
+    def fallback_purchaser_id(self):
+        # This is only used if attendee accounts are turned off -- otherwise, see AttendeeAccount.fallback_purchaser_id
+        if not self.valid_attendees:
+            return
+
+        valid_adults = [a for a in self.valid_attendees if a.birthdate and a.age_now_or_at_con > 18]
+
+        if not valid_adults:
+            return sorted(self.valid_attendees, key=lambda a: a.created)[0].id
+        
+        group_leaders = [a for a in valid_adults if a.is_group_leader]
+
+        if group_leaders:
+            return sorted(group_leaders, key=lambda a: a.created)[0].id
+
+        return sorted(valid_adults, key=lambda a: a.created)[0].id
+
+    @property
     def pending_paid_attendees(self):
         return [attendee for attendee in self.attendees if attendee.paid == c.PENDING and
                 not attendee.checked_in and not attendee.cannot_check_in_reason]
@@ -2557,6 +2606,10 @@ class BadgePickupGroup(MagModel):
     @property
     def check_inable_attendees(self):
         return [attendee for attendee in self.attendees if not attendee.checked_in and not attendee.cannot_check_in_reason]
+    
+    @property
+    def valid_attendees(self):
+        return [a for a in self.attendees if a.is_valid]
 
     @property
     def under_18_badges(self):
