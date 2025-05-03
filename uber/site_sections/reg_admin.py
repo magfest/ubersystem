@@ -282,6 +282,11 @@ class Root:
                             and_(Tracking.model == 'ModelReceipt',
                             Tracking.fk_id == other_receipt.id))).order_by(Tracking.when).all()
                     other_receipts.add(other_receipt)
+        
+        other_purchased_badges = []
+        for purchaser_receipt in session.query(ModelReceipt).join(ReceiptItem).filter(ReceiptItem.purchaser_id == model.id):
+            if purchaser_receipt.owner_id != model.id:
+                other_purchased_badges.append(session.get_model_by_receipt(purchaser_receipt))
 
         return {
             'attendee': model if isinstance(model, Attendee) else None,
@@ -301,6 +306,7 @@ class Root:
                 c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
                 c.MANUAL: "Stripe"},
             'refund_txn_candidates': refund_txn_candidates,
+            'other_purchased_badges': other_purchased_badges,
         }
     
     def receipt_items_guide(self, session, message=''):
@@ -369,7 +375,8 @@ class Root:
             except Exception:
                 return {'error': "The count must be a number."}
 
-        session.add(ReceiptItem(receipt_id=receipt.id,
+        session.add(ReceiptItem(purchaser_id=ReceiptManager.get_purchaser_id(receipt) if amount > 0 else None,
+                                receipt_id=receipt.id,
                                 department=params.get('department', c.OTHER_RECEIPT_ITEM),
                                 category=params.get('category', c.OTHER),
                                 desc=params['desc'],
@@ -510,6 +517,7 @@ class Root:
             if params.get('exclude_fees') and params['exclude_fees'].strip().lower() not in ('f', 'false', 'n', 'no', '0'):
                 processing_fees = item.receipt_txn.calc_processing_fee(refund_amount)
                 session.add(ReceiptItem(
+                    purchaser_id=ReceiptManager.get_purchaser_id(item.receipt),
                     receipt_id=item.receipt.id,
                     department=c.OTHER_RECEIPT_ITEM,
                     category=c.PROCESSING_FEES,
@@ -751,6 +759,7 @@ class Root:
                     if exclude_fees:
                         processing_fees = txn.calc_processing_fee(refund_amount)
                         session.add(ReceiptItem(
+                            purchaser_id=ReceiptManager.get_purchaser_id(receipt),
                             receipt_id=txn.receipt.id,
                             department=c.OTHER_RECEIPT_ITEM,
                             category=c.PROCESSING_FEES,
@@ -812,6 +821,7 @@ class Root:
             if exclude_fees:
                 processing_fees = txn.calc_processing_fee(group_refund_amount)
                 session.add(ReceiptItem(
+                    purchaser_id=ReceiptManager.get_purchaser_id(receipt),
                     receipt_id=txn.receipt.id,
                     department=c.OTHER_RECEIPT_ITEM,
                     category=c.PROCESSING_FEES,
