@@ -51,7 +51,7 @@ def weight_entry(entry, hotel_room):
         weight += room_type_rank
     except ValueError:
         # room types are optional, so we need to figure out how much weight to give people who don't choose any
-        weight += 9.5 # Probably fine?
+        weight += 9 # Probably fine?
 
     # Give one point for each group member
     weight += len(entry["members"])
