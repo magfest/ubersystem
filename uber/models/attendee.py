@@ -2204,7 +2204,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return not self.placeholder and (
                 not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
                 not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
-                and c.SHIFTS_CREATED
+                and c.AFTER_SHIFTS_CREATED
 
         return not self.placeholder and self.food_restrictions_filled_out and self.shirt_info_marked and (
             not self.hotel_eligible
@@ -2214,7 +2214,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             or c.HOTEL_REQUESTS_URL) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
             not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
-            and c.SHIFTS_CREATED
+            and c.AFTER_SHIFTS_CREATED
 
     @property
     def hotel_nights(self):
