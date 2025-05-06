@@ -298,8 +298,9 @@ class Root:
             {
                 "id": random.choice(c.HOTEL_LOTTERY_HOTELS_OPTS.keys()),
                 "capacity": 4,
-                "room_type": random.choice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS.keys())
-            } * 500
+                "room_type": random.choice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS.keys()),
+                "quantity": 100
+            } * 50
         ]
         
         assignments = self.solve_lottery(applications, available_rooms)
