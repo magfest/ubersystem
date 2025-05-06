@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/var/cache/apk \
 RUN $HOME/.local/bin/uv pip install --system --no-binary lxml lxml
 ADD requirements.txt /app/
 #RUN --mount=type=cache,target=/root/.cache \
-RUN $HOME/.local/bin/uv pip install --system -r requirements.txt;
+RUN $HOME/.local/bin/uv pip install --python-platform $(uname -m)-manylinux_2_28 --system -r requirements.txt;
 
 ADD uber-wrapper.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/uber-wrapper.sh

@@ -1,11 +1,13 @@
 import base64
 import uuid
 import cherrypy
+import random
 import math
 from datetime import datetime, date
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import and_, func, or_
+from ortools.linear_solver import pywraplp
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
@@ -31,6 +33,112 @@ def _search(session, text):
     
     return applications.filter(or_(*check_list)), ''
 
+def weight_entry(entry, hotel_room):
+    """Takes a lottery entry and a hotel room and returns an arbitrary score for how likely that applicant
+        should be to get that particular room.
+    """
+    # Higher weight increases the odds of them getting this room.
+    weight = 1.0
+    
+    # Give 10 points for being the first choice hotel, 9 points for the second, etc
+    hotel_choice_rank = 10 - entry["hotels"].index(hotel_room["id"])
+    weight += hotel_choice_rank
+    
+    # Give 10 points for being the first choice room type, 9 points for the second, etc
+    try:
+        room_type_rank = 10 - entry["room_types"].index(hotel_room["room_type"])
+        assert room_type_rank >= 0
+        weight += room_type_rank
+    except ValueError:
+        # room types are optional, so we need to figure out how much weight to give people who don't choose any
+        weight += 9.5 # Probably fine?
+
+    # Give one point for each group member
+    weight += len(entry["members"])
+    
+    return weight
+    
+def solve_lottery(applications, hotel_rooms):
+    """Takes a set of hotel_rooms and applications and assigns the hotel_rooms mostly randomly.
+        Parameters:
+        applications List[Application]: Iterable set of Application objects to assign
+        hotel_rooms  List[hotels]: Iterable set of hotel rooms, represented as dictionaries with the following keys:
+        * id: c.HOTEL_LOTTERY_HOTELS_OPTS
+        * capacity: int
+        * room_type: c.HOTEL_LOTTERY_ROOM_TYPE_OPTS
+        * quantity: int
+        
+        Returns Dict[Applications -> hotel, room_type]: A mapping of Application.id -> (id, room_type) or None if it failed
+    """
+    solver = pywraplp.Solver.CreateSolver("SAT")
+    
+    # Set up our data structures
+    for hotel_room in hotel_rooms:
+        hotel_room["constraints"] = []
+    entries = {}
+    for app in applications:
+        if app.entry_type and not app.parent_application:
+            entry = {
+                "members": [app],
+                "hotels": app.hotel_preference.split(","),
+                "room_types": app.room_type_preference.split(","),
+                "constraints": []
+            }
+            entries[app.id] = entry
+            for hotel_room in hotel_rooms:
+                if hotel_room["id"] in entry["hotels"]:
+                    weight = weight_entry(entry, hotel_room)                 
+                    
+                    # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
+                    constraint = solver.BoolVar(f'{app.id}_assigned_to_{hotel_room["id"]}')
+                    entry["constraints"].append((constraint, weight, hotel_room))
+                    hotel_room["constraints"].append(constraint)
+                    
+    for app in applications:
+        if app.entry_type and app.parent_application in entries:
+            entries[app.parent_application]["members"].append(app)
+                    
+    # Set up constraints
+    
+    ## Limit capacity of each room to fit the groups
+    for app, entry in entries.items():
+        num_entrants = len(entry["members"])
+        for is_assigned, weight, hotel_room in entry["constraints"]:
+            solver.Add(is_assigned * num_entrants <= hotel_room["capacity"])
+    
+    ## Only allow each group to have one room
+        solver.Add(solver.Sum([x[0] for x in entry["constraints"]]) <= 1)
+    
+    ## Only allow each room type to fit only the quantity available
+    for hotel_room in hotel_rooms:
+        if hotel_room["constraints"]:
+            solver.Add(solver.Sum(hotel_room["constraints"]) <= hotel_room["quantity"])
+            
+    # Set up Objective function
+    objective = solver.Objective()
+    
+    for app, entry in entries.items():
+        for is_assigned, weight, hotel_room in entry["constraints"]:
+            objective.SetCoefficient(is_assigned, weight)
+    
+    objective.SetMaximization()
+    
+    # Run the solver
+    status = solver.Solve()
+    if status in [pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE]:
+        # If it's optimal we know we got an ideal solution
+        # If it's feasible then we may have been on the way to an ideal solution,
+        # but we gave up searching because we ran out of time or something
+        assignments = {}
+        for app, entry in entries.items():
+            for is_assigned, weight, hotel_room in entry["constraints"]:
+                if is_assigned.solution_value() > 0.5:
+                    assert not app in assignments
+                    assignments[app] = hotel_room
+        return assignments
+    else:
+        log.error(f"Error solving room lottery: {status}")
+        return None
 
 @all_renderable()
 class Root:
@@ -175,6 +283,26 @@ class Root:
                                                       ).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application))
         }
+        
+    def run_lottery(self, session, staff_lottery=False):
+        applications = session.query(LotteryApplication).join(LotteryApplication.attendee
+                                                              ).filter(LotteryApplication.status != c.PROCESSED,
+                                                                       Attendee.hotel_lottery_eligible == True)
+        if staff_lottery:
+            applications = applications.filter(LotteryApplication.is_staff_entry == True)
+        else:
+            applications = applications.filter(LotteryApplication.is_staff_entry == False)
+            
+        # TODO: Get actual rooms
+        available_rooms = [
+            {
+                "id": random.choice(c.HOTEL_LOTTERY_HOTELS_OPTS.keys()),
+                "capacity": 4,
+                "room_type": random.choice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS.keys())
+            } * 500
+        ]
+        
+        assignments = self.solve_lottery(applications, available_rooms)
 
     @csv_file
     def accepted_dealers(self, out, session):
