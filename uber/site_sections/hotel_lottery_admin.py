@@ -134,7 +134,7 @@ def solve_lottery(applications, hotel_rooms):
             for is_assigned, weight, hotel_room in entry["constraints"]:
                 if is_assigned.solution_value() > 0.5:
                     assert not app in assignments
-                    assignments[app] = hotel_room
+                    assignments[app] = (hotel_room["id"], hotel_room["room_type"])
         return assignments
     else:
         log.error(f"Error solving room lottery: {status}")
