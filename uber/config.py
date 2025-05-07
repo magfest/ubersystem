@@ -437,34 +437,33 @@ class Config(_Overridable):
 
         steps = {}
         step = 1
-
         steps['room_checkin_name'] = step
-        step += 1
         if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+            step += 1
             steps['room_dates'] = step
-            step += 1
-        steps['room_hotel_type'] = step
         step += 1
+        steps['room_ada_info'] = step
+        step += 1
+        steps['room_hotel_type'] = step
         if c.HOTEL_LOTTERY_PREF_RANKING:
-            steps['room_selection_pref'] = step
             step += 1
+            steps['room_selection_pref'] = step
         steps['room_final_step'] = step
 
         step = 1
         steps['suite_agreement'] = step
         step += 1
         steps['suite_checkin_name'] = step
-        step += 1
         if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
-            steps['suite_dates'] = step
             step += 1
+            steps['suite_dates'] = step
+        step += 1
         steps['suite_type'] = step
         step += 1
         steps['suite_hotel_type'] = step
-        step += 1
         if c.HOTEL_LOTTERY_PREF_RANKING:
-            steps['suite_selection_pref'] = step
             step += 1
+            steps['suite_selection_pref'] = step
         steps['suite_final_step'] = step
 
         return steps
