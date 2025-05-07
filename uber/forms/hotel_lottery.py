@@ -121,11 +121,13 @@ class RoomLottery(MagForm):
 
         room_step = int(application.current_step) if application.current_step else 0
 
-        if room_step < 5:
+        if not c.HOTEL_LOTTERY_PREF_RANKING or room_step <= c.HOTEL_LOTTERY_FORM_STEPS['room_selection_pref']:
             optional_list.append('selection_priorities')
-        if room_step < 4:
+        if room_step <= c.HOTEL_LOTTERY_FORM_STEPS['room_hotel_type']:
             optional_list.extend(['room_type_preference', 'hotel_preference'])
-        if room_step < 2:
+        elif not c.HOTEL_LOTTERY_HOTELS_OPTS:
+            optional_list.append('hotel_preference')
+        if not c.SHOW_HOTEL_LOTTERY_DATE_OPTS or room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_dates']:
             optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
 
         return optional_list
@@ -210,15 +212,15 @@ class SuiteLottery(RoomLottery):
 
         suite_step = int(application.current_step) if application.current_step else 0
 
-        if suite_step < 6:
+        if not c.HOTEL_LOTTERY_PREF_RANKING or suite_step <= c.HOTEL_LOTTERY_FORM_STEPS['suite_selection_pref']:
             optional_list.append('selection_priorities')
-        if suite_step < 5 or application.room_opt_out:
+        if suite_step <= c.HOTEL_LOTTERY_FORM_STEPS['suite_hotel_type'] or application.room_opt_out:
             optional_list.extend(['room_type_preference', 'hotel_preference'])
-        if suite_step < 4:
+        if suite_step <= c.HOTEL_LOTTERY_FORM_STEPS['suite_type']:
             optional_list.append('suite_type_preference')
-        if suite_step < 3:
+        if not c.SHOW_HOTEL_LOTTERY_DATE_OPTS or suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_dates']:
             optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
-        if suite_step < 2:
+        if suite_step <= c.HOTEL_LOTTERY_FORM_STEPS['suite_checkin_name']:
             optional_list.extend(['legal_first_name', 'legal_last_name', 'cellphone'])
 
         return optional_list

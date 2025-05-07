@@ -65,7 +65,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             step = parseInt(response.step_completed);
         }
         {% block last_step_js %}
-        if (step >= 5) {
+        if (step >= {{ application.last_step }}) {
             $('#{{ room_text }}-lottery-form').submit();
         }
         {% endblock %}
@@ -159,6 +159,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
 
+{% if c.SHOW_HOTEL_LOTTERY_DATE_OPTS %}
 {% block check_in_out_dates %}
 {% set room_requirements = app_or_parent.suite_requirements_str if 'suite_lottery' in forms else app_or_parent.room_requirements_str %}
 <div class="accordion-item">
@@ -222,6 +223,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 </div>
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
+{% endif %}
 
 {% block ada_info %}
 <div class="accordion-item">
@@ -303,7 +305,9 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 
             {% block hotel_and_room_type_ranking_form %}
             <div class="hotel_and_room_type_ranking">
+            {% if c.HOTEL_LOTTERY_HOTELS_OPTS %}
             {{ form_macros.form_input(room_or_suite_lottery.hotel_preference, readonly=read_only) }}
+            {% endif %}
             {{ form_macros.form_input(room_or_suite_lottery.room_type_preference, readonly=read_only) }}
             </div>
             {% if not read_only and application.current_step <= steps.counter %}
@@ -325,6 +329,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
 
+{% if c.HOTEL_LOTTERY_PREF_RANKING %}
 {% block priorities %}
 <div class="accordion-item">
     <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
@@ -363,3 +368,4 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 </div>
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
+{% endif %}

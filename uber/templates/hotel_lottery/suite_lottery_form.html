@@ -1,11 +1,5 @@
 {% extends 'hotel_lottery/room_lottery_form.html' %}
 
-{% block last_step_js %}
-    if (step >= 6) {
-        $('#{{ room_text }}-lottery-form').submit();
-    }
-{% endblock %}
-
 {% block form_js %}
 {{ super() }}
 

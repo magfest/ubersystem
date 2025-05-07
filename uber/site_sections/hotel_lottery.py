@@ -59,6 +59,13 @@ def _reset_group_member(application):
     return application
 
 
+def _return_link(attendee_id):
+    if c.ATTENDEE_ACCOUNTS_ENABLED:
+        return "../preregistration/homepage?"
+    else:
+        return f"../preregistration/confirm?id={attendee_id}&"
+
+
 @all_renderable(public=True)
 class Root:
     @requires_account(Attendee)
@@ -111,8 +118,10 @@ class Root:
         elif attendee_id:
             attendee = session.attendee(attendee_id)
             application = attendee.lottery_application
-        else:
+        elif c.ATTENDEE_ACCOUNTS_ENABLED:
             raise HTTPRedirect(f'../preregistration/homepage')
+        else:
+            raise HTTPRedirect(f'../landing/index')
 
         if not application:
             raise HTTPRedirect(f'start?attendee_id={attendee_id}')
@@ -192,10 +201,10 @@ class Root:
                 format='html',
                 model=application.to_dict('id'))
 
-            raise HTTPRedirect('../preregistration/homepage?message={}',
-                            f"You have been removed from the hotel lottery.{' Your group has been disbanded.' if was_room_group else ''}")
-        raise HTTPRedirect('../preregistration/homepage?message={}',
-                            f"Your hotel lottery entry has been cancelled.")
+            raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),
+                            f"You have been removed from the hotel lottery.{' Your group has been disbanded.' if was_room_group else ''}"))
+        raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),
+                            f"Your hotel lottery entry has been cancelled."))
 
     @requires_account(LotteryApplication)
     def room_lottery(self, session, id=None, message="", **params):
@@ -613,8 +622,8 @@ class Root:
             application = _reset_group_member(application)
 
             if application.status == c.WITHDRAWN:
-                raise HTTPRedirect('../preregistration/homepage?message={}',
-                                   f'You have left the room group "{room_group.room_group_name}" and been removed from the hotel lottery.')
+                raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),
+                                   f'You have left the room group "{room_group.room_group_name}" and been removed from the hotel lottery.'))
             raise HTTPRedirect('index?id={}&message={}&confirm={}&action={}',
                                application.id,
                                f'Successfully left the room group "{room_group.room_group_name}".',

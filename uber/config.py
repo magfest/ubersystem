@@ -423,6 +423,52 @@ class Config(_Overridable):
     def STAFF_HOTEL_LOTTERY_OPEN(self):
         return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
 
+    @property
+    def SHOW_HOTEL_LOTTERY_DATE_OPTS(self):
+        return c.HOTEL_LOTTERY_CHECKIN_START != c.HOTEL_LOTTERY_CHECKIN_END
+
+    @property
+    def HOTEL_LOTTERY_FORM_STEPS(self):
+        """
+        We have to run our form validations based on which 'step' in the form someone is, but
+        the number of steps depends on the entry type and event config. This builds
+        a dict that allows you to look up each step number based on a key.
+        """
+
+        steps = {}
+        step = 1
+
+        steps['room_checkin_name'] = step
+        step += 1
+        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+            steps['room_dates'] = step
+            step += 1
+        steps['room_hotel_type'] = step
+        step += 1
+        if c.HOTEL_LOTTERY_PREF_RANKING:
+            steps['room_selection_pref'] = step
+            step += 1
+        steps['room_final_step'] = step
+
+        step = 1
+        steps['suite_agreement'] = step
+        step += 1
+        steps['suite_checkin_name'] = step
+        step += 1
+        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+            steps['suite_dates'] = step
+            step += 1
+        steps['suite_type'] = step
+        step += 1
+        steps['suite_hotel_type'] = step
+        step += 1
+        if c.HOTEL_LOTTERY_PREF_RANKING:
+            steps['suite_selection_pref'] = step
+            step += 1
+        steps['suite_final_step'] = step
+
+        return steps
+
     @request_cached_property
     @dynamic
     def DEALER_APPS(self):
