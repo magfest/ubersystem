@@ -115,6 +115,18 @@
     {{ form_input_extras(field, help_text, admin_text, extra_field) }}
   </div>
   {% endif %}
+{% elif type == 'file' %}
+<div class="form-text">{{ form_label(field, label_text=label_text, required=label_required) }}</div>
+<div{% if not no_margin %} class="mb-3"{% endif %}>
+  {% if field.data %}{{ field.data }}<br/>{% endif %}
+  {{ field(**custom_kwargs) }}
+  {% if extra_field %}
+  <div class="col col-6 mt-1">
+    {{ extra_field }}
+  </div>
+  {% endif %}
+  {{ form_input_extras(field, help_text, admin_text) }}
+</div>
 {% else %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-control", **custom_kwargs) }}
@@ -366,77 +378,84 @@
   serverValidationPassed = false;
   
   var runServerValidations_{{ form_id|replace('-','_') }} = function($form, submit_button_name, submit_button_val) {
+    var form_data = new FormData($('#{{ form_id }}')[0]);
     var form_list = {{ form_list|safe }}.join(',')
-    var submit_param = ''
     if (form_list != '') {
-        form_list = '&form_list=' + form_list
+      form_data.set('form_list', form_list);
     }
     if (submit_button_name != '') {
-      submit_param = '&' + submit_button_name + '=' + submit_button_val;
+      form_data.set(submit_button_name, submit_button_val);
     }
-    $.post("{{ page_handler }}", $form.serialize() + form_list + submit_param, function (response) {
-      $("#form-validations-{{ form_id }}").hide().removeClass().addClass("alert").children('span').html("");
-      $(".is-invalid").each(function() {
-        var field_id = $(this).attr('id');
-        $(this).removeClass('is-invalid');
-        $("#" + field_id + "-validation").hide();
-      });
-      if (response.warning) {
-        let buttonText = response.button_text ? response.button_text : 'I understand, please continue!';
-        $("#form-validations-{{ form_id }}").addClass("alert-warning").children('span').html(
-          response.warning +
-          "<button form='{{ form_id }}' class='btn btn-primary' name='"+ submit_button_name +"'>" +
-            buttonText +
-          "</button>"
-          );
-        $("#form-validations-{{ form_id }}").show();
-        $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
-        serverValidationPassed = true;
-      } else if (response.error) {
-          if (typeof response.error === "string") {
-            $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(response.error);
-          } else {
-            $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(
-              "Please correct the following errors:" +
-              "<ul></ul>"
+    $.ajax({
+      method: 'POST',
+      url: "{{ page_handler }}",
+      data: form_data,
+      processData: false,
+      contentType: false,
+      success: function (response) {
+        $("#form-validations-{{ form_id }}").hide().removeClass().addClass("alert").children('span').html("");
+        $(".is-invalid").each(function() {
+          var field_id = $(this).attr('id');
+          $(this).removeClass('is-invalid');
+          $("#" + field_id + "-validation").hide();
+        });
+        if (response.warning) {
+          let buttonText = response.button_text ? response.button_text : 'I understand, please continue!';
+          $("#form-validations-{{ form_id }}").addClass("alert-warning").children('span').html(
+            response.warning +
+            "<button form='{{ form_id }}' class='btn btn-primary' name='"+ submit_button_name +"'>" +
+              buttonText +
+            "</button>"
             );
-            $.each(response.error, function(key, val) {
-              val = val.join(" ");
-              if ($("#" + key).length != 0 && $("#" + key).attr('type') != 'checkbox') {
-                var field_label = $("label[for='" + key + "'] .form-label").text();
-                if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
-                if (field_label == '') {
-                  $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
+          $("#form-validations-{{ form_id }}").show();
+          $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
+          serverValidationPassed = true;
+        } else if (response.error) {
+            if (typeof response.error === "string") {
+              $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(response.error);
+            } else {
+              $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(
+                "Please correct the following errors:" +
+                "<ul></ul>"
+              );
+              $.each(response.error, function(key, val) {
+                val = val.join(" ");
+                if ($("#" + key).length != 0 && $("#" + key).attr('type') != 'checkbox') {
+                  var field_label = $("label[for='" + key + "'] .form-label").text();
+                  if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
+                  if (field_label == '') {
+                    $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
+                  } else {
+                    $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+                    $("#" + key).addClass("is-invalid");
+                  }
                 } else {
-                  $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label + ": " + val + "</li>");
-                  $("#" + key).addClass("is-invalid");
+                  $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
                 }
-              } else {
-                $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
-              }
 
-              if ($("#" + key + "-validation").length != 0)
-              {
-                $("#" + key + "-validation").html(val).show();
-              }
-            });
-          }
-        $("#form-validations-{{ form_id }}").show();
-        $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
-      } else {
-        serverValidationPassed = true;
-        {% if callback %}
-          {{ callback|safe }};
-        {% else %}
-        if (submit_button_name != '') {
-          console.log($("#{{ form_id }}").find($("[name=" + submit_button_name + "]")))
-          $("#{{ form_id }}").find($("[name=" + submit_button_name + "]")).click();
+                if ($("#" + key + "-validation").length != 0)
+                {
+                  $("#" + key + "-validation").html(val).show();
+                }
+              });
+            }
+          $("#form-validations-{{ form_id }}").show();
+          $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
         } else {
-          $("#{{ form_id }}").submit();
+          serverValidationPassed = true;
+          {% if callback %}
+            {{ callback|safe }};
+          {% else %}
+          if (submit_button_name != '') {
+            console.log($("#{{ form_id }}").find($("[name=" + submit_button_name + "]")))
+            $("#{{ form_id }}").find($("[name=" + submit_button_name + "]")).click();
+          } else {
+            $("#{{ form_id }}").submit();
+          }
+          {% endif %}
         }
-        {% endif %}
       }
-    }, 'json');
+    });
   };
   
 

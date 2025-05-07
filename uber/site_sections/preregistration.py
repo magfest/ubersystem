@@ -1243,8 +1243,6 @@ class Root:
             form_list = ['GroupInfo']
 
         forms = load_forms(params, group, form_list)
-        for form in forms.values():
-            form.populate_obj(group)
 
         signnow_document = None
         signnow_link = ''
@@ -1273,6 +1271,8 @@ class Root:
                 session.commit()
 
         if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                form.populate_obj(group)
             session.commit()
             if group.is_dealer:
                 send_email.delay(
