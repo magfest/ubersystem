@@ -221,8 +221,6 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
 
-            application.current_step = 999
-            application.last_submitted = datetime.now()
             update_group_members = application.update_group_members
 
             if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
@@ -236,6 +234,9 @@ class Root:
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
+                application.current_step = 999
+                application.last_submitted = datetime.now()
+
                 body = render('emails/hotel/hotel_lottery_entry.html', {
                     'application': application,
                     'action_str': "updating your room lottery entry"}, encoding=None)
@@ -284,8 +285,6 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
 
-            application.current_step = 999
-            application.last_submitted = datetime.now()
             update_group_members = application.update_group_members
 
             if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
@@ -299,6 +298,9 @@ class Root:
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
+                application.current_step = 999
+                application.last_submitted = datetime.now()
+
                 body = render('emails/hotel/hotel_lottery_entry.html', {
                     'application': application,
                     'action_str': "updating your suite lottery entry"}, encoding=None)
@@ -386,8 +388,12 @@ class Root:
         if cherrypy.request.method == 'POST':
             for form in forms.values():
                 form.populate_obj(application)
+
+            maybe_swapped = application.last_submitted != None
+            application.current_step = 999
             application.last_submitted = datetime.now()
             application.status = c.COMPLETE
+
             if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
                 application.is_staff_entry = True
 
@@ -397,6 +403,7 @@ class Root:
             room_or_suite = "suite" if application.entry_type == c.SUITE_ENTRY else "room"
             body = render('emails/hotel/hotel_lottery_entry.html', {
                 'application': application,
+                'maybe_swapped': maybe_swapped,
                 'new_conf': False,
                 'action_str': f"entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
             send_email.delay(
@@ -417,6 +424,32 @@ class Root:
                 'message': message,
                 'application': application,
             }
+
+    @requires_account(LotteryApplication)
+    def switch_entry_type(self, session, id, **params):
+        application = session.lottery_application(id)
+
+        if application.entry_type not in [c.ROOM_ENTRY, c.SUITE_ENTRY]:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               f"You cannot switch from a {application.entry_level} to a room or suite entry.")
+
+        application.status = c.PARTIAL
+        application.current_step = 0
+        application.guarantee_policy_accepted = False
+
+        if application.entry_type == c.ROOM_ENTRY:
+            application.entry_type = c.SUITE_ENTRY
+            application.wants_ada = False
+            application.ada_requests = ''
+        elif application.entry_type == c.SUITE_ENTRY:
+            application.entry_type = c.ROOM_ENTRY
+            application.suite_terms_accepted = False
+            application.room_opt_out = False
+            application.suite_type_preference = ''
+        raise HTTPRedirect('{}_lottery?id={}&message={}', 'room' if application.entry_type == c.ROOM_ENTRY else 'suite',
+                           application.id,
+                           "Entry type switched! Please make sure to carefully review and confirm your new entry.")
+        
 
     @requires_account(LotteryApplication)
     def room_group(self, session, id=None, message="", **params):
