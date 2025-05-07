@@ -51,7 +51,9 @@ class LotteryRoomGroup(MagForm):
 
     room_group_name = StringField('Room Group Name',
                                   description='This will be shared with anyone you invite to your room group.',
-                                  validators=[validators.DataRequired("Please enter a name for your room group.")])
+                                  validators=[
+                                      validators.DataRequired("Please enter a name for your room group."),
+                                      validators.Length(max=40, message="Room group names cannot be longer than 40 characters.")])
     invite_code = StringField('Room Group Invite Code',
                               description='Send this code to up to three friends to invite them to your room group.',
                               render_kw={'readonly': "true"})
