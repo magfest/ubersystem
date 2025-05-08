@@ -171,8 +171,8 @@ class RoomLottery(MagForm):
     @field_validation.latest_checkin_date
     def after_preferred_checkin(form, field):
         if field.data and field.data < form.earliest_checkin_date.data:
-            raise StopValidation("It does not make sense to have your latest acceptable check-in date \
-                                  earlier than your preferred check-in date.")
+            raise StopValidation("Please make sure your latest acceptable check-in date \
+                                  is later than your preferred check-in date.")
 
     @field_validation.latest_checkout_date
     def latest_checkin_within_range(form, field):
@@ -185,8 +185,8 @@ class RoomLottery(MagForm):
     @field_validation.earliest_checkout_date
     def before_preferred_checkout(form, field):
         if field.data and field.data > form.latest_checkout_date.data:
-            raise ValidationError("It does not make sense to have your earliest acceptable check-out date \
-                                  later than your preferred check-out date.")
+            raise ValidationError("Please make sure your earliest acceptable check-out date \
+                                  is earlier than your preferred check-out date.")
 
     @field_validation.selection_priorities
     def all_options_ranked(form, field):
