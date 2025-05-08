@@ -35,11 +35,24 @@ def valid_cellphone(form, field):
 
 
 class LotteryInfo(MagForm):
+    legal_first_name = StringField('First Name on ID',
+                                   validators=[validators.DataRequired("Please enter your first name as it appears on your photo ID.")])
+    legal_last_name = StringField('Last Name on ID',
+                                  validators=[validators.DataRequired("Please enter your last name as it appears on your photo ID.")])
+    cellphone = TelField('Phone Number', validators=[
+        validators.DataRequired("Please provide a phone number for the hotel to contact you."),
+        valid_cellphone
+        ], render_kw={'placeholder': 'A phone number for the hotel to contact you.'})
     terms_accepted = BooleanField('I understand, agree to, and will abide by the lottery policies.', default=False,
                                   validators=[validators.InputRequired("You must agree to the room lottery policies to continue.")])
     data_policy_accepted = BooleanField('I understand and agree that my registration information will be used as part of the hotel lottery.',
                                         default=False,
                                         validators=[validators.InputRequired("You must agree to the data policies to continue.")])
+    
+    def get_non_admin_locked_fields(self, app):
+        locked_fields = super().get_non_admin_locked_fields(app)
+        locked_fields.extend(['terms_accepted', 'data_policy_accepted'])
+        return locked_fields
     
 class LotteryConfirm(MagForm):
     guarantee_policy_accepted = BooleanField('I understand awards are subject to cancellation if no payment guarantee is made.',
@@ -74,14 +87,6 @@ class RoomLottery(MagForm):
 
     current_step = HiddenField('Current Step')
     entry_type = HiddenField('Entry Type')
-    legal_first_name = StringField('First Name on ID',
-                                   validators=[validators.DataRequired("Please enter your first name as it appears on your photo ID.")])
-    legal_last_name = StringField('Last Name on ID',
-                                  validators=[validators.DataRequired("Please enter your last name as it appears on your photo ID.")])
-    cellphone = TelField('Phone Number', validators=[
-        validators.DataRequired("Please provide a phone number for the hotel to contact you."),
-        valid_cellphone
-        ], render_kw={'placeholder': 'A phone number for the hotel to contact you.'})
     hotel_preference = SelectMultipleField(
         'Hotels', coerce=int, choices=c.HOTEL_LOTTERY_HOTELS_OPTS,
         widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS),
@@ -222,8 +227,6 @@ class SuiteLottery(RoomLottery):
             optional_list.append('suite_type_preference')
         if not c.SHOW_HOTEL_LOTTERY_DATE_OPTS or suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_dates']:
             optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
-        if suite_step <= c.HOTEL_LOTTERY_FORM_STEPS['suite_checkin_name']:
-            optional_list.extend(['legal_first_name', 'legal_last_name', 'cellphone'])
 
         return optional_list
     
@@ -233,6 +236,9 @@ class SuiteLottery(RoomLottery):
 class LotteryAdminInfo(SuiteLottery):
     response_id = IntegerField('Response ID', render_kw={'readonly': "true"})
     confirmation_num = StringField('Confirmation Number', render_kw={'readonly': "true"})
+    legal_first_name = LotteryInfo.legal_first_name
+    legal_last_name = LotteryInfo.legal_last_name
+    cellphone = LotteryInfo.cellphone
     status = SelectField('Entry Status', coerce=int, choices=c.HOTEL_LOTTERY_STATUS_OPTS)
     entry_type = SelectField('Entry Type', coerce=int, choices=[(0, "N/A")] + c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS)
     current_step = IntegerField('Current Step', validators=[
@@ -250,7 +256,7 @@ class LotteryAdminInfo(SuiteLottery):
         if not application.entry_type or application.entry_type == c.GROUP_ENTRY:
             return ['selection_priorities', 'room_type_preference', 'hotel_preference',
                     'suite_type_preference', 'earliest_checkin_date', 'latest_checkout_date',
-                    'legal_first_name', 'legal_last_name', 'cellphone', 'ada_requests']
+                    'ada_requests']
 
         if application.entry_type == c.ROOM_ENTRY:
             optional_list = RoomLottery.get_optional_fields(self, application, is_admin)

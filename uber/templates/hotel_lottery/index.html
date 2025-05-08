@@ -173,6 +173,17 @@
             {% endif %}
             {% if application.parent_application or application.entry_type %}
             <hr/>
+
+            {% import 'forms/macros.html' as form_macros with context %}
+            {{ form_macros.form_validation('contact-info-form', 'validate_hotel_lottery', form_list=['LotteryInfo']) }}
+            <form novalidate method="post" id="contact-info-form" action="update_contact_info">
+                <input type="hidden" name="id" value="{{ application.id }}" />
+                <input type="hidden" name="terms_accepted" value="{{ application.terms_accepted }}" />
+                <input type="hidden" name="data_policy_accepted" value="{{ application.data_policy_accepted }}" />
+                {{ csrf_token() }}
+                {% include 'hotel_lottery/contact_info_form.html' with context %}
+                <button type="submit" class="btn btn-primary mb-3">Update Contact Info</button>
+            </form>
             {% endif %}
 
             {% if application.parent_application or application.room_group_name %}

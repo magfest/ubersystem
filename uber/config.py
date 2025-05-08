@@ -436,8 +436,7 @@ class Config(_Overridable):
         """
 
         steps = {}
-        step = 1
-        steps['room_checkin_name'] = step
+        step = 0
         if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
             step += 1
             steps['room_dates'] = step
@@ -452,8 +451,6 @@ class Config(_Overridable):
 
         step = 1
         steps['suite_agreement'] = step
-        step += 1
-        steps['suite_checkin_name'] = step
         if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
             step += 1
             steps['suite_dates'] = step

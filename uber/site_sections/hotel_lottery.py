@@ -136,16 +136,29 @@ class Root:
         else:
             forms = load_forms(params, application, forms_list)
 
+        contact_form_dict = load_forms(params, application, ["LotteryInfo"])
+
         return {
             'id': application.id,
             'attendee_id': attendee_id,
             'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
             'forms': forms,
+            'lottery_info': contact_form_dict['lottery_info'],
             'message': message,
             'confirm': params.get('confirm', ''),
             'action': params.get('action', ''),
             'application': application
         }
+    
+    @requires_account(LotteryApplication)
+    def update_contact_info(self, session, id, **params):
+        application = session.lottery_application(id)
+        forms = load_forms(params, application, ["LotteryInfo"])
+        for form in forms.values():
+            form.populate_obj(application)
+        raise HTTPRedirect('index?id={}&message={}',
+                           application.id,
+                           "Contact information updated!")
 
     @requires_account(LotteryApplication)
     def enter_attendee_lottery(self, session, id=None, **params):
