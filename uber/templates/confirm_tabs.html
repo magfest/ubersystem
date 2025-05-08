@@ -86,7 +86,7 @@
       <button type="button" class="btn btn-outline-primary"><i class="fa fa-shopping-cart"></i> Apply for Marketplace</button>
     </a>
     {% endif %}
-    {% if c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) and (not attendee.lottery_application or attendee.lottery_application.status != c.COMPLETE) %}
+    {% if 'hotel_lottery' not in c.PAGE_PATH and c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) and (not attendee.lottery_application or attendee.lottery_application.status != c.COMPLETE) %}
       {% if attendee.hotel_lottery_eligible %}
       <a class="p-0" href="../hotel_lottery/start?attendee_id={{ attendee.id }}">
         <button type="button" class="btn btn-outline-primary"><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
