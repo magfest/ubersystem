@@ -65,4 +65,42 @@
     </a>
   </li>
 {% endif %}
+{% if attendee.lottery_application and attendee.lottery_application.status == c.COMPLETE and (c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN) %}
+{% set which_page, button_text = attendee.lottery_application.homepage_link %}
+<li class="nav-item" role="presentation">
+  <a href="../hotel_lottery/{{ which_page }}" class="nav-link{% if 'hotel_lottery' in c.PAGE_PATH %} active{% endif %}">
+    <span class="fa fa-hotel"></span> {{ button_text }}
+  </a>
+</li>
+{% endif %}
+{% if not c.ACCOUNTS_ENABLED %}
+<li class="nav-item ms-auto">
+  <div class="input-group me-2">
+    {% if c.ART_SHOW_ENABLED and c.ART_SHOW_OPEN and not attendee.art_show_applications %}
+    <a class="p-0" href="../art_show_applications/index?attendee_id={{ attendee.id }}">
+      <button type="button" class="btn btn-outline-primary"><i class="fa fa-tags"></i>&nbsp; Apply for Art Show</button>
+    </a>
+    {% endif %}
+    {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_application and (attendee.has_badge or attendee.badge_status == c.UNAPPROVED_DEALER_STATUS) %}
+    <a class="p-0" href="../marketplace/apply?attendee_id={{ attendee.id }}">
+      <button type="button" class="btn btn-outline-primary"><i class="fa fa-shopping-cart"></i> Apply for Marketplace</button>
+    </a>
+    {% endif %}
+    {% if 'hotel_lottery' not in c.PAGE_PATH and c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) and (not attendee.lottery_application or attendee.lottery_application.status != c.COMPLETE) %}
+      {% if attendee.hotel_lottery_eligible %}
+      <a class="p-0" href="../hotel_lottery/start?attendee_id={{ attendee.id }}">
+        <button type="button" class="btn btn-outline-primary"><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
+      </a>
+      {% else %}
+      <span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top" title="{{ attendee.hotel_lottery_ineligible_reason }}">
+      <button type="button" class="btn btn-secondary" disabled><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
+      </span>
+      {% endif %}
+    {% endif %}
+  </div>
+</li>
+{% endif %}
 </ul>
+
+{% if not attendee.art_show_applications and c.ART_SHOW_OPEN %}
+{% endif %}
