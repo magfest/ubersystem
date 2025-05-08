@@ -241,13 +241,13 @@ class Root:
             else:
                 application.is_staff_entry = False
 
+            application.current_step = 999
             session.commit()
             session.refresh(application)
 
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
-                application.current_step = 999
                 application.last_submitted = datetime.now()
 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
@@ -305,13 +305,13 @@ class Root:
             else:
                 application.is_staff_entry = False
 
+            application.current_step = 999
             session.commit()
             session.refresh(application)
 
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
-                application.current_step = 999
                 application.last_submitted = datetime.now()
 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
@@ -403,7 +403,6 @@ class Root:
                 form.populate_obj(application)
 
             maybe_swapped = application.last_submitted != None
-            application.current_step = 999
             application.last_submitted = datetime.now()
             application.status = c.COMPLETE
 
