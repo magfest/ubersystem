@@ -276,7 +276,9 @@ class LotteryApplication(MagModel):
     
     @property
     def last_step(self):
-        return 6 if self.entry_type and self.entry_type == c.SUITE_ENTRY else 5
+        if self.entry_type == c.SUITE_ENTRY:
+            return c.HOTEL_LOTTERY_FORM_STEPS['suite_final_step']
+        return c.HOTEL_LOTTERY_FORM_STEPS['room_final_step']
 
     @property
     def homepage_link(self):

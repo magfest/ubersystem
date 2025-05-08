@@ -26,9 +26,7 @@
     Registration Information
   </div>
   <div class="card-body">
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_application or attendee.is_group_leader %}
       {% include 'confirm_tabs.html' with context %}
-    {% endif %}
 
       {% if attendee.badge_status == c.PENDING_STATUS and attendee.paid == c.PENDING and attendee.transfer_code %}
       <div class="alert alert-warning" role="alert">

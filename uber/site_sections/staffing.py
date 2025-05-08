@@ -113,9 +113,9 @@ class Root:
             check_csrf(csrf_token)
             if reviewed_procedures:
                 attendee.reviewed_emergency_procedures = True
-                raise HTTPRedirect('index?message={}', 'Thanks for reviewing our emergency procedures!')
+                raise HTTPRedirect('index?message={}', 'Thanks for reviewing our safety and security information!')
 
-            message = "You must acknowledge that you reviewed our emerency procedures"
+            message = "You must acknowledge that you reviewed our safety and security information."
 
         return {
             'message': message,

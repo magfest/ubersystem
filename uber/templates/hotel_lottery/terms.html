@@ -14,6 +14,7 @@
             <input type="hidden" name="attendee_id" value="{{ attendee_id }}" />
             {{ csrf_token() }}
 
+            <h2>How the Room Lottery Works</h2>
             {% include 'hotel_lottery/lottery_tos.html' with context %}
 
             {{ form_macros.form_input(lottery_info.terms_accepted) }}
@@ -21,6 +22,8 @@
             {% include 'hotel_lottery/data_policy.html' with context %}
 
             {{ form_macros.form_input(lottery_info.data_policy_accepted) }}
+
+            {% include 'hotel_lottery/contact_info_form.html' with context %}
 
                 <button type="submit" name="group" value="true" class="btn btn-primary">Join Room Group</button>
                 <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button>
