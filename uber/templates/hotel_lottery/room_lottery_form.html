@@ -64,9 +64,12 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         if (response.step_completed != '') {
             step = parseInt(response.step_completed);
         }
-        if (step >= {{ application.last_step }}) {
+        {% block last_step_js %}
+        if (step >= {{ c.HOTEL_LOTTERY_FORM_STEPS['room_final_step'] }}) {
             $('#{{ room_text }}-lottery-form').submit();
-        } else {
+        }
+        {% endblock %}
+        else {
             if (step == 1) {
                 $('#return-btn').text("Return to Options");
             }
