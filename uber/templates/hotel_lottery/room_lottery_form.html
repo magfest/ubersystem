@@ -64,12 +64,9 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         if (response.step_completed != '') {
             step = parseInt(response.step_completed);
         }
-        {% block last_step_js %}
         if (step >= {{ application.last_step }}) {
             $('#{{ room_text }}-lottery-form').submit();
-        }
-        {% endblock %}
-        else {
+        } else {
             if (step == 1) {
                 $('#return-btn').text("Return to Options");
             }
@@ -84,6 +81,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             serverValidationPassed = false;
         }
     };
+    var isSubmitting = false
 
     $().ready(function() {
         {% if application.current_step != 0 %}
@@ -102,6 +100,18 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         {% elif application.status != c.COMPLETE %}
         $('#form-validations-{{ room_text }}-lottery-form').detach().prependTo($('#step-1').find('.accordion-body'));
         {% endif %}
+
+        $('#{{ room_text }}-lottery-form').submit(function(){
+            isSubmitting = true
+        })
+
+        $('#{{ room_text }}-lottery-form').data('initial-state', $('#{{ room_text }}-lottery-form').serialize());
+
+        $(window).on('beforeunload', function() {
+            if (!isSubmitting && $('#{{ room_text }}-lottery-form').serialize() != $('#{{ room_text }}-lottery-form').data('initial-state')){
+                return true
+            }
+        });
     })
 </script>
 {% endif %}
