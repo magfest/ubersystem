@@ -160,7 +160,24 @@
                     <p>Your room group name is "{{ application.room_group_name }}" and your group has {{ application.group_members|length + 1 }} group member(s), including yourself. You can edit your group name{% if application.group_members|length > 0 %} and view your group's members{% endif %} below.</p>
                     <p>In order to join your group, group members need both the confirmation number (<strong>{{ application.confirmation_num }}</strong>) and your current email address (<strong>{{ application.attendee.email }}</strong>).</p>
                     {% if application.attendee.managers and application.attendee.managers[0].hotel_eligible_attendees|length > 1 %}
-                    <p><strong>Other badges on your account are NOT automatically part of your room group.</strong> On your <a href="../preregistration/homepage">homepage</a>, click the "Enter Hotel Lottery" button next to your other badge(s) to enter the lottery as them and have them join your room group.</p>
+                    <p>
+                        <strong>Other badges on your account are NOT automatically part of your room group.</strong>
+                        {% if application.group_members|length < 3 and application.attendee.managers[0].potential_room_group_members|length > 1 %}
+                        Below is a list of the badges on your account that are currently eligible to join the group.
+                    </p>
+                    <p>
+                        We require each room group member to agree to our hotel lottery policies and provide their legal name and a contact phone number for the hotel.
+                        Click on one of the badges below, fill out the form, and then select "Join "{{ application.room_group_name }}" Room Group" to add that badge to your room group.
+                        <div class="list-group w-25 text-nowrap text-center">
+                            {% for attendee in application.attendee.managers[0].potential_room_group_members %}
+                            <a href="terms?attendee_id={{ attendee.id }}" class="list-group-item list-group-item-action">{{ attendee.full_name }}</a>
+                            {% endfor %}
+                        </div>
+                        <hr/>
+                        {% else %}
+                        Your current room group members are listed below.
+                        {% endif %}
+                    </p>
                     {% endif %}
                     <p>Room group members will be able to view your initials ({{ application.group_leader_name }}) and most of the details of your lottery entry. They will NOT see your check-in name{% if application.entry_type == c.ROOM_ENTRY %} or any ADA-related requests{% endif %}.</p>
                     
@@ -187,10 +204,11 @@
                     {% if application.group_members %}
                     <p>
                         Here are the members of your room group:
-                        <table class="table table-borderless">
+                        <table class="table table-sm table-borderless">
+                            <tbody>
                             {% for member in application.group_members %}
                             <tr>
-                                <td>{{ member.attendee.full_name }}</td>
+                                <td class="text-nowrap w-25">{{ member.attendee.full_name }}</td>
                                 <td>
                                     <form method="post" action="remove_group_member" id="remove-member">
                                         <input type="hidden" name="id" value="{{ application.id }}">
@@ -206,6 +224,7 @@
                                 </td>
                             </tr>
                             {% endfor %}
+                            </tbody>
                         </table>
                     </p>
                     {% endif %}

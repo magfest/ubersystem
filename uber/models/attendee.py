@@ -2510,6 +2510,15 @@ class AttendeeAccount(MagModel):
         return any([a.is_dealer for a in self.valid_attendees])
 
     @property
+    def potential_room_group_members(self):
+        return [a for a in self.attendees if a.hotel_lottery_eligible and (
+            not a.lottery_application or a.lottery_application.status in [c.PARTIAL, c.WITHDRAWN])]
+
+    @property
+    def room_group_owners(self):
+        return [a for a in self.attendees if a.lottery_application and a.lottery_application.room_group_name]
+
+    @property
     def hotel_eligible_attendees(self):
         return [attendee for attendee in self.attendees if attendee.hotel_lottery_eligible]
     
