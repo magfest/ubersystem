@@ -272,6 +272,7 @@
   </div>
 {% endfor %}
 </div>
+<div id="{{ target_field.id }}-validation" class="invalid-feedback" role="alert"></div>
 {% if show_desc %}<div class="form-text mb-3">{{ help_text or target_field.description }}</div>{% endif %}
 {% if not is_preview %}
 </fieldset>
@@ -423,10 +424,11 @@
                 if ($("#" + key).length != 0 && $("#" + key).attr('type') != 'checkbox') {
                   var field_label = $("label[for='" + key + "'] .form-label").text();
                   if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
+                  if (field_label == '') { field_label = $("#" + key + "-select").children("legend").text(); }
                   if (field_label == '') {
                     $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
                   } else {
-                    $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+                    $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label.trim() + ": " + val + "</li>");
                     $("#" + key).addClass("is-invalid");
                   }
                 } else {
