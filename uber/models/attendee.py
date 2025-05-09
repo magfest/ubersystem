@@ -2273,6 +2273,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                     not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING, c.DEFERRED_STATUS])))
 
     @property
+    def staff_hotel_lottery_eligible(self):
+        return self.badge_type == c.STAFF_BADGE
+
+    @property
     def legal_first_name(self):
         """
         Hotel exports need split legal names, but we don't collect split
@@ -2509,14 +2513,15 @@ class AttendeeAccount(MagModel):
     def has_dealer(self):
         return any([a.is_dealer for a in self.valid_attendees])
 
-    @property
-    def potential_room_group_members(self):
+    def get_potential_room_group_members(self, staff=False):
         return [a for a in self.attendees if a.hotel_lottery_eligible and (
-            not a.lottery_application or a.lottery_application.status in [c.PARTIAL, c.WITHDRAWN])]
+            not a.lottery_application or a.lottery_application.status in [c.PARTIAL, c.WITHDRAWN]) and (
+                a.staff_hotel_lottery_eligible if staff else True)]
 
-    @property
-    def room_group_owners(self):
-        return [a for a in self.attendees if a.lottery_application and a.lottery_application.room_group_name]
+    def get_room_group_owners(self, staff=False):
+        return [a for a in self.attendees if a.lottery_application and a.lottery_application.room_group_name and (
+            True if staff else not a.lottery_application.is_staff_entry
+        )]
 
     @property
     def hotel_eligible_attendees(self):
