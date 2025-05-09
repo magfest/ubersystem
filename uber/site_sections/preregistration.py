@@ -792,7 +792,8 @@ class Root:
                 session.add_attendee_to_account(attendee, account)
             else:
                 session.add(attendee)
-            receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
+            receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True,
+                                                                       purchaser_id=cart.purchaser.id)
             session.add(receipt)
             session.add_all(receipt_items)
             total_cost = sum([(item.amount * item.count) for item in receipt_items])
@@ -817,7 +818,8 @@ class Root:
         if cart.total_cost <= 0:
             used_codes = defaultdict(int)
             for attendee in cart.attendees:
-                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True,
+                                                                           purchaser_id=cart.purchaser.id)
                 session.add(receipt)
                 session.add_all(receipt_items)
 
@@ -897,7 +899,8 @@ class Root:
                 for model in cart.models:
                     charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model,
                                                                                              who='non-admin',
-                                                                                             create_model=True)
+                                                                                             create_model=True,
+                                                                                             purchaser_id=cart.purchaser.id)
                     existing_receipt = session.refresh_receipt_and_model(model, is_prereg=True)
                     if existing_receipt:
                         # Multiple attendees can have the same transaction during pre-reg,
