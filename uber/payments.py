@@ -278,12 +278,12 @@ class PreregCart:
             if getattr(model, 'badges', None) and getattr(model, 'name') and isinstance(model, uber.models.Attendee):
                 items_group = (f"{getattr(model, 'full_name', None)} plus "
                                f"{int(model.badges) - 1} badges ({model.name})", [])
-                x, receipt_items = ReceiptManager.create_new_receipt(PromoCodeGroup())
+                x, receipt_items = ReceiptManager.create_new_receipt(PromoCodeGroup(), purchaser_id=self.purchaser.id)
             else:
                 group_name = getattr(model, 'name', None)
                 items_group = (group_name or getattr(model, 'full_name', None), [])
 
-            x, receipt_items = ReceiptManager.create_new_receipt(model)
+            x, receipt_items = ReceiptManager.create_new_receipt(model, purchaser_id=self.purchaser.id)
             items_group[1].extend(receipt_items)
 
             items_preview.append(items_group)
@@ -1326,11 +1326,14 @@ class ReceiptManager:
         self.items_to_add.append(txn)
 
     @classmethod
-    def get_purchaser_id(cls, receipt):
+    def get_purchaser_id(cls, receipt=None, model=None):
         from uber.models import Attendee, Group, Session
 
+        if not receipt and not model:
+            return None
+
         with Session() as session:
-            model = session.get_model_by_receipt(receipt)
+            model = model or session.get_model_by_receipt(receipt)
             if isinstance(model, Attendee):
                 return model.id
             elif isinstance(model, Group):
@@ -1340,7 +1343,7 @@ class ReceiptManager:
                     assigned_badges = [a for a in model.attendees if not a.is_unassigned]
                     return assigned_badges[0].id if assigned_badges else None
             else:
-                purchaser = getattr(model, 'attendee')
+                purchaser = getattr(model, 'attendee', None)
                 return purchaser.id if purchaser else None
 
     @classmethod
@@ -1355,8 +1358,8 @@ class ReceiptManager:
         calc_items = uber.receipt_items.receipt_calculation.items
         receipt_items = []
         receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__) if create_model else None
-        if receipt and not purchaser_id:
-            purchaser_id = ReceiptManager.get_purchaser_id(receipt)
+        if not purchaser_id:
+            purchaser_id = ReceiptManager.get_purchaser_id(model=model)
 
         def handle_col_name(model, col_name, category):
             # Adds a column's default value to revert_changes
