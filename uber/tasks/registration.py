@@ -511,6 +511,7 @@ def reassign_purchaser_ids():
                                    ).filter(Group.is_valid == True).group_by(ReceiptItem.purchaser_id).all()
         purchaser_id_list = [r for r, in purchaser_ids] + [r for r, in group_purchaser_ids]
         invalid_attendees = session.query(Attendee).filter(Attendee.is_valid == False, Attendee.id.in_(purchaser_id_list))
+
         for attendee in invalid_attendees:
             alt_id = None
             valid_dupe = session.query(Attendee).filter(Attendee.is_valid == True,
@@ -519,9 +520,7 @@ def reassign_purchaser_ids():
                                                         Attendee.email == attendee.email).first()
             if valid_dupe:
                 alt_id = valid_dupe.id
-            elif c.ATTENDEE_ACCOUNTS_ENABLED:
-                alt_id = attendee.managers[0].fallback_purchaser_id
-            elif attendee.badge_pickup_group:
+            elif not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_pickup_group:
                 alt_id = attendee.badge_pickup_group.fallback_purchaser_id
 
             if alt_id:
