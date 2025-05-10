@@ -6,25 +6,23 @@ Below are the highlights of what you need to know about Ubersystem before readin
 
 ## Code Structure
 
-Ubersystem is split into two main components: the [**[main plugin](https://github.com/magfest/ubersystem/)**](https://github.com/magfest/ubersystem/) and **event plugins**. These are separate repositories that are combined during runtime if they are present in co-existing folders. The former comprises the vast majority of the code, while the latter is a way to expand or override templates, models, and forms.
+Ubersystem is split into two main components: the [main plugin](https://github.com/magfest/ubersystem/) and **event plugins**. These are separate repositories that are combined during runtime if they are present in co-existing folders. The former comprises the vast majority of the code, while the latter is a way to expand or override templates, models, and forms.
 
-Generally, one event plugin is combined with the main plugin and corresponds with each event, e.g., Super MAGFest uses the [[magprime](https://github.com/magfest/magprime)](https://github.com/magfest/magprime) plugin to implement custom logic tailored to the event.
+Generally, one event plugin is combined with the main plugin and corresponds with each event, e.g., Super MAGFest uses the [magprime](https://github.com/magfest/magprime) plugin to implement custom logic tailored to the event.
 
 ## Database Definitions
 
-Database models are defined declaratively using [**[SQLAlchemy](https://www.sqlalchemy.org/)**](https://www.sqlalchemy.org/). All model declarations can be found in `uber/models/`. Generally speaking, if you are adding fields or forms, you will need to add corresponding model declarations. Models deserve their own guide, but the basic types should be *relatively* straightforward. Note that this guide includes a table of [[model classes vs field classes](https://www.notion.so/Form-Developer-Guide-2dedbc30abc84e919740743e4c4b7db5?pvs=21)](https://www.notion.so/Form-Developer-Guide-2dedbc30abc84e919740743e4c4b7db5?pvs=21) which can help you figure out which model class to use for a field.
+Database models are defined declaratively using [SQLAlchemy](https://www.sqlalchemy.org/). All model declarations can be found in `uber/models/`. Generally speaking, if you are adding fields or forms, you will need to add corresponding model declarations. Models deserve their own guide, but the basic types should be *relatively* straightforward.
 
-We use [[Alembic](https://alembic.sqlalchemy.org/en/latest/)](https://alembic.sqlalchemy.org/en/latest/) to handle database migrations. There is an excellent and only slightly out of date [[README](https://github.com/magfest/ubersystem/blob/main/alembic/README.md)](https://github.com/magfest/ubersystem/blob/main/alembic/README.md) for how to run alembic migrations in Ubersystem, so please check it out.
+We use [Alembic](https://alembic.sqlalchemy.org/en/latest/) to handle database migrations. There is an excellent and only slightly out of date [README](https://github.com/magfest/ubersystem/blob/main/alembic/README.md) for how to run alembic migrations in Ubersystem, so please check it out.
 
 ## Page Handlers and Templates
 
-[[CherryPy](https://docs.cherrypy.dev/en/latest/)](https://docs.cherrypy.dev/en/latest/) handles our routing. Page handlers — the functions that process data before displaying a template — are organized into files in `uber/site_sections/`, which correspond to the second to last part of the URL for any page. Each Python file in `site_sections` should have a corresponding folder in `uber/templates/`, with page handlers in the Python file corresponding to a file inside the matching folder.
+[CherryPy](https://docs.cherrypy.dev/en/latest/) handles our routing. Page handlers — the functions that process data before displaying a template — are organized into files in `uber/site_sections/`, which correspond to the second to last part of the URL for any page. Each Python file in `site_sections` should have a corresponding folder in `uber/templates/`, with page handlers in the Python file corresponding to a file inside the matching folder.
 
 For example, most of our public-facing pages are defined in `uber/site_sections/preregistration.py`. The template that corresponds to the `confirm` function in this file is `uber/templates/preregistration/confirm.html`. The URL for this template would be `https://www.mydomain.com/uber/preregistration/confirm`.
 
 ## Configuration and Defining Enum Lists
-
-[[Reggie Config Guide](https://www.notion.so/Reggie-Config-Guide-0b4d3b4cf7844e03a5a0d39681496137?pvs=21)](https://www.notion.so/Reggie-Config-Guide-0b4d3b4cf7844e03a5a0d39681496137?pvs=21)
 
 Configuration options and enums are defined via INI and accessed via the `c` object, e.g., `c.ATTENDEE_BADGE`. Explanations for all config options can be found in `uber/configspec.ini`. For adding fields with a list of options (e.g., a select dropdown), you’ll need to add a section under `[enums]` with a list of variable names and corresponding strings. For actual configuration (i.e., flags that events will want to change), see the Reggie Config Guide link above.
 
