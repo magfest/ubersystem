@@ -3,6 +3,7 @@ from barcode import Code39
 from barcode.writer import ImageWriter
 import re
 import math
+import six
 
 from datetime import datetime
 from decimal import Decimal
@@ -381,6 +382,9 @@ class Root:
     def update_all(self, session, message='', **params):
         if 'id' in params:
             app_list = []
+            if isinstance(params.get('id'), six.string_types):
+                params['id'] = [params.get('id')]
+
             for id in params.get('id'):
                 app_params = {key.replace(f'_{id}', ''): val for key, val in params.items() if f'_{id}' in key}
                 app_params['id'] = id
