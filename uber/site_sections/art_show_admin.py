@@ -346,24 +346,20 @@ class Root:
                 if message:
                     session.rollback()
                     break
-                else:
-                    if params.get('hanging', '') and piece.status == c.EXPECTED:
-                        piece.status = c.HANGING
-                    elif params.get('check_in', '') and piece.status in [c.EXPECTED, c.HANGING]:
-                        piece.status = c.HUNG
-                    elif params.get('check_out', ''):
-                        if piece.orig_value_of('status') == c.PAID:
-                            # Accounts for the surprisingly-common situation where an
-                            # artist checks out WHILE their pieces are actively being paid for
-                            piece.status = c.PAID
-                        elif piece.status == c.HUNG:
-                            piece.status = c.RETURN
-                    session.commit()  # We save as we go so it's less annoying if there's an error
-        for piece in app.art_show_pieces:
-            if 'check_in' in params and params['check_in'] and piece.status == c.EXPECTED:
-                piece.status = c.HUNG
-            elif 'check_out' in params and params['check_out'] and piece.status == c.HUNG:
-                piece.status = c.SOLD
+        if not message:
+            for piece in app.art_show_pieces:
+                if params.get('hanging', None) and piece.status == c.EXPECTED:
+                    piece.status = c.HANGING
+                elif params.get('check_in', None) and piece.status in [c.EXPECTED, c.HANGING]:
+                    piece.status = c.HUNG
+                elif params.get('check_out', None) and piece.status == c.HUNG:
+                    if piece.orig_value_of('status') == c.PAID:
+                        # Accounts for the surprisingly-common situation where an
+                        # artist checks out WHILE their pieces are actively being paid for
+                        piece.status = c.PAID
+                    else:
+                        piece.status = c.RETURN
+            session.commit()
 
         return {
             'id': app.id,
