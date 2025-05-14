@@ -11,7 +11,7 @@
   {{ form_macros.form_validation('dealer-form', 'validate_dealer') }}
 
 {#- The action is set to "post_form" or "post_dealer" in order to bypass the NGINX cache. -#}
-<form novalidate method="post" id="dealer-form" action="post_dealer" class="form-horizontal" role="form">
+<form novalidate method="post" id="dealer-form" action="post_dealer" class="form-horizontal" role="form" enctype="multipart/form-data">
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}

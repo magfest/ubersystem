@@ -263,7 +263,7 @@ class LotteryApplication(MagModel):
 
     @property
     def qualifies_for_staff_lottery(self):
-        return self.attendee.badge_type == c.STAFF_BADGE
+        return self.attendee.staff_hotel_lottery_eligible
     
     @property
     def current_lottery_deadline(self):

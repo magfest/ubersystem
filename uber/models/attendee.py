@@ -2273,6 +2273,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                     not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING, c.DEFERRED_STATUS])))
 
     @property
+    def staff_hotel_lottery_eligible(self):
+        return self.badge_type == c.STAFF_BADGE
+
+    @property
     def legal_first_name(self):
         """
         Hotel exports need split legal names, but we don't collect split
@@ -2478,6 +2482,16 @@ class AttendeeAccount(MagModel):
     def has_dealer(self):
         return any([a.is_dealer for a in self.valid_attendees])
 
+    def get_potential_room_group_members(self, staff=False):
+        return [a for a in self.attendees if a.hotel_lottery_eligible and (
+            not a.lottery_application or a.lottery_application.status in [c.PARTIAL, c.WITHDRAWN]) and (
+                a.staff_hotel_lottery_eligible if staff else True)]
+
+    def get_room_group_owners(self, staff=False):
+        return [a for a in self.attendees if a.lottery_application and a.lottery_application.room_group_name and (
+            True if staff else not a.lottery_application.is_staff_entry
+        )]
+
     @property
     def hotel_eligible_attendees(self):
         return [attendee for attendee in self.attendees if attendee.hotel_lottery_eligible]
@@ -2546,6 +2560,31 @@ class BadgePickupGroup(MagModel):
                 self.attendees.append(attendee)
 
     @property
+    def fallback_purchaser_id(self):
+        """
+        We assign a purchaser_id to receipt items to track the buyer of a multi-badge cart.
+        However, sometimes the purchaser later becomes invalid or may even be deleted.
+        This helps us reassign invalid purchaser IDs to the most likely candidate.
+
+        This is not used if attendee accounts are turned on, because the badge pickup group does
+        not reflect the state of the actual prereg cart used during the transaction in question.
+        """
+        if not self.valid_attendees:
+            return
+
+        valid_adults = [a for a in self.valid_attendees if a.birthdate and a.age_now_or_at_con > 18]
+
+        if not valid_adults:
+            return
+        
+        group_leaders = [a for a in valid_adults if a.is_group_leader]
+
+        if group_leaders:
+            return sorted(group_leaders, key=lambda a: a.created)[0].id
+
+        return sorted(valid_adults, key=lambda a: a.created)[0].id
+
+    @property
     def pending_paid_attendees(self):
         return [attendee for attendee in self.attendees if attendee.paid == c.PENDING and
                 not attendee.checked_in and not attendee.cannot_check_in_reason]
@@ -2557,6 +2596,10 @@ class BadgePickupGroup(MagModel):
     @property
     def check_inable_attendees(self):
         return [attendee for attendee in self.attendees if not attendee.checked_in and not attendee.cannot_check_in_reason]
+    
+    @property
+    def valid_attendees(self):
+        return [a for a in self.attendees if a.is_valid]
 
     @property
     def under_18_badges(self):

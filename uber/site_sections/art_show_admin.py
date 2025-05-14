@@ -840,6 +840,7 @@ class Root:
             session.refresh(attendee_receipt)
 
             sales_item = ReceiptItem(
+                purchaser_id=receipt.attendee.id,
                 receipt_id=attendee_receipt.id,
                 fk_id=receipt.id,
                 fk_model="ArtShowReceipt",
