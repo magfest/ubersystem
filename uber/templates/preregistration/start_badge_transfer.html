@@ -70,10 +70,6 @@
             This transfer code (<strong>{{ code }}</strong>) is not associated with a valid, transferable badge.
         </div>
         {% else %}
-            {% set badge_details %}
-            The original badge cost was {{ transfer_badge.badge_cost|format_currency }}.
-            {% if transfer_badge.amount_extra %}This badge includes a {{ c.DONATION_TIERS[transfer_badge.amount_extra] }} merch package ({{ transfer_badge.amount_extra|format_currency }}).{% endif %}
-            {% endset %}
             {% if transfer_badge.active_receipt and transfer_badge.active_receipt.current_amount_owed %}
             <div class="alert alert-warning" role="alert">
                 <p>
@@ -82,13 +78,15 @@
                 </p>
                 <p>Otherwise, the badge is valid and can be transferred.</p>
                 {{ badge_details }}
-            </div>
             {% else %}
             <div class="alert alert-info" role="alert">
                 <p>The badge associated with this transfer code (<strong>{{ code }}</strong>) is valid and can be transferred.</p>
-                {{ badge_details }}
-            </div>
             {% endif %}
+            {% block badge_details %}
+              The original badge cost was {{ transfer_badge.badge_cost|format_currency }}.
+              {% if transfer_badge.amount_extra %}This badge includes a {{ c.DONATION_TIERS[transfer_badge.amount_extra] }} merch package ({{ transfer_badge.amount_extra|format_currency }}).{% endif %}
+            {% endblock %}
+            </div>
         {% endif %}
     {% endif %}
     <p>Enter a transfer code below to check its validity.</p>
