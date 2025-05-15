@@ -475,7 +475,8 @@ class Root:
         filename = re.sub(r'[-\s]+', '-', filename)
         filename = filename + "_" + localized_now().strftime("%m%d%Y_%H%M")
 
-        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename={}.pdf'.format(filename)
+        cherrypy.response.headers['Content-Type'] = 'application/pdf'
+        cherrypy.response.headers['Content-Disposition'] = 'inline; filename={}.pdf'.format(filename)
         return bytes(pdf.output())
 
     def bidder_signup(self, session, message='', page=1, search_text='', order=''):

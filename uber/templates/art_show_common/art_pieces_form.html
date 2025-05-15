@@ -250,7 +250,7 @@
   </div>
   {% endif %}
   {% if admin_area %}
-  <form method="post" action="../art_show_admin/bid_sheet_pdf">
+  <form method="post" target="_blank" action="../art_show_admin/bid_sheet_pdf">
   <div class="row">
       <div class="col text-end">
         <label class="control-label">Piece IDs:</label>
@@ -337,7 +337,7 @@
           </button>
           {% endif %}
           {% if admin_area %}
-          <form method="post" action="../art_show_admin/bid_sheet_pdf" class="form-inline">
+          <form method="post" target="_blank" action="../art_show_admin/bid_sheet_pdf" class="form-inline">
             <input type="hidden" name="id" value="{{ app.id }}" />
             <input type="hidden" name="piece_id" value="{{ piece.id }}" />
             {{ csrf_token() }}
