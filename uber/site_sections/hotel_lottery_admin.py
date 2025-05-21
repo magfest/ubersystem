@@ -304,6 +304,49 @@ class Root:
         ]
         
         assignments = self.solve_lottery(applications, available_rooms)
+        
+    def lottery_setup(self, session, message='', page='0', search_text='', order='status'):
+        if c.DEV_BOX and not int(page):
+            page = 1
+
+        total_count = session.query(LotteryApplication.id).count()
+        complete_count = session.query(LotteryApplication.id).filter(LotteryApplication.status == c.COMPLETE).count()
+        count = 0
+        search_text = search_text.strip()
+        if search_text:
+            search_results, message = _search(session, search_text)
+            if search_results and search_results.count():
+                applications = search_results
+                count = applications.count()
+                if count == total_count:
+                    message = 'Every lottery application matched this search.'
+            elif not message:
+                message = 'No matches found. Try searching the lottery tracking history instead.'
+        if not count:
+            applications = session.query(LotteryApplication).outerjoin(LotteryApplication.attendee)
+            count = applications.count()
+
+        applications = applications.order(order)
+
+        page = int(page)
+        if search_text:
+            page = page or 1
+
+        pages = range(1, int(math.ceil(count / 100)) + 1)
+        applications = applications[-100 + 100*page: 100*page] if page else []
+
+        return {
+            'message':        message if isinstance(message, str) else message[-1],
+            'page':           page,
+            'pages':          pages,
+            'search_text':    search_text,
+            'search_results': bool(search_text),
+            'applications':   applications,
+            'order':          Order(order),
+            'search_count':   count,
+            'total_count':    total_count,
+            'complete_count': complete_count,
+        }  # noqa: E711
 
     @csv_file
     def accepted_dealers(self, out, session):
