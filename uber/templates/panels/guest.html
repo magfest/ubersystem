@@ -3,8 +3,6 @@
 {% block title %}Panel Application{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
-  {% include "panels_common.html" %}
-
   <div class="panel">
     <div class="panel-body">
     {% if c.APP_LIMIT and attendee.submitted_panels|length >= c.APP_LIMIT %}

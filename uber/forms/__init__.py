@@ -262,6 +262,7 @@ class MagForm(Form):
     class Meta:
         def get_field_type(self, field):
             # Returns a key telling our Jinja2 form input macro how to render the scaffolding based on the widget
+            # Deprecated -- remove when the old form_input macro is gone
 
             widget = field.widget
             if isinstance(widget, SwitchInput):
@@ -323,15 +324,16 @@ class MagForm(Form):
 
             # Fixes textarea fields to work with Bootstrap floating labels
             widget = ufield.kwargs.get('widget', None) or ufield.field_class.widget
-            if isinstance(widget, wtforms_widgets.TextArea):
-                if 'rows' in render_kw:
-                    pixels = int(render_kw['rows']) * 30
-                else:
-                    pixels = 90
-                if 'height' not in render_kw.get('style', ''):
-                    if 'style' in render_kw:
-                        render_kw['style'] += "; "
-                    render_kw['style'] = render_kw.get('style', '') + "height: {}px".format(pixels)
+            if isinstance(widget, wtforms_widgets.TextArea) and 'rows' not in render_kw:
+                render_kw['rows'] = 3
+
+            if isinstance(widget, (SwitchInput, wtforms_widgets.CheckboxInput)):
+                render_kw['class'] = 'form-check-input'
+            elif isinstance(widget, wtforms_widgets.Select):
+                render_kw['class'] = 'form-select'
+            elif not isinstance(widget, (MultiCheckbox, IntSelect, Ranking, wtforms_widgets.FileInput,
+                                         wtforms_widgets.HiddenInput)):
+                render_kw['class'] = 'form-control'
 
             # Floating labels need the placeholder set in order to work, so add one if it does not exist
             if 'placeholder' not in render_kw:
@@ -469,5 +471,6 @@ class DictWrapper(dict):
 from uber.forms.attendee import *  # noqa: F401,E402,F403
 from uber.forms.group import *  # noqa: F401,E402,F403
 from uber.forms.artist_marketplace import *  # noqa: F401,E402,F403
+from uber.forms.panels import *  # noqa: F401,E402,F403
 from uber.forms.security import *  # noqa: F401,E402,F403
 from uber.forms.hotel_lottery import *  # noqa: F401,E402,F403

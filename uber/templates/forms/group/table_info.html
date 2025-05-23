@@ -185,11 +185,14 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 </div>
 {% endblock %}
 
+{% set extra_fields = '' %}
+
 {% block textareas %}
 <div class="row g-sm-3">
     <div class="col-12">{{ form_macros.form_input(table_info.wares) }}</div>
 </div>
 <div class="row g-sm-3">
     <div class="col-12">{{ form_macros.form_input(table_info.special_needs) }}</div>
+    {{ extra_fields }}
 </div>
 {% endblock %}

@@ -8,26 +8,18 @@ class MultiCheckbox():
     """
     Renders a MultiSelect field as a set of checkboxes, e.g., "What interests you?"
     """
-    def __call__(self, field, div_class='checkgroup', **kwargs):
+    def __call__(self, field, **kwargs):
         kwargs.setdefault('type', 'checkbox')
         field_id = kwargs.pop('id', field.id)
-        html = ['<div {}>'.format(html_params(class_=div_class))]
-        html.append(f'<fieldset {html_params(id=field_id)}>')
-        html.append(f'<legend class="form-text mt-0"><span class="form-label">{field.label.text}</span>'
-                    '{}</legend>'.format(Markup(' <span class="required-indicator text-danger">*</span>')
-                                         if field.flags.required else ''))
+        html = []
         for value, label, checked, _html_attribs in field.iter_choices():
             choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
-            if value == c.OTHER:
-                html.append('<br/>')
             if checked:
                 options['checked'] = 'checked'
             html.append('<label for="{}" class="checkbox-label">'.format(choice_id))
             html.append('<input {} /> '.format(html_params(**options)))
             html.append('{}</label>'.format(label))
-        html.append('</fieldset>')
-        html.append('</div>')
         return Markup(''.join(html))
 
 
@@ -57,7 +49,7 @@ class IntSelect():
         return Markup(''.join(html))
 
 
-# Dummy class for get_field_type() -- switches in Bootstrap are set in the scaffolding, not on the input
+# Dummy class for our Jinja2 macros -- switches in Bootstrap are set in the scaffolding, not on the input
 class SwitchInput(CheckboxInput):
     pass
 

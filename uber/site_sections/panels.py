@@ -5,8 +5,9 @@ from datetime import datetime
 from uber.config import c
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
+from uber.forms import load_forms
 from uber.models import PanelApplicant, PanelApplication
-from uber.utils import add_opt, check, localized_now
+from uber.utils import add_opt, check, localized_now, validate_model
 
 
 OTHER_PANELISTS_FIELDS = [
@@ -77,6 +78,14 @@ class Root:
         panelist.submitter = True
         other_panelists = compile_other_panelists_from_params(session, app, **params)
 
+        panelist_form_list = ['PanelistInfo', 'PanelistCredentials']
+        panelist_forms = {0: load_forms(params, panelist, panelist_form_list)}
+        for num in range(1, 5):
+            panelist_forms[num] = load_forms(params, PanelApplicant(), panelist_form_list,
+                                             {form_name: str(num) for form_name in panelist_form_list})
+
+        forms = load_forms(params, app, ['PanelInfo', 'PanelOtherInfo', 'PanelConsents'])
+
         if cherrypy.request.method == 'POST':
             if localized_now() > c.PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS:
                 message = 'We are now past the deadline and are no longer accepting panel applications.'
@@ -91,6 +100,8 @@ class Root:
 
         return {
             'app': app,
+            'forms': forms,
+            'panelist_forms': panelist_forms,
             'message': message,
             'panelist': panelist,
             'other_panelists': other_panelists,

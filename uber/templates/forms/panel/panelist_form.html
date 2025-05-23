@@ -1,0 +1,84 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set panelist_info = panelist_info or panelist_form['panelist_info'] %}
+{% set panelist_credentials = panelist_credentials or panelist_form['panelist_credentials'] %}
+
+{# BLOCK NAMES in this form:
+    name
+    contact_info
+    pronouns
+    communication_pref
+    credentials
+    schedule_info
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<h3>Personal Information</h3>
+{% block name %}
+<div class="row g-sm-3 mb-3">
+<div class="col-sm">{{ form_macros.input(panelist_info.first_name) }}</div>
+<div class="col-sm">{{ form_macros.input(panelist_info.last_name) }}</div>
+</div>
+{% endblock %}
+
+
+{% block contact_info %}
+<div class="row g-sm-3 mb-3">
+  <div class="col-sm">
+    {{ form_macros.input(panelist_info.email) }}
+  </div>
+  <div class="col-sm">
+    {{ form_macros.input(panelist_info.cellphone) }}
+  </div>
+</div>
+{% endblock %}
+
+
+{% block pronouns %}
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {% call form_macros.input(panelist_info.pronouns) %}
+        <div class="row mt-2"><div class="col col-sm-6 d-flex gap-1">
+        <div class="col-form-label">Other: </div><div>{{ form_macros.input(panelist_info.other_pronouns, show_label=False) }}</div>
+        </div></div>
+        {% endcall %}
+    </div>
+    <div class="col-sm">
+        {% call form_macros.input(panelist_info.communication_pref) %}
+        <div class="d-flex gap-1 mt-2">
+          <div class="col-form-label">Or: </div><div class=flex-grow-1>{{ form_macros.input(panelist_info.other_communication_pref, show_label=False) }}</div>
+        </div>
+        {% endcall %}
+    </div>
+</div>
+{% endblock %}
+
+
+<h3>Credentials</h3>
+{% block credentials %}
+<div class="row g-sm-3 mb-3">
+<div class="col-sm">{{ form_macros.input(panelist_credentials.occupation) }}</div>
+<div class="col-sm">{{ form_macros.input(panelist_credentials.website) }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {{ form_macros.input(panelist_credentials.other_credentials) }}
+    </div>
+    <div class="col-sm">
+        {{ form_macros.input(panelist_credentials.social_media_info) }}
+    </div>
+</div>
+{% endblock %}
+
+
+{% block schedule_info %}
+<div class="row g-sm-3 mb-3">
+  <div class="col-sm">
+    {{ form_macros.input(panelist_credentials.display_name) }}
+  </div>
+  <div class="col-sm">
+    {{ form_macros.input(panelist_credentials.guidebook_bio) }}
+  </div>
+</div>
+{% endblock %}

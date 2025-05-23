@@ -609,24 +609,6 @@ PanelApplication.required = [
 if len(c.PANEL_DEPT_OPTS) > 1:
     PanelApplication.required.append(('department', 'Department'))
 
-PanelApplicant.required = [
-    ('first_name', 'First Name'),
-    ('last_name', 'Last Name'),
-    ('email', 'Email'),
-]
-
-
-@validation.PanelApplicant
-def pa_email(pa):
-    if not pa.email or not re.match(c.EMAIL_RE, pa.email):
-        return 'Please enter a valid email address'
-
-
-@validation.PanelApplicant
-def pa_phone(pa):
-    if (pa.submitter or pa.cellphone) and invalid_phone_number(pa.cellphone):
-        return 'Please enter a valid phone number'
-
 
 @validation.PanelApplication
 def unavailability(app):

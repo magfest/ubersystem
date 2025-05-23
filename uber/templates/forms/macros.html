@@ -1,3 +1,94 @@
+{% macro label(field, label_text='', required_if=None) %}
+  <label for="{{ field.label.field_id }}"
+{% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>{{ label_text }}
+  <span class="required-indicator text-danger" x-show="{{ required_if }}"> *</span></label>
+{% endmacro %}
+
+
+{% macro input(field, label_text='', help_text='', admin_text='', show_label=True) %}
+{#
+  Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
+  field (Field): WTForms form field.
+  help_text (str): Extra text to display on non-admin pages underneath the field.
+  admin_text (str): Extra text to display on admin pages underneath the field.
+  show_label (bool): Set to False to avoid rendering the label for the field.
+#}
+
+{% set custom_kwargs = {} %}
+
+{% for key, val in kwargs.items() %}
+  {% if key.startswith('alpine_') %}
+  {% set _ = custom_kwargs.update({'x-' ~ key[7:]: val}) %}
+  {% else %}
+  {% set _ = custom_kwargs.update({key: val}) %}
+  {% endif %}
+{% endfor %}
+
+{% if locked_fields|default(None, true) and field.name in locked_fields and not upgrade_modal %}
+{% set _ = custom_kwargs.update({'readonly': true}) %}
+{% endif %}
+
+{% set widget = field.widget|string %}
+{% set label_text = label_text or field.label.text %}
+{% set label_required = kwargs['required_if'] if 'required_if' in kwargs else ("true" if field.flags.required else "false") %}
+{% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
+
+{% set text_below_field %}
+  {% if not admin_area and (help_text or field.description) %}
+    <div class="form-text">
+    {{ help_text or field.description }}
+    </div>
+  {% elif admin_area and admin_text %}
+    <div class="form-text">
+    {{ admin_text }}
+    </div>
+  {% endif %}
+  <div id="{{ field.id }}-validation" class="invalid-feedback" role="alert"></div>
+{% endset %}
+
+{% if show_label and 'Checkbox' not in widget and 'SwitchInput' not in widget %}
+  <div class="form-text">{{ label(field, label_text, label_required) }}</div>
+{% endif %}
+{% if 'CheckboxInput' in widget or 'SwitchInput' in widget %}
+  <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
+    {% if is_readonly %}
+    <input type="hidden" name="{{ field.id }}" value="{{ field.data }}" />
+    {{ field(checked=field.data, disabled=true, value=1, **custom_kwargs) }}
+    {% else %}
+    {{ field(checked=field.data, value=1, **custom_kwargs) }}
+    {% endif %}
+    {{ label(field, label_text, label_required) }}
+    {{ text_below_field }}
+    {% if caller %}{{ caller() }}{% endif %}
+  </div>
+{% elif 'NumberInputGroup' in widget %}
+  <div class="input-group">
+  {{ field(**custom_kwargs) }}
+  </div>
+  {{ text_below_field }}
+  {% if caller %}{{ caller() }}{% endif %}
+{% elif 'MultiCheckbox' in widget %}
+<fieldset id="{{ field.id }}">
+  {% if show_label %}<legend class="mb-0 form-text">{{ label(field, label_text, label_required) }}</legend>{% endif %}
+  <div class="card card-body">
+    <div class="checkgroup">
+      {{ field(**custom_kwargs) }}
+      {% if caller %}{{ caller() }}{% endif %}
+    </div>
+  </div>
+  {{ text_below_field }}
+</fieldset>
+{% else %}
+  {% if 'FileInput' in widget and field.data %}{{ field.data }}<br/>{% endif %}
+  {{ field(**custom_kwargs) }}
+  {{ text_below_field }}
+  {% if caller %}{{ caller() }}{% endif %}
+{% endif %}
+{% endmacro %}
+
+
+
+
 {% macro form_label(field, label_text='', required=None) %}
 {% set is_required = required == True or (required == None and field.flags.required) %}
 <label for="{{ field.label.field_id }}"
