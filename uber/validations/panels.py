@@ -1,21 +1,8 @@
-import cherrypy
-from datetime import date
-
-from markupsafe import Markup
-from wtforms import (BooleanField, DateField, EmailField,
-                     HiddenField, SelectField, SelectMultipleField, IntegerField,
-                     StringField, TelField, validators, TextAreaField)
-from wtforms.validators import ValidationError, StopValidation
+from wtforms import validators
+from wtforms.validators import ValidationError
 
 from uber.config import c
-from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, CustomValidation)
-from uber.custom_tags import popup_link
-from uber.badge_funcs import get_real_badge_type
-from uber.models import Attendee, Session, PromoCodeGroup
-from uber.model_checks import invalid_phone_number
-from uber.utils import get_age_conf_from_birthday
-from uber.forms.panels import *
+from uber.forms.panels import PanelistInfo, PanelInfo, PanelOtherInfo, PanelConsents
 from uber.validations import valid_cellphone
 
 
@@ -32,13 +19,17 @@ PanelistInfo.field_validation.validations['email']['valid'] = validators.Email(g
 PanelistInfo.field_validation.validations['cellphone']['valid'] = valid_cellphone
 
 
-PanelistInfo.field_validation.update_required_validations()
-
-
 PanelInfo.field_validation.required_fields = {
     'name': "Please enter a panel name.",
     'length': "Please estimate how long this panel will need to be.",
+    'length_text': ('Please specify how long your panel will be.', 'length', lambda x: x == c.OTHER),
+    'length_reason': ('Please explain why your panel needs to be longer than sixty minutes.',
+                      'length', lambda x: x != c.SIXTY_MIN),
     'description': "Please enter a description of what this panel will be about.",
+    'presentation': "Please select a panel type.",
+    'other_presentation': ('Since you selected "Other" for your type of panel, please describe it.',
+                           'presentation', lambda x: x == c.OTHER),
+    'noise_level': "Please select a noise level.",
 }
 
 
@@ -47,7 +38,7 @@ if len(c.PANEL_DEPT_OPTS) > 1:
 
 
 if len(c.LIVESTREAM_OPTS) > 2:
-    PanelInfo.field_validation.required_fields['livestream'] = "Please let us know if we can record or livestream your panel."
+    PanelInfo.field_validation.required_fields['livestream'] = "Please select your preference for recording/livestreaming."
 elif c.CAN_LIVESTREAM:
     PanelInfo.field_validation.required_fields['livestream'] = "Please let us know if we can livestream your panel."
 
@@ -57,63 +48,25 @@ if len(c.LIVESTREAM_OPTS) <= 2:
 
 
 if len(c.PANEL_CONTENT_OPTS) > 1:
-    PanelInfo.field_validation.required_fields['granular_rating'] = "Please tell us about the content in your panel, or select None."
+    PanelInfo.field_validation.required_fields['granular_rating'] = "Please select what your panel's content will contain, or None."
 elif len(c.PANEL_RATING_OPTS) > 1:
-    PanelInfo.field_validation.required_fields['rating'] = "Please select a content rating."
+    PanelInfo.field_validation.required_fields['rating'] = "Please select a content rating for your panel."
 
 
-PanelInfo.field_validation.update_required_validations()
-
-
-@PanelInfo.field_validation('other_presentation')
-def required_if_other(form, field):
-    if form.presentation.data == c.OTHER and not field.data:
-        raise ValidationError("Please described your panel type.")
-
-
-@PanelInfo.field_validation('length_text')
-def required_if_other(form, field):
-    if form.length.data == c.OTHER and not field.data:
-        raise ValidationError("Please estimate your panel length.")
-
-
-@PanelInfo.field_validation('length_reason')
-def required_if_too_long(form, field):
-    if form.length.data != c.SIXTY_MIN and not field.data:
-        raise ValidationError("Please explain why your panel needs to be longer than 60 minutes.")
+@PanelInfo.field_validation('granular_rating')
+def none_is_none_granular_rating(form, field):
+    if c.NONE in field.data and len(field.data) > 1:
+        raise ValidationError("You cannot select mature content for your panel and also 'None'.")
 
 
 PanelOtherInfo.field_validation.required_fields = {
+    'tables_desc': ("Please describe how you need tables set up for your panel.", 'need_tables'),
+    'cost_desc': ("Please describe the materials you will provide and how much you will charge attendees for them.", 'has_cost'),
+    'affiliations': ("Please list your affiliations.", 'has_affiliations'),
+    'past_attendance': ("Please describe past attendance for this panel.", 'held_before'),
     'unavailable': "Please let us know when you are unavailable to run a panel.",
     'verify_unavailable': "Please verify your unavailability.",
 }
-
-
-PanelOtherInfo.field_validation.update_required_validations()
-
-
-@PanelOtherInfo.field_validation('tables_desc')
-def required_if_need_tables(form, field):
-    if form.need_tables.data and not field.data:
-        raise ValidationError("Please describe your table needs.")
-
-
-@PanelOtherInfo.field_validation('cost_desc')
-def required_if_has_cost(form, field):
-    if form.has_cost.data and not field.data:
-        raise ValidationError("Please describe your material costs.")
-
-
-@PanelOtherInfo.field_validation('affiliations')
-def required_if_has_affiliations(form, field):
-    if form.has_affiliations.data and not field.data:
-        raise ValidationError("Please list your affiliations.")
-
-
-@PanelOtherInfo.field_validation('past_attendance')
-def required_if_held_before(form, field):
-    if form.held_before.data and not field.data:
-        raise ValidationError("Please describe past attendance for this panel.")
 
 
 PanelConsents.field_validation.required_fields = {
@@ -122,9 +75,6 @@ PanelConsents.field_validation.required_fields = {
     'data_agreement': "You must agree to our data policies.",
     'verify_tos': "You must agree to our policies for Panelists.",
 }
-
-
-PanelConsents.field_validation.update_required_validations()
 
 
 @PanelConsents.field_validation('verify_poc')

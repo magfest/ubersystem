@@ -30,7 +30,7 @@ from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowA
                          AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event,
                          GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
                          Job, ArtistMarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
-                         PanelApplicant, PanelApplication, PromoCode, PromoCodeGroup, Sale, Session, WatchList)
+                         PromoCode, PromoCodeGroup, Sale, Session, WatchList)
 from uber.utils import localized_now, valid_email, get_age_from_birthday
 from uber.payments import PreregCart
 
@@ -596,85 +596,6 @@ def valid_phone_number(applicant):
 Event.required = [
     ('name', 'Event Name')
 ]
-
-
-PanelApplication.required = [
-    ('name', 'Panel Name'),
-    ('description', 'Panel Description'),
-    ('presentation', 'Panel Type'),
-    ('length', 'Panel Length'),
-    ('noise_level', 'Noise Level'),
-]
-
-if len(c.PANEL_DEPT_OPTS) > 1:
-    PanelApplication.required.append(('department', 'Department'))
-
-
-@validation.PanelApplication
-def unavailability(app):
-    if not app.unavailable:
-        return 'Your unavailability is required.'
-
-
-@validation.PanelApplication
-def panel_other(app):
-    if app.presentation == c.OTHER and not app.other_presentation:
-        return 'Since you selected "Other" for your type of panel, please describe it'
-
-
-@validation.PanelApplication
-def specify_other_time(app):
-    if app.length == c.OTHER and not app.length_text:
-        return 'Please specify how long your panel will be.'
-
-
-@validation.PanelApplication
-def specify_nonstandard_time(app):
-    if app.length != c.SIXTY_MIN and not app.length_reason and not app.poc_id:
-        return 'Please explain why your panel needs to be longer than sixty minutes.'
-
-
-@validation.PanelApplication
-def select_livestream_opt(app):
-    if not app.livestream and c.CAN_LIVESTREAM:
-        return 'Please select your preference for recording/livestreaming.' \
-            if len(c.LIVESTREAM_OPTS) > 2 else 'Please tell us if we can livestream your panel.'
-    
-
-@validation.PanelApplication
-def select_record_opt(app):
-    if not app.record and len(c.LIVESTREAM_OPTS) <= 2:
-        return 'Please tell us if we can record your panel.'
-
-
-@validation.PanelApplication
-def specify_table_needs(app):
-    if app.need_tables and not app.tables_desc:
-        return 'Please describe how you need tables set up for your panel.'
-
-
-@validation.PanelApplication
-def specify_cost_details(app):
-    if app.has_cost and not app.cost_desc:
-        return 'Please describe the materials you will provide and how much you will charge attendees for them.'
-
-
-@validation.PanelApplication
-def specify_rating(app):
-    if len(c.PANEL_RATING_OPTS) > 1 and app.rating == c.UNRATED:
-        return 'Please select a content rating for your panel.'
-
-
-@validation.PanelApplication
-def specify_granular_rating(app):
-    if len(c.PANEL_CONTENT_OPTS) > 1 and not app.granular_rating:
-        return "Please select what your panel's content will contain, or None."
-
-
-@validation.PanelApplication
-def none_is_none_granular_rating(app):
-    if c.NONE in app.granular_rating_ints and len(app.granular_rating_ints) > 1:
-        return "You cannot select mature content for your panel and also 'None'."
 
 
 Attraction.required = [

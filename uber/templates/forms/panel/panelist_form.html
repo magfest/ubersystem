@@ -14,6 +14,10 @@
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<div x-data="{
+{% block x_data %}
+{% endblock %} }">
+
 <h3>Personal Information</h3>
 {% block name %}
 <div class="row g-sm-3 mb-3">
@@ -82,3 +86,5 @@
   </div>
 </div>
 {% endblock %}
+
+</div>

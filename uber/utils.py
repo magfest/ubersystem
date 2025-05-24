@@ -737,7 +737,7 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
 
     for form in forms.values():
         form.populate_obj(preview_model)
-        form.meta.is_admin = is_admin
+        form.is_admin = is_admin
 
         extra_validators = defaultdict(list)
 

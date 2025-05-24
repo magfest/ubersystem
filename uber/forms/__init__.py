@@ -1,3 +1,4 @@
+import inspect
 import re
 import six
 import cherrypy
@@ -47,6 +48,10 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True,
     the PersonalInfo class will be returned as form_dict['personal_info'].
     """
 
+    if not MagForm.initialized:
+        MagForm.set_overrides_and_validations()
+        MagForm.initialized = True
+
     form_dict = {}
     alias_dict = {}
 
@@ -70,19 +75,8 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True,
                     alias_dict[aliased_field] = alias_val
 
         loaded_form = form_cls(params, model, prefix=prefix_dict.get(form_name, ''))
-        optional_fields = loaded_form.get_optional_fields(model) if get_optional else []
 
         for name, field in loaded_form._fields.items():
-            if name in optional_fields:
-                field.validators = [validators.Optional()] + [
-                    validator for validator in field.validators
-                    if not isinstance(validator, (validators.DataRequired, validators.InputRequired))]
-                field.flags.required = False
-            else:
-                override_validators = get_override_attr(loaded_form, name, '_validators', field)
-                if override_validators:
-                    field.validators = override_validators
-
             # Refresh any choices for fields in "dynamic_choices_fields"
             if name in loaded_form.dynamic_choices_fields.keys():
                 field.choices = loaded_form.dynamic_choices_fields[name]()
@@ -102,6 +96,8 @@ class CustomValidation:
     def __init__(self):
         self.validations = defaultdict(OrderedDict)
         self.required_fields = {}
+        self.form = inspect.currentframe().f_back.f_locals.get('cls', None)
+        self.field_flags = defaultdict(dict)
 
     def __bool__(self):
         return bool(self.validations)
@@ -122,12 +118,49 @@ class CustomValidation:
             return func
         return wrapper
     
-    def update_required_validations(self):
-        for field_name, message in self.required_fields.items():
-            self.validations[field_name]['required'] = validators.DataRequired(message)
+    def build_flags_dict(self):
+        for field_name, validators in self.get_validation_dict().items():
+            for v in validators:
+                self.field_flags[field_name].update(getattr(v, 'field_flags', {}))
 
-    def remove_required_validation(self, field_name):
-        self.validations[field_name].pop('required', None)
+    def create_required_if(self, message, other_field, condition_lambda=None):
+        """
+        Factory function to quickly create simple conditional 'required' validations, e.g.,
+        requiring a field to be filled out if a checkbox is checked.
+
+        message (str): The error message to display if the validation fails.
+        other_field (str): The name of the field that this condition checks. This field
+                           MUST be part of the same form.
+        condition_lambda (fn): A lambda to evaluate the data from other_field. If not
+                               set, other_field is checked for truthiness.
+        """
+        def validation_func(form, field):
+            other_field_data = getattr(form, other_field).data
+            if not condition_lambda:
+                if other_field_data and not field.data:
+                    raise ValidationError(message)
+            else:
+                if condition_lambda(other_field_data) and not field.data:
+                    raise ValidationError(message)
+                
+        return validation_func
+
+    def set_required_validations(self):
+        for field_name, message_or_tuple in self.required_fields.items():
+            if not isinstance(message_or_tuple, str):
+                try:
+                    message, other_field, condition = message_or_tuple
+                except ValueError:
+                    message, other_field = message_or_tuple
+                    condition = None
+                self.validations[field_name][f'required_if_{other_field}'] = self.create_required_if(message,
+                                                                                                     other_field,
+                                                                                                     condition)
+            else:
+                if self.form and isinstance(getattr(self.form, field_name).field_class, BooleanField):
+                    self.validations[field_name]['required'] = validators.InputRequired(message_or_tuple)
+                else:
+                    self.validations[field_name]['required'] = validators.DataRequired(message_or_tuple)
 
     def get_validations_by_field(self, field_name):
         field_validations = self.validations.get(field_name)
@@ -141,10 +174,51 @@ class CustomValidation:
 
 
 class MagForm(Form):
-    field_aliases = {}
-    dynamic_choices_fields = {}
-    field_validation, new_or_changed = CustomValidation(), CustomValidation()
-    kwarg_overrides = {}
+    initialized = False
+
+    def __init_subclass__(cls, *args, **kwargs):
+        cls.field_aliases = {}
+        cls.dynamic_choices_fields = {}
+        cls.field_validation, cls.new_or_changed = CustomValidation(), CustomValidation()
+        cls.kwarg_overrides = {}
+        cls.is_admin = False
+
+    @classmethod
+    def set_overrides_and_validations(cls):
+        form_list = set([form for module, form in MagForm.all_forms()])
+        for form in form_list:
+            form.field_validation.set_required_validations()
+            form.field_validation.build_flags_dict()
+            form.new_or_changed.set_required_validations()
+            for ufield in form.__dict__.values():
+                if hasattr(ufield, '_formfield'):
+                    MagForm.set_keyword_defaults(ufield)
+
+    @classmethod
+    def set_keyword_defaults(cls, ufield):
+        # Changes the render_kw dictionary for a field to implement some high-level defaults
+
+        render_kw = ufield.kwargs.get('render_kw', {})
+
+        widget = ufield.kwargs.get('widget', None) or ufield.field_class.widget
+        if isinstance(widget, wtforms_widgets.TextArea) and 'rows' not in render_kw:
+            render_kw['rows'] = 3
+
+        bootstrap_class = ''
+        if isinstance(widget, (SwitchInput, wtforms_widgets.CheckboxInput)):
+            bootstrap_class = 'form-check-input'
+        elif isinstance(widget, wtforms_widgets.Select):
+            bootstrap_class = 'form-select'
+        elif not isinstance(widget, (MultiCheckbox, IntSelect, Ranking, wtforms_widgets.FileInput,
+                                        wtforms_widgets.HiddenInput)):
+            bootstrap_class = 'form-control'
+
+        if 'class' in render_kw and bootstrap_class:
+            render_kw['class'] += f' {bootstrap_class}'
+        elif bootstrap_class:
+            render_kw['class'] = bootstrap_class
+
+        ufield.kwargs['render_kw'] = render_kw
 
     def get_optional_fields(self, model, is_admin=False):
         return []
@@ -188,12 +262,7 @@ class MagForm(Form):
             target = cls.find_form_class(form.__name__)
 
         for name in dir(form):
-            if name in ['field_validation', 'new_or_changed_validation']:
-                orig_validations = getattr(target, name)
-                for field_name, dict in getattr(form, name).validations.items():
-                    for func_name, func in dict.items():
-                        orig_validations.validations[field_name][func_name] = func
-            elif not name.startswith('_'):
+            if not name.startswith('_'):
                 if name in ['get_optional_fields', 'get_non_admin_locked_fields']:
                     setattr(target, "super_" + name, getattr(target, name))
                 setattr(target, name, getattr(form, name))
@@ -276,9 +345,6 @@ class MagForm(Form):
                     field_obj.populate_obj(obj, model_field_name)
 
     class Meta:
-        def __init__(self):
-            self.is_admin = False
-
         def get_field_type(self, field):
             # Returns a key telling our Jinja2 form input macro how to render the scaffolding based on the widget
             # Deprecated -- remove when the old form_input macro is gone
@@ -309,10 +375,11 @@ class MagForm(Form):
 
         def bind_field(self, form, unbound_field, options):
             """
-            This function implements all our custom logic to apply when initializing a form. Currently, we:
+            This function implements all our custom logic to apply when initializing a field. Currently, we:
             - Get a label and description override from a function on the form class, if there is one
-            - Format label and description text to process common variables
-            - Add default rendering keywords to make fields function better in our forms
+            - Add aria-describedby to the field for use in clientside validations
+
+            We don't do this in MagForm.initialize because we don't have access to the field name at that point.
             """
 
             bound_field = unbound_field.bind(form=form, **options)
@@ -326,42 +393,13 @@ class MagForm(Form):
 
             if hasattr(form, field_name + '_desc'):
                 bound_field.description = get_override_attr(form, field_name, '_desc')
-
-            bound_field.render_kw = self.set_keyword_defaults(unbound_field,
-                                                              unbound_field.kwargs.get('render_kw', {}),
-                                                              field_name)
             
-            # Allow overriding the default kwargs via kwarg_overrides
-            if field_name in form.kwarg_overrides:
-                for kw, val in form.kwarg_overrides[field_name].items():
-                    bound_field.render_kw[kw] = val
+            if field_name in form.field_validation.field_flags:
+                for flag_name, val in form.field_validation.field_flags[field_name].items():
+                    setattr(bound_field.flags, flag_name, True)
+                    bound_field.render_kw[flag_name] = val
 
             return bound_field
-
-        def set_keyword_defaults(self, ufield, render_kw, field_name):
-            # Changes the render_kw dictionary to implement some high-level defaults
-
-            # Fixes textarea fields to work with Bootstrap floating labels
-            widget = ufield.kwargs.get('widget', None) or ufield.field_class.widget
-            if isinstance(widget, wtforms_widgets.TextArea) and 'rows' not in render_kw:
-                render_kw['rows'] = 3
-
-            if isinstance(widget, (SwitchInput, wtforms_widgets.CheckboxInput)):
-                render_kw['class'] = 'form-check-input'
-            elif isinstance(widget, wtforms_widgets.Select):
-                render_kw['class'] = 'form-select'
-            elif not isinstance(widget, (MultiCheckbox, IntSelect, Ranking, wtforms_widgets.FileInput,
-                                         wtforms_widgets.HiddenInput)):
-                render_kw['class'] = 'form-control'
-
-            # Floating labels need the placeholder set in order to work, so add one if it does not exist
-            if 'placeholder' not in render_kw:
-                render_kw['placeholder'] = " "
-
-            # Support for validating fields inline
-            render_kw['aria-describedby'] = field_name + "-validation"
-
-            return render_kw
 
         def wrap_formdata(self, form, formdata):
             # Auto-wraps param dicts in a multi-dict wrapper for WTForms
@@ -493,5 +531,3 @@ from uber.forms.artist_marketplace import *  # noqa: F401,E402,F403
 from uber.forms.panels import *  # noqa: F401,E402,F403
 from uber.forms.security import *  # noqa: F401,E402,F403
 from uber.forms.hotel_lottery import *  # noqa: F401,E402,F403
-
-from uber.validations.panels import *  # noqa: F401,E402,F403

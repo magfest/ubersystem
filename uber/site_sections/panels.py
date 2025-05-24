@@ -178,16 +178,30 @@ class Root:
                 panelist_form_list.append(form_name)
                 form_list.remove(form_name)
 
+        submitter_form = load_forms(params, PanelApplicant(), panelist_form_list, get_optional=False)
         forms = load_forms(params, PanelApplication(), form_list, get_optional=False)
-        panelist_forms = {0: load_forms(params, PanelApplicant(), panelist_form_list, get_optional=False)}
+        panelist_forms = {}
         for num in range(1, 5):
             panelist_forms[num] = load_forms(params, PanelApplicant(), panelist_form_list,
                                              {form_name: str(num) for form_name in panelist_form_list},
                                              get_optional=False)
 
-        all_errors = validate_model(forms, PanelApplication())
+        submitter_errors = validate_model(submitter_form, PanelApplication())
+        panel_errors = validate_model(forms, PanelApplication())
+        panelists_errors = {}
         for index, loaded_forms in panelist_forms.items():
-            all_errors.update(validate_model(loaded_forms, PanelApplicant()))
+            errors = validate_model(loaded_forms, PanelApplicant())
+            if errors:
+                panelists_errors.update(errors)
+
+        all_errors = {}
+        if submitter_errors:
+            all_errors.update(submitter_errors)
+        if panel_errors:
+            all_errors.update(panel_errors)
+        if panelists_errors:
+            all_errors.update(panelists_errors)
+
         if all_errors:
             return {"error": all_errors}
 
