@@ -725,8 +725,6 @@ class GuidebookUtils():
 
 
 def validate_model(forms, model, preview_model=None, is_admin=False):
-    from wtforms import validators
-
     all_errors = defaultdict(list)
 
     if not preview_model:
@@ -738,16 +736,11 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
             preview_model.is_actually_old = True
 
     for form in forms.values():
-        extra_validators = defaultdict(list)
-        for field_name in form.get_optional_fields(preview_model, is_admin):
-            field = getattr(form, field_name)
-            if field:
-                field.validators = (
-                    [validators.Optional()] +
-                    [validator for validator in field.validators
-                     if not isinstance(validator, (validators.DataRequired, validators.InputRequired))])
+        form.populate_obj(preview_model)
+        form.meta.is_admin = is_admin
 
-        # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
+        extra_validators = defaultdict(list)
+
         for key, field in form.field_list:
             if key == 'badge_num' and field.data:
                 field_data = int(field.data)  # Badge number box is a string to accept encrypted barcodes
@@ -755,7 +748,7 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
                 field_data = field.data
             extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
             if field and (model.is_new or getattr(model, key, None) != field_data):
-                extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
+                extra_validators[key].extend(form.new_or_changed.get_validations_by_field(key))
         valid = form.validate(extra_validators=extra_validators)
         if not valid:
             for key, val in form.errors.items():

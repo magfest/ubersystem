@@ -17,45 +17,25 @@ from uber.model_checks import invalid_phone_number
 from uber.utils import get_age_conf_from_birthday
 
 
-__all__ = ['PanelistInfo', 'PanelistCredentials', 'PanelInfo', 'PanelOtherInfo']
-
-
-# TODO: turn this into a proper validation class
-def valid_cellphone(form, field):
-    if field.data and invalid_phone_number(field.data):
-        raise ValidationError('Please provide a valid 10-digit US phone number or '
-                              'include a country code (e.g. +44) for international numbers.')
+__all__ = ['PanelistInfo', 'PanelistCredentials', 'PanelInfo', 'PanelOtherInfo', 'PanelConsents']
 
 
 class PanelistInfo(MagForm):
-    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
-
-    first_name = StringField('First Name', validators=[
-        validators.DataRequired("Please provide your first name.")], render_kw={'autocomplete': "fname"})
-    last_name = StringField('Last Name', validators=[
-        validators.DataRequired("Please provide your last name.")], render_kw={'autocomplete': "lname"})
-    email = EmailField('Email Address', validators=[
-        validators.DataRequired("Please enter an email address."),
-        validators.Length(max=255, message="Email addresses cannot be longer than 255 characters."),
-        validators.Email(granular_message=True),
-        ],
-        render_kw={'placeholder': 'test@example.com'})
-    cellphone = TelField('Phone Number', validators=[
-        validators.DataRequired("Please provide a phone number."), valid_cellphone
-        ], description='The phone number at which we can most easily reach you before the event.')
-    pronouns = SelectMultipleField('Pronouns', choices=c.PRONOUN_OPTS, coerce=int,
-                                    validators=[validators.Optional()], widget=MultiCheckbox(),
-                                    description="We will have both pre-printed and blank pronoun ribbons at the registration desk.")
+    first_name = StringField('First Name', render_kw={'autocomplete': "fname"})
+    last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
+    email = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
+    cellphone = TelField('Phone Number', description='The phone number at which we can most easily reach you before the event.')
+    pronouns = SelectMultipleField('Pronouns', coerce=int, choices=c.PRONOUN_OPTS, widget=MultiCheckbox(),
+                                   description="We will have both pre-printed and blank pronoun ribbons at the registration desk.")
     other_pronouns = StringField("Other Pronouns", render_kw={'placeholder': 'e.g., Xe/Xir'})
-    communication_pref = SelectMultipleField('Communication Preference', choices=c.COMMUNICATION_PREF_OPTS, coerce=int,
-                                    widget=MultiCheckbox())
+    communication_pref = SelectMultipleField('Communication Preference', coerce=int,
+                                             choices=c.COMMUNICATION_PREF_OPTS,
+                                             widget=MultiCheckbox())
     other_communication_pref = StringField("Other Communication Preference",
                                            render_kw={'placeholder': "What other way should we contact you?"})
 
 
 class PanelistCredentials(MagForm):
-    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
-
     occupation = StringField("Occupation", render_kw={'placeholder': "What do you do?"})
     website = StringField("Website", render_kw={'placeholder': "www.example.com"})
     other_credentials = TextAreaField("Other Experience",
@@ -72,21 +52,19 @@ class PanelistCredentials(MagForm):
 
 
 class PanelInfo(MagForm):
-    name = StringField("Panel Name", validators=[validators.DataRequired("Please enter a name for your panel.")])
+    name = StringField("Panel Name")
     department = SelectField("Department", coerce=int, choices=[(0, 'Please select an option')] + c.PANEL_DEPT_OPTS)
     presentation = SelectField("Type of Panel", coerce=int,
                                choices=[(0, 'Please select an option')] + c.PRESENTATION_OPTS)
     other_presentation = StringField("Other Panel Type")
     is_loud = BooleanField("I require an environment to have a large volume presentation.")
     length = SelectField("Expected Panel Length", default=0, coerce=int,
-                         choices=[(0, 'Please select an option')] + c.PANEL_LENGTH_OPTS, validators=[
-                             validators.DataRequired("Please estimate how long your panel will need to be.")],
+                         choices=[(0, 'Please select an option')] + c.PANEL_LENGTH_OPTS,
                              description="An hour is typical, including time for Q&A.")
     length_text = StringField("Other Panel Length")
     length_reason = TextAreaField("Why do you need the extra time?",
                                   description="Panels longer than 60 minutes are allowed, but discouraged unless you really need the extra time.")
-    description = TextAreaField("Panel Description", validators=[
-        validators.DataRequired("Please enter a description of what your panel will be about.")])
+    description = TextAreaField("Panel Description")
     public_description = TextAreaField("Schedule Description", description=(
         "To be shown on the public facing schedule. 200 words max. "
         "Leave blank if this is the same as the Panel Description."))
@@ -100,7 +78,6 @@ class PanelInfo(MagForm):
     rating = SelectField(coerce=int, choices=[(0, 'Please select an option')] + c.PANEL_RATING_OPTS)
     granular_rating = SelectMultipleField("Panel Content", coerce=int, choices=c.PANEL_CONTENT_OPTS, widget=MultiCheckbox(),
                                           description='Please select the checkboxes above to let us know what your panel content may contain, or select "None" if you are sure your panel will be for all ages.')
-
 
     def description_desc(self):
         return Markup("This is to explain your pitch to us - this can be different from what you want to show the public. <strong>18+ panels will not be accepted.</strong>")
@@ -118,8 +95,6 @@ class PanelInfo(MagForm):
 
 
 class PanelOtherInfo(MagForm):
-    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
-
     need_tables = BooleanField("Would your panel benefit from a different setup from our normal panel rooms - for instance, an open space or tables for people to work on?")
     tables_desc = TextAreaField("Describe your table needs",
                                 description="Our ability to reconfigure main panel rooms is very limited, but we have some alternative spaces that might be better suited for specific needs.")
@@ -143,11 +118,11 @@ class PanelOtherInfo(MagForm):
 
 
 class PanelConsents(MagForm):
-    verify_waiting = BooleanField(validators=[validators.DataRequired()])
-    coc_agreement = BooleanField(validators=[validators.DataRequired()])
-    data_agreement = BooleanField(validators=[validators.DataRequired()])
-    verify_poc = BooleanField("I have read and agree to the terms above.", validators=[validators.DataRequired()])
-    verify_tos = BooleanField("I have read and agree to the terms above.", validators=[validators.DataRequired()])
+    verify_waiting = BooleanField()
+    coc_agreement = BooleanField()
+    data_agreement = BooleanField()
+    verify_poc = BooleanField("I have read and agree to the terms above.")
+    verify_tos = BooleanField("I have read and agree to the terms above.")
 
     def verify_waiting_label(self):
         return Markup(f"""<strong>I will not prematurely e-mail {c.EVENT_NAME} to check my panel status</strong>,

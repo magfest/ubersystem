@@ -1,9 +1,11 @@
 import cherrypy
 
 from datetime import datetime
+from sqlalchemy.orm.exc import NoResultFound
+from pockets.autolog import log
 
 from uber.config import c
-from uber.decorators import all_renderable
+from uber.decorators import all_renderable, ajax
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import PanelApplicant, PanelApplication
@@ -91,8 +93,6 @@ class Root:
                 message = 'We are now past the deadline and are no longer accepting panel applications.'
             if not message:
                 message = check(panelist) or check_extra_verifications(**params)
-            if not message and other_panelists and 'verify_poc' not in params:
-                message = 'You must agree to being the point of contact for your group'
             if not message:
                 message = process_panel_app(session, app, panelist, other_panelists, **params)
             if not message:
@@ -162,6 +162,36 @@ class Root:
         return {
             'app': app,
         }
+    
+    @ajax
+    def validate_panel_app(self, session, form_list=[], **params):
+        panelist_form_list = []
+
+        if not form_list:
+            form_list = ['PanelInfo', 'PanelOtherInfo', 'PanelConsents']
+            panelist_form_list = ['PanelistInfo', 'PanelistCredentials']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        
+        for form_name in form_list:
+            if form_name.startswith('Panelist'):
+                panelist_form_list.append(form_name)
+                form_list.remove(form_name)
+
+        forms = load_forms(params, PanelApplication(), form_list, get_optional=False)
+        panelist_forms = {0: load_forms(params, PanelApplicant(), panelist_form_list, get_optional=False)}
+        for num in range(1, 5):
+            panelist_forms[num] = load_forms(params, PanelApplicant(), panelist_form_list,
+                                             {form_name: str(num) for form_name in panelist_form_list},
+                                             get_optional=False)
+
+        all_errors = validate_model(forms, PanelApplication())
+        for index, loaded_forms in panelist_forms.items():
+            all_errors.update(validate_model(loaded_forms, PanelApplicant()))
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
 
 def process_panel_app(session, app, panelist, other_panelists_compiled, **params):

@@ -7,6 +7,8 @@ from wtforms import Form, StringField, SelectField, SelectMultipleField, FileFie
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError
 from pockets.autolog import log
+from functools import wraps
+
 from uber.config import c
 from uber.forms.widgets import CountrySelect, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking
 from uber.model_checks import invalid_zip_code
@@ -99,6 +101,7 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True,
 class CustomValidation:
     def __init__(self):
         self.validations = defaultdict(OrderedDict)
+        self.required_fields = {}
 
     def __bool__(self):
         return bool(self.validations)
@@ -112,6 +115,19 @@ class CustomValidation:
             self.validations[field_name][func.__name__] = func
             return func
         return wrapper
+    
+    def __call__(self, field_name):
+        def wrapper(func):
+            self.validations[field_name][func.__name__] = func
+            return func
+        return wrapper
+    
+    def update_required_validations(self):
+        for field_name, message in self.required_fields.items():
+            self.validations[field_name]['required'] = validators.DataRequired(message)
+
+    def remove_required_validation(self, field_name):
+        self.validations[field_name].pop('required', None)
 
     def get_validations_by_field(self, field_name):
         field_validations = self.validations.get(field_name)
@@ -127,7 +143,7 @@ class CustomValidation:
 class MagForm(Form):
     field_aliases = {}
     dynamic_choices_fields = {}
-    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
+    field_validation, new_or_changed = CustomValidation(), CustomValidation()
     kwarg_overrides = {}
 
     def get_optional_fields(self, model, is_admin=False):
@@ -260,6 +276,9 @@ class MagForm(Form):
                     field_obj.populate_obj(obj, model_field_name)
 
     class Meta:
+        def __init__(self):
+            self.is_admin = False
+
         def get_field_type(self, field):
             # Returns a key telling our Jinja2 form input macro how to render the scaffolding based on the widget
             # Deprecated -- remove when the old form_input macro is gone
@@ -474,3 +493,5 @@ from uber.forms.artist_marketplace import *  # noqa: F401,E402,F403
 from uber.forms.panels import *  # noqa: F401,E402,F403
 from uber.forms.security import *  # noqa: F401,E402,F403
 from uber.forms.hotel_lottery import *  # noqa: F401,E402,F403
+
+from uber.validations.panels import *  # noqa: F401,E402,F403
