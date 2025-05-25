@@ -3,7 +3,7 @@ from wtforms.validators import ValidationError
 
 from uber.config import c
 from uber.forms.panels import PanelistInfo, PanelInfo, PanelOtherInfo, PanelConsents
-from uber.validations import valid_cellphone
+from uber.validations import phone_validators, email_validators
 
 
 PanelistInfo.field_validation.required_fields = {
@@ -14,9 +14,8 @@ PanelistInfo.field_validation.required_fields = {
 }
 
 
-PanelistInfo.field_validation.validations['email']['length'] = validators.Length(max=255, message="Email addresses cannot be longer than 255 characters.")
-PanelistInfo.field_validation.validations['email']['valid'] = validators.Email(granular_message=True)
-PanelistInfo.field_validation.validations['cellphone']['valid'] = valid_cellphone
+PanelistInfo.field_validation.validations['email'].update(email_validators)
+PanelistInfo.field_validation.validations['cellphone'].update(phone_validators)
 
 
 PanelInfo.field_validation.required_fields = {

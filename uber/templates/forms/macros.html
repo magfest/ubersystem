@@ -87,8 +87,6 @@
 {% endmacro %}
 
 
-
-
 {% macro form_label(field, label_text='', required=None) %}
 {% set is_required = required == True or (required == None and field.flags.required) %}
 <label for="{{ field.label.field_id }}"

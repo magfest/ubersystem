@@ -19,17 +19,12 @@ def get_override_attr(form, field_name, suffix, *args):
     return getattr(form, field_name + suffix, lambda *args: '')(*args)
 
 
-def load_forms(params, model, form_list, prefix_dict={}, get_optional=True,
-               truncate_prefix='admin', checkboxes_present=True):
+def load_forms(params, model, form_list, prefix_dict={}, truncate_prefix='admin', checkboxes_present=True):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
     Also adds aliases for common fields, e.g., mapping the `region` column to `region_us` and `region_canada`.
     Aliases are currently only designed to work with text fields and select fields.
-
-    After loading a form, each field's built-in validators are altered -- this allows us to alter what validations get
-    rendered on the page. We use get_optional_fields to mark fields as optional as dictated by their model, and
-    we look for a field_name_validators function to replace existing validators via event plugins.
 
     `params` should be a dictionary from a form submission, usually passed straight from the page handler.
     `model` is the object itself, e.g., the attendee we're loading the form for.
@@ -37,9 +32,6 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True,
     `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms
         with conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all
         GroupInfo fields.
-    `get_optional` is a flag that controls whether or not the forms' get_optional_fields() function is called.
-        Set this to false when loading forms for validation, as the validate_model function in utils.py handles
-        optional fields.
     `truncate_prefix` allows you to remove a single word from the form, so e.g. a truncate_prefix of "admin" will save
         "AdminTableInfo" as "table_info." This allows loading admin and prereg versions of forms while using the
         same form template.
@@ -75,11 +67,6 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True,
                     alias_dict[aliased_field] = alias_val
 
         loaded_form = form_cls(params, model, prefix=prefix_dict.get(form_name, ''))
-
-        for name, field in loaded_form._fields.items():
-            # Refresh any choices for fields in "dynamic_choices_fields"
-            if name in loaded_form.dynamic_choices_fields.keys():
-                field.choices = loaded_form.dynamic_choices_fields[name]()
 
         loaded_form.process(params, model, checkboxes_present=checkboxes_present, data=alias_dict)
 
@@ -123,24 +110,31 @@ class CustomValidation:
             for v in validators:
                 self.field_flags[field_name].update(getattr(v, 'field_flags', {}))
 
-    def create_required_if(self, message, other_field, condition_lambda=None):
+    def create_required_if(self, message, other_field_name, condition_lambda=None):
         """
         Factory function to quickly create simple conditional 'required' validations, e.g.,
         requiring a field to be filled out if a checkbox is checked.
 
         message (str): The error message to display if the validation fails.
-        other_field (str): The name of the field that this condition checks. This field
-                           MUST be part of the same form.
+        other_field_name (str): The name of the field that this condition checks. This field
+                                MUST be part of the same form.
         condition_lambda (fn): A lambda to evaluate the data from other_field. If not
-                               set, other_field is checked for truthiness.
+                               set, other_field is checked for truthiness. If this function
+                               calls field properties (e.g. field.name), we pass it the
+                               field itself instead of the field's data.
         """
         def validation_func(form, field):
-            other_field_data = getattr(form, other_field).data
+            other_field = getattr(form, other_field_name)
             if not condition_lambda:
-                if other_field_data and not field.data:
+                if other_field.data and not field.data:
                     raise ValidationError(message)
             else:
-                if condition_lambda(other_field_data) and not field.data:
+                try:
+                    result = condition_lambda(other_field.data)
+                except AttributeError:
+                    result = condition_lambda(other_field)
+
+                if result and not field.data:
                     raise ValidationError(message)
                 
         return validation_func
@@ -175,13 +169,14 @@ class CustomValidation:
 
 class MagForm(Form):
     initialized = False
+    field_aliases = {}
+    dynamic_choices_fields = {}
 
     def __init_subclass__(cls, *args, **kwargs):
-        cls.field_aliases = {}
-        cls.dynamic_choices_fields = {}
         cls.field_validation, cls.new_or_changed = CustomValidation(), CustomValidation()
         cls.kwarg_overrides = {}
         cls.is_admin = False
+        cls.model = None
 
     @classmethod
     def set_overrides_and_validations(cls):
@@ -376,6 +371,8 @@ class MagForm(Form):
         def bind_field(self, form, unbound_field, options):
             """
             This function implements all our custom logic to apply when initializing a field. Currently, we:
+            - Add a reference to the field so we can traverse back up to its form
+            - Refresh the field's choices if it's listed in the form's `dynamic_choices_fields`
             - Get a label and description override from a function on the form class, if there is one
             - Add aria-describedby to the field for use in clientside validations
 
@@ -383,8 +380,13 @@ class MagForm(Form):
             """
 
             bound_field = unbound_field.bind(form=form, **options)
+            bound_field.form = form
+            bound_field.render_kw = unbound_field.kwargs.get('render_kw', {})  # TODO: Remove after conversion?
 
             field_name = options.get('name', '')
+
+            if field_name in form.dynamic_choices_fields.keys():
+                bound_field.choices = form.dynamic_choices_fields[field_name]()
 
             if hasattr(form, field_name + '_label'):
                 field_label = get_override_attr(form, field_name, '_label')
@@ -412,65 +414,14 @@ class MagForm(Form):
 class AddressForm():
     field_aliases = {'region': ['region_us', 'region_canada']}
 
-    address1 = StringField('Address Line 1', default='', validators=[
-        validators.DataRequired("Please enter a street address.")
-        ])
+    address1 = StringField('Address Line 1', default='')
     address2 = StringField('Address Line 2', default='')
-    city = StringField('City', default='', validators=[
-        validators.DataRequired("Please enter a city.")
-        ])
-    region_us = SelectField('State', default='', validators=[
-        validators.DataRequired("Please select a state.")
-        ], choices=c.REGION_OPTS_US)
-    region_canada = SelectField('Province', default='', validators=[
-        validators.DataRequired("Please select a province.")
-        ], choices=c.REGION_OPTS_CANADA)
-    region = StringField('State/Province', default='', validators=[
-        validators.DataRequired("Please enter a state, province, or region.")
-        ])
-    zip_code = StringField('Zip/Postal Code', default='', validators=[
-        validators.DataRequired("Please enter a zip code." if c.COLLECT_FULL_ADDRESS else
-                                "Please enter a valid 5 or 9-digit zip code.")
-        ])
-    country = SelectField('Country', default='', validators=[
-        validators.DataRequired("Please enter a country.")
-        ], choices=c.COUNTRY_OPTS, widget=CountrySelect())
-
-    def get_optional_fields(self, model, is_admin=False):
-        from uber.models import Group
-
-        optional_list = super().get_optional_fields(model, is_admin)
-
-        if not c.COLLECT_FULL_ADDRESS and (not isinstance(model, Group) or not model.is_dealer):
-            optional_list.extend(['address1', 'city', 'region', 'region_us', 'region_canada', 'country'])
-            if getattr(model, 'international', None) or c.AT_OR_POST_CON:
-                optional_list.append('zip_code')
-        else:
-            if model.country == 'United States':
-                optional_list.extend(['region', 'region_canada'])
-            elif model.country == 'Canada':
-                optional_list.extend(['region', 'region_us'])
-            else:
-                optional_list.extend(['region_us', 'region_canada'])
-
-        return optional_list
-
-    def validate_zip_code(form, field):
-        if not c.COLLECT_FULL_ADDRESS:
-            if getattr(form, 'international', None):
-                skip_validation = form.international.data
-            elif getattr(form, 'country', None):
-                skip_validation = form.country.data != 'United States'
-            else:
-                skip_validation = False
-        else:
-            if getattr(form, 'country', None):
-                skip_validation = form.country.data != 'United States'
-            else:
-                skip_validation = False
-
-        if field.data and invalid_zip_code(field.data) and not skip_validation:
-            raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
+    city = StringField('City', default='')
+    region_us = SelectField('State', default='', choices=c.REGION_OPTS_US)
+    region_canada = SelectField('Province', default='', choices=c.REGION_OPTS_CANADA)
+    region = StringField('State/Province', default='')
+    zip_code = StringField('Zip/Postal Code', default='')
+    country = SelectField('Country', default='', choices=c.COUNTRY_OPTS, widget=CountrySelect())
 
 
 class HiddenIntField(IntegerField):

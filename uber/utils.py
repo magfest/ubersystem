@@ -731,13 +731,13 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
         preview_model = model
     else:
         for form in forms.values():
-            form.populate_obj(preview_model)  # We need a populated model BEFORE we get its optional fields below
+            form.populate_obj(preview_model)
         if not model.is_new:
             preview_model.is_actually_old = True
 
     for form in forms.values():
-        form.populate_obj(preview_model)
         form.is_admin = is_admin
+        form.model = preview_model
 
         extra_validators = defaultdict(list)
 

@@ -2222,7 +2222,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, attendee, form_list, get_optional=False)
+        forms = load_forms(params, attendee, form_list)
 
         all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
         if all_errors:

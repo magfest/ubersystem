@@ -14,8 +14,7 @@
 #}
 
 
-<div x-data="{
-{% block x_data %}
+<div x-data="{ {% block x_data %}
    presentation: {{ panel_info.presentation.data|jsonize }},
    panel_length: {{ panel_info.length.data|jsonize }},
    get otherPresentation() { return this.presentation == '{{ c.OTHER }}' },

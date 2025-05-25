@@ -11,16 +11,15 @@
 #}
 
 
-<div x-data="{
-{% block x_data %}
-need_tables: {{ panel_other_info.need_tables.data|jsonize }},
-has_cost: {{ panel_other_info.has_cost.data|jsonize }},
-has_affiliations: {{ panel_other_info.has_affiliations.data|jsonize }},
-held_before: {{ panel_other_info.held_before.data|jsonize }},
-get needTables() { return this.need_tables },
-get hasCost() { return this.has_cost },
-get hasAffiliations() { return this.has_affiliations },
-get heldBefore() { return this.held_before },
+<div x-data="{ {% block x_data %}
+    need_tables: {{ panel_other_info.need_tables.data|jsonize }},
+    has_cost: {{ panel_other_info.has_cost.data|jsonize }},
+    has_affiliations: {{ panel_other_info.has_affiliations.data|jsonize }},
+    held_before: {{ panel_other_info.held_before.data|jsonize }},
+    get needTables() { return this.need_tables },
+    get hasCost() { return this.has_cost },
+    get hasAffiliations() { return this.has_affiliations },
+    get heldBefore() { return this.held_before },
 {% endblock %} }">
 
 <div class="row g-sm-3 mb-3">
