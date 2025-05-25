@@ -122,7 +122,7 @@ class Root:
             form_list = ["LotteryAdminInfo"]
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, application, form_list, get_optional=False)
+        forms = load_forms(params, application, form_list)
         all_errors = validate_model(forms, application, LotteryApplication(**application.to_dict()))
         if all_errors:
             return {"error": all_errors}

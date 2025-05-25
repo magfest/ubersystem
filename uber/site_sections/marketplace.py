@@ -122,7 +122,7 @@ class Root:
             form_list = ["ArtistMarketplaceForm"]
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, app, form_list, get_optional=False)
+        forms = load_forms(params, app, form_list)
 
         all_errors = validate_model(forms, app, ArtistMarketplaceApplication(**app.to_dict()), is_admin=False)
         if all_errors:

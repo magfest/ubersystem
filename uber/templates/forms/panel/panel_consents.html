@@ -34,14 +34,15 @@
         please contact <b>{{ c.PANELS_EMAIL }}</b>.
         <br/><br/>{{ form_macros.input(panel_consents.verify_tos) }}
 </div>
-<div class="alert alert-info">
+{{ form_macros.input(panel_consents.other_panelists, **{'x-bind:value': 'other_panelists'}) }}
+<div class="alert alert-info" x-show="showPanelist(1)">
     I understand that by submitting this application, I am
         designating myself as the team leader and primary point of
         contact for this panel. I further understand that if I need
         to add or change panelists for this event I may be required
         to provide justification, and that this will be approved at
         the sole discretion of {{ c.EVENT_NAME }} Staff.
-        <br/><br/>{{ form_macros.input(panel_consents.verify_poc) }}
+        <br/><br/>{{ form_macros.input(panel_consents.verify_poc, required_if="showPanelist(1)") }}
 </div>
 {% endblock %}
 

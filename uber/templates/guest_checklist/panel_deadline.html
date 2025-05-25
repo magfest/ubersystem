@@ -18,7 +18,7 @@
         {% endif %}
         <script type="text/javascript">
             $(function() {
-                $('a[href^="panel"]').prop("href", "../panels/guest?attendee_id={{ guest.group.leader.id }}&return_to=../guests/index?id={{ guest.id }}");
+                $('a[href^="panel"]').prop("href", "../panels/index?attendee_id={{ guest.group.leader.id }}&return_to=../guests/index?id={{ guest.id }}");
             });
         </script>
       {% endblock %}

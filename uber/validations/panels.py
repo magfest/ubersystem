@@ -4,11 +4,19 @@ from wtforms.validators import ValidationError
 from uber.config import c
 from uber.forms.panels import PanelistInfo, PanelInfo, PanelOtherInfo, PanelConsents
 from uber.validations import phone_validators, email_validators
+from uber.model_checks import validation
+from uber.utils import localized_now
+
+
+@validation.PanelApplication
+def app_deadline(app):
+    if localized_now() > c.PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS and (not app.group or not app.group.guest):
+        return "We are now past the deadline and are no longer accepting panel applications."
 
 
 PanelistInfo.field_validation.required_fields = {
-    'first_name': "Please provide your first name.",
-    'last_name': "Please provide your last name.",
+    'first_name': "Please provide a first name.",
+    'last_name': "Please provide a last name.",
     'email': "Please enter an email address.",
     'cellphone': "Please provide a phone number.",
 }
@@ -72,10 +80,6 @@ PanelConsents.field_validation.required_fields = {
     'verify_waiting': f"You must agree to not prematurely email {c.EVENT_NAME} about your panel application.",
     'coc_agreement': "You must agree to the Code of Conduct.",
     'data_agreement': "You must agree to our data policies.",
-    'verify_tos': "You must agree to our policies for Panelists.",
+    'verify_tos': "You must accept our Terms of Accommodation.",
+    'verify_poc': ("You must agree to being the point of contact for your group.", 'other_panelists')
 }
-
-
-@PanelConsents.field_validation('verify_poc')
-def sign_poc_if_others(form, field):
-    pass

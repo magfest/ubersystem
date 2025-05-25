@@ -41,6 +41,7 @@
 <div class="row g-sm-3 mb-3">
 {% block texareas %}
     <div class="col-sm">{{ form_macros.input(panel_other_info.other_tech_needs) }}</div>
+    {% if not admin_area %}
     <div class="col-sm alert alert-info">
         By default, each panel room will have a table with four microphones,
     power for a laptop, and connections for 1/8" audio and HDMI video. VGA support
@@ -49,6 +50,7 @@
     ({{ c.TECHOPS_EMAIL|email_only|email_to_link }}) will reach out to you directly
     for details.
     </div>
+    {% endif %}
 {% endblock %}
 </div>
 
@@ -71,7 +73,11 @@
 {% block unavailable_extra_info %}
     <div class="col-sm">
         {% call form_macros.input(panel_other_info.unavailable) %}
+        {% if admin_area %}
+        <input type="hidden" name="verify_unavailable" value="1" />
+        {% else %}
         {{ form_macros.input(panel_other_info.verify_unavailable) }}
+        {% endif %}
         {% endcall %}
     </div>
     <div class="col-sm">{{ form_macros.input(panel_other_info.extra_info) }}</div>

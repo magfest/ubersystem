@@ -46,7 +46,7 @@
   <div id="{{ field.id }}-validation" class="invalid-feedback" role="alert"></div>
 {% endset %}
 
-{% if show_label and 'Checkbox' not in widget and 'SwitchInput' not in widget %}
+{% if show_label and 'Checkbox' not in widget and 'SwitchInput' not in widget and 'Hidden' not in widget %}
   <div class="form-text">{{ label(field, label_text, label_required) }}</div>
 {% endif %}
 {% if 'CheckboxInput' in widget or 'SwitchInput' in widget %}

@@ -13,7 +13,8 @@ from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
 from uber.errors import HTTPRedirect
 from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
     PanelApplicant, PanelApplication
-from uber.utils import add_opt, check
+from uber.utils import add_opt, check, localized_now, validate_model
+from uber.forms import load_forms
 
 
 @all_renderable()
@@ -24,30 +25,112 @@ class Root:
             'apps': session.panel_apps()
         }
 
-    def app(self, session, id, message='', csrf_token='', explanation=None):
+    def app(self, session, id, message='', csrf_token='', explanation=None, **params):
         all_tags = session.query(
             func.string_agg(PanelApplication.tags, literal_column("','"))
         ).all()
+
+        app = session.panel_application(id)
+        forms = load_forms(params, app, ['PanelInfo', 'PanelOtherInfo'])
+
+        panelist_form_list = ['PanelistInfo', 'PanelistCredentials']
+        if app.submitter:
+            panelist_forms = {app.submitter.id: load_forms(params, app.submitter, panelist_form_list)}
+        else:
+            panelist_forms = {}
+        
+        for panelist in app.other_panelists:
+            panelist_forms[panelist.id] = load_forms(params, panelist, panelist_form_list,
+                                               {form_name: panelist.id for form_name in panelist_form_list})
+        
+        panelist_forms['new'] = load_forms(params, PanelApplicant(), panelist_form_list,
+                                           {form_name: 'new' for form_name in panelist_form_list})
+
         return {
             'message': message,
             'app': session.panel_application(id),
+            'forms': forms,
+            'panelist_forms': panelist_forms,
             'panel_tags': list(set([tag for tag in all_tags[0][0].split(',') if tag != ''])
                                ) if all_tags[0] else '[]',
         }
 
-    def form(self, session, message='', **params):
-        app = session.panel_application(params,
-                                        checkgroups=PanelApplication.all_checkgroups,
-                                        bools=PanelApplication.all_bools)
-        if cherrypy.request.method == 'POST':
-            message = check(app)
-            if not message:
-                raise HTTPRedirect('app?id={}&message={}', app.id, 'Application updated')
+    @ajax
+    def validate_panel_app(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            app = PanelApplication()
+        else:
+            app = session.panel_application(params.get('id'))
 
-        return {
-            'app': app,
-            'message': message
-        }
+        if not form_list:
+            form_list = ['PanelInfo', 'PanelOtherInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, app, form_list)
+        all_errors = validate_model(forms, app)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
+
+    def form(self, session, message='', **params):
+        if params.get('id') in [None, '', 'None']:
+            app = PanelApplication()
+        else:
+            app = session.panel_application(params.get('id'))
+
+        forms = load_forms(params, app, ['PanelInfo', 'PanelOtherInfo'])
+
+        for form in forms.values():
+            form.populate_obj(app)
+            session.add(app)
+
+        raise HTTPRedirect('app?id={}&message={}', app.id, 'Application updated.')
+
+    @ajax
+    def validate_panelist(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            panelist = PanelApplicant()
+            prefix = 'new'
+        else:
+            panelist = session.panel_applicant(params.get('id'))
+            prefix = '' if panelist.submitter else panelist.id
+
+        if not form_list:
+            form_list = ['PanelistInfo', 'PanelistCredentials']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, panelist, form_list, {form_name: prefix for form_name in form_list})
+        all_errors = validate_model(forms, panelist)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
+
+    def edit_panelist(self, session, **params):
+        if params.get('id') in [None, '', 'None']:
+            panelist = PanelApplicant()
+            prefix = 'new'
+            panelist.application = session.panel_application(params.get('application_id'))
+            session.add(panelist)
+        else:
+            panelist = session.panel_applicant(params.get('id'))
+            prefix = '' if panelist.submitter else panelist.id
+
+        form_list = ['PanelistInfo', 'PanelistCredentials']
+        forms = load_forms(params, panelist, form_list,
+                           {form_name: prefix for form_name in form_list})
+
+        for form in forms.values():
+            form.populate_obj(panelist)
+            session.add(panelist)
+
+        raise HTTPRedirect('app?id={}&message={} was successfully {}.',
+                           panelist.application.id, panelist.full_name, 'created' if prefix == 'new' else 'updated')
 
     def email_statuses(self, session):
         emails = session.query(AutomatedEmail).filter(AutomatedEmail.ident.in_(
@@ -96,19 +179,6 @@ class Root:
         else:
             app.tags = [tag['value'] for tag in json.loads(params.get('tags'))]
         raise HTTPRedirect('app?id={}&message={}', app.id, 'Tags updated')
-
-    def edit_panelist(self, session, **params):
-        is_post = cherrypy.request.method == 'POST'
-        panelist = session.panel_applicant(params, checkgroups=PanelApplicant.all_checkgroups, ignore_csrf=not is_post)
-        application = session.query(PanelApplication).get(params.get('app_id', panelist.app_id))
-        if is_post:
-            message = check(panelist)
-            if message:
-                return {'message': message, 'panelist': panelist, 'application': application}
-            session.add(panelist)
-            session.commit()
-            raise HTTPRedirect('app?id={}&message={} was successfully updated', application.id, panelist.full_name)
-        return {'panelist': PanelApplicant if panelist.is_new else panelist, 'application': application}
 
     @csrf_protected
     def change_submitter(self, session, applicant_id):

@@ -752,7 +752,7 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
         valid = form.validate(extra_validators=extra_validators)
         if not valid:
             for key, val in form.errors.items():
-                all_errors[key].extend(map(str, val))
+                all_errors[form._prefix + key].extend(map(str, val))
 
     validations = [uber.model_checks.validation.validations]
     prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []

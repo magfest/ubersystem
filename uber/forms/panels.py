@@ -123,6 +123,7 @@ class PanelConsents(MagForm):
     data_agreement = BooleanField()
     verify_poc = BooleanField("I have read and agree to the terms above.")
     verify_tos = BooleanField("I have read and agree to the terms above.")
+    other_panelists = HiddenField()
 
     def verify_waiting_label(self):
         return Markup(f"""<strong>I will not prematurely e-mail {c.EVENT_NAME} to check my panel status</strong>,

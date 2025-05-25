@@ -18,57 +18,68 @@
 
   <div class="card card-body">
       <h1>{{ c.EVENT_NAME }} Panel Submission Form</h1>
-
-      {% if c.AFTER_PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS %}
+      {% if c.AFTER_PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS and not is_guest %}
         <p>Unfortunately, the deadline for panel applications has passed and we are no longer accepting panel submissions.</p>
-      {% elif c.BEFORE_PANELS_START and not c.HAS_PANELS_ADMIN_ACCESS %}
+      {% elif c.BEFORE_PANELS_START and not c.HAS_PANELS_ADMIN_ACCESS and not is_guest %}
         <p>Panel applications will open {{ c.PANELS_START|datetime_local }}.</p>
       {% else %}
-        {% if c.AFTER_PANELS_DEADLINE and c.HAS_PANELS_ADMIN_ACCESS %}
-          <div class="alert alert-danger">
-            Panel applications have closed, but because you are a logged in
-            administrator you can submit a new application using this form.
-          </div>
-        {% elif c.BEFORE_PANELS_START and c.HAS_PANELS_ADMIN_ACCESS %}
-          <div class="alert alert-danger">
-            Panel applications open {{ c.PANELS_START|datetime_local }}, but because you are a logged in
-            administrator you can submit a new application using this form.
-          </div>
-        {% endif %}
-        <p>We expect many requests being sent in and will be unable to accept them
-        all. We WILL be contacting potential panelists for more information as necessary.
-        To increase your odds of acceptance, fill this form out accurately and keep an eye out for communication from us.
-        </p>
-        
-        <p>Panel requests are due by {{ c.PANELS_DEADLINE|datetime_local('%-I:%M%p %Z on %A, %B %-e') }}.</p>
-        
-        <p>We hope to send acceptance emails out no later than {{ c.EXPECTED_RESPONSE }}.</p>
-        
-        <p>Contact us if there are any questions pertaining to the form at <strong>{{ c.PANELS_EMAIL|email_only|email_to_link }}</strong>.</p>
-        
-        <p>Good luck! We're excited to hear what you've got!</p>
+        {% if is_guest %}
+          {% if c.APP_LIMIT and attendee.submitted_panels|length >= c.APP_LIMIT %}
+            <p>You have already submitted the maximum number of panels ({{ c.APP_LIMIT }}). Please contact your liaison if
+            you need to change a panel or submit more ideas.</p>
 
-        {# The action is set to "post_index" in order to bypass the NGINX cache. -#}
+            <p><a href="{{ return_to }}" class="btn btn-primary">Go Back</a></p>
+          {% else %}
+            {% if c.APP_LIMIT and return_to %}
+              You may submit up to {{ c.APP_LIMIT }} panel ideas.
+              {% if attendee.submitted_panels %}
+                You have already submitted {{ attendee.submitted_panels|length }}.
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        {% else %}
+          {% if c.AFTER_PANELS_DEADLINE and c.HAS_PANELS_ADMIN_ACCESS %}
+            <div class="alert alert-danger">
+              Panel applications have closed, but because you are a logged in
+              administrator you can submit a new application using this form.
+            </div>
+          {% elif c.BEFORE_PANELS_START and c.HAS_PANELS_ADMIN_ACCESS %}
+            <div class="alert alert-danger">
+              Panel applications open {{ c.PANELS_START|datetime_local }}, but because you are a logged in
+              administrator you can submit a new application using this form.
+            </div>
+          {% endif %}
+          <p>We expect many requests being sent in and will be unable to accept them
+          all. We WILL be contacting potential panelists for more information as necessary.
+          To increase your odds of acceptance, fill this form out accurately and keep an eye out for communication from us.
+          </p>
+          
+          <p>Panel requests are due by {{ c.PANELS_DEADLINE|datetime_local('%-I:%M%p %Z on %A, %B %-e') }}.</p>
+          
+          <p>We hope to send acceptance emails out no later than {{ c.EXPECTED_RESPONSE }}.</p>
+          
+          <p>Contact us if there are any questions pertaining to the form at <strong>{{ c.PANELS_EMAIL|email_only|email_to_link }}</strong>.</p>
+          
+          <p>Good luck! We're excited to hear what you've got!</p>
+        {% endif %}
+
         {{ form_macros.form_validation('panel-app-form', 'validate_panel_app') }}
-        <form novalidate method="post" id="panel-app-form" action="post_index" role="form">
+        <form novalidate method="post" id="panel-app-form" action="index" role="form" x-data="{
+              other_panelists: {{ other_panelists|jsonize }},
+              showPanelist(num) { return this.other_panelists >= num },
+        }">
           {{ csrf_token() }}
+          {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
+          {% if attendee_id %}<input type="hidden" name="attendee_id" value="{{ attendee_id }}">{% endif %}
+          {% if is_guest %}<input type="hidden" name="is_guest" value="1">{% endif %}
           <h2>Your Information</h2>
           <div class="card card-body pb-0 mb-3">
           {% set panelist_form = panelist_forms[0] %}
           {% include "forms/panel/panelist_form.html" %}
           </div>
 
-          <h2>Other Panelists</h2>
-          <div class="row g-sm-3 mb-3">
-            <div class="col-sm-6">
-            <div class="form-text">
-              <label for="other_panelists">How many other panelists will be on this panel?</label>
-            </div>
-            <select name="other_panelists" id="other_panelists" class="form-select">
-              {{ int_options(0, 4, other_panelists|length) }}
-            </select>
-            </div>
-          </div>
+          <h3>Other Panelists</h3>
+          {% include "forms/panel/other_panelists.html" %}
 
           <h2>Panel Information</h2>
           <div class="card card-body pb-0 mb-3">
@@ -78,8 +89,10 @@
           <h3>Additional Information</h3>
           {% include "forms/panel/panel_other_info.html" %}
           </div>
-
+          
+          {% if not is_guest %}
           {% include "forms/panel/panel_consents.html" %}
+          {% endif %}
 
           <div class="form-group">
             <div class="col-sm-6 col-sm-offset-3">
