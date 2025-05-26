@@ -13,29 +13,10 @@ from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableFiel
                         HiddenBoolField, HiddenIntField, CustomValidation)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
-from uber.models import Attendee, Session, PromoCodeGroup
-from uber.model_checks import invalid_phone_number
+from uber.models import Attendee, Session, PromoCodeGroup, BadgeInfo
 from uber.utils import get_age_conf_from_birthday
 from uber.forms.attendee import *
-from uber.validations import phone_validators, email_validators, address_required_validators, valid_zip_code
-
-
-def placeholder_unassigned_fields(form):
-    field_list = ['birthdate', 'age_group', 'ec_name', 'ec_phone', 'address1', 'city',
-                  'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact',
-                  'badge_printed_name', 'cellphone', 'confirm_email']
-
-    if form.model.valid_placeholder:
-        return field_list
-
-    if form.is_admin and form.model.unassigned_group_reg:
-        return ['first_name', 'last_name', 'email'] + field_list
-    
-    return []
-
-
-def create_placeholder_check():
-    return lambda x: x.name not in placeholder_unassigned_fields(x.form)
+from uber.validations import address_required_validators, valid_zip_code, placeholder_unassigned_fields, which_required_region
 
 
 def ignore_unassigned_and_placeholders(func):
@@ -46,27 +27,42 @@ def ignore_unassigned_and_placeholders(func):
     return with_skipping
 
 
+placeholder_check = lambda x: x.name not in placeholder_unassigned_fields(x.form)
+
+
+# =============================
+# PersonalInfo
+# =============================
+
 PersonalInfo.field_validation.required_fields = {
-    'first_name': ("Please provide your first name.", 'first_name', create_placeholder_check()),
-    'last_name': ("Please provide your last name.", 'last_name', create_placeholder_check()),
-    'email': ("Please enter an email address.", 'email', create_placeholder_check()),
-    'ec_name': ("Please tell us the name of your emergency contact.", 'ec_name', create_placeholder_check()),
-    'ec_phone': ("Please give us an emergency contact phone number.", 'ec_phone', create_placeholder_check()),
+    'first_name': ("Please provide your first name.", 'first_name', placeholder_check),
+    'last_name': ("Please provide your last name.", 'last_name', placeholder_check),
+    'email': ("Please enter an email address.", 'copy_email', lambda x: not x.data and 'email' not in placeholder_unassigned_fields(x.form)),
+    'ec_name': ("Please tell us the name of your emergency contact.", 'ec_name', placeholder_check),
+    'ec_phone': ("Please give us an emergency contact phone number.", 'ec_phone', placeholder_check),
 }
-
-
-for field_name, message in address_required_validators.items():
-    PersonalInfo.field_validation.required_fields[field_name] = (message, field_name, create_placeholder_check())
 
 
 if c.COLLECT_EXACT_BIRTHDATE:
     PersonalInfo.field_validation.required_fields['birthdate'] = ("Please enter your date of birth.",
-                                                                  'birthdate', create_placeholder_check())
+                                                                  'birthdate', placeholder_check)
 else:
     PersonalInfo.field_validation.required_fields['age_group'] = ("Please select your age group.",
-                                                                  'age_group', create_placeholder_check())
+                                                                  'age_group', placeholder_check)
 
 
+if c.COLLECT_FULL_ADDRESS:
+    for field_name, message in address_required_validators.items():
+        PersonalInfo.field_validation.required_fields[field_name] = (
+            message, 'copy_address',
+            lambda x: (not x or not x.data) and field_name not in placeholder_unassigned_fields(x.form))
+
+    for field_name in ['region', 'region_us', 'region_canada']:
+        PersonalInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(field_name,
+                                                                                                    check_placeholder=True)
+
+
+PersonalInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
 PersonalInfo.field_validation.validations['badge_printed_name'].update({
     'optional': validators.Optional(),
     'length': validators.Length(max=20,
@@ -75,37 +71,39 @@ PersonalInfo.field_validation.validations['badge_printed_name'].update({
                                 characters. Please use only alphanumeric characters and symbols."""),
 })
 PersonalInfo.field_validation.validations['birthdate']['optional'] = validators.Optional()
-PersonalInfo.field_validation.validations['email'].update(dict({'optional': validators.Optional()}, **email_validators))
-PersonalInfo.field_validation.validations['cellphone'].update(phone_validators)
-PersonalInfo.field_validation.validations['ec_phone'].update(phone_validators)
+PersonalInfo.field_validation.validations['email']['optional'] = validators.Optional()
 PersonalInfo.field_validation.validations['onsite_contact'].update({
     'length': validators.Length(max=500, message="""You have entered over 500 characters of onsite contact information. 
                                 Please provide contact information for fewer friends.""")
 })
 
-
-@PersonalInfo.field_validation('zip_code')
-@ignore_unassigned_and_placeholders
-def zip_code_required(form, field):
-    return valid_zip_code(form, field)
+if not c.COLLECT_FULL_ADDRESS:
+    PersonalInfo.field_validation.required_fields['zip_code'] = (
+        "Please enter a valid 5 or 9-digit zip code.", 'international',
+        lambda x: not x.data and 'zip_code' not in placeholder_unassigned_fields(x.form))
 
 
 @PersonalInfo.field_validation('cellphone')
 @ignore_unassigned_and_placeholders
 def cellphone_required(form, field):
-    if not form.copy_phone.data and not form.no_cellphone.data and (form.model.is_dealer or 
-                                                                    form.model.staffing_or_will_be):
+    if (not hasattr(form, 'copy_phone') or not form.copy_phone.data
+            ) and not form.no_cellphone.data and (form.model.is_dealer or form.model.staffing_or_will_be):
         raise ValidationError("Please provide a phone number.")
 
 
-@PersonalInfo.new_or_changed('confirm_email')
+@PersonalInfo.field_validation('confirm_email')
 @ignore_unassigned_and_placeholders
 def confirm_email_required(form, field):
-    if not c.PREREG_CONFIRM_EMAIL_ENABLED:
-        return
-
-    if not form.is_admin and (form.model.needs_pii_consent or form.model.badge_status == c.PENDING_STATUS):
+    if c.PREREG_CONFIRM_EMAIL_ENABLED and not form.is_admin and (form.model.needs_pii_consent or
+                                                                 form.model.badge_status == c.PENDING_STATUS):
         raise ValidationError("Please confirm your email address.")
+
+
+@PersonalInfo.field_validation('confirm_email')
+@ignore_unassigned_and_placeholders
+def match_email(form, field):
+    if c.PREREG_CONFIRM_EMAIL_ENABLED and field.data and field.data != form.email.data:
+        raise ValidationError("Your email address and email confirmation do not match.")
 
 
 @PersonalInfo.field_validation('badge_name')
@@ -128,8 +126,8 @@ def legal_name_required(form, field):
 def require_onsite_contact(form, field):
     if not field.data and not form.no_onsite_contact.data and form.model.badge_type not in [c.STAFF_BADGE,
                                                                                             c.CONTRACTOR_BADGE]:
-        raise ValidationError("""Please enter contact information for at least one trusted friend onsite, 
-                              or indicate that we should use your emergency contact information instead.""")
+        raise ValidationError("Please enter contact information for at least one trusted friend onsite, "
+                              "or indicate that we should use your emergency contact information instead.")
 
 
 @PersonalInfo.new_or_changed('badge_type')
@@ -141,12 +139,6 @@ def past_printed_deadline(form, field):
                 return
     raise ValidationError(f'{c.BADGES[field.data]} badges have already been ordered, '
                             'so you cannot change your printed badge name.')
-
-
-@PersonalInfo.field_validation('confirm_email')
-def match_email(form, field):
-        if field.data and field.data != form.email.data:
-            raise ValidationError("Your email address and email confirmation do not match.")
 
 
 @PersonalInfo.field_validation('birthdate')
@@ -171,3 +163,125 @@ def attendee_age_checks(form, field):
 def not_same_cellphone_ec(form, field):
     if field.data and field.data == form.ec_phone.data:
         raise ValidationError("Your phone number cannot be the same as your emergency contact number.")
+
+# =============================
+# BadgeExtras
+# =============================
+
+BadgeExtras.field_validation.validations['amount_extra']['minimum'] = validators.NumberRange(
+    min=0, message="Amount extra must be a number that is 0 or higher.")
+BadgeExtras.field_validation.validations['extra_donation']['minimum'] = validators.NumberRange(
+    min=0, message="Extra donation must be a number that is 0 or higher.")
+
+
+@BadgeExtras.field_validation('shirt')
+def require_shirt(form, field):
+    if (form.amount_extra.data and form.amount_extra.data > 0
+            or form.badge_type.data in c.BADGE_TYPE_PRICES) and (field.data == c.NO_SHIRT or not field.data):
+        raise ValidationError("Please select a shirt size.")
+
+
+@BadgeExtras.new_or_changed('shirt')
+def shirt_size_sold_out(form, field):
+    if form.is_admin:
+        return
+
+    if field.data in field.get_sold_out_list():
+        raise ValidationError(f"Sorry, we're sold out of {c.PREREG_SHIRTS[field.data]} shirts!")
+
+
+@BadgeExtras.new_or_changed('amount_extra')
+def upgrade_sold_out(form, field):
+    if form.is_admin:
+        return
+
+    if field.data and field.data in c.SOLD_OUT_MERCH_TIERS:
+        raise ValidationError("The upgrade you have selected is sold out.")
+    elif field.data and getattr(c.kickin_availability_matrix, str(field.data), True) is False:
+        raise ValidationError("The upgrade you have selected is no longer available.")
+
+
+@BadgeExtras.new_or_changed('badge_type')
+def no_more_custom_badges(form, field):
+    if field.data in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
+        with Session() as session:
+            admin = session.current_admin_account()
+            if admin.is_super_admin:
+                return
+        raise ValidationError('Custom badges have already been ordered, please choose a different badge type.')
+
+
+@BadgeExtras.new_or_changed('badge_type')
+def out_of_badge_type(form, field):
+    badge_type = get_real_badge_type(field.data)
+    with Session() as session:
+        try:
+            session.get_next_badge_num(badge_type)
+        except AssertionError:
+            raise ValidationError('We are sold out of {} badges.'.format(c.BADGES[badge_type]))
+
+# =============================
+# OtherInfo
+# =============================
+
+@OtherInfo.new_or_changed('promo_code_code')
+def promo_code_valid(form, field):
+    if field.data:
+        with Session() as session:
+            code = session.lookup_promo_code(field.data)
+            if not code:
+                group = session.lookup_registration_code(field.data, PromoCodeGroup)
+                if not group:
+                    raise ValidationError("The promo code you entered is invalid.")
+                elif not group.valid_codes:
+                    raise ValidationError(f"There are no more badges left in the group {group.name}.")
+            else:
+                if code.is_expired:
+                    raise ValidationError("That promo code has expired.")
+                elif not code.is_unlimited and code.uses_remaining <= 0:
+                    raise ValidationError("That promo code has been used already.")
+
+# =============================
+# Consents
+# =============================
+
+Consents.field_validation.required_fields = {
+    'pii_consent': ("You must agree to allow us to store your personal information in order to register.",
+                    'pii_consent', placeholder_check)
+}
+
+# =============================
+# AdminBadgeFlags
+# =============================
+
+AdminBadgeFlags.field_validation.validations['overridden_price']['minimum'] = validators.NumberRange(
+    min=0, message="Base badge price must be a number that is 0 or higher.")
+AdminBadgeFlags.field_validation.validations['badge_num']['optional'] = validators.Optional()
+
+
+@AdminBadgeFlags.new_or_changed('badge_num')
+def dupe_badge_num(form, field):
+    existing_name = ''
+    if c.NUMBERED_BADGES and field.data:
+        with Session() as session:
+            existing = session.query(BadgeInfo).filter(BadgeInfo.ident == field.data,
+                                                        BadgeInfo.attendee_id != None)
+            if not existing.count():
+                return
+            else:
+                existing_name = existing.first().attendee.full_name
+        raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))
+
+# =============================
+# CheckInForm
+# =============================
+
+CheckInForm.field_validation.validations['badge_printed_name'].update(PersonalInfo.field_validation.validations['badge_printed_name'])
+CheckInForm.field_validation.validations['birthdate'].update(PersonalInfo.field_validation.validations['birthdate'])
+CheckInForm.field_validation.validations['badge_num']['dupe_badge_num'] = dupe_badge_num
+
+
+if c.NUMBERED_BADGES:
+    CheckInForm.field_validation.required_fields['badge_num'] = "Badge number is required."
+else:
+    CheckInForm.field_validation.validations['badge_num']['optional'] = validators.Optional()

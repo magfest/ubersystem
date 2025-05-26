@@ -52,7 +52,6 @@ class Root:
                 email=attendee.email,
                 cellphone=attendee.cellphone
             )
-            log.error(panelist)
         else:
             panelist = PanelApplicant()
 

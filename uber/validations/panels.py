@@ -3,15 +3,8 @@ from wtforms.validators import ValidationError
 
 from uber.config import c
 from uber.forms.panels import PanelistInfo, PanelInfo, PanelOtherInfo, PanelConsents
-from uber.validations import phone_validators, email_validators
 from uber.model_checks import validation
 from uber.utils import localized_now
-
-
-@validation.PanelApplication
-def app_deadline(app):
-    if localized_now() > c.PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS and (not app.group or not app.group.guest):
-        return "We are now past the deadline and are no longer accepting panel applications."
 
 
 PanelistInfo.field_validation.required_fields = {
@@ -20,10 +13,6 @@ PanelistInfo.field_validation.required_fields = {
     'email': "Please enter an email address.",
     'cellphone': "Please provide a phone number.",
 }
-
-
-PanelistInfo.field_validation.validations['email'].update(email_validators)
-PanelistInfo.field_validation.validations['cellphone'].update(phone_validators)
 
 
 PanelInfo.field_validation.required_fields = {

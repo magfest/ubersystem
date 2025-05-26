@@ -6,13 +6,19 @@ import cherrypy
 from collections import defaultdict, OrderedDict
 from wtforms import Form, StringField, SelectField, SelectMultipleField, FileField, IntegerField, BooleanField, validators, Label
 import wtforms.widgets.core as wtforms_widgets
-from wtforms.validators import ValidationError
+from wtforms.validators import ValidationError, StopValidation
 from pockets.autolog import log
 from functools import wraps
 
 from uber.config import c
 from uber.forms.widgets import CountrySelect, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking
-from uber.model_checks import invalid_zip_code
+from uber.model_checks import invalid_phone_number
+
+
+def valid_cellphone(form, field):
+    if field.data and invalid_phone_number(field.data):
+        raise ValidationError('Please provide a valid 10-digit US phone number or '
+                              'include a country code (e.g. +44) for international numbers.')
 
 
 def get_override_attr(form, field_name, suffix, *args):
@@ -27,7 +33,7 @@ def load_forms(params, model, form_list, prefix_dict={}, truncate_prefix='admin'
     Aliases are currently only designed to work with text fields and select fields.
 
     `params` should be a dictionary from a form submission, usually passed straight from the page handler.
-    `model` is the object itself, e.g., the attendee we're loading the form for.
+    `model` is the object itcls, e.g., the attendee we're loading the form for.
     `form_list` is a list of strings of which form classes to load, e.g., ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
     `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms
         with conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all
@@ -80,37 +86,37 @@ def load_forms(params, model, form_list, prefix_dict={}, truncate_prefix='admin'
 
 
 class CustomValidation:
-    def __init__(self):
-        self.validations = defaultdict(OrderedDict)
-        self.required_fields = {}
-        self.form = inspect.currentframe().f_back.f_locals.get('cls', None)
-        self.field_flags = defaultdict(dict)
+    def __init__(cls):
+        cls.validations = defaultdict(OrderedDict)
+        cls.required_fields = {}
+        cls.form = inspect.currentframe().f_back.f_locals.get('cls', None)
+        cls.field_flags = defaultdict(dict)
 
-    def __bool__(self):
-        return bool(self.validations)
+    def __bool__(cls):
+        return bool(cls.validations)
 
-    def __getattr__(self, field_name):
+    def __getattr__(cls, field_name):
         if field_name == '_formfield':
             # Stop WTForms from trying to process these objects as fields
             raise AttributeError("No, we don't have that.")
 
         def wrapper(func):
-            self.validations[field_name][func.__name__] = func
+            cls.validations[field_name][func.__name__] = func
             return func
         return wrapper
     
-    def __call__(self, field_name):
+    def __call__(cls, field_name):
         def wrapper(func):
-            self.validations[field_name][func.__name__] = func
+            cls.validations[field_name][func.__name__] = func
             return func
         return wrapper
     
-    def build_flags_dict(self):
-        for field_name, validators in self.get_validation_dict().items():
+    def build_flags_dict(cls):
+        for field_name, validators in cls.get_validation_dict().items():
             for v in validators:
-                self.field_flags[field_name].update(getattr(v, 'field_flags', {}))
+                cls.field_flags[field_name].update(getattr(v, 'field_flags', {}))
 
-    def create_required_if(self, message, other_field_name, condition_lambda=None):
+    def create_required_if(cls, message, other_field_name, condition_lambda=None):
         """
         Factory function to quickly create simple conditional 'required' validations, e.g.,
         requiring a field to be filled out if a checkbox is checked.
@@ -121,13 +127,13 @@ class CustomValidation:
         condition_lambda (fn): A lambda to evaluate the data from other_field. If not
                                set, other_field is checked for truthiness. If this function
                                calls field properties (e.g. field.name), we pass it the
-                               field itself instead of the field's data.
+                               field itcls instead of the field's data.
         """
         def validation_func(form, field):
-            other_field = getattr(form, other_field_name)
+            other_field = getattr(form, other_field_name, None)
             if not condition_lambda:
-                if other_field.data and not field.data:
-                    raise ValidationError(message)
+                if not other_field or other_field.data and not field.data:
+                    raise StopValidation(message)
             else:
                 try:
                     result = condition_lambda(other_field.data)
@@ -135,35 +141,48 @@ class CustomValidation:
                     result = condition_lambda(other_field)
 
                 if result and not field.data:
-                    raise ValidationError(message)
+                    raise StopValidation(message)
                 
         return validation_func
 
-    def set_required_validations(self):
-        for field_name, message_or_tuple in self.required_fields.items():
+    def set_required_validations(cls):
+        for field_name, message_or_tuple in cls.required_fields.items():
             if not isinstance(message_or_tuple, str):
                 try:
                     message, other_field, condition = message_or_tuple
                 except ValueError:
                     message, other_field = message_or_tuple
                     condition = None
-                self.validations[field_name][f'required_if_{other_field}'] = self.create_required_if(message,
+                cls.validations[field_name][f'required_if_{other_field}'] = cls.create_required_if(message,
                                                                                                      other_field,
                                                                                                      condition)
+                cls.validations[field_name].move_to_end(f'required_if_{other_field}', last=False)
             else:
-                if self.form and isinstance(getattr(self.form, field_name).field_class, BooleanField):
-                    self.validations[field_name]['required'] = validators.InputRequired(message_or_tuple)
+                if cls.form and isinstance(getattr(cls.form, field_name).field_class, BooleanField):
+                    cls.validations[field_name]['required'] = validators.InputRequired(message_or_tuple)
                 else:
-                    self.validations[field_name]['required'] = validators.DataRequired(message_or_tuple)
+                    cls.validations[field_name]['required'] = validators.DataRequired(message_or_tuple)
+                cls.validations[field_name].move_to_end('required', last=False)
 
-    def get_validations_by_field(self, field_name):
-        field_validations = self.validations.get(field_name)
+    def set_email_validators(cls, field_name):
+        cls.validations[field_name]['length'] = validators.Length(
+            max=255, message="Email addresses cannot be longer than 255 characters.")
+        cls.validations[field_name]['valid'] = validators.Email(granular_message=True)
+
+    def set_phone_validators(cls, field_name):
+        cls.validations[field_name]['valid'] = valid_cellphone
+
+    def get_validations_by_field(cls, field_name):
+        field_validations = cls.validations.get(field_name)
         return list(field_validations.values()) if field_validations else []
 
-    def get_validation_dict(self):
+    def get_validation_dict(cls):
         all_validations = {}
-        for key, dict in self.validations.items():
-            all_validations[key] = list(dict.values())
+        for key, validation_dict in cls.validations.items():
+            if not hasattr(validation_dict, 'values'):
+                raise AttributeError(f"Problem with {cls.form} '{key}' validations: {validation_dict}"
+                                     " is not a dictionary. Did you forget to specify a second key?")
+            all_validations[key] = list(validation_dict.values())
         return all_validations
 
 
@@ -175,19 +194,63 @@ class MagForm(Form):
     def __init_subclass__(cls, *args, **kwargs):
         cls.field_validation, cls.new_or_changed = CustomValidation(), CustomValidation()
         cls.kwarg_overrides = {}
+        cls.has_inherited = False
         cls.is_admin = False
         cls.model = None
 
     @classmethod
     def set_overrides_and_validations(cls):
         form_list = set([form for module, form in MagForm.all_forms()])
+        
+        def build_parents(form):
+            # I am not good at generators
+            real_list = []
+            def generator(form):
+                if form != MagForm:
+                    real_list.append(form)
+                    for next_form in form.__bases__:
+                        yield from generator(next_form)
+                    yield form
+            list(generator(form))
+            return real_list
+
+        # Set up validations and field flags in order from parent to child
         for form in form_list:
-            form.field_validation.set_required_validations()
-            form.field_validation.build_flags_dict()
-            form.new_or_changed.set_required_validations()
-            for ufield in form.__dict__.values():
+            ascending_list = build_parents(form)
+            for descending_form in reversed(ascending_list):
+                if hasattr(descending_form, 'has_inherited') and not descending_form.has_inherited:
+                    for inherit_from in [f for f in descending_form.__bases__ if
+                                         hasattr(f, 'field_validation')]:
+                        MagForm.inherit_validations(descending_form, inherit_from)
+                    descending_form.field_validation.set_required_validations()
+                    descending_form.field_validation.build_flags_dict()
+                    descending_form.new_or_changed.set_required_validations()
+                    descending_form.has_inherited = True
+
+        # These apply equally to all fields, so they shouldn't be inherited
+        for form in form_list:
+            for field_name, ufield in form.__dict__.items():
                 if hasattr(ufield, '_formfield'):
                     MagForm.set_keyword_defaults(ufield)
+                    if ufield.field_class.__name__ == "EmailField":
+                        form.field_validation.set_email_validators(field_name)
+                    elif ufield.field_class.__name__ == "TelField":
+                        form.field_validation.set_phone_validators(field_name)
+
+    @classmethod
+    def inherit_validations(cls, form, inherit_from):
+        for field_name in inherit_from.field_validation.validations.keys():
+            if hasattr(form, field_name):
+                form.field_validation.validations[field_name].update(
+                    inherit_from.field_validation.validations[field_name])
+        for field_name in inherit_from.field_validation.field_flags.keys():
+            if hasattr(form, field_name):
+                form.field_validation.field_flags[field_name].update(
+                    inherit_from.field_validation.field_flags[field_name])
+        for field_name in inherit_from.new_or_changed.validations.keys():
+            if hasattr(form, field_name):
+                form.new_or_changed.validations[field_name].update(
+                    inherit_from.field_validation.validations[field_name])
 
     @classmethod
     def set_keyword_defaults(cls, ufield):
@@ -215,10 +278,10 @@ class MagForm(Form):
 
         ufield.kwargs['render_kw'] = render_kw
 
-    def get_optional_fields(self, model, is_admin=False):
+    def get_optional_fields(cls, model, is_admin=False):
         return []
 
-    def get_non_admin_locked_fields(self, model):
+    def get_non_admin_locked_fields(cls, model):
         return []
 
     @classmethod
@@ -263,8 +326,8 @@ class MagForm(Form):
                 setattr(target, name, getattr(form, name))
         return target
 
-    def process(self, formdata=None, obj=None, data=None, extra_filters=None, checkboxes_present=True, **kwargs):
-        formdata = self.meta.wrap_formdata(self, formdata)
+    def process(cls, formdata=None, obj=None, data=None, extra_filters=None, checkboxes_present=True, **kwargs):
+        formdata = cls.meta.wrap_formdata(cls, formdata)
 
         # Special form data preprocessing!
         #
@@ -274,7 +337,7 @@ class MagForm(Form):
         #
         # We also convert our MultiChoice value (a string) into the list of strings that WTForms expects
 
-        for name, field in self._fields.items():
+        for name, field in cls._fields.items():
             field_in_obj = hasattr(obj, name)
             field_in_formdata = name in formdata
             use_blank_formdata = cherrypy.request.method == 'POST' and checkboxes_present
@@ -299,20 +362,20 @@ class MagForm(Form):
         super().process(formdata, obj, data, extra_filters, **kwargs)
 
     @property
-    def field_list(self):
-        return list(self._fields.items())
+    def field_list(cls):
+        return list(cls._fields.items())
 
     @property
-    def bool_list(self):
-        return [(key, field) for key, field in self._fields.items() if field.type == 'BooleanField']
+    def bool_list(cls):
+        return [(key, field) for key, field in cls._fields.items() if field.type == 'BooleanField']
 
-    def populate_obj(self, obj, is_admin=False):
+    def populate_obj(cls, obj, is_admin=False):
         """
         Adds alias processing, field locking, and data coercion to populate_obj.
         Note that we bypass fields' populate_obj except when filling in aliased fields.
         """
-        locked_fields = [] if is_admin else self.get_non_admin_locked_fields(obj)
-        for name, field in self._fields.items():
+        locked_fields = [] if is_admin else cls.get_non_admin_locked_fields(obj)
+        for name, field in cls._fields.items():
             obj_data = getattr(obj, name, None)
             if name in locked_fields and obj_data and field.data != obj_data:
                 log.warning("Someone tried to edit their {} value, but it was locked. \
@@ -328,19 +391,19 @@ class MagForm(Form):
                 except AttributeError:
                     pass  # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
 
-        for model_field_name, aliases in self.field_aliases.items():
+        for model_field_name, aliases in cls.field_aliases.items():
             if model_field_name in locked_fields:
                 continue
 
             for aliased_field in reversed(aliases):
-                field_obj = getattr(self, aliased_field, None)
+                field_obj = getattr(cls, aliased_field, None)
                 # I'm pretty sure this prevents an aliased field from zeroing out a value
                 # Right now we prefer that but we may want to change it later
                 if field_obj and field_obj.data:
                     field_obj.populate_obj(obj, model_field_name)
 
     class Meta:
-        def get_field_type(self, field):
+        def get_field_type(cls, field):
             # Returns a key telling our Jinja2 form input macro how to render the scaffolding based on the widget
             # Deprecated -- remove when the old form_input macro is gone
 
@@ -368,7 +431,7 @@ class MagForm(Form):
             else:
                 return 'text'
 
-        def bind_field(self, form, unbound_field, options):
+        def bind_field(cls, form, unbound_field, options):
             """
             This function implements all our custom logic to apply when initializing a field. Currently, we:
             - Add a reference to the field so we can traverse back up to its form
@@ -403,7 +466,7 @@ class MagForm(Form):
 
             return bound_field
 
-        def wrap_formdata(self, form, formdata):
+        def wrap_formdata(cls, form, formdata):
             # Auto-wraps param dicts in a multi-dict wrapper for WTForms
             if isinstance(formdata, dict):
                 formdata = DictWrapper(formdata)
@@ -439,17 +502,17 @@ class SelectAvailableField(SelectField):
     To avoid type errors, the values in `sold_out_list` are coerced to the `coerce` value passed on init.
     """
 
-    def __init__(self, label=None, validators=None, coerce=str, choices=None, validate_choice=True,
+    def __init__(cls, label=None, validators=None, coerce=str, choices=None, validate_choice=True,
                  sold_out_list_func=[], sold_out_text="(SOLD OUT!)", **kwargs):
         super().__init__(label, validators, coerce, choices, validate_choice, **kwargs)
-        self.sold_out_list_func = sold_out_list_func
-        self.sold_out_text = sold_out_text
+        cls.sold_out_list_func = sold_out_list_func
+        cls.sold_out_text = sold_out_text
 
-    def get_sold_out_list(self):
-        return [self.coerce(val) for val in self.sold_out_list_func()]
+    def get_sold_out_list(cls):
+        return [cls.coerce(val) for val in cls.sold_out_list_func()]
 
-    def _choices_generator(self, choices):
-        sold_out_list = self.get_sold_out_list()
+    def _choices_generator(cls, choices):
+        sold_out_list = cls.get_sold_out_list()
         if not choices:
             _choices = []
         elif isinstance(choices[0], (list, tuple)):
@@ -458,20 +521,20 @@ class SelectAvailableField(SelectField):
             _choices = zip(choices, choices)
 
         for value, label in _choices:
-            coerced_val = self.coerce(value)
+            coerced_val = cls.coerce(value)
             if coerced_val in sold_out_list:
-                label = f"{label} {self.sold_out_text}"
+                label = f"{label} {cls.sold_out_text}"
 
-            yield (value, label, coerced_val == self.data)
+            yield (value, label, coerced_val == cls.data)
 
 
 class DictWrapper(dict):
-    def getlist(self, arg):
-        if arg in self:
-            if isinstance(self[arg], list):
-                return self[arg]
+    def getlist(cls, arg):
+        if arg in cls:
+            if isinstance(cls[arg], list):
+                return cls[arg]
             else:
-                return [self[arg]]
+                return [cls[arg]]
         else:
             return []
 

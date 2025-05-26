@@ -18,6 +18,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% set max_badges = c.MAX_DEALERS if group.is_dealer and c.MAX_DEALERS else c.MAX_GROUP_SIZE %}
 
 {% block name_desc %}
+{% if not admin_area %}{{ form_macros.form_input(table_info.is_dealer, value=True) }}{% endif %}
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.name) }}</div>
     <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.description) }}</div>
