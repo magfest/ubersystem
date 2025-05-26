@@ -3,10 +3,10 @@
 
 {% block content %}
 
-<h1>Emergency Procedures</h1>
+<h1>Safety and Security Information</h1>
 
 <p>
-<a href="../static/emergency-procedures.pdf" class="btn btn-info" download>Download and Review Emergency Procedures</a>
+<a href="../static/emergency-procedures.pdf" class="btn btn-info" download>Download and Review Safety and Security Information</a>
 </p>
 
 {% if not attendee.reviewed_emergency_procedures %}
@@ -19,7 +19,7 @@
         <input class="btn btn-primary" type="submit" value="Save" />
     </form>
 {% else %}
-    <p>You have already told us that you reviewed our emergency procedures.</p>
+    <p>You have already told us that you reviewed our safety and security information.</p>
 {% endif %}
 
 {% endblock %}

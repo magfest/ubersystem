@@ -394,6 +394,51 @@
     });
   };
 
+  var closeReceipt = function (receiptId) {
+    bootbox.confirm({
+      title: "Close Active Receipt?",
+      message: "This will not affect this {{ model_str }}'s registration or refund any money, but all receipt items will be considered invalid " +
+               "and no longer counted in budget reports. This should only be done for unpaid receipts or when merging receipts. Are you sure?",
+      buttons: {
+          confirm: {
+              label: 'Close Receipt',
+              className: 'btn-danger'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          window.location = 'close_receipt?id=' + receiptId
+        }
+      }
+    });
+  };
+
+  var moveTxnOrItem = function(itemOrTxnId, itemText) {bootbox.confirm({
+      title: "Move to Active Receipt?",
+      message: "This will move this " + itemText.toLowerCase() + "to the currently-active receipt. " +
+               "Are you sure?",
+      buttons: {
+          confirm: {
+              label: 'Move ' + itemText + ' To Active Receipt',
+              className: 'btn-success'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          window.location = 'move_to_active_receipt?id=' + itemOrTxnId
+        }
+      }
+    });
+  };
+
   var settleUp = function(txnId, refundAmt) {
     bootbox.confirm({
       title: "Refund " + refundAmt + "?",
@@ -514,8 +559,8 @@
               </div>
             </div>
             <div class="col-12 col-sm-4">
-              <div class="form-text">Admin Notes</div>
-              <div class="mb-3">{{ item.admin_notes }}</div>
+              <div class="form-text">Purchaser ID</div>
+              <div class="mb-3">{{ item.purchaser_id }}</div>
             </div>
           </div>
           <div class="row g-sm-3">
@@ -570,8 +615,8 @@
               </div>
             </div>
           </div>
-          <div class="row g-sm-3">
-            <div class="col-12 col-sm-6"><button class="btn btn-primary">Update</button></div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary">Update</button>
           </div>
         </form>
       </div>
@@ -760,7 +805,18 @@
   {% if c.AT_THE_CON and model.badge_num %} ({{ model.badge }}){% endif %}
 </h2>
 
-See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> for information on how to use this page.
+<div class="card card-body pb-0">
+  <p>See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> for information on how to use this page.</p>
+  {% if other_purchased_badges %}
+    <p>
+      <strong>Note</strong>: This {{ model_str }} is listed as the purchaser for the following badges:
+      {% for badge in other_purchased_badges %}
+      {% if not loop.first %}, {% endif %}
+      {{ badge|form_link }}
+      {% endfor %}
+    </p>
+  {% endif %}
+</div>
 
 {% macro receipt_item_form(type="purchase", receipt=receipt) %}
 <tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
@@ -895,6 +951,9 @@ See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> fo
           <button type="button" data-bs-toggle="modal" data-bs-target="#receiptModal-{{ item.id }}" class="btn btn-sm btn-warning">View/Edit</button>
           {{ receipt_item_macro(item, receipt) }}
           {% endif %}
+          {% if item.receipt.closed and active_receipt %}
+            <button type="button" class="btn btn-success btn-sm" onClick="moveTxnOrItem('{{ item.id }}', '{{ "Transaction" if item.method else "Receipt Item" }}')">Move to Active Receipt</button>
+          {% endif %}
         </td>
         <td>{{ item.desc }}{{ " (" ~ processors[item.method] ~ " ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
         <td>
@@ -1015,20 +1074,37 @@ See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> fo
     {% if loop.last %}</p>{% else %} | {% endif %}
     {% endfor %}
   {% endif %}
-{% if receipt %}
-  {{ receipt_table(receipt, receipt.all_sorted_items_and_txns) }}
-  <button class="btn btn-danger" onClick="fullRefund('{{ receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
-  {% if not c.AUTHORIZENET_LOGIN_ID %}
-  OR
-  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ receipt.id }}', '{{ (receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt_id else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
+{% if active_receipt %}
+  {{ receipt_table(active_receipt, active_receipt.all_sorted_items_and_txns) }}
+  {% if attendee or group %}
+  <button class="btn btn-danger" onClick="fullRefund('{{ active_receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
+    {% if not c.AUTHORIZENET_LOGIN_ID %}
+    OR
+    <button class="btn btn-danger" onClick="mostlyFullRefund('{{ active_receipt.id }}', '{{ (active_receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt_id else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
+    {% endif %}
   {% endif %}
+  <button class="btn btn-outline-danger" onClick="closeReceipt('{{ active_receipt.id }}')">Close Receipt</button>
 {% else %}
   There are no active receipts for this {{ model_str }}.
-  <br/><a href="create_receipt?id={{ model.id }}" class="btn btn-success">Create Default Receipt</a> <a href="create_receipt?id={{ model.id }}&blank=true" class="btn btn-info">Create Blank Receipt</a>
-  {% if group_leader_receipt_id and attendee and attendee.badge_status != c.REFUNDED_STATUS %}
-  <button class="btn btn-danger" onClick="fullRefund('{{ group_leader_receipt_id }}')">Refund Badge Cost To Group Leader</button>
-  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ group_leader_receipt_id }}', '{{ (group_processing_fee / 100)|format_currency }}')">Refund Badge Cost To Group Leader Excluding Processing Fees</a>
-  {% endif %}
+  <div class="d-flex gap-2 align-items-start">
+    <a href="create_receipt?id={{ model.id }}" class="btn btn-success">Create Default Receipt</a>
+    <a href="create_receipt?id={{ model.id }}&blank=true" class="btn btn-info">Create Blank Receipt</a>
+    <a href="#assign-receipt" class="btn btn-primary" data-bs-toggle="collapse">Assign Existing Receipt by ID</a>
+    <div id="assign-receipt" class="collapse">
+      <form method="post" action="transfer_receipt">
+      <input type="hidden" name="id" value="{{ model.id }}" />
+      <div class="input-group">
+        <input class="form-control" size="4" id="from_id" name="from_id" value="" required>
+        <button type="submit" class="btn btn-primary">Assign</button>
+      </div>
+      <div class="form-text">Enter the ID of the {{ model_str }} whose active receipt you want to reassign to this {{ model_str }}.</div>
+      </form>
+    </div>
+    {% if group_leader_receipt_id and attendee and attendee.badge_status != c.REFUNDED_STATUS %}
+    <button class="btn btn-danger" onClick="fullRefund('{{ group_leader_receipt_id }}')">Refund Badge Cost To Group Leader</button>
+    <button class="btn btn-danger" onClick="mostlyFullRefund('{{ group_leader_receipt_id }}', '{{ (group_processing_fee / 100)|format_currency }}')">Refund Badge Cost To Group Leader Excluding Processing Fees</a>
+    {% endif %}
+  </div>
 {% endif %}
 </div>
 </div>
