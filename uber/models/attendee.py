@@ -476,7 +476,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     submitted_panels = relationship(
         'PanelApplication',
         secondary='panel_applicant',
-        secondaryjoin='and_(PanelApplicant.app_id == PanelApplication.id)',
+        secondaryjoin='and_(PanelApplicant.id == PanelApplication.submitter_id)',
         primaryjoin='and_(Attendee.id == PanelApplicant.attendee_id, PanelApplicant.submitter == True)',
         viewonly=True
         )

@@ -37,23 +37,31 @@ class Root:
         """
         app = PanelApplication(length=0, record=0)
         is_guest = False
+        readonly_fields = {}
 
         if attendee_id:
             attendee = session.attendee(id=attendee_id)
             if attendee.badge_type != c.GUEST_BADGE:
                 add_opt(attendee.ribbon_ints, c.PANELIST_RIBBON)
             is_guest = attendee.group and attendee.group.guest
-            panelist = PanelApplicant(
-                app_id=app.id,
-                attendee_id=attendee.id,
-                submitter=True,
-                first_name=attendee.first_name,
-                last_name=attendee.last_name,
-                email=attendee.email,
-                cellphone=attendee.cellphone
-            )
+            if attendee.panel_applicants:
+                panelist = sorted(attendee.panel_applicants, key=lambda p: p.submitter)[0]
+                for attr in ['first_name', 'last_name', 'email', 'cellphone']:
+                    setattr(panelist, attr, getattr(attendee, attr))
+            else:
+                panelist = PanelApplicant(
+                    attendee_id=attendee.id,
+                    first_name=attendee.first_name,
+                    last_name=attendee.last_name,
+                    email=attendee.email,
+                    cellphone=attendee.cellphone
+                )
         else:
             panelist = PanelApplicant()
+            for attr in ['first_name', 'last_name', 'email', 'cellphone']:
+                if params.get(attr, None):
+                    setattr(panelist, attr, params[attr])
+                    readonly_fields[attr] = True
 
         panelist_forms = get_other_panelists_forms(4, submitter=panelist, **params)
         form_list = ['PanelInfo', 'PanelOtherInfo']
@@ -64,27 +72,46 @@ class Root:
         num_other_panelists = int(params.get('other_panelists_select', 0))
 
         if cherrypy.request.method == 'POST':
-            panelist.application = app
+            for form in panelist_forms[0].values():
+                form.populate_obj(panelist)
+
+            if not attendee_id:
+                dupe_panelist = session.query(PanelApplicant).filter(
+                    PanelApplicant.submitter == True, PanelApplicant.first_name == panelist.first_name,
+                    PanelApplicant.last_name == panelist.last_name, PanelApplicant.email == panelist.email).first()
+                if dupe_panelist:
+                    dupe_panelist.cellphone = panelist.cellphone
+                    panelist = dupe_panelist
+
+            panelist.applications.append(app)
             panelist.submitter = True
+            app.submitter_id = panelist.id
+            session.add(panelist)
 
             for form in forms.values():
                 form.populate_obj(app)
                 session.add(app)
-
-            for form in panelist_forms[0].values():
-                form.populate_obj(panelist)
-                session.add(panelist)
             
             for num in range(1, num_other_panelists + 1):
                 other_panelist = PanelApplicant()
-                other_panelist.application = app
+                other_panelist.applications.append(app)
 
                 for form in panelist_forms[num].values():
                     form.populate_obj(other_panelist)
                 session.add(other_panelist)
+            
+            message = "Your panel application has been submitted."
 
+            if params.get('additional_panel', None):
+                message += " You can fill out another application below."
+                if attendee_id:
+                    raise HTTPRedirect(f"index?attendee_id={attendee_id}&message={message}")
+                raise HTTPRedirect("index?first_name={}&last_name={}&email={}&cellphone={}&message={}",
+                                   panelist.first_name, panelist.last_name,
+                                   panelist.email, panelist.cellphone, message)
+                
             go_to = (return_to + "&") if 'ignore_return_to' not in params and return_to else 'index?'
-            raise HTTPRedirect(f'{go_to}message={"Your panel application has been submitted."}')
+            raise HTTPRedirect(f'{go_to}message={message}')
 
         return {
             'app': app,
@@ -96,6 +123,7 @@ class Root:
             'is_guest': is_guest,
             'return_to': return_to,
             'attendee_id': attendee_id,
+            'readonly_fields': readonly_fields,
         }
 
     @ajax

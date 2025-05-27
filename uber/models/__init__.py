@@ -2180,7 +2180,7 @@ class Session(SessionManager):
             return self.query(PanelApplication).order_by('applied').all()
 
         def panel_applicants(self):
-            return self.query(PanelApplicant).options(joinedload(PanelApplicant.application)) \
+            return self.query(PanelApplicant).options(joinedload(PanelApplicant.applications)) \
                 .order_by('first_name', 'last_name')
 
     @classmethod

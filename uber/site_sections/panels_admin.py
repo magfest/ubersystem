@@ -112,10 +112,11 @@ class Root:
         return {"success": True}
 
     def edit_panelist(self, session, **params):
+        app = session.panel_application(params.get('app_id'))
         if params.get('id') in [None, '', 'None']:
             panelist = PanelApplicant()
             prefix = 'new'
-            panelist.application = session.panel_application(params.get('application_id'))
+            panelist.applications.append(app)
             session.add(panelist)
         else:
             panelist = session.panel_applicant(params.get('id'))
@@ -130,7 +131,7 @@ class Root:
             session.add(panelist)
 
         raise HTTPRedirect('app?id={}&message={} was successfully {}.',
-                           panelist.application.id, panelist.full_name, 'created' if prefix == 'new' else 'updated')
+                           app.id, panelist.full_name, 'created' if prefix == 'new' else 'updated')
 
     def email_statuses(self, session):
         emails = session.query(AutomatedEmail).filter(AutomatedEmail.ident.in_(
@@ -181,18 +182,25 @@ class Root:
         raise HTTPRedirect('app?id={}&message={}', app.id, 'Tags updated')
 
     @csrf_protected
-    def change_submitter(self, session, applicant_id):
+    def change_submitter(self, session, applicant_id, app_id):
+        app = session.panel_application(app_id)
         panelist = session.panel_applicant(applicant_id)
-        for each_panelist in panelist.application.applicants:
-            each_panelist.submitter = False
+        
+        app.submitter.check_if_still_submitter(app_id)
+        app.submitter_id = panelist.id
         panelist.submitter = True
-        raise HTTPRedirect('app?id={}&message=Point of contact was updated to {}', panelist.app_id, panelist.full_name)
+
+        raise HTTPRedirect('app?id={}&message=Point of contact was updated to {}', app.id, panelist.full_name)
 
     @csrf_protected
-    def remove_submitter(self, session, applicant_id):
+    def remove_panelist(self, session, applicant_id, app_id):
+        app = session.panel_application(app_id)
         panelist = session.panel_applicant(applicant_id)
+        if panelist.submitter:
+            raise HTTPRedirect('app?id={}&message={}',
+                               "This panelist is the submitter for another panel and cannot be removed.")
         session.delete(panelist)
-        raise HTTPRedirect('app?id={}&message=Panelist {} was removed', panelist.app_id, panelist.full_name)
+        raise HTTPRedirect('app?id={}&message=Panelist {} was removed', app.id, panelist.full_name)
 
     def associate(self, session, message='', **params):
         app = session.panel_application(params)
@@ -227,7 +235,7 @@ class Root:
 
         applicants = []
         for pa in session.panel_applicants():
-            if not pa.attendee_id and pa.application.status == c.ACCEPTED:
+            if not pa.attendee_id and pa.accepted_applications:
                 applicants.append([pa, set(possibles[pa.email.lower()] + possibles[pa.first_name, pa.last_name])])
 
         return {'applicants': applicants}

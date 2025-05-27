@@ -148,7 +148,7 @@ $().ready(function () {
                 {{ form_macros.form_validation('new-applicant-form', 'validate_panelist') }}
                 <form novalidate id="new-applicant-form" method="post" action="edit_panelist" role="form">
                     {{ csrf_token() }}
-                    <input type="hidden" name="application_id" value="{{ app.id }}" />
+                    <input type="hidden" name="app_id" value="{{ app.id }}" />
                     {% set panelist_form = panelist_forms['new'] %}
                     {% include "forms/panel/panelist_form.html" %}
                     <button type="submit" class="btn btn-primary">Add Panelist</button>
@@ -175,22 +175,34 @@ $().ready(function () {
                     <small class="ms-auto d-flex gap-1">
                         <form method="post" action="change_submitter">
                             {{ csrf_token() }}
+                            <input type="hidden" name="app_id" value="{{ app.id }}" />
                             <input type="hidden" name="applicant_id" value="{{ panelist.id }}" />
                             <input type="submit" class="btn btn-sm btn-primary" value="Make POC" />
                         </form>
-                        <form method="post" action="remove_submitter" onSubmit="return confirm('Are you sure you want to remove {{ panelist.full_name }}?');">
+                        {% if panelist.submitter %}
+                        {% else %}
+                        <form method="post" action="remove_panelist" onSubmit="return
+                                confirm('Are you sure you want to remove {{ panelist.full_name }}?');">
                             {{ csrf_token() }}
+                            <input type="hidden" name="app_id" value="{{ app.id }}" />
                             <input type="hidden" name="applicant_id" value="{{ panelist.id }}" />
                             <input type="submit" class="btn btn-sm btn-danger" value="Remove Panelist" />
                         </form>
+                        {% endif %}
                     </small>
                     {% endif %}
                 </h3>
+                {% for app in panelist.applications|rejectattr("id", "equalto", app.id) %}
+                {% if loop.first %}<small><em>Other panels:{% endif %}
+                    {{ app|form_link }}{% if not loop.last %}, {% endif %}
+                {% if loop.last %}</em></small>{% endif %}
+                {% endfor %}
                 <hr>
                 {{ form_macros.form_validation('applicant-' ~ panelist.id ~ '-form', 'validate_panelist') }}
                 <form novalidate id="applicant-{{ panelist.id }}-form" method="post" action="edit_panelist" role="form">
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ panelist.id }}" />
+                    <input type="hidden" name="app_id" value="{{ app.id }}" />
                     {% set panelist_form = panelist_forms[panelist.id] %}
                     {% include "forms/panel/panelist_form.html" %}
                     <button type="submit" class="btn btn-primary">

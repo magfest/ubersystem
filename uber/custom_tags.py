@@ -242,6 +242,11 @@ def jsonize(x):
 
 
 @JinjaEnv.jinja_filter
+def boolean(x):
+    return bool(x)
+
+
+@JinjaEnv.jinja_filter
 def subtract(x, y):
     return x - y
 

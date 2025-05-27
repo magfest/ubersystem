@@ -70,5 +70,6 @@ PanelConsents.field_validation.required_fields = {
     'coc_agreement': "You must agree to the Code of Conduct.",
     'data_agreement': "You must agree to our data policies.",
     'verify_tos': "You must accept our Terms of Accommodation.",
-    'verify_poc': ("You must agree to being the point of contact for your group.", 'other_panelists')
+    'verify_poc': ("You must agree to being the point of contact for your group.",
+                   'other_panelists', lambda x: int(x) != 0)
 }

@@ -52,8 +52,11 @@
         <div class="form-text">Panel Applications</div>
         <div class="mb-4">
             {% for applicant in attendee.panel_applicants -%}
-                {% if not loop.first %} / {% endif %}
-                <a href="../panels_admin/app?id={{ applicant.application.id }}">{{ applicant.application.name }}{{ " (Accepted)" if applicant.application.status == c.ACCEPTED else "" }}</a>
+                {% set outer_loop = loop %}
+                {% for app in applicant.applications %}
+                {% if not outer_loop.first %} / {% endif %}
+                <a href="../panels_admin/app?id={{ app.id }}">{{ app.name }}{{ " (Accepted)" if app.status == c.ACCEPTED else "" }}</a>
+                {% endfor %}
             {%- endfor %}
         </div>
     </div>
