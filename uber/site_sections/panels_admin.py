@@ -155,6 +155,7 @@ class Root:
         app = session.panel_application(params)
         if app.status != c.ACCEPTED and int(status) == c.ACCEPTED:
             app.accepted = datetime.now()
+            app.add_credentials_to_desc()
         app.status = int(status)
         if not app.poc:
             app.poc_id = session.admin_attendee().id

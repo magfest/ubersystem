@@ -172,6 +172,29 @@ class PanelApplication(MagModel):
     def set_record(self):
         if len(c.LIVESTREAM_OPTS) > 2 and not self.record:
             self.record = c.OPT_OUT
+    
+    def add_credentials_to_desc(self):
+        description = self.description or self.public_description
+        panelist_creds = []
+
+        def generate_creds(p):
+            text = p.display_name
+            if p.occupation or p.website:
+                text += " ["
+                if p.occupation:
+                    text += p.occupation + (', ' if p.website else '')
+                if p.website:
+                    text += p.website
+                text += "]"
+            return text
+
+        if self.submitter.display_name:
+            panelist_creds.append(generate_creds(self.submitter))
+        for panelist in [a for a in self.other_panelists if a.display_name]:
+            panelist_creds.append(generate_creds(panelist))
+        
+        description += f"\n\nPanelists: {' '.join(panelist_creds)}"
+        self.public_description = description
 
     @property
     def email(self):
