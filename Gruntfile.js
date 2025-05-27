@@ -13,6 +13,7 @@ module.exports = function (grunt) {
                     'uber/static/deps/libs/select2.js': 'select2/dist/js/select2.full.js',
                     'uber/static/deps/libs/select2.css': 'select2/dist/css/select2.css',
                     'uber/static/deps/libs/geocomplete.js': 'geocomplete:main',
+                    'uber/static/deps/libs/jquery.form.js': 'jquery-form/jquery.form.js',
                 }
             }
         },
