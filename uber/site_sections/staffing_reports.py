@@ -162,19 +162,25 @@ class Root:
 
     def volunteers_owed_refunds(self, session):
         attendees = session.all_attendees(only_staffing=True).all()
+        owed = [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
+                and a.worked_hours >= c.HOURS_FOR_REFUND]
+        refunded = [a for a in attendees if a.has_been_refunded]
+        maybe = [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
+                 and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
 
         return {
             'attendees': [(
                 'Volunteers Owed Refunds',
-                [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
-                 and a.worked_hours >= c.HOURS_FOR_REFUND]
+                owed,
+                sum([a.badge_cost for a in owed])
             ), (
                 'Volunteers Already Refunded',
-                [a for a in attendees if a.has_been_refunded]
+                refunded,
+                sum([a.badge_cost for a in refunded])
             ), (
                 'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
-                [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
-                    and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
+                maybe,
+                sum([a.badge_cost for a in maybe])
             )]
         }
 
