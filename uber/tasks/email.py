@@ -199,13 +199,18 @@ def send_automated_emails():
                     session.add(automated_email)
                     session.commit()
                     unapproved_count = 0
+                    if automated_email.shared_ident:
+                        matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
+                        fk_id_list = [id for id, in matching_email_ids]
+                    else:
+                        fk_id_list = automated_email.emails_by_fk_id
 
                     log.debug("Loading instances for " + automated_email.ident)
                     model_instances = query_func(session)
                     log.trace("Finished loading instances")
                     for model_instance in model_instances:
                         log.trace("Checking " + str(model_instance.id))
-                        if model_instance.id not in automated_email.emails_by_fk_id:
+                        if model_instance.id not in fk_id_list:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
                                     if getattr(model_instance, 'active_receipt', None):

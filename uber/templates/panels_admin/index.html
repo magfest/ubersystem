@@ -3,14 +3,17 @@
 {% block content %}
 
 <h1>
-  Panel Applications
+  Panel Applications{% if department %} for {{ department.name }} Department <small><a href="index">View all panel applications</a></small>{% endif %}
   <a href="../panels/index" class="btn btn-primary pull-right">Create Panel Application</a>
 </h1>
 
+<div class="card card-body">
 <table class="table datatable" data-page-length="-1">
 <thead>
     <tr>
+        {% if not department %}
         <th>Department</th>
+        {% endif %}
         <th>Panel Name</th>
         <th>Panel Type</th>
         <th>Tags</th>
@@ -27,7 +30,9 @@
 <tbody>
 {% for app in apps %}
     <tr>
-        <td>{{ app.department_label }}</td>
+        {% if not department %}
+        <td>{{ app.get_dept_name() }}</td>
+        {% endif %}
         <td><a href="app?id={{ app.id }}">{{ app.name }}</a></td>
         <td>{{ app.presentation_label }}</td>
         <td>{{ app.tags }}</td>
@@ -53,5 +58,6 @@
 {% endfor %}
 </tbody>
 </table>
+</div>
 
 {% endblock %}

@@ -21,7 +21,9 @@ $().ready(function () {
 })
 </script>
 
-<h2>Panel Application{% if not app.is_new %} for {{ app.name }}{% endif %} <small><a href="index">View all panel applications</a></small></h2>
+<h2>Panel Application{% if not app.is_new %} for {{ app.name }}{% endif %}
+    <small><a href="index">View all panel applications</a>{% if department %} or
+        <a href="index?department_id={{ department.id }}">View panel applications for {{ department.name }} Department</a>{% endif %}</small></h2>
 
 <div class="card card-body">
     <div class="row g-sm-3">

@@ -1229,6 +1229,61 @@ class Config(_Overridable):
                 for a in session.query(AdminAccount).options(joinedload(AdminAccount.attendee))
                 if 'panels_admin' in a.read_or_write_access_set
             ], key=lambda tup: tup[1], reverse=False)
+        
+    @request_cached_property
+    @dynamic
+    def get_panels_id(self):
+        from uber.models import Session, Department
+
+        with Session() as session:
+            panels_dept = session.query(Department).filter(Department.manages_panels == True, 
+                                                           Department.name == "Panels").first()
+            if panels_dept:
+                return panels_dept.id
+            else:
+                return c.PANELS
+
+    @request_cached_property
+    @dynamic
+    def PANELS_DEPT_OPTS_WITH_DESC(self):
+        from uber.models import Session, Department
+        opt_list = []
+
+        with Session() as session:
+            panel_depts = session.query(Department).filter(Department.manages_panels == True)
+            panels = panel_depts.filter(Department.name == "Panels").first()
+
+            if panels:
+                opt_list.append((panels.id, panels.name, panels.panels_desc))
+            else:
+                opt_list.append((str(c.PANELS), "Panels", ''))
+            
+            if not panel_depts.count():
+                return opt_list
+
+            for dept in panel_depts:
+                if dept.name != "Panels":
+                    opt_list.append((dept.id, dept.name, dept.panels_desc))
+
+        return opt_list
+    
+    @request_cached_property
+    @dynamic
+    def PANELS_DEPT_OPTS(self):
+        return [(key, name) for key, name, _ in self.PANELS_DEPT_OPTS_WITH_DESC]
+    
+    @request_cached_property
+    @dynamic
+    def EMAILLESS_PANEL_DEPTS(self):
+        from uber.models import Session, Department
+
+        id_list = [c.PANELS]
+        with Session() as session:
+            panels_depts_query = session.query(Department).filter(Department.manages_panels == True)
+            for dept in panels_depts_query.filter(or_(Department.from_email == '',
+                                                      Department.from_email == c.PANELS_EMAIL)):
+                id_list.append(dept.id)
+        return id_list
 
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:

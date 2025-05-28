@@ -190,6 +190,7 @@ class MagForm(Form):
     initialized = False
     field_aliases = {}
     dynamic_choices_fields = {}
+    admin_desc = False
 
     def __init_subclass__(cls, *args, **kwargs):
         cls.field_validation, cls.new_or_changed = CustomValidation(), CustomValidation()
@@ -540,6 +541,7 @@ class DictWrapper(dict):
 
 
 from uber.forms.attendee import *  # noqa: F401,E402,F403
+from uber.forms.department import *  # noqa: F401,E402,F403
 from uber.forms.group import *  # noqa: F401,E402,F403
 from uber.forms.artist_marketplace import *  # noqa: F401,E402,F403
 from uber.forms.panels import *  # noqa: F401,E402,F403

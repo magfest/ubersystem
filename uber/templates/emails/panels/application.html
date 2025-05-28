@@ -30,7 +30,7 @@
 <strong>Panel Information</strong>
 <ul>
     <li><strong>Name</strong>: {{ app.name }}</li>
-    {% if c.PANEL_DEPT_OPTS|length > 1 %}<li><strong>Department</strong>: {{ app.department_label }}</li>{% endif %}
+    {% if c.PANELS_DEPT_OPTS|length > 1 %}<li><strong>Department</strong>: {{ app.department_label }}</li>{% endif %}
     <li><strong>Type</strong>: {{ app.presentation_label }}{% if app.presentation == c.OTHER %} ({{ app.other_presentation }}){% endif %}</li>
     <li><strong>Description</strong>: {{ app.description }}</li>
     {% if app.public_description %}<li><strong>Schedule Description</strong>: {{ app.public_description }}</li>{% endif %}

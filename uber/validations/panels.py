@@ -29,10 +29,6 @@ PanelInfo.field_validation.required_fields = {
 }
 
 
-if len(c.PANEL_DEPT_OPTS) > 1:
-    PanelInfo.field_validation.required_fields['department'] = "Please select a department."
-
-
 if len(c.LIVESTREAM_OPTS) > 2:
     PanelInfo.field_validation.required_fields['livestream'] = "Please select your preference for recording/livestreaming."
 elif c.CAN_LIVESTREAM:
@@ -47,6 +43,15 @@ if len(c.PANEL_CONTENT_OPTS) > 1:
     PanelInfo.field_validation.required_fields['granular_rating'] = "Please select what your panel's content will contain, or None."
 elif len(c.PANEL_RATING_OPTS) > 1:
     PanelInfo.field_validation.required_fields['rating'] = "Please select a content rating for your panel."
+
+
+@PanelInfo.field_validation('department')
+def require_if_multi_departments(form, field):
+    # This has to be inside a function in order to avoid the system
+    # accessing the DB before migrations are run
+
+    if len(c.PANELS_DEPT_OPTS) > 1 and not field.data:
+        raise ValidationError("Please select a department.")
 
 
 @PanelInfo.field_validation('granular_rating')

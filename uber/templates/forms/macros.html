@@ -34,6 +34,8 @@
 {% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
 
 {% set text_below_field %}
+  {% if field.form.admin_desc %}{% set admin_text = admin_text or field.description %}{% endif %}
+
   {% if not admin_area and (help_text or field.description) %}
     <div class="form-text">
     {{ help_text or field.description }}

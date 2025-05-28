@@ -14,9 +14,17 @@
 #}
 
 
-<div x-data="{ {% block x_data %}
+<div 
+x-data="{ {% block x_data %}
    presentation: {{ panel_info.presentation.data|jsonize }},
    panel_length: {{ panel_info.length.data|jsonize }},
+   department: '{{ panel_info.department.data }}',
+   dept_descs: {
+    {% for key, _, desc in c.PANELS_DEPT_OPTS_WITH_DESC %}
+    '{{ key }}': `{{ desc }}`,
+    {% endfor %}
+   },
+   get getDepartmentDesc() { return this.dept_descs[this.department] },
    get otherPresentation() { return this.presentation == '{{ c.OTHER }}' },
    get showIsLoud() { return this.presentation == '{{ c.MUSIC }}' },
    get showModNote() { return this.presentation == '{{ c.GROUP_DISCUSSION }}'},
@@ -35,7 +43,13 @@
     </div>
 </div>
 {% endif %}
-<div class="col-sm">{{ form_macros.input(panel_info.department) }}</div>
+{% if c.PANELS_DEPT_OPTS_WITH_DESC|length > 1 %}
+<div class="col-sm">
+  {% call form_macros.input(panel_info.department, alpine_model='department') %}
+  <div class="form-text" x-text="getDepartmentDesc" x-show="getDepartmentDesc"></div>
+  {% endcall %}
+</div>
+{% endif %}
 {% endblock %}
 </div>
 

@@ -249,7 +249,6 @@ class BadgeFlags(MagForm):
 
 
 class AdminBadgeFlags(BadgeFlags):
-    new_or_changed_validation = CustomValidation()
     dynamic_choices_fields = {'group_id': lambda: AdminBadgeFlags.get_valid_groups()}
 
     can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
@@ -278,8 +277,6 @@ class BadgeAdminNotes(MagForm):
 
 
 class CheckInForm(MagForm):
-    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
-
     full_name = HiddenField('Name')
     legal_name = HiddenField('Name on ID')
     email = HiddenField('Email')

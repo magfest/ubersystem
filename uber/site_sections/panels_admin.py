@@ -19,10 +19,18 @@ from uber.forms import load_forms
 
 @all_renderable()
 class Root:
-    def index(self, session, message=''):
+    def index(self, session, message='', department_id=None):
+        apps = session.panel_apps()
+        dept = None
+        if department_id:
+            dept = session.department(department_id)
+            apps = apps.filter(PanelApplication.department == department_id)
+            if not apps.count() and not message:
+                message = f"No panel applications found for the {dept.name} department."
         return {
             'message': message,
-            'apps': session.panel_apps()
+            'apps': session.panel_apps(),
+            'department': dept,
         }
 
     def app(self, session, id, message='', csrf_token='', explanation=None, **params):
@@ -31,6 +39,7 @@ class Root:
         ).all()
 
         app = session.panel_application(id)
+        department = session.department(app.department) if app.department != str(c.PANELS) else None
         forms = load_forms(params, app, ['PanelInfo', 'PanelOtherInfo'])
 
         panelist_form_list = ['PanelistInfo', 'PanelistCredentials']
@@ -49,6 +58,7 @@ class Root:
         return {
             'message': message,
             'app': session.panel_application(id),
+            'department': department,
             'forms': forms,
             'panelist_forms': panelist_forms,
             'panel_tags': list(set([tag for tag in all_tags[0][0].split(',') if tag != ''])

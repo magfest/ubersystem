@@ -178,6 +178,9 @@ class Department(MagModel):
     is_setup_approval_exempt = Column(Boolean, default=True)
     is_teardown_approval_exempt = Column(Boolean, default=True)
     max_consecutive_minutes = Column(Integer, default=0)
+    from_email = Column(UnicodeText)
+    manages_panels = Column(Boolean, default=False)
+    panels_desc = Column(UnicodeText)
 
     jobs = relationship('Job', backref='department')
 

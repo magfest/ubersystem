@@ -105,7 +105,8 @@ class Root:
             if params.get('additional_panel', None):
                 message += " You can fill out another application below."
                 if attendee_id:
-                    raise HTTPRedirect(f"index?attendee_id={attendee_id}&message={message}")
+                    raise HTTPRedirect(f"index?attendee_id={attendee_id}&message={message}&return_to={
+                        return_to if 'ignore_return_to' not in params else ''}")
                 raise HTTPRedirect("index?first_name={}&last_name={}&email={}&cellphone={}&message={}",
                                    panelist.first_name, panelist.last_name,
                                    panelist.email, panelist.cellphone, message)
