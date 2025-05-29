@@ -1198,6 +1198,10 @@ def allowed_to_volunteer(attendee):
             and not attendee.age_group_conf['can_volunteer'] \
             and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
             and c.PRE_CON:
+        with Session() as session:
+            admin = session.current_admin_account()
+            if admin.is_super_admin:
+                return
         return ('staffing', 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.')
 
 
