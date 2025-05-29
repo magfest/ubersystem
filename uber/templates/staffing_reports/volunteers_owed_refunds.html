@@ -3,7 +3,7 @@
 {% block content %}
 
 <div class="card card-body">
-    <h2>Volunteer Refund Report</h2>
+    <h2>Volunteer Refund Report <small><a href="volunteers_owed_refunds_csv"><i class="fa fa-download"></i>Download CSV</a></small></h2>
     <hr>
 {% for title, matching, sum in attendees %}
     <h3>{{ title }} <small>({{ matching|length }} volunteers) ({{ sum|format_currency }} Total)</small></h3>
