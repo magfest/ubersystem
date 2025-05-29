@@ -35,14 +35,6 @@ x-data="{ {% block x_data %}
 <div class="row g-sm-3 mb-3">
 {% block name %}
 <div class="col-sm">{{ form_macros.input(panel_info.name) }}</div>
-{% if admin_area and app.group and app.group.guest %}
-<div class="col-sm">
-    <label class="form-text">Guest Type</label>
-    <div class="form-control-static">
-        {{ app.group.guest.group_type_label }} "{{ app.group|form_link }}"
-    </div>
-</div>
-{% endif %}
 {% if c.PANELS_DEPT_OPTS_WITH_DESC|length > 1 %}
 <div class="col-sm">
   {% call form_macros.input(panel_info.department, alpine_model='department') %}

@@ -26,8 +26,21 @@ $().ready(function () {
         <a href="index?department_id={{ department.id }}">View panel applications for {{ department.name }} Department</a>{% endif %}</small></h2>
 
 <div class="card card-body">
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-4 form-control-static">
+    <div class="row g-sm-3 mb-3">
+        {% if app.status == c.ACCEPTED %}
+            <div class="col-sm">
+                <label class="form-text">Event</label>
+                <br/>
+                {% if app.event_id %}
+                    <a href="../schedule/form?id={{ app.event_id }}">{{ app.event.name }}</a>
+                    (<a href="panel_feedback?event_id={{ app.event_id }}">leave feedback</a>)
+                {% else %}
+                    <a href="associate?id={{ app.id }}">Click here</a> to associate
+                    this application with an event on the schedule.
+                {% endif %}
+            </div>
+        {% endif %}
+        <div class="col-sm">
         <label class="form-text">Panel Status</label>
             <form method="post" action="mark">
                 {{ csrf_token() }}
@@ -52,7 +65,29 @@ $().ready(function () {
                 {{ macros.popup_link("email_statuses", "Will this trigger an email?") }}
             </form>
         </div>
-        <div class="col-12 col-sm-4 form-control-static">
+        <div class="col-sm" x-data="{
+            group_id: '{{ app.group.id if app.group else '' }}',
+            get groupFormLink() { return this.group_id ? `../group_admin/form?id=${this.group_id}` : '' }
+        }">
+        <label class="form-text">Guest Type</label>
+        <form method="post" action="assign_guest">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ app.id }}" />
+            <div class="d-flex gap-3">
+                <div>
+                    <select name="group_id" class="form-select" x-model="group_id">
+                        <option value="">Select a guest to assign to this panel</option>
+                        {% for id, display in guests %}
+                        <option value="{{ id }}"{% if app.group.guest and app.group.guest.id == id %} selected="selected"{% endif %}>{{ display }}</option>
+                        {% endfor %}
+                    </select>
+                    <a id="group_link" x-show="groupFormLink" x-bind:href="groupFormLink" target="_blank">View this Guest's Page</a>
+                </div>
+                <div><button type="submit" class="btn btn-primary">Assign Guest</button></div>
+            </div>
+        </form>
+        </div>
+        <div class="col-sm">
         <label class="form-text">Panel Tags</label>
         <form method="post" action="update_tags">
             {{ csrf_token() }}
@@ -65,19 +100,6 @@ $().ready(function () {
             </div>
         </form>
         </div>
-        {% if app.status == c.ACCEPTED %}
-            <div class="col-12 col-sm-4 form-control-static">
-                <label class="form-text">Event</label>
-                <br/>
-                {% if app.event_id %}
-                    <a href="../schedule/form?id={{ app.event_id }}">{{ app.event.name }}</a>
-                    (<a href="panel_feedback?event_id={{ app.event_id }}">leave feedback</a>)
-                {% else %}
-                    <a href="associate?id={{ app.id }}">Click here</a> to associate
-                    this application with an event on the schedule.
-                {% endif %}
-            </div>
-        {% endif %}
     </div>
     <script type="text/javascript">
         var setTrack = function(track) {

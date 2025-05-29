@@ -12,7 +12,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
 from uber.errors import HTTPRedirect
 from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
-    PanelApplicant, PanelApplication
+    PanelApplicant, PanelApplication, GuestGroup
 from uber.utils import add_opt, check, localized_now, validate_model
 from uber.forms import load_forms
 
@@ -33,7 +33,7 @@ class Root:
             'department': dept,
         }
 
-    def app(self, session, id, message='', csrf_token='', explanation=None, **params):
+    def app(self, session, id, message='', **params):
         all_tags = session.query(
             func.string_agg(PanelApplication.tags, literal_column("','"))
         ).all()
@@ -54,6 +54,13 @@ class Root:
         
         panelist_forms['new'] = load_forms(params, PanelApplicant(), panelist_form_list,
                                            {form_name: 'new' for form_name in panelist_form_list})
+        
+        guest_groups = session.query(GuestGroup).filter(GuestGroup.group_type != c.MIVS).options(
+            joinedload(GuestGroup.group))
+        guests = [(guest.group.id,
+                  '{} ({})'.format(guest.group.name, guest.group.leader.full_name))
+                for guest in guest_groups if guest.group and guest.group.leader
+        ]
 
         return {
             'message': message,
@@ -63,6 +70,7 @@ class Root:
             'panelist_forms': panelist_forms,
             'panel_tags': list(set([tag for tag in all_tags[0][0].split(',') if tag != ''])
                                ) if all_tags[0] else '[]',
+            'guests': guests,
         }
 
     @ajax
@@ -154,6 +162,40 @@ class Root:
             'attendee': attendee,
             'panels': sorted(attendee.panel_applications, key=lambda app: app.name)
         }
+    
+    def assign_guest(self, session, id, group_id, **params):
+        app = session.panel_application(id)
+        group = session.group(group_id)
+        if not group.guest:
+            raise HTTPRedirect('app?id={}&message={}', id, f'{group.name} is not a guest group.')
+        if not group.leader:
+            raise HTTPRedirect('app?id={}&message={}', id,
+                               f'{group.name} does not have a leader to set as the panel submitter.')
+    
+        if app.submitter:
+            app.submitter.check_if_still_submitter(app)
+
+        panelist_attendee = group.leader
+        if panelist_attendee.panel_applicants:
+            panelist = sorted(panelist_attendee.panel_applicants, key=lambda p: p.submitter)[0]
+        else:
+            panelist = PanelApplicant(
+                attendee_id=panelist_attendee.id,
+                first_name=panelist_attendee.first_name,
+                last_name=panelist_attendee.last_name,
+                email=panelist_attendee.email,
+                cellphone=panelist_attendee.cellphone
+            )
+        
+        panelist.applications.append(app)
+        panelist.submitter = True
+        app.submitter_id = panelist.id
+        session.add(panelist)
+        if panelist_attendee.badge_type != c.GUEST_BADGE:
+            add_opt(panelist_attendee.ribbon_ints, c.PANELIST_RIBBON)
+            session.add(panelist_attendee)
+        
+        raise HTTPRedirect('app?id={}&message={}', id, f"Panel successfully assigned to {group.name}.")
 
     @csrf_protected
     def update_comments(self, session, id, comments):
