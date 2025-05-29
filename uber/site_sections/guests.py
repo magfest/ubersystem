@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber.config import c
 from uber.decorators import ajax, all_renderable, render
 from uber.errors import HTTPRedirect
-from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans
+from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel
 from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check
 from uber.tasks.email import send_email
@@ -165,6 +165,16 @@ class Root:
             'guest_panel': guest.panel or guest_panel,
             'message': message
         }
+    
+    def decline_panel(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        guest_panel = GuestPanel(
+            guest_id=guest.id,
+            wants_panel=c.NO_PANEL,
+            )
+        session.add(guest_panel)
+        raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have declined to run a panel.')
+
 
     def mc(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)

@@ -36,6 +36,21 @@
               {% endif %}
             {% endif %}
           {% endif %}
+          {% if panelist.is_new %}
+          <p>
+            {% if is_guest.guest.panel_status and is_guest.guest.panel.wants_panel == c.NO_PANEL %}
+            You have already indicated that you do not plan on running a panel. You can submit an
+            application below if you changed your mind, or you can <a href="{{ return_to }}">go back to the {{ is_guest.name }} checklist</a>.
+            {% else %}
+            Click the button below if you don't plan on submitting any panels as {{ is_guest.name }}.
+            <form method="post" action="../guests/decline_panel">
+              {{ csrf_token() }}
+              <input type="hidden" name="guest_id" value="{{ is_guest.guest.id }}" />
+              <button class="btn btn-warning">Not Hosting Any Panels</button>
+            </form>
+            {% endif %}
+          </p>
+          {% endif %}
         {% else %}
           {% if c.AFTER_PANELS_DEADLINE and c.HAS_PANELS_ADMIN_ACCESS %}
             <div class="alert alert-danger">

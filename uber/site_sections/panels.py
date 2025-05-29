@@ -43,7 +43,7 @@ class Root:
             attendee = session.attendee(id=attendee_id)
             if attendee.badge_type != c.GUEST_BADGE:
                 add_opt(attendee.ribbon_ints, c.PANELIST_RIBBON)
-            is_guest = attendee.group and attendee.group.guest
+            is_guest = attendee.group if attendee.group.guest else None
             if attendee.panel_applicants:
                 panelist = sorted(attendee.panel_applicants, key=lambda p: p.submitter)[0]
                 for attr in ['first_name', 'last_name', 'email', 'cellphone']:
