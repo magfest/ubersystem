@@ -4,6 +4,7 @@
 {%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
 
 {# BLOCK NAMES in this form:
+    x_data
     name_badges
     badges_tables (admin-only)
     cost (admin-only)
@@ -12,18 +13,31 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<div x-data="{ {% block x_data %}
+payment: {{ 'true' if group.guest and group.guest.payment else 'false' }},
+get showW9() { return this.guest_group_type != 0 && this.guest_group_type != '{{ c.MIVS }}' }
+{% endblock %} }">
+
 {# Takes the Stripe transaction max and divides it by the group price,
     then rounds down to the nearest multiple of 5 so that people don't ask us why we're selling 86 badges #}
 {% set max_badges = ((9999 / c.GROUP_PRICE / 5)|int * 5)|int if is_prereg_attendee else c.MAX_GROUP_SIZE %}
 
+<div class="row g-sm-3 mb-3">
 {% block name_badges %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.name) }}</div>
-    {% if is_prereg_attendee %}<div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.badges, choices=int_choices(0 if admin_area else c.MIN_GROUP_SIZE, max_badges)) }}</div>
-    {% elif admin_area and not group.is_dealer %}<div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.guest_group_type) }}</div>{% endif %}
-</div>
+    <div class="col-sm">{{ form_macros.input(group_info.name) }}</div>
+    {% if is_prereg_attendee %}<div class="col-sm">{{ form_macros.input(group_info.badges, choices=int_choices(0 if admin_area else c.MIN_GROUP_SIZE, max_badges)) }}</div>
+    {% elif admin_area and not group.is_dealer %}
+    <div class="col-sm">{{ form_macros.input(group_info.guest_group_type, alpine_model="guest_group_type") }}</div>
+    <div class="col-sm pt-1" x-show="showW9">
+    <div class="form-text">&nbsp;</div>
+        {{ form_macros.input(group_info.payment, alpine_model="payment") }}
+    </div>
+    {% endif %}
 {% endblock %}
+</div>
 
-{% block badges_tables %}{% endblock %}
-{% block cost %}{% endblock %}
-{% block admin_info %}{% endblock %}
+<div class="row g-sm-3 mb-3">{% block badges_tables %}{% endblock %}</div>
+<div class="row g-sm-3 mb-3">{% block cost %}{% endblock %}</div>
+<div class="row g-sm-3 mb-3">{% block admin_info %}{% endblock %}</div>
+
+</div>

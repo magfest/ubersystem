@@ -82,7 +82,10 @@
     <h3>New {{ c.DEALER_TERM|title if group.is_dealer else "Group" }} Info</h3>
   {% endif %}
   {{ form_macros.form_validation('group-form', 'validate_group') }}
-  <form novalidate method="post" id="group-form" action="form" enctype="multipart/form-data">
+  <form novalidate method="post" id="group-form" action="form" enctype="multipart/form-data" x-data="{
+    guest_group_type: {{ group.guest_group_type|jsonize }},
+    is_dealer: {{ group.is_dealer|jsonize }},
+  }">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ group.db_id }}" />
     <input type="hidden" name="new_dealer" value="{{ new_dealer or '' }}" />
