@@ -185,6 +185,23 @@ class Root:
         }
 
     @csv_file
+    def volunteers_owed_refunds_csv(self, out, session):
+        attendees = session.all_attendees(only_staffing=True).all()
+        out.writerow(['Volunteer', 'Departments', 'Hours Worked', 'Hours Taken',
+                      'Badge Cost', 'Owed/Refunded/Maybe'])
+        for attendee in attendees:
+            if attendee.has_been_refunded or attendee.paid_for_badge:
+                if attendee.has_been_refunded:
+                    owed = "Refunded"
+                elif attendee.worked_hours >= c.HOURS_FOR_REFUND:
+                    owed = "Owed Refund"
+                elif attendee.weighted_hours >= c.HOURS_FOR_REFUND:
+                    owed = "Once Shifts Marked"
+                out.writerow([attendee.full_name, ' / '.join(attendee.assigned_depts_labels),
+                            attendee.worked_hours, attendee.weighted_hours,
+                            attendee.badge_cost, owed])
+
+    @csv_file
     def volunteer_checklist_csv(self, out, session):
         checklists = volunteer_checklists(session)
         out.writerow(['First Name', 'Last Name', 'Email', 'Cellphone', 'Assigned Depts']
