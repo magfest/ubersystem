@@ -1,4 +1,6 @@
 import json
+import six
+import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 from uber.models.admin import PasswordReset
@@ -8,7 +10,7 @@ import cherrypy
 from collections import defaultdict
 from pockets import listify
 from pockets.autolog import log
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -790,7 +792,8 @@ class Root:
                 session.add_attendee_to_account(attendee, account)
             else:
                 session.add(attendee)
-            receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
+            receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True,
+                                                                       purchaser_id=cart.purchaser.id)
             session.add(receipt)
             session.add_all(receipt_items)
             total_cost = sum([(item.amount * item.count) for item in receipt_items])
@@ -815,7 +818,8 @@ class Root:
         if cart.total_cost <= 0:
             used_codes = defaultdict(int)
             for attendee in cart.attendees:
-                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True,
+                                                                           purchaser_id=cart.purchaser.id)
                 session.add(receipt)
                 session.add_all(receipt_items)
 
@@ -895,7 +899,8 @@ class Root:
                 for model in cart.models:
                     charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model,
                                                                                              who='non-admin',
-                                                                                             create_model=True)
+                                                                                             create_model=True,
+                                                                                             purchaser_id=cart.purchaser.id)
                     existing_receipt = session.refresh_receipt_and_model(model, is_prereg=True)
                     if existing_receipt:
                         # Multiple attendees can have the same transaction during pre-reg,
@@ -1241,8 +1246,6 @@ class Root:
             form_list = ['GroupInfo']
 
         forms = load_forms(params, group, form_list)
-        for form in forms.values():
-            form.populate_obj(group)
 
         signnow_document = None
         signnow_link = ''
@@ -1271,6 +1274,8 @@ class Root:
                 session.commit()
 
         if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                form.populate_obj(group)
             session.commit()
             if group.is_dealer:
                 send_email.delay(
@@ -1426,6 +1431,13 @@ class Root:
     @csrf_protected
     def unset_group_member(self, session, id):
         attendee = session.attendee(id)
+        if attendee.paid != c.PAID_BY_GROUP:
+            attendee.group = None
+            raise HTTPRedirect(
+                'group_members?id={}&message={}',
+                attendee.group_id,
+                'Attendee successfully removed from the group.')
+        
         try:
             send_email.delay(
                 c.REGDESK_EMAIL,
@@ -1499,7 +1511,32 @@ class Root:
         else:
             raise HTTPRedirect('group_payment?id={}&count={}&message={}', group.id, count,
                                f"{count} badges have been added to your group! Please pay for them below.")
-    
+
+    @ajax
+    @requires_account(Group)
+    def find_group_member(self, session, id, confirmation_id, first_name, last_name, **params):
+        confirmation_id = confirmation_id.strip()
+        try:
+            uuid.UUID(confirmation_id)
+        except ValueError:
+            return {'success': False, 'message': f"Invalid confirmation ID format: {confirmation_id}"}
+        
+        attendee = session.query(Attendee).filter(or_(Attendee.id == confirmation_id,
+                                                      Attendee.public_id == confirmation_id),
+                                                      Attendee.first_name == first_name.strip(),
+                                                      Attendee.last_name == last_name.strip()).first()
+        if not attendee:
+            return {'success': False, 'message': f"Badge not found. Please check confirmation ID, first name, and last name."}
+        if not attendee.is_valid:
+            return {'success': False, 'message': f"This is not a valid badge."}
+        if attendee.group:
+            return {'success': False, 'message': f"This badge is already in a group."}
+        
+        group = session.group(id)
+        attendee.group = group
+        session.commit()
+        return {'success': True, 'message': f"{c.DEALER_HELPER_TERM} successfully added!"}
+
     @id_required(Group)
     @requires_account(Group)
     def group_payment(self, session, id, count=0, message=''):
@@ -2194,24 +2231,31 @@ class Root:
         return {"success": True}
 
     @ajax
-    def get_receipt_preview(self, session, id, **params):
+    def get_receipt_preview(self, session, id, col_names=[], new_vals=[], **params):
         try:
             attendee = session.attendee(id)
         except Exception as ex:
             return {'error': "Can't get attendee: " + str(ex)}
 
-        if not params.get('col_name'):
-            return {'error': "Can't calculate cost change without the column name"}
+        if not col_names:
+            return {'error': "Can't calculate cost change without the column names"}
+
+        if isinstance(col_names, six.string_types):
+            col_names = [col_names]
+        if isinstance(new_vals, six.string_types):
+            new_vals = [new_vals]
+        
+        update_col = params.get('update_col', col_names[-1])
 
         preview_attendee = Attendee(**attendee.to_dict())
-        new_val = params.get('val')
 
-        column = preview_attendee.__table__.columns.get(params['col_name'])
-        if column is not None:
-            new_val = preview_attendee.coerce_column_data(column, new_val)
-        setattr(preview_attendee, params['col_name'], new_val)
+        for col_name, new_val in zip(col_names, new_vals):
+            column = preview_attendee.__table__.columns.get(col_name)
+            if column is not None:
+                new_val = preview_attendee.coerce_column_data(column, new_val)
+            setattr(preview_attendee, col_name, new_val)
         
-        changes_list = ReceiptManager.process_receipt_change(attendee, params['col_name'],
+        changes_list = ReceiptManager.process_receipt_change(attendee, update_col,
                                                              who='non-admin',
                                                              new_model=preview_attendee)
         only_change = changes_list[0] if changes_list else ("", 0, 0)
@@ -2237,19 +2281,19 @@ class Root:
             return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
         session.add_all(receipt_items)
 
-        # Get around locked field restrictions by applying the parameters directly
-        attendee.apply(params, restricted=False, ignore_csrf=True)
-
         forms = load_forms(params, attendee, ['BadgeExtras'])
 
-        all_errors = validate_model(forms, attendee)
+        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
         if all_errors:
             # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
             message = ' '.join([item for sublist in all_errors.values() for item in sublist])
 
         if message:
-            session.rollback()
             return {'error': message}
+
+        for form in forms.values():
+            # "is_admin" bypasses the locked fields, which includes purchaseable upgrades
+            form.populate_obj(attendee, is_admin=True)
 
         session.commit()
 

@@ -23,7 +23,7 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
     requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import (Attendee, AdminAccount, Email, EscalationTicket, Group, Job, PageViewTracking, TxnRequestTracking,
+from uber.models import (Attendee, AdminAccount, BadgeInfo, Email, EscalationTicket, Group, Job, PageViewTracking, TxnRequestTracking,
                          PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
                          WorkstationAssignment)
 from uber.site_sections.preregistration import check_if_can_reg
@@ -248,7 +248,7 @@ class Root:
                             attendee.amount_unpaid_if_valid)
                         stay_on_form = True
                     else:
-                        attendee.checked_in = localized_now()
+                        attendee.check_in()
                         session.commit()
                         message = '{} saved and checked in as {}{}.'.format(
                             attendee.full_name, attendee.badge, attendee.accoutrements)
@@ -470,8 +470,9 @@ class Root:
         group = session.promo_code_group(params)
         badges_are_free = params.get('badges_are_free')
         buyer_id = params.get('buyer_id')
-        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
+        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident) \
+            .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '',
+                                                     Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
             for id, name, badge_type, badge_num in attendee_attrs]
@@ -509,7 +510,8 @@ class Root:
                                                                  c.REG_RECEIPT_ITEM,
                                                                  c.GROUP_BADGE,
                                                                  f'Adding {badges} Badge{"s" if badges > 1 else ""}',
-                                                                 badges * int(cost_per_badge) * 100))
+                                                                 badges * int(cost_per_badge) * 100),
+                                                                 purchaser_id=buyer_id if buyer_id != None else buyer.id)
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
 
         return {
@@ -700,7 +702,7 @@ class Root:
                 session.add_to_print_queue(attendee, printer_id,
                                            cherrypy.session.get('reg_station'))
 
-                attendee.checked_in = localized_now()
+                attendee.check_in()
                 checked_in[attendee.id] = {
                     'badge':      attendee.badge,
                     'paid':       attendee.paid_label,
@@ -765,7 +767,7 @@ class Root:
                 printer_messages.append(f"There was a problem with printing {attendee.full_name}'s "
                                         f"badge: {' '.join(errors)}")
             else:
-                attendee.checked_in = localized_now()
+                attendee.check_in()
                 checked_in[attendee.id] = {
                     'badge':      attendee.badge,
                     'paid':       attendee.paid_label,
@@ -898,7 +900,7 @@ class Root:
         pre_badge = attendee.badge_num
         success, increment = False, False
 
-        attendee.checked_in = localized_now()
+        attendee.check_in()
         success = True
         session.commit()
         increment = True
@@ -918,7 +920,8 @@ class Root:
     @csrf_protected
     def undo_checkin(self, session, id, pre_badge):
         attendee = session.attendee(id, allow_invalid=True)
-        attendee.checked_in, attendee.badge_num = None, pre_badge if pre_badge else None
+        attendee.undo_checkin()
+        attendee.badge_num = pre_badge if pre_badge else None
         session.add(attendee)
         session.commit()
         return 'Attendee successfully un-checked-in'
@@ -953,12 +956,31 @@ class Root:
 
     def lost_badge(self, session, id):
         a = session.attendee(id, allow_invalid=True)
-        a.for_review += "Automated message: Badge reported lost on {}. Previous payment type: {}.".format(
-            localized_now().strftime('%m/%d, %H:%M'), a.paid_label)
-        a.paid = c.LOST_BADGE
+        a.for_review += "Automated message: Badge reported lost on {}.".format(
+            localized_now().strftime('%m/%d, %H:%M'))
+        a.active_badge.report_lost()
         session.add(a)
         session.commit()
         raise HTTPRedirect('index?message={}', 'Badge has been recorded as lost.')
+
+    def activate_badge(self, session, id):
+        badge = session.badge_info(id)
+        attendee = session.attendee(badge.attendee_id, allow_invalid=True)
+        if attendee.active_badge:
+            attendee.active_badge.active = False
+            session.add(attendee.active_badge)
+        badge.activate()
+        session.add(badge)
+        raise HTTPRedirect('form?id={}&message={}', badge.attendee_id, 'Badge reactivated.')
+
+    def undo_badge_pickup(self, session, id):
+        badge = session.badge_info(id)
+        attendee_id = badge.attendee_id
+        badge.picked_up = None
+        badge.attendee_id = None
+        session.add(badge)
+        raise HTTPRedirect('form?id={}&message={}', attendee_id,
+                           f'Badge #{badge.ident} unchecked-in and available for reassignment.')
 
     @public
     @check_atd
@@ -1231,7 +1253,7 @@ class Root:
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('index?message={}', 'You must set your reg station number')
 
-        attendee.checked_in = localized_now()
+        attendee.check_in()
         attendee.reg_station = cherrypy.session.get('reg_station')
         message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
         checked_in = attendee.id
@@ -1302,7 +1324,6 @@ class Root:
             model = PageViewTracking
         elif tracking_type == 'action':
             model = Tracking
-            filters.append(Tracking.action != c.AUTO_BADGE_SHIFT)
 
         feed = session.query(model).filter(*filters).order_by(model.when.desc())
         what = what.strip()
@@ -1327,7 +1348,7 @@ class Root:
             'action': action,
             'count': feed.limit(10000).count(),
             'feed': get_page(page, feed),
-            'action_opts': [opt for opt in c.TRACKING_OPTS if opt[0] != c.AUTO_BADGE_SHIFT],
+            'action_opts': c.TRACKING_OPTS,
             'who_opts': [
                 who for [who] in session.query(model).distinct().order_by(model.who).values(model.who)]
         }

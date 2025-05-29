@@ -1,5 +1,4 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% import "forms/group.html" as group_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Group Form{% endblock %}
 {% block content %}
@@ -83,7 +82,7 @@
     <h3>New {{ c.DEALER_TERM|title if group.is_dealer else "Group" }} Info</h3>
   {% endif %}
   {{ form_macros.form_validation('group-form', 'validate_group') }}
-  <form novalidate method="post" id="group-form" action="form">
+  <form novalidate method="post" id="group-form" action="form" enctype="multipart/form-data">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ group.db_id }}" />
     <input type="hidden" name="new_dealer" value="{{ new_dealer or '' }}" />

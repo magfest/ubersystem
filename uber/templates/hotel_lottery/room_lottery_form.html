@@ -65,7 +65,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             step = parseInt(response.step_completed);
         }
         {% block last_step_js %}
-        if (step >= 5) {
+        if (step >= {{ c.HOTEL_LOTTERY_FORM_STEPS['room_final_step'] }}) {
             $('#{{ room_text }}-lottery-form').submit();
         }
         {% endblock %}
@@ -84,6 +84,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             serverValidationPassed = false;
         }
     };
+    var isSubmitting = false
 
     $().ready(function() {
         {% if application.current_step != 0 %}
@@ -102,6 +103,18 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         {% elif application.status != c.COMPLETE %}
         $('#form-validations-{{ room_text }}-lottery-form').detach().prependTo($('#step-1').find('.accordion-body'));
         {% endif %}
+
+        $('#{{ room_text }}-lottery-form').submit(function(){
+            isSubmitting = true
+        })
+
+        $('#{{ room_text }}-lottery-form').data('initial-state', $('#{{ room_text }}-lottery-form').serialize());
+
+        $(window).on('beforeunload', function() {
+            if (!isSubmitting && $('#{{ room_text }}-lottery-form').serialize() != $('#{{ room_text }}-lottery-form').data('initial-state')){
+                return true
+            }
+        });
     })
 </script>
 {% endif %}
@@ -109,56 +122,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 
 {% block terms %}{% endblock %}
 
-{% block legal_name %}
-<div class="accordion-item">
-    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
-        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
-            Step {{ steps.counter }}: Check-in Name & Phone Number
-        </button>
-    </h3>
-    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
-        <div class="accordion-body">
-            {% block legal_name_desc %}
-            <p>
-                Hotels require your first and last name to match the photo ID you use during check-in, plus a phone number they can contact you at.
-                Please verify your first name, last name, and phone number below.
-            </p>
-            {% endblock %}
-
-            {% block legal_name_form %}
-            <div class="row g-sm-3">
-                <div class="col-12 col-sm-6">
-                    {{ form_macros.form_input(room_or_suite_lottery.legal_first_name, readonly=read_only, value=room_or_suite_lottery.legal_first_name.data or application.attendee.legal_first_name) }}
-                </div>
-                <div class="col-12 col-sm-6">
-                    {{ form_macros.form_input(room_or_suite_lottery.legal_last_name, readonly=read_only, value=room_or_suite_lottery.legal_last_name.data or application.attendee.legal_last_name) }}
-                </div>
-            </div>
-            <div class="row g-sm-3">
-                <div class="col-12 col-sm-6">
-                    {{ form_macros.form_input(room_or_suite_lottery.cellphone, readonly=read_only, value=room_or_suite_lottery.cellphone.data or application.attendee.cellphone) }}
-                </div>
-            </div>
-
-            {% if not read_only and application.current_step <= steps.counter %}
-            <div class="row justify-content-end">
-                <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
-                </div>
-            </div>
-            {% endif %}
-            {% if not read_only and application.status != c.COMPLETE %}
-            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
-                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
-            </div>
-            {% endif %}
-            {% endblock %}
-        </div>
-    </div>
-</div>
-{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
-{% endblock %}
-
+{% if c.SHOW_HOTEL_LOTTERY_DATE_OPTS %}
 {% block check_in_out_dates %}
 {% set room_requirements = app_or_parent.suite_requirements_str if 'suite_lottery' in forms else app_or_parent.room_requirements_str %}
 <div class="accordion-item">
@@ -222,6 +186,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 </div>
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
+{% endif %}
 
 {% block ada_info %}
 <div class="accordion-item">
@@ -303,7 +268,9 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 
             {% block hotel_and_room_type_ranking_form %}
             <div class="hotel_and_room_type_ranking">
+            {% if c.HOTEL_LOTTERY_HOTELS_OPTS %}
             {{ form_macros.form_input(room_or_suite_lottery.hotel_preference, readonly=read_only) }}
+            {% endif %}
             {{ form_macros.form_input(room_or_suite_lottery.room_type_preference, readonly=read_only) }}
             </div>
             {% if not read_only and application.current_step <= steps.counter %}
@@ -325,6 +292,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
 
+{% if c.HOTEL_LOTTERY_PREF_RANKING %}
 {% block priorities %}
 <div class="accordion-item">
     <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
@@ -363,3 +331,4 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 </div>
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
+{% endif %}

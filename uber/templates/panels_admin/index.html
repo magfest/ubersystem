@@ -13,7 +13,7 @@
         <th>Department</th>
         <th>Panel Name</th>
         <th>Panel Type</th>
-        <th>Track</th>
+        <th>Tags</th>
         <th>Submitted By</th>
         <th>Applied</th>
         <th>Status</th>
@@ -30,7 +30,7 @@
         <td>{{ app.department_label }}</td>
         <td><a href="app?id={{ app.id }}">{{ app.name }}</a></td>
         <td>{{ app.presentation_label }}</td>
-        <td>{{ app.track }}</td>
+        <td>{{ app.tags }}</td>
         <td>{{ app.submitter.full_name }}</td>
         <td>{{ app.applied_local|datetime("%Y-%m-%d") }}</td>
         <td>

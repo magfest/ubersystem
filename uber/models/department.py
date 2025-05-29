@@ -142,6 +142,18 @@ class DeptRole(MagModel):
     @dept_membership_count.expression
     def dept_membership_count(cls):
         return func.count(cls.dept_memberships)
+    
+    @hybrid_property
+    def normalized_name(self):
+        return self.normalize_name(self.name)
+
+    @normalized_name.expression
+    def normalized_name(cls):
+        return func.replace(func.replace(func.lower(cls.name), '_', ''), ' ', '')
+
+    @classmethod
+    def normalize_name(cls, name):
+        return name.lower().replace('_', '').replace(' ', '')
 
     @classproperty
     def _extra_apply_attrs(cls):

@@ -3,6 +3,24 @@
 {% block title %}Panel Submission{% endblock %}
 {% block content %}
 {% include "panels_common.html" %}
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript">
+$().ready(function () {
+    let input = document.getElementById('tags');
+    tagify = new Tagify(input, {
+        whitelist: {{ panel_tags|safe }},
+        dropdown: {
+            highlightFirst: true,
+            maxItems: 20,           // <- maximum allowed rendered suggestions
+            classname: 'tags-look', // <- custom classname for this dropdown, so it could be targeted
+            enabled: 0,             // <- show suggestions on focus
+            closeOnSelect: false    // <- do not hide the suggestions dropdown once an item has been selected
+        }
+    })
+})
+</script>
 
 <h2>Panel Application <small><a href="index">View all panel applications</a></small></h2>
 
@@ -34,26 +52,16 @@
             </form>
         </div>
         <div class="col-12 col-sm-4 form-control-static">
-        <label class="form-text">Panel Track</label>
-        <form method="post" action="update_track">
+        <label class="form-text">Panel Tags</label>
+        <form method="post" action="update_tags">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ app.id }}" />
-            <div class="row">
-                <div class="col-auto">
-                    <div class="input-group">
-                    <input type="text" class="form-control" name="track" value="{{ app.track }}" />
-                        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        Use Existing Track <span class="caret"></span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-right">
-                        {% for track in current_tracks %}
-                        <li><a href="#" onClick="setTrack('{{ track[0] }}')">{{ track[0] }}</a></li>
-                        {% endfor %}
-                        </ul>
-                    </div><!-- /input-group -->
-                </div><!-- /col-auto -->
-                <div class="col-auto"><button type="submit" class="btn btn-primary">Update</button></div>
-            </div><!-- /row -->
+            <div class="d-flex gap-3">
+                <div class="flex-grow-1">
+                    <input id="tags" name="tags" class="form-control" value="{{ app.tags }}" placeholder="Type tags separated by a comma">
+                </div>
+                <div><button type="submit" class="btn btn-primary">Update</button></div>
+            </div>
         </form>
         </div>
         {% if app.status == c.ACCEPTED %}
@@ -212,7 +220,7 @@
 
     <div class="row">
         <label class="form-text">How do they feel about recording or livestreaming?</label>
-        {% if c.LIVE_STREAM_OPTS|length > 2 %}
+        {% if c.LIVESTREAM_OPTS|length > 2 %}
         <div class="col-sm-6 form-control-static">
             {{ app.livestream_label }}
         </div>
@@ -220,9 +228,11 @@
         <div class="col-sm-6 form-control-static">
             Recording: {{ app.record_label }}
         </div>
+        {% if c.CAN_LIVESTREAM %}
         <div class="col-sm-6 form-control-static">
             Livestreaming: {{ app.livestream_label }}
         </div>
+        {% endif %}
         {% endif %}
     </div>
 

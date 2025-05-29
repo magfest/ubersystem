@@ -20,7 +20,7 @@
     <h2 class="text-center fst-italic mt-3">Pending At-Door Registrations</h2>
     <div class="text-center">Please go to Registration to pay for and claim the badges below.</div>
     {% for attendee in account.at_door_pending_attendees %}
-    <div class="card card-body mb-3">
+    <div class="card card-body mb-3 pb-2">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% endfor %}
@@ -68,7 +68,7 @@
     {% endif %}
     {% endfor %}
 
-    {% if c.HOTEL_LOTTERY_OPEN or (account.hotel_eligible_staff|length > 0 and c.STAFF_HOTEL_LOTTERY_OPEN) %}
+    {% if c.HOTEL_LOTTERY_OPEN or (c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0) %}
     <div class="alert alert-info">
         <p>
             The {{ c.EVENT_NAME_AND_YEAR }} hotel lottery is now open!
@@ -93,12 +93,12 @@
     {% endif %}
 
     {% for attendee in account.valid_group_badges %}
-    <div class="card card-body mb-3">
+    <div class="card card-body mb-3 pb-2">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% endfor %}
     {% for attendee in account.valid_single_badges %}
-    <div class="card card-body mb-3">
+    <div class="card card-body mb-3 pb-2">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% endfor %}
@@ -125,7 +125,7 @@
             <br><span class="form-text">You will be able to edit or delete registrations before paying.</span>
         </div>
     {% endif %}
-    <div class="card card-body mb-3">
+    <div class="card card-body mb-3 pb-2">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% if loop.last %}
@@ -139,7 +139,7 @@
         <h2 class="text-center fst-italic mt-3">Past Registrations</h2>
         {% if not account.valid_attendees %}<div class="row justify-content-center"><div class="col-10">{% endif %}
     {% endif %}
-    <div class="card card-body mb-3">
+    <div class="card card-body mb-3 pb-2">
     {% include "preregistration/attendee_card.html" %}
     </div>
     {% if loop.last and not account.valid_attendees %}</div>{% if not account.valid_attendees %}</div>{% endif %}{% endif %}

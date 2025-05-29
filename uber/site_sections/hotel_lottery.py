@@ -3,6 +3,7 @@ import uuid
 import cherrypy
 from datetime import datetime, timedelta
 from pockets.autolog import log
+from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import readable_join
@@ -12,6 +13,53 @@ from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication
 from uber.tasks.email import send_email
 from uber.utils import RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
+
+
+def _join_room_group(session, application, group_id):
+    message, got_new_conf_num = '', None
+
+    try:
+        room_group = session.lottery_application(group_id)
+    except NoResultFound:
+        message = "No room group found!"
+    else:
+        if len(room_group.group_members) == 3:
+            message = "This room group is full."
+        elif room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
+            message = "This room group is locked."
+    if message:
+        return message, got_new_conf_num
+    
+    if application.entry_type != c.GROUP_ENTRY and application.status != c.COMPLETE:
+        # We can revert to a completed app if the attendee leaves the group,
+        # but it's too messy for incomplete apps, so we clear them instead
+        defaults = LotteryApplication().to_dict()
+        for attr in defaults:
+            if attr not in ['id', 'attendee_id', 'response_id',
+                            'terms_accepted', 'data_policy_accepted',
+                            'entry_started', 'entry_metadata']:
+                setattr(application, attr, defaults.get(attr))
+    elif application.entry_type != c.GROUP_ENTRY:
+        application.confirmation_num = ''
+        got_new_conf_num = True
+
+    if not application.entry_started:
+        application.entry_started = datetime.now()
+        application.entry_metadata = {
+            'ip_address': cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip),
+            'user_agent': cherrypy.request.headers.get('User-Agent', ''),
+            'referer': cherrypy.request.headers.get('Referer', '')}
+
+    application.status = c.COMPLETE
+    application.entry_type = c.GROUP_ENTRY
+    application.last_submitted = datetime.now()
+    application.parent_application = room_group
+    if application.is_staff_entry and not application.parent_application.is_staff_entry:
+        application.is_staff_entry = False
+    elif application.parent_application.is_staff_entry:
+        application.is_staff_entry = True
+
+    return message, got_new_conf_num
 
 
 def _disband_room_group(session, application):
@@ -59,6 +107,13 @@ def _reset_group_member(application):
     return application
 
 
+def _return_link(attendee_id):
+    if c.ATTENDEE_ACCOUNTS_ENABLED:
+        return "../preregistration/homepage?"
+    else:
+        return f"../preregistration/confirm?id={attendee_id}&"
+
+
 @all_renderable(public=True)
 class Root:
     @requires_account(Attendee)
@@ -94,6 +149,19 @@ class Root:
                 raise HTTPRedirect(f'suite_lottery?id={application.id}')
             elif params.get('room'):
                 raise HTTPRedirect(f'room_lottery?id={application.id}')
+            else:
+                group_id = params.get('group_id')
+                if application.status not in [c.PARTIAL, c.WITHDRAWN]:
+                    message = "Application status has changed, please view your new options below."
+                elif not group_id:
+                    message = 'Group lookup failed. Please use the "Join Room Group" button to try again.'
+                else:
+                    message, _ = _join_room_group(session, application, group_id)
+
+                if not message:
+                    room_group = session.lottery_application(group_id)
+                    message = f'Successfully joined room group "{room_group.room_group_name}"!'
+                raise HTTPRedirect(f'index?id={application.id}&message={message}')
 
         return {
             'id': application.id,
@@ -111,8 +179,10 @@ class Root:
         elif attendee_id:
             attendee = session.attendee(attendee_id)
             application = attendee.lottery_application
-        else:
+        elif c.ATTENDEE_ACCOUNTS_ENABLED:
             raise HTTPRedirect(f'../preregistration/homepage')
+        else:
+            raise HTTPRedirect(f'../landing/index')
 
         if not application:
             raise HTTPRedirect(f'start?attendee_id={attendee_id}')
@@ -127,16 +197,29 @@ class Root:
         else:
             forms = load_forms(params, application, forms_list)
 
+        contact_form_dict = load_forms(params, application, ["LotteryInfo"])
+
         return {
             'id': application.id,
             'attendee_id': attendee_id,
             'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
             'forms': forms,
+            'lottery_info': contact_form_dict['lottery_info'],
             'message': message,
             'confirm': params.get('confirm', ''),
             'action': params.get('action', ''),
             'application': application
         }
+    
+    @requires_account(LotteryApplication)
+    def update_contact_info(self, session, id, **params):
+        application = session.lottery_application(id)
+        forms = load_forms(params, application, ["LotteryInfo"])
+        for form in forms.values():
+            form.populate_obj(application)
+        raise HTTPRedirect('index?id={}&message={}',
+                           application.id,
+                           "Contact information updated!")
 
     @requires_account(LotteryApplication)
     def enter_attendee_lottery(self, session, id=None, **params):
@@ -192,10 +275,10 @@ class Root:
                 format='html',
                 model=application.to_dict('id'))
 
-            raise HTTPRedirect('../preregistration/homepage?message={}',
-                            f"You have been removed from the hotel lottery.{' Your group has been disbanded.' if was_room_group else ''}")
-        raise HTTPRedirect('../preregistration/homepage?message={}',
-                            f"Your hotel lottery entry has been cancelled.")
+            raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),
+                            f"You have been removed from the hotel lottery.{' Your group has been disbanded.' if was_room_group else ''}"))
+        raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),
+                            f"Your hotel lottery entry has been cancelled."))
 
     @requires_account(LotteryApplication)
     def room_lottery(self, session, id=None, message="", **params):
@@ -212,8 +295,6 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
 
-            application.current_step = 999
-            application.last_submitted = datetime.now()
             update_group_members = application.update_group_members
 
             if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
@@ -221,12 +302,15 @@ class Root:
             else:
                 application.is_staff_entry = False
 
+            application.current_step = 999
             session.commit()
             session.refresh(application)
 
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
+                application.last_submitted = datetime.now()
+
                 body = render('emails/hotel/hotel_lottery_entry.html', {
                     'application': application,
                     'action_str': "updating your room lottery entry"}, encoding=None)
@@ -275,8 +359,6 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
 
-            application.current_step = 999
-            application.last_submitted = datetime.now()
             update_group_members = application.update_group_members
 
             if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
@@ -284,12 +366,15 @@ class Root:
             else:
                 application.is_staff_entry = False
 
+            application.current_step = 999
             session.commit()
             session.refresh(application)
 
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
+                application.last_submitted = datetime.now()
+
                 body = render('emails/hotel/hotel_lottery_entry.html', {
                     'application': application,
                     'action_str': "updating your suite lottery entry"}, encoding=None)
@@ -377,8 +462,11 @@ class Root:
         if cherrypy.request.method == 'POST':
             for form in forms.values():
                 form.populate_obj(application)
+
+            maybe_swapped = application.last_submitted != None
             application.last_submitted = datetime.now()
             application.status = c.COMPLETE
+
             if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
                 application.is_staff_entry = True
 
@@ -388,6 +476,7 @@ class Root:
             room_or_suite = "suite" if application.entry_type == c.SUITE_ENTRY else "room"
             body = render('emails/hotel/hotel_lottery_entry.html', {
                 'application': application,
+                'maybe_swapped': maybe_swapped,
                 'new_conf': False,
                 'action_str': f"entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
             send_email.delay(
@@ -408,6 +497,32 @@ class Root:
                 'message': message,
                 'application': application,
             }
+
+    @requires_account(LotteryApplication)
+    def switch_entry_type(self, session, id, **params):
+        application = session.lottery_application(id)
+
+        if application.entry_type not in [c.ROOM_ENTRY, c.SUITE_ENTRY]:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               f"You cannot switch from a {application.entry_level} to a room or suite entry.")
+
+        application.status = c.PARTIAL
+        application.current_step = 0
+        application.guarantee_policy_accepted = False
+
+        if application.entry_type == c.ROOM_ENTRY:
+            application.entry_type = c.SUITE_ENTRY
+            application.wants_ada = False
+            application.ada_requests = ''
+        elif application.entry_type == c.SUITE_ENTRY:
+            application.entry_type = c.ROOM_ENTRY
+            application.suite_terms_accepted = False
+            application.room_opt_out = False
+            application.suite_type_preference = ''
+        raise HTTPRedirect('{}_lottery?id={}&message={}', 'room' if application.entry_type == c.ROOM_ENTRY else 'suite',
+                           application.id,
+                           "Entry type switched! Please make sure to carefully review and confirm your new entry.")
+        
 
     @requires_account(LotteryApplication)
     def room_group(self, session, id=None, message="", **params):
@@ -528,43 +643,12 @@ class Root:
             elif application.group_members:
                 message = "Please disband your own group before joining another group."
             if not message:
-                room_group = session.lottery_application(params.get('room_group_id'))
-                if len(room_group.group_members) == 3:
-                    message = "This room group is full."
-                elif room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
-                    message = "This room group is locked."
-
+                message, got_new_conf_num = _join_room_group(session, application, params.get('room_group_id'))
+                
                 if message:
                     raise HTTPRedirect('room_group?id={}&message={}', application.id, message)
 
-                if application.entry_type != c.GROUP_ENTRY and application.status != c.COMPLETE:
-                    # We can revert to a completed app if the attendee leaves the group,
-                    # but it's too messy for incomplete apps, so we clear them instead
-                    defaults = LotteryApplication().to_dict()
-                    for attr in defaults:
-                        if attr not in ['id', 'attendee_id', 'response_id',
-                                        'terms_accepted', 'data_policy_accepted',
-                                        'entry_started', 'entry_metadata']:
-                            setattr(application, attr, defaults.get(attr))
-                elif application.entry_type != c.GROUP_ENTRY:
-                    application.confirmation_num = ''
-                    got_new_conf_num = True
-
-                if not application.entry_started:
-                    application.entry_started = datetime.now()
-                    application.entry_metadata = {
-                        'ip_address': cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip),
-                        'user_agent': cherrypy.request.headers.get('User-Agent', ''),
-                        'referer': cherrypy.request.headers.get('Referer', '')}
-
-                application.status = c.COMPLETE
-                application.entry_type = c.GROUP_ENTRY
-                application.last_submitted = datetime.now()
-                application.parent_application = room_group
-                if application.is_staff_entry and not application.parent_application.is_staff_entry:
-                    application.is_staff_entry = False
-                elif application.parent_application.is_staff_entry:
-                    application.is_staff_entry = True
+                room_group = session.lottery_application(params.get('room_group_id'))
                 
                 session.commit()
                 session.refresh(application)
@@ -613,8 +697,8 @@ class Root:
             application = _reset_group_member(application)
 
             if application.status == c.WITHDRAWN:
-                raise HTTPRedirect('../preregistration/homepage?message={}',
-                                   f'You have left the room group "{room_group.room_group_name}" and been removed from the hotel lottery.')
+                raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),
+                                   f'You have left the room group "{room_group.room_group_name}" and been removed from the hotel lottery.'))
             raise HTTPRedirect('index?id={}&message={}&confirm={}&action={}',
                                application.id,
                                f'Successfully left the room group "{room_group.room_group_name}".',

@@ -35,7 +35,7 @@ import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow, UniqueList
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     RegistrationCode, valid_email, valid_password
 from uber.payments import ReceiptManager
@@ -149,6 +149,10 @@ class MagModel:
     
     def bcc_emails_for_ident(self, ident=''):
         # A list of emails to blind-carbon-copy for an automated email with a particular ident
+        return
+
+    def replyto_emails_for_ident(self, ident=''):
+        # A list of emails to set as reply-to for an automated email with a particular ident
         return
 
     @property
@@ -491,8 +495,12 @@ class MagModel:
                     return int(value[:-2])
                 else:
                     return int(float(value))
-
-            elif isinstance(column.type, (MultiChoice)):
+            elif isinstance(column.type, UniqueList):
+                if isinstance(value, list):
+                    return ','.join(map(lambda x: str(x).strip(), value))
+                else:
+                    return str(value).strip()
+            elif isinstance(column.type, MultiChoice):
                 if isinstance(value, list):
                     value = ','.join(map(lambda x: str(x).strip(), value))
                 else:
@@ -1110,27 +1118,17 @@ class Session(SessionManager):
                     return None, \
                            'This badge is invalid. Please contact registration.'
             else:
-                attendee_params = {
-                    attr: params.get(attr, '')
-                    for attr in ['first_name', 'last_name', 'email']}
+                attendee_params = {}
+                for key, val in params.items():
+                    if key.startswith('attendee_'):
+                        attendee_params[key.replace('attendee_', '')] = val
                 attendee = self.attendee(attendee_params, restricted=True,
                                          ignore_csrf=True)
                 attendee.placeholder = True
-                if not params.get('email', ''):
-                    message = 'Email address is a required field.'
+                if c.ATTENDEE_ACCOUNTS_ENABLED and self.current_attendee_account():
+                    self.add_attendee_to_account(attendee, self.current_attendee_account())
                 elif c.ATTENDEE_ACCOUNTS_ENABLED:
-                    if self.current_attendee_account():
-                        self.add_attendee_to_account(attendee, self.current_attendee_account())
-                    else:
-                        password = params.get('account_password')
-                        if password and password != params.get('confirm_password'):
-                            message = 'Password confirmation does not match.'
-                        else:
-                            message = valid_password(password) or valid_email(params.get('email', ''))
-                        if not message:
-                            new_account = self.create_attendee_account(params.get('email', ''), password=password)
-                            self.add_attendee_to_account(attendee, new_account)
-                            cherrypy.session['attendee_account_id'] = new_account.id
+                    message = "Please log in to complete your application."
             return attendee, message
 
         def create_admin_account(self, attendee, password='', generate_pwd=True, **params):
@@ -1165,6 +1163,7 @@ class Session(SessionManager):
             if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
                 attendee.managers.clear()
             if attendee not in account.attendees:
+                account.unused_years = 0
                 account.attendees.append(attendee)
 
         def match_attendee_to_account(self, attendee):
@@ -1527,171 +1526,61 @@ class Session(SessionManager):
                 self.commit()
 
             return errors
-
+        
         def get_next_badge_num(self, badge_type):
             """
-            Returns the next badge available for a given badge type. This is
-            essentially a wrapper for auto_badge_num that accounts for new or
-            changed objects in the session.
+            Returns the next open badge number for a given badge type.
 
             Args:
-                badge_type: Used to pass to auto_badge_num and to ignore
-                    objects in the session that aren't within the badge
-                    type's range.
+                badge_type: Which badge type to select an open badge number within.
 
             """
-            badge_type = uber.badge_funcs.get_real_badge_type(badge_type)
+            lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
 
-            new_badge_num = self.auto_badge_num(badge_type)
-            lower_bound = c.BADGE_RANGES[badge_type][0]
-            upper_bound = c.BADGE_RANGES[badge_type][1]
+            return self.query(BadgeInfo).filter(BadgeInfo.attendee_id == None,
+                                                BadgeInfo.ident >= lower_bound,
+                                                BadgeInfo.ident <= upper_bound
+                                                ).order_by(BadgeInfo.attendee_id).order_by(
+                                                    BadgeInfo.ident).limit(1).first()
 
-            # Adjusts the badge number based on badges in the session
-            all_models = chain(self.new, self.dirty)
-            for attendee in [m for m in all_models if isinstance(m, Attendee)]:
-                if attendee.badge_num is not None and lower_bound <= attendee.badge_num <= upper_bound:
-                    new_badge_num = max(new_badge_num, 1 + attendee.badge_num)
-                    # Make sure we didn't just run into the end of a badge number gap
-                    while new_badge_num <= upper_bound:
-                        if self.badge_num_in_use(new_badge_num):
-                            new_badge_num += 1
-                        else:
-                            break
-
-            assert new_badge_num < upper_bound, 'There are no more badge numbers available in this range!'
-
-            return new_badge_num
-
-        def update_badge(self, attendee, old_badge_type, old_badge_num):
+        def update_badge(self, attendee):
             """
-            This should be called whenever an attendee's badge type or badge
-            number is changed. It checks if the attendee will still require a
-            badge number with their new badge type, and if so, sets their
-            number to either the number specified by the admin or the lowest
-            available badge number in that range.
+            This should be called whenever an attendee's badge type is changed
+            or if they need an auto-assigned badge number. The existing badge
+            number is preserved as long as it works for the new badge type;
+            otherwise, or if they don't have an existing badge number but need one,
+            they'll get the lowest available badge number in their badge type's range.
+
+            Checked-in attendees are ignored -- they already have their badge and
+            the system shouldn't change it. Note that for attendees with lost badges,
+            this may result in them having no badge number.
 
             Args:
                 attendee: The Attendee() object whose badge is being changed.
-                old_badge_type: The old badge type.
-                old_badge_num: The old badge number.
 
             """
             from uber.badge_funcs import needs_badge_num
 
-            if c.SHIFT_CUSTOM_BADGES and c.BEFORE_PRINTED_BADGE_DEADLINE and not c.AT_THE_CON:
-                badge_collision = False
-                if attendee.badge_num:
-                    badge_collision = self.query(Attendee.badge_num).filter(
-                        Attendee.badge_num == attendee.badge_num,
-                        Attendee.id != attendee.id).first()
-
-                desired_badge_num = attendee.badge_num
-                if old_badge_num:
-                    if attendee.badge_num and badge_collision:
-                        if old_badge_type == attendee.badge_type:
-                            if old_badge_num < attendee.badge_num:
-                                self.shift_badges(
-                                    old_badge_type, old_badge_num + 1, until=attendee.badge_num, down=True)
-                            else:
-                                self.shift_badges(old_badge_type, attendee.badge_num, until=old_badge_num - 1, up=True)
-                        else:
-                            self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
-                            self.shift_badges(attendee.badge_type, attendee.badge_num, up=True)
-                    else:
-                        self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
-
-                elif attendee.badge_num and badge_collision:
-                    self.shift_badges(attendee.badge_type, attendee.badge_num, up=True)
-
-                attendee.badge_num = desired_badge_num
-
-            if not attendee.badge_num and needs_badge_num(attendee):
-                attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
-
-            return 'Badge updated'
-
-        def set_badge_num_in_range(self, attendee):
-            """
-            A simpler version of update_badge which only makes sure that the attendee's
-            current badge number is in their current badge type's range.
-            """
-            from uber.badge_funcs import get_real_badge_type, needs_badge_num
-
-            if not attendee.badge_num or attendee.checked_in or (c.AFTER_PRINTED_BADGE_DEADLINE
-                                                                 and attendee.badge_type in c.PREASSIGNED_BADGE_TYPES):
+            if attendee.checked_in:
                 return
 
-            badge_type = get_real_badge_type(attendee.badge_type)
+            badge_type = uber.badge_funcs.get_real_badge_type(attendee.badge_type)
             lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
-            if not (lower_bound <= attendee.badge_num <= upper_bound):
-                attendee.badge_num = None
 
-                if needs_badge_num(attendee):
-                    attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
-        
-        def badge_num_in_use(self, badge_num):
-            """
-            This is a last resort for assigning a non-duplicate badge number. It should only be needed
-            in the case where multiple badge numbers are being assigned inside one session commit, as it's
-            possible for them to run into duplicate numbers if there's a gap in assigned badge numbers
-            that is smaller than the quantity of badges getting assigned numbers.
-            """
-            dupe_num = self.query(Attendee.badge_num).filter(Attendee.badge_num == badge_num)
-            return bool(dupe_num.first())
+            if attendee.badge_num:
+                if lower_bound <= attendee.badge_num <= upper_bound:
+                    return
+                attendee.active_badge.unassign()
+                self.add(attendee.active_badge)
+            
+            if needs_badge_num(attendee):
+                new_badge = self.get_next_badge_num(badge_type)
 
-        def auto_badge_num(self, badge_type):
-            """
-            Gets the next available badge number for a badge type's range.
+                if not new_badge:
+                    return
 
-            Plugins can override the logic here if need be without worrying
-            about handling dirty sessions.
-
-            Args:
-                badge_type: Used as a starting point if no badges of the same
-                    type exist, and to select badges within a specific range.
-
-            """
-            in_range = self.query(Attendee.badge_num).filter(
-                Attendee.badge_num != None,  # noqa: E711
-                Attendee.badge_num >= c.BADGE_RANGES[badge_type][0],
-                Attendee.badge_num <= c.BADGE_RANGES[badge_type][1])
-
-            in_range_list = [int(row[0]) for row in in_range.order_by(Attendee.badge_num)]
-
-            if len(in_range_list):
-                # Searches badge range for a gap in badge numbers; if none
-                # found, returns the latest badge number + 1.
-                # Doing this lets admins manually set high badge numbers
-                # without filling up the badge type's range.
-                start, end = c.BADGE_RANGES[badge_type][0], in_range_list[-1]
-                gap_nums = sorted(set(range(start, end + 1)).difference(in_range_list))
-
-                if not gap_nums:
-                    return end + 1
-                else:
-                    return gap_nums[0]
-            else:
-                return c.BADGE_RANGES[badge_type][0]
-
-        def shift_badges(self, badge_type, badge_num, *, until=None, up=False, down=False):
-
-            if not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON:
-                return False
-
-            from uber.badge_funcs import get_badge_type
-            (calculated_badge_type, error) = get_badge_type(badge_num)
-            badge_type = calculated_badge_type or badge_type
-            until = until or c.BADGE_RANGES[badge_type][1]
-
-            shift = 1 if up else -1
-            query = self.query(Attendee).filter(
-                Attendee.badge_num != None,  # noqa: E711
-                Attendee.badge_num >= badge_num,
-                Attendee.badge_num <= until)
-
-            query.update({Attendee.badge_num: Attendee.badge_num + shift}, synchronize_session='evaluate')
-
-            return True
+                new_badge.assign(attendee.id)
+                self.add(new_badge)
 
         def get_next_badge_to_print(self, printer_id=''):
             query = self.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
@@ -1885,7 +1774,7 @@ class Session(SessionManager):
                 elif int(terms[0]) <= sorted(
                         c.BADGE_RANGES.items(),
                         key=lambda badge_range: badge_range[1][0])[-1][1][1]:
-                    return attendees.filter(Attendee.badge_num == terms[0]), ''
+                    return attendees.join(BadgeInfo).filter(BadgeInfo.ident == terms[0]), ''
 
             elif len(terms) == 1 \
                     and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):

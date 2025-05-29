@@ -1683,10 +1683,23 @@ class TaskUtils:
         if dept:
             return (id, dept)
         return None
+    
+    @staticmethod
+    def _guess_dept_role(session, dept, id_name):
+        from uber.models import DeptRole
+
+        id, name = id_name
+        role = session.query(DeptRole).filter(DeptRole.department_id == dept.id, or_(
+            DeptRole.id == id,
+            DeptRole.normalized_name == DeptRole.normalize_name(name))).first()
+
+        if role:
+            return role
+        return None
 
     @staticmethod
     def attendee_import(import_job):
-        from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptMembershipRequest
+        from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptRole
         from functools import partial
 
         with uber.models.Session() as session:
@@ -1759,7 +1772,7 @@ class TaskUtils:
                 checklist_admin_depts = attendee.pop('checklist_admin_depts', {})
                 dept_head_depts = attendee.pop('dept_head_depts', {})
                 poc_depts = attendee.pop('poc_depts', {})
-                requested_depts = attendee.pop('requested_depts', {})
+                roles_depts = attendee.pop('roles_depts', {})
 
                 attendee.update({
                     'staffing': True,
@@ -1769,25 +1782,18 @@ class TaskUtils:
                 attendee = Attendee().apply(attendee, restricted=False)
 
                 for id, dept in assigned_depts.items():
-                    attendee.dept_memberships.append(DeptMembership(
+                    dept_membership = DeptMembership(
                         department=dept,
                         attendee=attendee,
                         is_checklist_admin=bool(id in checklist_admin_depts),
                         is_dept_head=bool(id in dept_head_depts),
                         is_poc=bool(id in poc_depts),
-                    ))
-
-                requested_anywhere = requested_depts.pop('All', False)
-                requested_depts = {d[0]: d[1] for d in map(partial(TaskUtils._guess_dept, session),
-                                                           requested_depts.items()) if d}
-
-                if requested_anywhere:
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
-                for id, dept in requested_depts.items():
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(
-                        department=dept,
-                        attendee=attendee,
-                    ))
+                    )
+                    for role_tuple in roles_depts.get(id, []):
+                        role = TaskUtils._guess_dept_role(session, dept, role_tuple)
+                        if role:
+                            dept_membership.dept_roles.append(role)
+                    attendee.dept_memberships.append(dept_membership)
 
             session.add(attendee)
 
@@ -1805,6 +1811,7 @@ class TaskUtils:
                     account.email = normalize_email(account.email)
                     account.imported = True
                     session.add(account)
+                account.unused_years = 0
                 attendee.managers.append(account)
 
             from sqlalchemy.exc import IntegrityError
@@ -1863,7 +1870,7 @@ class TaskUtils:
 
     @staticmethod
     def attendee_account_import(import_job):
-        from uber.models import Attendee, AttendeeAccount
+        from uber.models import Attendee, AttendeeAccount, BadgeInfo
 
         with uber.models.Session() as session:
             service, message, target_url = get_api_service_from_server(import_job.target_server,
@@ -1918,7 +1925,7 @@ class TaskUtils:
                     if not c.SSO_EMAIL_DOMAINS:
                         # Try to match staff to their existing badge, which would be newer than the one we're importing
                         old_badge_num = attendee['badge_num']
-                        existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
+                        existing_staff = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == old_badge_num).first()
                         if existing_staff:
                             existing_staff.managers.append(account)
                             session.add(existing_staff)
@@ -1941,6 +1948,15 @@ class TaskUtils:
                     import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
                     session.rollback()
                 session.commit()
+
+            # This is the only import that may import 'empty' accounts
+            # We sunset accounts that have been empty for 3 years in another task
+            if not account.attendees:
+                account.unused_years += 1
+            else:
+                account.unused_years = 0
+            session.add(account)
+            session.commit()
 
     @staticmethod
     def group_import(import_job):
@@ -2027,6 +2043,7 @@ class TaskUtils:
                         account.email = normalize_email(account.email)
                         account.imported = True
                         session.add(account)
+                    account.unused_years = 0
                     new_attendee.managers.append(account)
 
                 session.add(new_attendee)

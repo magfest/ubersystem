@@ -12,7 +12,7 @@ from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableFiel
                         HiddenBoolField, HiddenIntField, CustomValidation, Ranking)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
-from uber.models import Attendee, Session, PromoCodeGroup
+from uber.models import Attendee, BadgeInfo, Session, PromoCodeGroup
 from uber.model_checks import invalid_phone_number
 from uber.utils import get_age_conf_from_birthday
 
@@ -345,7 +345,7 @@ class AdminStaffingInfo(StaffingInfo):
     walk_on_volunteer = BooleanField('This person signed up to volunteer at the event.')
     got_staff_merch = BooleanField('This staffer has picked up their merch.')
     agreed_to_volunteer_agreement = HiddenBoolField('Agreed to Volunteer Agreement')
-    reviewed_emergency_procedures = HiddenBoolField('Reviewed Emergency Procedures')
+    reviewed_emergency_procedures = HiddenBoolField('Reviewed Safety and Security Information')
     hotel_eligible = BooleanField('This staffer is eligible for staff crash space.')
 
     def staffing_label(self):
@@ -406,7 +406,7 @@ class Consents(MagForm):
         label = base_label
         if c.HOTELS_ENABLED:
             label += ', hotel accommodations'
-        if c.DONATIONS_ENABLED:
+        if c.ADDONS_ENABLED:
             label += ', donations'
         if c.ACCESSIBILITY_SERVICES_ENABLED:
             label += ', accessibility needs'
@@ -459,14 +459,14 @@ class AdminBadgeFlags(BadgeFlags):
     @new_or_changed_validation.badge_num
     def dupe_badge_num(form, field):
         existing_name = ''
-        if c.NUMBERED_BADGES and field.data \
-                and (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
+        if c.NUMBERED_BADGES and field.data:
             with Session() as session:
-                existing = session.query(Attendee).filter_by(badge_num=field.data)
+                existing = session.query(BadgeInfo).filter(BadgeInfo.ident == field.data,
+                                                           BadgeInfo.attendee_id != None)
                 if not existing.count():
                     return
                 else:
-                    existing_name = existing.first().full_name
+                    existing_name = existing.first().attendee.full_name
             raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))
 
     def get_valid_groups():
@@ -512,14 +512,14 @@ class CheckInForm(MagForm):
     @new_or_changed_validation.badge_num
     def dupe_badge_num(form, field):
         existing_name = ''
-        if c.NUMBERED_BADGES and field.data \
-                and (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
+        if c.NUMBERED_BADGES and field.data:
             with Session() as session:
-                existing = session.query(Attendee).filter_by(badge_num=field.data)
+                existing = session.query(BadgeInfo).filter(BadgeInfo.ident == field.data,
+                                                           BadgeInfo.attendee_id != None)
                 if not existing.count():
                     return
                 else:
-                    existing_name = existing.first().full_name
+                    existing_name = existing.first().attendee.full_name
             raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))
 
     @field_validation.birthdate

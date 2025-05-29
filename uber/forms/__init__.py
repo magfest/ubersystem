@@ -3,7 +3,7 @@ import six
 import cherrypy
 
 from collections import defaultdict, OrderedDict
-from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, validators
+from wtforms import Form, StringField, SelectField, SelectMultipleField, FileField, IntegerField, BooleanField, validators, Label
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError
 from pockets.autolog import log
@@ -282,41 +282,41 @@ class MagForm(Form):
                 return 'hidden'
             elif isinstance(widget, Ranking):
                 return 'ranking'
+            elif isinstance(widget, wtforms_widgets.FileInput):
+                return 'file'
             else:
                 return 'text'
 
         def bind_field(self, form, unbound_field, options):
             """
-            This function implements all our custom logic to apply to fields upon init. Currently, we:
+            This function implements all our custom logic to apply when initializing a form. Currently, we:
             - Get a label and description override from a function on the form class, if there is one
             - Format label and description text to process common variables
             - Add default rendering keywords to make fields function better in our forms
-
-            TODO: Changes to field attributes are permanent, so this code only needs to run once per field
             """
+
+            bound_field = unbound_field.bind(form=form, **options)
+
             field_name = options.get('name', '')
+
             if hasattr(form, field_name + '_label'):
                 field_label = get_override_attr(form, field_name, '_label')
-                if 'label' in unbound_field.kwargs:
-                    unbound_field.kwargs['label'] = field_label
-                elif unbound_field.args and isinstance(unbound_field.args[0], str):
-                    args_list = list(unbound_field.args)
-                    args_list[0] = field_label
-                    unbound_field.args = tuple(args_list)
+                
+                bound_field.label = Label(bound_field.id, field_label)
 
             if hasattr(form, field_name + '_desc'):
-                unbound_field.kwargs['description'] = get_override_attr(form, field_name, '_desc')
+                bound_field.description = get_override_attr(form, field_name, '_desc')
 
-            unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field,
-                                                                          unbound_field.kwargs.get('render_kw', {}),
-                                                                          field_name)
+            bound_field.render_kw = self.set_keyword_defaults(unbound_field,
+                                                              unbound_field.kwargs.get('render_kw', {}),
+                                                              field_name)
             
             # Allow overriding the default kwargs via kwarg_overrides
             if field_name in form.kwarg_overrides:
                 for kw, val in form.kwarg_overrides[field_name].items():
-                    unbound_field.kwargs['render_kw'][kw] = val
+                    bound_field.render_kw[kw] = val
 
-            return unbound_field.bind(form=form, **options)
+            return bound_field
 
         def set_keyword_defaults(self, ufield, render_kw, field_name):
             # Changes the render_kw dictionary to implement some high-level defaults

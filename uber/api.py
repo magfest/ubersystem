@@ -1,5 +1,6 @@
 import re
 import uuid
+from collections import defaultdict
 from datetime import datetime
 from functools import wraps
 from pockets import is_listy
@@ -25,8 +26,8 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership,
-                         DeptMembershipRequest, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
+from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, BadgeInfo, Department, DeptMembership,
+                         DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
@@ -193,11 +194,13 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
     ]
 
     marketplace_import_fields = [
-        'business_name',
-        'categories',
-        'categories_text',
-        'description',
-        'special_needs',
+        'name',
+        'display_name',
+        'email_address',
+        'website',
+        'tax_number',
+        'seating_requests',
+        'accessibility_requests',
         'admin_notes',
     ]
 
@@ -219,16 +222,23 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         if include_apps:
             if a.art_show_applications:
                 d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
-            if a.marketplace_applications:
-                d['marketplace_app'] = a.marketplace_applications[0].to_dict(marketplace_import_fields)
+            if a.marketplace_application:
+                d['marketplace_app'] = a.marketplace_application.to_dict(marketplace_import_fields)
 
         if include_depts:
             assigned_depts = {}
             checklist_admin_depts = {}
             dept_head_depts = {}
             poc_depts = {}
-            for membership in a.dept_memberships:
+            roles_depts = defaultdict(list)
+
+            active_dept_memberships = [m for m in a.dept_memberships if m.has_inherent_role or 
+                                           m.department in a.depts_where_working or m.department.is_shiftless]
+
+            for membership in active_dept_memberships:
                 assigned_depts[membership.department_id] = membership.department.name
+                for role in membership.dept_roles:
+                    roles_depts[membership.department_id].append((role.id, role.name))
                 if membership.is_checklist_admin:
                     checklist_admin_depts[membership.department_id] = membership.department.name
                 if membership.is_dept_head:
@@ -241,10 +251,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
                 'checklist_admin_depts': checklist_admin_depts,
                 'dept_head_depts': dept_head_depts,
                 'poc_depts': poc_depts,
-                'requested_depts': {
-                    (m.department_id if m.department_id else 'All'):
-                    (m.department.name if m.department_id else 'Anywhere')
-                    for m in a.dept_membership_requests},
+                'roles_depts': roles_depts,
             })
 
         attendee_list.append(d)
@@ -619,7 +626,7 @@ class AttendeeLookup:
         restrictions.
         """
         with Session() as session:
-            attendee_query = session.query(Attendee).filter_by(badge_num=badge_num)
+            attendee_query = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             attendee = attendee_query.first()
             if attendee:
@@ -686,7 +693,7 @@ class AttendeeLookup:
             if full:
                 options = [
                     subqueryload(Attendee.dept_memberships).subqueryload(DeptMembership.department),
-                    subqueryload(Attendee.dept_membership_requests).subqueryload(DeptMembershipRequest.department)]
+                    subqueryload(Attendee.dept_roles).subqueryload(DeptRole.department)]
             else:
                 options = []
 
@@ -1479,7 +1486,7 @@ class ScheduleLookup:
                     'end': event.end_time_local.strftime('%I%p %a').lstrip('0'),
                     'start_unix': int(mktime(event.start_time.utctimetuple())),
                     'end_unix': int(mktime(event.end_time.utctimetuple())),
-                    'duration': event.minutes,
+                    'duration': event.duration,
                     'description': event.public_description or event.description,
                     'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
                 }
@@ -1509,7 +1516,7 @@ class BarcodeLookup:
         # Note: A decrypted barcode can yield a valid badge num,
         # but that badge num may not be assigned to an attendee.
         with Session() as session:
-            query = session.query(Attendee).filter_by(badge_num=badge_num)
+            query = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num)
             fields, query = _attendee_fields_and_query(full, query)
             attendee = query.first()
             if attendee:
