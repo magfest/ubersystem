@@ -6,4 +6,4 @@ We expect to begin announcing results in early October.
 
 Good luck!
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

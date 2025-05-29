@@ -6,4 +6,4 @@ Don't forget! The final date we can accept judging is {{ c.MIVS_JUDGING_DEADLINE
 
 As always, here's the link you can use for judging: {{ c.URL_BASE }}/mivs_judging
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

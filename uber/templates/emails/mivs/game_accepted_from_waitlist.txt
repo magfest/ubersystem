@@ -36,4 +36,4 @@ After accepting your spot, we understand something may happen which may prevent 
 
 Please confirm or decline at {{ c.URL_BASE }}/mivs/continue_app?id={{ game.studio.id }} by {{ game.studio.confirm_deadline|datetime_local }}.
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

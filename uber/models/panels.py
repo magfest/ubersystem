@@ -122,6 +122,7 @@ class PanelApplication(MagModel):
     affiliations = Column(UnicodeText)
     past_attendance = Column(UnicodeText)
     department = Column(UniqueList)
+    department_name = Column(UnicodeText)
     rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
     granular_rating = Column(MultiChoice(c.PANEL_CONTENT_OPTS))
     presentation = Column(Choice(c.PRESENTATION_OPTS))
@@ -196,17 +197,19 @@ class PanelApplication(MagModel):
         description += f"\n\nPanelists: {' '.join(panelist_creds)}"
         self.public_description = description
     
-    def get_dept_name(self):
+    @presave_adjustment
+    def set_dept_name(self):
         from uber.models import Session
 
         if not self.department:
-            return 'N/A'
+            dept_name = 'N/A'
         elif self.department == str(c.PANELS):
-            return 'Panels'
+            dept_name = 'Panels'
+        else:
+            with Session() as session:
+                dept_name = session.department(self.department).name
 
-        with Session() as session:
-            dept = session.department(self.department)
-            return dept.name
+        self.department_name = dept_name
 
     @property
     def email(self):

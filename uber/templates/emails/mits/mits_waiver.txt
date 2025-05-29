@@ -4,4 +4,4 @@ Congratulations on being accepted into the {{ c.EVENT_NAME }} MITS Showcase! We 
 
 Signing the waiver before the event makes things easier for everyone, so please do so ASAP! In the meantime, let us know if you have any questions!
 
-{{ c.MITS_EMAIL_SIGNATURE }}
+{{ email_signature }}

@@ -10,7 +10,7 @@
         idea{{ guest.group.leader.submitted_panels|length|pluralize }}:
         <ul>
         {% for panel in guest.group.leader.submitted_panels %}
-            <strong>{{ panel.name }}</strong>{% if c.PANELS_DEPT_OPTS|length > 1 %} ({{ panel.get_dept_name() }}){% endif %}
+            <strong>{{ panel.name }}</strong>{% if c.PANELS_DEPT_OPTS|length > 1 %} ({{ panel.department_name }}){% endif %}
             <br/>{{ panel.presentation_label }}, {{ panel.length_label }}{% if panel.length == c.OTHER %}: {{ panel.length_text }}{% endif %}
             <br/>"{{ panel.description }}"{% if not loop.last %}<br/><br/>{% endif %}
         {% endfor %}

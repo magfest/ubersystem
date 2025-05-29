@@ -21,4 +21,4 @@ We need you to check and complete each step even if this doesn't apply to your d
 
 You can review the complete checklist of all information we'll eventually need from you at {{ c.URL_BASE }}/dept_checklist
 
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}

@@ -4,4 +4,4 @@ Thanks again for volunteering to help at {{ c.EVENT_NAME }}.  You're eligible fo
 
 You can tell us your shirt size by filling out the volunteer checklist at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }}
 
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}

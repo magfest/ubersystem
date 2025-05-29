@@ -31,7 +31,7 @@
 {% for app in apps %}
     <tr>
         {% if not department %}
-        <td>{{ app.get_dept_name() }}</td>
+        <td>{{ app.department_name }}</td>
         {% endif %}
         <td><a href="app?id={{ app.id }}">{{ app.name }}</a></td>
         <td>{{ app.presentation_label }}</td>

@@ -8,4 +8,4 @@ You can add / drop / change your shifts anytime until {{ c.EPOCH|datetime_local 
 
 Please let us know if you have any questions.
 
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}

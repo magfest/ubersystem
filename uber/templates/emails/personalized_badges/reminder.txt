@@ -2,4 +2,4 @@
 
 We're ordering customized {{ c.EVENT_NAME }} badges next week. As of this email, we will use "{{ attendee.badge_printed_name }}" on your personalized items -- you can change this at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} until {{ c.PRINTED_BADGE_DEADLINE|datetime_local }}.
 
-{{ c.REGDESK_EMAIL_SIGNATURE }}
+{{ email_signature }}

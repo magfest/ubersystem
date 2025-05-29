@@ -23,4 +23,4 @@ You will have until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }} to complete jud
 
 From all of us here on the MIVS team and all the independent developers, we thank you for your continued help in making MIVS incredible, year after year!
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

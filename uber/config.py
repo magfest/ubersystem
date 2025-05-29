@@ -1200,6 +1200,15 @@ class Config(_Overridable):
                             'is_download': getattr(method, 'site_map_download', False)
                         })
         return public_site_sections, public_pages, pages
+    
+    def get_signature_by_sender(self, sender):
+        from uber.custom_tags import email_only
+
+        config_opt = email_only(sender).split('@')[0]
+        signature_key = getattr(self, config_opt, None)
+        if signature_key:
+            return self.EMAIL_SIGNATURES[signature_key]
+        return ""
 
     # =========================
     # mivs

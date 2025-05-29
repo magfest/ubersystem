@@ -21,9 +21,6 @@ from uber.tasks import celery
 __all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email']
 
 
-celery.on_startup(AutomatedEmail.reconcile_fixtures)
-
-
 def _is_dev_email(email):
     """
     Returns True if `email` is a development email address.
@@ -199,7 +196,7 @@ def send_automated_emails():
                     session.add(automated_email)
                     session.commit()
                     unapproved_count = 0
-                    if automated_email.shared_ident:
+                    if getattr(automated_email, 'shared_ident', None):
                         matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
                         fk_id_list = [id for id, in matching_email_ids]
                     else:

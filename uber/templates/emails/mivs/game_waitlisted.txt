@@ -12,4 +12,4 @@ QuickPlay is an area within MIVS where booths are set aside for indies to show t
 
 Signups for Quickplay will not happen online. They will only be available on-site at MAGFest in the MIVS area and will require you to have purchased a MAGFest badge.  Signups will be on a first come, first serve basis, so we recommend visiting the MIVS area at your earliest convenience after picking up your MAGFest badge.
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}
