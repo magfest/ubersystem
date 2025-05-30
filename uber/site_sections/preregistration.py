@@ -2174,7 +2174,7 @@ class Root:
     def validate_dealer(self, session, form_list=[], is_prereg=False, **params):
         id = params.get('id', params.get('edit_id'))
         if id in [None, '', 'None']:
-            group = Group(tables=1)
+            group = Group(is_dealer=True)
         else:
             try:
                 group = session.group(id)
