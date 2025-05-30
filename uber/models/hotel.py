@@ -172,6 +172,13 @@ class LotteryApplication(MagModel):
 
     room_group_name = Column(UnicodeText)
     email_model_name = 'app'
+    
+    assigned_hotel = Column(Choice(c.HOTEL_LOTTERY_HOTELS_OPTS), nullable=True)
+    assigned_room_type = Column(Choice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS), nullable=True)
+    assigned_suite_type = Column(Choice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS), nullable=True)
+    deposit_cutoff_date = Column(Date, nullable=True)
+    lottery_name = Column(UnicodeText)
+    booking_url = Column(UnicodeText)
 
     @presave_adjustment
     def unset_entry_type(self):
