@@ -35,7 +35,7 @@ class Root:
             'Needs Rehearsal?',
         ])
         for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
-            absolute_pic_url = convert_to_absolute_url(getattr(guest.bio, 'pic_url', ''))
+            absolute_pic_url = convert_to_absolute_url(getattr(guest.bio_pic, 'url', ''))
             absolute_stageplot_url = convert_to_absolute_url(getattr(guest.stage_plot, 'url', ''))
             num_panels = 0 if not guest.group or not guest.group.leader or not guest.group.leader.submitted_panels \
                 else len(guest.group.leader.submitted_panels)

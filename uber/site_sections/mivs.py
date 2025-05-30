@@ -9,17 +9,7 @@ from uber.custom_tags import format_image_size
 from uber.decorators import all_renderable, csrf_protected
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Group, GuestGroup, IndieDeveloper, IndieGameImage
-from uber.utils import add_opt, check, check_csrf, check_image_size, GuidebookUtils
-
-
-def add_new_image(pic, game):
-    new_pic = IndieGameImage(game_id=game.id,
-                             filename=pic.filename,
-                             content_type=pic.content_type.value,
-                             extension=pic.filename.split('.')[-1].lower())
-    with open(new_pic.filepath, 'wb') as f:
-        shutil.copyfileobj(pic.file, f)
-    return new_pic
+from uber.utils import add_opt, check, check_csrf, GuidebookUtils
 
 
 @all_renderable(public=True)
@@ -283,10 +273,9 @@ class Root:
             if header_image and header_image.filename:
                 message = GuidebookUtils.check_guidebook_image_filetype(header_image)
                 if not message:
-                    header_pic = add_new_image(header_image, game)
-                    header_pic.is_header = True
-                    header_pic.is_screenshot = False
-                    if not check_image_size(header_pic.filepath, c.GUIDEBOOK_HEADER_SIZE):
+                    header_pic = IndieGameImage.upload_image(header_image, game_id=game.id,
+                                                             is_screenshot=False, is_header=True)
+                    if not header_pic.check_image_size():
                         message = f"Your header image must be {format_image_size(c.GUIDEBOOK_HEADER_SIZE)}."
             elif not game.guidebook_header:
                 message = f"You must upload a {format_image_size(c.GUIDEBOOK_HEADER_SIZE)} header image."
@@ -295,10 +284,9 @@ class Root:
                 if thumbnail_image and thumbnail_image.filename:
                     message = GuidebookUtils.check_guidebook_image_filetype(thumbnail_image)
                     if not message:
-                        thumbnail_pic = add_new_image(thumbnail_image, game)
-                        thumbnail_pic.is_thumbnail = True
-                        thumbnail_pic.is_screenshot = False
-                        if not check_image_size(thumbnail_pic.filepath, c.GUIDEBOOK_THUMBNAIL_SIZE):
+                        thumbnail_pic = IndieGameImage.upload_image(thumbnail_image, game_id=game.id,
+                                                                    is_screenshot=False, is_thumbnail=True)
+                        if not thumbnail_pic.check_image_size():
                             message = f"Your thumbnail image must be {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)}."
                 elif not game.guidebook_thumbnail:
                     message = f"You must upload a {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)} thumbnail image."

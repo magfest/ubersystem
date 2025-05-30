@@ -16,7 +16,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, utcnow, \
-    Choice, DefaultColumn as Column, MultiChoice
+    Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin
 from uber.utils import localized_now, make_url
 
 
@@ -530,16 +530,11 @@ class IndieGame(MagModel, ReviewMixin):
         return [header_name, thumbnail_name], [header, thumbnail]
 
 
-class IndieGameImage(MagModel):
+class IndieGameImage(MagModel, GuidebookImageMixin):
     game_id = Column(UUID, ForeignKey('indie_game.id'))
-    filename = Column(UnicodeText)
-    content_type = Column(UnicodeText)
-    extension = Column(UnicodeText)
     description = Column(UnicodeText)
     use_in_promo = Column(Boolean, default=False)
     is_screenshot = Column(Boolean, default=True)
-    is_header = Column(Boolean, default=False)
-    is_thumbnail = Column(Boolean, default=False)
 
     @property
     def url(self):

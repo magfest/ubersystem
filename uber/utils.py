@@ -16,7 +16,6 @@ from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 from glob import glob
 from os.path import basename
-from PIL import Image
 from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
@@ -633,14 +632,6 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def check_image_size(image, size_list):
-    try:
-        return Image.open(image).size == tuple(map(int, size_list))
-    except OSError:
-        # This probably isn't an image at all
-        return
-
-
 class GuidebookUtils():
     @classmethod
     def check_guidebook_image_filetype(cls, pic):
@@ -662,7 +653,7 @@ class GuidebookUtils():
 
     @classmethod
     def get_guidebook_models(cls, session, selected_model=''):
-        from uber.models import Group, GuestBio, MITSPicture, IndieGameImage
+        from uber.models import GuestImage, MITSPicture, IndieGameImage
 
         model_cls = cls.parse_guidebook_model(selected_model)
         model_query = session.query(model_cls)
@@ -670,11 +661,11 @@ class GuidebookUtils():
                         cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < model_cls.last_updated]
 
         if '_band' in selected_model:
-            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.bio)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
         elif '_guest' in selected_model:
-            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.bio)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
         elif '_dealer' in selected_model:
             model_query = model_query.filter(model_cls.status.in_([c.APPROVED])).filter_by(is_dealer=True)
         elif 'IndieGame' in selected_model:
