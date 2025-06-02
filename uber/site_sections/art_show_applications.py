@@ -2,10 +2,10 @@ import cherrypy
 from datetime import datetime
 
 from uber.config import c
-from uber.custom_tags import email_only
+from uber.custom_tags import email_only, readable_join
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
-from uber.models import ArtShowAgentCode, ArtShowApplication
+from uber.models import ArtShowAgentCode, ArtShowApplication, Attendee, ArtShowBidder
 from uber.payments import TransactionRequest
 from uber.tasks.email import send_email
 from uber.utils import check, RegistrationCode
@@ -344,3 +344,60 @@ class Root:
                 'success_url': 'edit?id={}&message={}'.format(app.id,
                                                               'Your payment has been accepted'),
                 'cancel_url': '../preregistration/cancel_payment'}
+
+    def bidder_signup(self, session, message='', **params):
+        if c.INDEPENDENT_ART_SHOW:
+            attendee = Attendee(
+                placeholder=True,
+                badge_status=c.NOT_ATTENDING,
+                )
+        else:
+            raise HTTPRedirect('index')
+        
+        if cherrypy.request.method == 'POST':
+            missing_fields = []
+            
+            for field_name in params.copy().keys():
+                if params.get(field_name, None):
+                    if hasattr(attendee, field_name) and (not hasattr(ArtShowBidder(), field_name) or field_name == 'email'):
+                        setattr(attendee, field_name, params.pop(field_name))
+                elif field_name in ArtShowBidder.required_fields.keys():
+                    if field_name not in ['bidder_num', 'badge_printed_name']: # Admin only
+                        missing_fields.append(ArtShowBidder.required_fields[field_name])
+            
+            dupe_badge_num = session.query(Attendee).filter(Attendee.id != attendee.id,
+                                                            Attendee.badge_num != None,
+                                                            Attendee.badge_num == attendee.badge_num).first()
+
+            dupe_attendee = session.query(Attendee).filter(Attendee.id != attendee.id,
+                                                           Attendee.first_name == attendee.first_name,
+                                                           Attendee.last_name == attendee.last_name,
+                                                           Attendee.email == attendee.email).first()
+            if dupe_badge_num:
+                message = 'We already have information for this badge number. Please check the badge number you entered \
+                    or check in with a staff member at a "Bidder Sign-Up" table to complete the signup process.'
+            elif dupe_attendee:
+                message = 'We already have your information. \
+                    Please check in with a staff member at a "Bidder Sign-Up" table to complete the signup process.'
+            elif missing_fields:
+                message = "Please fill out the following fields: " + readable_join(missing_fields) + "."
+            elif 'phone_type' not in params:
+                message = "You must select whether your phone number is a mobile number or a landline."
+            elif 'pickup_time_acknowledged' not in params:
+                message = "You must acknowledge that you understand our art pickup policies."
+
+            bidder = ArtShowBidder(phone_type=0)
+            attendee.art_show_bidder = bidder
+
+            bidder.apply(params, restricted=True)
+
+            if not message:
+                session.add(attendee)
+                raise HTTPRedirect('bidder_signup?signup_complete=True')
+
+        return {
+            'message': message,
+            'attendee': attendee,
+            'signup_complete': params.get('signup_complete', False),
+            'logged_in_account': session.current_attendee_account(),
+        }
