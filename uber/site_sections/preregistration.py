@@ -1910,16 +1910,21 @@ class Root:
         if attendee.amount_paid:
             receipt = session.get_receipt_by_model(attendee)
             refund_total = 0
-            session.add(ReceiptItem(
-                receipt_id=receipt.id,
-                department=c.REG_RECEIPT_ITEM,
-                category=c.CANCEL_ITEM,
-                desc=f"Refunding and Cancelling {attendee.full_name}'s Badge",
-                amount=-(receipt.payment_total - receipt.refund_total),
-                who='non-admin',
-            ))
-            session.commit()
-            session.refresh(receipt)
+            should_add_credit_item = receipt.item_total > 0
+            if should_add_credit_item:
+                cancel_credit = ReceiptItem(
+                    receipt_id=receipt.id,
+                    department=c.REG_RECEIPT_ITEM,
+                    category=c.CANCEL_ITEM,
+                    desc=f"Refunding and Cancelling {attendee.full_name}'s Badge",
+                    amount=-(receipt.item_total),
+                    who='non-admin',
+                )
+                cancel_credit_id = cancel_credit.id
+                session.add(cancel_credit)
+                session.commit()
+                session.refresh(receipt)
+
             for txn in receipt.refundable_txns:
                 if txn.department == getattr(attendee, 'department', c.OTHER_RECEIPT_ITEM):
                     refund_amount = txn.amount_left
@@ -1944,7 +1949,10 @@ class Root:
 
                     error = refund.refund_or_skip(txn)
                     if error:
-                        raise HTTPRedirect('confirm?id={}&message={}', id, error)
+                        if refund_total == 0 and should_add_credit_item:
+                            cancel_credit = session.receipt_item(cancel_credit_id)
+                            session.delete(cancel_credit)
+                        raise HTTPRedirect('confirm?id={}&message={}', id, f"Error refunding badge: {error}")
                     session.add_all(refund.get_receipt_items_to_add())
                     refund_total += refund.amount
 

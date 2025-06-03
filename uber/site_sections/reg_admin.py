@@ -741,16 +741,20 @@ class Root:
             elif isinstance(model, Group):
                 refund_desc = f"Refunding and Cancelling Group {model.name}"
 
-            session.add(ReceiptItem(
-                receipt_id=receipt.id,
-                department=receipt.default_department,
-                category=c.CANCEL_ITEM,
-                desc=refund_desc,
-                amount=-(receipt.payment_total - receipt.refund_total),
-                who=AdminAccount.admin_name() or 'non-admin',
-            ))
-            session.commit()
-            session.refresh(receipt)
+            should_add_credit_item = receipt.item_total > 0
+            if should_add_credit_item:
+                cancel_credit = ReceiptItem(
+                    receipt_id=receipt.id,
+                    department=receipt.default_department,
+                    category=c.CANCEL_ITEM,
+                    desc=refund_desc,
+                    amount=-(receipt.item_total),
+                    who=AdminAccount.admin_name() or 'non-admin',
+                )
+                cancel_credit_id = cancel_credit.id
+                session.add(cancel_credit)
+                session.commit()
+                session.refresh(receipt)
 
             for txn in receipt.refundable_txns:
                 if txn.department == getattr(model, 'department', c.OTHER_RECEIPT_ITEM
@@ -778,8 +782,12 @@ class Root:
 
                     error = refund.refund_or_skip(txn)
                     if error:
+                        if refund_total == 0 and should_add_credit_item:
+                            cancel_credit = session.receipt_item(cancel_credit_id)
+                            session.delete(cancel_credit)
                         raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
-                                           attendee_id or group_id, error)
+                                           attendee_id or group_id,
+                                           f"Error while cancelling {'attendee' if attendee_id else 'group'}: {error}")
                     session.add_all(refund.get_receipt_items_to_add())
                     refund_total += refund.amount
 
