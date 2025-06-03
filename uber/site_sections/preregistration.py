@@ -312,6 +312,12 @@ class Root:
         return {
             'id': id
         }
+    
+    def cancel_repurchase(self, session, **params):
+        PreregCart.unpaid_preregs.clear()
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            raise HTTPRedirect('homepage?message={}', "Registration cancelled.")
+        raise HTTPRedirect('../landing/index?message={}', "Registration cancelled.")
 
     def resume_pending(self, session, id=None, account_id=None, **params):
         if account_id:
@@ -577,6 +583,7 @@ class Root:
                 'group':      group,
                 'edit_id':    edit_id,
                 'cart_not_empty': PreregCart.unpaid_preregs,
+                'repurchase': params.get('repurchase', ''),
                 'name': name,
                 'badges': badges,
                 'invite_code': params.get('invite_code', ''),
@@ -660,6 +667,7 @@ class Root:
             'promo_code_group': promo_code_group,
             'edit_id':    edit_id,
             'cart_not_empty': PreregCart.unpaid_preregs,
+            'repurchase': params.get('repurchase', ''),
             'promo_code_code': params.get('promo_code', ''),
             'invite_code': params.get('invite_code', ''),
         }
