@@ -24,7 +24,7 @@ class Root:
     @csv_file
     def time_ordered(self, out, session):
         for event in session.query(Event).order_by('start_time', 'duration', 'location').all():
-            out.writerow([event.timespan(30), event.name, event.location_label])
+            out.writerow([event.timespan(), event.name, event.guidebook_desc, event.location_label])
 
     @site_mappable(download=True)
     @schedule_view

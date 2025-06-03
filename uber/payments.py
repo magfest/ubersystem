@@ -1496,7 +1496,7 @@ class ReceiptManager:
         if receipt:
             if not revert_change:
                 revert_change = {col_name: old_val} if col_name not in ['promo_code_code', 'badges', 'birthdate'] else {}
-            return [ReceiptItem(ReceiptManager.get_purchaser_id(receipt) if cost_change > 0 else None,
+            return [ReceiptItem(purchaser_id=ReceiptManager.get_purchaser_id(receipt) if cost_change > 0 else None,
                                 receipt_id=receipt.id,
                                 department=department,
                                 category=category,
