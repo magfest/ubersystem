@@ -136,7 +136,8 @@ def assign_account_by_email(session, attendee, account_email):
 
 @all_renderable()
 class Root:
-    def automated_transactions(self, session, message='', page='0', search_text='', order='-added', closed=''):
+    def automated_transactions(self, session, message='', page='0',
+                               search_text='', order='-added', closed='', on_hold=''):
         if c.DEV_BOX and not int(page):
             page = 1
 
@@ -144,7 +145,9 @@ class Root:
             ReceiptTransaction.intent_id != '',
             ReceiptTransaction.charge_id != '',
             ReceiptTransaction.refund_id != ''))
-        if not closed:
+        if on_hold:
+            all_processor_txns = all_processor_txns.filter(ReceiptTransaction.on_hold == True)
+        elif not closed:
             all_processor_txns = all_processor_txns.join(ModelReceipt).filter(ModelReceipt.closed == None)
         total_count = all_processor_txns.count()
         payment_count = all_processor_txns.filter(ReceiptTransaction.amount > 0).count()
@@ -178,6 +181,7 @@ class Root:
             'page':           page,
             'pages':          pages,
             'closed': closed,
+            'on_hold': on_hold,
             'search_text':    search_text,
             'search_results': bool(search_text),
             'receipt_txns':   receipt_txns,

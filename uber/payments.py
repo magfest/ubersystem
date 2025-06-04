@@ -642,7 +642,8 @@ class AuthNetRequestMixin:
                     self.log_authorizenet_response(intent_id, txn_info, card_info)
 
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
-                        ReceiptManager.mark_paid_from_ids(params.get('intent_id'), auth_txn_id)
+                        ReceiptManager.mark_paid_from_ids(params.get('intent_id'), auth_txn_id,
+                                                          put_on_hold=(txn_info['response']['response_code'] == '4'))
                 else:
                     txn_info['response']['message_code'] = str(response.transactionResponse.errors.error[0].errorCode)
                     txn_info['response']['message'] = str(response.transactionResponse.errors.error[0].errorText)
@@ -838,7 +839,8 @@ class RefundRequest(TransactionRequest):
         if txn.charge_id != self.charge_id:
             return f"{txn.id} has charge ID {txn.charge_id} instead of {self.charge_id}"
 
-        # TODO: Add on hold code after on hold code is done
+        if txn.on_hold:
+            return f"{txn.id} is on hold for review"
 
         self.txns.append(txn)
         self.total_refundable += txn.amount - already_refunded
@@ -1719,7 +1721,7 @@ class ReceiptManager:
         return ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.latest_charge)
 
     @staticmethod
-    def mark_paid_from_ids(intent_id, charge_id):
+    def mark_paid_from_ids(intent_id, charge_id, put_on_hold=False):
         from uber.models import Attendee, ArtShowApplication, Group, ReceiptTransaction, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
@@ -1737,6 +1739,8 @@ class ReceiptManager:
                 txn.processing_fee = txn.calc_processing_fee()
 
             txn.charge_id = charge_id
+            if put_on_hold:
+                txn.on_hold = True
             session.add(txn)
             txn_receipt = txn.receipt
 

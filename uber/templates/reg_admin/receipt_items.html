@@ -724,6 +724,8 @@
               Cancelled {{ txn.cancelled|datetime_local("%b %-d, %-I:%M%p") }}
               {% elif txn.is_pending_charge %}
               Pending
+              {% elif txn.on_hold %}
+              Held for Review
               {% else %}
               Complete
               {% endif %}
@@ -1005,6 +1007,8 @@
             <em>Cancelled {{ item.cancelled|datetime_local }}</em>
           {% elif item.closed %}
             <em>{{ item.closed_type }} {{ item.closed|datetime_local }}</em>
+          {% elif item.on_hold %}
+            <em>On Hold</em>
           {% endif %}
           {% if item.refunded %}
           <em>{{ (item.refunded / 100)|format_currency }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ (item.amount_left / 100)|format_currency }} left){% endif %}

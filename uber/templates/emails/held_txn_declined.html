@@ -1,0 +1,16 @@
+<html>
+<head></head>
+<body>
+<p>Transaction {{ txns[0].charge_id }}, which was held for review, is now {{ status }}. The following transaction(s) have been cancelled:
+<ul>
+    {% for txn in txns %}
+    <li>
+        "{{ txn.desc }}" for {{ (txn.amount / 100)|format_currency }}
+        (<a href="{{ c.URL_BASE }}/reg_admin/receipt_items?id={{ txn.receipt.owner_id }}&highlight_id={{ txn.id }}" target="_blank">View</a>)
+    </li>
+    {% endfor %}
+</ul>
+</p>
+<p>Please contact the attendee(s) and/or group(s) affected and send them their confirmation or group management page to complete a new payment.</p>
+</body>
+</html>

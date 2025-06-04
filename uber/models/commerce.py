@@ -349,6 +349,7 @@ class ReceiptTransaction(MagModel):
     txn_total = Column(Integer, default=0)
     processing_fee = Column(Integer, default=0)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    on_hold = Column(Boolean, default=False)
     cancelled = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
@@ -379,7 +380,7 @@ class ReceiptTransaction(MagModel):
 
     @property
     def refundable(self):
-        return not self.receipt.closed and self.charge_id and self.amount > 0 and \
+        return not self.receipt.closed and self.charge_id and self.amount > 0 and not self.on_hold and \
             self.amount_left and self.amount_left != self.calc_processing_fee()
 
     @property
