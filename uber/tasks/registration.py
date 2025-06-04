@@ -407,7 +407,7 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, pickup_gr
                                                   amount=txn_total,
                                                   tracker=txn_tracker,
                                                   **kwargs)
-            message = payment_request.create_stripe_intent(intent_id)
+            message = payment_request.create_payment_intent(intent_id)
             if message:
                 txn_tracker.internal_error = message
                 session.commit()

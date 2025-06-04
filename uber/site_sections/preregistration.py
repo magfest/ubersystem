@@ -951,7 +951,7 @@ class Root:
                                                 description=cart.description,
                                                 amount=sum([receipt.current_amount_owed for receipt in receipts]),
                                                 who='non-admin')
-                    message = charge.create_stripe_intent()
+                    message = charge.create_payment_intent()
 
         if message:
             return {'error': message}
@@ -1917,52 +1917,12 @@ class Root:
 
         if attendee.amount_paid:
             receipt = session.get_receipt_by_model(attendee)
-            refund_total = 0
-            should_add_credit_item = receipt.item_total > 0
-            if should_add_credit_item:
-                cancel_credit = ReceiptItem(
-                    receipt_id=receipt.id,
-                    department=c.REG_RECEIPT_ITEM,
-                    category=c.CANCEL_ITEM,
-                    desc=f"Refunding and Cancelling {attendee.full_name}'s Badge",
-                    amount=-(receipt.item_total),
-                    who='non-admin',
-                )
-                cancel_credit_id = cancel_credit.id
-                session.add(cancel_credit)
-                session.commit()
-                session.refresh(receipt)
+            refund_total, error = receipt.process_full_refund(
+                session, attendee, who='non-admin',
+                exclude_fees=c.EXCLUDE_FEES_FROM_REFUNDS and not c.AUTHORIZENET_LOGIN_ID)
 
-            for txn in receipt.refundable_txns:
-                if txn.department == getattr(attendee, 'department', c.OTHER_RECEIPT_ITEM):
-                    refund_amount = txn.amount_left
-                    if not c.AUTHORIZENET_LOGIN_ID and c.EXCLUDE_FEES_FROM_REFUNDS:
-                        processing_fees = txn.calc_processing_fee(refund_amount)
-                        session.add(ReceiptItem(
-                            receipt_id=txn.receipt.id,
-                            department=c.OTHER_RECEIPT_ITEM,
-                            category=c.PROCESSING_FEES,
-                            desc=f"Processing Fees for Full Refund of {txn.desc}",
-                            amount=processing_fees,
-                            who='non-admin',
-                        ))
-                        refund_amount -= processing_fees
-                        session.commit()
-                        session.refresh(receipt)
-
-                    if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
-                        refund = SpinTerminalRequest(receipt=receipt, amount=refund_amount, method=txn.method)
-                    else:
-                        refund = TransactionRequest(receipt=receipt, amount=refund_amount, method=txn.method)
-
-                    error = refund.refund_or_skip(txn)
-                    if error:
-                        if refund_total == 0 and should_add_credit_item:
-                            cancel_credit = session.receipt_item(cancel_credit_id)
-                            session.delete(cancel_credit)
-                        raise HTTPRedirect('confirm?id={}&message={}', id, f"Error refunding badge: {error}")
-                    session.add_all(refund.get_receipt_items_to_add())
-                    refund_total += refund.amount
+            if error:
+                raise HTTPRedirect('confirm?id={}&message={}', id, f"Error refunding badge: {error}")
 
             receipt.closed = datetime.now()
             session.add(receipt)

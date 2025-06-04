@@ -1335,6 +1335,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "Refunds are no longer available."
         if c.BEFORE_REFUND_START:
             return f"Refunds will open at {datetime_local_filter(c.REFUND_START)}."
+        if not self.active_receipt:
+            return "We cannot automatically refund your payments."
+        elif self.active_receipt.manual_payments:
+            return "We cannot automatically refund some of your payments."
 
     @property
     def can_defer_badge(self):

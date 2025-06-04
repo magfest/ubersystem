@@ -181,6 +181,12 @@ class ModelReceipt(MagModel):
             ReceiptTransaction.amount > 0, ReceiptTransaction.cancelled == None).filter(
                 or_(ReceiptTransaction.charge_id != '',
                     ReceiptTransaction.intent_id == '')), 0)
+    
+    @property
+    def manual_payments(self):
+        return [txn for txn in self.receipt_txns
+                if not txn.cancelled and txn.amount > 0 and (
+                    txn.intent_id == '' or txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY)]
 
     @property
     def refund_total(self):
@@ -275,6 +281,31 @@ class ModelReceipt(MagModel):
                     return txn
             else:
                 return txn
+
+    def process_full_refund(self, session, model, who='non-admin', exclude_fees=False):
+        from uber.payments import RefundRequest
+
+        refund_total = 0
+        receipt_manager = ReceiptManager(self, who)
+        refunds = receipt_manager.cancel_and_refund(model, exclude_fees=exclude_fees)
+
+        if receipt_manager.error_message:
+            return refund_total, receipt_manager.error_message
+        else:
+            if not refunds:
+                session.add_all(receipt_manager.items_to_add)
+            for _, (refund_amount, txns) in refunds.items():
+                refund = RefundRequest(txns, refund_amount, skip_errors=True)
+
+                error = refund.process_refund()
+                if error:
+                    return refund_total, error
+
+                refund_total += refund_amount
+                session.add_all(refund.items_to_add)
+                session.add_all(receipt_manager.items_to_add)
+                receipt_manager.items_to_add = []
+        return refund_total, ''
 
 
 class ReceiptTransaction(MagModel):
