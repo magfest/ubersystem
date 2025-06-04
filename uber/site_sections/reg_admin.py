@@ -461,14 +461,10 @@ class Root:
 
         if item.receipt_txn and item.receipt_txn.amount_left:
             refund_amount = min(item.amount * item.count, item.receipt_txn.amount_left)
-            if item.receipt_txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
-                refund = SpinTerminalRequest(receipt=item.receipt, amount=refund_amount,
-                                             method=item.receipt_txn.method)
-            else:
-                try:
-                    refund = RefundRequest(item.receipt_txn, refund_amount)
-                except ValueError as e:
-                    return {'error': e}
+            try:
+                refund = RefundRequest(item.receipt_txn, refund_amount)
+            except ValueError as e:
+                return {'error': e}
 
             # Add credit item first so that the refund is attached to it
             credit_item = comped_receipt_item(item)
@@ -545,13 +541,10 @@ class Root:
                 ))
                 refund_amount -= processing_fees
 
-            if item.receipt_txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
-                refund = SpinTerminalRequest(receipt=item.receipt, amount=refund_amount, method=item.receipt_txn.method)
-            else:
-                try:
-                    refund = RefundRequest(item.receipt_txn, refund_amount)
-                except ValueError as e:
-                    return {'error': e}
+            try:
+                refund = RefundRequest(item.receipt_txn, refund_amount)
+            except ValueError as e:
+                return {'error': e}
 
             error = refund.process_refund(department=item.receipt_txn.department)
             if error:
@@ -721,14 +714,10 @@ class Root:
                                " left to refund!")
 
         error = ''
-
-        if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
-            refund = SpinTerminalRequest(receipt=txn.receipt, amount=refund_amount, method=txn.method)
-        else:
-            try:
-                refund = RefundRequest(txn, amount=refund_amount)
-            except ValueError as e:
-                error = e
+        try:
+            refund = RefundRequest(txn, amount=refund_amount)
+        except ValueError as e:
+            error = e
 
         if not error:
             error = refund.process_refund(department=txn.department)
@@ -820,14 +809,10 @@ class Root:
             session.refresh(txn.receipt)
 
             error = ''
-
-            if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
-                refund = SpinTerminalRequest(receipt=txn.receipt, amount=group_refund_amount, method=txn.method)
-            else:
-                try:
-                    refund = RefundRequest(txn, amount=group_refund_amount)
-                except ValueError as e:
-                    error = e
+            try:
+                refund = RefundRequest(txn, amount=group_refund_amount)
+            except ValueError as e:
+                error = e
 
             if not error:
                 error = refund.process_refund(department=txn.department)
