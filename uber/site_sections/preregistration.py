@@ -2019,19 +2019,8 @@ class Root:
         attendees_who_owe_money = {}
         if not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY:
             for attendee in account.valid_attendees:
-                if attendee not in account.at_door_pending_attendees:
-                    receipt = session.get_receipt_by_model(attendee)
-                    if receipt and receipt.current_amount_owed:
-                        attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
-
-        account_attendee = None
-        account_attendees = session.valid_attendees().filter(~Attendee.badge_status.in_([c.REFUNDED_STATUS,
-                                                                                         c.NOT_ATTENDING]))\
-            .filter(Attendee.normalized_email == normalize_email_legacy(account.email))
-        if account_attendees.count() == 1:
-            account_attendee = account_attendees.first()
-            if account_attendee not in account.attendees:
-                account_attendee = None
+                if attendee not in account.at_door_pending_attendees and attendee.active_receipt and not attendee.is_paid:
+                    attendees_who_owe_money[attendee.full_name] = attendee.active_receipt.current_amount_owed
 
         if not account:
             raise HTTPRedirect('../landing/index')
@@ -2040,7 +2029,6 @@ class Root:
             'id': params.get('id'),
             'message': message,
             'homepage_account': account,
-            'account_attendee': account_attendee,
             'attendees_who_owe_money': attendees_who_owe_money,
         }
 
