@@ -16,6 +16,59 @@
         {{ c.EVENT_NAME_AND_YEAR }} has sold out!
     {% endif %}
 {% endset %}
+<div class="card mb-3">
+    <div class="card-header">{{ c.EVENT_NAME_AND_YEAR }} Applications</div>
+    <div class="card-body">
+        <div class="d-flex gap-3 justify-content-between">
+            {% if c.DEALER_REG_START %}
+            <div class="text-center">
+                {% if c.BEFORE_DEALER_REG_START %}
+                <span class="badge bg-secondary">{{ c.DEALER_APP_TERM|title }}s: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_DEALER_REG_SHUTDOWN %}
+                <span class="badge bg-danger">{{ c.DEALER_APP_TERM|title }}s: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">{{ c.DEALER_APP_TERM|title }}s: OPEN</span><br/>Closes {{ c.DEALER_REG_SHUTDOWN|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.HOTEL_LOTTERY_FORM_START %}
+            <div class="text-center">
+                {% if c.BEFORE_LOTTERY_FORM_START and c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0 %}
+                <span class="badge bg-info">Hotel Lottery: OPEN (Staff-Only)</span><br/>Closes {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% elif c.BEFORE_LOTTERY_FORM_START %}
+                <span class="badge bg-secondary">Hotel Lottery: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_HOTEL_LOTTERY_FORM_DEADLINE %}
+                <span class="badge bg-danger">Hotel Lottery: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Hotel Lottery: OPEN</span><br/>Closes {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.ART_SHOW_ENABLED %}
+            <div class="text-center">
+                {% if c.BEFORE_ART_SHOW_REG_START %}
+                <span class="badge bg-secondary">Art Show: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_ART_SHOW_DEADLINE %}
+                <span class="badge bg-danger">Art Show: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Art Show: OPEN</span><br/>Closes {{ c.ART_SHOW_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.MARKETPLACE_REG_START %}
+            <div class="text-center">
+                {% if c.BEFORE_MARKETPLACE_REG_START %}
+                <span class="badge bg-secondary">Artist Marketplace: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_MARKETPLACE_DEADLINE %}
+                <span class="badge bg-danger">Artist Marketplace: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Artist Marketplace: OPEN</span><br/>Closes {{ c.MARKETPLACE_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% if c.AT_THE_CON and account.at_door_pending_attendees %}
     <h2 class="text-center fst-italic mt-3">Pending At-Door Registrations</h2>
     <div class="text-center">Please go to Registration to pay for and claim the badges below.</div>
@@ -52,23 +105,7 @@
         {% endif %}
     </div>
 {% else %}
-<h2 class="text-center fst-italic mt-3">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
-    {% for attendee, money_owed in attendees_who_owe_money.items() %}
-    {% if loop.first %}
-    <div class="alert alert-warning" role="alert">
-        The following attendees on your account have outstanding balances:
-        <ul>
-    {% endif %}
-    <li>{{ attendee }} owes {{ (money_owed / 100)|format_currency }}</li>
-    {% if loop.last %}
-    </ul>
-    Please click "View/Edit Registration" on the appropriate attendee below to view and pay for their registration.
-    If this doesn't look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
-    </div>
-    {% endif %}
-    {% endfor %}
-
-    {% if c.HOTEL_LOTTERY_OPEN or (c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0) %}
+{% if c.HOTEL_LOTTERY_OPEN or (c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0) %}
     <div class="alert alert-info">
         <p>
             The {{ c.EVENT_NAME_AND_YEAR }} hotel lottery is now open!
@@ -86,15 +123,47 @@
         {% endif %}
         {% endif %}
     </div>
+{% endif %}
+
+<h2 class="text-center fst-italic mt-3">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
+    {% for attendee, money_owed in attendees_who_owe_money.items() %}
+    {% if loop.first %}
+    <div class="alert alert-warning" role="alert">
+        The following attendees on your account have outstanding balances:
+        <ul>
     {% endif %}
+    <li>{{ attendee }} owes {{ (money_owed / 100)|format_currency }}</li>
+    {% if loop.last %}
+    </ul>
+    Please click "Edit Registration" on the appropriate attendee below to view and pay for their registration.
+    If this doesn't look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
+    </div>
+    {% endif %}
+    {% endfor %}
 
     {% if prereg_message %}
         <div class="text-center mt-3 mb-2 text-danger">{{ prereg_message }}</div>
     {% endif %}
 
-    {% for attendee in account.valid_group_badges %}
-    <div class="card card-body mb-3 pb-2">
-        {% include "preregistration/attendee_card.html" %}
+    {% for group, attendees in account.valid_badges_by_group.items() %}
+    <div class="card mb-3">
+        <div class="card-header bg-body text-center p-3">
+            <span class="h4">Group "{{ group.name }}"</span>
+            {% if group.is_dealer %}
+            <span class="badge bg-{{ 'success' if group.status in c.DEALER_ACCEPTED_STATUSES else 'secondary' }}">{{ group.status_label }}</span>
+            {% endif %}
+            {% if group.leader in attendees %}
+            <a href="group_members?id={{ group.id }}" class="btn btn-primary btn-sm pull-right"><i class="fa fa-pencil"></i>&nbsp;Edit {{ "Application" if group.is_dealer else "Group" }}</a>
+            {% endif %}
+        </div>
+        <div class="card-body bg-light bg-gradient p-2">
+            <div class="card card-body mb-1 shadow-sm">
+            {% for attendee in attendees %}
+                {% include "preregistration/attendee_card.html" %}
+                {% if not loop.last %}<hr>{% endif %}
+            {% endfor %}
+            </div>
+        </div>
     </div>
     {% endfor %}
     {% for attendee in account.valid_single_badges %}
@@ -148,7 +217,7 @@
 {% if loop.first %}
 <div class="card">
     <div class="card-header">
-        <h2 class="h4 card-title">Cancelled Registrations</h2>
+        <span class="h4 card-title">Cancelled Registrations</h2>
     </div>
     <div class="card-body">
         <table class="table table-hover">

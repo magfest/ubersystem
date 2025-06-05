@@ -65,8 +65,20 @@ def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e'):
 
 
 @JinjaEnv.jinja_filter(name='datetime_local')
-def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e'):
-    return '' if not dt else datetime_filter(dt.astimezone(c.EVENT_TIMEZONE), fmt=fmt)
+def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e', append_ord=False):
+    if not dt:
+        return ''
+    else:
+        suffix = ''
+        local_date = dt.astimezone(c.EVENT_TIMEZONE)
+        formatted_date = datetime_filter(local_date, fmt=fmt)
+        if append_ord:
+            day = local_date.day
+            if 4 <= day <= 20 or 24 <= day <= 30:
+                suffix = "th"
+            else:
+                suffix = ["st", "nd", "rd"][day % 10 - 1]
+        return formatted_date + suffix
 
 
 @JinjaEnv.jinja_filter
