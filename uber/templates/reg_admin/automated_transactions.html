@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% set title_text = "Automated Transactions" %}
+{% set title_text = "Held Transactions" if on_hold else "Automated Transactions" %}
 {% block content %}
 <script type="text/javascript">
   var invertShowAll = function() {
@@ -12,6 +12,18 @@
   }
   </script>
 
+{% if on_hold %}
+<div class="d-flex gap-3">
+<h2>Transactions Held for Review</h2>
+<div class="ms-auto"><a href="automated_transactions" class="btn btn-outline-primary mb-3">Back to Automated Transactions</a></div>
+</div>
+{% else %}
+<div class="d-flex gap-3">
+<h2>Automated Transactions</h2>
+{% if c.AUTHORIZENET_LOGIN_ID %}
+  <div class="ms-auto"><a href="automated_transactions?on_hold=1" class="btn btn-warning">Held Transactions Report</a></div>
+{% endif %}
+</div>
   <div class="row g-sm-1 row-cols-auto">
     <div class="col-12 col-sm-6 col-md-5">
       <form role="form" method="get" action="automated_transactions" id="search_form">
@@ -29,9 +41,9 @@
           <div class="col col-auto">
             <button type="button" class="btn btn-info" onClick="invertShowAll()">
               {% if closed %}
-                Hide Closed Receipts
+                Exclude Closed Receipts
               {% else %}
-                Show Closed Receipts
+                Include Closed Receipts
               {% endif %}
             </button>
           </div>
@@ -52,6 +64,7 @@
     <div class="col col-auto mb-3">
     </div>
 </div>
+{% endif %}
 
 {% if search_results %}
     <div class="card mt-3 mb-3">
@@ -115,8 +128,10 @@
                 <td data-order="{{ txn.amount }}">
                   {{ (txn.amount / 100)|format_currency }}{% if txn.txn_total and txn.txn_total != txn.amount %} ({{ (txn.txn_total / 100)|format_currency }} Total){% endif %}
                 </td>
-                <td data-order="{{ txn.added }}">{{ txn.added|datetime_local('%-I:%M%p %A, %b %-e') }}</td>
-                <td data-order="{{ txn.cancelled|default('', true) }}">{{ txn.cancelled|datetime_local('%-I:%M%p %A, %b %-e') if txn.cancelled else "N/A" }}</td>
+                <td data-order="{{ txn.added }}">{{ txn.added|datetime_local('%-I:%M%p %A, %b %-e') }}{% if txn.on_hold %} <em>(On Hold)</em>{% endif %}</td>
+                <td data-order="{{ txn.cancelled|default('', true) }}">
+                  {{ txn.cancelled|datetime_local('%-I:%M%p %A, %b %-e') if txn.cancelled else "N/A" }}
+                </td>
                 <td>{{ txn.who }}</td>
                 <td>
                   {% set stripe_url = txn.stripe_url %}
