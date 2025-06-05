@@ -10,7 +10,6 @@ import cherrypy
 import requests
 import stripe
 
-from authorizenet import apicontractsv1, apicontrollers
 from pockets import cached_property, classproperty, is_listy, listify
 from pockets.autolog import log
 

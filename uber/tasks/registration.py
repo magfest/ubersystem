@@ -1,4 +1,3 @@
-from authorizenet import apicontractsv1, apicontrollers
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pockets import groupify
