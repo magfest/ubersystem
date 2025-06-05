@@ -141,6 +141,74 @@
     {% endif %}
     {% endfor %}
 
+    {% set cancel_shortcut = account.cancellable_badges|length <= 1 %}
+    {% if not cancel_shortcut %}
+    
+<div class="modal fade" id="cancel-badges" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cancel Registration(s)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Select one or more registrations to cancel below.</p>
+                <table class="table table-hover" x-data="{ selectall: false, }">
+                <thead>
+                    <tr>
+                    <th data-orderable="false">
+                        <label class="d-block"><input type="checkbox" class="form-check-input" @click="selectall=!selectall"></label>
+                    </th>
+                    <th>Name</th>
+                    <th>Badge Name</th>
+                    <th>Upgrade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for attendee in account.cancellable_badges %}
+                    <tr id="{{ attendee.id }}">
+                        <td>
+                            <label class="d-block">
+                            <input type="checkbox" form="refund-cancel" class="form-check-input" name="abandon_ids" value="{{ attendee.id }}" x-bind:checked="selectall" />
+                            </label>
+                        </td>
+                        <td>{{ attendee.full_name }}</td>
+                        <td>{{ attendee.badge_printed_name }}</td>
+                        <td>{% if attendee.badge_type in c.BADGE_TYPE_PRICES %}{{ attendee.badge_type_label }}{% else %}No{% endif %}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+                </table>
+                <p>
+                    Pressing the "Cancel Selected Registration(s)" button will <strong>immediately and irreversibly</strong> cancel all checked registrations.
+                    Any registration fees and any upgrades purchased will be refunded to the original payment method.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <form id="refund-cancel" action="abandon_badges" method="post">
+                {{ csrf_token() }}
+                <button class="btn btn-danger">Cancel Selected Registration(s)</button>
+                </form>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Nevermind</button>
+            </div>
+        </div>
+    </div>
+</div>
+    <script type="text/javascript">
+        $(function() {
+            var cancelModal = new bootstrap.Modal(document.getElementById('cancel-badges'))
+            $(".abandon-btn").on('click', function(event) {
+                let attendeeId = $(this).data("attendeeid");
+                $("[name=abandon_ids][value=" + attendeeId + "]").prop('checked', true);
+                cancelModal.show();
+            })
+            $('#cancel-badges').on('hidden.bs.modal', function (event) {
+            $("[name=abandon_ids]").prop('checked', false);
+            })
+    })
+    </script>
+    {% endif %}
+
     {% if prereg_message %}
         <div class="text-center mt-3 mb-2 text-danger">{{ prereg_message }}</div>
     {% endif %}
@@ -149,9 +217,7 @@
     <div class="card mb-3">
         <div class="card-header bg-body p-3">
             <div class="row">
-            <div class="col-sm-3">
-                
-            </div>
+            <div class="col-sm-3"></div>
             <div class="col-sm-6 text-center">
                 <span class="h4">{{ c.DEALER_TERM|title if group.is_dealer else 'Group' }} "{{ group.name }}"</span>
                 {% if group.is_dealer %}

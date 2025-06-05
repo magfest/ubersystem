@@ -2,15 +2,13 @@ from itertools import chain
 from uber.models.attendee import AttendeeAccount
 
 import cherrypy
-import json
 import math
 import re
+from collections import defaultdict
 from datetime import datetime
-from decimal import Decimal
 from pockets import groupify
-from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText
-from sqlalchemy import or_, func, not_, and_
+from sqlalchemy import or_, func, and_
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -23,7 +21,7 @@ from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Grou
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
     TaskUtils, Order
-from uber.payments import ReceiptManager, TransactionRequest, SpinTerminalRequest, RefundRequest
+from uber.payments import ReceiptManager, RefundRequest
 
 
 def _search(all_processor_txns, text):
@@ -887,7 +885,6 @@ class Root:
                                model.id, f"Receipt transferred!")
 
     def cancel_multiple(self, session, account_id, refund_ids=[], message='', **params):
-        from collections import defaultdict
         success_names = set()
         skipped_names = set()
         refunded_attendees = set()

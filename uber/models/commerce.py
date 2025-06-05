@@ -189,6 +189,10 @@ class ModelReceipt(MagModel):
                     txn.intent_id == '' or txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY)]
 
     @property
+    def payments_on_hold(self):
+        return [txn for txn in self.receipt_txns if txn.on_hold and not txn.cancelled]
+
+    @property
     def refund_total(self):
         return sum([txn.amount for txn in self.receipt_txns if txn.amount < 0]) * -1
 

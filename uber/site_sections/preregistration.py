@@ -14,7 +14,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.custom_tags import email_only
+from uber.custom_tags import email_only, readable_join
 from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
@@ -24,7 +24,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, BadgePickupGroup,
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode
-from uber.payments import PreregCart, TransactionRequest, ReceiptManager, SpinTerminalRequest
+from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
 
 
 def check_if_can_reg(is_dealer_reg=False):
@@ -1893,6 +1893,101 @@ class Root:
 
     def not_found(self, id, message=''):
         return {'id': id, 'message': message}
+
+    @csrf_protected
+    @requires_account(Attendee)
+    def abandon_badges(self, session, abandon_ids=[]):
+        failed_attendees = set()
+        success_names = set()
+        receipt_managers = {}
+        txn_attendees = {}  # Dumb, but avoids a lot of DB calls
+        all_refunds = defaultdict(lambda: [0, []])
+
+        if isinstance(abandon_ids, str):
+            abandon_ids = [abandon_ids]
+
+        for id in abandon_ids:
+            attendee = session.attendee(id)
+            if attendee.cannot_abandon_badge_reason:
+                failed_attendees.add(attendee)
+            elif attendee.amount_paid:
+                receipt_manager = ReceiptManager(attendee.active_receipt, 'non-admin')
+
+                refunds = receipt_manager.cancel_and_refund(
+                    attendee, exclude_fees=c.EXCLUDE_FEES_FROM_REFUNDS and not c.AUTHORIZENET_LOGIN_ID)
+
+                if receipt_manager.error_message:
+                    failed_attendees.add(attendee)
+                else:
+                    if not refunds:
+                        # Nothing left to refund, we'll just do the bookkeeping
+                        session.add_all(receipt_manager.items_to_add)
+                        attendee.active_receipt.closed = datetime.now()
+                        attendee.badge_status = c.REFUNDED_STATUS
+                        attendee.paid = c.REFUNDED
+
+                    for charge_id, (refund_amount, txns) in refunds.items():
+                        all_refunds[charge_id][0] += refund_amount
+                        all_refunds[charge_id][1].extend(txns)
+                        for txn in txns:
+                            txn_attendees[txn.id] = attendee
+                receipt_managers[attendee] = receipt_manager
+            else:
+                # if attendee is part of a group, we must delete attendee and remove them from the group
+                if attendee.group and attendee.group.is_valid:
+                    session.assign_badges(
+                        attendee.group,
+                        attendee.group.badges + 1,
+                        new_badge_type=attendee.badge_type,
+                        new_ribbon_type=attendee.ribbon,
+                        registered=attendee.registered,
+                        paid=attendee.paid)
+
+                    session.delete_from_group(attendee, attendee.group)
+                # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
+                else:
+                    attendee.badge_status = c.REFUNDED_STATUS
+                    for shift in attendee.shifts:
+                        session.delete(shift)
+                success_names.add(attendee.full_name)
+
+        refunded_attendees = set()
+
+        for charge_id, (refund_amount, txns) in all_refunds.items():
+            refund = RefundRequest(txns, refund_amount, skip_errors=True)
+
+            error = refund.process_refund()
+            if error:
+                for txn in txns:
+                    failed_attendees.add([txn_attendees[txn.id]])
+            else:
+                for txn in txns:
+                    refunded_attendees.add(txn_attendees[txn.id])
+                session.add_all(refund.items_to_add)
+                session.commit()
+
+        for attendee, manager in receipt_managers.items():
+            if attendee in refunded_attendees:
+                session.add_all(manager.items_to_add)
+
+                if attendee not in failed_attendees:
+                    success_names.add(attendee.full_name)
+                    session.add(attendee.active_receipt)
+                    attendee.active_receipt.closed = datetime.now()
+                    attendee.badge_status = c.REFUNDED_STATUS
+                    attendee.paid = c.REFUNDED
+
+        messages = []
+        if success_names:
+            messages.append(f"Successfully cancelled registration{'s' if len(success_names) > 1 else ''} for \
+                            {readable_join(success_names)}.")
+        if failed_attendees:
+            messages.append(f"Could not cancel registration{'s' if len(failed_attendees) > 1 else ''} for \
+                            {readable_join([a.full_name for a in failed_attendees])}. \
+                            Please contact {email_only(c.REGDESK_EMAIL)} for assistance.")
+
+        raise HTTPRedirect("homepage?&message={}", ' '.join(messages))
+
 
     @csrf_protected
     @requires_account(Attendee)
