@@ -22,96 +22,85 @@
 <br/><strong>DOB:</strong> {{ attendee.birthdate|datetime('%m/%d/%Y') }}
 {% endset %}
 
-    <div class="row">
-        <div class="col-sm-9">
-            <div class="row g-sm-3">
-                <div class="col-12 text-center h4 mb-3">
-                {{ attendee.full_name }}
-                </div>
-            </div>
-            <div class="d-flex gap-3">
-                <div class="flex-grow-1">{{ left }}</div>
-                <div>{{ right }}</div>
-            </div>
-            {% if c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) %}
-            <div class="d-flex gap-3 mt-2 justify-content-between align-items-center">
-                {% set which_page, button_text = attendee.lottery_application.homepage_link if attendee.lottery_application else ('start?attendee_id=' ~ attendee.id, 'Enter Hotel Lottery') %}
-                {% if attendee.lottery_application %}
-                <em>
-                <strong>Hotel Lottery Status</strong>:
-                {% if attendee.lottery_application.status == c.PARTIAL %}Not Entered
-                {% elif attendee.lottery_application.status == c.COMPLETE %}
-                    {% if attendee.lottery_application.entry_type == c.GROUP_ENTRY %}Joined Room Group
-                    {% else %}Entered{% if attendee.lottery_application.room_group_name %}, Group Leader{% endif %}
-                    {% endif %}
-                {% else %}{{ attendee.lottery_application.status_label }}
-                {% endif %}
-                </em>
-                {% endif %}
-                <div>
-                {% if attendee.hotel_lottery_eligible %}
-                <a href="../hotel_lottery/{{ which_page }}" class="btn btn-sm {{ 'btn-danger' if 'Finish' in button_text else 'btn-secondary' }}">
-                    <i class="fa fa-hotel"></i>&nbsp; {{ button_text }}
-                </a>
-                {% else %}
-                <span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top" title="{{ attendee.hotel_lottery_ineligible_reason }}">
-                <button class="btn btn-sm btn-secondary" disabled><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
-                </span>
-                {% endif %}
-                </div>
-            </div>
-            {% endif %}
-            <div class="d-flex gap-3 mt-2 justify-content-between align-items-center">
-                {% if not attendee.art_show_applications and c.ART_SHOW_OPEN %}
-                <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning">
-                    <i class="fa fa-tags"></i>&nbsp; Apply for Art Show
-                </a>
-                {% endif %}
-                {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_application and (attendee.has_badge or attendee.badge_status == c.UNAPPROVED_DEALER_STATUS) %}
-                <a href="../marketplace/apply?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
-                    <i class="fa fa-shopping-cart"></i> Apply for Marketplace
-                </a>
-                {% endif %}
-            </div>
+        <div class="text-center h4 mb-3">
+        {{ attendee.full_name }}
         </div>
-        <div class="col-sm-3 d-flex flex-sm-column gap-1 text-end justify-content-between mt-1 mt-sm-0">
-            {% if attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
-                <div>
-                    <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-success mb-1" value="Edit">
-                    <i class="fa fa-address-card-o"></i> Finish Registering
-                    </a>
-                </div>
-            {% elif not attendee.placeholder %}
+        <div class="d-flex gap-3 justify-content-around mb-2">
+            <div>{{ left }}</div>
+            <div>{{ right }}</div>
+        </div>
+        {% if c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) %}
+        <div class="d-flex gap-3 justify-content-between align-items-center">
+            {% set which_page, button_text = attendee.lottery_application.homepage_link if attendee.lottery_application else ('start?attendee_id=' ~ attendee.id, 'Enter Hotel Lottery') %}
+            {% if attendee.lottery_application %}
+            <em>
+            <strong>Hotel Lottery Status</strong>:
+            {% if attendee.lottery_application.status == c.PARTIAL %}Not Entered
+            {% elif attendee.lottery_application.status == c.COMPLETE %}
+                {% if attendee.lottery_application.entry_type == c.GROUP_ENTRY %}Joined Room Group
+                {% else %}Entered{% if attendee.lottery_application.room_group_name %}, Group Leader{% endif %}
+                {% endif %}
+            {% else %}{{ attendee.lottery_application.status_label }}
+            {% endif %}
+            </em>
+            {% endif %}
             <div>
-                <div class="btn-group-vertical">
-                {% if attendee.badge_status != c.NOT_ATTENDING %}
-                <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info">
-                    <i class="fa fa-pencil"></i> Edit Registration
-                </a>
-                {% endif %}
-                {% if attendee.art_show_applications %}
-                <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
-                    <i class="fa fa-tags"></i>&nbsp; Art Show App
-                </a>
-                {% endif %}
-                {% if attendee.marketplace_application %}
-                <a href="../marketplace/edit?id={{ attendee.marketplace_application.id }}" class="btn btn-sm btn-success">
-                    <i class="fa fa-shopping-cart"></i> Marketplace App
-                </a>
-                {% endif %}
-                </div>
-            </div>
+            {% if attendee.hotel_lottery_eligible %}
+            <a href="../hotel_lottery/{{ which_page }}" class="btn btn-sm {{ 'btn-danger' if 'Finish' in button_text else 'btn-secondary' }}">
+                <i class="fa fa-hotel"></i>&nbsp; {{ button_text }}
+            </a>
+            {% else %}
+            <span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top" title="{{ attendee.hotel_lottery_ineligible_reason }}">
+            <button class="btn btn-sm btn-secondary" disabled><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
+            </span>
             {% endif %}
-
+            </div>
+        </div>
+        {% endif %}
+        <div class="d-flex gap-1 mt-2 align-items-center">
+            {% if attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
+            <div>
+                <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-success mb-1" value="Edit">
+                <i class="fa fa-address-card-o"></i> Finish Registering
+                </a>
+            </div>
+            {% else %}
+                {% if not attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
+                <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info">
+                    <i class="fa fa-pencil"></i> View/Edit Registration
+                </a>
+                {% endif %}
+                {% if attendee.art_show_applications or c.ART_SHOW_OPEN %}
+                    {% if attendee.art_show_applications %}
+                    <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
+                        <i class="fa fa-tags"></i>&nbsp; View Art Show App
+                    </a>
+                    {% else %}
+                    <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning">
+                        <i class="fa fa-tags"></i>&nbsp; Apply for Art Show
+                    </a>
+                    {% endif %}
+                {% endif %}
+                {% if attendee.marketplace_application or c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and (attendee.has_badge or attendee.badge_status == c.UNAPPROVED_DEALER_STATUS) %}
+                    {% if attendee.marketplace_application %}
+                    <a href="../marketplace/edit?id={{ attendee.marketplace_application.id }}" class="btn btn-sm btn-success">
+                        <i class="fa fa-shopping-cart"></i> View Marketplace App
+                    </a>
+                    {% else %}
+                    <a href="../marketplace/apply?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
+                        <i class="fa fa-shopping-cart"></i> Apply for Marketplace
+                    </a>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
             {% if attendee.is_valid %}
-            <div>{% include 'preregistration/badge_refund.html' with context %}</div>
+            <div class="ms-auto">{% include 'preregistration/badge_refund.html' with context %}</div>
             {% endif %}
         </div>
-    </div>
     
-    <div class="row">
+    <div class="d-flex gap-3">
         {% if attendee.badge_status == c.IMPORTED_STATUS and not attendee.current_attendee %}
-            <div class="pull-right">
+            <div class="ms-auto">
             {% if attendee.group and attendee == attendee.group.leader and dealer_reg_open %}
             <a href="../preregistration/reapply?id={{ attendee.id }}" class="btn btn-success">
                 Reapply as Dealer &nbsp;<i class="fa fa-plus"></i>
@@ -123,14 +112,12 @@
             {% endif %}
             </div>
         {% elif attendee.badge_status == c.PENDING_STATUS %}
-            <div class="pull-right">
+            <div class="ms-auto">
                 <a href="../preregistration/resume_pending?id={{ attendee.id }}" class="btn btn-primary">
                     Add to Cart &nbsp;<i class="fa fa-plus"></i>
                 </a>
             </div>
     
         {% endif %}
-        <div class="d-flex justify-content-end mt-2">
-        <span class="form-text"><em>Confirmation # {{ attendee.id }}</em></span>
-        </div>
     </div>
+    <div class="d-flex mt-2"><span class="form-text ms-auto"><em>Confirmation # {{ attendee.id }}</em></span></div>

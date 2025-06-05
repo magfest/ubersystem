@@ -33,8 +33,8 @@
             {% endif %}
             {% if c.HOTEL_LOTTERY_FORM_START %}
             <div class="text-center">
-                {% if c.BEFORE_LOTTERY_FORM_START and c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0 %}
-                <span class="badge bg-info">Hotel Lottery: OPEN (Staff-Only)</span><br/>Closes {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% if not c.HOTEL_LOTTERY_OPEN and c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0 %}
+                <span class="badge bg-info">Staff Hotel Lottery: OPEN</span><br/>Closes {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
                 {% elif c.BEFORE_LOTTERY_FORM_START %}
                 <span class="badge bg-secondary">Hotel Lottery: NOT OPEN</span><br/>Check back soon!
                 {% elif c.AFTER_HOTEL_LOTTERY_FORM_DEADLINE %}
@@ -147,17 +147,26 @@
 
     {% for group, attendees in account.valid_badges_by_group.items() %}
     <div class="card mb-3">
-        <div class="card-header bg-body text-center p-3">
-            <span class="h4">Group "{{ group.name }}"</span>
-            {% if group.is_dealer %}
-            <span class="badge bg-{{ 'success' if group.status in c.DEALER_ACCEPTED_STATUSES else 'secondary' }}">{{ group.status_label }}</span>
-            {% endif %}
+        <div class="card-header bg-body p-3">
+            <div class="row">
+            <div class="col-sm-3">
+                
+            </div>
+            <div class="col-sm-6 text-center">
+                <span class="h4">{{ c.DEALER_TERM|title if group.is_dealer else 'Group' }} "{{ group.name }}"</span>
+                {% if group.is_dealer %}
+                <span class="badge bg-{{ 'success' if group.status in c.DEALER_ACCEPTED_STATUSES else 'secondary' }}">{{ group.status_label }}</span>
+                {% endif %}
+            </div>
+            <div class="col-sm-3">
             {% if group.leader in attendees %}
             <a href="group_members?id={{ group.id }}" class="btn btn-primary btn-sm pull-right"><i class="fa fa-pencil"></i>&nbsp;Edit {{ "Application" if group.is_dealer else "Group" }}</a>
             {% endif %}
+            </div>
+            </div>
         </div>
-        <div class="card-body bg-light bg-gradient p-2">
-            <div class="card card-body mb-1 shadow-sm">
+        <div class="card-body bg-light bg-gradient p-2 pb-1">
+            <div class="card card-body mb-1 pb-2 shadow-sm">
             {% for attendee in attendees %}
                 {% include "preregistration/attendee_card.html" %}
                 {% if not loop.last %}<hr>{% endif %}
