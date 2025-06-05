@@ -40,19 +40,19 @@
 {% endif %}
 {% set attendee_fields_ro = printable or not c.INDEPENDENT_ART_SHOW %}
 <div class="row g-sm-3 p-0">
-{{ macros.name_form_group(attendee, label="First & Last Name", is_readonly=attendee_fields_ro, use_bs5=True) }}
+{{ macros.name_form_group(attendee, label="First & Last Name", is_readonly=attendee_fields_ro, use_bs5=True, is_required=True) }}
 {{ macros.form_group(attendee, 'legal_name', label="Name on Photo ID", help="The name on your ID, if different from your first and last name.", is_readonly=attendee_fields_ro, use_bs5=True) }}
 </div>
 
 {% if attendee.cellphone or attendee.email or not printable %}
 <div class="row g-sm-3">
   {% if attendee.email or not printable %}
-  {{ macros.form_group(attendee, 'email', label="Email Address", is_readonly=printable, use_bs5=True) }}
+  {{ macros.form_group(attendee, 'email', label="Email Address", is_readonly=printable, use_bs5=True, is_required=True) }}
   {% endif %}
   {% if attendee.cellphone or not printable %}
-  {{ macros.form_group(attendee, 'cellphone', label="Phone #", is_readonly=printable, use_bs5=True) }}
+  {{ macros.form_group(attendee, 'cellphone', label="Phone #", is_readonly=printable, use_bs5=True, is_required=True) }}
   <div class="col">
-    <label class="form-text">Phone Number Type</label>
+    <label class="form-text">Phone Number Type <span class="text-danger">*</span></label>
     <div class="mb-3">
       {{ macros.button_radio_opts('phone_type', c.PHONE_TYPE_OPTS, default='' if not attendee.art_show_bidder else attendee.art_show_bidder.phone_type, is_readonly=printable) }}
     </div>
@@ -73,7 +73,7 @@
 {% endif %}
 
 <div class="row g-sm-3">
-{% if not admin_area %}{{ macros.form_group(attendee, 'badge_num', label="Badge Number", type="number", is_readonly=attendee_fields_ro, use_bs5=True) }}{% endif %}
+{% if not admin_area %}{{ macros.form_group(attendee, 'badge_num', label="Badge Number", type="number", is_readonly=attendee_fields_ro, use_bs5=True, is_required=True) }}{% endif %}
 {{ macros.form_group(attendee.art_show_bidder, 'hotel_name', label="Hotel", is_readonly=printable, use_bs5=True) }}
 {{ macros.form_group(attendee.art_show_bidder, 'hotel_room_num', label="Room Number", is_readonly=printable, use_bs5=True) }}
 </div>
@@ -82,10 +82,14 @@
   <div class="col">
     <div class="mb-3">
       <br/>
+      {% set pickup_time_acknowledged_label %}
+      I certify that I have read, understand, and agree to abide by the <a href="https://drive.google.com/file/d/1ua-YZEUIqTm925778fgpWO_0RlVqs3i5/view?usp=sharing" target="_blank">Anthrocon Art Show Bidding Rules</a>; that I am obligated to purchase all artwork for which I have placed the winning bid; and that I am purchasing only the physical possession of artwork, and must negotiate for the right to reproduce any artwork with the artist(s) involved.
+      <br/><br/>I understand that I must pick up my art in person Sunday after 2pm. If I need to depart before then, I will either fill out a pickup authorization form for someone else to pick up and pay for my art, or obtain an early pickup authorization pass from a bidder sign-up clerk.
+      {% endset %}
       <strong>
       {{ macros.checkbox(attendee.art_show_bidder, 'pickup_time_acknowledged',
-        label="I understand that I must pick up my art in person Sunday after 2pm. If I need to depart before then, I will either fill out a pickup authorization form for someone else to pick up and pay for my art, or obtain an early pickup authorization pass from a bidder sign-up clerk.", is_readonly=printable) }}
-        </strong>
+        label=pickup_time_acknowledged_label, is_readonly=printable, is_required=True) }}
+      </strong>
     </div>
   </div>
 </div>
@@ -94,15 +98,15 @@
 <h6><span>Staff Fields</span></h6>
 <div class="row g-sm-3">
   <div class="col">
-    {{ macros.form_group(attendee, 'badge_printed_name', label="Badge Name", is_readonly=attendee_fields_ro, use_bs5=True) }}
+    {{ macros.form_group(attendee, 'badge_printed_name', label="Badge Name", is_readonly=attendee_fields_ro, use_bs5=True, is_required=True) }}
   </div>
 
   <div class="col">
-    {{ macros.form_group(attendee, 'badge_num', label="Badge Number", type="number", is_readonly=attendee_fields_ro, use_bs5=True, help="Please make sure this matches the number on the bidder's badge.") }}
+    {{ macros.form_group(attendee, 'badge_num', label="Badge Number", type="number", is_readonly=attendee_fields_ro, use_bs5=True, help="Please make sure this matches the number on the bidder's badge.", is_required=True) }}
   </div>
 
   <div class="col">
-    <label class="form-text">Bidder Number</label>
+    <label class="form-text">Bidder Number <span class="text-danger">*</span></label>
     <div class="mb-3">
     {% if c.INDEPENDENT_ART_SHOW and not printable %}
     <input type="text" class="form-control" name="bidder_num" value="{{ attendee.art_show_bidder.bidder_num }}" />
