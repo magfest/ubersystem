@@ -20,6 +20,10 @@ from uber.custom_tags import format_currency, email_only
 from uber.utils import report_critical_exception
 import uber.spin_rest_utils as spin_rest_utils
 
+if c.AUTHORIZENET_LOGIN_ID:
+    from authorizenet import apicontractsv1, apicontrollers
+
+
 class MockStripeIntent(dict):
     """
     Stripe and Authorize.net use radically different workflows: Stripe has you request a payment intent
