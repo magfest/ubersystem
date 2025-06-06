@@ -226,8 +226,8 @@
 {% block scripts %}
 {{ super() }}
 {% if c.AFTER_SHIFTS_CREATED %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@event-calendar/build@3.6.1/event-calendar.min.css">
-<script src="https://cdn.jsdelivr.net/npm/@event-calendar/build@3.6.1/event-calendar.min.js"></script>
+{{ "event-calendar-3.10.0/event-calendar.min.css"|serve_static_content }}
+{{ "event-calendar-3.10.0/event-calendar.min.js"|serve_static_content }}
 
 <script type="text/javascript">
   let signUp = function (id, title, department_name, date) {
@@ -639,6 +639,10 @@
             listWeek: {
               duration: {days: {{ total_duration }}},
             }
+        },
+        validRange: {
+          start: '{{ c.SETUP_JOB_START.date() }}',
+          end: '{{ c.TEARDOWN_JOB_END.date() }}',
         },
         viewDidMount: showOtherView,
         eventSources: [{events: fetchEvents}],

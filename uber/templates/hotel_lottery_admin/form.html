@@ -150,6 +150,7 @@
     </div>
 </div>
 
+{% if c.SHOW_HOTEL_LOTTERY_DATE_OPTS %}
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_admin_info.earliest_checkin_date) }}</div>
     <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_admin_info.latest_checkout_date) }}</div>
@@ -158,6 +159,7 @@
     <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_admin_info.latest_checkin_date) }}</div>
     <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_admin_info.earliest_checkout_date) }}</div>
 </div>
+{% endif %}
 
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">{{ form_macros.form_input(lottery_admin_info.wants_ada) }}</div>
@@ -167,7 +169,9 @@
 {{ form_macros.form_input(lottery_admin_info.suite_type_preference) }}
 {{ form_macros.form_input(lottery_admin_info.hotel_preference) }}
 {{ form_macros.form_input(lottery_admin_info.room_type_preference) }}
+{% if c.HOTEL_LOTTERY_PREF_RANKING %}
 {{ form_macros.form_input(lottery_admin_info.selection_priorities) }}
+{% endif %}
 
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">

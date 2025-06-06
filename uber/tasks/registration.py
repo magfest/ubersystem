@@ -6,15 +6,15 @@ import time
 import pytz
 from celery.schedules import crontab
 from pockets.autolog import log
-from sqlalchemy import not_, or_
+from sqlalchemy import not_, or_, insert
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import readable_join
 from uber.decorators import render
-from uber.models import (ApiJob, Attendee, AttendeeAccount, TerminalSettlement, Email, Session, BadgePickupGroup,
-                         ReceiptInfo, ReceiptTransaction)
+from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePickupGroup, Email, Group, ModelReceipt,
+                         ReceiptInfo, ReceiptItem, ReceiptTransaction, Session, TerminalSettlement)
 from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils
@@ -23,22 +23,43 @@ from uber.payments import ReceiptManager
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
            'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue',
-           'process_terminal_sale', 'send_receipt_email', 'assign_badge_num', 'create_badge_pickup_groups', 'update_receipt']
+           'process_terminal_sale', 'send_receipt_email', 'create_badge_nums', 'create_badge_pickup_groups', 'update_receipt']
 
 
-@celery.task
-def assign_badge_num(attendee_id):
-    time.sleep(1) # Allow some time to save to DB
+@celery.schedule(timedelta(days=1))
+def create_badge_nums():
+    """
+    Takes the configuration for badge ranges and creates BadgeInfo objects
+    that can be assigned to attendees as needed. This allows us to rely on
+    database-level locking to prevent badge number collisions.
+
+    We take only the smallest and largest number from all badge ranges, ignoring
+    any potential gaps -- this allows us to much more easily handle potential config
+    changes by checking the min and max badge numbers that already exist.
+    """
+
+    if not c.NUMBERED_BADGES:
+        return
+    
+    starts_ends = list(zip(*c.BADGE_RANGES.values()))
+    first_badge_num = min(starts_ends[0])
+    last_badge_num = max(starts_ends[1])
+
     with Session() as session:
-        attendee = session.query(Attendee).filter_by(id=attendee_id).first()
-        if not attendee:
-            time.sleep(60)
-            attendee = session.query(Attendee).filter_by(id=attendee_id).first()
-            if not attendee:
-                log.error(f"Timed out when trying to assign a badge number to attendee {attendee_id}!")
-                return
-        attendee.badge_num = session.get_next_badge_num(attendee.badge_type)
-        session.add(attendee)
+        any_badge = session.query(BadgeInfo).first()
+        if not any_badge:
+            new_badge_list = [{"ident": x} for x in range(first_badge_num, last_badge_num + 1)]
+        else:
+            new_badge_list = []
+            first_badge = session.query(BadgeInfo).filter(BadgeInfo.ident == first_badge_num).first()
+            last_badge = session.query(BadgeInfo).filter(BadgeInfo.ident == last_badge_num).first()
+            if not first_badge:
+                min_badge_num = session.query(BadgeInfo.ident).order_by(BadgeInfo.ident).limit(1).first()
+                new_badge_list.extend([{"ident": x} for x in range(first_badge_num, min_badge_num[0])])
+            if not last_badge:
+                max_badge_num = session.query(BadgeInfo.ident).order_by(BadgeInfo.ident.desc()).limit(1).first()
+                new_badge_list.extend([{"ident": x} for x in range(max_badge_num[0] + 1, last_badge_num + 1)])
+        session.execute(insert(BadgeInfo), new_badge_list)
         session.commit()
 
 
@@ -475,6 +496,48 @@ def create_badge_pickup_groups():
                 pickup_group.build_from_account(account)
                 session.add(pickup_group)
             session.commit()
+
+
+@celery.schedule(timedelta(days=14))
+def reassign_purchaser_ids():
+    with Session() as session:
+        purchaser_ids = session.query(
+            ReceiptItem.purchaser_id).filter(ReceiptItem.purchaser_id != None).join(
+                ModelReceipt).join(Attendee, ModelReceipt.owner_id == Attendee.id
+                                   ).filter(Attendee.is_valid == True).group_by(ReceiptItem.purchaser_id).all()
+        group_purchaser_ids = session.query(
+            ReceiptItem.purchaser_id).filter(ReceiptItem.purchaser_id != None).join(
+                ModelReceipt).join(Group, ModelReceipt.owner_id == Group.id
+                                   ).filter(Group.is_valid == True).group_by(ReceiptItem.purchaser_id).all()
+        purchaser_id_list = [r for r, in purchaser_ids] + [r for r, in group_purchaser_ids]
+        invalid_attendees = session.query(Attendee).filter(Attendee.is_valid == False, Attendee.id.in_(purchaser_id_list))
+
+        for attendee in invalid_attendees:
+            alt_id = None
+            valid_dupe = session.query(Attendee).filter(Attendee.is_valid == True,
+                                                        Attendee.first_name == attendee.first_name,
+                                                        Attendee.last_name == Attendee.last_name,
+                                                        Attendee.email == attendee.email).first()
+            if valid_dupe:
+                alt_id = valid_dupe.id
+            elif not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_pickup_group:
+                alt_id = attendee.badge_pickup_group.fallback_purchaser_id
+
+            if alt_id:
+                receipt_items = session.query(ReceiptItem).filter(ReceiptItem.purchaser_id == attendee.id).join(
+                    ModelReceipt).join(Attendee, ModelReceipt.owner_id == Attendee.id).filter(Attendee.is_valid == True)
+                for item in receipt_items:
+                    item.purchaser_id = alt_id
+                    session.add(item)
+
+
+@celery.schedule(timedelta(days=60))
+def sunset_empty_accounts():
+    with Session() as session:
+        empty_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.unused_years > 2)
+        for account in empty_accounts:
+            session.delete(account)
+        session.commit()
 
 
 @celery.task

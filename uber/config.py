@@ -423,6 +423,48 @@ class Config(_Overridable):
     def STAFF_HOTEL_LOTTERY_OPEN(self):
         return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
 
+    @property
+    def SHOW_HOTEL_LOTTERY_DATE_OPTS(self):
+        return c.HOTEL_LOTTERY_CHECKIN_START != c.HOTEL_LOTTERY_CHECKIN_END
+
+    @property
+    def HOTEL_LOTTERY_FORM_STEPS(self):
+        """
+        We have to run our form validations based on which 'step' in the form someone is, but
+        the number of steps depends on the entry type and event config. This builds
+        a dict that allows you to look up each step number based on a key.
+        """
+
+        steps = {}
+        step = 0
+        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+            step += 1
+            steps['room_dates'] = step
+        step += 1
+        steps['room_ada_info'] = step
+        step += 1
+        steps['room_hotel_type'] = step
+        if c.HOTEL_LOTTERY_PREF_RANKING:
+            step += 1
+            steps['room_selection_pref'] = step
+        steps['room_final_step'] = step
+
+        step = 1
+        steps['suite_agreement'] = step
+        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+            step += 1
+            steps['suite_dates'] = step
+        step += 1
+        steps['suite_type'] = step
+        step += 1
+        steps['suite_hotel_type'] = step
+        if c.HOTEL_LOTTERY_PREF_RANKING:
+            step += 1
+            steps['suite_selection_pref'] = step
+        steps['suite_final_step'] = step
+
+        return steps
+
     @request_cached_property
     @dynamic
     def DEALER_APPS(self):
@@ -1133,7 +1175,7 @@ class Config(_Overridable):
                         {'name': 'Discount', 'path': '/registration/discount'},
                     ]
         """
-        public_site_sections = ['static_views', 'angular', 'public', 'staffing']
+        public_site_sections = ['static_views', 'public', 'staffing']
         public_pages = []
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
@@ -1813,7 +1855,8 @@ c.MITS_DESC_BY_AGE = {age: c.MITS_AGE_DESCRIPTIONS[age] for age in c.MITS_AGES}
 # panels
 # =============================
 
-c.PANEL_SCHEDULE_LENGTH = int((c.PANELS_ESCHATON - c.PANELS_EPOCH).total_seconds() // 3600) * 2
+c.PANEL_SCHEDULE_DAYS = math.ceil((c.PANELS_ESCHATON - c.PANELS_EPOCH.replace(hour=0)).total_seconds() / 86400)
+c.PANEL_SCHEDULE_LENGTH = int((c.PANELS_ESCHATON - c.PANELS_EPOCH).total_seconds() // 3600)
 c.EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.strftime('%I:%M %a'))
                            for dt in [c.EPOCH + timedelta(minutes=i * 30) for i in range(c.PANEL_SCHEDULE_LENGTH)]]
 c.EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]

@@ -198,7 +198,8 @@ class Root:
                                                                 c.ARTIST_ALLEY_RECEIPT_ITEM,
                                                                 c.MARKETPLACE,
                                                                 "Artist Marketplace Application",
-                                                                app.amount_unpaid)
+                                                                app.amount_unpaid,
+                                                                purchaser_id=app.attendee.id)
             receipt_item.fk_id = app.id
             receipt_item.fk_model = "ArtistMarketplaceApplication"
             session.add(receipt_item)

@@ -35,11 +35,24 @@ def valid_cellphone(form, field):
 
 
 class LotteryInfo(MagForm):
+    legal_first_name = StringField('First Name on ID',
+                                   validators=[validators.DataRequired("Please enter your first name as it appears on your photo ID.")])
+    legal_last_name = StringField('Last Name on ID',
+                                  validators=[validators.DataRequired("Please enter your last name as it appears on your photo ID.")])
+    cellphone = TelField('Phone Number', validators=[
+        validators.DataRequired("Please provide a phone number for the hotel to contact you."),
+        valid_cellphone
+        ], render_kw={'placeholder': 'A phone number for the hotel to contact you.'})
     terms_accepted = BooleanField('I understand, agree to, and will abide by the lottery policies.', default=False,
                                   validators=[validators.InputRequired("You must agree to the room lottery policies to continue.")])
     data_policy_accepted = BooleanField('I understand and agree that my registration information will be used as part of the hotel lottery.',
                                         default=False,
                                         validators=[validators.InputRequired("You must agree to the data policies to continue.")])
+    
+    def get_non_admin_locked_fields(self, app):
+        locked_fields = super().get_non_admin_locked_fields(app)
+        locked_fields.extend(['terms_accepted', 'data_policy_accepted'])
+        return locked_fields
     
 class LotteryConfirm(MagForm):
     guarantee_policy_accepted = BooleanField('I understand awards are subject to cancellation if no payment guarantee is made.',
@@ -51,7 +64,9 @@ class LotteryRoomGroup(MagForm):
 
     room_group_name = StringField('Room Group Name',
                                   description='This will be shared with anyone you invite to your room group.',
-                                  validators=[validators.DataRequired("Please enter a name for your room group.")])
+                                  validators=[
+                                      validators.DataRequired("Please enter a name for your room group."),
+                                      validators.Length(max=40, message="Room group names cannot be longer than 40 characters.")])
     invite_code = StringField('Room Group Invite Code',
                               description='Send this code to up to three friends to invite them to your room group.',
                               render_kw={'readonly': "true"})
@@ -72,14 +87,6 @@ class RoomLottery(MagForm):
 
     current_step = HiddenField('Current Step')
     entry_type = HiddenField('Entry Type')
-    legal_first_name = StringField('First Name on ID',
-                                   validators=[validators.DataRequired("Please enter your first name as it appears on your photo ID.")])
-    legal_last_name = StringField('Last Name on ID',
-                                  validators=[validators.DataRequired("Please enter your last name as it appears on your photo ID.")])
-    cellphone = TelField('Phone Number', validators=[
-        validators.DataRequired("Please provide a phone number for the hotel to contact you."),
-        valid_cellphone
-        ], render_kw={'placeholder': 'A phone number for the hotel to contact you.'})
     hotel_preference = SelectMultipleField(
         'Hotels', coerce=int, choices=c.HOTEL_LOTTERY_HOTELS_OPTS,
         widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS),
@@ -121,11 +128,13 @@ class RoomLottery(MagForm):
 
         room_step = int(application.current_step) if application.current_step else 0
 
-        if room_step < 5:
+        if not c.HOTEL_LOTTERY_PREF_RANKING or room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_selection_pref']:
             optional_list.append('selection_priorities')
-        if room_step < 4:
+        if room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_hotel_type']:
             optional_list.extend(['room_type_preference', 'hotel_preference'])
-        if room_step < 2:
+        elif not c.HOTEL_LOTTERY_HOTELS_OPTS:
+            optional_list.append('hotel_preference')
+        if not c.SHOW_HOTEL_LOTTERY_DATE_OPTS or room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_dates']:
             optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
 
         return optional_list
@@ -162,8 +171,8 @@ class RoomLottery(MagForm):
     @field_validation.latest_checkin_date
     def after_preferred_checkin(form, field):
         if field.data and field.data < form.earliest_checkin_date.data:
-            raise StopValidation("It does not make sense to have your latest acceptable check-in date \
-                                  earlier than your preferred check-in date.")
+            raise StopValidation("Please make sure your latest acceptable check-in date \
+                                  is later than your preferred check-in date.")
 
     @field_validation.latest_checkout_date
     def latest_checkin_within_range(form, field):
@@ -176,8 +185,8 @@ class RoomLottery(MagForm):
     @field_validation.earliest_checkout_date
     def before_preferred_checkout(form, field):
         if field.data and field.data > form.latest_checkout_date.data:
-            raise ValidationError("It does not make sense to have your earliest acceptable check-out date \
-                                  later than your preferred check-out date.")
+            raise ValidationError("Please make sure your earliest acceptable check-out date \
+                                  is earlier than your preferred check-out date.")
 
     @field_validation.selection_priorities
     def all_options_ranked(form, field):
@@ -210,16 +219,14 @@ class SuiteLottery(RoomLottery):
 
         suite_step = int(application.current_step) if application.current_step else 0
 
-        if suite_step < 6:
+        if not c.HOTEL_LOTTERY_PREF_RANKING or suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_selection_pref']:
             optional_list.append('selection_priorities')
-        if suite_step < 5 or application.room_opt_out:
+        if suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_hotel_type'] or application.room_opt_out:
             optional_list.extend(['room_type_preference', 'hotel_preference'])
-        if suite_step < 4:
+        if suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_type']:
             optional_list.append('suite_type_preference')
-        if suite_step < 3:
+        if not c.SHOW_HOTEL_LOTTERY_DATE_OPTS or suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_dates']:
             optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
-        if suite_step < 2:
-            optional_list.extend(['legal_first_name', 'legal_last_name', 'cellphone'])
 
         return optional_list
     
@@ -229,6 +236,9 @@ class SuiteLottery(RoomLottery):
 class LotteryAdminInfo(SuiteLottery):
     response_id = IntegerField('Response ID', render_kw={'readonly': "true"})
     confirmation_num = StringField('Confirmation Number', render_kw={'readonly': "true"})
+    legal_first_name = LotteryInfo.legal_first_name
+    legal_last_name = LotteryInfo.legal_last_name
+    cellphone = LotteryInfo.cellphone
     status = SelectField('Entry Status', coerce=int, choices=c.HOTEL_LOTTERY_STATUS_OPTS)
     entry_type = SelectField('Entry Type', coerce=int, choices=[(0, "N/A")] + c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS)
     current_step = IntegerField('Current Step', validators=[
@@ -246,7 +256,7 @@ class LotteryAdminInfo(SuiteLottery):
         if not application.entry_type or application.entry_type == c.GROUP_ENTRY:
             return ['selection_priorities', 'room_type_preference', 'hotel_preference',
                     'suite_type_preference', 'earliest_checkin_date', 'latest_checkout_date',
-                    'legal_first_name', 'legal_last_name', 'cellphone', 'ada_requests']
+                    'ada_requests']
 
         if application.entry_type == c.ROOM_ENTRY:
             optional_list = RoomLottery.get_optional_fields(self, application, is_admin)

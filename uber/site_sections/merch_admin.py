@@ -6,7 +6,7 @@ from sqlalchemy import or_
 from uber.config import c
 from uber.decorators import ajax, all_renderable, credit_card, public, kiosk_login, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import ArbitraryCharge, Attendee, MerchDiscount, MerchPickup, \
+from uber.models import ArbitraryCharge, Attendee, BadgeInfo, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange
 from uber.utils import check, check_csrf
 from uber.payments import TransactionRequest
@@ -32,7 +32,7 @@ def attendee_from_id_or_badge_num(session, badge_num_or_qr_code):
         if not attendee:
             message = f"No attendee found with ID {id}."
     elif not message:
-        attendee = session.query(Attendee).filter_by(badge_num=badge_num_or_qr_code).first()
+        attendee = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num_or_qr_code).first()
         if not attendee:
             message = f'No attendee has badge number {badge_num_or_qr_code}.'
     
@@ -80,7 +80,7 @@ class Root:
         elif not badge_num.isdigit():
             message = 'Invalid badge number.'
         else:
-            attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
+            attendee = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num).first()
             if not attendee:
                 message = f'No attendee has badge number {badge_num}.'
         
@@ -149,7 +149,7 @@ class Root:
         if csrf_token:
             check_csrf(csrf_token)
             try:
-                picker_upper = session.query(Attendee).filter_by(badge_num=int(picker_upper)).one()
+                picker_upper = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == int(picker_upper)).one()
             except Exception:
                 message = 'Please enter a valid badge number for the person picking up the merch: ' \
                     '{} is not in the system'.format(picker_upper)
@@ -157,7 +157,7 @@ class Root:
                 for badge_num in set(badges):
                     if badge_num:
                         try:
-                            attendee = session.query(Attendee).filter_by(badge_num=int(badge_num)).one()
+                            attendee = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == int(badge_num)).one()
                         except Exception:
                             picked_up.append('{!r} is not a valid badge number'.format(badge_num))
                         else:
@@ -388,7 +388,7 @@ class Root:
         message = check(sale)
         if not message and badge_num is not None:
             try:
-                sale.attendee = session.query(Attendee).filter_by(badge_num=badge_num).one()
+                sale.attendee = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num).one()
             except Exception:
                 message = 'No attendee has that badge number'
 

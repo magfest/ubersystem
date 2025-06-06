@@ -33,7 +33,7 @@
     var lastAmountExtra; // I hate JavaScript
     var upgradeModal = bootstrap.Modal.getOrCreateInstance($('#upgradeModal'))
     
-    var updateReceiptPreview = function(colName, val=0) {
+    var updateReceiptPreview = function(colName, val=0, updateCol='') {
         if (colName == 'amount_extra' && lastAmountExtra !== undefined && val == lastAmountExtra) {
             return;
         } else if (colName == 'amount_extra') {
@@ -45,13 +45,33 @@
         } else if (val == "") {
             val = 0;
         }
-        var existing_row = $('td#' + colName + ' > span');
-        $.post("get_receipt_preview", {
-            csrf_token: csrf_token,
-            id: "{{ attendee.id }}",
-            col_name: colName,
-            val: val
-        },
+
+        var row_id;
+        if (typeof colName == 'object') {
+            row_id = colName.join('-');
+        } else {
+            row_id = colName;
+            colName = [colName];
+            val = [val];
+        }
+        var existing_row = $('td#' + row_id + ' > span');
+
+        var data = [
+            {name: 'csrf_token', value: csrf_token},
+            {name: 'id', value: "{{ attendee.id }}"}
+        ];
+
+        if (updateCol != '') { data.push({name: 'update_col', value: updateCol}) }
+
+        colName.forEach(element => {
+            data.push({name: 'col_names', value: element})
+        });
+
+        val.forEach(element => {
+            data.push({name: 'new_vals', value: element})
+        });
+
+        $.post("get_receipt_preview", $.param(data),
         function(result) {
           if (result.error) {
             showErrorMessage(result.error, 'upgrade-message-alert');
@@ -65,7 +85,7 @@
             } else if (existing_row.length) {
                 existing_row.text(result.desc + ": " + change_str);
             } else {
-                new_row = "<tr><td id='" + colName + "'>" +
+                new_row = "<tr><td id='" + row_id + "'>" +
                     "<span class='pull-right'>" + result.desc + ": " + change_str +
                     "</span></td></tr>";
                 $('#upgrade-preview > tbody:last-child').append(new_row);

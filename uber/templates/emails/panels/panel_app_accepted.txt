@@ -1,10 +1,11 @@
 {{ app.submitter.first_name }},
 
-Congratulations, "{{ app.name }}", the panel you submitted for {{ c.EVENT_NAME_AND_YEAR }}, has been approved.{% if app.confirm_deadline %}
+Congratulations, "{{ app.name }}", the panel you submitted for {{ c.EVENT_NAME_AND_YEAR }}, has been approved.
 
-You must confirm you can still run the panel or your submission will automatically be put on the waitlist on {{ app.confirm_deadline|datetime_local }}. You can confirm by clicking this link: {{ c.URL_BASE }}/panels/confirm_panel?id={{ app.id }}{% endif %}
+Please confirm that you are still attending and can run this panel by clicking this link: {{ c.URL_BASE }}/panels/confirm_panel?id={{ app.id }} {% if app.confirm_deadline %}You must confirm you can still run the panel or your submission will automatically be put on the waitlist on {{ app.confirm_deadline|datetime_local }}.{% endif %}
 
-After you confirm your attendance, we will send you another e-mail to confirm your availability on our schedule.  Note that your day and time will be manually scheduled based on the availability you specified on your submission. If this availability has changed, please let us know as soon as possible, as we will not be reaching out again for availability before scheduling.
+
+After you confirm your attendance, we will send you another e-mail to confirm your availability on our schedule. Note that your day and time will be manually scheduled based on the availability you specified on your submission. If this availability has changed, please let us know as soon as possible, as we will not be reaching out again for availability before scheduling.
 
 Yourself and all panelists will receive free admissions. If you have not yet registered you will receive a notification that we have begun registering you for the event, and you will need to follow the instruction in that email to finish your registration.
 

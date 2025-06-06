@@ -282,6 +282,11 @@ class Root:
                             and_(Tracking.model == 'ModelReceipt',
                             Tracking.fk_id == other_receipt.id))).order_by(Tracking.when).all()
                     other_receipts.add(other_receipt)
+        
+        other_purchased_badges = []
+        for purchaser_receipt in session.query(ModelReceipt).join(ReceiptItem).filter(ReceiptItem.purchaser_id == model.id):
+            if purchaser_receipt.owner_id != model.id:
+                other_purchased_badges.append(session.get_model_by_receipt(purchaser_receipt))
 
         return {
             'attendee': model if isinstance(model, Attendee) else None,
@@ -289,7 +294,7 @@ class Root:
             'art_show_app': model if isinstance(model, ArtShowApplication) else None,
             'group_leader_receipt_id': group_leader_receipt.id if group_leader_receipt else None,
             'group_processing_fee': group_processing_fee,
-            'receipt': receipt,
+            'active_receipt': receipt,
             'other_receipts': other_receipts,
             'closed_receipts': session.query(ModelReceipt).filter(ModelReceipt.owner_id == id,
                                                                   ModelReceipt.owner_model == model.__class__.__name__,
@@ -301,6 +306,7 @@ class Root:
                 c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
                 c.MANUAL: "Stripe"},
             'refund_txn_candidates': refund_txn_candidates,
+            'other_purchased_badges': other_purchased_badges,
         }
     
     def receipt_items_guide(self, session, message=''):
@@ -369,7 +375,8 @@ class Root:
             except Exception:
                 return {'error': "The count must be a number."}
 
-        session.add(ReceiptItem(receipt_id=receipt.id,
+        session.add(ReceiptItem(purchaser_id=ReceiptManager.get_purchaser_id(receipt) if amount > 0 else None,
+                                receipt_id=receipt.id,
                                 department=params.get('department', c.OTHER_RECEIPT_ITEM),
                                 category=params.get('category', c.OTHER),
                                 desc=params['desc'],
@@ -510,6 +517,7 @@ class Root:
             if params.get('exclude_fees') and params['exclude_fees'].strip().lower() not in ('f', 'false', 'n', 'no', '0'):
                 processing_fees = item.receipt_txn.calc_processing_fee(refund_amount)
                 session.add(ReceiptItem(
+                    purchaser_id=ReceiptManager.get_purchaser_id(item.receipt),
                     receipt_id=item.receipt.id,
                     department=c.OTHER_RECEIPT_ITEM,
                     category=c.PROCESSING_FEES,
@@ -745,11 +753,13 @@ class Root:
             session.refresh(receipt)
 
             for txn in receipt.refundable_txns:
-                if txn.department == getattr(model, 'department', c.OTHER_RECEIPT_ITEM):
+                if txn.department == getattr(model, 'department', c.OTHER_RECEIPT_ITEM
+                                             ) or getattr(model, 'is_dealer', None) and txn.department == c.DEALER_RECEIPT_ITEM:
                     refund_amount = txn.amount_left
                     if exclude_fees:
                         processing_fees = txn.calc_processing_fee(refund_amount)
                         session.add(ReceiptItem(
+                            purchaser_id=ReceiptManager.get_purchaser_id(receipt),
                             receipt_id=txn.receipt.id,
                             department=c.OTHER_RECEIPT_ITEM,
                             category=c.PROCESSING_FEES,
@@ -811,6 +821,7 @@ class Root:
             if exclude_fees:
                 processing_fees = txn.calc_processing_fee(group_refund_amount)
                 session.add(ReceiptItem(
+                    purchaser_id=ReceiptManager.get_purchaser_id(receipt),
                     receipt_id=txn.receipt.id,
                     department=c.OTHER_RECEIPT_ITEM,
                     category=c.PROCESSING_FEES,
@@ -844,6 +855,57 @@ class Root:
                                getattr(model, 'full_name', None) or model.name, format_currency(refund_total / 100),
                                message_end
                                ))
+
+    @not_site_mappable
+    def close_receipt(self, session, id='', **params):
+        receipt = session.model_receipt(id)
+        receipt.closed = datetime.now()
+        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                           receipt.owner_id, "Active receipt closed.")
+
+    @not_site_mappable
+    def move_to_active_receipt(self, session, id='', **params):
+        try:
+            item = session.receipt_item(id)
+        except NoResultFound:
+            item = session.receipt_transaction(id)
+        
+        model = session.get_model_by_receipt(item.receipt)
+        if not model.active_receipt:
+            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                           model.id, "No active receipt found.")
+        item.receipt = model.active_receipt
+        item_name = "Receipt item" if isinstance(item, ReceiptItem) else "Transaction"
+        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                           model.id, f"{item_name} successfully moved to active receipt.")
+    
+    def transfer_receipt(self, session, id, from_id):
+        try:
+            model = session.attendee(id)
+        except NoResultFound:
+            try:
+                model = session.group(id)
+            except NoResultFound:
+                model = session.art_show_application(id)
+
+        if model.active_receipt:
+            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                               model.id, f"This registration/application already has an existing active receipt.")
+        
+        from_model = session.query(model.__class__).filter_by(id=from_id).first()
+        if from_model:
+            receipt = from_model.active_receipt
+        else:
+            receipt = session.query(ModelReceipt).filter(ModelReceipt.id == from_id).first()
+
+        if not receipt:
+            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                               model.id, f"No valid active receipt found for id {from_id}.")
+        
+        receipt.owner_id = model.id
+        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                               model.id, f"Receipt transferred!")
+        
 
     @ajax
     def refresh_model_receipt(self, session, id=''):
