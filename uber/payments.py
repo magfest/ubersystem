@@ -10,7 +10,6 @@ import cherrypy
 import requests
 import stripe
 
-from authorizenet import apicontractsv1, apicontrollers
 from pockets import cached_property, classproperty, is_listy, listify
 from pockets.autolog import log
 
@@ -19,6 +18,10 @@ from uber.config import c
 from uber.custom_tags import format_currency, email_only
 from uber.utils import report_critical_exception
 import uber.spin_rest_utils as spin_rest_utils
+
+if c.AUTHORIZENET_LOGIN_ID:
+    # Importing this library takes ~150MB ram, so we only do it if we need it.
+    from authorizenet import apicontractsv1, apicontrollers
 
 class MockStripeIntent(dict):
     """
