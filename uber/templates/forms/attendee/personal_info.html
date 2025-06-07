@@ -18,7 +18,7 @@
 {# Badge Placeholder is found in a higher level x-data that we leverage here. Undefined values default to false in javascript
 #}
 <div x-data="{
-                copy_address: false,
+                copy_address: {{ group and loaded_from_group and attendee.address1 == group.address1 | jsonize }},
                 copy_cellphone: {{ group and loaded_from_group and attendee.cellphone == group.phone | jsonize }},
                 copy_email: {{ group and loaded_from_group and attendee.email == group.email_address | jsonize }},
                 dealer: {{ (is_prereg_dealer or attendee.is_dealer) | jsonize }},
@@ -123,10 +123,7 @@
 {% if is_prereg_dealer %}
 <div class="row g-sm-3">
   <div class="col-12">
-    {{ form_macros.toggle_checkbox(personal_info.copy_address,
-      [personal_info.address1, personal_info.address2, personal_info.city, personal_info.region_us,
-      personal_info.region_canada, personal_info.region, personal_info.zip_code, personal_info.country],
-      hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.address1 == group.address1) }}
+      {{ form_macros.input(personal_info.copy_address, alpine_model.boolean='copy_address') }}
   </div>
 </div>
 <script type="text/javascript">
@@ -153,15 +150,15 @@
 {% endif %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    {{ form_input(personal_info.address1, required_if="isAddressRequired") }}
+    {{ form_input(personal_info.address1, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
   </div>
   <div class="col-12 col-sm-6">
-    {{ form_input(personal_info.address2) }}
+    {{ form_input(personal_info.address2, alpine_bind:disabled="copy_address") }}
   </div>
 </div>
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    {{ form_input(personal_info.country, required_if="isAddressRequired") }}
+    {{ form_input(personal_info.country, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
     <div class="form-floating selectToAutocomplete">
       <label for="{{ personal_info.country.id }}-selectToAutocomplete">
         {{ personal_info.country.label.text }}
@@ -170,17 +167,17 @@
     </div>
   </div>
   <div class="col-12 col-sm-6">
-    {{ form_input(personal_info.region_us, required_if="isAddressRequired") }}
-    {{ form_input(personal_info.region_canada, required_if="isAddressRequired") }}
-    {{ form_input(personal_info.region, required_if="isAddressRequired") }}
+    {{ form_input(personal_info.region_us, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
+    {{ form_input(personal_info.region_canada, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
+    {{ form_input(personal_info.region, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
   </div>
 </div>
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    {{ form_input(personal_info.city, required_if="isAddressRequired")) }}
+    {{ form_input(personal_info.city, alpine_bind:disabled="copy_address", required_if="isAddressRequired")) }}
   </div>
   <div class="col-12 col-sm-6">
-    {{ form_input(personal_info.zip_code, required_if="isZipRequired")) }}
+    {{ form_input(personal_info.zip_code, alpine_bind:disabled="copy_address", required_if="isZipRequired")) }}
   </div>
 </div>
 <script type="text/javascript">
@@ -216,7 +213,7 @@
 {% else %}
 {# We need a better solution, but avoiding a row here allows event plugins to put a field next to the zip code #}
       <div class="col-12 col-sm-6">
-            {{ form_macros.input(personal_info.zip_code, required_if="isZipRequired", alpine_bind:disabled="copy_address") }}
+            {{ form_macros.input(personal_info.zip_code, alpine_bind:disabled="copy_address", required_if="isZipRequired") }}
             {{ form_macros.input(personal_info.international, alpine_model.boolean="international") }}
       </div>
 {% endif %}
