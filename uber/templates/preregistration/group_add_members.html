@@ -1,0 +1,164 @@
+{% block members %}
+{% set add_badges_disabled = (c.SIGNNOW_DEALER_TEMPLATE_ID and (not signnow_document or not signnow_document.signed)) or (receipt and receipt.current_amount_owed) %}
+{% set member = group.is_dealer|yesno(c.DEALER_HELPER_TERM + ",group member") %}
+{% if group.is_valid and c.REMAINING_BADGES > 50 %}
+  <br/>
+  <p>
+  {% if group.is_dealer and group.min_badges_addable %}
+    You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional {{ c.DEALER_HELPER_TERM }} badges.
+  {% elif group.is_dealer and group.status != c.SHARED %}
+    Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional {{ c.DEALER_HELPER_TERM }} badges.
+  {% endif %}
+  </p>
+
+  {% if group.min_badges_addable %}
+    <div id="add" style="display:none;">
+      <form method="get" action="add_group_members">
+        <input type="hidden" name="id" value="{{ group.id }}" />
+        <input type="hidden" id="estimatedCost" name="estimated_cost" value="{{ group.new_badge_cost|default(0, true) }}" />
+        <div class="row g-sm-3">
+            <div class="col-auto">
+            {%- set min_badges = group.min_badges_addable -%}
+            Enter the number of {{ member }}s to add.
+            {% if min_badges > 1 -%}
+                {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
+                {%- if hours_remaining > 0 -%}
+                {%- set min_badges = 1 -%}
+                You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}
+                remaining to add individual {{ member }}s. After that you'll have to add at
+                least {{ group.min_badges_addable }} badges at a time.
+                {%- else -%}
+                You can't add fewer than {{ group.min_badges_addable }} badges to an existing group.
+                {%- endif -%}
+            {%- endif -%}
+            </div>
+        </div>
+        <div class="row">
+        <div class="col-auto">
+          <select class="form-select" id="newBadgeCount" name="count">
+          {%- if group.is_dealer -%}
+            {{ int_options(min_badges, group.dealer_badges_remaining) }}
+          {%- else -%}
+            {{ int_options(min_badges, 10) }}
+          {%- endif -%}
+          </select>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-primary" id="newBadgeSubmit" type="submit">
+            Add {{ member|title }}s
+          </button>
+        </div>
+        </div>
+      </form>
+    </div>
+    {% if not c.AT_THE_CON and not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY %}
+        {% if c.SIGNNOW_DEALER_TEMPLATE_ID and (not signnow_document or not signnow_document.signed) %}
+        <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Please sign the terms and conditions at the top of the page before adding group members.">
+        {% elif receipt and receipt.current_amount_owed %}
+        <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Group must be paid for before new members can be added.">
+        {% endif %}
+            <button id="add-btn"{% if add_badges_disabled %} disabled{% endif %} class="btn btn-primary">Add more {{ member }}s</button>
+        {% if add_badges_disabled %}
+        </span>
+        {% endif %}
+
+        {% if not add_badges_disabled %}
+        <script type="text/javascript">
+            var newBadgePrice = {{ group.new_badge_cost|default(0, true) }};
+            var newBadgeSubmitText = 'Add {{ member|title }}(s)';
+            var updateBadgeEstimate = function() {
+                if(newBadgePrice == 0) { return; }
+                $('#estimatedCost').val(newBadgePrice * parseInt($('#newBadgeCount').val()));
+                $('#newBadgeSubmit').text(newBadgeSubmitText + " for $" + $('#estimatedCost').val());
+            }
+            $(function() {
+                $('#add-btn').click(function(e){
+                        $(e.target).hide();
+                        $("#add").show();
+                        updateBadgeEstimate();
+                    });
+                $('#newBadgeCount').change(function() {updateBadgeEstimate();});
+            });
+        </script>
+        {% endif %}
+    {% endif %}
+  {% endif %}
+{% endif %}
+{% if group.is_valid and not add_badges_disabled and group.can_add_existing_badges %}
+{% if group.is_valid and c.REMAINING_BADGES > 50 and group.min_badges_addable %}
+OR
+{% endif %}
+<button id="attach-btn"{% if add_badges_disabled %} disabled{% endif %} class="btn btn-primary mt-1">
+    Add {{ member }} by confirmation number
+</button>
+
+<div id="attach" style="display:none;" class="mt-1">
+    <div class="alert alert-dismissible" role="alert" id="attach-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('attach-message-alert')" aria-label="Close"></button></div>
+    <form method="post" id="find-group-member-form" action="find_group_member">
+        <input type="hidden" name="id" value="{{ group.id }}" />
+        {{ csrf_token() }}
+        <div class="row g-sm-3">
+            <div class="col-auto">
+                If one of your {{ member }}s has already bought a badge,
+                you can add them to your group by entering their registration confirmation number, first name, and last name below.
+                They can find their registration confirmation number in the confirmation email they received when they registered.
+            </div>
+        </div>
+        <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">
+                <label class="form-text">Confirmation #</label>
+                <div>
+                  <input type="text" name="confirmation_id" class="form-control" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required />
+                </div>
+            </div>
+            <div class="col-12 col-sm-3">
+                <label class="form-text">First Name</label>
+                <div class="mb-3">
+                  <input type="text" name="first_name" class="form-control" placeholder="First Name" required />
+                </div>
+            </div>
+            <div class="col-12 col-sm-3">
+                <label class="form-text">Last Name</label>
+                <div class="mb-3">
+                  <input type="text" name="last_name" class="form-control" placeholder="Last Name" required />
+                </div>
+            </div>
+        </div>
+        <div class="row g-sm-3">
+            <div class="col-12 col-sm-6">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </div>
+</div>
+<script type="text/javascript">
+    var lookupGroupMember = function(event) {
+        event.preventDefault();
+        hideMessageBox('attach-message-alert');
+        $.ajax({
+            method: 'POST',
+            url: 'find_group_member',
+            dataType: 'json',
+            data: $(this).serialize(),
+            success: function (json) {
+            if (json.success) {
+                window.location.href = 'group_members?id={{ group.id }}&message=' + json.message;
+            } else {
+                showErrorMessage(json.message, 'attach-message-alert', false);
+            }
+            },
+            error: function () {
+                showErrorMessage('Unable to connect to server, please try again.', 'attach-message-alert', false);
+            }
+          });
+    }
+    $(function() {
+        hideMessageBox('attach-message-alert');
+        $('#attach-btn').click(function(e){
+            $(e.target).hide();
+            $("#attach").show();
+        });
+        $('#find-group-member-form').submit(lookupGroupMember);
+    });
+</script>
+{% endif %}
+{% endblock %}

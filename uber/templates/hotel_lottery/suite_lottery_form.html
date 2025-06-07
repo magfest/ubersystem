@@ -1,11 +1,5 @@
 {% extends 'hotel_lottery/room_lottery_form.html' %}
 
-{% block last_step_js %}
-    if (step >= 6) {
-        $('#{{ room_text }}-lottery-form').submit();
-    }
-{% endblock %}
-
 {% block form_js %}
 {{ super() }}
 
@@ -18,6 +12,12 @@
         $('#room_opt_out').change(showOrHideRoomOpts);
     });
 </script>
+{% endblock %}
+
+{% block last_step_js %}
+    if (step >= {{ c.HOTEL_LOTTERY_FORM_STEPS['suite_final_step'] }}) {
+        $('#{{ room_text }}-lottery-form').submit();
+    }
 {% endblock %}
 
 {% block ada_info %}{% endblock %}

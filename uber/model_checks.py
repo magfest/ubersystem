@@ -310,7 +310,7 @@ def attendee_tournament_cellphone(app):
 @validation.LotteryApplication
 def room_meets_night_requirements(app):
     if app.any_dates_different and (app.entry_type == c.ROOM_ENTRY or 
-            app.entry_type == c.SUITE_ENTRY and not app.room_opt_out):
+            app.entry_type == c.SUITE_ENTRY and not app.room_opt_out) and app.earliest_checkin_date and app.latest_checkout_date:
         latest_checkin, earliest_checkout = app.shortest_check_in_out_dates
         nights = app.build_nights_map(latest_checkin, earliest_checkout)
         if not nights:
@@ -325,7 +325,7 @@ def room_meets_night_requirements(app):
 
 @validation.LotteryApplication
 def suite_meets_night_requirements(app):
-    if app.any_dates_different and app.entry_type == c.SUITE_ENTRY:
+    if app.any_dates_different and app.entry_type == c.SUITE_ENTRY and app.earliest_checkin_date and app.latest_checkout_date:
         latest_checkin, earliest_checkout = app.shortest_check_in_out_dates
         nights = app.build_nights_map(latest_checkin, earliest_checkout)
         night_counter = 0
@@ -1070,6 +1070,11 @@ def media_max_length(piece):
     if len(piece.media) > 15:
         return "The description of the piece's media must be 15 characters or fewer."
 
+
+# This is still required for creating an attendee from an art show app, will need to refactor later
+Attendee.required = [('first_name', 'First Name'),
+                     ('last_name', 'Last Name'),
+                     ('email', 'Email')]
 
 # New validations, which return a tuple with the field name (or an empty string) and the message
 @prereg_validation.Attendee

@@ -3,7 +3,7 @@ import six
 import cherrypy
 
 from collections import defaultdict, OrderedDict
-from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, validators, Label
+from wtforms import Form, StringField, SelectField, SelectMultipleField, FileField, IntegerField, BooleanField, validators, Label
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError
 from pockets.autolog import log
@@ -282,6 +282,8 @@ class MagForm(Form):
                 return 'hidden'
             elif isinstance(widget, Ranking):
                 return 'ranking'
+            elif isinstance(widget, wtforms_widgets.FileInput):
+                return 'file'
             else:
                 return 'text'
 

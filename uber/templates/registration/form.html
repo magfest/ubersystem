@@ -33,7 +33,7 @@
             <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
             {% endif %}
 
-            {% if attendee.paid != c.LOST_BADGE %}
+            {% if attendee.active_badge %}
                 <form method="post" action="lost_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
                     <input type="submit" class="btn btn-outline-danger" value="Report Lost Badge">
@@ -169,6 +169,10 @@
   <input type="hidden" name="id" value="{{ attendee.id }}">
 </form>
 {% endif %}
+{% for badge in attendee.allocated_badges|rejectattr('active') %}
+<form method="post" id="activate_badge-{{ badge.id }}" action="activate_badge"><input type="hidden" name="id" value="{{ badge.id }}"></form>
+<form method="post" id="undo_badge_pickup-{{ badge.id }}" action="undo_badge_pickup"><input type="hidden" name="id" value="{{ badge.id }}"></form>
+{% endfor %}
 
 {{ form_macros.form_validation('attendee-form') }}
 {% include 'registration/alpine_registration_components.html' %}

@@ -1,61 +1,84 @@
 {% extends "./preregistration/preregbase.html" %}
 {% set page_ro = group.status not in c.DEALER_EDITABLE_STATUSES %}
-{% import "forms/group.html" as group_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set title_text = "Group Members" %}
 {% block content %}
 <script type="text/javascript">
   var unsetMemberConfirm = function(event) {
     var formToSubmit = this;
-            event.preventDefault();
-            bootbox.confirm({
-                message: "This will permanently unassign this person's badge. They will receive an email about this. Are you sure?",
-                buttons: {
-                    confirm: {
-                        label: 'Unassign Badge',
-                        className: 'btn-danger'
-                    },
-                    cancel: {
-                        label: 'Nevermind',
-                        className: 'btn-outline-secondary'
-                    }
-                },
-                callback: function (result) {
-                    if(result) {
-                        formToSubmit.submit();
-                    }
-                }
-            });
+      event.preventDefault();
+      bootbox.confirm({
+          message: "This will permanently unassign this person's badge. They will receive an email about this. Are you sure?",
+          buttons: {
+              confirm: {
+                  label: 'Unassign Badge',
+                  className: 'btn-danger'
+              },
+              cancel: {
+                  label: 'Nevermind',
+                  className: 'btn-outline-secondary'
+              }
+          },
+          callback: function (result) {
+              if(result) {
+                  formToSubmit.submit();
+              }
+          }
+      });
+  }
+
+  var removeMemberConfirm = function(event) {
+    var formToSubmit = this;
+      event.preventDefault();
+      bootbox.confirm({
+          message: "This will remove this person from the group. Are you sure?",
+          buttons: {
+              confirm: {
+                  label: 'Remove Badge',
+                  className: 'btn-danger'
+              },
+              cancel: {
+                  label: 'Nevermind',
+                  className: 'btn-outline-secondary'
+              }
+          },
+          callback: function (result) {
+              if(result) {
+                  formToSubmit.submit();
+              }
+          }
+      });
   }
 
   var cancelConfirm = function(event) {
-            var formToSubmit = this;
-            event.preventDefault();
-            bootbox.confirm({
-                title: "Cancel Dealer Application?",
-                message: "This will permanently cancel your application. All registered badges in the group will be converted to individual badges. Are you sure?",
-                buttons: {
-                    confirm: {
-                        label: 'Yes, Cancel My Application',
-                        className: 'btn-danger'
-                    },
-                    cancel: {
-                        label: 'Nevermind',
-                        className: 'btn-outline-secondary'
-                    }
-                },
-                callback: function (result) {
-                    if(result) {
-                        formToSubmit.submit();
-                    }
-                }
-            });
+    var formToSubmit = this;
+    event.preventDefault();
+    bootbox.confirm({
+        title: "Cancel Dealer Application?",
+        message: "This will permanently cancel your application. All registered badges in the group will be converted to individual badges. Are you sure?",
+        buttons: {
+            confirm: {
+                label: 'Yes, Cancel My Application',
+                className: 'btn-danger'
+            },
+            cancel: {
+                label: 'Nevermind',
+                className: 'btn-outline-secondary'
+            }
+        },
+        callback: function (result) {
+            if(result) {
+                formToSubmit.submit();
+            }
         }
-    $().ready(function() {
-        $("form[action='unset_group_member']").submit(unsetMemberConfirm);
-
-        $("form[action='../preregistration/cancel_dealer']").submit(cancelConfirm);
     });
+  }
+  $().ready(function() {
+      $(".unset-group-member").submit(unsetMemberConfirm);
+      $(".remove-group-member").submit(removeMemberConfirm);
+
+      $("form[action='../preregistration/cancel_dealer']").submit(cancelConfirm);
+  });
 </script>
 
 <div class="card">
@@ -68,11 +91,11 @@
     {% include 'confirm_tabs.html' with context %}
     {% endif %}
     {% if group.is_dealer %}
-      {{ group_fields.status }}
-      {{ group_fields.signed_document }}
+      {% include 'preregistration/dealer_group_members.html' with context %}
       <h2 class="h5">"{{ group.name }}" Information</h2>
       {{ form_macros.form_validation('group-form', 'validate_dealer' if group.is_dealer else 'validate_group') }}
-      <form method="post" action="group_members" role="form">
+      <form novalidate method="post" id="group-form" action="group_members" role="form" enctype="multipart/form-data">
+        {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ group.id }}" />
         {% if forms and 'group_info' in forms %}
           {% include "forms/group/group_info.html" %}
@@ -126,6 +149,7 @@
     isn't coming" button next to their entry on the list below to unset their badge, which may then be assigned to
     someone else. Upgraded badges may only be transferred directly between two people; please contact us at
     {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you wish to transfer badges.
+    {% if group.can_add_existing_badges %}Badges purchased separately will be removed from the group without unsetting them.{% endif %}
 </div>
 {% elif group.attendees|length - group.floating|length != 1 %}
 <p>Because your {{ c.DEALER_APP_TERM }} is {{ group.status_label }}, you cannot add or assign {{ c.DEALER_HELPER_TERM }}s, but you can view your assigned {{ c.DEALER_HELPER_TERM }}s below.</p>
@@ -157,11 +181,20 @@
                 {% endif %}
             </td>
             <td>
-                {% if not attendee.cannot_abandon_badge_reason %}
-                  <form method="post" action="unset_group_member">
+                {% if not attendee.cannot_abandon_badge_reason and not attendee.admin_account and not attendee.dept_memberships_with_inherent_role
+                  or attendee.paid != c.PAID_BY_GROUP %}
+                  <form method="post"
+                        class="{% if attendee.paid == c.PAID_BY_GROUP %}unset-group-member{% else %}remove-group-member{% endif %}"
+                        action="unset_group_member">
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <button class="btn btn-sm btn-warning" type="submit" style="margin: 5px 0;">This person isn't coming</button>
+                    <button class="btn btn-sm btn-warning" type="submit" style="margin: 5px 0;">
+                      {% if attendee.paid == c.PAID_BY_GROUP %}
+                      This person isn't coming
+                      {% else %}
+                      Remove from group
+                      {% endif %}
+                    </button>
                   </form>
                 {% elif attendee.is_transferable %}
                   <form method="get" action="transfer_badge">
@@ -181,82 +214,7 @@
 {% endfor %}
 </table>
 
-{% if group.status not in [c.CANCELLED, c.DECLINED] and c.REMAINING_BADGES > 50 %}
-        <br/>{% if group.is_dealer and group.min_badges_addable %}
-        You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional {{ c.DEALER_HELPER_TERM }} badges.<br/><br/>
-        {% elif group.is_dealer and group.status != c.SHARED %}
-        Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional {{ c.DEALER_HELPER_TERM }} badges.
-        {% endif %}
-
-{% if group.min_badges_addable %}
-    <div id="add" style="display:none">
-      <form method="get" action="add_group_members">
-        <input type="hidden" name="id" value="{{ group.id }}" />
-        <input type="hidden" id="estimatedCost" name="estimated_cost" value="{{ group.new_badge_cost|default(0, true) }}" />
-        <div class="row g-sm-3">
-          {%- set min_badges = group.min_badges_addable -%}
-          {%- set members = group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") -%}
-          Enter the number of {{ members }} to add.
-          {% if min_badges > 1 -%}
-            {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
-            {%- if hours_remaining > 0 -%}
-              {%- set min_badges = 1 -%}
-              You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}
-              remaining to add individual {{ members }}. After that you'll have to add at
-              least {{ group.min_badges_addable }} badges at a time.
-            {%- else -%}
-              You can't add fewer than {{ group.min_badges_addable }} badges to an existing group.
-            {%- endif -%}
-          {%- endif -%}
-        </div>
-        <div class="row">
-        <div class="col-auto">
-          <select class="form-select" id="newBadgeCount" name="count">
-          {%- if group.is_dealer -%}
-            {{ int_options(min_badges, group.dealer_badges_remaining) }}
-          {%- else -%}
-            {{ int_options(min_badges, 10) }}
-          {%- endif -%}
-          </select>
-        </div>
-        <div class="col-auto">
-          <button class="btn btn-primary" id="newBadgeSubmit" type="submit">
-            Add {{ members|title }}
-          </button>
-        </div>
-        </div>
-      </form>
-    </div>
-
-    {% if not c.AT_THE_CON and not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY %}
-    <script type="text/javascript">
-        {% if receipt and receipt.current_amount_owed %}
-            $(function(){
-                $('<div class="disabled" title="Group must be paid for before new members can be added.">' +
-                    '<button disabled class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") }}</button>' +
-                  '</div>').insertAfter($("#add"));
-            });
-        {% else %}
-        var newBadgePrice = {{ group.new_badge_cost|default(0, true) }};
-        var newBadgeSubmitText = 'Add {{ members|title }}(s)';
-        var updateBadgeEstimate = function() {
-          if(newBadgePrice == 0) { return; }
-          $('#estimatedCost').val(newBadgePrice * parseInt($('#newBadgeCount').val()));
-          $('#newBadgeSubmit').text(newBadgeSubmitText + " for $" + $('#estimatedCost').val());
-        }
-            $(function(){
-                $('<button class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") }}</button>').click(function(e){
-                        $(e.target).hide();
-                        $("#add").show();
-                        updateBadgeEstimate();
-                    }).insertAfter($("#add"));
-                $('#newBadgeCount').change(function() {updateBadgeEstimate();});
-            });
-        {% endif %}
-    </script>
-    {% endif %}
-{% endif %}
-{% endif %}
+{% include 'preregistration/group_add_members.html' with context %}
 </div>
 </div>
 {% endblock %}

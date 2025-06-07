@@ -200,12 +200,12 @@ def base_badge_cost(attendee, new_attendee=None):
     """
     if new_attendee or skip_badge_cost_calc(attendee, new_receipt=True):
         return
-    
+
     orig_badge_type = attendee.badge_type
     cost = attendee.new_badge_cost * 100
     if attendee.badge_type in c.BADGE_TYPE_PRICES:
         badge_label = c.BADGES[c.ATTENDEE_BADGE]
-        orig_badge_type = attendee.orig_value_of('badge_type')
+        orig_badge_type = attendee.orig_value_of('badge_type') or attendee.badge_type
 
         if orig_badge_type != attendee.badge_type:
             badge_label = c.BADGES[orig_badge_type]
@@ -213,7 +213,7 @@ def base_badge_cost(attendee, new_attendee=None):
         label = f"{badge_label} Badge for {attendee.full_name}"
     else:
         label = f"{attendee.badge_type_label} Badge for {attendee.full_name}"
-    
+
     if orig_badge_type not in c.DEFAULT_COMPED_BADGE_TYPES and attendee.paid == c.NEED_NOT_PAY:
         cost = 0
     if attendee.paid == c.PAID_BY_GROUP:

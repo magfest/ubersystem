@@ -67,6 +67,7 @@ class Root:
                     to=model_instance.email,
                     cc=email.cc,
                     bcc=email.bcc,
+                    replyto=email.replyto,
                     ident=email.ident,
                     fk_id=model_instance.id,
                     automated_email_id=email.id,

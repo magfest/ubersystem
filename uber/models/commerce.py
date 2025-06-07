@@ -500,6 +500,7 @@ class ReceiptTransaction(MagModel):
 
 
 class ReceiptItem(MagModel):
+    purchaser_id = Column(UUID, index=True, nullable=True)
     receipt_id = Column(UUID, ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',

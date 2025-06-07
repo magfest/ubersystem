@@ -26,7 +26,7 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership,
+from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
@@ -194,11 +194,13 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
     ]
 
     marketplace_import_fields = [
-        'business_name',
-        'categories',
-        'categories_text',
-        'description',
-        'special_needs',
+        'name',
+        'display_name',
+        'email_address',
+        'website',
+        'tax_number',
+        'seating_requests',
+        'accessibility_requests',
         'admin_notes',
     ]
 
@@ -220,8 +222,8 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         if include_apps:
             if a.art_show_applications:
                 d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
-            if a.marketplace_applications:
-                d['marketplace_app'] = a.marketplace_applications[0].to_dict(marketplace_import_fields)
+            if a.marketplace_application:
+                d['marketplace_app'] = a.marketplace_application.to_dict(marketplace_import_fields)
 
         if include_depts:
             assigned_depts = {}
@@ -624,7 +626,7 @@ class AttendeeLookup:
         restrictions.
         """
         with Session() as session:
-            attendee_query = session.query(Attendee).filter_by(badge_num=badge_num)
+            attendee_query = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             attendee = attendee_query.first()
             if attendee:
@@ -1514,7 +1516,7 @@ class BarcodeLookup:
         # Note: A decrypted barcode can yield a valid badge num,
         # but that badge num may not be assigned to an attendee.
         with Session() as session:
-            query = session.query(Attendee).filter_by(badge_num=badge_num)
+            query = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == badge_num)
             fields, query = _attendee_fields_and_query(full, query)
             attendee = query.first()
             if attendee:

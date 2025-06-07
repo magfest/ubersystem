@@ -24,6 +24,28 @@
     </div>
     {% endif %}
 </div>
+{% if attendee.allocated_badges and (attendee.allocated_badges|length > 1 or not attendee.active_badge) %}
+<div class="row g-sm-3">
+    <div class="col">
+        {% if attendee.active_badge %}
+        Besides their current badge (#{{ attendee.badge_num }}), t{% else %}T{% endif %}his
+        attendee has previously been allocated the following badges:
+        <ul>
+            {% for badge in attendee.allocated_badges|rejectattr('active') %}
+            <li>
+                Badge #{{ badge.ident }}
+                {% if badge.picked_up %}| Picked up {{ badge.picked_up_local|datetime("%B %-d, %-I:%M %p") }}{% endif %}
+                {% if badge.reported_lost %} | Reported lost {{ badge.reported_lost_local|datetime("%B %-d, %-I:%M %p") }}{% endif %}
+                <button type="submit" class="btn btn-sm btn-primary" form="activate_badge-{{ badge.id }}">Make Current Badge</button>
+                {% if badge.picked_up %}
+                <button type="submit" class="btn btn-sm btn-warning" form="undo_badge_pickup-{{ badge.id }}">Undo Badge Pickup</button>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
 <div class="row g-sm-3">
     {% if attendee.panel_applicants and c.HAS_PANELS_ADMIN_ACCESS -%}
     <div class="col">
