@@ -202,6 +202,88 @@
 </script>
 {%- endmacro %}
 
+{% macro alpine_form_label(field, label_text='', required=None, required_if=None) %}
+    <label for="{{ field.label.field_id }}"
+    {% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>
+        <span class="form-label">{{ label_text }}</span>
+        {% if required_if is not none %}
+            <span class="required-indicator text-danger" x-show="{{ required_if }}"> *</span>
+        {% elif required is not none %}
+            <span class="required-indicator text-danger"> *</span>
+        {% endif %}
+
+    </label>
+{% endmacro %}
+
+{% macro alpine_form_input(field, label_text='', help_text='', admin_text='', no_margin=False, hidden_field_text='', force_hidden=False, alpine_props=dict() ) %}
+    {#
+    Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
+    field (Field): WTForms form field.
+    help_text (str): Extra text to display on non-admin pages underneath the field.
+    admin_text (str): Extra text to display on admin pages underneath the field.
+    no_margin (bool): If true, removes the `mb-3` class. Useful in cases where a containing div already has a margin.
+    alpine_props (dict): AlpineJS properties
+    hidden_field_text (str): For fields with the HiddenInput widget, this is the custom display text for the field, which is
+        useful in situations where a field is always read-only. If not set, the field is rendered without any scaffolding.
+    force_hidden (bool): If true, the field is rendered as a hidden field instead of whatever its widget is.
+    #}
+    {% set required_if = alpine_props.get(':required') %}
+    {% set custom_kwargs = dict(kwargs, **alpine_props) %}
+    {% set type = field.meta.get_field_type(field) %}
+    {% set label_text = label_text or field.label.text %}
+    {% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
+    {% if type == 'hidden' or force_hidden %}
+        {% set field_data = field.data|yesno("True,False") if force_hidden and type in ['checkbox','switch'] else field.data %}
+        {% if hidden_field_text %}
+            <div class="form-text">{{ label_text }}</div>
+            <div{% if not no_margin %} class="mb-3"{% endif %}>
+                {% if force_hidden %}
+                    <input type="hidden" name="{{ field.name }}" id="{{ field.id }}"
+                           value="{{ field_data or kwargs['default']|default('') }}"/>
+                {% else %}
+                    {{ field(**custom_kwargs) }}
+                {% endif %}
+                {{ hidden_field_text }}
+            </div>
+        {% else %}
+            {% if force_hidden %}
+                <input type="hidden" name="{{ field.name }}" id="{{ field.id }}"
+                       value="{{ field_data or kwargs['default']|default('') }}"/>
+            {% else %}
+                {{ field(**custom_kwargs) }}
+            {% endif %}
+        {% endif %}
+    {% elif type in ['checkbox','switch'] %}
+        <div class="form-check{% if type == 'switch' %} form-switch{% endif %} {% if not no_margin %} mb-3{% endif %}">
+            {% if is_readonly %}
+                <input type="hidden" name="{{ field.id }}" value="{{ field.data }}"/>
+                {{ field(class="form-check-input", checked=field.data, disabled=true, **kwargs) }}
+            {% else %}
+                {{ field(class="form-check-input", checked=field.data, value=1, **custom_kwargs) }}
+            {% endif %}
+            {{ alpine_form_label(field, label_text=label_text, required= field.flags.required, required_if=required_if, class="form-check-label") }}
+            {{ form_input_extras(field, help_text, admin_text) }}
+        </div>
+    {% elif type == 'checkgroup' %}
+        <div class="card card-body{% if not no_margin %} mb-3{% endif %}">
+            {{ field(**custom_kwargs) }}
+            {{ form_input_extras(field, help_text, admin_text) }}
+        </div>
+    {% elif type == 'select' %}
+        <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
+            {{ field(class="form-select", **custom_kwargs) }}
+            {{ alpine_form_label(field, label_text=label_text,  required= field.flags.required, required_if=required_if) }}
+            {{ form_input_extras(field, help_text, admin_text) }}
+        </div>
+    {% else %}
+        <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
+            {{ field(class="form-control", **custom_kwargs) }}
+            {{ alpine_form_label(field, label_text=label_text,  required= field.flags.required,  required_if=required_if) }}
+            {{ form_input_extras(field, help_text, admin_text) }}
+        </div>
+    {% endif %}
+{% endmacro %}
+
 {% macro card_select(target_field, opts, text_class="text-center", help_text="", disabled_opts=[], target_field_id="", disabled_card_text="Sold Out") %}
 {# 
     A set of card elements generated from opts. Each item in opts should include the following fields:
