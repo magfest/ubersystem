@@ -26,6 +26,7 @@ node_modules/
 .eggs/
 .coverage
 uploaded_files/*
+uber/static/deps/libs/*
 uber/static/analytics/extra-attendance-data.json
 uber/static/fonts/free3of9.pkl
 *.DS_Store

@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
+from pockets import groupify
 
 import stripe
 import time
@@ -18,7 +19,11 @@ from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePick
 from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils
-from uber.payments import ReceiptManager
+from uber.payments import ReceiptManager, TransactionRequest
+
+
+if c.AUTHORIZENET_LOGIN_ID:
+    from authorizenet import apicontractsv1, apicontrollers
 
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
@@ -407,7 +412,7 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, pickup_gr
                                                   amount=txn_total,
                                                   tracker=txn_tracker,
                                                   **kwargs)
-            message = payment_request.create_stripe_intent(intent_id)
+            message = payment_request.create_payment_intent(intent_id)
             if message:
                 txn_tracker.internal_error = message
                 session.commit()
@@ -484,6 +489,70 @@ def check_missed_stripe_payments():
             paid_ids.append(payment_intent.id)
             ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
     return paid_ids
+
+
+@celery.schedule(timedelta(hours=3))
+def check_authnet_held_txns():
+    if not c.AUTHORIZENET_LOGIN_ID:
+        return
+
+    held_ids = []
+    
+    merchantAuth = apicontractsv1.merchantAuthenticationType(
+        name=c.AUTHORIZENET_LOGIN_ID,
+        transactionKey=c.AUTHORIZENET_LOGIN_KEY
+        )
+    
+    heldTransactionListRequest = apicontractsv1.getUnsettledTransactionListRequest()
+    heldTransactionListRequest.merchantAuthentication = merchantAuth
+    heldTransactionListRequest.status = 'pendingApproval'
+    heldTransactionListController = apicontrollers.getUnsettledTransactionListController(heldTransactionListRequest)
+    heldTransactionListController.execute()
+    heldTransactionListResponse = heldTransactionListController.getresponse()
+
+    if heldTransactionListResponse is not None:
+        if heldTransactionListResponse.messages.resultCode == apicontractsv1.messageTypeEnum.Ok:
+            if heldTransactionListResponse.totalNumInResultSet > 0:
+                for transaction in heldTransactionListResponse.transactions.transaction:
+                    held_ids.append(str(transaction.transId))
+        else:
+            if heldTransactionListResponse.messages:
+                log.debug('Failed to get unsettled transaction list.\nCode:%s \nText:%s' % (heldTransactionListResponse.messages.message[0]['code'].text,
+                                                                                            heldTransactionListResponse.messages.message[0]['text'].text))
+
+    with Session() as session:
+        hold_txns = session.query(ReceiptTransaction).filter(ReceiptTransaction.charge_id.in_(held_ids),
+                                                             ReceiptTransaction.on_hold == False)
+        release_txns = session.query(ReceiptTransaction).filter(~ReceiptTransaction.charge_id.in_(held_ids),
+                                                                ReceiptTransaction.on_hold == True)
+
+        for txn in hold_txns:
+            txn.on_hold = True
+            session.add(txn)
+
+        release_txns_by_charge_id = groupify(release_txns, 'charge_id')
+
+        for charge_id, txns in release_txns_by_charge_id.items():
+            txn_status = TransactionRequest()
+            error = txn_status.get_authorizenet_txn(charge_id)
+
+            if error:
+                log.error(f"Tried to check status of transaction {charge_id} but got the error: {error}")
+            else:
+                if txn_status.response.transactionStatus != "settledSuccessfully":
+                    body = render('emails/held_txn_declined.html',
+                                  {'txns': txns, 'status': str(txn_status.response.transactionStatus)},
+                                  encoding=None)
+                    subject = f"AuthNet Held Transaction Declined: {charge_id}"
+                    send_email.delay(c.REPORTS_EMAIL, c.REGDESK_EMAIL, subject, body,
+                                     format='html', model='n/a')
+
+                for txn in txns:
+                    if txn_status.response.transactionStatus != "settledSuccessfully":
+                        txn.cancelled = datetime.now()
+                    else:
+                        txn.on_hold = False
+                    session.add(txn)
 
 
 @celery.schedule(timedelta(days=1))

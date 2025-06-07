@@ -322,8 +322,8 @@ class Root:
         if error:
             return {'error': error}
 
-        req = SpinTerminalRequest(terminal_id)
-        response = req.check_txn_status(intent_id)
+        req = SpinTerminalRequest(terminal_id, ref_id=intent_id)
+        response = req.check_txn_status()
         if response:
             response_json = response.json()
             if req.api_response_successful(response_json):
@@ -368,7 +368,7 @@ class Root:
             if not txn:
                 return {'success': True} # They'll end up with the error from poll_terminal_payment
             req = SpinTerminalRequest(terminal_id, amount=txn.txn_total, tracker=tracker, ref_id=intent_id)
-            response = req.check_txn_status(intent_id)
+            response = req.check_txn_status()
             if response:
                 response_json = response.json()
                 if req.api_response_successful(response_json):
