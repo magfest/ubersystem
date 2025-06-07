@@ -66,8 +66,5 @@ def downgrade():
     op.drop_column('department', 'panels_desc')
     op.drop_column('department', 'manages_panels')
     op.drop_column('department', 'from_email')
-    op.alter_column('panel_application', 'department',
-               existing_type=sa.Unicode(),
-               type_=sa.INTEGER(),
-               existing_nullable=False,
-               existing_server_default=sa.text('39626696'))
+    op.drop_column('panel_application', 'department')
+    op.add_column('panel_application', sa.Column('department', sa.Integer(), server_default='39626696', nullable=False))

@@ -1,7 +1,7 @@
 """Make many-to-many relationship between panel applications and applicants
 
 Revision ID: fbb26404edc5
-Revises: c198327b52b6
+Revises: 96605e65d7a8
 Create Date: 2025-05-26 22:10:30.926854
 
 """
@@ -9,7 +9,7 @@ Create Date: 2025-05-26 22:10:30.926854
 
 # revision identifiers, used by Alembic.
 revision = 'fbb26404edc5'
-down_revision = 'c198327b52b6'
+down_revision = '96605e65d7a8'
 branch_labels = None
 depends_on = None
 
