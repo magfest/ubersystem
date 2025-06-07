@@ -15,85 +15,60 @@
 <div class="row g-sm-3">
     <div class="col-12">
         <div class="form-text">Volunteering/Staffing</div>
-        {{ form_macros.toggle_checkbox(staffing_info.staffing, [staffing_info.walk_on_volunteer,
-                                                                staffing_info.requested_depts_ids,
-                                                                staffing_info.assigned_depts_ids,
-                                                                staffing_info.agreed_to_volunteer_agreement,
-                                                                staffing_info.got_staff_merch,
-                                                                staffing_info.hotel_eligible
-                                                                ], admin_text=staffing_admin_text) }}
+        {{ form_macros.input(staffing_info.staffing, admin_text=staffing_admin_text, alpine_model.boolean='staffing') }}
     </div>
 </div>
-<script type="text/javascript">
-    var checkStaffing = function() {
-        true_evals = [];
-        {% if badge_flags %}
-            true_evals.push({{ [c.STAFF_BADGE, c.CONTRACTOR_BADGE] }}.map(String).includes($("#{{ badge_flags.badge_type.id }}").val()));
-            true_evals.push($("#{{ badge_flags.ribbon.id }}-{{ c.VOLUNTEER_RIBBON }}").prop('checked'));
-        {% endif %}
-        if(true_evals.some(item => item)) {
-            $("#{{ staffing_info.staffing.id }}").prop('checked', true).trigger('change');
-        }
-    }
-    $().ready(function () {
-        checkStaffing();
-        {% if badge_flags %}
-        $("#{{ badge_flags.badge_type.id }}").change(checkStaffing);
-        $("#{{ badge_flags.ribbon.id }}").change(checkStaffing);
-        {% endif %}
-    })
-</script>
-<div class="row g-sm-3">
+<div class="row g-sm-3" x-show="staffing">
     <div class="col-12">
         <div class="form-text">Walk-On Volunteer</div>
-        {{ form_macros.form_input(staffing_info.walk_on_volunteer) }}
+        {{ form_macros.input(staffing_info.walk_on_volunteer) }}
     </div>
 </div>
 
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(staffing_info.requested_depts_ids) }}</div>
+<div class="row g-sm-3" x-show="staffing">
+    <div class="col-12">{{ form_macros.input(staffing_info.requested_depts_ids) }}</div>
 </div>
 {% endif %}
 
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(staffing_info.assigned_depts_ids) }}</div>
+<div class="row g-sm-3" x-show="staffing">
+    <div class="col-12">{{ form_macros.input(staffing_info.assigned_depts_ids) }}</div>
 </div>
 {% endblock %}
 
 {% block merch_info %}
 {% if c.SEPARATE_STAFF_MERCH %}
-<div class="row g-sm-3">
+<div class="row g-sm-3" x-show="staffing">
     <div class="col-12 col-sm-6">
         <div class="form-text">Staff Merch Owed</div>
         <div class="mb-3">{{ attendee.staff_merch }}</div>
     </div>
     <div class="col-12 col-sm-6">
         <div class="form-text">Received Staff Merch</div>
-        <div class="mb-3">{{ form_macros.form_input(staffing_info.got_staff_merch) }}</div>
+        <div class="mb-3">{{ form_macros.input(staffing_info.got_staff_merch) }}</div>
     </div>
 </div>
 {% endif %}
 {% endblock %}
 
 {% block checklist_info %}
-<div class="row g-sm-3">
+<div class="row g-sm-3" x-show="staffing">
     {% if c.VOLUNTEER_AGREEMENT_ENABLED %}
     <div class="col">
-        {{ form_macros.form_input(staffing_info.agreed_to_volunteer_agreement,
+        {{ form_macros.input(staffing_info.agreed_to_volunteer_agreement,
             hidden_field_text=staffing_info.agreed_to_volunteer_agreement.data|yesno("Yes,No")) }}
     </div>
     {% endif %}
     {% if c.EMERGENCY_PROCEDURES_ENABLED %}
     <div class="col">
-        {{ form_macros.form_input(staffing_info.reviewed_emergency_procedures,
+        {{ form_macros.input(staffing_info.reviewed_emergency_procedures,
             hidden_field_text=staffing_info.reviewed_emergency_procedures.data|yesno("Yes,No")) }}
     </div>
     {% endif %}
     <div class="col">
         <div class="form-text">Staff Crash Space</div>
         <div class="mb-3">
-            {{ form_macros.form_input(staffing_info.hotel_eligible, readonly=not c.HAS_DEVTOOLS_ACCESS) }}
+            {{ form_macros.input(staffing_info.hotel_eligible, readonly=not c.HAS_DEVTOOLS_ACCESS) }}
         </div>
     </div>
 </div>

@@ -1,0 +1,39 @@
+<script type="text/javascript">
+    function checkStaffing(ribbons,badgeType){
+        console.log("HMD running check staffing function");
+        let staffing = false;
+        if( badgeType === {{ c.STAFF_BADGE }} || badgeType === {{ c.CONTRACTOR_BADGE }}){
+            staffing = true;
+        }
+        if( ribbons.includes({{  c.VOLUNTEER_RIBBON }})) {
+            staffing = true;
+        }
+        console.log("HMD returning value " + staffing);
+        return staffing;
+    }
+
+    function attendeeMetadata() {
+        return {
+            badge_placeholder: {{ attendee.placeholder | jsonize }},
+            badge_ribbons: {{ attendee.ribbon | jsonize }},
+            badge_type : {{ attendee.badge_type }},
+            staffing: {{ attendee.staffing | jsonize }},
+
+            init() {
+                console.log("HMD in init function");
+                staffing = checkStaffing(Alpine.raw(this.badge_ribbons), this.badge_type);
+                this.$watch('badge_ribbons',
+                    (ribbons) => {
+                        console.log('HMD WATCH badgeRibbons HAS RUN');
+                        staffing = checkStaffing(Alpine.raw(ribbons), this.badge_type);
+                 });
+                this.$watch('badge_type',
+                    (btype) => {
+                        console.log('HMD WATCH badgeType HAS RUN');
+                        staffing = checkStaffing(Alpine.raw(this.badge_ribbons), btype);
+                })
+            }
+        }
+    }
+</script>
+
