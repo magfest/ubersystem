@@ -334,7 +334,9 @@ class GuestStagePlot(MagModel):
 
     @property
     def status(self):
-        return self.url if self.url else ''
+        if self.url:
+            return self.url
+        return self.notes
 
 
 class GuestPanel(MagModel):
