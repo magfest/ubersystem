@@ -208,7 +208,8 @@ class Root:
             message = check(guest_merch)
             
             if not message:
-                if not guest.deadline_from_model('autograph') and params.get('rock_island_autographs', '') == '':
+                if not guest.deadline_from_model('autograph') and guest.group_type in c.ROCK_ISLAND_GROUPS \
+                        and params.get('rock_island_autographs', '') == '':
                     message = 'Please select whether you would like to have a Meet N Greet at Rock Island.'
                 elif c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE \
                         and guest_merch.selling_merch == c.OWN_TABLE \
