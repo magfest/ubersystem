@@ -15,9 +15,7 @@
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
-{# Badge Placeholder is found in a higher level x-data that we leverage here. Undefined values default to false in javascript
-   Add X-data block here from raven's code. Overrides in events is part of what drives this.
-#}
+{# Badge Placeholder and staffing values are found in a higher level x-data that we leverage here. #}
 <div x-data="{
                 copy_address: {{ group and loaded_from_group and attendee.address1 == group.address1 | jsonize }},
                 copy_cellphone: {{ group and loaded_from_group and attendee.cellphone == group.phone | jsonize }},

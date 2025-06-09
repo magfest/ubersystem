@@ -18,14 +18,10 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 {% block attendee_info %}
-    {# Set a placeholder badge, and then an email is sent to fill out the badge info. We want to *immediately* unplaceholder the badge
-    there is an email pending
-    the second half of this is the problem. dealers want to fill out their badge for someone but *dont* have all the info.
-    group leaders keep leaving the checkbox checked when trying to fill out the information.
-    MFF this is disabled because attendee account and can't fill it in. leave as is for now.
-    Raven's branch department_info and panels info the block x_data pattern.
+    {# This line says if it's a placeholder badge, we want to force them to not be a placeholder.
+       However we want to allow a dealer to fill out badges for someone else they don't have all the information for.
+       That only works if attendee accounts are off.
     #}
-
 {% if not admin_area and (attendee.placeholder or 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED) %}
     {% if attendee.placeholder %}
         <input type="hidden" name="placeholder" id="placeholder" value="False" />
