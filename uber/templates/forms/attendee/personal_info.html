@@ -16,6 +16,7 @@
 #}
 
 {# Badge Placeholder is found in a higher level x-data that we leverage here. Undefined values default to false in javascript
+   Add X-data block here from raven's code. Overrides in events is part of what drives this.
 #}
 <div x-data="{
                 copy_address: {{ group and loaded_from_group and attendee.address1 == group.address1 | jsonize }},

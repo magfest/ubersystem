@@ -14,6 +14,8 @@
 
     function attendeeMetadata() {
         return {
+            default_placeholder: {{ not admin_area and 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED | jsonize }},
+            forbid_placeholder: {{ not admin_area and attendee.placeholder | jsonize }},
             badge_placeholder: {{ attendee.placeholder | jsonize }},
             badge_ribbons: {{ attendee.ribbon | jsonize }},
             badge_type : {{ attendee.badge_type }},
@@ -22,6 +24,11 @@
             init() {
                 console.log("HMD in init function");
                 staffing = checkStaffing(Alpine.raw(this.badge_ribbons), this.badge_type);
+                if(this.forbid_placeholder){
+                    this.badge_placeholder = false;
+                } else if (this.default_placeholder) {
+                    this.badge_placeholder = true;
+                }
                 this.$watch('badge_ribbons',
                     (ribbons) => {
                         console.log('HMD WATCH badgeRibbons HAS RUN');
