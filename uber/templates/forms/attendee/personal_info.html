@@ -22,11 +22,13 @@
                 copy_address: {{ group and loaded_from_group and attendee.address1 == group.address1 | jsonize }},
                 copy_cellphone: {{ group and loaded_from_group and attendee.cellphone == group.phone | jsonize }},
                 copy_email: {{ group and loaded_from_group and attendee.email == group.email_address | jsonize }},
+                country: {{ personal_info.country.data | jsonize }},
                 dealer: {{ (is_prereg_dealer or attendee.is_dealer) | jsonize }},
                 international: {{ personal_info.international.data | jsonize }},
                 no_cellphone: {{ personal_info.no_cellphone.data | jsonize }},
                 no_onsite_contact: {{ personal_info.no_onsite_contact.data | jsonize }},
-                same_legal_name: {{ attendee.first_name != '' and attendee.legal_name == '' | jsonize }}
+                same_legal_name: {{ attendee.first_name != '' and attendee.legal_name == '' | jsonize }},
+                get isGlobal() { return this.country != 'United States' && this.country != 'Canada'},
                 get isEmailRequired() { return !this.copy_email },
                 get isNameRequired() {return !this.badge_placeholder && !this.same_legal_name},
                 get isAddressRequired() {return !this.copy_address & !this.badge_placeholder},
@@ -127,27 +129,6 @@
       {{ form_macros.input(personal_info.copy_address, alpine_model.boolean='copy_address') }}
   </div>
 </div>
-<script type="text/javascript">
-  // selectToAutocomplete is a pain in my ass
-  $("#copy_address").on('click', function() {
-    setTimeout(function() {
-      if (!$("#country").prop("disabled")) {regionChangecountry();}
-      $("#country-selectToAutocomplete").prop('disabled', $("#country").prop("disabled"));
-      $('#country-selectToAutocomplete').siblings('label').children('.required-indicator').toggle(!$("#country").prop("disabled"));
-    }, 10);
-  })
-  $().ready(function() {
-    setTimeout(function() {
-      if ($("#country").prop("disabled")) {
-        $("#region").prop('disabled', true);
-        $("#region_us").prop('disabled', true);
-        $("#region_canada").prop('disabled', true);
-      }
-      $("country-selectToAutocomplete").prop('disabled', $("#country").prop("disabled"));
-      $('#country-selectToAutocomplete').siblings('label').children('.required-indicator').toggle(!$("#country").prop("disabled"));
-    }, 10);
-   })
-</script>
 {% endif %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
@@ -159,18 +140,18 @@
 </div>
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    {{ form_input(personal_info.country, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
-    <div class="form-floating selectToAutocomplete">
-      <label for="{{ personal_info.country.id }}-selectToAutocomplete">
-        {{ personal_info.country.label.text }}
-        {% if personal_info.country.flags.required %}<span class="required-indicator text-danger"> *</span>{% endif %}
-      </label>
-    </div>
+    {{ form_input(personal_info.country, alpine_model="country", alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
   </div>
   <div class="col-12 col-sm-6">
-    {{ form_input(personal_info.region_us, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
-    {{ form_input(personal_info.region_canada, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
-    {{ form_input(personal_info.region, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
+      <div x-show="country == 'United States'">
+        {{ form_input(personal_info.region_us, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
+      </div>
+      <div x-show="country == 'Canada'">
+        {{ form_input(personal_info.region_canada, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
+      </div>
+      <div x-show="isGlobal">
+        {{ form_input(personal_info.region, alpine_bind:disabled="copy_address", required_if="isAddressRequired") }}
+      </div>
   </div>
 </div>
 <div class="row g-sm-3">
@@ -181,36 +162,6 @@
     {{ form_input(personal_info.zip_code, alpine_bind:disabled="copy_address", required_if="isZipRequired")) }}
   </div>
 </div>
-<script type="text/javascript">
-    {%- set country_id = personal_info.country.id %}
-    var regionChange{{ country_id }} = function() {
-        $('#{{ personal_info.region_us.id }}').prop('disabled', true).parent('.form-floating').hide();
-        $('#{{ personal_info.region_canada.id }}').prop('disabled', true).parent('.form-floating').hide();
-        $('#{{ personal_info.region.id }}').prop('disabled', false).parent('.form-floating').show();
-        var whichCountry = $('#{{ country_id }}').find(':selected').text();
-        switch(whichCountry) {
-              case 'United States':
-                $('#{{ personal_info.region.id }}').prop('disabled', true).parent('.form-floating').hide();
-                $('#{{ personal_info.region_us.id }}').prop('disabled', false).parent('.form-floating').show();
-                break;
-              case 'Canada':
-                $('#{{ personal_info.region.id }}').prop('disabled', true).parent('.form-floating').hide();
-                $('#{{ personal_info.region_canada.id }}').prop('disabled', false).parent('.form-floating').show();
-                break;
-          }
-    }
-    $(function() {
-        $('#{{ country_id }}').selectToAutocomplete().prop("required", false).change(function() {
-            regionChange{{ country_id }}();
-        });
-        $('#{{ country_id }}').parents('.form-floating').addClass('visually-hidden');
-        $('#{{ country_id }}').siblings("input.form-control.ui-autocomplete-input").attr(
-          "id", "{{ country_id }}-selectToAutocomplete").insertBefore('label[for="{{ country_id }}-selectToAutocomplete');
-        $('#{{ country_id }}-validation').insertAfter('label[for="{{ country_id }}-selectToAutocomplete');
-        regionChange{{ country_id }}();
-    })
-</script>
-
 {% else %}
 {# We need a better solution, but avoiding a row here allows event plugins to put a field next to the zip code #}
       <div class="col-12 col-sm-6">
