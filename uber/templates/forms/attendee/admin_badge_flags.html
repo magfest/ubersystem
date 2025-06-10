@@ -94,7 +94,7 @@
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">
         <div class="form-text">Placeholder</div>
-        <div>{{ form_macros.input(badge_flags.placeholder, admin_text="You will only need to fill out their name and email address.", **{'x-model.boolean':'placeholder'}) }}</div>
+        <div>{{ form_macros.input(badge_flags.placeholder, admin_text="You will only need to fill out their name and email address.", **{'x-model.boolean':'badge_placeholder'}) }}</div>
     </div>
     {% if c.TRANSFERABLE_BADGE_TYPES|length > 0 %}
         {% set transfer_admin_text %}

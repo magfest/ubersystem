@@ -1,6 +1,7 @@
 <script type="text/javascript">
     function checkStaffing(ribbons,badgeType){
-        console.log("HMD running check staffing function");
+        console.log("HMD running check staffing function ribbons:" + ribbons + " badgeType: " + badgeType);
+        console.log("is ribbons an array?" + Array.isArray(ribbons));
         let staffing = false;
         if( badgeType === {{ c.STAFF_BADGE }} || badgeType === {{ c.CONTRACTOR_BADGE }}){
             staffing = true;
@@ -17,7 +18,7 @@
             default_placeholder: {{ (not admin_area and 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED) | javascript_bool }},
             forbid_placeholder: {{ (not admin_area and attendee.placeholder) | javascript_bool }},
             badge_placeholder: {{ attendee.placeholder | javascript_bool }},
-            badge_ribbons: {{ attendee.ribbon | jsonize }},
+            badge_ribbons: {{ attendee.ribbon or [] | tojson }},
             badge_type : {{ attendee.badge_type }},
             staffing: {{ attendee.staffing | javascript_bool }},
 
