@@ -154,7 +154,7 @@
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_status,
             admin_text=attendee.cannot_edit_badge_status_reason,
             disabled=(attendee.cannot_edit_badge_status_reason != '')) }}</div>
-    <div class="col-12 col-sm-4">{{ form_macros.input(badge_flags.badge_type, alpine_model='badge_type') }}</div>
+    <div class="col-12 col-sm-4">{{ form_macros.input(badge_flags.badge_type, **{'x-model.number':'badge_type'}) }}</div>
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_num,
             extra_field=form_macros.toggle_checkbox(badge_flags.no_badge_num, [badge_flags.badge_num], hide_on_checked=True, prop="readonly", checked=not attendee.badge_num)) }}</div>
 </div>
