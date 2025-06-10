@@ -14,13 +14,13 @@
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
-
-{# Badge Placeholder and staffing values are found in a higher level x-data that we leverage here. #}
-<div x-data="{
+<script>
+    function personalInfo() {
+        return {
                 copy_address: {{ (group and loaded_from_group and attendee.address1 == group.address1) | javascript_bool }},
                 copy_cellphone: {{ (group and loaded_from_group and attendee.cellphone == group.phone) | javascript_bool }},
                 copy_email: {{ (group and loaded_from_group and attendee.email == group.email_address) | javascript_bool }},
-                country: {{ personal_info.country.data | default('undefined', true) }},
+                country: {{ personal_info.country.data | jsonize }},
                 dealer: {{ (is_prereg_dealer or attendee.is_dealer) | javascript_bool }},
                 international: {{ personal_info.international.data | javascript_bool }},
                 no_cellphone: {{ personal_info.no_cellphone.data | javascript_bool }},
@@ -34,7 +34,11 @@
                 get isZipRequired(){ return !this.international && !this.copy_address && !this.badge_placeholder },
                 get isCellphoneDisabled() { return this.no_cellphone || this.copy_cellphone},
                 get isCellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.badge_placeholder }
-                }">
+        }
+    }
+</script>
+{# Badge Placeholder and staffing values are found in a higher level x-data that we leverage here. #}
+<div x-data="personalInfo()">
     {% block name %}
     {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
 
