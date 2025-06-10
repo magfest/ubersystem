@@ -37,14 +37,14 @@
         }
     }
 </script>
-{# Badge Placeholder and staffing values are found in a higher level x-data that we leverage here. #}
+{# Badge related values and staffing values are found in a higher level x-data that we leverage here. #}
 <div x-data="personalInfo()">
     {% block name %}
     {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
 
 <div class="row g-sm-3">
-<div class="col-12 col-sm-6">{{ form_macros.input(personal_info.first_name) }}</div>
-<div class="col-12 col-sm-6">{{ form_macros.input(personal_info.last_name, value=attendee_last_name) }}</div>
+<div class="col-12 col-sm-6">{{ form_macros.input(personal_info.first_name, required_if="!badge_placeholder") }}</div>
+<div class="col-12 col-sm-6">{{ form_macros.input(personal_info.last_name, value=attendee_last_name, required_if="!badge_placeholder") }}</div>
 </div>
 
 {% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
@@ -53,7 +53,7 @@
       {{ form_macros.input(personal_info.same_legal_name, alpine_model='same_legal_name') }}
   </div>
 
-  <div class="col-12 col-sm-6">{{ form_macros.input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?'), required_if="isNameRequired") }}
+  <div class="col-12 col-sm-6">{{ form_macros.input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?'), required_if="isNameRequired", **{':disabled':'same_legal_name'}) }}
   </div>
 </div>
 {% else %}
@@ -62,11 +62,8 @@
 
 {% if admin_area or attendee.has_personalized_badge %}
 <div class="row g-sm-3">
-  <div class="col-12">{{ form_macros.input(personal_info.badge_printed_name) }}</div>
+  <div class="col-12">{{ form_macros.input(personal_info.badge_printed_name, required_if="require_badge_name") }}</div>
 </div>
-  {% if badge_flags and admin_area %}
-  {{ form_macros.toggle_fields_js(badge_flags.badge_type, [personal_info.badge_printed_name], on_values=c.PREASSIGNED_BADGE_TYPES, toggle_required=True) }}
-  {% endif %}
 {% endif %}
 {% endblock %}
 
