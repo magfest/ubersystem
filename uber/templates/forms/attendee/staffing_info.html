@@ -21,7 +21,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endif %}
 <div class="row g-sm-3">
     <div class="col-12">
-        {{ form_macros.input(staffing_info.staffing, help_text=staffing_message, alpine_model.boolean="staffing") }}
+        {{ form_macros.input(staffing_info.staffing, help_text=staffing_message, **{'x-model.boolean':'staffing'}) }}
     </div>
 </div>
 

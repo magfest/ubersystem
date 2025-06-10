@@ -29,7 +29,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
         <div class="row g-sm-3">
             <div class="col">
                 <div class="form-text">Placeholder</div>
-                {{ form_macros.input(badge_flags.placeholder, checked=True, alpine_model.boolean='badge_placeholder') }}
+                {{ form_macros.input(badge_flags.placeholder, checked=True, **{'x-model.boolean':'badge_placeholder'}) }}
             </div>
         </div>
     {% endif %}

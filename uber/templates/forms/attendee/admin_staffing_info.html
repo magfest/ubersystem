@@ -15,7 +15,7 @@
 <div class="row g-sm-3">
     <div class="col-12">
         <div class="form-text">Volunteering/Staffing</div>
-        {{ form_macros.input(staffing_info.staffing, admin_text=staffing_admin_text, alpine_model.boolean='staffing') }}
+        {{ form_macros.input(staffing_info.staffing, admin_text=staffing_admin_text, **{'x-model.boolean':'staffing'}) }}
     </div>
 </div>
 <div class="row g-sm-3" x-show="staffing">

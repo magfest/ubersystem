@@ -94,7 +94,7 @@
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">
         <div class="form-text">Placeholder</div>
-        <div>{{ form_macros.input(badge_flags.placeholder, admin_text="You will only need to fill out their name and email address.",alpine_model.boolean='badge_placeholder') }}</div>
+        <div>{{ form_macros.input(badge_flags.placeholder, admin_text="You will only need to fill out their name and email address.", **{'x-model.boolean':'placeholder'}) }}</div>
     </div>
     {% if c.TRANSFERABLE_BADGE_TYPES|length > 0 %}
         {% set transfer_admin_text %}
@@ -199,7 +199,7 @@
 
 {% block ribbons %}
 <div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.input(badge_flags.ribbon,alpine_model.number='badge_ribbons') }}</div>
+    <div class="col-12">{{ form_macros.input(badge_flags.ribbon, **{'x-model.number':'badge_ribbons'}) }}</div>
 </div>
 {% endblock %}
 

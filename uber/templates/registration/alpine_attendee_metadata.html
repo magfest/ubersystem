@@ -14,12 +14,12 @@
 
     function attendeeMetadata() {
         return {
-            default_placeholder: {{ not admin_area and 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED | jsonize }},
-            forbid_placeholder: {{ not admin_area and attendee.placeholder | jsonize }},
-            badge_placeholder: {{ attendee.placeholder | jsonize }},
+            default_placeholder: {{ (not admin_area and 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED) | javascript_bool }},
+            forbid_placeholder: {{ (not admin_area and attendee.placeholder) | javascript_bool }},
+            badge_placeholder: {{ attendee.placeholder | javascript_bool }},
             badge_ribbons: {{ attendee.ribbon | jsonize }},
             badge_type : {{ attendee.badge_type }},
-            staffing: {{ attendee.staffing | jsonize }},
+            staffing: {{ attendee.staffing | javascript_bool }},
 
             init() {
                 console.log("HMD in init function");
