@@ -41,6 +41,8 @@ x-data="{ {% block x_data %}
   <div class="form-text" x-text="getDepartmentDesc" x-show="getDepartmentDesc"></div>
   {% endcall %}
 </div>
+{% else %}
+<input type="hidden" name="department" value="{{ c.PANELS_DEPT_OPTS_WITH_DESC[0][0] }}">
 {% endif %}
 {% endblock %}
 </div>

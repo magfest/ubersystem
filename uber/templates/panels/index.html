@@ -4,17 +4,6 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-  <script type="text/javascript">
-      var showOrHidePOC = function () {
-          setVisible('#point_of_contact', $.val('other_panelists'));
-      };
-      $(function () {
-          $('<br/>').insertBefore('nobr');
-          showOrHidePOC();
-          $.field('other_panelists').on('change', showOrHidePOC);
-      });
-  </script>
-
   <div class="card card-body">
       <h1>{{ c.EVENT_NAME }} Panel Submission Form</h1>
       {% if c.AFTER_PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS and not is_guest %}
