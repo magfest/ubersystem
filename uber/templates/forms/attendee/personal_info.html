@@ -14,7 +14,6 @@
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
-
 <script>
     function personalInfo() {
         return {
@@ -39,7 +38,9 @@
                 country_alt_spelling: {{ c.COUNTRY_ALT_SPELLINGS | jsonize }},
                 init() {
                     this.$nextTick(() => {
-                        let choices = new Choices(this.$refs.countryselect)
+                        let choices = new Choices(this.$refs.countryselect, {
+                            searchFields: ['label', 'customProperties.altSpelling']
+                        })
 
                         let refreshChoices = () => {
                             let selection = [this.country]
@@ -49,6 +50,9 @@
                                 value: opt,
                                 label: opt,
                                 selected: selection.includes(opt),
+                                customProperties: {
+                                    altSpelling: this.country_alt_spelling[opt]
+                                }
                             })))
                         }
 
