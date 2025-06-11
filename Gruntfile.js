@@ -10,10 +10,9 @@ module.exports = function (grunt) {
                     'uber/static/deps/libs/moment.js': 'moment:main',
                     'uber/static/deps/libs/jquery-ui.js': 'jquery-ui-dist/jquery-ui.js',
                     'uber/static/deps/libs/jquery-ui.css': 'jquery-ui-dist/jquery-ui.css',
-                    'uber/static/deps/libs/select2.js': 'select2/dist/js/select2.full.js',
-                    'uber/static/deps/libs/select2.css': 'select2/dist/css/select2.css',
                     'uber/static/deps/libs/geocomplete.js': 'geocomplete:main',
                     'uber/static/deps/libs/jquery.form.js': 'jquery-form/jquery.form.js',
+                    'uber/static/deps/libs/choices.js':'choices.js:main',
                 }
             }
         },
@@ -35,10 +34,9 @@ module.exports = function (grunt) {
                 dest: 'uber/static/deps/combined.css',
             }
         },
-        uglify: {
+        terser: {
             options: {
                 mangle: false,
-                output: {comments: 'some'},
                 sourceMap: true
             },
             target: {
@@ -71,8 +69,8 @@ module.exports = function (grunt) {
     });
     grunt.loadNpmTasks('grunt-npmcopy');
     grunt.loadNpmTasks('grunt-contrib-concat');
-    grunt.loadNpmTasks('grunt-contrib-uglify');
+    grunt.loadNpmTasks('grunt-terser');
     grunt.loadNpmTasks('grunt-contrib-cssmin');
     grunt.loadNpmTasks('grunt-text-replace');
-    grunt.registerTask('default', ['npmcopy', 'concat', 'uglify', 'cssmin', 'replace']);
+    grunt.registerTask('default', ['npmcopy', 'concat', 'terser', 'cssmin', 'replace']);
 };

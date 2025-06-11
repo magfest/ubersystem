@@ -14,6 +14,7 @@
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
+
 <script>
     function personalInfo() {
         return {
@@ -33,7 +34,34 @@
                 get isOnsiteContactRequired() {return !this.badge_placeholder && !this.no_onsite_contact},
                 get isZipRequired(){ return !this.international && !this.copy_address && !this.badge_placeholder },
                 get isCellphoneDisabled() { return this.no_cellphone || this.copy_cellphone},
-                get isCellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.badge_placeholder }
+                get isCellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.badge_placeholder },
+                country_options: {{ c.COUNTRY_OPTS | jsonize }},
+                country_alt_spelling: {{ c.COUNTRY_ALT_SPELLINGS | jsonize }},
+                init() {
+                    this.$nextTick(() => {
+                        let choices = new Choices(this.$refs.countryselect)
+
+                        let refreshChoices = () => {
+                            let selection = [this.country]
+
+                            choices.clearStore()
+                            choices.setChoices(this.country_options.map(opt => ({
+                                value: opt,
+                                label: opt,
+                                selected: selection.includes(opt),
+                            })))
+                        }
+
+                        refreshChoices()
+
+                        this.$refs.countryselect.addEventListener('change', () => {
+                            this.country = choices.getValue(true)
+                        })
+
+                        this.$watch('country', () => refreshChoices());
+                        this.$watch('country_options', () => refreshChoices());
+                    })
+                }
         }
     }
 </script>
@@ -139,7 +167,7 @@
 </div>
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    {{ form_macros.input(personal_info.country, alpine_model="country", required_if="isAddressRequired", **{':disabled':'copy_address'}) }}
+    {{ form_macros.input(personal_info.country, required_if="isAddressRequired", **{':disabled':'copy_address', 'x-model': 'country', 'x-ref': 'countryselect'}) }}
   </div>
   <div class="col-12 col-sm-6">
       <div x-show="country == 'United States'">
