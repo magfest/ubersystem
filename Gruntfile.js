@@ -12,7 +12,7 @@ module.exports = function (grunt) {
                     'uber/static/deps/libs/jquery-ui.css': 'jquery-ui-dist/jquery-ui.css',
                     'uber/static/deps/libs/geocomplete.js': 'geocomplete:main',
                     'uber/static/deps/libs/jquery.form.js': 'jquery-form/jquery.form.js',
-                    'uber/static/deps/libs/choices.js':'choices.js:main',
+                    'uber/static/deps/libs/choices.js':'choices.js:main'
                 }
             }
         },
@@ -30,7 +30,7 @@ module.exports = function (grunt) {
 
             },
             css: {
-                src: ['uber/static/deps/libs/*.css', 'uber/static/deps/jquery-datetextentry/jquery.datetextentry.css'],
+                src: ['uber/static/deps/libs/*.css', 'uber/static/deps/choices/choices-bootstrap.css', 'uber/static/deps/jquery-datetextentry/jquery.datetextentry.css'],
                 dest: 'uber/static/deps/combined.css',
             }
         },
