@@ -3,23 +3,25 @@
 {% block deadline_headline %}Add Your Panels{% endblock %}
 
 {% block deadline_text %}
-    {% if not guest.group.leader.submitted_panels %}
-        What panels and/or events are you hosting at {{ c.EVENT_NAME }}? Please submit an application for each.
-    {% else %}
-    You have submitted the following panel
-    idea{{ guest.group.leader.submitted_panels|length|pluralize }}:
-    <ul>
-    {% for panel in guest.group.leader.submitted_panels %}
-        <strong>{{ panel.name }}</strong>{% if c.PANEL_DEPT_OPTS|length > 1 %} ({{ panel.department_label }}){% endif %}
-        <br/>{{ panel.presentation_label }}, {{ panel.length_label }}{% if panel.length == c.OTHER %}: {{ panel.length_text }}{% endif %}
-        <br/>"{{ panel.description }}"{% if not loop.last %}<br/><br/>{% endif %}
-    {% endfor %}
-    </ul>
-    <br/>
-    {% if c.APP_LIMIT %}
-    You may submit up to {{ c.APP_LIMIT }} panels for review.
-    {% endif %}
-    {% if not c.APP_LIMIT or guest.group.leader.submitted_panels|length < c.APP_LIMIT %}Use the link above to submit more panel idea(s).{% endif %}
+    {% if not guest.panel_status %}
+        What panels and/or events are you hosting at {{ c.EVENT_NAME }}? Please use the link above to submit an application for each or to indicate that you won't be running a panel.
+    {% elif guest.group.leader.submitted_panels %}
+        You have submitted the following panel
+        idea{{ guest.group.leader.submitted_panels|length|pluralize }}:
+        <ul>
+        {% for panel in guest.group.leader.submitted_panels %}
+            <strong>{{ panel.name }}</strong>{% if c.PANELS_DEPT_OPTS|length > 1 %} ({{ panel.department_name }}){% endif %}
+            <br/>{{ panel.presentation_label }}, {{ panel.length_label }}{% if panel.length == c.OTHER %}: {{ panel.length_text }}{% endif %}
+            <br/>"{{ panel.description }}"{% if not loop.last %}<br/><br/>{% endif %}
+        {% endfor %}
+        </ul>
+        <br/>
+        {% if c.APP_LIMIT %}
+        You may submit up to {{ c.APP_LIMIT }} panels for review.
+        {% endif %}
+        {% if not c.APP_LIMIT or guest.group.leader.submitted_panels|length < c.APP_LIMIT %}Use the link above to submit more panel idea(s).{% endif %}
+    {% elif guest.panel.wants_panel == c.NO_PANEL %}
+        You have declined to run a panel. If you change your mind, you can use the link above to submit a panel application.
     {% endif %}
     <script type="text/javascript">
         $(function() {

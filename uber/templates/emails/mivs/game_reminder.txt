@@ -6,4 +6,4 @@ We just wanted to remind you that {{ c.MIVS_DEADLINE|datetime_local }} is the la
 
 You can submit a game anytime until the deadline at {{ c.URL_BASE }}/mivs/continue_app?id={{ studio.id }}
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

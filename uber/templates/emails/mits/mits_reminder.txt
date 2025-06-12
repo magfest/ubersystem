@@ -4,4 +4,4 @@ Thanks for registering your team with the MAGFest Indie Tabletop Showcase!  The 
 
 In the meantime, let us know if you have any questions!
 
-{{ c.MITS_EMAIL_SIGNATURE }}
+{{ email_signature }}

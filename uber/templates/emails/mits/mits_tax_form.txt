@@ -13,4 +13,4 @@ Anything you would like to give away, you may give away anything that you can le
 Please email MITS@Magfest.org if you have any questions.
 
 Thanks!
-{{ c.MITS_EMAIL_SIGNATURE }}
+{{ email_signature }}

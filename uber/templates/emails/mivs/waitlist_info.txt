@@ -10,4 +10,4 @@ We sincerely thank you for your flexibility and we hope to see you in this or a 
 
 If you have any questions, please email {{ c.MIVS_EMAIL|email_only }}
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

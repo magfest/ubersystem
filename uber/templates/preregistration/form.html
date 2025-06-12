@@ -52,16 +52,16 @@
   {% include "groupform.html" %}
   {% include "regform.html" %}
 
-  {% if not edit_id %}
-      <button type="submit" class="btn btn-primary" value="Next">Next</button>
+  {% if edit_id and cart_not_empty and not repurchase %}
+    <button type="submit" class="btn btn-primary" value="Update">Update</button>
+    <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
   {% else %}
-      <button type="submit" class="btn btn-primary" value="Update">Update</button>
-      {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
-      <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
-      {% endif %}
+    <button type="submit" class="btn btn-primary" value="Next">Next</button>
   {% endif %}
 
-  {% if edit_id or cart_not_empty %}
+  {% if repurchase %}
+  <a href="cancel_repurchase" class="btn btn-outline-secondary" value="Cancel">Cancel</a>
+  {% elif cart_not_empty %}
   <a href="index" class="btn btn-outline-secondary" value="Cancel">Cancel</a>
   {% endif %}
 

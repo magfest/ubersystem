@@ -8,4 +8,4 @@ You can also check your registration status and view/update your details here: {
 
 If you change your mind, you do not need to do anything. You will not receive any more emails from us unless someone activates your badge.
 
-{{ c.REGDESK_EMAIL_SIGNATURE }}
+{{ email_signature }}

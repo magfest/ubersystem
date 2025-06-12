@@ -196,7 +196,6 @@ def no_negative_hours(job):
         return 'You cannot create a job with negative hours.'
 
 
-Department.required = [('name', 'Name'), ('description', 'Description')]
 DeptRole.required = [('name', 'Name')]
 
 

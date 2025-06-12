@@ -71,8 +71,10 @@ def group_requires_leader(form):
 
 
 LeaderInfo.field_validation.required_fields = {
-    'leader_first_name': ("Please provide the group leader's first name.", 'first_name', lambda x: group_requires_leader(x.form)),
-    'leader_last_name': ("Please provide the group leader's last name.", 'last_name', lambda x: group_requires_leader(x.form)),
+    'leader_first_name': ("Please provide the group leader's first name.", 'leader_first_name',
+                          lambda x: group_requires_leader(x.form)),
+    'leader_last_name': ("Please provide the group leader's last name.", 'leader_last_name',
+                         lambda x: group_requires_leader(x.form)),
     'leader_email': ("Please enter an email address.", 'leader_email', lambda x: group_requires_leader(x.form)),
     'leader_cellphone': ("Please provide a phone number.", 'leader_cellphone', lambda x: x.form.model.is_dealer),
 }

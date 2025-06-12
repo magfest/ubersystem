@@ -31,11 +31,16 @@ class Root:
     def index(self, session, message=''):
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident) \
             .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '', Attendee.is_valid == True,  # noqa: E712
-                                                     Attendee.badge_status != c.WATCHED_STATUS)
+                                                     Attendee.badge_status != c.WATCHED_STATUS).order_by(Attendee.last_first.asc())
 
         attendees = [
-            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
-            for id, name, badge_type, badge_num in attendee_attrs]
+            {
+                'id': id,
+                'displayText': '{} - {}{}'.format(name.title(), c.BADGES[badge_type],
+                                                  ' #{}'.format(badge_num) if badge_num else '')
+            }
+            for id, name, badge_type, badge_num in attendee_attrs
+        ]
 
         return {
             'message':  message,
@@ -43,8 +48,7 @@ class Root:
                          .join(Attendee)
                          .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
-            'attendee_labels': sorted([label for val, label in attendees]),
-            'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
+            'all_attendees': attendees,
         }
 
     @csrf_protected

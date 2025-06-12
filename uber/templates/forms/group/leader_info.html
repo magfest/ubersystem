@@ -4,26 +4,30 @@
 {% set group_info = group_info or forms['group_info']|default(None) %}
 
 {# BLOCK NAMES in this form:
+    x_data
     name
     email
 
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<div x-data="{ {% block x_data %}
+get leaderInfoRequired() { return this.guest_group_type != '' || this.is_dealer },
+get leaderCellphoneRequired() { return this.is_dealer }
+{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
 {% block name %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(leader_info.leader_first_name) }}</div>
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(leader_info.leader_last_name) }}</div>
-</div>
+    <div class="col-12 col-sm-6">{{ form_macros.input(leader_info.leader_first_name, required_if="leaderInfoRequired") }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.input(leader_info.leader_last_name, required_if="leaderInfoRequired") }}</div>
 {% endblock %}
+</div>
 
+<div class="row g-sm-3 mb-3">
 {% block email %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(leader_info.leader_email) }}</div>
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(leader_info.leader_cellphone) }}</div>
-
-    {% if group and not group.is_dealer and group_info %}
-    {{ form_macros.toggle_fields_js(group_info.guest_group_type, [leader_info.leader_first_name, leader_info.leader_last_name, leader_info.leader_email], off_values=["0"], prop='', toggle_required=True) }}
-    {% endif %}
-</div>
+    <div class="col-12 col-sm-6">{{ form_macros.input(leader_info.leader_email, required_if="leaderInfoRequired") }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.input(leader_info.leader_cellphone, required_if="leaderCellphoneRequired") }}</div>
 {% endblock %}
+</div>
+
+</div>

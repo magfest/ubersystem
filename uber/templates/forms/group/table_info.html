@@ -3,6 +3,7 @@
 {% set table_info = table_info or forms['table_info'] %}
 
 {# BLOCK NAMES in this form:
+    x_data
     name_desc
     badges_js
     badges_tables
@@ -15,15 +16,20 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<div x-data="{ {% block x_data %}
+categories: {{ table_info.categories.data|jsonize }},
+get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
+{% endblock %} }">
+
 {% set max_badges = c.MAX_DEALERS if group.is_dealer and c.MAX_DEALERS else c.MAX_GROUP_SIZE %}
 
+<div class="row g-sm-3 mb-3">
 {% block name_desc %}
-{% if not admin_area %}{{ form_macros.form_input(table_info.is_dealer, value=True) }}{% endif %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.name) }}</div>
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.description) }}</div>
-</div>
+{% if not admin_area %}{{ form_macros.input(table_info.is_dealer, value=True) }}{% endif %}
+    <div class="col-sm">{{ form_macros.input(table_info.name) }}</div>
+    <div class="col-sm">{{ form_macros.input(table_info.description) }}</div>
 {% endblock %}
+</div>
 
 {% block badges_js %}
 {% if is_prereg_dealer %}
@@ -55,20 +61,20 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endif %}
 {% endblock %}
 
+<div class="row g-sm-3 mb-3">
 {% block badges_tables %}
 {% if is_prereg_dealer %}
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.tables, choices=c.PREREG_TABLE_OPTS, required=True) }}</div>
-        <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.badges,
+        <div class="col-sm">{{ form_macros.input(table_info.tables, choices=c.PREREG_TABLE_OPTS, required=True) }}</div>
+        <div class="col-sm">{{ form_macros.input(table_info.badges,
                                             choices=int_choices(1, max_badges),
                                             required=True) }}
         </div>
-    </div>
 {% endif %}
 {% endblock %}
+</div>
 
-{% block cost %}{% endblock %}
-{% block group_status %}{% endblock %}
+<div class="row g-sm-3 mb-3">{% block cost %}{% endblock %}</div>
+<div class="row g-sm-3 mb-3">{% block group_status %}{% endblock %}</div>
 
 {% if admin_area %}
 {% if not group.is_new %}
@@ -171,29 +177,33 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 <div class="form-text">Table Info</div>
 {% endif %}
 
+<div class="row g-sm-3 mb-3">
 {% block website %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.website) }}</div>
-</div>
+    <div class="col-sm">{{ form_macros.input(table_info.website) }}</div>
 {% endblock %}
+</div>
 
+<div class="row g-sm-3 mb-3">
 {% block categories %}
-<div class="row g-sm-3">
-    <div class="col-12">
-        {{ form_macros.form_input(table_info.categories, extra_field=form_macros.form_input(table_info.categories_text, no_margin=True)) }}
-        {{ form_macros.toggle_fields_js(table_info.categories, [table_info.categories_text], on_values=[c.OTHER], toggle_required=True, closest_hide_selector='.col') }}
+    <div class="col">
+        {% call form_macros.input(table_info.categories, alpine_model="categories") %}
+        <span x-show="otherCategory">{{ form_macros.input(table_info.categories_text, required_if="otherCategory") }}</span>
+        {% endcall %}
+        
     </div>
-</div>
 {% endblock %}
+</div>
 
 {% set extra_fields = '' %}
 
+<div class="row g-sm-3 mb-3">
 {% block textareas %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(table_info.wares) }}</div>
+    <div class="col">{{ form_macros.input(table_info.wares) }}</div>
 </div>
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(table_info.special_needs) }}</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col">{{ form_macros.input(table_info.special_needs) }}</div>
     {{ extra_fields }}
-</div>
 {% endblock %}
+</div>
+
+</div>

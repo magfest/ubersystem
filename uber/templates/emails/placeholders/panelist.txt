@@ -4,4 +4,4 @@
 
 Please let us know if you have any questions.
 
-{{ c.PANELS_EMAIL_SIGNATURE }}
+{{ email_signature }}

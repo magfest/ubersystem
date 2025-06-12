@@ -6,4 +6,4 @@ As your studio's representative, you are eligible to submit one or more games fo
 
 As always, the latest information including dates and submission criteria are available at https://super.magfest.org/mivs
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

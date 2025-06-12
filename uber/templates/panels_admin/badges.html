@@ -38,7 +38,7 @@ forms below to add badges for those without them OR associate these panelists wi
 <table class="table table-striped datatable">
 <thead>
     <tr>
-        <th>Panel</th>
+        <th>Panels</th>
         <th>Confirmed?</th>
         <th>Panelist Name</th>
         <th>Panelist Email</th>
@@ -49,8 +49,16 @@ forms below to add badges for those without them OR associate these panelists wi
 <tbody>
 {% for pa, matches in applicants %}
     <tr id="{{ pa.id }}">
-        <td><a href="app?id={{ pa.application.id }}">{{ pa.application.name }}</a></td>
-        <td>{{ pa.confirmed|datetime_local if pa.confirmed else "No" }}</td>
+        <td>
+            {% for app in pa.accepted_applications %}
+            <a href="app?id={{ app.id }}">{{ app.name }}</a>
+            {% endfor %}
+        </td>
+        <td>
+            {% if pa.confirmed_application_names %}
+            Yes ({{ pa.confirmed_application_names|readable_join }})
+            {% else %}No{% endif %}
+        </td>
         <td>{{ pa.full_name }}</td>
         <td>{{ pa.email|email_to_link }}</td>
         <td>

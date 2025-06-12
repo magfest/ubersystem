@@ -4,4 +4,4 @@ Thanks for preregistering for {{ c.EVENT_NAME }}! You checked a box on your regi
 
 It's fine if you decide not to volunteer; you have until {{ c.DROP_SHIFTS_DEADLINE.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }} to drop any shifts you signed up for. Otherwise, please contact STOPS at {{ c.STAFF_EMAIL|email_only }}.{% if c.UBER_TAKEDOWN < c.EPOCH %} If you missed the deadline for signing up for shifts, come see us in Staffing Ops at {{ c.EVENT_NAME }} and we'll let you know what shifts are still available.{% endif %}
 
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}

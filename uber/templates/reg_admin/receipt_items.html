@@ -724,6 +724,8 @@
               Cancelled {{ txn.cancelled|datetime_local("%b %-d, %-I:%M%p") }}
               {% elif txn.is_pending_charge %}
               Pending
+              {% elif txn.on_hold %}
+              Held for Review
               {% else %}
               Complete
               {% endif %}
@@ -1005,6 +1007,8 @@
             <em>Cancelled {{ item.cancelled|datetime_local }}</em>
           {% elif item.closed %}
             <em>{{ item.closed_type }} {{ item.closed|datetime_local }}</em>
+          {% elif item.on_hold %}
+            <em>On Hold</em>
           {% endif %}
           {% if item.refunded %}
           <em>{{ (item.refunded / 100)|format_currency }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ (item.amount_left / 100)|format_currency }} left){% endif %}
@@ -1076,11 +1080,18 @@
   {% endif %}
 {% if active_receipt %}
   {{ receipt_table(active_receipt, active_receipt.all_sorted_items_and_txns) }}
-  {% if attendee or group %}
-  <button class="btn btn-danger" onClick="fullRefund('{{ active_receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
+  {% if (attendee or group) and active_receipt.manual_payments and active_receipt.txn_total != 0 %}
+  <p>
+    <em>
+    Cannot automatically refund and cancel this {{ model_str }} because we can't automatically refund all their payments.
+    Process refunds manually to enable the "Refund and Cancel" button.
+    </em>
+  </p>
+  {% elif attendee or group %}
+    <button class="btn btn-danger" onClick="fullRefund('{{ active_receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
     {% if not c.AUTHORIZENET_LOGIN_ID %}
-    OR
-    <button class="btn btn-danger" onClick="mostlyFullRefund('{{ active_receipt.id }}', '{{ (active_receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt_id else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
+      OR
+      <button class="btn btn-danger" onClick="mostlyFullRefund('{{ active_receipt.id }}', '{{ (active_receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt_id else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
     {% endif %}
   {% endif %}
   <button class="btn btn-outline-danger" onClick="closeReceipt('{{ active_receipt.id }}')">Close Receipt</button>

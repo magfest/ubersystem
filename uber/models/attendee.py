@@ -476,7 +476,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     submitted_panels = relationship(
         'PanelApplication',
         secondary='panel_applicant',
-        secondaryjoin='and_(PanelApplicant.app_id == PanelApplication.id)',
+        secondaryjoin='and_(PanelApplicant.id == PanelApplication.submitter_id)',
         primaryjoin='and_(Attendee.id == PanelApplicant.attendee_id, PanelApplicant.submitter == True)',
         viewonly=True
         )
@@ -1335,6 +1335,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "Refunds are no longer available."
         if c.BEFORE_REFUND_START:
             return f"Refunds will open at {datetime_local_filter(c.REFUND_START)}."
+        if not self.active_receipt:
+            return "We cannot automatically refund your payments."
+        elif self.active_receipt.manual_payments or self.active_receipt.payments_on_hold:
+            return "We cannot automatically refund some of your payments."
 
     @property
     def can_defer_badge(self):
@@ -2509,8 +2513,14 @@ class AttendeeAccount(MagModel):
         return [attendee for attendee in self.valid_attendees if not attendee.group or not attendee.group.is_valid]
 
     @property
-    def valid_group_badges(self):
-        return [attendee for attendee in self.valid_attendees if attendee.group and attendee.group.is_valid]
+    def valid_badges_by_group(self):
+        group_attendees = [attendee for attendee in self.valid_attendees if attendee.group and attendee.group.is_valid]
+        if group_attendees:
+            return groupify(group_attendees, 'group')
+
+    @property
+    def cancellable_badges(self):
+        return [attendee for attendee in self.attendees if attendee.is_valid and not attendee.cannot_abandon_badge_reason]
 
     @property
     def imported_attendees(self):

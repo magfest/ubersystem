@@ -9,7 +9,7 @@
       {% block deadline_text %}
         {% if guest.bio_status %}
           You have already provided us with your bio information, but you can use the link above to update it.
-          {% if not guest.bio.uploaded_pic %}
+          {% if not guest.bio_pic %}
             We encourage you to upload a bio pic (which you have NOT yet done) so that we can
             include it on our website.
           {% endif %}
@@ -114,8 +114,8 @@
       <label class="col-sm-3 control-label optional-field">Picture</label>
       <div class="col-sm-6">
         <div class="form-control-static">
-          {% if guest.bio.uploaded_pic -%}
-            <a href="{{ guest.bio.pic_url }}">View your current bio pic</a> or upload a new one:
+          {% if guest.bio_pic -%}
+            <a href="{{ guest.bio_pic.url }}">View your current bio pic</a> or upload a new one:
           {%- else -%}Choose a file to upload as your bio pic:
           {%- endif -%}
           <input type="file" name="bio_pic" />

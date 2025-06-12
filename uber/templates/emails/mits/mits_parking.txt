@@ -5,4 +5,4 @@ If you're receiving this email, it means you are from a team that has been accep
 https://nationalharbor.clickandpark.com/
 
 Thanks,
-{{ c.MITS_EMAIL_SIGNATURE }}
+{{ email_signature }}

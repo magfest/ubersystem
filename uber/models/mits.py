@@ -13,7 +13,8 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import (default_relationship as relationship, utcnow, Choice, DefaultColumn as Column,
+                               MultiChoice, GuidebookImageMixin)
 
 
 __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument', 'MITSTimes']
@@ -231,14 +232,9 @@ class MITSGame(MagModel):
         return [header_name, thumbnail_name], [header, thumbnail]
 
 
-class MITSPicture(MagModel):
+class MITSPicture(MagModel, GuidebookImageMixin):
     game_id = Column(UUID, ForeignKey('mits_game.id'))
-    filename = Column(UnicodeText)
-    content_type = Column(UnicodeText)
-    extension = Column(UnicodeText)
     description = Column(UnicodeText)
-    is_header = Column(Boolean, default=False)
-    is_thumbnail = Column(Boolean, default=False)
 
     @property
     def url(self):

@@ -52,8 +52,9 @@ class PanelistCredentials(MagForm):
 
 
 class PanelInfo(MagForm):
+    dynamic_choices_fields = {'department': lambda: [("", 'Please select an option')] + c.PANELS_DEPT_OPTS}
     name = StringField("Panel Name")
-    department = SelectField("Department", coerce=int, choices=[(0, 'Please select an option')] + c.PANEL_DEPT_OPTS)
+    department = SelectField("Department")
     presentation = SelectField("Type of Panel", coerce=int,
                                choices=[(0, 'Please select an option')] + c.PRESENTATION_OPTS)
     other_presentation = StringField("Other Panel Type")

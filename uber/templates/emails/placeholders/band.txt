@@ -5,4 +5,4 @@
 Please let us know if you have any questions by reaching out to us at {{ c.BAND_EMAIL|email_only }}.
 
 Thank you!
-{{ c.BAND_EMAIL_SIGNATURE }}
+{{ email_signature }}

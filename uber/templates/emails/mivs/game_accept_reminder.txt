@@ -6,4 +6,4 @@ You still haven't told us whether or not you accept the offer of a table in the 
 
 You must accept or decline the space by {{ game.studio.confirm_deadline|datetime_local }}. Telling us you aren't able to meet the requirements leaves your team on good terms with the MIVS staff; failing to show or not meeting the requirements will be taken into consideration for future events.
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

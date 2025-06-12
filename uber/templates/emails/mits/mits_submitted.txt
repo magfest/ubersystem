@@ -2,4 +2,4 @@
 
 We've received your submission to the MAGFest Indie Tabletop Showcase.  We expect to have completed our judging {{ c.MITS_RESPONSES_EXPECTED }} and expect to send out responses shortly after that.
 
-{{ c.MITS_EMAIL_SIGNATURE }}
+{{ email_signature }}

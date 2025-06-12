@@ -4,4 +4,4 @@
 
 To help us plan our charity auction, we ask that you please fill out this form no later than {{ c.BAND_CHARITY_DEADLINE|datetime_local }}.
 
-{{ c.BAND_EMAIL_SIGNATURE }}
+{{ email_signature }}

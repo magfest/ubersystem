@@ -24,7 +24,7 @@ class Root:
     @csv_file
     def time_ordered(self, out, session):
         for event in session.query(Event).order_by('start_time', 'duration', 'location').all():
-            out.writerow([event.timespan(), event.name, event.location_label])
+            out.writerow([event.timespan(), event.name, event.guidebook_desc, event.location_label])
 
     @site_mappable(download=True)
     @schedule_view
@@ -288,7 +288,7 @@ class Root:
     def event_panel_info(self, out, session):
         content_opts_enabled = len(c.PANEL_CONTENT_OPTS) > 1
         rating_opts_enabled = len(c.PANEL_RATING_OPTS) > 1
-        dept_opts_enabled = len(c.PANEL_DEPT_OPTS) > 1
+        dept_opts_enabled = len(c.PANELS_DEPT_OPTS) > 1
 
         out.writerow([
             'Start Time',

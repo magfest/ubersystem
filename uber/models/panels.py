@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey
+from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.ext.hybrid import hybrid_property
 
@@ -15,6 +15,18 @@ from uber.models.types import default_relationship as relationship, utcnow, Choi
 
 
 __all__ = ['AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
+
+
+# Many to many association table to tie Panel Applicants with Panel Applications
+panel_applicant_application = Table(
+    'panel_applicant_application',
+    MagModel.metadata,
+    Column('panel_applicant_id', UUID, ForeignKey('panel_applicant.id')),
+    Column('panel_application_id', UUID, ForeignKey('panel_application.id')),
+    UniqueConstraint('panel_applicant_id', 'panel_application_id'),
+    Index('ix_admin_panel_application_panel_applicant_id', 'panel_applicant_id'),
+    Index('ix_admin_panel_application_panel_application_id', 'panel_application_id'),
+)
 
 
 class Event(MagModel):
@@ -98,6 +110,7 @@ class AssignedPanelist(MagModel):
 class PanelApplication(MagModel):
     event_id = Column(UUID, ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
     poc_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    submitter_id = Column(UUID, ForeignKey('panel_applicant.id', ondelete='SET NULL'), nullable=True)
     name = Column(UnicodeText)
     length = Column(Choice(c.PANEL_LENGTH_OPTS), default=c.SIXTY_MIN)
     length_text = Column(UnicodeText)
@@ -108,7 +121,8 @@ class PanelApplication(MagModel):
     available = Column(UnicodeText)
     affiliations = Column(UnicodeText)
     past_attendance = Column(UnicodeText)
-    department = Column(Choice(c.PANEL_DEPT_OPTS))
+    department = Column(UniqueList)
+    department_name = Column(UnicodeText)
     rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
     granular_rating = Column(MultiChoice(c.PANEL_CONTENT_OPTS))
     presentation = Column(Choice(c.PRESENTATION_OPTS))
@@ -134,7 +148,9 @@ class PanelApplication(MagModel):
     track = Column(UnicodeText, admin_only=True)
     tags = Column(UniqueList, admin_only=True)
 
-    applicants = relationship('PanelApplicant', backref='application')
+    applicants = relationship('PanelApplicant', backref='applications',
+                              cascade='save-update,merge,refresh-expire,expunge',
+                              secondary='panel_applicant_application')
 
     email_model_name = 'app'
 
@@ -150,13 +166,50 @@ class PanelApplication(MagModel):
     
     @presave_adjustment
     def set_default_dept(self):
-        if len(c.PANEL_DEPT_OPTS) <= 1 and not self.department:
-            self.department = c.PANELS
+        if len(c.PANELS_DEPT_OPTS) <= 1 and not self.department:
+            self.department = c.get_panels_id()
 
     @presave_adjustment
     def set_record(self):
         if len(c.LIVESTREAM_OPTS) > 2 and not self.record:
             self.record = c.OPT_OUT
+    
+    def add_credentials_to_desc(self):
+        description = self.description or self.public_description
+        panelist_creds = []
+
+        def generate_creds(p):
+            text = p.display_name
+            if p.occupation or p.website:
+                text += " ["
+                if p.occupation:
+                    text += p.occupation + (', ' if p.website else '')
+                if p.website:
+                    text += p.website
+                text += "]"
+            return text
+
+        if self.submitter.display_name:
+            panelist_creds.append(generate_creds(self.submitter))
+        for panelist in [a for a in self.other_panelists if a.display_name]:
+            panelist_creds.append(generate_creds(panelist))
+        
+        description += f"\n\nPanelists: {' '.join(panelist_creds)}"
+        self.public_description = description
+    
+    @presave_adjustment
+    def set_dept_name(self):
+        from uber.models import Session
+
+        if not self.department:
+            dept_name = 'N/A'
+        elif self.department == str(c.PANELS):
+            dept_name = 'Panels'
+        else:
+            with Session() as session:
+                dept_name = session.department(self.department).name
+
+        self.department_name = dept_name
 
     @property
     def email(self):
@@ -165,7 +218,7 @@ class PanelApplication(MagModel):
     @property
     def submitter(self):
         for a in self.applicants:
-            if a.submitter:
+            if a.id == self.submitter_id:
                 return a
         return None
 
@@ -176,7 +229,7 @@ class PanelApplication(MagModel):
 
     @property
     def other_panelists(self):
-        return [a for a in self.applicants if not a.submitter]
+        return [a for a in self.applicants if a.id != self.submitter_id]
 
     @property
     def matched_attendees(self):
@@ -202,7 +255,6 @@ class PanelApplication(MagModel):
 
 
 class PanelApplicant(SocialMediaMixin, MagModel):
-    app_id = Column(UUID, ForeignKey('panel_application.id', ondelete='cascade'))
     attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     submitter = Column(Boolean, default=False)
     first_name = Column(UnicodeText)
@@ -226,6 +278,20 @@ class PanelApplicant(SocialMediaMixin, MagModel):
     @property
     def full_name(self):
         return self.first_name + ' ' + self.last_name
+    
+    @property
+    def confirmed_application_names(self):
+        return [app.name for app in self.applications if app.submitter_id == self.id and app.confirmed]
+    
+    @property
+    def accepted_applications(self):
+        return [app for app in self.applications if app.submitter_id == self.id and app.status == c.ACCEPTED]
+    
+    def check_if_still_submitter(self, app_id):
+        for app in self.applications:
+            if app_id != app.id and app.submitter_id == self.id:
+                return
+        self.submitter = False
 
 
 class EventFeedback(MagModel):

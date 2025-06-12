@@ -3,11 +3,13 @@ import json
 from collections import defaultdict
 from datetime import timedelta, datetime
 from dateutil import parser as dateparser
+from pockets import sluggify
 from sqlalchemy import or_
 
+from uber.automated_emails import AutomatedEmailFixture, PanelAppEmailFixture
 from uber.config import c
 from uber.decorators import render
-from uber.models import Email, Session, Tracking
+from uber.models import Email, Session, Tracking, Department, Attendee, AutomatedEmail
 from uber.tasks import celery
 from uber.tasks.email import send_email
 from uber.utils import GuidebookUtils, localized_now
@@ -142,3 +144,83 @@ def panels_waitlist_unaccepted_panels():
                                  "{{ app.name }}",
                                  body, ident="panel_waitlisted"
                                  )
+
+
+@celery.schedule(timedelta(hours=6))
+def setup_panel_emails():
+    if not c.PRE_CON:
+        return
+    
+    with Session() as session:
+        panels_depts_query = session.query(Department).filter(Department.manages_panels == True)
+
+        panels_depts = panels_depts_query.filter(Department.from_email != '').all()
+        current_depts = [dept.from_email for dept in panels_depts]
+        emails_to_add = {dept.from_email: (dept.id, dept.name) for dept in panels_depts}
+
+        current_email_fixtures = session.query(AutomatedEmail).filter(AutomatedEmail.ident.startswith('panelapps_'))
+
+        for fixture in current_email_fixtures:
+            if fixture.sender not in [current_depts]:
+                AutomatedEmail._fixtures.pop(fixture.ident, None)
+            else:
+                emails_to_add.pop(fixture.sender, None)
+
+        emails_to_add.pop(c.PANELS_EMAIL, None)
+
+    for email, (id, name) in emails_to_add.items():
+        sender = f'{c.EVENT_NAME} {name} <{email}>'
+        PanelAppEmailFixture(
+            'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
+            'panels/application.html',
+            lambda app: app.department == id,
+            needs_approval=False,
+            sender=sender,
+            shared_ident='panelapps_received',
+            ident=f'panelapps_received_{sluggify(name)}')
+
+        PanelAppEmailFixture(
+            'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
+            'panels/panel_app_accepted.txt',
+            lambda app: app.status == c.ACCEPTED and app.department == id,
+            sender=sender,
+            shared_ident='panelapps_accepted',
+            ident=f'panelapps_accepted_{sluggify(name)}')
+
+        PanelAppEmailFixture(
+            'Your {EVENT_NAME} Panel Application Has Been Declined: {{ app.name }}',
+            'panels/panel_app_declined.txt',
+            lambda app: app.status == c.DECLINED and app.department == id,
+            sender=sender,
+            shared_ident='panelapps_declined',
+            ident=f'panelapps_declined_{sluggify(name)}')
+
+        PanelAppEmailFixture(
+            'Your {EVENT_NAME} Panel Application Has Been Waitlisted: {{ app.name }}',
+            'panels/panel_app_waitlisted.txt',
+            lambda app: app.status == c.WAITLISTED and app.department == id,
+            sender=sender,
+            shared_ident='panelapps_waitlisted',
+            ident=f'panelapps_waitlisted_{sluggify(name)}')
+
+        PanelAppEmailFixture(
+            'Last chance to confirm your panel',
+            'panels/panel_accept_reminder.txt',
+            lambda app: (
+                c.PANELS_CONFIRM_DEADLINE
+                and app.confirm_deadline
+                and app.department == id
+                and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
+            sender=sender,
+            shared_ident='panelapps_accept_reminder',
+            ident=f'panelapps_accept_reminder_{sluggify(name)}')
+
+        PanelAppEmailFixture(
+            'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
+            'panels/panel_app_scheduled.txt',
+            lambda app: app.event_id and app.department == id,
+            sender=sender,
+            shared_ident='panelapps_scheduled',
+            ident=f'panelapps_scheduled_{sluggify(name)}')
+    
+    AutomatedEmail.reconcile_fixtures()

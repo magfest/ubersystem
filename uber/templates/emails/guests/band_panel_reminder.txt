@@ -4,4 +4,4 @@
 
 Please let us know whether or not you are interested by {{ c.BAND_PANEL_DEADLINE|datetime_local }}.  Anyone who doesn't let us know by this date will be too late to be included in our event planning.
 
-{{ c.BAND_EMAIL_SIGNATURE }}
+{{ email_signature }}

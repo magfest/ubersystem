@@ -4,4 +4,4 @@ You have successfully transferred your {{ c.EVENT_NAME }} {{ attendee.badge_type
 
 If this has happened in error, please contact {{ c.REGDESK_EMAIL|email_only }}. Otherwise, we hope to see you next year!
 
-{{ c.REGDESK_EMAIL_SIGNATURE }}
+{{ email_signature }}

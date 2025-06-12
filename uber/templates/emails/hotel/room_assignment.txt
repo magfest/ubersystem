@@ -20,4 +20,4 @@ We make every attempt to room staffers with those people that they have requeste
 
 {% endif %}Again, PLEASE - Make sure that checking into your room is the first thing you do when you get onsite. If you have problems in that process, come to {{ c.EVENT_NAME }} Staff Operations Department to get it resolved.  If there are any roommates related issues with your room at event, please come to Staff Operations and let one of the Operations Staff know.  We will work with the hotel liaison team in an attempt to resolve your issue as soon as possible.  We appreciate your hard work and we hope that you enjoy {{ c.EVENT_NAME }}.
 
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}

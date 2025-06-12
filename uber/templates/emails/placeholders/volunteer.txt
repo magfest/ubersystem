@@ -6,4 +6,4 @@ After entering the rest of your information, we'll assign you to the appropriate
 
 Please let us know if you have any questions.
 
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}

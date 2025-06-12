@@ -555,6 +555,9 @@ function isArrayLike( obj ) {
 		typeof length === "number" && length > 0 && ( length - 1 ) in obj;
 }
 
+	if ( isFunction( obj ) || isWindow( obj ) ) {
+		return false;
+	}
 
 function nodeName( elem, name ) {
 
@@ -3784,6 +3787,8 @@ jQuery.readyException = function( error ) {
 	} );
 };
 
+	// Is the DOM ready to be used? Set to true once it occurs.
+	isReady: false,
 
 
 
@@ -4528,6 +4533,12 @@ function adjustCSS( elem, prop, valueParts, tween ) {
 	return adjusted;
 }
 
+	// Determine new display value for elements that need to change
+	for ( ; index < length; index++ ) {
+		elem = elements[ index ];
+		if ( !elem.style ) {
+			continue;
+		}
 
 var defaultDisplayMap = {};
 
@@ -6712,6 +6723,7 @@ function getWidthOrHeight( elem, dimension, extra ) {
 		)
 	) + "px";
 }
+jQuery.Tween = Tween;
 
 jQuery.extend( {
 
@@ -8119,6 +8131,8 @@ jQuery.each( [
 } );
 
 
+				if ( index < 0 ) {
+					i = max;
 
 
 	// Strip and collapse whitespace according to HTML spec
@@ -8128,6 +8142,9 @@ jQuery.each( [
 		return tokens.join( " " );
 	}
 
+					// Support: IE <=9 only
+					// IE8-9 doesn't update selected after form reset (trac-2551)
+					if ( ( option.selected || i === index ) &&
 
 function getClass( elem ) {
 	return elem.getAttribute && elem.getAttribute( "class" ) || "";
@@ -8302,6 +8319,12 @@ jQuery.fn.extend( {
 } );
 
 
+		// Trigger bitmask: & 1 for native handlers; & 2 for jQuery (always true)
+		event.isTrigger = onlyHandlers ? 2 : 3;
+		event.namespace = namespaces.join( "." );
+		event.rnamespace = event.namespace ?
+			new RegExp( "(^|\\.)" + namespaces.join( "\\.(?:.*\\.|)" ) + "(\\.|$)" ) :
+			null;
 
 
 var rreturn = /\r/g;
@@ -12060,6 +12083,8 @@ function parseWeekday(input, locale) {
     if (!isNaN(input)) {
         return parseInt(input, 10);
     }
+    return locales[name];
+}
 
     input = locale.weekdaysParse(input);
     if (typeof input === 'number') {
@@ -12112,6 +12137,7 @@ function handleStrictParse$1(weekdayName, format, strict) {
             this._weekdaysParse[i] = this.weekdays(mom, '').toLocaleLowerCase();
         }
     }
+}
 
     if (strict) {
         if (format === 'dddd') {
@@ -29912,6 +29938,8 @@ $.widget( "ui.autocomplete", {
 			this.element.outerWidth()
 		) );
 	},
+	dragStop: function( draggable, event ) {
+		draggable.element.parentsUntil( "body" ).off( "scroll.droppable" );
 
 	_renderMenu: function( ul, items ) {
 		var that = this;
@@ -30693,7 +30721,6 @@ $.widget( "ui.button", {
 		if ( !this.options.showLabel && !this.title ) {
 			this.element.attr( "title", this.options.label );
 		}
-	},
 
 	_updateIcon: function( option, value ) {
 		var icon = option !== "iconPosition",
@@ -30834,6 +30861,7 @@ $.widget( "ui.button", {
 		if ( isDisabled !== this.options.disabled ) {
 			this._setOptions( { disabled: isDisabled } );
 		}
+	},
 
 		this._updateTooltip();
 	}
@@ -31319,6 +31347,7 @@ $.extend( Datepicker.prototype, {
 		if ( !$target.hasClass( this.markerClassName ) ) {
 			return;
 		}
+	},
 
 		nodeName = target.nodeName.toLowerCase();
 		$.removeData( target, "datepicker" );
@@ -31791,6 +31820,8 @@ $.extend( Datepicker.prototype, {
 				origyearshtml = inst.yearshtml = null;
 			}, 0 );
 		}
+		this._animateOff = true;
+		return true;
 	},
 
 	// #6694 - don't focus the input if it's already focused
@@ -31846,6 +31877,22 @@ $.extend( Datepicker.prototype, {
 		if ( !inst || ( input && inst !== $.data( input, "datepicker" ) ) ) {
 			return;
 		}
+		if ( this.orientation === "vertical" ) {
+			percentMouse = 1 - percentMouse;
+		}
+
+		valueTotal = this._valueMax() - this._valueMin();
+		valueMouse = this._valueMin() + percentMouse * valueTotal;
+
+		return this._trimAlignValue( valueMouse );
+	},
+
+	_uiHash: function( index, value, values ) {
+		var uiHash = {
+			handle: this.handles[ index ],
+			handleIndex: index,
+			value: value !== undefined ? value : this.value()
+		};
 
 		if ( this._datepickerShowing ) {
 			showAnim = this._get( inst, "showAnim" );
@@ -31882,6 +31929,8 @@ $.extend( Datepicker.prototype, {
 			}
 			this._inDialog = false;
 		}
+
+		return uiHash;
 	},
 
 	/* Tidy up after a dialog display. */
@@ -34056,7 +34105,10 @@ $.widget( "ui.draggable", $.ui.mouse, {
 		};
 	}
 
-} );
+		if ( !( /^(document|window|parent)$/ ).test( o.containment ) ) {
+			ce = $( o.containment )[ 0 ];
+			co = $( o.containment ).offset();
+			over = ( $( ce ).css( "overflow" ) !== "hidden" );
 
 $.ui.plugin.add( "draggable", "connectToSortable", {
 	start: function( event, ui, draggable ) {
