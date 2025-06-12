@@ -88,8 +88,8 @@ class Root:
 
 
 def _attendees(session):
-    attendee_attrs = session.query(Attendee.id, Attendee.full_name, Attendee.badge_num) \
-        .filter(Attendee.first_name != '', Attendee.is_valid == True).order_by(Attendee.full_name.asc())
+    attendee_attrs = session.query(Attendee.id, Attendee.full_name, BadgeInfo.ident) \
+        .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '', Attendee.is_valid == True).order_by(Attendee.full_name.asc())
 
     attendees = [
         {
