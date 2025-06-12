@@ -13,9 +13,10 @@
     {% include 'forms/prereg_intro.html' %}
 
   {{ form_macros.form_validation('prereg-form') }}
+{% include 'registration/alpine_attendee_metadata.html' %}
 
 {#- The action is set to "post_form" in order to bypass the NGINX cache. -#}
-<form novalidate method="post" id="prereg-form" action="post_form" class="form-horizontal" role="form">
+<form novalidate method="post" id="prereg-form" action="post_form" class="form-horizontal" role="form" x-data="attendeeMetadata()">
 {% if attendee.group_id %}
 <input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
 {% endif %}

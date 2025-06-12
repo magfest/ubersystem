@@ -23,6 +23,8 @@ __all__ = ['AdminBadgeExtras', 'AdminBadgeFlags', 'AdminConsents', 'AdminStaffin
 
 
 class PersonalInfo(AddressForm, MagForm):
+    #override the addressForm country select
+    country = SelectField('Country', default='', choices=c.COUNTRY_OPTS)
     first_name = StringField('First Name', render_kw={'autocomplete': "fname"})
     last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
     same_legal_name = BooleanField('The above name is exactly what appears on my Legal Photo ID.')

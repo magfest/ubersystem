@@ -18,6 +18,10 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 {% block attendee_info %}
+    {# This line says if it's a placeholder badge, we want to force them to not be a placeholder.
+       However we want to allow a dealer to fill out badges for someone else they don't have all the information for.
+       That only works if attendee accounts are off.
+    #}
 {% if not admin_area and (attendee.placeholder or 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED) %}
     {% if attendee.placeholder %}
         <input type="hidden" name="placeholder" id="placeholder" value="False" />
@@ -25,7 +29,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
         <div class="row g-sm-3">
             <div class="col">
                 <div class="form-text">Placeholder</div>
-                {{ form_macros.form_input(badge_flags.placeholder, checked=True) }}
+                {{ form_macros.input(badge_flags.placeholder, checked=True, **{'x-model.boolean':'badge_placeholder'}) }}
             </div>
         </div>
     {% endif %}
@@ -33,8 +37,8 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 
 {% block placeholder_js %}
-{% if personal_info %}
-{% set target_fields = personal_info.placeholder_optional_fields() if not badge_extras else personal_info.placeholder_optional_fields() + [badge_extras.shirt, badge_extras.staff_shirt] %}
+{% if badge_extras %}
+{% set target_fields = [badge_extras.shirt, badge_extras.staff_shirt] %}
 {{ form_macros.toggle_fields_js(badge_flags.placeholder, target_fields, off_values=[1], toggle_required=True, prop="", target_call_func="checkPlaceholder") }}
 <script type="text/javascript">
     var checkPlaceholder = function() {

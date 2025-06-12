@@ -4,10 +4,11 @@
 {% block content %}
 
 {{ form_macros.form_validation('register_group_member') }}
+{% include 'registration/alpine_attendee_metadata.html' %}
 
 <div class="card">
   <div class="card-body">
-    <form novalidate method="post" action="register_group_member" id="register_group_member">
+    <form novalidate method="post" action="register_group_member" id="register_group_member" x-data="attendeeMetadata()">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.id }}" />
       <input type="hidden" name="group_id" value="{{ group.id }}" />

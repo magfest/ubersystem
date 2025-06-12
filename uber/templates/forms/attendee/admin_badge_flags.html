@@ -94,7 +94,7 @@
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">
         <div class="form-text">Placeholder</div>
-        <div>{{ form_macros.form_input(badge_flags.placeholder, admin_text="You will only need to fill out their name and email address.") }}</div>
+        <div>{{ form_macros.input(badge_flags.placeholder, admin_text="You will only need to fill out their name and email address.", **{'x-model.boolean':'badge_placeholder'}) }}</div>
     </div>
     {% if c.TRANSFERABLE_BADGE_TYPES|length > 0 %}
         {% set transfer_admin_text %}
@@ -112,14 +112,14 @@
                 {% elif attendee.cannot_transfer_reason %}
                     This attendee cannot transfer their badge under any circumstances because {{ attendee.cannot_transfer_reason|readable_join }}.
                 {% else %}
-                    {{ form_macros.form_input(badge_flags.can_transfer, admin_text=transfer_admin_text) }}
+                    {{ form_macros.input(badge_flags.can_transfer, admin_text=transfer_admin_text) }}
                 {% endif %}
             </div>
         </div>
     {% endif %}
 </div>
-{% if personal_info %}
-{% set target_fields = personal_info.placeholder_optional_fields() if not badge_extras else personal_info.placeholder_optional_fields() + [badge_extras.shirt, badge_extras.staff_shirt] %}
+{% if badge_extras %}
+{% set target_fields = [badge_extras.shirt, badge_extras.staff_shirt] %}
 {{ form_macros.toggle_fields_js(badge_flags.placeholder, target_fields, off_values=[1], toggle_required=True, prop="", target_call_func="checkPlaceholder") }}
 <script type="text/javascript">
     var checkPlaceholder = function() {
@@ -154,7 +154,7 @@
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_status,
             admin_text=attendee.cannot_edit_badge_status_reason,
             disabled=(attendee.cannot_edit_badge_status_reason != '')) }}</div>
-    <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_type) }}</div>
+    <div class="col-12 col-sm-4">{{ form_macros.input(badge_flags.badge_type, **{'x-model.number':'badge_type'}) }}</div>
     <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_num,
             extra_field=form_macros.toggle_checkbox(badge_flags.no_badge_num, [badge_flags.badge_num], hide_on_checked=True, prop="readonly", checked=not attendee.badge_num)) }}</div>
 </div>
@@ -199,11 +199,8 @@
 
 {% block ribbons %}
 <div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(badge_flags.ribbon) }}</div>
+    <div class="col-12">{{ form_macros.input(badge_flags.ribbon, **{'x-model.number':'badge_ribbons'}) }}</div>
 </div>
-{% if staffing_info %}
-{{ form_macros.toggle_fields_js(badge_flags.ribbon, [staffing_info.staffing], on_values=[c.VOLUNTEER_RIBBON], prop='checked') }}
-{% endif %}
 {% endblock %}
 
 {% block group %}
@@ -215,7 +212,7 @@
     {% endif %}
 {% endset %}
 <div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_flags.group_id, admin_text=group_extra_text) }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.input(badge_flags.group_id, admin_text=group_extra_text) }}</div>
     {% if c.BADGE_PROMO_CODES_ENABLED and c.GROUPS_ENABLED %}
     <div class="col-12 col-sm-6">
         <div class="form-text">Promo Code Group</div>
@@ -257,7 +254,7 @@
 {% endset %}
 <div class="row g-sm-3">
     <div class="col">
-        {{ form_macros.form_input(badge_flags.paid, admin_text=paid_admin_text) }}
+        {{ form_macros.input(badge_flags.paid, admin_text=paid_admin_text) }}
     </div>
     {% if other_info and c.BADGE_PROMO_CODES_ENABLED %}
         <div class="col">
@@ -266,7 +263,7 @@
             <a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove Promo Code</a>
             {% endif %}
         {% endset %}
-        {{ form_macros.form_input(other_info.promo_code_code,
+        {{ form_macros.input(other_info.promo_code_code,
                                 read_only=attendee.promo_code_code and not editing,
                                 admin_text=promo_code_admin_text) }}
         {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
