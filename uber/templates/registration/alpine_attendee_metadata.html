@@ -31,8 +31,8 @@
             staffing: {{ attendee.staffing | javascript_bool }},
 
             init() {
-                staffing = checkStaffing(Alpine.raw(this.badge_ribbons), this.badge_type);
-                require_badge_name = checkBadgeName(this.badge_type);
+                this.staffing = checkStaffing(Alpine.raw(this.badge_ribbons), this.badge_type);
+                this.require_badge_name = checkBadgeName(this.badge_type);
                 if(this.forbid_placeholder){
                     this.badge_placeholder = false;
                 } else if (this.default_placeholder) {
@@ -40,12 +40,12 @@
                 }
                 this.$watch('badge_ribbons',
                     (ribbons) => {
-                        staffing = checkStaffing(Alpine.raw(ribbons), this.badge_type);
+                        this.staffing = checkStaffing(Alpine.raw(ribbons), this.badge_type);
                  });
                 this.$watch('badge_type',
                     (btype) => {
-                        staffing = checkStaffing(Alpine.raw(this.badge_ribbons), btype);
-                        require_badge_name = checkBadgeName(btype);
+                        this.staffing = checkStaffing(Alpine.raw(this.badge_ribbons), btype);
+                        this.require_badge_name = checkBadgeName(btype);
                 })
             }
         }

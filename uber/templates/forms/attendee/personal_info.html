@@ -62,6 +62,7 @@
                             this.country = choices.getValue(true)
                         })
 
+                        this.$watch('copy_address', (value) => { value ? choices.disable() : choices.enable() });
                         this.$watch('country', () => refreshChoices());
                         this.$watch('country_options', () => refreshChoices());
                     })
@@ -122,7 +123,7 @@
          {% if is_prereg_dealer %}
              {{ form_macros.input(personal_info.copy_phone,**{'x-model.boolean':'copy_cellphone'}) }}
          {% elif attendee.staffing or (other_info and other_info is not none) %}
-              {{ form_macros.input(personal_info.copy_phone,**{'x-model.boolean':'no_cellphone'}) }}
+              {{ form_macros.input(personal_info.no_cellphone,**{'x-model.boolean':'no_cellphone'}) }}
          {% endif %}
       </div>
     </div>
@@ -171,7 +172,8 @@
 </div>
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    {{ form_macros.input(personal_info.country, required_if="isAddressRequired", **{':disabled':'copy_address', 'x-model': 'country', 'x-ref': 'countryselect'}) }}
+      {# Choices.js does not respect the alpine x-bind:disabled. Disable switch is at the top with the rest of choicesjs config. #}
+    {{ form_macros.input(personal_info.country, required_if="isAddressRequired", **{'x-model': 'country', 'x-ref': 'countryselect'}) }}
   </div>
   <div class="col-12 col-sm-6">
       <div x-show="country == 'United States'">
