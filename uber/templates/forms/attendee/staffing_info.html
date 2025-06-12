@@ -20,13 +20,14 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     {% endif %}
 {% endif %}
 <div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.toggle_checkbox(staffing_info.staffing, 
-        [staffing_info.requested_depts_ids], toggle_required=True, help_text=staffing_message) }}</div>
+    <div class="col-12">
+        {{ form_macros.input(staffing_info.staffing, help_text=staffing_message, **{'x-model.boolean':'staffing'}) }}
+    </div>
 </div>
 
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(staffing_info.requested_depts_ids) }}</div>
+<div class="row g-sm-3" x-show="staffing">
+    <div class="col-12">{{ form_macros.input(staffing_info.requested_depts_ids, required_if="staffing") }}</div>
 </div>
 {% endif %}
 {% endblock %}
