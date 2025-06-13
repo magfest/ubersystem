@@ -1,32 +1,29 @@
 {% extends 'forms/attendee/other_info.html' %}
 
+{% block x_data %}
+staffing: {{ other_info.staffing.data|tojson }},
+no_cellphone: {{ other_info.no_cellphone.data|tojson }},
+{% endblock %}
+
 {% block staffing %}
 {% set include_cellphone = 'cellphone' in other_info and not other_info.cellphone.data %}
-{% set staffing_message = "" %}
-{% if not admin_area %}
-    {% if attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] %}
-    {% set staffing_message = "This checkbox is required for Contractors, Volunteers, and Staff. Please contact Staffing Operations if you wish to change your status." %}
-    {% elif attendee.shifts %}
-    {% set staffing_message = "Please " ~ 'see Staffing Operations to change your volunteer status.' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status.' %}
-    {% endif %}
-{% endif %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.toggle_checkbox(other_info.staffing, 
-        [other_info.requested_depts_ids, other_info.cellphone] if include_cellphone else [other_info.requested_depts_ids], toggle_required=True, help_text=staffing_message) }}</div>
-</div>
+    <div class="col-12">{{ form_macros.input(other_info.staffing, alpine_model="staffing") }}</div>
 
 {% if include_cellphone %}
-<div class="row g-sm-3">
-{% set cellphone_extra_field = form_macros.toggle_checkbox(other_info.no_cellphone, [other_info.cellphone], hide_on_checked=True, toggle_required=True, prop="disabled") %}
-    <div class="col-12">{{ form_macros.form_input(other_info.cellphone, extra_field=cellphone_extra_field, required=True) }}</div>
 </div>
+<div class="row g-sm-3 mb-3" x-show="staffing">
+    <div class="col-12">
+        {% call form_macros.input(other_info.cellphone, required_if="staffing && !no_cellphone", **{':disabled':'no_cellphone'}) %}
+        {{ form_macros.input(other_info.no_cellphone, alpine_model="no_cellphone") }}
+        {% endcall %}
+    </div>
 {% elif 'cellphone' in other_info %}
 <input type="hidden" name="cellphone" value="{{ other_info.cellphone.data }}" />
 {% endif %}
 
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(other_info.requested_depts_ids) }}</div>
 </div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-12">{{ form_macros.input(other_info.requested_depts_ids) }}</div>
 {% endif %}
 {% endblock %}

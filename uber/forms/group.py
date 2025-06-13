@@ -45,7 +45,7 @@ class AdminGroupInfo(GroupInfo):
     admin_notes = TextAreaField('Admin Notes')
 
 
-class ContactInfo(AddressForm, MagForm):
+class ContactInfo(AddressForm):
     email_address = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
     phone = TelField('Phone Number',
                      render_kw={'placeholder': 'A phone number we can use to contact you during the event'})

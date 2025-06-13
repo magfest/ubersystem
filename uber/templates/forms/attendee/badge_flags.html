@@ -7,8 +7,8 @@
 {% set staffing_info = staffing_info or forms['staffing_info'] %}
 
 {# BLOCK NAMES in this form:
+    x_data
     attendee_info
-    placeholder_js
     badge_info
     ribbon
     group
@@ -17,6 +17,9 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
 {% block attendee_info %}
     {# This line says if it's a placeholder badge, we want to force them to not be a placeholder.
        However we want to allow a dealer to fill out badges for someone else they don't have all the information for.
@@ -26,40 +29,18 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     {% if attendee.placeholder %}
         <input type="hidden" name="placeholder" id="placeholder" value="False" />
     {% else %}
-        <div class="row g-sm-3">
-            <div class="col">
-                <div class="form-text">Placeholder</div>
-                {{ form_macros.input(badge_flags.placeholder, checked=True, **{'x-model.boolean':'badge_placeholder'}) }}
-            </div>
+        <div class="col-sm">
+            <div class="form-text">Placeholder</div>
+            {{ form_macros.input(badge_flags.placeholder, checked=True, **{'x-model.boolean':'badge_placeholder'}) }}
         </div>
     {% endif %}
 {% endif %}
 {% endblock %}
+</div>
 
-{% block placeholder_js %}
-{% if badge_extras %}
-{% set target_fields = [badge_extras.shirt, badge_extras.staff_shirt] %}
-{{ form_macros.toggle_fields_js(badge_flags.placeholder, target_fields, off_values=[1], toggle_required=True, prop="", target_call_func="checkPlaceholder") }}
-<script type="text/javascript">
-    var checkPlaceholder = function() {
-        let is_placeholder = $('#{{ badge_flags.placeholder.id }}').prop('checked');
-        if (is_placeholder) {
-            $(this).prop('required', false);
-            $(this).siblings('label').children('.required-indicator').toggle(false);
-        }
-    }
-</script>
-{% endif %}
-{% endblock %}
+<div class="row g-sm-3 mb-3">{% block badge_info %}{% endblock %}</div>
+<div class="row g-sm-3 mb-3">{% block ribbons %}{% endblock %}</div>
+<div class="row g-sm-3 mb-3">{% block group %}{% endblock %}</div>
+<div class="row g-sm-3 mb-3">{% block paid_status %}{% endblock %}</div>
 
-{% block badge_info %}
-{% endblock %}
-
-{% block ribbons %}
-{% endblock %}
-
-{% block group %}
-{% endblock %}
-
-{% block paid_status %}
-{% endblock %}
+</div>

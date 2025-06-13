@@ -188,7 +188,7 @@
                             <form method="post" action="save_group" id="update-group">
                                 {{ csrf_token() }}
                                 <input type="hidden" name="id" value="{{ application.id }}">
-                                {{ form_macros.form_input(lottery_room_group.room_group_name) }}
+                                {{ form_macros.input(lottery_room_group.room_group_name) }}
                                 <button type="submit" class="btn btn-primary mb-3">Update Group Name</button>
                             </form>
                         </div>
@@ -196,7 +196,7 @@
                         <div class="col-12 col-sm-6">
                             <form method="post" action="new_invite_code">
                                 <input type="hidden" name="id" value="{{ application.id }}">
-                                {{ form_macros.form_input(lottery_room_group.invite_code) }}
+                                {{ form_macros.input(lottery_room_group.invite_code) }}
                                 <button type="submit" class="btn btn-warning mb-3">Generate New Code</button>
                             </form>
                         </div>
@@ -329,7 +329,7 @@
                 <div class="row g-sm-3">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     <div class="col-12 col-sm-6">
-                        {{ form_macros.form_input(lottery_room_group.room_group_name) }}
+                        {{ form_macros.input(lottery_room_group.room_group_name) }}
                     </div>
                 </div>
                 <div class="row g-sm-3">

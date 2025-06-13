@@ -22,13 +22,14 @@ __all__ = ['AdminBadgeExtras', 'AdminBadgeFlags', 'AdminConsents', 'AdminStaffin
            'Consents', 'CheckInForm']
 
 
-class PersonalInfo(AddressForm, MagForm):
+class PersonalInfo(AddressForm):
     #override the addressForm country select
     country = SelectField('Country', default='', choices=c.COUNTRY_OPTS)
     first_name = StringField('First Name', render_kw={'autocomplete': "fname"})
     last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
     same_legal_name = BooleanField('The above name is exactly what appears on my Legal Photo ID.')
     legal_name = StringField('Name as appears on Legal Photo ID',
+                             description=popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?'),
                              render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID'})
     badge_printed_name = StringField('Name Printed on Badge', description="Badge names have a maximum of 20 characters.")
     email = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
@@ -50,16 +51,6 @@ class PersonalInfo(AddressForm, MagForm):
     no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
     no_onsite_contact = BooleanField('My emergency contact is also on site with me at the event.')
     international = BooleanField('I\'m coming from outside the US.')
-
-    def placeholder_optional_field_names(self):
-        # Note that the fields below must ALWAYS be required if the attendee is not a placeholder
-        # Otherwise add them to get_optional_fields instead
-        # TODO: Remove after front-end refactor phase 1 is complete
-        return ['legal_name', 'birthdate', 'age_group', 'ec_name', 'ec_phone', 'address1', 'city',
-                'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact']
-
-    def placeholder_optional_fields(self):
-        return [getattr(self, name) for name in self.placeholder_optional_field_names()]
 
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = []
@@ -109,6 +100,8 @@ class AdminBadgeExtras(BadgeExtras):
     amount_extra = SelectField('Pre-ordered Merch', coerce=int, choices=c.DONATION_TIER_OPTS)
     extra_merch = StringField('Extra Merch')
     got_merch = BooleanField('This attendee has picked up their merch.')
+    shirt_opt_out = SelectField('Shirt Opt In/Out', coerce=int, choices=c.SHIRT_OPT_OUT_OPTS)
+    num_event_shirts = SelectField('Shirt Types', coerce=int, choices=c.STAFF_EVENT_SHIRT_OPTS)
 
 
 class OtherInfo(MagForm):

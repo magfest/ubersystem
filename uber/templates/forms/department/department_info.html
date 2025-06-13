@@ -14,7 +14,6 @@
 
 <div x-data="{ {% block x_data %}
 manages_panels: {{ department_info.manages_panels.data|jsonize }},
-get showPanelsDesc() { return this.manages_panels == true },
 {% endblock %} }">
 
 <div class="row g-sm-3 mb-3">
@@ -23,7 +22,7 @@ get showPanelsDesc() { return this.manages_panels == true },
 <div class="col-sm">{{ form_macros.input(department_info.description) }}</div>
 <div class="col-sm">
     {% call form_macros.input(department_info.from_email) %}
-    <div class="form-text" x-show="showPanelsDesc">This email address will also be used for automated panel emails under your department.</div>
+    <div class="form-text" x-show="manages_panels">This email address will also be used for automated panel emails under your department.</div>
     {% endcall %}
 </div>
 {% endblock %}
@@ -36,7 +35,7 @@ get showPanelsDesc() { return this.manages_panels == true },
 <div class="col-sm pt-1">
     <div class="form-text">&nbsp;</div>
     {% call form_macros.input(department_info.manages_panels, alpine_model="manages_panels") %}
-    <div x-show="showPanelsDesc">{{ form_macros.input(department_info.panels_desc) }}</div>
+    <div x-show="manages_panels">{{ form_macros.input(department_info.panels_desc) }}</div>
     {% endcall %}
 </div>
 {% endblock %}

@@ -15,7 +15,8 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div x-data="{ {% block x_data %}
 payment: {{ 'true' if group.guest and group.guest.payment else 'false' }},
-get showW9() { return this.guest_group_type != 0 && this.guest_group_type != '{{ c.MIVS }}' }
+get showW9() { return this.guest_group_type != 0 && this.guest_group_type != {{ c.MIVS|tojson }} },
+get groupFields() { return !this.badge_type || this.badge_type == {{ c.PSEUDO_GROUP_BADGE|tojson }} },
 {% endblock %} }">
 
 {# Takes the Stripe transaction max and divides it by the group price,
@@ -24,8 +25,9 @@ get showW9() { return this.guest_group_type != 0 && this.guest_group_type != '{{
 
 <div class="row g-sm-3 mb-3">
 {% block name_badges %}
-    <div class="col-sm">{{ form_macros.input(group_info.name) }}</div>
-    {% if is_prereg_attendee %}<div class="col-sm">{{ form_macros.input(group_info.badges, choices=int_choices(0 if admin_area else c.MIN_GROUP_SIZE, max_badges)) }}</div>
+    <div class="col-sm" x-show="groupFields">{{ form_macros.input(group_info.name, required_if="groupFields") }}</div>
+    {% if is_prereg_attendee %}
+    <div class="col-sm" x-show="groupFields">{{ form_macros.input(group_info.badges, choices=int_choices(0 if admin_area else c.MIN_GROUP_SIZE, max_badges)) }}</div>
     {% elif admin_area and not group.is_dealer %}
     <div class="col-sm">{{ form_macros.input(group_info.guest_group_type, alpine_model="guest_group_type") }}</div>
     <div class="col-sm pt-1" x-show="showW9">

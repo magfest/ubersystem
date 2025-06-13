@@ -1,147 +1,154 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set personal_info = personal_info or forms['personal_info'] %}
-{% set other_info = other_info or forms['other_info'] if 'other_info' in forms else None %}
-{% set badge_flags = badge_flags or forms['badge_flags'] %}
-{% set staffing_info = staffing_info or forms['staffing_info'] %}
+
 
 {# BLOCK NAMES in this form:
-      name
-      contact_info
-      age
-      address
-      ec_info
+  x_data
+  name
+  contact_info
+  age
+  address
+  ec_info
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
+
 <script>
-    function personalInfo() {
-        return {
-                copy_address: {{ (group and loaded_from_group and attendee.address1 == group.address1) | javascript_bool }},
-                copy_cellphone: {{ (group and loaded_from_group and attendee.cellphone == group.phone) | javascript_bool }},
-                copy_email: {{ (group and loaded_from_group and attendee.email == group.email_address) | javascript_bool }},
-                country: {{ personal_info.country.data | jsonize }},
-                dealer: {{ (is_prereg_dealer or attendee.is_dealer) | javascript_bool }},
-                international: {{ personal_info.international.data | javascript_bool }},
-                no_cellphone: {{ personal_info.no_cellphone.data | javascript_bool }},
-                no_onsite_contact: {{ personal_info.no_onsite_contact.data | javascript_bool }},
-                same_legal_name: {{ (attendee.first_name != '' and attendee.legal_name == '') | javascript_bool }},
-                get isGlobal() { return this.country != 'United States' && this.country != 'Canada'},
-                get isEmailRequired() { return !this.copy_email },
-                get isNameRequired() {return !this.badge_placeholder && !this.same_legal_name},
-                get isAddressRequired() {return !this.copy_address & !this.badge_placeholder},
-                get isOnsiteContactRequired() {return !this.badge_placeholder && !this.no_onsite_contact},
-                get isZipRequired(){ return !this.international && !this.copy_address && !this.badge_placeholder },
-                get isCellphoneDisabled() { return this.no_cellphone || this.copy_cellphone},
-                get isCellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.badge_placeholder },
-                country_options: {{ c.COUNTRY_OPTS | jsonize }},
-                country_alt_spelling: {{ c.COUNTRY_ALT_SPELLINGS | jsonize }},
-                init() {
-                    this.$nextTick(() => {
-                        let choices = new Choices(this.$refs.countryselect, {
-                            searchFields: ['label', 'customProperties.altSpelling']
-                        })
+  function personalInfo() {
+      return {
+        {% block x_data %}
+          copy_address: {{ (group and loaded_from_group and attendee.address1 == group.address1)|boolean|jsonize }},
+          copy_cellphone: {{ (group and loaded_from_group and attendee.cellphone == group.phone)|boolean|jsonize }},
+          copy_email: {{ (group and loaded_from_group and attendee.email == group.email_address)|boolean|jsonize }},
+          country: {{ personal_info.country.data | jsonize }},
+          dealer: {{ (is_prereg_dealer or attendee.is_dealer)|boolean|jsonize }},
+          international: {{ personal_info.international.data|boolean|jsonize }},
+          no_cellphone: {{ personal_info.no_cellphone.data|boolean|jsonize }},
+          no_onsite_contact: {{ personal_info.no_onsite_contact.data|boolean|jsonize }},
+          same_legal_name: {{ (attendee.first_name != '' and attendee.legal_name == '')|boolean|jsonize }},
+          get isGlobal() { return this.country != 'United States' && this.country != 'Canada'},
+          get emailRequired() { return !this.copy_email },
+          get legalNameRequired() {return !this.badge_placeholder && !this.same_legal_name},
+          get addressRequired() {return !this.copy_address & !this.badge_placeholder},
+          get onsiteContactRequired() {return !this.badge_placeholder && !this.no_onsite_contact},
+          get zipCodeRequired(){ return !this.international && !this.copy_address && !this.badge_placeholder },
+          get disableCellphone() { return this.no_cellphone || this.copy_cellphone},
+          get cellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.badge_placeholder },
+          country_options: {{ c.COUNTRY_OPTS | jsonize }},
+          country_alt_spelling: {{ c.COUNTRY_ALT_SPELLINGS | jsonize }},
+        {% endblock %}
+        {% if c.COLLECT_FULL_ADDRESS %}
+        init() {
+          this.$nextTick(() => {
+            let choices = new Choices(this.$refs.countryselect, {
+              searchFields: ['label', 'customProperties.altSpelling']
+            })
 
-                        let refreshChoices = () => {
-                            let selection = [this.country]
+            let refreshChoices = () => {
+              let selection = [this.country]
 
-                            choices.clearStore()
-                            choices.setChoices(this.country_options.map(opt => ({
-                                value: opt,
-                                label: opt,
-                                selected: selection.includes(opt),
-                                customProperties: {
-                                    altSpelling: this.country_alt_spelling[opt]
-                                }
-                            })))
-                        }
-
-                        refreshChoices()
-
-                        this.$refs.countryselect.addEventListener('change', () => {
-                            this.country = choices.getValue(true)
-                        })
-
-                        this.$watch('copy_address', (value) => { value ? choices.disable() : choices.enable() });
-                        this.$watch('country', () => refreshChoices());
-                        this.$watch('country_options', () => refreshChoices());
-                    })
+              choices.clearStore()
+              choices.setChoices(this.country_options.map(opt => ({
+                value: opt,
+                label: opt,
+                selected: selection.includes(opt),
+                customProperties: {
+                  altSpelling: this.country_alt_spelling[opt]
                 }
+              })))
+            }
+
+            refreshChoices()
+
+            this.$refs.countryselect.addEventListener('change', () => {
+                this.country = choices.getValue(true)
+            })
+
+            this.$watch('copy_address', (value) => { value ? choices.disable() : choices.enable() });
+            this.$watch('country', () => refreshChoices());
+            this.$watch('country_options', () => refreshChoices());
+          })
         }
+        {% endif %}
+      }
     }
 </script>
+
+
 {# Badge related values and staffing values are found in a higher level x-data that we leverage here. #}
 <div x-data="personalInfo()">
-    {% block name %}
-    {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
 
-<div class="row g-sm-3">
-<div class="col-12 col-sm-6">{{ form_macros.input(personal_info.first_name, required_if="!badge_placeholder") }}</div>
-<div class="col-12 col-sm-6">{{ form_macros.input(personal_info.last_name, value=attendee_last_name, required_if="!badge_placeholder") }}</div>
-</div>
+<div class="row g-sm-3 mb-3">
+{% block name %}
+  {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
+  <div class="col-sm">{{ form_macros.input(personal_info.first_name, required_if="!badge_placeholder") }}</div>
+  <div class="col-sm">{{ form_macros.input(personal_info.last_name, value=attendee_last_name, required_if="!badge_placeholder") }}</div>
 
-{% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
-      {{ form_macros.input(personal_info.same_legal_name, alpine_model='same_legal_name') }}
+  {% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
   </div>
+  <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {{ form_macros.input(personal_info.same_legal_name, alpine_model='same_legal_name') }}
+    </div>
+    <div class="col-sm">
+      {{ form_macros.input(personal_info.legal_name, required_if="legalNameRequired", **{':disabled':'same_legal_name'}) }}
+    </div>
+  {% else %}
+  <input type="hidden" id="same_legal_name" name="same_legal_name"{% if attendee.first_name != '' and attendee.legal_name == '' %} value="1"{% endif %}/>
+  {% endif %}
 
-  <div class="col-12 col-sm-6">{{ form_macros.input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?'), required_if="isNameRequired", **{':disabled':'same_legal_name'}) }}
+  {% if admin_area or attendee.has_personalized_badge %}
   </div>
-</div>
-{% else %}
-<input type="hidden" id="same_legal_name" name="same_legal_name" {% if attendee.first_name != '' and attendee.legal_name == '' %}value="1" {% endif %}/>
-{% endif %}
-
-{% if admin_area or attendee.has_personalized_badge %}
-<div class="row g-sm-3">
-  <div class="col-12">{{ form_macros.input(personal_info.badge_printed_name, required_if="require_badge_name") }}</div>
-</div>
-{% endif %}
+  <div class="row g-sm-3 mb-3">
+    <div class="col-12">{{ form_macros.input(personal_info.badge_printed_name, required_if="require_badge_name") }}</div>
+  {% endif %}
 {% endblock %}
+</div>
 
-
+<div class="row g-sm-3 mb-3">
 {% block contact_info %}
-{% set attendee_email = attendee.masked_email if limited_read else attendee.email %}
-
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
-    {{ form_macros.input(personal_info.email, value=attendee_email, required_if="isEmailRequired", **{':disabled':'copy_email'})}}
+  {% set attendee_email = attendee.masked_email if limited_read else attendee.email %}
+  <div class="col-sm">
+    {% call form_macros.input(personal_info.email, value=attendee_email, required_if="emailRequired", **{':disabled':'copy_email'}) %}
       {% if is_prereg_dealer %}
-          {{ form_macros.input(personal_info.copy_email, **{'x-model.boolean':'copy_email'}) }}
+        {{ form_macros.input(personal_info.copy_email, **{'x-model.boolean':'copy_email'}) }}
       {% endif %}
+    {% endcall %}
   </div>
   {% if c.PREREG_CONFIRM_EMAIL_ENABLED and (attendee.needs_pii_consent or attendee.badge_status == c.PENDING_STATUS) %}
-  <div class="col-12 col-sm-6">
-    {{ form_macros.input(personal_info.confirm_email, value=attendee_email if edit_id or attendee.placeholder else '') }}
-  </div>
-</div>
-<div class="row g-sm-3">
-  {% endif %}
-  <div class="col-12 col-sm-6">
-          {{ form_macros.input(personal_info.cellphone, required_if="isCellphoneRequired", **{':disabled':'isCellphoneDisabled'} ) }}
-         {% if is_prereg_dealer %}
-             {{ form_macros.input(personal_info.copy_phone,**{'x-model.boolean':'copy_cellphone'}) }}
-         {% elif attendee.staffing or (other_info and other_info is not none) %}
-              {{ form_macros.input(personal_info.no_cellphone,**{'x-model.boolean':'no_cellphone'}) }}
-         {% endif %}
-      </div>
+    <div class="col-sm">
+      {{ form_macros.input(personal_info.confirm_email, value=attendee_email if edit_id or attendee.placeholder else '') }}
     </div>
-{% endblock %}
-
-{% block age %}
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
-{% if c.COLLECT_EXACT_BIRTHDATE %}
-  {{ form_macros.input(personal_info.birthdate, admin_text=attendee.age_group_conf.desc, required_if="!badge_placeholder") }}
-{% else %}
-  {{ form_macros.input(personal_info.age_group, required_if="!badge_placeholder") }}
-{% endif %}
+    </div>
+    <div class="row g-sm-3 mb-3">
+  {% endif %}
+  <div class="col-sm">
+    {% call form_macros.input(personal_info.cellphone, required_if="cellphoneRequired", **{':disabled':'disableCellphone'}) %}
+      {% if is_prereg_dealer %}
+        {{ form_macros.input(personal_info.copy_phone, **{'x-model.boolean':'copy_cellphone'}) }}
+      {% else %}
+        <div x-show="cellphoneRequired || no_cellphone">
+        {{ form_macros.input(personal_info.no_cellphone, **{'x-model.boolean':'no_cellphone'}) }}
+        </div>
+      {% endif %}
+    {% endcall %}
   </div>
+{% endblock %}
+</div>
 
-  <div class="col-12 col-sm-6">
+<div class="row g-sm-3 mb-3">
+{% block age %}
+  <div class="col-sm">
+    {% if c.COLLECT_EXACT_BIRTHDATE %}
+      {{ form_macros.input(personal_info.birthdate, admin_text=attendee.age_group_conf.desc, required_if="!badge_placeholder") }}
+    {% else %}
+      {{ form_macros.input(personal_info.age_group, required_if="!badge_placeholder") }}
+    {% endif %}
+  </div>
+  <div class="col-sm">
     {% if c.CONSENT_FORM_URL and not admin_area %}
-    <div class="alert alert-warning" role="alert">
+    <div class="alert alert-warning mb-0" role="alert">
       <em>
         Attendees under 18 <b>MUST</b> bring a signed (and notarized if not accompanied by parent or guardian during badge pickup)
         <a class="link-dark" target="_blank" href="{{ c.CONSENT_FORM_URL }}">parental consent form</a>.
@@ -149,87 +156,85 @@
     </div>
     {% endif %}
   </div>
-</div>
 {% endblock %}
+</div>
 
-
+<div class="row g-sm-3 mb-3">
 {% block address %}
-{% if c.COLLECT_FULL_ADDRESS %}
-{% if is_prereg_dealer %}
-<div class="row g-sm-3">
-  <div class="col-12">
-      {{ form_macros.input(personal_info.copy_address, **{'x-model.boolean':'copy_address'}) }}
+  {% if c.COLLECT_FULL_ADDRESS %}
+    {% if is_prereg_dealer %}
+      <div class="col-sm">
+          {{ form_macros.input(personal_info.copy_address, **{'x-model.boolean':'copy_address'}) }}
+      </div>
+    </div>
+    <div class="row g-sm-3 mb-3">
+    {% endif %}
+    <div class="col-sm">
+      {{ form_macros.input(personal_info.address1, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+    </div>
+    <div class="col-sm">
+      {{ form_macros.input(personal_info.address2, **{':disabled':'copy_address'}) }}
+    </div>
   </div>
-</div>
-{% endif %}
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
-    {{ form_macros.input(personal_info.address1, required_if="isAddressRequired", **{':disabled':'copy_address', 'class': 'form-control'}) }}
-  </div>
-  <div class="col-12 col-sm-6">
-    {{ form_macros.input(personal_info.address2, **{':disabled':'copy_address', 'class': 'form-control'}) }}
-  </div>
-</div>
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
+  <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
       {# Choices.js does not respect the alpine x-bind:disabled. Disable switch is at the top with the rest of choicesjs config. #}
-    {{ form_macros.input(personal_info.country, required_if="isAddressRequired", **{'x-model': 'country', 'x-ref': 'countryselect'}) }}
-  </div>
-  <div class="col-12 col-sm-6">
+      {{ form_macros.input(personal_info.country, required_if="addressRequired", **{'x-model': 'country', 'x-ref': 'countryselect'}) }}
+    </div>
+    <div class="col-sm">
       <div x-show="country == 'United States'">
-        {{ form_macros.input(personal_info.region_us, required_if="isAddressRequired", **{':disabled':'copy_address', 'class': 'form-control'}) }}
+        {{ form_macros.input(personal_info.region_us, required_if="addressRequired", **{':disabled':'copy_address'}) }}
       </div>
       <div x-show="country == 'Canada'">
-        {{ form_macros.input(personal_info.region_canada, required_if="isAddressRequired", **{':disabled':'copy_address', 'class': 'form-control'}) }}
+        {{ form_macros.input(personal_info.region_canada, required_if="addressRequired", **{':disabled':'copy_address'}) }}
       </div>
       <div x-show="isGlobal">
-        {{ form_macros.input(personal_info.region, required_if="isAddressRequired", **{':disabled':'copy_address', 'class': 'form-control'}) }}
+        {{ form_macros.input(personal_info.region, required_if="addressRequired", **{':disabled':'copy_address'}) }}
       </div>
+    </div>
   </div>
-</div>
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
-    {{ form_macros.input(personal_info.city, required_if="isAddressRequired", **{':disabled':'copy_address', 'class': 'form-control'}) }}
-  </div>
-  <div class="col-12 col-sm-6">
-    {{ form_macros.input(personal_info.zip_code, required_if="isZipRequired", **{':disabled':'copy_address', 'class': 'form-control'}) }}
-  </div>
-</div>
-{% else %}
-{# We need a better solution, but avoiding a row here allows event plugins to put a field next to the zip code #}
-      <div class="col-12 col-sm-6">
-            {{ form_macros.input(personal_info.zip_code, required_if="isZipRequired", **{':disabled':'copy_address'}) }}
-            {{ form_macros.input(personal_info.international,  **{'x-model.boolean':'international'}) }}
-      </div>
-{% endif %}
+  <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+      {{ form_macros.input(personal_info.city, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+    </div>
+    <div class="col-sm">
+      {{ form_macros.input(personal_info.zip_code, required_if="zipCodeRequired", **{':disabled':'copy_address'}) }}
+    </div>
+  {% else %}
+    <div class="col-sm-6">
+        {% call form_macros.input(personal_info.zip_code, required_if="zipCodeRequired", **{':disabled':'copy_address'}) %}
+          {{ form_macros.input(personal_info.international,  **{'x-model.boolean':'international'}) }}
+        {% endcall %}
+    </div>
+    {% endif %}
 {% endblock %}
+</div>
 
-
+<div class="row g-sm-3 mb-3">
 {% block ec_info %}
 {% set show_ec = admin_area and ((attendee.admin_read_access() and attendee.admin_read_access() > 2) or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS) or (attendee.is_new or not admin_area) %}
 {% if show_ec or not personal_info.ec_name.data %}
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
+  <div class="col-sm">
     {{ form_macros.input(personal_info.ec_name, required_if="!badge_placeholder") }}
   </div>
-
-  <div class="col-12 col-sm-6">
+  <div class="col-sm">
     {{ form_macros.input(personal_info.ec_phone, required_if="!badge_placeholder") }}
   </div>
-</div>
 {% endif %}
 {% if show_ec or not personal_info.onsite_contact.data %}
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
-      {{ form_macros.input(personal_info.onsite_contact, extra_field=onsite_extra_field, maxlength="500", required_if="isOnsiteContactRequired", **{':disabled':'no_onsite_contact'}) }}
+</div>
+<div class="row g-sm-3 mb-3">
+  <div class="col-sm">
+      {{ form_macros.input(personal_info.onsite_contact, extra_field=onsite_extra_field, maxlength="500", required_if="onsiteContactRequired", **{':disabled':'no_onsite_contact'}) }}
       {{ form_macros.input(personal_info.no_onsite_contact, **{'x-model.boolean':'no_onsite_contact'}) }}
   </div>
-  <div class="col-12 col-sm-6">
+  <div class="col-sm">
     <div class="alert alert-info mt-4" role="alert">
     Please provide names and contact info for a trusted friend or friends who will be at or near the venue during the event.
     </div>
   </div>
-</div>
 {% endif %}
 {% endblock %}
+</div>
+
 </div>

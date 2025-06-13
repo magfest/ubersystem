@@ -2,100 +2,121 @@
 
 {% include 'badge_printing/queue_badge.html' %}
 
+{% block x_data %}
+{{ super() }}
+last_paid: {{ attendee.paid|tojson }},
+badge_status: {{ badge_flags.badge_status.data|tojson }},
+no_badge_num: {{ (not attendee.badge_num)|tojson }},
+paid: {{ badge_flags.paid.data|tojson }},
+preassignedBadge() { return {{ c.PREASSIGNED_BADGE_TYPES|tojson }}.includes(this.badge_type) },
+setPaidStatus() {
+    if (this.badge_status == {{ c.REFUNDED_STATUS|tojson }}) {
+        this.last_paid = this.paid;
+        this.paid = {{ c.REFUNDED|tojson }};
+    } else if ({{ [c.STAFF_BADGE, c.CONTRACTOR_BADGE, c.GUEST_BADGE]|tojson }}.includes(this.badge_type)) {
+        this.last_paid = this.paid;
+        this.paid = {{ c.NEED_NOT_PAY|tojson }};
+    } else {
+        this.paid = this.last_paid
+    }
+},
+get badgeNumRequired() { return !this.no_badge_num && this.preassignedBadge() },
+get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badge #' : 'Omit badge #' },
+{% endblock %}
+
 {% block attendee_info %}
 {% if not attendee.is_new %}
-<div class="row g-sm-3">
     {% if attendee.created_info and attendee.created_info.when|full_datetime_local != attendee.registered|full_datetime_local and attendee.created_info.who == "non-admin" %}
-    <div class="col">
+    <div class="col-sm">
         <div class="form-text">Created</div>
         <div class="mb-4">{{ attendee.created_info.when|full_datetime_local }} by {{ attendee.created_info.who }}</div>
     </div>
     {% endif %}
     {% if attendee.registered %}
-    <div class="col">
+    <div class="col-sm">
         <div class="form-text">Signed Up</div>
         <div class="mb-4">{{ attendee.registered_local|full_datetime_local }}</div>
     </div>
     {% endif %}
     {% if attendee.last_update_info %}
-    <div class="col">
+    <div class="col-sm">
         <div class="form-text">Last Updated</div>
         <div class="mb-4">{{ attendee.last_update_info.when|full_datetime_local }} by {{ attendee.last_update_info.who }}</div>
     </div>
     {% endif %}
-</div>
-{% if attendee.allocated_badges and (attendee.allocated_badges|length > 1 or not attendee.active_badge) %}
-<div class="row g-sm-3">
-    <div class="col">
-        {% if attendee.active_badge %}
-        Besides their current badge (#{{ attendee.badge_num }}), t{% else %}T{% endif %}his
-        attendee has previously been allocated the following badges:
-        <ul>
-            {% for badge in attendee.allocated_badges|rejectattr('active') %}
-            <li>
-                Badge #{{ badge.ident }}
-                {% if badge.picked_up %}| Picked up {{ badge.picked_up_local|datetime("%B %-d, %-I:%M %p") }}{% endif %}
-                {% if badge.reported_lost %} | Reported lost {{ badge.reported_lost_local|datetime("%B %-d, %-I:%M %p") }}{% endif %}
-                <button type="submit" class="btn btn-sm btn-primary" form="activate_badge-{{ badge.id }}">Make Current Badge</button>
-                {% if badge.picked_up %}
-                <button type="submit" class="btn btn-sm btn-warning" form="undo_badge_pickup-{{ badge.id }}">Undo Badge Pickup</button>
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
+    {% if attendee.allocated_badges and (attendee.allocated_badges|length > 1 or not attendee.active_badge) %}
     </div>
-</div>
-{% endif %}
-<div class="row g-sm-3">
-    {% if attendee.panel_applicants and c.HAS_PANELS_ADMIN_ACCESS -%}
-    <div class="col">
-        <div class="form-text">Panel Applications</div>
-        <div class="mb-4">
-            {% for applicant in attendee.panel_applicants -%}
-                {% set outer_loop = loop %}
-                {% for app in applicant.applications %}
-                {% if not outer_loop.first %} / {% endif %}
-                <a href="../panels_admin/app?id={{ app.id }}">{{ app.name }}{{ " (Accepted)" if app.status == c.ACCEPTED else "" }}</a>
+    <div class="row g-sm-3 mb-3">
+        <div class="col-sm">
+            {% if attendee.active_badge %}
+            Besides their current badge (#{{ attendee.badge_num }}), t{% else %}T{% endif %}his
+            attendee has previously been allocated the following badges:
+            <ul>
+                {% for badge in attendee.allocated_badges|rejectattr('active') %}
+                <li>
+                    Badge #{{ badge.ident }}
+                    {% if badge.picked_up %}| Picked up {{ badge.picked_up_local|datetime("%B %-d, %-I:%M %p") }}{% endif %}
+                    {% if badge.reported_lost %} | Reported lost {{ badge.reported_lost_local|datetime("%B %-d, %-I:%M %p") }}{% endif %}
+                    <button type="submit" class="btn btn-sm btn-primary" form="activate_badge-{{ badge.id }}">Make Current Badge</button>
+                    {% if badge.picked_up %}
+                    <button type="submit" class="btn btn-sm btn-warning" form="undo_badge_pickup-{{ badge.id }}">Undo Badge Pickup</button>
+                    {% endif %}
+                </li>
                 {% endfor %}
-            {%- endfor %}
+            </ul>
         </div>
+    {% endif %}
     </div>
-    {%- endif %}
-    {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-    <div class="col">
-        <div class="form-text">Account Email{{ attendee.managers|length|pluralize }}</div>
-        <div class="mb-4">
-            {% for manager in attendee.managers %}
-                {% if not loop.first %} / {% endif %}{{ manager|form_link(true) }}
-                {% if manager.attendees|length > 1 %}
-                (&nbsp;{%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
-                    {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}{% if not managed_attendee.is_valid %} <span class="badge bg-secondary">Invalid</span>{% endif %}
-                    {%- endfor -%}&nbsp;)
+    <div class="row g-sm-3 mb-3">
+        {% if attendee.panel_applicants and c.HAS_PANELS_ADMIN_ACCESS -%}
+        <div class="col-sm">
+            <div class="form-text">Panel Applications</div>
+            <div class="mb-4">
+                {% for applicant in attendee.panel_applicants -%}
+                    {% set outer_loop = loop %}
+                    {% for app in applicant.applications %}
+                    {% if not outer_loop.first %} / {% endif %}
+                    <a href="../panels_admin/app?id={{ app.id }}">{{ app.name }}{{ " (Accepted)" if app.status == c.ACCEPTED else "" }}</a>
+                    {% endfor %}
+                {%- endfor %}
+            </div>
+        </div>
+        {%- endif %}
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+        <div class="col-sm">
+            <div class="form-text">Account Email{{ attendee.managers|length|pluralize }}</div>
+            <div class="mb-4">
+                {% for manager in attendee.managers %}
+                    {% if not loop.first %} / {% endif %}{{ manager|form_link(true) }}
+                    {% if manager.attendees|length > 1 %}
+                    (&nbsp;{%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
+                        {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}{% if not managed_attendee.is_valid %} <span class="badge bg-secondary">Invalid</span>{% endif %}
+                        {%- endfor -%}&nbsp;)
+                    {% endif %}
+                {% else %}
+                    This attendee has no attendee accounts.
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED or c.AFTER_EPOCH or attendee.checked_in %}
+        <div class="col-sm">
+            <div class="form-text">Checked In</div>
+            <div class="mb-4">
+                {% if attendee.checked_in %}
+                    {{ attendee.checked_in_local|datetime("%B %-d, %Y, %-I:%M %p") }}
+                {% elif attendee.cannot_check_in_reason %}
+                    Can't check in yet: {{ attendee.cannot_check_in_reason }}
+                {% else %}
+                    Not checked in yet
                 {% endif %}
-            {% else %}
-                This attendee has no attendee accounts.
-            {% endfor %}
+            </div>
         </div>
+        {% endif %}
     </div>
-    {% endif %}
-    {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED or c.AFTER_EPOCH or attendee.checked_in %}
-    <div class="col">
-        <div class="form-text">Checked In</div>
-        <div class="mb-4">
-            {% if attendee.checked_in %}
-                {{ attendee.checked_in_local|datetime("%B %-d, %Y, %-I:%M %p") }}
-            {% elif attendee.cannot_check_in_reason %}
-                Can't check in yet: {{ attendee.cannot_check_in_reason }}
-            {% else %}
-                Not checked in yet
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-</div>
+    <div class="row g-sm-3 mb-3">
 {% endif %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         <div class="form-text">Placeholder</div>
         <div>{{ form_macros.input(badge_flags.placeholder, admin_text="You will only need to fill out their name and email address.", **{'x-model.boolean':'badge_placeholder'}) }}</div>
     </div>
@@ -107,7 +128,7 @@
                 This attendee can {% if attendee.can_transfer %}only transfer their badge with this override turned on{% else %}<strong>NOT</strong> currently transfer their badge{% endif %}.
             {% endif %}
         {% endset %}
-        <div class="col-12 col-sm-6">
+        <div class="col-sm">
             <div class="form-text">Is Transferable</div>
             <div class="mb-3">
                 {% if attendee.is_inherently_transferable %}
@@ -120,23 +141,10 @@
             </div>
         </div>
     {% endif %}
-</div>
-{% if badge_extras %}
-{% set target_fields = [badge_extras.shirt, badge_extras.staff_shirt] %}
-{{ form_macros.toggle_fields_js(badge_flags.placeholder, target_fields, off_values=[1], toggle_required=True, prop="", target_call_func="checkPlaceholder") }}
-<script type="text/javascript">
-    var checkPlaceholder = function() {
-        let is_placeholder = $('#{{ badge_flags.placeholder.id }}').prop('checked');
-        if (is_placeholder) {
-            $(this).prop('required', false);
-            $(this).siblings('label').children('.required-indicator').toggle(false);
-        }
-    }
-</script>
-{% endif %}
 {% if c.HAS_ACCOUNTS_ACCESS %}
-<div class="row g-sm-3">
-    <div class="col-12">
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
         <div class="form-text">Admin Account</div>
         <div class="mb-3">
         {% if attendee.admin_account %}
@@ -146,64 +154,27 @@
         {% endif %}
         </div>
     </div>
-</div>
 {% endif %}
 {% endblock %}
 
 
 
 {% block badge_info %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_status,
+    <div class="col-sm">{{ form_macros.input(badge_flags.badge_status,
             admin_text=attendee.cannot_edit_badge_status_reason,
-            disabled=(attendee.cannot_edit_badge_status_reason != '')) }}</div>
-    <div class="col-12 col-sm-4">{{ form_macros.input(badge_flags.badge_type, **{'x-model.number':'badge_type'}) }}</div>
-    <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_flags.badge_num,
-            extra_field=form_macros.toggle_checkbox(badge_flags.no_badge_num, [badge_flags.badge_num], hide_on_checked=True, prop="readonly", checked=not attendee.badge_num)) }}</div>
-</div>
-<script type="text/javascript">
-    var setPaidAndRefunded = function() {
-        if ($('#{{ badge_flags.badge_status.id }}').val() == "{{ c.REFUNDED_STATUS }}") {
-            $('#{{ badge_flags.paid.id }} option[value="{{ c.REFUNDED }}"]').prop('selected', true);
-        } else {
-            $('#{{ badge_flags.paid.id }} option[value="{{ attendee.paid }}"]').prop('selected', true);
-        }
-    }
-    var setComped = function() {
-        if ({{ [c.STAFF_BADGE, c.CONTRACTOR_BADGE, c.GUEST_BADGE] }}.map(String).includes($('#{{ badge_flags.badge_type.id }}').val())) {
-            $('#{{ badge_flags.paid.id }} option[value="{{ c.NEED_NOT_PAY }}"]').prop('selected', true);
-        }
-    }
-    var changeBadgeNumRequiredAndText = function() { 
-        let isPreassignedBadgeType = $.inArray(parseInt($('#{{ badge_flags.badge_type.id }}').val()), {{ c.PREASSIGNED_BADGE_TYPES }}) >= 0;
-        if (isPreassignedBadgeType == true) {
-            $('label[for="{{ badge_flags.no_badge_num.id }}"]').text("Use next available badge #");
-        } else {
-            $('label[for="{{ badge_flags.no_badge_num.id }}"]').text("Omit badge #");
-        }
-    };
-    var setBadgeNumRequired = function() {
-        let isPreassignedBadgeType = $.inArray(parseInt($('#{{ badge_flags.badge_type.id }}').val()), {{ c.PREASSIGNED_BADGE_TYPES }}) >= 0;
-        $('#{{ badge_flags.badge_num.id }}').prop('required', isPreassignedBadgeType && !$('#{{ badge_flags.no_badge_num.id }}').prop('checked'));
-        $('#{{ badge_flags.badge_num.id }}').siblings('label').children('.required-indicator').toggle(isPreassignedBadgeType && !$('#{{ badge_flags.no_badge_num.id }}').prop('checked'));
-    }
-    var clearOrResetBadgeNum = function() {
-        $('#{{ badge_flags.badge_num.id }}').val($('#{{ badge_flags.no_badge_num.id }}').prop('checked') ? '' : '{{ attendee.badge_num|default("",true) }}')
-    }
-    $(function () {
-        changeBadgeNumRequiredAndText();
-        setBadgeNumRequired();
-        $('#{{ badge_flags.badge_status.id }}').change(setPaidAndRefunded);
-        $('#{{ badge_flags.badge_type.id }}').change(changeBadgeNumRequiredAndText).change(setBadgeNumRequired).change(setComped);
-        $('#{{ badge_flags.no_badge_num.id }}').change(setBadgeNumRequired).change(clearOrResetBadgeNum);
-    });
-</script>
+            disabled=(attendee.cannot_edit_badge_status_reason != ''), alpine_model="badge_status",
+            **{'x-init': "$watch('badge_status', value => setPaidStatus())"}) }}</div>
+    <div class="col-sm">{{ form_macros.input(badge_flags.badge_type, **{'x-model.number':'badge_type', 'x-init': "$watch('badge_type', value => setPaidStatus())"}) }}</div>
+    <div class="col-sm">
+        {% call form_macros.input(badge_flags.badge_num, required_if="badgeNumRequired", **{':disabled': "no_badge_num"}) %}
+        {{ form_macros.input(badge_flags.no_badge_num, checked=not attendee.badge_num,
+                             alpine_model="no_badge_num", label_kwargs={'x-text': "noBadgeNumText"}) }}
+        {% endcall %}
+    </div>
 {% endblock %}
 
 {% block ribbons %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.input(badge_flags.ribbon, **{'x-model.number':'badge_ribbons'}) }}</div>
-</div>
+    <div class="col-sm">{{ form_macros.input(badge_flags.ribbon, **{'x-model.number':'badge_ribbons'}) }}</div>
 {% endblock %}
 
 {% block group %}
@@ -214,10 +185,9 @@
         <a id="new_group" href="../group_admin/new_group_from_attendee?id={{ attendee.id }}" target="_blank">Create New Group</a>
     {% endif %}
 {% endset %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.input(badge_flags.group_id, admin_text=group_extra_text) }}</div>
+    <div class="col-sm">{{ form_macros.input(badge_flags.group_id, admin_text=group_extra_text) }}</div>
     {% if c.BADGE_PROMO_CODES_ENABLED and c.GROUPS_ENABLED %}
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         <div class="form-text">Promo Code Group</div>
         <div class="mb-3">
             {% for group in attendee.promo_code_groups %}
@@ -232,7 +202,6 @@
         </div>
     </div>
     {% endif %}
-</div>
 <script type="text/javascript">
     var setGroupLink = function () {
         var group = $('#{{ badge_flags.group_id.id }}').val();
@@ -255,12 +224,11 @@
 {% set paid_admin_text %}
 {{ (attendee.amount_paid / 100)|format_currency }} paid / {{ (attendee.amount_refunded / 100)|format_currency }} refunded
 {% endset %}
-<div class="row g-sm-3">
-    <div class="col">
-        {{ form_macros.input(badge_flags.paid, admin_text=paid_admin_text) }}
+    <div class="col-sm">
+        {{ form_macros.input(badge_flags.paid, admin_text=paid_admin_text, alpine_model="paid") }}
     </div>
     {% if other_info and c.BADGE_PROMO_CODES_ENABLED %}
-        <div class="col">
+        <div class="col-sm">
         {% set promo_code_admin_text %}
             {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
             <a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove Promo Code</a>
@@ -293,9 +261,9 @@
         {% endif %}
         </div>
     {% endif %}
-    <div class="col">
-        {{ form_macros.form_input(badge_flags.overridden_price, value=attendee.overridden_price or attendee.badge_cost or 0,
-                                  extra_field=form_macros.form_input(badge_flags.no_override, checked=not attendee.overridden_price)) }}
+    <div class="col-sm">
+        {% call form_macros.input(badge_flags.overridden_price, value=attendee.overridden_price or attendee.badge_cost or 0) %}
+        {{ form_macros.input(badge_flags.no_override, checked=not attendee.overridden_price) }}
+        {% endcall %}
     </div>
-</div>
 {% endblock %}

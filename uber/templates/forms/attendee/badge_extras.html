@@ -5,6 +5,7 @@
 {%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form', '/preregistration/claim_badge'] -%}
 
 {# BLOCK NAMES in this form:
+    x_data
     badge_type
     merch_info (admin-only)
     add_ons
@@ -15,79 +16,118 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<div x-data="{ {% block x_data %}
+amount_extra: {{ badge_extras.amount_extra.data|tojson }},
+num_event_shirts: {{ (badge_extras.num_event_shirts.data if admin_area else attendee.num_event_shirts)|tojson }},
+shirt_opt_out: {{ (badge_extras.shirt_opt_out.data if admin_area else attendee.shirt_opt_out)|tojson }},
+staffShirtOptOut() { return {{ [c.STAFF_OPT_OUT, c.ALL_OPT_OUT]|tojson }}.includes(this.shirt_opt_out) },
+eventShirtOptOut() { return {{ [c.EVENT_OPT_OUT, c.ALL_OPT_OUT]|tojson }}.includes(this.shirt_opt_out) },
+
+{% if c.SHIRTS_PER_STAFFER > 0 %}
+    getsStaffShirt() { return this.badge_type == {{ c.STAFF_BADGE|tojson }} },
+    {% if c.STAFF_EVENT_SHIRT_OPTS %}
+        get showStaffEventShirtOpts() { return this.badge_type == {{ c.STAFF_BADGE|tojson }} },
+        getsFreeEventShirt() { return this.num_event_shirts > 0 },
+    {% endif %}
+{% else %}
+    getsStaffShirt() { return false },
+{% endif %}
+{% if c.HOURS_FOR_SHIRT %}
+    {% if c.SHIRTS_PER_STAFFER == 0 %}
+        getsFreeEventShirt() { return this.badge_type == {{ c.STAFF_BADGE|tojson }} || this.badge_ribbons.includes({{ c.VOLUNTEER_RIBBON|tojson }}) },
+    {% else %}
+        getsFreeEventShirt() { return this.badge_ribbons.includes({{ c.VOLUNTEER_RIBBON|tojson }}) },
+    {% endif %}
+{% endif %}
+
+{% if not c.STAFF_EVENT_SHIRT_OPTS %}
+    get showStaffEventShirtOpts() { return false },
+    {% if not c.HOURS_FOR_SHIRT %}
+        getsFreeEventShirt() { return false },
+    {% endif %}
+{% endif %}
+
+{% if c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
+    get showStaffShirt() { return this.getsStaffShirt() && !this.staffShirtOptOut() && (this.num_event_shirts != {{ c.SHIRTS_PER_STAFFER }}) },
+    get staffShirtRequired() { return this.getsStaffShirt() && !this.staffShirtOptOut() && (this.num_event_shirts != {{ c.SHIRTS_PER_STAFFER }}) && !this.placeholder },
+    get showShirtSize() { return this.getsFreeEventShirt() || this.amount_extra > 0 },
+    get shirtSizeRequired() { return (this.getsFreeEventShirt() || this.amount_extra > 0) && !this.placeholder },
+{% else %}
+    get showStaffShirt() { return false },
+    get staffShirtRequired() { return false },
+    get showShirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut()) || this.amount_extra > 0 || (this.getsStaffShirt() && !this.staffShirtOptOut()) },
+    get shirtSizeRequired() { return ((this.getsFreeEventShirt() && !this.eventShirtOptOut()) || this.amount_extra > 0 || (this.getsStaffShirt() && !this.staffShirtOptOut())) && !this.placeholder },
+{% endif %}
+get showShirtOptOut() { return this.getsStaffShirt() || this.getsFreeEventShirt() },
+{% endblock %} }">
+
 {% set id_upgrade_prepend = "upgrade_" if upgrade_modal else "" %}
 
+<div class="row g-sm-3 mb-3">
 {% block badge_type %}
-{{ badge_extras.badge_type(id=id_upgrade_prepend ~ "badge_type") }}
+{{ badge_extras.badge_type(id=id_upgrade_prepend ~ "badge_type", **{'x-model': "badge_type"}) }}
 
 {% if c.BADGE_TYPE_PRICES and (not receipt or upgrade_modal) %}
-    <div class="row g-sm-3">
     {{ form_macros.card_select(badge_extras.badge_type,
-                                attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES[1:] if attendee.badge_type in c.SOLD_OUT_BADGE_TYPES else c.SOLD_OUT_BADGE_TYPES,
-                                target_field_id=id_upgrade_prepend ~ "badge_type") }}
-    </div>
+        attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES[1:] if attendee.badge_type in c.SOLD_OUT_BADGE_TYPES else c.SOLD_OUT_BADGE_TYPES,
+        target_field_id=id_upgrade_prepend ~ "badge_type") }}
 {% elif not is_prereg_attendee %}
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-6">
-            <div class="form-text">{{ badge_extras.badge_type.label.text }}</div>
-            <div class="form-control-plaintext h5">{{ attendee.badge_type_label }}{% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ macros.upgrade_button('badge-type') }}{% endif %}</div>
-        </div>
+    <div class="col-sm">
+        <div class="form-text">{{ badge_extras.badge_type.label.text }}</div>
+        <div class="form-control-plaintext h5">{{ attendee.badge_type_label }}{% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ macros.upgrade_button('badge-type') }}{% endif %}</div>
     </div>
 {% endif %}
 {% endblock %}
+</div>
 
+<div class="row g-sm-3 mb-3">
 {% block merch_info %}
 {% endblock %}
+</div>
 
+<div class="row g-sm-3 mb-3">
 {% block add_ons %}
 {% if c.ADDONS_ENABLED %}
-{{ badge_extras.amount_extra(id=id_upgrade_prepend ~ "amount_extra") }}
+    {{ badge_extras.amount_extra(id=id_upgrade_prepend ~ "amount_extra", **{'x-model': "amount_extra"}) }}
     {% if not receipt or upgrade_modal %}
-        <div class="row g-sm-3">
         {{ form_macros.card_select(badge_extras.amount_extra,
-                                    attendee.available_amount_extra_opts, disabled_opts=c.SOLD_OUT_MERCH_TIERS,
-                                    target_field_id=id_upgrade_prepend ~ "amount_extra") }}
-        </div>
-        {% if not attendee.gets_staff_shirt or c.STAFF_SHIRTS_OPTIONAL or c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
-            {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True, 
-                                            closest_hide_selector='.row' if not attendee.gets_staff_shirt else '.form-floating',
-                                            source_field_id=id_upgrade_prepend ~ "amount_extra") }}
-        {% endif %}
+            attendee.available_amount_extra_opts, disabled_opts=c.SOLD_OUT_MERCH_TIERS,
+            target_field_id=id_upgrade_prepend ~ "amount_extra") }}
     {% else %}
-        <div class="row g-sm-3">
-            <div class="col-12 col-sm-6">
-                <div class="form-text">{{ badge_extras.amount_extra.label.text }}</div>
-                <div class="form-control-plaintext h5">{{ attendee.amount_extra_label or "None" }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
-            </div>
+        <div class="col-sm">
+            <div class="form-text">{{ badge_extras.amount_extra.label.text }}</div>
+            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label or "None" }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
         </div>
     {% endif %}
 {% endif %}
 {% endblock %}
-
-{% block perk_info %}
-{% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt or admin_area %}
-<div class="row g-sm-3{% if c.STAFF_SHIRTS_OPTIONAL %} mb-3{% endif %}">
-    {% if attendee.gets_staff_shirt and not c.STAFF_SHIRTS_OPTIONAL and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
-        <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.staff_shirt, required=True) }}</div>
-    {% endif %}
-    {% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS) or admin_area %}
-        <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.shirt) }}</div>
-    {% endif %}
 </div>
+
+<div class="row g-sm-3 mb-3">
+{% block perk_info %}
+{% set staff_shirts_on_reg_form = not c.STAFF_SHIRTS_OPTIONAL and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
+{% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt or admin_area %}
+    {% if staff_shirts_on_reg_form or admin_area %}
+        <div class="col-sm-6" x-show="showStaffShirt">{{ form_macros.input(badge_extras.staff_shirt, required_if="staffShirtRequired") }}</div>
+    {% endif %}
+    {% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and staff_shirts_on_reg_form) or admin_area %}
+        <div class="col-sm-6" x-show="showShirtSize">{{ form_macros.input(badge_extras.shirt, required_if="shirtSizeRequired") }}</div>
+    {% endif %}
 {% endif %}
 {% endblock %}
+</div>
 
+<div class="row g-sm-3 mb-3">
 {% block donation %}
 {% if c.COLLECT_EXTRA_DONATION %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">
-        {{ form_macros.form_input(badge_extras.extra_donation, id=id_upgrade_prepend ~ "extra_donation") }}
+    <div class="col-sm">
+        {{ form_macros.input(badge_extras.extra_donation, id=id_upgrade_prepend ~ "extra_donation") }}
         {% if receipt and not upgrade_modal and not admin_area %}
         {{ macros.upgrade_button('extra-donation', extra_classes="") }}
         {% endif %}
     </div>
 
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         <div class="alert alert-warning" role="alert">
         <strong>This donation <em>is not a kick-in</em> and does not come with merchandise.</strong><br/>
         {{ c.ORGANIZATION_NAME }} is a 501(c)(3) charitable organization, and additional donations may be tax deductible.
@@ -96,11 +136,11 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     </div>
 
     {% if c.EXTRA_DONATION_URL %}
-    <div class="col-12 col-sm-6">If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXTRA_DONATION %} also{% endif %} do so at any time of year at <a href="{{ c.EXTRA_DONATION_URL }}" target="_blank">{{ c.EXTRA_DONATION_URL }}</a>!</div>
+    <div class="col-sm">If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXTRA_DONATION %} also{% endif %} do so at any time of year at <a href="{{ c.EXTRA_DONATION_URL }}" target="_blank">{{ c.EXTRA_DONATION_URL }}</a>!</div>
     {% endif %}
-</div>
 {% endif %}
 {% endblock %}
+</div>
 
 {% block upgrade_modal_js %}
 {% if upgrade_modal %}
@@ -119,3 +159,5 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 </script>
 {% endif %}
 {% endblock %}
+
+</div>

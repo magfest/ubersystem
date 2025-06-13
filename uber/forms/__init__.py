@@ -404,34 +404,6 @@ class MagForm(Form):
                     field_obj.populate_obj(obj, model_field_name)
 
     class Meta:
-        def get_field_type(cls, field):
-            # Returns a key telling our Jinja2 form input macro how to render the scaffolding based on the widget
-            # Deprecated -- remove when the old form_input macro is gone
-
-            widget = field.widget
-            if isinstance(widget, SwitchInput):
-                return 'switch'
-            elif isinstance(widget, wtforms_widgets.CheckboxInput):
-                return 'checkbox'
-            elif isinstance(widget, NumberInputGroup):
-                return 'inputgroup'
-            elif isinstance(widget, MultiCheckbox):
-                return 'checkgroup'
-            elif isinstance(widget, CountrySelect):
-                return 'text'
-            elif isinstance(widget, wtforms_widgets.Select):
-                return 'select'
-            elif isinstance(widget, IntSelect):
-                return 'customselect'
-            elif isinstance(widget, wtforms_widgets.HiddenInput):
-                return 'hidden'
-            elif isinstance(widget, Ranking):
-                return 'ranking'
-            elif isinstance(widget, wtforms_widgets.FileInput):
-                return 'file'
-            else:
-                return 'text'
-
         def bind_field(cls, form, unbound_field, options):
             """
             This function implements all our custom logic to apply when initializing a field. Currently, we:
@@ -475,7 +447,7 @@ class MagForm(Form):
             return super().wrap_formdata(form, formdata)
 
 
-class AddressForm():
+class AddressForm(MagForm):
     field_aliases = {'region': ['region_us', 'region_canada']}
 
     address1 = StringField('Address Line 1', default='')

@@ -24,7 +24,6 @@ x-data="{ {% block x_data %}
     '{{ key }}': `{{ desc }}`,
     {% endfor %}
    },
-   get getDepartmentDesc() { return this.dept_descs[this.department] },
    get otherPresentation() { return this.presentation == '{{ c.OTHER }}' },
    get showIsLoud() { return this.presentation == '{{ c.MUSIC }}' },
    get showModNote() { return this.presentation == '{{ c.GROUP_DISCUSSION }}'},
@@ -38,7 +37,7 @@ x-data="{ {% block x_data %}
 {% if c.PANELS_DEPT_OPTS_WITH_DESC|length > 1 %}
 <div class="col-sm">
   {% call form_macros.input(panel_info.department, alpine_model='department') %}
-  <div class="form-text" x-text="getDepartmentDesc" x-show="getDepartmentDesc"></div>
+  <div class="form-text" x-text="this.dept_descs[this.department]" x-show="this.dept_descs[this.department]"></div>
   {% endcall %}
 </div>
 {% else %}
@@ -51,7 +50,7 @@ x-data="{ {% block x_data %}
 {% block type_length %}
   <div class="col-sm">
     {% call form_macros.input(panel_info.presentation, alpine_model='presentation') %}
-    <div x-show="otherPresentation" class="row g-sm-3">
+    <div x-show="otherPresentation" class="row g-sm-3 mb-3">
         <div class="col-sm-6">
         {{ form_macros.input(panel_info.other_presentation, required_if="otherPresentation") }}
         </div>

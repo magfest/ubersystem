@@ -94,8 +94,8 @@ def cellphone_required(form, field):
 @PersonalInfo.field_validation('confirm_email')
 @ignore_unassigned_and_placeholders
 def confirm_email_required(form, field):
-    if c.PREREG_CONFIRM_EMAIL_ENABLED and not form.is_admin and (form.model.needs_pii_consent or
-                                                                 form.model.badge_status == c.PENDING_STATUS):
+    if c.PREREG_CONFIRM_EMAIL_ENABLED and not form.is_admin and not field.data and (
+            form.model.needs_pii_consent or form.model.badge_status == c.PENDING_STATUS):
         raise ValidationError("Please confirm your email address.")
 
 

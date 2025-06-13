@@ -12,64 +12,58 @@
         {% endif %}
     {% endif %}
 {% endset %}
-<div class="row g-sm-3">
     <div class="col-12">
         <div class="form-text">Volunteering/Staffing</div>
         {{ form_macros.input(staffing_info.staffing, admin_text=staffing_admin_text, **{'x-model.boolean':'staffing'}) }}
     </div>
 </div>
-<div class="row g-sm-3" x-show="staffing">
+<div class="row g-sm-3 mb-3" x-show="staffing">
     <div class="col-12">
         <div class="form-text">Walk-On Volunteer</div>
         {{ form_macros.input(staffing_info.walk_on_volunteer) }}
     </div>
-</div>
-
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
-<div class="row g-sm-3" x-show="staffing">
+</div>
+<div class="row g-sm-3 mb-3" x-show="staffing">
     <div class="col-12">{{ form_macros.input(staffing_info.requested_depts_ids) }}</div>
-</div>
 {% endif %}
-
-<div class="row g-sm-3" x-show="staffing">
-    <div class="col-12">{{ form_macros.input(staffing_info.assigned_depts_ids) }}</div>
 </div>
+<div class="row g-sm-3 mb-3" x-show="staffing">
+    <div class="col-12">{{ form_macros.input(staffing_info.assigned_depts_ids) }}</div>
 {% endblock %}
 
 {% block merch_info %}
 {% if c.SEPARATE_STAFF_MERCH %}
-<div class="row g-sm-3" x-show="staffing">
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         <div class="form-text">Staff Merch Owed</div>
         <div class="mb-3">{{ attendee.staff_merch }}</div>
     </div>
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         <div class="form-text">Received Staff Merch</div>
         <div class="mb-3">{{ form_macros.input(staffing_info.got_staff_merch) }}</div>
     </div>
-</div>
 {% endif %}
 {% endblock %}
 
 {% block checklist_info %}
-<div class="row g-sm-3" x-show="staffing">
     {% if c.VOLUNTEER_AGREEMENT_ENABLED %}
-    <div class="col">
-        {{ form_macros.input(staffing_info.agreed_to_volunteer_agreement,
-            hidden_field_text=staffing_info.agreed_to_volunteer_agreement.data|yesno("Yes,No")) }}
+    <div class="col-sm">
+        {% call form_macros.input(staffing_info.agreed_to_volunteer_agreement) %}
+        {{ staffing_info.agreed_to_volunteer_agreement.data|yesno("Yes,No") }}
+        {% endcall %}
     </div>
     {% endif %}
     {% if c.EMERGENCY_PROCEDURES_ENABLED %}
-    <div class="col">
-        {{ form_macros.input(staffing_info.reviewed_emergency_procedures,
-            hidden_field_text=staffing_info.reviewed_emergency_procedures.data|yesno("Yes,No")) }}
+    <div class="col-sm">
+        {% call form_macros.input(staffing_info.reviewed_emergency_procedures) %}
+        {{ staffing_info.reviewed_emergency_procedures.data|yesno("Yes,No") }}
+        {% endcall %}
     </div>
     {% endif %}
-    <div class="col">
+    <div class="col-sm">
         <div class="form-text">Staff Crash Space</div>
         <div class="mb-3">
             {{ form_macros.input(staffing_info.hotel_eligible, readonly=not c.HAS_DEVTOOLS_ACCESS) }}
         </div>
     </div>
-</div>
 {% endblock %}

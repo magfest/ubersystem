@@ -16,10 +16,6 @@
     has_cost: {{ panel_other_info.has_cost.data|jsonize }},
     has_affiliations: {{ panel_other_info.has_affiliations.data|jsonize }},
     held_before: {{ panel_other_info.held_before.data|jsonize }},
-    get needTables() { return this.need_tables },
-    get hasCost() { return this.has_cost },
-    get hasAffiliations() { return this.has_affiliations },
-    get heldBefore() { return this.held_before },
 {% endblock %} }">
 
 <div class="row g-sm-3 mb-3">
@@ -29,9 +25,9 @@
 <div class="row g-sm-3 mb-3">
     <div class="col-sm">{{ form_macros.input(panel_other_info.has_cost, alpine_model="has_cost") }}</div>
 </div>
-<div class="row g-sm-3 mb-3" x-show="needTables || hasCost">
-    <div class="col-sm" x-show="needTables">{{ form_macros.input(panel_other_info.tables_desc, required_if="needTables") }}</div>
-    <div class="col-sm" x-show="hasCost">{{ form_macros.input(panel_other_info.cost_desc, required_if="hasCost") }}</div>
+<div class="row g-sm-3 mb-3" x-show="need_tables || has_cost">
+    <div class="col-sm" x-show="need_tables">{{ form_macros.input(panel_other_info.tables_desc, required_if="need_tables") }}</div>
+    <div class="col-sm" x-show="has_cost">{{ form_macros.input(panel_other_info.cost_desc, required_if="has_cost") }}</div>
 </div>
 <div class="row g-sm-3 mb-3">
     <div class="col-sm">{{ form_macros.input(panel_other_info.tabletop) }}</div>
@@ -58,12 +54,12 @@
 {% block affiliations_held_before %}
 <div class="col-sm">
     {% call form_macros.input(panel_other_info.has_affiliations, alpine_model="has_affiliations") %}
-    <div x-show="hasAffiliations">{{ form_macros.input(panel_other_info.affiliations, required_if="hasAffiliations") }}</div>
+    <div x-show="has_affiliations">{{ form_macros.input(panel_other_info.affiliations, required_if="has_affiliations") }}</div>
     {% endcall %}
 </div>
 <div class="col-sm">
     {% call form_macros.input(panel_other_info.held_before, alpine_model="held_before") %}
-    <div x-show="heldBefore">{{ form_macros.input(panel_other_info.past_attendance, required_if="heldBefore") }}</div>
+    <div x-show="held_before">{{ form_macros.input(panel_other_info.past_attendance, required_if="held_before") }}</div>
     {% endcall %}
 </div>
 {% endblock %}
