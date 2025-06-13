@@ -18,47 +18,17 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div x-data="{ {% block x_data %}
 amount_extra: {{ badge_extras.amount_extra.data|tojson }},
-num_event_shirts: {{ (badge_extras.num_event_shirts.data if admin_area else attendee.num_event_shirts)|tojson }},
-shirt_opt_out: {{ (badge_extras.shirt_opt_out.data if admin_area else attendee.shirt_opt_out)|tojson }},
+num_event_shirts: {{ attendee.num_event_shirts|tojson }},
+shirt_opt_out: {{ attendee.shirt_opt_out|tojson }},
 staffShirtOptOut() { return {{ [c.STAFF_OPT_OUT, c.ALL_OPT_OUT]|tojson }}.includes(this.shirt_opt_out) },
 eventShirtOptOut() { return {{ [c.EVENT_OPT_OUT, c.ALL_OPT_OUT]|tojson }}.includes(this.shirt_opt_out) },
-
-{% if c.SHIRTS_PER_STAFFER > 0 %}
-    getsStaffShirt() { return this.badge_type == {{ c.STAFF_BADGE|tojson }} },
-    {% if c.STAFF_EVENT_SHIRT_OPTS %}
-        get showStaffEventShirtOpts() { return this.badge_type == {{ c.STAFF_BADGE|tojson }} },
-        getsFreeEventShirt() { return this.num_event_shirts > 0 },
-    {% endif %}
-{% else %}
-    getsStaffShirt() { return false },
-{% endif %}
-{% if c.HOURS_FOR_SHIRT %}
-    {% if c.SHIRTS_PER_STAFFER == 0 %}
-        getsFreeEventShirt() { return this.badge_type == {{ c.STAFF_BADGE|tojson }} || this.badge_ribbons.includes({{ c.VOLUNTEER_RIBBON|tojson }}) },
-    {% else %}
-        getsFreeEventShirt() { return this.badge_ribbons.includes({{ c.VOLUNTEER_RIBBON|tojson }}) },
-    {% endif %}
-{% endif %}
-
-{% if not c.STAFF_EVENT_SHIRT_OPTS %}
-    get showStaffEventShirtOpts() { return false },
-    {% if not c.HOURS_FOR_SHIRT %}
-        getsFreeEventShirt() { return false },
-    {% endif %}
-{% endif %}
-
-{% if c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
-    get showStaffShirt() { return this.getsStaffShirt() && !this.staffShirtOptOut() && (this.num_event_shirts != {{ c.SHIRTS_PER_STAFFER }}) },
-    get staffShirtRequired() { return this.getsStaffShirt() && !this.staffShirtOptOut() && (this.num_event_shirts != {{ c.SHIRTS_PER_STAFFER }}) && !this.placeholder },
-    get showShirtSize() { return this.getsFreeEventShirt() || this.amount_extra > 0 },
-    get shirtSizeRequired() { return (this.getsFreeEventShirt() || this.amount_extra > 0) && !this.placeholder },
-{% else %}
-    get showStaffShirt() { return false },
-    get staffShirtRequired() { return false },
-    get showShirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut()) || this.amount_extra > 0 || (this.getsStaffShirt() && !this.staffShirtOptOut()) },
-    get shirtSizeRequired() { return ((this.getsFreeEventShirt() && !this.eventShirtOptOut()) || this.amount_extra > 0 || (this.getsStaffShirt() && !this.staffShirtOptOut())) && !this.placeholder },
-{% endif %}
+getsStaffShirt() { return {{ (c.SHIRTS_PER_STAFFER > 0)|tojson }} && this.badge_type == {{ c.STAFF_BADGE|tojson }} },
+getsFreeEventShirt() { return ({{ c.STAFF_GET_EVENT_SHIRTS|tojson }} && this.badge_type == {{ c.STAFF_BADGE|tojson }}) || (
+    {{ c.HOURS_FOR_SHIRT|boolean|tojson }} && this.badge_ribbons.includes({{ c.VOLUNTEER_RIBBON|tojson }})) },
 get showShirtOptOut() { return this.getsStaffShirt() || this.getsFreeEventShirt() },
+get showStaffEventShirtOpts() { return {{ c.STAFF_EVENT_SHIRT_OPTS|boolean|tojson }} && {{ c.STAFF_GET_EVENT_SHIRTS|tojson }} && this.badge_type == {{ c.STAFF_BADGE|tojson }} },
+get staffShirtSize() { return {{ c.STAFF_SHIRT_FIELD_ENABLED|tojson }} && this.getsStaffShirt() && !this.staffShirtOptOut() && (this.num_event_shirts != {{ c.SHIRTS_PER_STAFFER|tojson }}) },
+get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut()) || this.amount_extra > 0 || (!{{ c.STAFF_SHIRT_FIELD_ENABLED|tojson }} && this.getsStaffShirt() && !this.staffShirtOptOut()) },
 {% endblock %} }">
 
 {% set id_upgrade_prepend = "upgrade_" if upgrade_modal else "" %}
@@ -108,10 +78,10 @@ get showShirtOptOut() { return this.getsStaffShirt() || this.getsFreeEventShirt(
 {% set staff_shirts_on_reg_form = not c.STAFF_SHIRTS_OPTIONAL and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
 {% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt or admin_area %}
     {% if staff_shirts_on_reg_form or admin_area %}
-        <div class="col-sm-6" x-show="showStaffShirt">{{ form_macros.input(badge_extras.staff_shirt, required_if="staffShirtRequired") }}</div>
+        <div class="col-sm-6" x-show="staffShirtSize">{{ form_macros.input(badge_extras.staff_shirt, required_if="staffShirtSize && !this.placeholder") }}</div>
     {% endif %}
     {% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and staff_shirts_on_reg_form) or admin_area %}
-        <div class="col-sm-6" x-show="showShirtSize">{{ form_macros.input(badge_extras.shirt, required_if="shirtSizeRequired") }}</div>
+        <div class="col-sm-6" x-show="shirtSize">{{ form_macros.input(badge_extras.shirt, required_if="shirtSize && !this.placeholder") }}</div>
     {% endif %}
 {% endif %}
 {% endblock %}

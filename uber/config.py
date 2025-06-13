@@ -1084,6 +1084,14 @@ class Config(_Overridable):
 
         return shirt_count
 
+    @property
+    def STAFF_SHIRT_FIELD_ENABLED(self):
+        return c.SHIRTS_PER_STAFFER > 0 and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS
+
+    @property
+    def STAFF_GET_EVENT_SHIRTS(self):
+        return (c.SHIRTS_PER_STAFFER > 0 and c.STAFF_EVENT_SHIRT_OPTS) or (c.SHIRTS_PER_STAFFER == 0 and c.HOURS_FOR_SHIRT)
+
     @request_cached_property
     @dynamic
     def SEASON_COUNT(self):

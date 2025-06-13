@@ -1563,7 +1563,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         Returns: Integer representing the number of free event shirts this attendee should get.
         """
         return max(0, self.num_event_shirts) if self.gets_staff_shirt else bool(
-            self.volunteer_event_shirt_eligible or (self.badge_type == c.STAFF_BADGE and c.HOURS_FOR_SHIRT))
+            self.volunteer_event_shirt_eligible or (self.badge_type == c.STAFF_BADGE and c.STAFF_GET_EVENT_SHIRTS))
 
     @property
     def num_free_event_shirts(self):
