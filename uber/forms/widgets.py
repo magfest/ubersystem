@@ -77,19 +77,19 @@ class DateMaskInput(TextInput):
         <script type="text/javascript">
         if(!dateFormat) {
             function dateFormat(input) {
-                const first_day = input.substring(0, 1);
-                if ((/^-?\d+$/.test(first_day)) == false) {
+                const first_month = input.substring(0, 1);
+                if ((/^-?\d+$/.test(first_month)) == false) {
                 return '99/99/9999';
                 }
-                if (!['0','1','2','3'].includes(first_day)) {
+                if (!['0','1'].includes(first_month)) {
                 return '0' + input + '/99/9999';
                 }
                 if (input.length == 4 && input.substring(2, 3) == '/') {
-                const first_month = input.substring(3, 4);
-                if ((/^-?\d+$/.test(first_month)) == false) {
+                const first_day = input.substring(3, 4);
+                if ((/^-?\d+$/.test(first_day)) == false) {
                     return '99/99/9999';
                 }
-                if (!['0','1'].includes(first_month)) {
+                if (!['0','1','2','3'].includes(first_day)) {
                     return input.substring(0, 3) + '0' + input.substring(3, 4) + '/9999'
                 }
                 }
