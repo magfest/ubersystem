@@ -279,9 +279,6 @@ class MagForm(Form):
 
         ufield.kwargs['render_kw'] = render_kw
 
-    def get_optional_fields(cls, model, is_admin=False):
-        return []
-
     def get_non_admin_locked_fields(cls, model):
         return []
 
@@ -322,7 +319,7 @@ class MagForm(Form):
 
         for name in dir(form):
             if not name.startswith('_'):
-                if name in ['get_optional_fields', 'get_non_admin_locked_fields']:
+                if name in ['get_non_admin_locked_fields']:
                     setattr(target, "super_" + name, getattr(target, name))
                 setattr(target, name, getattr(form, name))
         return target
