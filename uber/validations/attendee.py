@@ -1,6 +1,6 @@
 import cherrypy
 from functools import wraps
-from datetime import date
+from datetime import date, datetime
 
 from markupsafe import Markup
 from wtforms import (BooleanField, DateField, EmailField,
@@ -70,7 +70,6 @@ PersonalInfo.field_validation.validations['badge_printed_name'].update({
     'invalid_chars': validators.Regexp(c.VALID_BADGE_PRINTED_CHARS, message="""Your printed badge name has invalid
                                 characters. Please use only alphanumeric characters and symbols."""),
 })
-PersonalInfo.field_validation.validations['birthdate']['optional'] = validators.Optional()
 PersonalInfo.field_validation.validations['email']['optional'] = validators.Optional()
 PersonalInfo.field_validation.validations['onsite_contact'].update({
     'length': validators.Length(max=500, message="""You have entered over 500 characters of onsite contact information. 
@@ -143,11 +142,14 @@ def past_printed_deadline(form, field):
 
 @PersonalInfo.field_validation('birthdate')
 def birthdate_format(form, field):
-    # TODO: Make WTForms use this message instead of the generic DateField invalid value message
-    if field.data and not isinstance(field.data, date):
-        raise StopValidation('Please use the format YYYY-MM-DD for your date of birth.')
-    elif field.data and field.data > date.today():
-        raise ValidationError('You cannot be born in the future.')
+    if field.data:
+        try:
+            value = datetime.strptime(field.data, '%m/%d/%Y')
+        except ValueError:
+            raise StopValidation('Please use the format MM/DD/YYYY for your date of birth.')
+    
+        if value.date() > date.today():
+            raise ValidationError('You cannot be born in the future.')
 
 
 @PersonalInfo.field_validation('birthdate')

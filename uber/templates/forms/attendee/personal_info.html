@@ -8,7 +8,7 @@
   name
   contact_info
   age
-  address
+  address -- NOTE: no containing row
   ec_info
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
@@ -21,56 +21,18 @@
           copy_address: {{ (group and loaded_from_group and attendee.address1 == group.address1)|boolean|jsonize }},
           copy_cellphone: {{ (group and loaded_from_group and attendee.cellphone == group.phone)|boolean|jsonize }},
           copy_email: {{ (group and loaded_from_group and attendee.email == group.email_address)|boolean|jsonize }},
-          country: {{ personal_info.country.data | jsonize }},
           dealer: {{ (is_prereg_dealer or attendee.is_dealer)|boolean|jsonize }},
           international: {{ personal_info.international.data|boolean|jsonize }},
           no_cellphone: {{ personal_info.no_cellphone.data|boolean|jsonize }},
           no_onsite_contact: {{ personal_info.no_onsite_contact.data|boolean|jsonize }},
           same_legal_name: {{ (attendee.first_name != '' and attendee.legal_name == '')|boolean|jsonize }},
-          get isGlobal() { return this.country != 'United States' && this.country != 'Canada'},
           get emailRequired() { return !this.copy_email },
           get legalNameRequired() {return !this.badge_placeholder && !this.same_legal_name},
-          get addressRequired() {return !this.copy_address & !this.badge_placeholder},
           get onsiteContactRequired() {return !this.badge_placeholder && !this.no_onsite_contact},
           get zipCodeRequired(){ return !this.international && !this.copy_address && !this.badge_placeholder },
           get disableCellphone() { return this.no_cellphone || this.copy_cellphone},
           get cellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.badge_placeholder },
-          country_options: {{ c.COUNTRY_OPTS | jsonize }},
-          country_alt_spelling: {{ c.COUNTRY_ALT_SPELLINGS | jsonize }},
         {% endblock %}
-        {% if c.COLLECT_FULL_ADDRESS %}
-        init() {
-          this.$nextTick(() => {
-            let choices = new Choices(this.$refs.countryselect, {
-              searchFields: ['label', 'customProperties.altSpelling']
-            })
-
-            let refreshChoices = () => {
-              let selection = [this.country]
-
-              choices.clearStore()
-              choices.setChoices(this.country_options.map(opt => ({
-                value: opt,
-                label: opt,
-                selected: selection.includes(opt),
-                customProperties: {
-                  altSpelling: this.country_alt_spelling[opt]
-                }
-              })))
-            }
-
-            refreshChoices()
-
-            this.$refs.countryselect.addEventListener('change', () => {
-                this.country = choices.getValue(true)
-            })
-
-            this.$watch('copy_address', (value) => { value ? choices.disable() : choices.enable() });
-            this.$watch('country', () => refreshChoices());
-            this.$watch('country_options', () => refreshChoices());
-          })
-        }
-        {% endif %}
       }
     }
 </script>
@@ -159,56 +121,28 @@
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+
 {% block address %}
   {% if c.COLLECT_FULL_ADDRESS %}
     {% if is_prereg_dealer %}
+    <div class="row g-sm-3 mb-3">
       <div class="col-sm">
           {{ form_macros.input(personal_info.copy_address, **{'x-model.boolean':'copy_address'}) }}
       </div>
     </div>
-    <div class="row g-sm-3 mb-3">
     {% endif %}
-    <div class="col-sm">
-      {{ form_macros.input(personal_info.address1, required_if="addressRequired", **{':disabled':'copy_address'}) }}
-    </div>
-    <div class="col-sm">
-      {{ form_macros.input(personal_info.address2, **{':disabled':'copy_address'}) }}
-    </div>
-  </div>
-  <div class="row g-sm-3 mb-3">
-    <div class="col-sm">
-      {# Choices.js does not respect the alpine x-bind:disabled. Disable switch is at the top with the rest of choicesjs config. #}
-      {{ form_macros.input(personal_info.country, required_if="addressRequired", **{'x-model': 'country', 'x-ref': 'countryselect'}) }}
-    </div>
-    <div class="col-sm">
-      <div x-show="country == 'United States'">
-        {{ form_macros.input(personal_info.region_us, required_if="addressRequired", **{':disabled':'copy_address'}) }}
-      </div>
-      <div x-show="country == 'Canada'">
-        {{ form_macros.input(personal_info.region_canada, required_if="addressRequired", **{':disabled':'copy_address'}) }}
-      </div>
-      <div x-show="isGlobal">
-        {{ form_macros.input(personal_info.region, required_if="addressRequired", **{':disabled':'copy_address'}) }}
-      </div>
-    </div>
-  </div>
-  <div class="row g-sm-3 mb-3">
-    <div class="col-sm">
-      {{ form_macros.input(personal_info.city, required_if="addressRequired", **{':disabled':'copy_address'}) }}
-    </div>
-    <div class="col-sm">
-      {{ form_macros.input(personal_info.zip_code, required_if="zipCodeRequired", **{':disabled':'copy_address'}) }}
-    </div>
+    {{ form_macros.address_fields(personal_info) }}
   {% else %}
+  <div class="row g-sm-3 mb-3">
     <div class="col-sm-6">
         {% call form_macros.input(personal_info.zip_code, required_if="zipCodeRequired", **{':disabled':'copy_address'}) %}
           {{ form_macros.input(personal_info.international,  **{'x-model.boolean':'international'}) }}
         {% endcall %}
     </div>
-    {% endif %}
+  </div>
+  {% endif %}
 {% endblock %}
-</div>
+
 
 <div class="row g-sm-3 mb-3">
 {% block ec_info %}

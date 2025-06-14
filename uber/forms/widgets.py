@@ -1,5 +1,5 @@
 from markupsafe import escape, Markup
-from wtforms.widgets import NumberInput, html_params, CheckboxInput, Select
+from wtforms.widgets import NumberInput, html_params, CheckboxInput, TextInput
 from uber.config import c
 from uber.custom_tags import linebreaksbr
 
@@ -71,30 +71,38 @@ class NumberInputGroup(NumberInput):
         return Markup(''.join(html))
 
 
-class CountrySelect(Select):
-    """
-    Renders a custom select field for countries.
-    This is the same as Select but it adds data-alternative-spellings and data-relevancy-booster flags.
-    """
+class DateMaskInput(TextInput):
+    def __call__(self, field, **kwargs):
+        script = """
+        <script type="text/javascript">
+        if(!dateFormat) {
+            function dateFormat(input) {
+                const first_day = input.substring(0, 1);
+                if ((/^-?\d+$/.test(first_day)) == false) {
+                return '99/99/9999';
+                }
+                if (!['0','1','2','3'].includes(first_day)) {
+                return '0' + input + '/99/9999';
+                }
+                if (input.length == 4 && input.substring(2, 3) == '/') {
+                const first_month = input.substring(3, 4);
+                if ((/^-?\d+$/.test(first_month)) == false) {
+                    return '99/99/9999';
+                }
+                if (!['0','1'].includes(first_month)) {
+                    return input.substring(0, 3) + '0' + input.substring(3, 4) + '/9999'
+                }
+                }
+                return '99/99/9999';
+            }
+        }
+        </script>
+        """
+        kwargs['placeholder'] = "MM/DD/YYYY"
+        kwargs['x-mask:dynamic'] = "dateFormat"
+        html =[script, super().__call__(field,  **kwargs)]
+        return Markup(''.join(html))
 
-    @classmethod
-    def render_option(cls, value, label, selected, **kwargs):
-        if value is True:
-            # Handle the special case of a 'True' value.
-            value = str(value)
-
-        options = dict(kwargs, value=value)
-        if c.COUNTRY_ALT_SPELLINGS.get(value):
-            options["data-alternative-spellings"] = c.COUNTRY_ALT_SPELLINGS[value]
-            if value == 'United States':
-                options["data-relevancy-booster"] = 3
-            elif value in ['Australia', 'Canada', 'United Kingdom']:
-                options["data-relevancy-booster"] = 2
-        if selected:
-            options["selected"] = True
-        return Markup(
-            "<option {}>{}</option>".format(html_params(**options), escape(label))
-        )
 
 class Ranking():
     def __init__(self, choices=None, **kwargs):

@@ -175,7 +175,7 @@
 {% endfor %}
 
 {{ form_macros.form_validation('attendee-form') }}
-{% include 'registration/alpine_attendee_metadata.html' %}
+{% include 'forms/alpine/attendee_metadata.html' %}
 
 <form novalidate method="post" id="attendee-form" action="form"
       x-data="attendeeMetadata()"

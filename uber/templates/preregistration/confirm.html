@@ -113,7 +113,7 @@
       {% endif %}
 
       {{ form_macros.form_validation('confirm') }}
-      {% include 'registration/alpine_attendee_metadata.html' %}
+      {% include 'forms/alpine/attendee_metadata.html' %}
 
       <form novalidate method="post" action="confirm" id="confirm" x-data="attendeeMetadata()">
         {{ csrf_token() }}

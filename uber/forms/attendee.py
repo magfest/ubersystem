@@ -4,12 +4,12 @@ from datetime import date
 from markupsafe import Markup
 from wtforms import (BooleanField, DateField, EmailField,
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
-                     StringField, TelField, validators, TextAreaField)
+                     StringField, TelField, SearchField, TextAreaField)
 from wtforms.widgets import TextInput
 
 from uber.config import c
 from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, CustomValidation, Ranking)
+                        HiddenBoolField, HiddenIntField, CustomValidation, DateMaskInput)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
 from uber.models import Attendee, BadgeInfo, Session, PromoCodeGroup
@@ -23,8 +23,6 @@ __all__ = ['AdminBadgeExtras', 'AdminBadgeFlags', 'AdminConsents', 'AdminStaffin
 
 
 class PersonalInfo(AddressForm):
-    #override the addressForm country select
-    country = SelectField('Country', default='', choices=c.COUNTRY_OPTS)
     first_name = StringField('First Name', render_kw={'autocomplete': "fname"})
     last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
     same_legal_name = BooleanField('The above name is exactly what appears on my Legal Photo ID.')
@@ -35,7 +33,7 @@ class PersonalInfo(AddressForm):
     email = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
     confirm_email = StringField('Confirm Email Address')
     cellphone = TelField('Phone Number', render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
-    birthdate = DateField('Date of Birth')
+    birthdate = StringField('Date of Birth', widget=DateMaskInput())
     age_group = SelectField('Age Group', choices=c.AGE_GROUP_OPTS)
     ec_name = StringField('Emergency Contact Name',
                           render_kw={'placeholder': 'Who we should contact if something happens to you'})

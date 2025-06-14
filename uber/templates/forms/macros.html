@@ -16,6 +16,7 @@
 
 {% set custom_kwargs = {} %}
 
+{% set label_required = kwargs.pop('required_if') if 'required_if' in kwargs else ("true" if field.flags.required else "false") %}
 {% for key, val in kwargs.items() %}
   {% if key.startswith('alpine_') %}
   {% set _ = custom_kwargs.update({'x-' ~ key[7:]: val}) %}
@@ -30,7 +31,6 @@
 
 {% set widget = field.widget|string %}
 {% set label_text = label_text or field.label.text %}
-{% set label_required = kwargs['required_if'] if 'required_if' in kwargs else ("true" if field.flags.required else "false") %}
 {% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
 
 {% set text_below_field %}
@@ -195,68 +195,73 @@
 </script>
 {%- endmacro %}
 
-{% macro address_fields(model, form_obj) %}
-<div class="row g-sm-3 mb-3">
-  <div class="col-12 col-sm-6">
-    {{ input(form_obj.address1) }}
-  </div>
-  <div class="col-12 col-sm-6">
-    {{ input(form_obj.address2) }}
-  </div>
-</div>
-<div class="row g-sm-3 mb-3">
-  <div class="col-12 col-sm-6">
-    {{ input(form_obj.country) }}
-    <div class="form-floating selectToAutocomplete">
-      <label for="{{ form_obj.country.id }}-selectToAutocomplete">
-        {{ form_obj.country.label.text }}
-        {% if form_obj.country.flags.required %}<span class="required-indicator text-danger"> *</span>{% endif %}
-      </label>
+{% macro address_fields(form_obj) %}
+<script type="module">
+  import Autocomplete from "https://cdn.jsdelivr.net/gh/lekoala/bootstrap5-autocomplete@master/autocomplete.js";
+
+  let countryOpts = {{ c.COUNTRY_OPTS|tojson }};
+  let stateOpts = {{ c.REGION_OPTS_US|tojson }};
+  let provinceOpts = {{ c.REGION_OPTS_CANADA|tojson }};
+  let idToOpts = {
+    '{{ form_obj.country.id }}': countryOpts,
+    '{{ form_obj.region_us.id }}': stateOpts,
+    '{{ form_obj.region_canada.id }}': provinceOpts,
+  }
+
+  for (const [key, value] of Object.entries(idToOpts)) {
+    Autocomplete.init('#' + key, {
+    items: value,
+    fullWidth: true,
+    searchFields: ['value', 'alt_spellings'],
+    tabSelect: true,
+    suggestionsThreshold: 0,
+    clearControl: '',
+    onChange: function (item) { if (item === undefined) { $('#' + key).val(''); } },
+    onSelectItem: function() {
+      document.getElementById(key).dispatchEvent(new Event('input'));
+    },
+  })
+  }
+</script>
+<div x-data='{
+  copy_address: this.copy_address,
+  country: {{ form_obj.country.data|tojson }},
+  get isGlobal() { return this.country != "United States" && this.country != "Canada"},
+  get addressRequired() { return !this.copy_address & !this.badge_placeholder },
+}'>
+  <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.address1, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+    </div>
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.address2, **{':disabled':'copy_address'}) }}
     </div>
   </div>
-  <div class="col-12 col-sm-6">
-    {{ input(form_obj.region_us) }}
-    {{ input(form_obj.region_canada) }}
-    {{ input(form_obj.region) }}
+  <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.country, required_if="addressRequired", **{'x-model': 'country', ':disabled': 'copy_address'}) }}
+    </div>
+    <div class="col-sm">
+      <div x-show="country == 'United States'">
+        {{ form_macros.input(form_obj.region_us, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+      </div>
+      <div x-show="country == 'Canada'">
+        {{ form_macros.input(form_obj.region_canada, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+      </div>
+      <div x-show="isGlobal">
+        {{ form_macros.input(form_obj.region, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+      </div>
+    </div>
+  </div>
+  <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.city, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+    </div>
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.zip_code, required_if="zipCodeRequired", **{':disabled':'copy_address'}) }}
+    </div>
   </div>
 </div>
-<div class="row g-sm-3 mb-3">
-  <div class="col-12 col-sm-6">
-    {{ input(form_obj.city) }}
-  </div>
-  <div class="col-12 col-sm-6">
-    {{ input(form_obj.zip_code) }}
-  </div>
-</div>
-<script type="text/javascript">
-    {%- set country_id = form_obj.country.id %}
-    var regionChange{{ country_id }} = function() {
-        $('#{{ form_obj.region_us.id }}').prop('disabled', true).parent('.form-floating').hide();
-        $('#{{ form_obj.region_canada.id }}').prop('disabled', true).parent('.form-floating').hide();
-        $('#{{ form_obj.region.id }}').prop('disabled', false).parent('.form-floating').show();
-        var whichCountry = $('#{{ country_id }}').find(':selected').text();
-        switch(whichCountry) {
-              case 'United States':
-                $('#{{ form_obj.region.id }}').prop('disabled', true).parent('.form-floating').hide();
-                $('#{{ form_obj.region_us.id }}').prop('disabled', false).parent('.form-floating').show();
-                break;
-              case 'Canada':
-                $('#{{ form_obj.region.id }}').prop('disabled', true).parent('.form-floating').hide();
-                $('#{{ form_obj.region_canada.id }}').prop('disabled', false).parent('.form-floating').show();
-                break;
-          }
-    }
-    $(function() {
-        $('#{{ country_id }}').selectToAutocomplete().prop("required", false).change(function() {
-            regionChange{{ country_id }}();
-        });
-        $('#{{ country_id }}').parents('.form-floating').addClass('visually-hidden');
-        $('#{{ country_id }}').siblings("input.form-control.ui-autocomplete-input").attr(
-          "id", "{{ country_id }}-selectToAutocomplete").insertBefore('label[for="{{ country_id }}-selectToAutocomplete');
-        $('#{{ country_id }}-validation').insertAfter('label[for="{{ country_id }}-selectToAutocomplete');
-        regionChange{{ country_id }}();
-    })
-</script>
 {%- endmacro %}
 
 {% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false, callback='', always_use_callback=True) %}

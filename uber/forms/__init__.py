@@ -4,14 +4,14 @@ import six
 import cherrypy
 
 from collections import defaultdict, OrderedDict
-from wtforms import Form, StringField, SelectField, SelectMultipleField, FileField, IntegerField, BooleanField, validators, Label
+from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, validators, Label
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError, StopValidation
 from pockets.autolog import log
 from functools import wraps
 
 from uber.config import c
-from uber.forms.widgets import CountrySelect, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking
+from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking
 from uber.model_checks import invalid_phone_number
 
 
@@ -453,11 +453,11 @@ class AddressForm(MagForm):
     address1 = StringField('Address Line 1', default='')
     address2 = StringField('Address Line 2', default='')
     city = StringField('City', default='')
-    region_us = SelectField('State', default='', choices=c.REGION_OPTS_US)
-    region_canada = SelectField('Province', default='', choices=c.REGION_OPTS_CANADA)
+    region_us = StringField('State')
+    region_canada = StringField('Province')
     region = StringField('State/Province', default='')
     zip_code = StringField('Zip/Postal Code', default='')
-    country = SelectField('Country', default='', choices=c.COUNTRY_OPTS, widget=CountrySelect())
+    country = StringField('Country')
 
 
 class HiddenIntField(IntegerField):

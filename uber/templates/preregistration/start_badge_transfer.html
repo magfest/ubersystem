@@ -106,7 +106,7 @@
     {% endif %}
 
     {{ form_macros.form_validation('start-transfer') }}
-    {% include 'registration/alpine_attendee_metadata.html' %}
+    {% include 'forms/alpine/attendee_metadata.html' %}
 
     <form method="POST" novalidate action="start_badge_transfer" id="start-transfer" x-data="attendeeMetadata()">
       {{ csrf_token() }}

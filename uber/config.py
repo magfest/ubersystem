@@ -1703,24 +1703,33 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
             c.PREASSIGNED_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
-c.COUNTRY_OPTS = ['']
+c.COUNTRY_OPTS = []
 c.COUNTRY_ALT_SPELLINGS = {}
 for country in list(pycountry.countries):
+    insert_idx = None
     country_name = country.name if "Taiwan" not in country.name else "Taiwan"
     country_dict = country.__dict__['_fields']
     alt_spellings = [val for val in map(lambda x: country_dict.get(x), ['alpha_2', 'common_name']) if val]
     if country_name == 'United States':
         alt_spellings.extend(["USA", "United States of America"])
+        insert_idx = 0
     elif country_name == 'United Kingdom':
         alt_spellings.extend(["Great Britain", "England", "UK", "Wales", "Scotland", "Northern Ireland"])
+        insert_idx = 2
+    elif country_name == 'Canada':
+        insert_idx = 1
 
-    c.COUNTRY_ALT_SPELLINGS[country_name] = " ".join(alt_spellings)
-    c.COUNTRY_OPTS.append(country_name)
+    opt = {'value': country_name, 'label': country_name, 'alt_spellings': " ".join(alt_spellings)}
+    if insert_idx is not None:
+        c.COUNTRY_OPTS.insert(insert_idx, opt)
+    else:
+        c.COUNTRY_OPTS.append(opt)
 
-c.REGION_OPTS_US = [('', 'Select a state')] + sorted(
-    [(region.name, region.name) for region in list(pycountry.subdivisions.get(country_code='US'))])
-c.REGION_OPTS_CANADA = [('', 'Select a province')] + sorted(
-    [(region.name, region.name) for region in list(pycountry.subdivisions.get(country_code='CA'))])
+
+c.REGION_OPTS_US = sorted([{'value': region.name, 'label': region.name, 'alt_spellings': region.code[2:]
+      } for region in list(pycountry.subdivisions.get(country_code='US'))], key=lambda x: x['label'])
+c.REGION_OPTS_CANADA = sorted([{'value': region.name, 'label': region.name, 'alt_spellings': region.code[2:]
+      } for region in list(pycountry.subdivisions.get(country_code='CA'))], key=lambda x: x['label'])
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 
