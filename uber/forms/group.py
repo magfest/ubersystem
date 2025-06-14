@@ -62,7 +62,6 @@ class TableInfo(GroupInfo):
     categories = SelectMultipleField('Categories', choices=c.DEALER_WARES_OPTS, coerce=int, widget=MultiCheckbox())
     categories_text = StringField('Other')
     special_needs = TextAreaField('Special Requests', description="No guarantees that we can accommodate any requests.")
-    is_dealer = HiddenField()
 
     def get_non_admin_locked_fields(self, group):
         if group.is_new:

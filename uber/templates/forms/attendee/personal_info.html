@@ -78,9 +78,10 @@
       {% endif %}
     {% endcall %}
   </div>
-  {% if c.PREREG_CONFIRM_EMAIL_ENABLED and (attendee.needs_pii_consent or attendee.badge_status == c.PENDING_STATUS) %}
+  {% if c.PREREG_CONFIRM_EMAIL_ENABLED and not admin_area and (attendee.needs_pii_consent or attendee.badge_status == c.PENDING_STATUS) %}
     <div class="col-sm">
-      {{ form_macros.input(personal_info.confirm_email, value=attendee_email if edit_id or attendee.placeholder else '') }}
+      {{ form_macros.input(personal_info.confirm_email, value=attendee_email if edit_id or attendee.placeholder else '',
+                           required_if="emailRequired", **{':disabled':'copy_email'}) }}
     </div>
     </div>
     <div class="row g-sm-3 mb-3">

@@ -224,41 +224,41 @@
   }
 </script>
 <div x-data='{
-  copy_address: this.copy_address,
   country: {{ form_obj.country.data|tojson }},
+  get copyAddress() { return this.copy_address },
   get isGlobal() { return this.country != "United States" && this.country != "Canada"},
   get addressRequired() { return !this.copy_address & !this.badge_placeholder },
 }'>
   <div class="row g-sm-3 mb-3">
     <div class="col-sm">
-      {{ form_macros.input(form_obj.address1, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+      {{ form_macros.input(form_obj.address1, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
     <div class="col-sm">
-      {{ form_macros.input(form_obj.address2, **{':disabled':'copy_address'}) }}
+      {{ form_macros.input(form_obj.address2, **{':disabled':'copyAddress'}) }}
     </div>
   </div>
   <div class="row g-sm-3 mb-3">
     <div class="col-sm">
-      {{ form_macros.input(form_obj.country, required_if="addressRequired", **{'x-model': 'country', ':disabled': 'copy_address'}) }}
+      {{ form_macros.input(form_obj.country, required_if="addressRequired", **{'x-model': 'country', ':disabled': 'copyAddress'}) }}
     </div>
     <div class="col-sm">
       <div x-show="country == 'United States'">
-        {{ form_macros.input(form_obj.region_us, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+        {{ form_macros.input(form_obj.region_us, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
       </div>
       <div x-show="country == 'Canada'">
-        {{ form_macros.input(form_obj.region_canada, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+        {{ form_macros.input(form_obj.region_canada, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
       </div>
       <div x-show="isGlobal">
-        {{ form_macros.input(form_obj.region, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+        {{ form_macros.input(form_obj.region, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
       </div>
     </div>
   </div>
   <div class="row g-sm-3 mb-3">
     <div class="col-sm">
-      {{ form_macros.input(form_obj.city, required_if="addressRequired", **{':disabled':'copy_address'}) }}
+      {{ form_macros.input(form_obj.city, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
     <div class="col-sm">
-      {{ form_macros.input(form_obj.zip_code, required_if="zipCodeRequired", **{':disabled':'copy_address'}) }}
+      {{ form_macros.input(form_obj.zip_code, required_if="zipCodeRequired", **{':disabled':'copyAddress'}) }}
     </div>
   </div>
 </div>

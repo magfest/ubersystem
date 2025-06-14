@@ -99,7 +99,8 @@ class AdminBadgeExtras(BadgeExtras):
     extra_merch = StringField('Extra Merch')
     got_merch = BooleanField('This attendee has picked up their merch.')
     shirt_opt_out = SelectField('Shirt Opt In/Out', coerce=int, choices=c.SHIRT_OPT_OUT_OPTS)
-    num_event_shirts = SelectField('Shirt Types', coerce=int, choices=c.STAFF_EVENT_SHIRT_OPTS)
+    num_event_shirts = SelectField('Shirt Types', default=-1, coerce=int,
+                                   choices=[(-1, "Please select an option.")] + c.STAFF_EVENT_SHIRT_OPTS)
 
 
 class OtherInfo(MagForm):

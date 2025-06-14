@@ -85,7 +85,7 @@ if not c.COLLECT_FULL_ADDRESS:
 @PersonalInfo.field_validation('cellphone')
 @ignore_unassigned_and_placeholders
 def cellphone_required(form, field):
-    if (not hasattr(form, 'copy_phone') or not form.copy_phone.data
+    if not field.data and (not hasattr(form, 'copy_phone') or not form.copy_phone.data
             ) and not form.no_cellphone.data and (form.model.is_dealer or form.model.staffing_or_will_be):
         raise ValidationError("Please provide a phone number.")
 
@@ -93,8 +93,10 @@ def cellphone_required(form, field):
 @PersonalInfo.field_validation('confirm_email')
 @ignore_unassigned_and_placeholders
 def confirm_email_required(form, field):
-    if c.PREREG_CONFIRM_EMAIL_ENABLED and not form.is_admin and not field.data and (
-            form.model.needs_pii_consent or form.model.badge_status == c.PENDING_STATUS):
+    if c.PREREG_CONFIRM_EMAIL_ENABLED and (
+            not hasattr(form, 'copy_email') or not form.copy_email.data
+            ) and not form.is_admin and not field.data and (
+                form.model.needs_pii_consent or form.model.badge_status == c.PENDING_STATUS):
         raise ValidationError("Please confirm your email address.")
 
 
@@ -142,14 +144,18 @@ def past_printed_deadline(form, field):
 
 @PersonalInfo.field_validation('birthdate')
 def birthdate_format(form, field):
-    if field.data:
+    if not field.data:
+        return
+
+    if isinstance(field.data, str):
         try:
-            value = datetime.strptime(field.data, '%m/%d/%Y')
+            value = datetime.strptime(field.data, '%m/%d/%Y').date()
         except ValueError:
             raise StopValidation('Please use the format MM/DD/YYYY for your date of birth.')
-    
-        if value.date() > date.today():
-            raise ValidationError('You cannot be born in the future.')
+    else:
+        value = field.data
+    if value > date.today():
+        raise ValidationError('You cannot be born in the future.')
 
 
 @PersonalInfo.field_validation('birthdate')
@@ -242,6 +248,12 @@ def promo_code_valid(form, field):
                     raise ValidationError("That promo code has expired.")
                 elif not code.is_unlimited and code.uses_remaining <= 0:
                     raise ValidationError("That promo code has been used already.")
+
+if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1:
+    PreregOtherInfo.field_validation.required_fields = {
+        'requested_depts_ids': ('Please select at least one department to volunteer for, or check "Anywhere".',
+                                'staffing')
+    }
 
 # =============================
 # Consents

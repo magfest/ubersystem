@@ -17,6 +17,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 <div x-data="{ {% block x_data %}
+is_dealer: {{ group.is_dealer|tojson }},
 categories: {{ table_info.categories.data|jsonize }},
 get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 {% endblock %} }">
@@ -25,9 +26,11 @@ get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 
 <div class="row g-sm-3 mb-3">
 {% block name_desc %}
-{% if not admin_area %}{{ form_macros.input(table_info.is_dealer, value=True) }}{% endif %}
+{% if not admin_area %}
+<input type="hidden" name="is_dealer" x-model="is_dealer">
+{% endif %}
     <div class="col-sm">{{ form_macros.input(table_info.name) }}</div>
-    <div class="col-sm">{{ form_macros.input(table_info.description) }}</div>
+    <div class="col-sm">{{ form_macros.input(table_info.description, required_if="is_dealer") }}</div>
 {% endblock %}
 </div>
 
@@ -179,14 +182,14 @@ get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 
 <div class="row g-sm-3 mb-3">
 {% block website %}
-    <div class="col-sm">{{ form_macros.input(table_info.website) }}</div>
+    <div class="col-sm">{{ form_macros.input(table_info.website, required_if="is_dealer") }}</div>
 {% endblock %}
 </div>
 
 <div class="row g-sm-3 mb-3">
 {% block categories %}
     <div class="col">
-        {% call form_macros.input(table_info.categories, alpine_model="categories") %}
+        {% call form_macros.input(table_info.categories, alpine_model="categories", required_if="is_dealer") %}
         <span x-show="otherCategory">{{ form_macros.input(table_info.categories_text, required_if="otherCategory") }}</span>
         {% endcall %}
         
@@ -198,7 +201,7 @@ get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 
 <div class="row g-sm-3 mb-3">
 {% block textareas %}
-    <div class="col">{{ form_macros.input(table_info.wares) }}</div>
+    <div class="col">{{ form_macros.input(table_info.wares, required_if="is_dealer") }}</div>
 </div>
 <div class="row g-sm-3 mb-3">
     <div class="col">{{ form_macros.input(table_info.special_needs) }}</div>

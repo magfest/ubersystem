@@ -337,6 +337,7 @@ class MagForm(Form):
         # in which case we set it to false
         #
         # We also convert our MultiChoice value (a string) into the list of strings that WTForms expects
+        # and convert DOBs into the format that our DateMaskInput expects
 
         for name, field in cls._fields.items():
             field_in_obj = hasattr(obj, name)
@@ -359,6 +360,8 @@ class MagForm(Form):
                     formdata[name] = getattr(obj, name).split(',')
                 else:
                     formdata[name] = getattr(obj, name)
+            if isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
+                formdata[name] = getattr(obj, name).strftime('%m/%d/%Y')
 
         super().process(formdata, obj, data, extra_filters, **kwargs)
 

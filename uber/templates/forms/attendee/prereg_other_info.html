@@ -24,6 +24,6 @@ no_cellphone: {{ other_info.no_cellphone.data|tojson }},
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 </div>
 <div class="row g-sm-3 mb-3">
-    <div class="col-12">{{ form_macros.input(other_info.requested_depts_ids) }}</div>
+    <div class="col-12" x-show="staffing">{{ form_macros.input(other_info.requested_depts_ids) }}</div>
 {% endif %}
 {% endblock %}
