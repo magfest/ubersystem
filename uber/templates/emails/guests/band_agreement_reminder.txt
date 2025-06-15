@@ -4,4 +4,4 @@ Congratulations on being accepted to perform at {{ c.EVENT_NAME }}!  We need you
 
 Failure to complete the performance contract by {{ c.BAND_INFO_DEADLINE|datetime_local }} may result in your slot being given to a different group.
 
-{{ c.BAND_EMAIL_SIGNATURE }}
+{{ email_signature }}

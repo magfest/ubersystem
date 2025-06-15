@@ -288,7 +288,7 @@ class Root:
     def event_panel_info(self, out, session):
         content_opts_enabled = len(c.PANEL_CONTENT_OPTS) > 1
         rating_opts_enabled = len(c.PANEL_RATING_OPTS) > 1
-        dept_opts_enabled = len(c.PANEL_DEPT_OPTS) > 1
+        dept_opts_enabled = len(c.PANELS_DEPT_OPTS) > 1
 
         out.writerow([
             'Start Time',

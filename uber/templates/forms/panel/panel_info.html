@@ -1,0 +1,108 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set panel_info = panel_info or forms['panel_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    name
+    type_length
+    desc
+    record_livestream
+    rating
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+
+<div 
+x-data="{ {% block x_data %}
+   presentation: {{ panel_info.presentation.data|jsonize }},
+   panel_length: {{ panel_info.length.data|jsonize }},
+   department: '{{ panel_info.department.data }}',
+   dept_descs: {
+    {% for key, _, desc in c.PANELS_DEPT_OPTS_WITH_DESC %}
+    '{{ key }}': `{{ desc }}`,
+    {% endfor %}
+   },
+   get otherPresentation() { return this.presentation == '{{ c.OTHER }}' },
+   get showIsLoud() { return this.presentation == '{{ c.MUSIC }}' },
+   get showModNote() { return this.presentation == '{{ c.GROUP_DISCUSSION }}'},
+   get otherLength() { return this.panel_length == '{{ c.OTHER }}' },
+   get lengthReason() { return this.panel_length != '{{ c.SIXTY_MIN }}' && this.panel_length != '0' },
+{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
+{% block name %}
+<div class="col-sm">{{ form_macros.input(panel_info.name) }}</div>
+{% if c.PANELS_DEPT_OPTS_WITH_DESC|length > 1 %}
+<div class="col-sm">
+  {% call form_macros.input(panel_info.department, alpine_model='department') %}
+  <div class="form-text" x-text="this.dept_descs[this.department]" x-show="this.dept_descs[this.department]"></div>
+  {% endcall %}
+</div>
+{% else %}
+<input type="hidden" name="department" value="{{ c.PANELS_DEPT_OPTS_WITH_DESC[0][0] }}">
+{% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block type_length %}
+  <div class="col-sm">
+    {% call form_macros.input(panel_info.presentation, alpine_model='presentation') %}
+    <div x-show="otherPresentation" class="row g-sm-3 mb-3">
+        <div class="col-sm-6">
+        {{ form_macros.input(panel_info.other_presentation, required_if="otherPresentation") }}
+        </div>
+    </div>
+    <div x-show="showIsLoud">{{ form_macros.input(panel_info.is_loud) }}</div>
+    <div class="form-text" x-show="showModNote">
+        Please include who will moderate the panel in the description. If you will not be moderating the panel, please add
+        the moderator as a panelist at the bottom of this application.
+    </div>
+    {% endcall %}
+  </div>
+  <div class="col-sm">
+    {{ form_macros.input(panel_info.length, value="" if app.is_new else app.length, alpine_model='panel_length') }}
+  </div>
+  <div class="col-sm" x-show="otherLength || lengthReason">
+    <div x-show="otherLength">
+        {{ form_macros.input(panel_info.length_text, required_if="otherLength") }}
+    </div>
+    <div x-show="lengthReason">{{ form_macros.input(panel_info.length_reason, required_if="lengthReason") }}</div>
+  </div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block desc %}
+  <div class="col-sm">{{ form_macros.input(panel_info.description) }}</div>
+  <div class="col-sm">{{ form_macros.input(panel_info.public_description) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block record_livestream %}
+    <div class="col-sm">{{ form_macros.input(panel_info.noise_level) }}</div>
+    {% if c.LIVESTREAM_OPTS|length <= 2 %}
+    <div class="col-sm">{{ form_macros.input(panel_info.record) }}</div>
+    {% endif %}
+    {% if c.CAN_LIVESTREAM or c.LIVESTREAM_OPTS|length > 2 %}
+    <div class="col-sm">{{ form_macros.input(panel_info.livestream) }}</div>
+    {% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block rating %}
+{% if c.PANEL_CONTENT_OPTS|length > 1 or c.PANEL_RATING_OPTS|length > 1 %}
+    {% if c.PANEL_CONTENT_OPTS|length > 1 %}
+    <div class="col-sm">{{ form_macros.input(panel_info.granular_rating) }}</div>
+    {% else %}
+    <div class="col-sm">{{ form_macros.input(panel_info.rating) }}</div>
+    {% endif %}
+{% endif %}
+{% endblock %}
+</div>
+
+</div>

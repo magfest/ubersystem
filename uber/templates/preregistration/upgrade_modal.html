@@ -8,7 +8,7 @@
         </div>
         <div class="modal-body">
             <div class="alert alert-dismissible" role="alert" id="upgrade-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('upgrade-message-alert')" aria-label="Close"></button></div>
-            <form method="post" action="purchase_upgrades" id="purchase-upgrades" class="form-horizontal">
+            <form method="post" action="purchase_upgrades" id="purchase-upgrades" x-data="attendeeMetadata()">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <input type="hidden" name="receipt_id" value="{{ receipt.id }}" />

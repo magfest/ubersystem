@@ -130,7 +130,7 @@ class Root:
     @credit_card
     def arbitrary_charge(self, session, id, amount, description, email, return_to='arbitrary_charge_form'):
         charge = TransactionRequest(description=description, receipt_email=email, amount=100 * int(amount))
-        message = charge.create_stripe_intent()
+        message = charge.create_payment_intent()
         if message:
             return {'error': message}
         else:

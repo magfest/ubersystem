@@ -8,4 +8,4 @@ So far, you have finished judging {{ judge.game_reviews|length }} out of {{ judg
 
 Thanks again for taking time to judge games for this upcoming year's Magfest Indie Video Game Showcase.
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

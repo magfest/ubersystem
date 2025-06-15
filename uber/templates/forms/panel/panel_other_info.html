@@ -1,0 +1,83 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set panel_other_info = panel_other_info or forms['panel_other_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    affiliations_held_before
+    unavailable_extra_info
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+
+<div x-data="{ {% block x_data %}
+    need_tables: {{ panel_other_info.need_tables.data|jsonize }},
+    has_cost: {{ panel_other_info.has_cost.data|jsonize }},
+    has_affiliations: {{ panel_other_info.has_affiliations.data|jsonize }},
+    held_before: {{ panel_other_info.held_before.data|jsonize }},
+{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
+{% block checkboxes %}
+<div class="col-sm">{{ form_macros.input(panel_other_info.need_tables, alpine_model="need_tables") }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(panel_other_info.has_cost, alpine_model="has_cost") }}</div>
+</div>
+<div class="row g-sm-3 mb-3" x-show="need_tables || has_cost">
+    <div class="col-sm" x-show="need_tables">{{ form_macros.input(panel_other_info.tables_desc, required_if="need_tables") }}</div>
+    <div class="col-sm" x-show="has_cost">{{ form_macros.input(panel_other_info.cost_desc, required_if="has_cost") }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(panel_other_info.tabletop) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block texareas %}
+    <div class="col-sm">{{ form_macros.input(panel_other_info.other_tech_needs) }}</div>
+    {% if not admin_area %}
+    <div class="col-sm alert alert-info">
+        By default, each panel room will have a table with four microphones,
+    power for a laptop, and connections for 1/8" audio and HDMI video. VGA support
+    will <strong>not</strong> be available. If you need anything beyond this
+    please describe it here. Our techops department
+    ({{ c.TECHOPS_EMAIL|email_only|email_to_link }}) will reach out to you directly
+    for details.
+    </div>
+    {% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block affiliations_held_before %}
+<div class="col-sm">
+    {% call form_macros.input(panel_other_info.has_affiliations, alpine_model="has_affiliations") %}
+    <div x-show="has_affiliations">{{ form_macros.input(panel_other_info.affiliations, required_if="has_affiliations") }}</div>
+    {% endcall %}
+</div>
+<div class="col-sm">
+    {% call form_macros.input(panel_other_info.held_before, alpine_model="held_before") %}
+    <div x-show="held_before">{{ form_macros.input(panel_other_info.past_attendance, required_if="held_before") }}</div>
+    {% endcall %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block unavailable_extra_info %}
+    <div class="col-sm">
+        {% call form_macros.input(panel_other_info.unavailable) %}
+        {% if admin_area %}
+        <input type="hidden" name="verify_unavailable" value="1" />
+        {% else %}
+        {{ form_macros.input(panel_other_info.verify_unavailable) }}
+        {% endif %}
+        {% endcall %}
+    </div>
+    <div class="col-sm">{{ form_macros.input(panel_other_info.extra_info) }}</div>
+{% endblock %}
+</div>
+
+</div>

@@ -4,4 +4,4 @@ One of the judges for the MAGFest Indie Videogame Showcase (MIVS) has tried to r
 
 If you need to update the video link on your application, you can do so at {{ c.URL_BASE }}/mivs/continue_app?id={{ game.studio.id }}
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

@@ -15,13 +15,14 @@ from uber.config import c
 from uber.custom_tags import yesno
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column,
+                               MultiChoice, GuidebookImageMixin)
 from uber.utils import filename_extension
 
 
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
-    'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph',
+    'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph', 'GuestImage',
     'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality']
 
 
@@ -39,6 +40,8 @@ class GuestGroup(MagModel):
     needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
     badges_assigned = Column(Boolean, default=False)
     info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
+    images = relationship(
+        'GuestImage', backref=backref('guest', load_on_pending=True), order_by='GuestImage.id')
     bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
     taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
     stage_plot = relationship('GuestStagePlot', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -197,17 +200,40 @@ class GuestGroup(MagModel):
             return getattr(subclass, 'status', getattr(subclass, 'id'))
         return ''
     
+    def handle_images_from_params(self, session, **params):
+        # Designed to let us add required header/thumbnail images for Super MAGFest
+        # Ideally this will be refactored out when this is converted to WTForms
+        message = ''
+        bio_pic = params.get('bio_pic')
+        if bio_pic and bio_pic.filename:
+            new_pic = GuestImage.upload_image(bio_pic, guest_id=self.id)
+            if new_pic.extension not in c.ALLOWED_BIO_PIC_EXTENSIONS:
+                message = 'Bio pic must be one of ' + ', '.join(c.ALLOWED_BIO_PIC_EXTENSIONS)
+            else:
+                if self.bio_pic:
+                    session.delete(self.bio_pic)
+                session.add(new_pic)
+        return message
+    
+    @property
+    def bio_pic(self):
+        for image in self.images:
+            if not image.is_header and not image.is_thumbnail:
+                return image
+        return ''
+
     @property
     def guidebook_header(self):
-        # Temp: we need real header/thumbnail images later
-        if self.bio:
-            return self.bio
+        for image in self.images:
+            if image.is_header:
+                return image
         return ''
 
     @property
     def guidebook_thumbnail(self):
-        if self.bio:
-            return self.bio
+        for image in self.images:
+            if image.is_thumbnail:
+                return image
         return ''
     
     @property
@@ -227,12 +253,17 @@ class GuestGroup(MagModel):
 
     @property
     def guidebook_images(self):
-        if not self.bio or not self.bio.pic_filename:
+        if not self.images:
             return ['', ''], ['', '']
 
-        prepend = sluggify(self.group.name) + '_'
+        header = self.guidebook_header
+        thumbnail = self.guidebook_thumbnail
+        prepend = sluggify(self.title) + '_'
 
-        return [prepend + self.bio.pic_filename, prepend + self.bio.pic_filename], [self.bio, self.bio]
+        header_name = (prepend + header.filename) if header else ''
+        thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
+        
+        return [header_name, thumbnail_name], [header, thumbnail]
 
 
 class GuestInfo(MagModel):
@@ -246,6 +277,23 @@ class GuestInfo(MagModel):
     @property
     def status(self):
         return "Yes" if self.poc_phone else ""
+
+
+class GuestImage(MagModel, GuidebookImageMixin):
+    guest_id = Column(UUID, ForeignKey('guest_group.id'))
+
+    @property
+    def url(self):
+        return '../guests/view_image?id={}'.format(self.id)
+
+    @property
+    def filepath(self):
+        return os.path.join(c.GUESTS_BIO_PICS_DIR, str(self.id))
+
+    @property
+    def download_filename(self):
+        name = self.guest.normalized_group_name
+        return name + '.' + self.pic_extension
 
 
 class GuestBio(MagModel):
@@ -262,32 +310,6 @@ class GuestBio(MagModel):
     spotify = Column(UnicodeText)
     other_social_media = Column(UnicodeText)
     teaser_song_url = Column(UnicodeText)
-
-    pic_filename = Column(UnicodeText)
-    pic_content_type = Column(UnicodeText)
-
-    @property
-    def pic_url(self):
-        if self.uploaded_pic:
-            return '../guests/view_bio_pic?id={}'.format(self.guest.id)
-        return ''
-
-    @property
-    def pic_fpath(self):
-        return os.path.join(c.GUESTS_BIO_PICS_DIR, self.id)
-
-    @property
-    def uploaded_pic(self):
-        return os.path.exists(self.pic_fpath)
-
-    @property
-    def pic_extension(self):
-        return filename_extension(self.pic_filename)
-
-    @property
-    def download_filename(self):
-        name = self.guest.normalized_group_name
-        return name + '_bio_pic.' + self.pic_extension
 
     @property
     def status(self):

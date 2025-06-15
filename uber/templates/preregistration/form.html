@@ -13,9 +13,10 @@
     {% include 'forms/prereg_intro.html' %}
 
   {{ form_macros.form_validation('prereg-form') }}
+{% include 'forms/alpine/attendee_metadata.html' %}
 
 {#- The action is set to "post_form" in order to bypass the NGINX cache. -#}
-<form novalidate method="post" id="prereg-form" action="post_form" class="form-horizontal" role="form">
+<form novalidate method="post" id="prereg-form" action="post_form" class="form-horizontal" role="form" x-data="attendeeMetadata()">
 {% if attendee.group_id %}
 <input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
 {% endif %}
@@ -51,16 +52,16 @@
   {% include "groupform.html" %}
   {% include "regform.html" %}
 
-  {% if not edit_id %}
-      <button type="submit" class="btn btn-primary" value="Next">Next</button>
+  {% if edit_id and cart_not_empty and not repurchase %}
+    <button type="submit" class="btn btn-primary" value="Update">Update</button>
+    <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
   {% else %}
-      <button type="submit" class="btn btn-primary" value="Update">Update</button>
-      {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
-      <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
-      {% endif %}
+    <button type="submit" class="btn btn-primary" value="Next">Next</button>
   {% endif %}
 
-  {% if edit_id or cart_not_empty %}
+  {% if repurchase %}
+  <a href="cancel_repurchase" class="btn btn-outline-secondary" value="Cancel">Cancel</a>
+  {% elif cart_not_empty %}
   <a href="index" class="btn btn-outline-secondary" value="Cancel">Cancel</a>
   {% endif %}
 

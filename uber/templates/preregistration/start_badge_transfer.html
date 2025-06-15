@@ -106,8 +106,9 @@
     {% endif %}
 
     {{ form_macros.form_validation('start-transfer') }}
+    {% include 'forms/alpine/attendee_metadata.html' %}
 
-    <form method="POST" novalidate action="start_badge_transfer" id="start-transfer">
+    <form method="POST" novalidate action="start_badge_transfer" id="start-transfer" x-data="attendeeMetadata()">
       {{ csrf_token() }}
       {% if ban_bypass %}
         <input type="hidden" name="ban_bypass" value="True" />

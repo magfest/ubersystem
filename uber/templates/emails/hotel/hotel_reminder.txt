@@ -10,6 +10,6 @@ If you have trouble with the login information, please go to: {{ c.URL_BASE }}/p
 
 Please let us know if you have any questions.
 
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}
 
 {% if attendee.is_dept_head %}PS: Even though you're a department head, you still need to fill out the hotel form so that we know whether you want hotel room space, and you'll keep receiving these automated emails until you do!{% endif %}

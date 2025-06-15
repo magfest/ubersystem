@@ -4,4 +4,4 @@
 
 You must tell us whether you intend to sell merch at Rock Island by {{ c.BAND_MERCH_DEADLINE|datetime_local }}. If yes, you must also input your inventory by {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}. Failure to submit this information on time may result in forfeiture of the opportunity to sell merchandise at Rock Island.
 
-{{ c.BAND_EMAIL_SIGNATURE }}
+{{ email_signature }}

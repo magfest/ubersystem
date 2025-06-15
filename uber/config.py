@@ -1084,6 +1084,14 @@ class Config(_Overridable):
 
         return shirt_count
 
+    @property
+    def STAFF_SHIRT_FIELD_ENABLED(self):
+        return c.SHIRTS_PER_STAFFER > 0 and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS
+
+    @property
+    def STAFF_GET_EVENT_SHIRTS(self):
+        return (c.SHIRTS_PER_STAFFER > 0 and c.STAFF_EVENT_SHIRT_OPTS) or (c.SHIRTS_PER_STAFFER == 0 and c.HOURS_FOR_SHIRT)
+
     @request_cached_property
     @dynamic
     def SEASON_COUNT(self):
@@ -1200,6 +1208,15 @@ class Config(_Overridable):
                             'is_download': getattr(method, 'site_map_download', False)
                         })
         return public_site_sections, public_pages, pages
+    
+    def get_signature_by_sender(self, sender):
+        from uber.custom_tags import email_only
+
+        config_opt = email_only(sender).split('@')[0]
+        signature_key = getattr(self, config_opt, None)
+        if signature_key:
+            return self.EMAIL_SIGNATURES[signature_key]
+        return ""
 
     # =========================
     # mivs
@@ -1229,6 +1246,61 @@ class Config(_Overridable):
                 for a in session.query(AdminAccount).options(joinedload(AdminAccount.attendee))
                 if 'panels_admin' in a.read_or_write_access_set
             ], key=lambda tup: tup[1], reverse=False)
+        
+    @request_cached_property
+    @dynamic
+    def get_panels_id(self):
+        from uber.models import Session, Department
+
+        with Session() as session:
+            panels_dept = session.query(Department).filter(Department.manages_panels == True, 
+                                                           Department.name == "Panels").first()
+            if panels_dept:
+                return panels_dept.id
+            else:
+                return c.PANELS
+
+    @request_cached_property
+    @dynamic
+    def PANELS_DEPT_OPTS_WITH_DESC(self):
+        from uber.models import Session, Department
+        opt_list = []
+
+        with Session() as session:
+            panel_depts = session.query(Department).filter(Department.manages_panels == True)
+            panels = panel_depts.filter(Department.name == "Panels").first()
+
+            if panels:
+                opt_list.append((panels.id, panels.name, panels.panels_desc))
+            else:
+                opt_list.append((str(c.PANELS), "Panels", ''))
+            
+            if not panel_depts.count():
+                return opt_list
+
+            for dept in panel_depts:
+                if dept.name != "Panels":
+                    opt_list.append((dept.id, dept.name, dept.panels_desc))
+
+        return opt_list
+    
+    @request_cached_property
+    @dynamic
+    def PANELS_DEPT_OPTS(self):
+        return [(key, name) for key, name, _ in self.PANELS_DEPT_OPTS_WITH_DESC]
+    
+    @request_cached_property
+    @dynamic
+    def EMAILLESS_PANEL_DEPTS(self):
+        from uber.models import Session, Department
+
+        id_list = [c.PANELS]
+        with Session() as session:
+            panels_depts_query = session.query(Department).filter(Department.manages_panels == True)
+            for dept in panels_depts_query.filter(or_(Department.from_email == '',
+                                                      Department.from_email == c.PANELS_EMAIL)):
+                id_list.append(dept.id)
+        return id_list
 
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
@@ -1631,24 +1703,32 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
             c.PREASSIGNED_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
-c.COUNTRY_OPTS = ['']
-c.COUNTRY_ALT_SPELLINGS = {}
+c.COUNTRY_OPTS = []
 for country in list(pycountry.countries):
+    insert_idx = None
     country_name = country.name if "Taiwan" not in country.name else "Taiwan"
     country_dict = country.__dict__['_fields']
     alt_spellings = [val for val in map(lambda x: country_dict.get(x), ['alpha_2', 'common_name']) if val]
     if country_name == 'United States':
         alt_spellings.extend(["USA", "United States of America"])
+        insert_idx = 0
     elif country_name == 'United Kingdom':
         alt_spellings.extend(["Great Britain", "England", "UK", "Wales", "Scotland", "Northern Ireland"])
+        insert_idx = 2
+    elif country_name == 'Canada':
+        insert_idx = 1
 
-    c.COUNTRY_ALT_SPELLINGS[country_name] = " ".join(alt_spellings)
-    c.COUNTRY_OPTS.append(country_name)
+    opt = {'value': country_name, 'label': country_name, 'alt_spellings': " ".join(alt_spellings)}
+    if insert_idx is not None:
+        c.COUNTRY_OPTS.insert(insert_idx, opt)
+    else:
+        c.COUNTRY_OPTS.append(opt)
 
-c.REGION_OPTS_US = [('', 'Select a state')] + sorted(
-    [(region.name, region.name) for region in list(pycountry.subdivisions.get(country_code='US'))])
-c.REGION_OPTS_CANADA = [('', 'Select a province')] + sorted(
-    [(region.name, region.name) for region in list(pycountry.subdivisions.get(country_code='CA'))])
+
+c.REGION_OPTS_US = sorted([{'value': region.name, 'label': region.name, 'alt_spellings': region.code[2:]
+      } for region in list(pycountry.subdivisions.get(country_code='US'))], key=lambda x: x['label'])
+c.REGION_OPTS_CANADA = sorted([{'value': region.name, 'label': region.name, 'alt_spellings': region.code[2:]
+      } for region in list(pycountry.subdivisions.get(country_code='CA'))], key=lambda x: x['label'])
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 

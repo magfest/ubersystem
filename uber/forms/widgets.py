@@ -1,5 +1,5 @@
 from markupsafe import escape, Markup
-from wtforms.widgets import NumberInput, html_params, CheckboxInput, Select
+from wtforms.widgets import NumberInput, html_params, CheckboxInput, TextInput
 from uber.config import c
 from uber.custom_tags import linebreaksbr
 
@@ -8,26 +8,18 @@ class MultiCheckbox():
     """
     Renders a MultiSelect field as a set of checkboxes, e.g., "What interests you?"
     """
-    def __call__(self, field, div_class='checkgroup', **kwargs):
+    def __call__(self, field, **kwargs):
         kwargs.setdefault('type', 'checkbox')
         field_id = kwargs.pop('id', field.id)
-        html = ['<div {}>'.format(html_params(class_=div_class))]
-        html.append(f'<fieldset {html_params(id=field_id)}>')
-        html.append(f'<legend class="form-text mt-0"><span class="form-label">{field.label.text}</span>'
-                    '{}</legend>'.format(Markup(' <span class="required-indicator text-danger">*</span>')
-                                         if field.flags.required else ''))
+        html = []
         for value, label, checked, _html_attribs in field.iter_choices():
             choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
-            if value == c.OTHER:
-                html.append('<br/>')
             if checked:
                 options['checked'] = 'checked'
             html.append('<label for="{}" class="checkbox-label">'.format(choice_id))
             html.append('<input {} /> '.format(html_params(**options)))
             html.append('{}</label>'.format(label))
-        html.append('</fieldset>')
-        html.append('</div>')
         return Markup(''.join(html))
 
 
@@ -57,7 +49,7 @@ class IntSelect():
         return Markup(''.join(html))
 
 
-# Dummy class for get_field_type() -- switches in Bootstrap are set in the scaffolding, not on the input
+# Dummy class for our Jinja2 macros -- switches in Bootstrap are set in the scaffolding, not on the input
 class SwitchInput(CheckboxInput):
     pass
 
@@ -79,30 +71,38 @@ class NumberInputGroup(NumberInput):
         return Markup(''.join(html))
 
 
-class CountrySelect(Select):
-    """
-    Renders a custom select field for countries.
-    This is the same as Select but it adds data-alternative-spellings and data-relevancy-booster flags.
-    """
+class DateMaskInput(TextInput):
+    def __call__(self, field, **kwargs):
+        script = """
+        <script type="text/javascript">
+        if(!dateFormat) {
+            function dateFormat(input) {
+                const first_month = input.substring(0, 1);
+                if ((/^-?\d+$/.test(first_month)) == false) {
+                return '99/99/9999';
+                }
+                if (!['0','1'].includes(first_month)) {
+                return '0' + input + '/99/9999';
+                }
+                if (input.length == 4 && input.substring(2, 3) == '/') {
+                const first_day = input.substring(3, 4);
+                if ((/^-?\d+$/.test(first_day)) == false) {
+                    return '99/99/9999';
+                }
+                if (!['0','1','2','3'].includes(first_day)) {
+                    return input.substring(0, 3) + '0' + input.substring(3, 4) + '/9999'
+                }
+                }
+                return '99/99/9999';
+            }
+        }
+        </script>
+        """
+        kwargs['placeholder'] = "MM/DD/YYYY"
+        kwargs['x-mask:dynamic'] = "dateFormat"
+        html =[script, super().__call__(field,  **kwargs)]
+        return Markup(''.join(html))
 
-    @classmethod
-    def render_option(cls, value, label, selected, **kwargs):
-        if value is True:
-            # Handle the special case of a 'True' value.
-            value = str(value)
-
-        options = dict(kwargs, value=value)
-        if c.COUNTRY_ALT_SPELLINGS.get(value):
-            options["data-alternative-spellings"] = c.COUNTRY_ALT_SPELLINGS[value]
-            if value == 'United States':
-                options["data-relevancy-booster"] = 3
-            elif value in ['Australia', 'Canada', 'United Kingdom']:
-                options["data-relevancy-booster"] = 2
-        if selected:
-            options["selected"] = True
-        return Markup(
-            "<option {}>{}</option>".format(html_params(**options), escape(label))
-        )
 
 class Ranking():
     def __init__(self, choices=None, **kwargs):

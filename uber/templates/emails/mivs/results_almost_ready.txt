@@ -10,4 +10,4 @@ If you game is accepted into the showcase, we will refund the cost of your badge
 
 If you have any questions on the judging process, you can visit https://super.magfest.org/mivs for more information.
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

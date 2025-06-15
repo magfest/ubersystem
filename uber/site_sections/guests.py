@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber.config import c
 from uber.decorators import ajax, all_renderable, render
 from uber.errors import HTTPRedirect
-from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans
+from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel
 from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check
 from uber.tasks.email import send_email
@@ -67,21 +67,15 @@ class Root:
             'message': message
         }
 
-    def bio(self, session, guest_id, message='', bio_pic=None, **params):
+    def bio(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_bio = session.guest_bio(params, restricted=True)
         if cherrypy.request.method == 'POST':
             if not guest_bio.desc:
                 message = 'Please provide a brief bio for our website'
 
-            if not message and bio_pic.filename:
-                guest_bio.pic_filename = bio_pic.filename
-                guest_bio.pic_content_type = bio_pic.content_type.value
-                if guest_bio.pic_extension not in c.ALLOWED_BIO_PIC_EXTENSIONS:
-                    message = 'Bio pic must be one of ' + ', '.join(c.ALLOWED_BIO_PIC_EXTENSIONS)
-                else:
-                    with open(guest_bio.pic_fpath, 'wb') as f:
-                        shutil.copyfileobj(bio_pic.file, f)
+            if not message:
+                message = guest.handle_images_from_params(session, **params)
 
             if not message:
                 guest.bio = guest_bio
@@ -165,6 +159,16 @@ class Root:
             'guest_panel': guest.panel or guest_panel,
             'message': message
         }
+    
+    def decline_panel(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        guest_panel = GuestPanel(
+            guest_id=guest.id,
+            wants_panel=c.NO_PANEL,
+            )
+        session.add(guest_panel)
+        raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have declined to run a panel.')
+
 
     def mc(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
@@ -615,9 +619,9 @@ class Root:
         guest = session.guest_group(id)
         cherrypy.response.headers['Cache-Control'] = 'no-store'
         return serve_file(
-            guest.bio.pic_fpath,
+            guest.bio_pic.filepath,
             disposition="attachment",
-            name=guest.bio.download_filename,
+            name=guest.bio_pic.download_filename,
             content_type=guest.bio.pic_content_type)
 
     def view_stage_plot(self, session, id):

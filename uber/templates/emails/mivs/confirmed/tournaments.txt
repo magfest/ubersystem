@@ -11,4 +11,4 @@ We want to know if you would like to run a Leaderboard Challenge or Tournament a
 If you are interested, please email mivs@magfest.org expressing your interest.
 
 Forever your Fan,
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

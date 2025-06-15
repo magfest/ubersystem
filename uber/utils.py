@@ -16,7 +16,6 @@ from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 from glob import glob
 from os.path import basename
-from PIL import Image
 from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
@@ -633,14 +632,6 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def check_image_size(image, size_list):
-    try:
-        return Image.open(image).size == tuple(map(int, size_list))
-    except OSError:
-        # This probably isn't an image at all
-        return
-
-
 class GuidebookUtils():
     @classmethod
     def check_guidebook_image_filetype(cls, pic):
@@ -662,7 +653,7 @@ class GuidebookUtils():
 
     @classmethod
     def get_guidebook_models(cls, session, selected_model=''):
-        from uber.models import Group, GuestBio, MITSPicture, IndieGameImage
+        from uber.models import GuestImage, MITSPicture, IndieGameImage
 
         model_cls = cls.parse_guidebook_model(selected_model)
         model_query = session.query(model_cls)
@@ -670,11 +661,11 @@ class GuidebookUtils():
                         cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < model_cls.last_updated]
 
         if '_band' in selected_model:
-            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.bio)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
         elif '_guest' in selected_model:
-            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.bio)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
         elif '_dealer' in selected_model:
             model_query = model_query.filter(model_cls.status.in_([c.APPROVED])).filter_by(is_dealer=True)
         elif 'IndieGame' in selected_model:
@@ -725,41 +716,30 @@ class GuidebookUtils():
 
 
 def validate_model(forms, model, preview_model=None, is_admin=False):
-    from wtforms import validators
-
     all_errors = defaultdict(list)
 
     if not preview_model:
         preview_model = model
     else:
         for form in forms.values():
-            form.populate_obj(preview_model)  # We need a populated model BEFORE we get its optional fields below
+            form.populate_obj(preview_model)
         if not model.is_new:
             preview_model.is_actually_old = True
 
     for form in forms.values():
-        extra_validators = defaultdict(list)
-        for field_name in form.get_optional_fields(preview_model, is_admin):
-            field = getattr(form, field_name)
-            if field:
-                field.validators = (
-                    [validators.Optional()] +
-                    [validator for validator in field.validators
-                     if not isinstance(validator, (validators.DataRequired, validators.InputRequired))])
+        form.is_admin = is_admin
+        form.model = preview_model
 
-        # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
+        extra_validators = defaultdict(list)
+
         for key, field in form.field_list:
-            if key == 'badge_num' and field.data:
-                field_data = int(field.data)  # Badge number box is a string to accept encrypted barcodes
-            else:
-                field_data = field.data
             extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
-            if field and (model.is_new or getattr(model, key, None) != field_data):
-                extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
+            if field and (model.is_new or getattr(model, key, None) != field.data):
+                extra_validators[key].extend(form.new_or_changed.get_validations_by_field(key))
         valid = form.validate(extra_validators=extra_validators)
         if not valid:
             for key, val in form.errors.items():
-                all_errors[key].extend(map(str, val))
+                all_errors[form._prefix + key].extend(map(str, val))
 
     validations = [uber.model_checks.validation.validations]
     prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []

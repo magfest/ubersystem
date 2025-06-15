@@ -6,4 +6,4 @@ Thanks again for offering to help judge for the MAGFest Indie Videogame Showcase
 
 {% endif %}If you have any questions, you can let us know and/or can email any questions about volunteering to {{ c.STAFF_EMAIL|safe }}.
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

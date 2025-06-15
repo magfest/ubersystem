@@ -17,20 +17,22 @@
             <h2>How the Room Lottery Works</h2>
             {% include 'hotel_lottery/lottery_tos.html' with context %}
 
-            {{ form_macros.form_input(lottery_info.terms_accepted) }}
+            {{ form_macros.input(lottery_info.terms_accepted) }}
 
             {% include 'hotel_lottery/data_policy.html' with context %}
 
-            {{ form_macros.form_input(lottery_info.data_policy_accepted) }}
+            {{ form_macros.input(lottery_info.data_policy_accepted) }}
 
             {% include 'hotel_lottery/contact_info_form.html' with context %}
 
             <div class="d-flex gap-2 flex-wrap">
-            {% set room_group_owners = attendee.managers[0].get_room_group_owners(staff=attendee.staff_hotel_lottery_eligible) %}
-            {% if attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] %}
-                {% for group_leader in room_group_owners %}
-                <button type="submit" name="group_id" value="{{ group_leader.lottery_application.id }}" class="btn btn-primary">Join "{{ group_leader.lottery_application.room_group_name }}" Room Group</button>
-                {% endfor %}
+            {% if attendee.managers %}
+                {% set room_group_owners = attendee.managers[0].get_room_group_owners(staff=attendee.staff_hotel_lottery_eligible) %}
+                {% if attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] %}
+                    {% for group_leader in room_group_owners %}
+                    <button type="submit" name="group_id" value="{{ group_leader.lottery_application.id }}" class="btn btn-primary">Join "{{ group_leader.lottery_application.room_group_name }}" Room Group</button>
+                    {% endfor %}
+                {% endif %}
             {% endif %}
             {% if attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] and room_group_owners %}
             <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button>

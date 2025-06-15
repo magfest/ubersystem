@@ -24,4 +24,4 @@ You can begin judging at: {{ c.URL_BASE }}/mivs_judging
 Please email {{ c.MIVS_EMAIL|email_only }} with any questions
 
 Thank you,
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

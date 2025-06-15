@@ -139,7 +139,11 @@ if($.field('return_to')) {
 {% endfor %}
 
 {{ form_macros.form_validation('attendee_form', '../registration/validate_attendee', callback="updateAttendee(submit_button_name)") }}
-<form novalidate method="post" action="../registration/update_attendee" id="attendee_form">
+{% include 'forms/alpine/attendee_metadata.html' %}
+
+<form novalidate method="post" action="../registration/update_attendee" id="attendee_form"
+      x-data="attendeeMetadata()"
+>
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ attendee.db_id }}" />
   {% include "forms/attendee/admin_badge_flags.html" %}

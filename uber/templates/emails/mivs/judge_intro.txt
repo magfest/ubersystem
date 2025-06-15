@@ -8,4 +8,4 @@ You can expect judging to start this week, as we assign out games to you. Judgin
 
 If you have any questions, feel free to drop us a line at {{ c.MIVS_EMAIL|email_only }}
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

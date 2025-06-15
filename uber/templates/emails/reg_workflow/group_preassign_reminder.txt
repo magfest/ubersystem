@@ -6,4 +6,4 @@ If you already know who's coming with your group, we highly encourage you to use
 
 The latest that you can pre-assign your badges is {{ c.UBER_TAKEDOWN|datetime_local }}.  We look forward to seeing you at {{ c.EVENT_NAME }} on {{ event_dates() }}.
 
-{{ c.REGDESK_EMAIL_SIGNATURE }}
+{{ email_signature }}
