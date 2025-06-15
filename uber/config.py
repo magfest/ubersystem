@@ -1704,7 +1704,6 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
         _day += timedelta(days=1)
 
 c.COUNTRY_OPTS = []
-c.COUNTRY_ALT_SPELLINGS = {}
 for country in list(pycountry.countries):
     insert_idx = None
     country_name = country.name if "Taiwan" not in country.name else "Taiwan"

@@ -40,8 +40,8 @@ class DepartmentInfo(MagForm):
     is_setup_approval_exempt = HiddenField()
     is_teardown_approval_exempt = HiddenField()
 
-    def populate_obj(cls, obj, is_admin=False):
-        max_minutes = cls._fields.get('max_consecutive_minutes', None)
+    def populate_obj(self, obj, is_admin=False):
+        max_minutes = self._fields.get('max_consecutive_minutes', None)
         if max_minutes and max_minutes.data:
             max_minutes.data = max_minutes.data * 60
         super().populate_obj(obj, is_admin)
