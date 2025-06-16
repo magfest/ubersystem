@@ -81,6 +81,7 @@ class Root:
 
         if cherrypy.request.method == 'POST':
             if c.INDEPENDENT_ART_SHOW:
+                app.special_requests = app.orig_value_of('special_requests')
                 attendee_params = {}
                 for key in [param for param in params if param.startswith('attendee_')]:
                     val = params.pop(key)

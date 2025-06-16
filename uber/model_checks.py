@@ -789,9 +789,6 @@ def too_late_now(app):
                       'delivery_method',
                       'admin_notes']:
             if app.orig_value_of(field) != getattr(app, field):
-                log.error(field)
-                log.error(app.orig_value_of(field))
-                log.error(getattr(app, field))
                 return 'Your application has been {} and may no longer be updated'\
                     .format(app.status_label)
 
