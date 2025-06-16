@@ -37,7 +37,9 @@ x-data="{ {% block x_data %}
 {% if c.PANELS_DEPT_OPTS_WITH_DESC|length > 1 %}
 <div class="col-sm">
   {% call form_macros.input(panel_info.department, alpine_model='department') %}
-  <div class="form-text" x-text="this.dept_descs[this.department]" x-show="this.dept_descs[this.department]"></div>
+  {% if not admin_area %}
+  <div class="form-text" x-text="dept_descs[department]" x-show="dept_descs[department]"></div>
+  {% endif %}
   {% endcall %}
 </div>
 {% else %}
