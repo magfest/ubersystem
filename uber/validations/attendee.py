@@ -249,10 +249,9 @@ def promo_code_valid(form, field):
                 elif not code.is_unlimited and code.uses_remaining <= 0:
                     raise ValidationError("That promo code has been used already.")
 
-if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1:
-    PreregOtherInfo.field_validation.required_fields = {
-        'requested_depts_ids': ('Please select at least one department to volunteer for, or check "Anywhere".',
-                                'staffing')
+PreregOtherInfo.field_validation.required_fields = {
+    'requested_depts_ids': ('Please select at least one department to volunteer for, or check "Anywhere".',
+                            'staffing', lambda x: x and len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1)
     }
 
 # =============================
