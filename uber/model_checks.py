@@ -389,8 +389,7 @@ def mivs_valid_url(studio):
 def mivs_unique_name(studio):
     with Session() as session:
         if session.query(IndieStudio).filter(IndieStudio.name == studio.name, IndieStudio.id != studio.id).count():
-            return "That studio name is already taken; " \
-                "are you sure you shouldn't be logged in with that studio's account?"
+            return "That studio name is already taken."
 
 
 @validation.IndieStudio

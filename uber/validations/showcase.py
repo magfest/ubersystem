@@ -22,6 +22,12 @@ DeveloperInfo.field_validation.required_fields = {
 }
 
 
+@DeveloperInfo.new_or_changed('gets_emails')
+def at_least_one_contact(form, field):
+    if not field.data and form.model.studio and len(form.model.studio.primary_contacts) == 1:
+        raise ValidationError("Your studio must have at least one presenter who receives emails.")
+
+
 MivsGameInfo.field_validation.required_fields = {
     'title': "Please enter this game's title.",
     'brief_description': "Please provide a brief description of this game.",
