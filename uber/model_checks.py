@@ -744,7 +744,7 @@ def artist_id_dupe(app):
 
 @validation.ArtShowApplication
 def artist_id_ad_dupe(app):
-    if app.artist_id and (app.is_new or app.artist_id_ad != app.orig_value_of('artist_id_ad')):
+    if app.artist_id_ad and (app.is_new or app.artist_id_ad != app.orig_value_of('artist_id_ad')):
         with Session() as session:
             dupe = session.query(ArtShowApplication).filter(or_(ArtShowApplication.artist_id == app.artist_id_ad,
                                                                 ArtShowApplication.artist_id_ad == app.artist_id_ad),
@@ -789,6 +789,9 @@ def too_late_now(app):
                       'delivery_method',
                       'admin_notes']:
             if app.orig_value_of(field) != getattr(app, field):
+                log.error(field)
+                log.error(app.orig_value_of(field))
+                log.error(getattr(app, field))
                 return 'Your application has been {} and may no longer be updated'\
                     .format(app.status_label)
 

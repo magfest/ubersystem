@@ -74,8 +74,6 @@
 
 <div class="row g-sm-3">
 {% if not admin_area %}{{ macros.form_group(attendee, 'badge_num', label="Badge Number", type="number", is_readonly=attendee_fields_ro, use_bs5=True, is_required=True) }}{% endif %}
-{{ macros.form_group(attendee.art_show_bidder, 'hotel_name', label="Hotel", is_readonly=printable, use_bs5=True) }}
-{{ macros.form_group(attendee.art_show_bidder, 'hotel_room_num', label="Room Number", is_readonly=printable, use_bs5=True) }}
 </div>
 
 <div class="row g-sm-3">
