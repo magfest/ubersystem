@@ -354,42 +354,6 @@ def _is_invalid_url(url):
         return True
 
 
-IndieStudio.required = [
-    ('name', 'Studio Name'),
-    ('website', 'Website')
-]
-
-IndieDeveloper.required = [
-    ('first_name', 'First Name'),
-    ('last_name', 'Last Name'),
-    ('email', 'Email')
-]
-
-IndieGame.required = [
-    ('title', 'Game Title'),
-    ('brief_description', 'Brief Description'),
-    ('genres', 'Genres'),
-    ('description', 'Full Description')
-]
-
-
-@validation.IndieGame
-def mivs_showtime_agreement(game):
-    if not game.agreed_showtimes:
-        return 'Please check the box to confirm to the showtimes for a MIVS booth.'
-
-
-@validation.IndieGame
-def mivs_liability_agreement(game):
-    if not game.agreed_liability:
-        return 'Please check the box to confirm to agree to the liability waiver.'
-
-
-IndieGameCode.required = [
-    ('code', 'Game Code')
-]
-
-
 IndieJudge.required = [
     ('platforms', 'Platforms'),
     ('genres', 'Genres'),
@@ -410,7 +374,7 @@ def vr_text(judge):
 
 @validation.IndieStudio
 def mivs_new_studio_deadline(studio):
-    if studio.is_new and not c.CAN_SUBMIT_MIVS:
+    if studio.is_new and not c.INDIE_SHOWCASE_OPEN:
         return 'Sorry, but the deadline has already passed, so no new studios may be registered.'
 
 
@@ -425,8 +389,7 @@ def mivs_valid_url(studio):
 def mivs_unique_name(studio):
     with Session() as session:
         if session.query(IndieStudio).filter(IndieStudio.name == studio.name, IndieStudio.id != studio.id).count():
-            return "That studio name is already taken; " \
-                "are you sure you shouldn't be logged in with that studio's account?"
+            return "That studio name is already taken."
 
 
 @validation.IndieStudio
@@ -435,46 +398,10 @@ def mivs_studio_contact_phone(studio):
         return 'Please enter a valid phone number'
 
 
-@validation.IndieDeveloper
-def agree_to_coc(dev):
-    if not dev.agreed_coc:
-        return 'You must agree to be bound by our Code of Conduct.'
-
-
-@validation.IndieDeveloper
-def agree_to_data_policy(dev):
-    if not dev.agreed_data_policy:
-        return 'You must agree for your information to be used for determining showcase selection.'
-
-
-@validation.IndieDeveloper
-def mivs_dev_email(dev):
-    if not re.match(c.EMAIL_RE, dev.email):
-        return 'Please enter a valid email address'
-
-
-@validation.IndieDeveloper
-def mivs_dev_cellphone(dev):
-    if (dev.primary_contact or dev.cellphone) and invalid_phone_number(dev.cellphone):
-        return 'Please enter a valid phone number'
-
-
-@validation.IndieGame
-def mivs_platforms_or_other(game):
-    if not game.platforms and not game.platforms_text:
-        return 'Please select a platform your game runs on or describe another platform in the box provided.'
-
-
 @validation.IndieGame
 def mivs_new_game_deadline(game):
-    if game.is_new and not c.CAN_SUBMIT_MIVS:
+    if game.is_new and not c.INDIE_SHOWCASE_OPEN:
         return 'Sorry, but the deadline has already passed, so no new games may be registered'
-
-
-@validation.IndieGame
-def mivs_instructions(game):
-    if game.code_type in c.MIVS_CODES_REQUIRING_INSTRUCTIONS and not game.code_instructions:
-        return 'You must leave instructions for how the judges are to use the code(s) you provide'
 
 
 @validation.IndieGame
@@ -494,18 +421,6 @@ def mivs_show_info_required_fields(game):
             return 'Please tell us how many players your game supports.'
         if game.has_multiplayer and not game.multiplayer_game_length:
             return 'Please enter the average length for a multiplayer game or match.'
-
-
-@validation.IndieGameImage
-def mivs_description(image):
-    if image.is_screenshot and not image.description:
-        return 'Please enter a description of the screenshot.'
-
-
-@validation.IndieGameImage
-def mivs_valid_type(screenshot):
-    if screenshot.extension not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
-        return 'Our server did not recognize your upload as a valid image'
 
 
 # =============================

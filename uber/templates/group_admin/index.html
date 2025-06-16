@@ -33,7 +33,7 @@
     </button>
   </li>
   {% endif %}
-  {% if c.MIVS_ENABLED and c.HAS_MIVS_ADMIN_ACCESS %}
+  {% if c.HAS_MIVS_ADMIN_ACCESS %}
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="mivs-tab" data-bs-toggle="tab" data-bs-target="#mivs" type="button" role="tab" aria-controls="mivs">
       <i class="fa fa-floppy-disk"></i>&nbsp;MIVS
@@ -86,7 +86,7 @@
   {% if c.HAS_BAND_ADMIN_ACCESS %}
   <div role="tabpanel" class="tab-pane" id="bands" aria-labelledby="bands-tab">{% with band = True %}{% include '/group_admin/guests.html' %}{% endwith %}</div>
   {% endif %}
-  {% if c.MIVS_ENABLED and c.HAS_MIVS_ADMIN_ACCESS %}
+  {% if c.HAS_MIVS_ADMIN_ACCESS %}
   <div role="tabpanel" class="tab-pane" id="mivs" aria-labelledby="mivs-tab">{% include '/group_admin/mivs.html' %}</div>
   {% endif %}
   {% if c.HAS_DEALER_ADMIN_ACCESS %}

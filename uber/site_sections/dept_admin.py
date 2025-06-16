@@ -23,7 +23,7 @@ class Root:
                 DeptMembership.attendee_id == admin_account.attendee_id)]
         else:
             dept_filter = []
-        
+
         forms = load_forms({}, Department(), ['DepartmentInfo'])
 
         departments = session.query(Department).filter(*dept_filter) \

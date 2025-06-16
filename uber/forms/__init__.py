@@ -11,7 +11,7 @@ from pockets.autolog import log
 from functools import wraps
 
 from uber.config import c
-from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking
+from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking, UniqueList
 from uber.model_checks import invalid_phone_number
 
 
@@ -334,6 +334,7 @@ class MagForm(Form):
         #
         # We also convert our MultiChoice value (a string) into the list of strings that WTForms expects
         # and convert DOBs into the format that our DateMaskInput expects
+        # and process our UniqueList field data if it's been submitted as multiple fields
 
         for name, field in self._fields.items():
             field_in_obj = hasattr(obj, name)
@@ -356,8 +357,10 @@ class MagForm(Form):
                     formdata[name] = getattr(obj, name).split(',')
                 else:
                     formdata[name] = getattr(obj, name)
-            if isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
+            elif isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
                 formdata[name] = getattr(obj, name).strftime('%m/%d/%Y')
+            elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[name], list):
+                formdata[name] = ','.join(formdata[name])
 
         super().process(formdata, obj, data, extra_filters, **kwargs)
 
@@ -381,6 +384,9 @@ class MagForm(Form):
                 log.warning("Someone tried to edit their {} value, but it was locked. \
                             This is either a programming error or a malicious actor.".format(name))
                 continue
+
+            if name == 'image':
+                log.error(field.data)
 
             column = obj.__table__.columns.get(name)
             if column is not None:
@@ -517,4 +523,5 @@ from uber.forms.group import *  # noqa: F401,E402,F403
 from uber.forms.artist_marketplace import *  # noqa: F401,E402,F403
 from uber.forms.panels import *  # noqa: F401,E402,F403
 from uber.forms.security import *  # noqa: F401,E402,F403
+from uber.forms.showcase import *  # noqa: F401,E402,F403
 from uber.forms.hotel_lottery import *  # noqa: F401,E402,F403

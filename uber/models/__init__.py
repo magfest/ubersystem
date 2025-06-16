@@ -624,7 +624,7 @@ from uber.models.api import *  # noqa: F401,E402,F403
 from uber.models.hotel import *  # noqa: F401,E402,F403
 from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
 from uber.models.marketplace import *  # noqa: F401,E402,F403
-from uber.models.mivs import *  # noqa: F401,E402,F403
+from uber.models.showcase import *  # noqa: F401,E402,F403
 from uber.models.mits import *  # noqa: F401,E402,F403
 from uber.models.panels import *  # noqa: F401,E402,F403
 from uber.models.attraction import *  # noqa: F401,E402,F403
@@ -644,7 +644,7 @@ from uber.models.group import Group  # noqa: E402
 from uber.models.guests import GuestGroup  # noqa: E402
 from uber.models.hotel import LotteryApplication
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
-from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
+from uber.models.showcase import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
 from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
@@ -2071,12 +2071,6 @@ class Session(SessionManager):
         # ========================
         # mivs
         # ========================
-
-        def logged_in_studio(self):
-            try:
-                return self.indie_studio(cherrypy.session.get('studio_id'))
-            except Exception:
-                raise HTTPRedirect('../mivs/login_explanation')
 
         def logged_in_judge(self):
             judge = self.admin_attendee().admin_account.judge

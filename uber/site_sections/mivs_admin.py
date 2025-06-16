@@ -6,18 +6,23 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, IndieJudge, IndieGameReview, IndieStudio
+from uber.models import AdminAccount, Attendee, IndieJudge, IndieGameReview, IndieStudio, IndieGame
 from uber.tasks.email import send_email
 from uber.utils import check, get_api_service_from_server, normalize_email_legacy
 
 
 @all_renderable()
 class Root:
-    def index(self, session, message=''):
+    def index(self, session, message='', show_all=False):
+        if show_all:
+            games = session.indie_games()
+        else:
+            games = session.query(IndieGame).filter(IndieGame.submitted == True)
         return {
             'message': message,
             'judges': session.indie_judges().all(),
-            'games': [g for g in session.indie_games() if g.submitted]
+            'games': games,
+            'show_all': show_all,
         }
 
     def studios(self, session, message=''):

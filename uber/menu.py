@@ -136,7 +136,7 @@ c.MENU = MenuItem(name='Root', submenu=[
 ])
 
 
-if c.MIVS_ENABLED:
+if c.MIVS_START:
     c.MENU['People'].append_menu_item(MenuItem(name='MIVS', href='../group_admin/#mivs',
                                                access_override='mivs_admin'), position=5)
 

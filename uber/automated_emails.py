@@ -915,7 +915,7 @@ class MIVSGuestEmailFixture(AutomatedEmailFixture):
             **kwargs)
 
 
-if c.MIVS_ENABLED:
+if c.MIVS_START:
 
     MIVSEmailFixture(
         IndieStudio,
@@ -1281,7 +1281,7 @@ class PanelAppEmailFixture(AutomatedEmailFixture):
             **kwargs)
 
 
-if c.PANELS_ENABLED:
+if c.PANELS_START:
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
         'panels/panel_app_accepted.txt',
