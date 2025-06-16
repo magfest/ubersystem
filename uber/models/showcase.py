@@ -492,8 +492,8 @@ class IndieGame(MagModel, ReviewMixin):
     @property
     def guidebook_data(self):
         return {
-            'guidebook_name': self.studio.name,
-            'guidebook_subtitle': self.title,
+            'guidebook_name': self.title,
+            'guidebook_subtitle': self.studio.name,
             'guidebook_desc': self.description,
             'guidebook_location': '',
             'guidebook_header': self.guidebook_images[0][0],

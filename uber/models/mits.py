@@ -209,8 +209,8 @@ class MITSGame(MagModel):
     @property
     def guidebook_data(self):
         return {
-            'guidebook_name': self.team.name,
-            'guidebook_subtitle': self.name,
+            'guidebook_name': self.name,
+            'guidebook_subtitle': self.team.name,
             'guidebook_desc': self.description,
             'guidebook_location': '',
             'guidebook_header': self.guidebook_images[0][0],
