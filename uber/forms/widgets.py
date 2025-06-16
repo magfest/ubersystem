@@ -104,6 +104,35 @@ class DateMaskInput(TextInput):
         return Markup(''.join(html))
 
 
+
+class UniqueList(TextInput):
+    """
+    There are two ways to handle a UniqueList column: a single string field for use with Tagify,
+    or a set of string fields. This widget handles both.
+    """
+
+    def __call__(self, field, num_fields=2, **kwargs):
+        if num_fields == 1:
+            super().__call__(field, **kwargs)
+
+        choices = field.data.split(',') if field.data else []
+        placeholder = kwargs.pop('placeholder', '')
+
+        # Normalize choices length based on num_fields
+        choices = choices[:num_fields]
+        for _ in range(len(choices), num_fields):
+            choices.append('')
+
+        html = ['<div class="d-flex gap-1">']
+        for idx, value in enumerate(choices, 1):
+            field.data = value
+            field_placeholder = f"{placeholder} {idx}" if placeholder else ''
+            html.append(super().__call__(field, placeholder=field_placeholder, **kwargs))
+        html.append('</div>')
+        field.data = ','.join(choices)
+        return Markup(''.join(html))
+
+
 class Ranking():
     def __init__(self, choices=None, **kwargs):
         self.choices = choices

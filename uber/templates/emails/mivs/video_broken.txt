@@ -2,6 +2,6 @@
 
 One of the judges for the MAGFest Indie Videogame Showcase (MIVS) has tried to review your game, but could not watch the video due to a broken link! Please check your link and correct the problem within 24 hours. Games with bad video links that are not fixed in time will be declined.
 
-If you need to update the video link on your application, you can do so at {{ c.URL_BASE }}/mivs/continue_app?id={{ game.studio.id }}
+If you need to update the video link on your application, you can do so at {{ c.URL_BASE }}/showcase/index?id={{ game.studio.id }}
 
 {{ email_signature }}

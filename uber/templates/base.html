@@ -1,6 +1,6 @@
 {% import 'macros.html' as macros with context %}
 {% set page_ro = false %}
-{% set bootstrap5 = 'panels' in c.PAGE_PATH or 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or 'art_show_applications' in c.PAGE_PATH or 'attractions' in c.PAGE_PATH or 'hotel_lottery' in c.PAGE_PATH or 'marketplace' in c.PAGE_PATH or 'staffing' in c.PAGE_PATH or admin_area %}
+{% set bootstrap5 = 'showcase' in c.PAGE_PATH or 'mivs' in c.PAGE_PATH or 'panels' in c.PAGE_PATH or 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or 'art_show_applications' in c.PAGE_PATH or 'attractions' in c.PAGE_PATH or 'hotel_lottery' in c.PAGE_PATH or 'marketplace' in c.PAGE_PATH or 'staffing' in c.PAGE_PATH or admin_area %}
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
@@ -54,6 +54,10 @@
                 var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                     return new bootstrap.Tooltip(tooltipTriggerEl)
                     })
+                var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+                var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl)
+                })
                 {% else %}
                 $('[data-bs-toggle="tooltip"]').tooltip();
                 {% endif %}

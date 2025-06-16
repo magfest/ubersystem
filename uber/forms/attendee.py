@@ -65,7 +65,6 @@ class PersonalInfo(AddressForm):
 
 
 class BadgeExtras(MagForm):
-    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
     dynamic_choices_fields = {'shirt': lambda: c.SHIRT_OPTS, 'staff_shirt': lambda: c.STAFF_SHIRT_OPTS}
 
     badge_type = HiddenIntField('Badge Type')
@@ -104,8 +103,6 @@ class AdminBadgeExtras(BadgeExtras):
 
 
 class OtherInfo(MagForm):
-    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
-
     promo_code_code = StringField('Promo Code')
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, widget=MultiCheckbox())
     requested_accessibility_services = BooleanField(

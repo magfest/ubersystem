@@ -14,7 +14,7 @@ def placeholder_unassigned_fields(form):
     if form.is_admin and form.model.unassigned_group_reg:
         return ['first_name', 'last_name', 'email'] + field_list
 
-    if form.model.valid_placeholder:
+    if form.model.placeholder:
         return field_list
 
     return []
@@ -74,3 +74,4 @@ from uber.validations.group import *
 from uber.validations.hotel_lottery import *
 from uber.validations.panels import *
 from uber.validations.security import *
+from uber.validations.showcase import *

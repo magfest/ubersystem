@@ -5,6 +5,7 @@ import cherrypy
 from datetime import datetime, timedelta
 from functools import wraps
 from pockets import sluggify
+from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func
@@ -16,7 +17,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, utcnow, \
-    Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin
+    Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin, UniqueList
 from uber.utils import localized_now, make_url
 
 
@@ -74,10 +75,9 @@ class IndieJudge(MagModel, ReviewMixin):
 class IndieStudio(MagModel):
     group_id = Column(UUID, ForeignKey('group.id'), nullable=True)
     name = Column(UnicodeText, unique=True)
-    address = Column(UnicodeText)
     website = Column(UnicodeText)
-    twitter = Column(UnicodeText)
-    facebook = Column(UnicodeText)
+    other_links = Column(UniqueList)
+
     status = Column(
         Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW, admin_only=True)
     staff_notes = Column(UnicodeText, admin_only=True)
@@ -119,6 +119,14 @@ class IndieStudio(MagModel):
             string += ","
         string += " and " + self.primary_contacts[-1].first_name
         return string
+
+    @property
+    def mivs_games(self):
+        return [g for g in self.games if g.showcase_type == c.MIVS]
+
+    @property
+    def arcade_games(self):
+        return [g for g in self.games if g.showcase_type == c.ARCADE]
 
     @property
     def confirm_deadline(self):
@@ -212,11 +220,11 @@ class IndieStudio(MagModel):
 
     @property
     def email(self):
-        return [dev.email_to_address for dev in self.developers if dev.primary_contact]
+        return [dev.email_to_address for dev in self.developers if dev.gets_emails]
 
     @property
     def primary_contacts(self):
-        return [dev for dev in self.developers if dev.primary_contact]
+        return [dev for dev in self.developers if dev.gets_emails]
 
     @property
     def submitted_games(self):
@@ -242,8 +250,7 @@ class IndieDeveloper(MagModel):
     studio_id = Column(UUID, ForeignKey('indie_studio.id'))
     attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 
-    # primary_contact == True just means they receive emails
-    primary_contact = Column(Boolean, default=False)
+    gets_emails = Column(Boolean, default=False)
     first_name = Column(UnicodeText)
     last_name = Column(UnicodeText)
     email = Column(UnicodeText)
@@ -275,17 +282,21 @@ class IndieDeveloper(MagModel):
 class IndieGame(MagModel, ReviewMixin):
     studio_id = Column(UUID, ForeignKey('indie_studio.id'))
     title = Column(UnicodeText)
-    brief_description = Column(UnicodeText)       # 140 max
+    brief_description = Column(UnicodeText)
     genres = Column(MultiChoice(c.MIVS_INDIE_GENRE_OPTS))
-    is_multiplayer = Column(Boolean, default=False)
+    genres_text = Column(UnicodeText)
+    has_multiplayer = Column(Boolean, default=False)
     player_count = Column(UnicodeText)
     platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
+    requires_gamepad = Column(Boolean, default=False)
+    is_alumni = Column(Boolean, default=False)
     content_warning = Column(Boolean, default=False)
     warning_desc = Column(UnicodeText)
     photosensitive_warning = Column(Boolean, default=False)
-    description = Column(UnicodeText)  # 500 max
-    how_to_play = Column(UnicodeText)  # 1000 max
+    description = Column(UnicodeText)
+
+    how_to_play = Column(UnicodeText)
     link_to_video = Column(UnicodeText)
     link_to_game = Column(UnicodeText)
     password_to_game = Column(UnicodeText)
@@ -293,15 +304,10 @@ class IndieGame(MagModel, ReviewMixin):
     code_instructions = Column(UnicodeText)
     build_status = Column(
         Choice(c.MIVS_BUILD_STATUS_OPTS), default=c.PRE_ALPHA)
-    build_notes = Column(UnicodeText)  # 500 max
-    shown_events = Column(UnicodeText)
-    submitted = Column(Boolean, default=False)
+    build_notes = Column(UnicodeText)
+
     agreed_liability = Column(Boolean, default=False)
     agreed_showtimes = Column(Boolean, default=False)
-    agreed_reminder1 = Column(Boolean, default=False)
-    agreed_reminder2 = Column(Boolean, default=False)
-    alumni_years = Column(MultiChoice(c.PREV_MIVS_YEAR_OPTS))
-    alumni_update = Column(UnicodeText)
 
     link_to_promo_video = Column(UnicodeText)
     link_to_webpage = Column(UnicodeText)
@@ -311,13 +317,11 @@ class IndieGame(MagModel, ReviewMixin):
 
     tournament_at_event = Column(Boolean, default=False)
     tournament_prizes = Column(UnicodeText)
-    has_multiplayer = Column(Boolean, default=False)
-    player_count = Column(UnicodeText)
-
-    # Length in minutes
-    multiplayer_game_length = Column(Integer, nullable=True)
+    multiplayer_game_length = Column(Integer, nullable=True) # Length in minutes
     leaderboard_challenge = Column(Boolean, default=False)
 
+    showcase_type = Column(Choice(c.SHOWCASE_GAME_TYPE_OPTS), default=c.MIVS)
+    submitted = Column(Boolean, default=False)
     status = Column(
         Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW, admin_only=True)
     judge_notes = Column(UnicodeText, admin_only=True)
@@ -416,31 +420,16 @@ class IndieGame(MagModel, ReviewMixin):
     @property
     def missing_steps(self):
         steps = []
-        if not self.link_to_video:
-            steps.append(
-                'You have not yet included a link to a video showcasing '
-                'at least 30 seconds of gameplay'
-            )
-        if not self.link_to_game:
-            steps.append(
-                'You have not yet included a link to where the judges can '
-                'access your game')
         if self.code_type != c.NO_CODE and self.link_to_game:
             if not self.codes:
                 steps.append(
-                    'You have not yet attached any codes to this game for '
-                    'our judges to use')
+                    f'attach one unlimited-use code or {c.MIVS_CODES_REQUIRED} individual codes for our judges')
             elif not self.unlimited_code \
                     and len(self.codes) < c.MIVS_CODES_REQUIRED:
                 steps.append(
-                    'You have not attached the {} codes you must provide '
-                    'for our judges'.format(c.MIVS_CODES_REQUIRED))
-        if not self.agreed_showtimes:
-            steps.append(
-                'You must agree to the showtimes detailed on the game form')
-        if not self.agreed_liability:
-            steps.append(
-                'You must check the box that agrees to our liability waiver')
+                    f'attach at least {c.MIVS_CODES_REQUIRED} codes for our judges')
+        if len(self.screenshots) < 2:
+            steps.append('upload at least two screenshots')
 
         return steps
 
@@ -455,10 +444,6 @@ class IndieGame(MagModel, ReviewMixin):
         for code in self.codes:
             if code.unlimited_use:
                 return code
-
-    @property
-    def submittable(self):
-        return not self.missing_steps
 
     @property
     def scores(self):
@@ -537,8 +522,33 @@ class IndieGameImage(MagModel, GuidebookImageMixin):
     is_screenshot = Column(Boolean, default=True)
 
     @property
+    def image(self):
+        from markupsafe import Markup
+
+        if not self.filename:
+            return ''
+        return Markup(
+            f"""<a href="{self.url}" target="_blank">{self.filename}</a>""")
+
+    @image.setter
+    def image(self, value):
+        import shutil
+        import cherrypy
+
+        if not isinstance(value, cherrypy._cpreqbody.Part):
+            log.error(f"Tried to set image for game {self.game.title} with invalid value type: {type(value)}")
+            return
+
+        self.filename = value.filename
+        self.content_type = value.content_type.value
+        self.extension = value.filename.split('.')[-1].lower()
+
+        with open(self.filepath, 'wb') as f:
+            shutil.copyfileobj(value.file, f)
+
+    @property
     def url(self):
-        return '../mivs/view_image?id={}'.format(self.id)
+        return f"../mivs/view_image?id={self.id}"
 
     @property
     def filepath(self):
@@ -599,56 +609,3 @@ class IndieGameReview(MagModel):
     def has_issues(self):
         return self.has_video_issues or self.has_game_issues
 
-
-def add_applicant_restriction():
-    """
-    We use convenience functions for our form handling, e.g. to
-    instantiate an attendee from an id or from form data we use the
-    session.attendee() method. This method runs on startup and overrides
-    the methods which are used for the game application forms to add a
-    new "applicant" parameter.  If truthy, this triggers three
-    additional behaviors:
-    1) We check that there is currently a logged in studio, and redirect
-       to the initial application form if there is not.
-    2) We check that the item being edited belongs to the
-       currently-logged-in studio and raise an exception if it does not.
-       This check is bypassed for new things which have not yet been
-       saved to the database.
-    3) If the model is one with a "studio" relationship, we set that to
-       the currently-logged-in studio.
-
-    We do not perform these kinds of checks for indie judges, for two
-    reasons:
-    1) We're less concerned about judges abusively editing each other's
-       reviews.
-    2) There are probably some legitimate use cases for one judge to be
-       able to edit another's reviews, e.g. to correct typos or reset a
-       review's status after a link has been fixed, etc.
-    """
-    from uber.models import Session
-
-    def override_getter(method_name):
-        orig_getter = getattr(Session.SessionMixin, method_name)
-
-        @wraps(orig_getter)
-        def with_applicant(self, *args, **kwargs):
-            applicant = kwargs.pop('applicant', False)
-            instance = orig_getter(self, *args, **kwargs)
-            if applicant:
-                studio = self.logged_in_studio()
-                if hasattr(instance.__class__, 'game'):
-                    assert instance.is_new or studio == instance.game.studio
-                else:
-                    assert instance.is_new or studio == instance.studio
-                    instance.studio = studio
-            return instance
-        setattr(Session.SessionMixin, method_name, with_applicant)
-
-    names = [
-        'indie_developer',
-        'indie_game',
-        'indie_game_code',
-        'indie_game_image']
-    for name in names:
-        override_getter(name)
-cherrypy.engine.subscribe('start', add_applicant_restriction, priority=98)

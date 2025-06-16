@@ -1,0 +1,64 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set mivs_demo_info = mivs_demo_info or forms['mivs_demo_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    links
+    code_build
+    instructions
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+no_password: {{ 'false' if game.is_new else '!' ~ mivs_demo_info.password_to_game.data|boolean|tojson }},
+code_type: {{ mivs_demo_info.code_type.data|tojson }},
+get codeRequiresInstructions() { return {{ c.MIVS_CODES_REQUIRING_INSTRUCTIONS|tojson }}.includes(this.code_type) },
+{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
+{% block links %}
+<div class="col-sm">{{ form_macros.input(mivs_demo_info.link_to_video) }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(mivs_demo_info.link_to_game) }}</div>
+    <div class="col-sm">
+        {% call form_macros.input(mivs_demo_info.password_to_game, required_if="!no_password", **{'x-bind:disabled': "no_password"}) %}
+        {{ form_macros.input(mivs_demo_info.no_password, alpine_model="no_password") }}
+        {% endcall %}
+    </div>
+{% endblock %}
+</div>
+
+
+<div class="row g-sm-3 mb-3">
+{% block code_build %}
+  <div class="col-sm">
+    {% call form_macros.input(mivs_demo_info.code_type, **{'x-model.number': "code_type"}) %}
+    <div x-show="codeRequiresInstructions">
+        {{ form_macros.input(mivs_demo_info.code_instructions, required_if="codeRequiresInstructions") }}
+    </div>
+    <div class="form-text" x-show="code_type != {{ c.NO_CODE|tojson }}">
+    {% if game.is_new %}
+        You will be able to provide codes on the next page.
+        You will need to provide one unlimited-use code or {{ c.MIVS_CODES_REQUIRED }} individual codes for judges to review your game.
+    {% elif 'index' not in c.PAGE_PATH %}
+        You can add or edit your game code(s) on your showcase application page.
+    {% endif %}
+    </div>
+    {% endcall %}
+  </div>
+  <div class="col-sm">{{ form_macros.input(mivs_demo_info.build_status) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block instructions %}
+  <div class="col-sm">{{ form_macros.input(mivs_demo_info.how_to_play) }}</div>
+  <div class="col-sm">{{ form_macros.input(mivs_demo_info.build_notes) }}</div>
+{% endblock %}
+</div>
+
+
+</div>

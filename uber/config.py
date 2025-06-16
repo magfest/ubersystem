@@ -1219,18 +1219,27 @@ class Config(_Overridable):
         return ""
 
     # =========================
-    # mivs
+    # indie showcases (mivs, indie arcade)
     # =========================
 
     @property
     @dynamic
-    def CAN_SUBMIT_MIVS(self):
-        return self.MIVS_SUBMISSIONS_OPEN or self.HAS_MIVS_ADMIN_ACCESS
+    def INDIE_SHOWCASE_OPEN(self):
+        return self.MIVS_SUBMISSIONS_OPEN or self.INDIE_ARCADE_SUBMISSIONS_OPEN
+
+    @property
+    def HAS_ANY_SHOWCASE_ADMIN_ACCESS(self):
+        return self.HAS_MIVS_ADMIN_ACCESS or self.HAS_INDIE_ARCADE_ACCESS or self.HAS_SHOWCASE_ADMIN_ACCESS
 
     @property
     @dynamic
     def MIVS_SUBMISSIONS_OPEN(self):
-        return not really_past_mivs_deadline(c.MIVS_DEADLINE) and self.AFTER_MIVS_START
+        return self.MIVS_START and not really_past_mivs_deadline(c.MIVS_DEADLINE) and self.AFTER_MIVS_START
+    
+    @property
+    @dynamic
+    def INDIE_ARCADE_SUBMISSIONS_OPEN(self):
+        return self.INDIE_ARCADE_START and self.BEFORE_INDIE_ARCADE_DEADLINE and self.AFTER_INDIE_ARCADE_START
 
     # =========================
     # panels

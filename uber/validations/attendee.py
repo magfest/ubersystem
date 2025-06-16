@@ -66,7 +66,7 @@ PersonalInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
 PersonalInfo.field_validation.validations['badge_printed_name'].update({
     'optional': validators.Optional(),
     'length': validators.Length(max=20,
-                                message="Your printed badge name is too long. Please use less than 20 characters."),
+                                message="Your printed badge name cannot be more than 20 characters long."),
     'invalid_chars': validators.Regexp(c.VALID_BADGE_PRINTED_CHARS, message="""Your printed badge name has invalid
                                 characters. Please use only alphanumeric characters and symbols."""),
 })
