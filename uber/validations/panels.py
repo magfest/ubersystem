@@ -20,7 +20,7 @@ PanelInfo.field_validation.required_fields = {
     'length': "Please estimate how long this panel will need to be.",
     'length_text': ('Please specify how long your panel will be.', 'length', lambda x: x == c.OTHER),
     'length_reason': ('Please explain why your panel needs to be longer than sixty minutes.',
-                      'length', lambda x: x != c.SIXTY_MIN),
+                      'length', lambda x: x != c.SIXTY_MIN and x != 0),
     'description': "Please enter a description of what this panel will be about.",
     'presentation': "Please select a panel type.",
     'other_presentation': ('Since you selected "Other" for your type of panel, please describe it.',
@@ -43,6 +43,9 @@ if len(c.PANEL_CONTENT_OPTS) > 1:
     PanelInfo.field_validation.required_fields['granular_rating'] = "Please select what your panel's content will contain, or None."
 elif len(c.PANEL_RATING_OPTS) > 1:
     PanelInfo.field_validation.required_fields['rating'] = "Please select a content rating for your panel."
+
+
+PanelInfo.field_validation.validations['name']['length'] = validators.Length(max=120, message="Panel titles cannot be more than 120 characters.")
 
 
 @PanelInfo.field_validation('department')

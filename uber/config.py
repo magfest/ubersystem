@@ -1921,14 +1921,6 @@ c.FINAL_MIVS_GAME_STATUSES = [c.ACCEPTED, c.WAITLISTED, c.DECLINED, c.CANCELLED]
 # used for computing the difference between the "drop-dead deadline" and the "soft deadline"
 c.SOFT_MIVS_JUDGING_DEADLINE = c.MIVS_JUDGING_DEADLINE - timedelta(days=7)
 
-# Automatically generates all the previous MIVS years based on the eschaton and c.MIVS_START_YEAR
-c.PREV_MIVS_YEAR_OPTS, c.PREV_MIVS_YEARS = [], {}
-for num in range(c.ESCHATON.year - c.MIVS_START_YEAR):
-    val = c.MIVS_START_YEAR + num
-    desc = c.EVENT_NAME + ' MIVS ' + str(val)
-    c.PREV_MIVS_YEAR_OPTS.append((val, desc))
-    c.PREV_MIVS_YEARS[val] = desc
-
 
 # =============================
 # mits
