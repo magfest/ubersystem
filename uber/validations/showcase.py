@@ -2,7 +2,8 @@ from wtforms import validators
 from wtforms.validators import ValidationError
 
 from uber.config import c
-from uber.forms.showcase import StudioInfo, DeveloperInfo, MivsGameInfo, MivsDemoInfo, MivsConsents, MivsCode, MivsScreenshot
+from uber.forms.showcase import (StudioInfo, DeveloperInfo, MivsGameInfo, MivsDemoInfo, MivsConsents, MivsCode, MivsScreenshot,
+                                 ArcadeGameInfo, ArcadeConsents, ArcadeLogistics)
 from uber.model_checks import validation
 from uber.utils import localized_now
 
@@ -98,3 +99,36 @@ def image_size(form, field):
         field.data.file.seek(0)
         if file_size > 5:
             raise ValidationError("Please make sure your screenshot is under 5MB.")
+
+
+ArcadeGameInfo.field_validation.required_fields = {
+    'title': "Please enter a name for this game.",
+    'primary_contact': "Please select a primary contact for this game.",
+    'description': "Please provide a brief description for this game.",
+    'link_to_video': "Please provide a link to footage of people playing your game, and a password if required."
+}
+
+
+ArcadeConsents.field_validation.required_fields = {
+    'agreed_showtimes': "You must verify that you will have someone onsite all weekend to set up and maintain this game.",
+    'agreed_equipment': "You must verify that you will provide all necessary equipment for this game.",
+    'agreed_liability': "You must verify that you will be responsible for the safety and security of your equipment."
+}
+
+
+ArcadeLogistics.field_validation.required_fields = {
+    'game_hours': "Please let us know if this game can run for 72 consecutive hours.",
+    'game_hours_text': ("Please explain your plan for keeping this game online during prime hours.",
+                        'game_hours', lambda x: x == 'Other'),
+    'game_end_time': "Please let us know if you can keep this game running until our standard end time.",
+    'player_count': "Please select how many players this game is designed for.",
+    'floorspace': "Please select your estimated required floorspace.",
+    'floorspace_text': "Please provide approximate width/depth measurements for your required floorspace.",
+    'cabinet_type': "Please select your cabinet/installation type.",
+    'cabinet_type_text': "Please describe your installation in detail, including exact measurements.",
+    'sanitation_requests': ("Please describe the special considerations this game has regarding sanitation.",
+                            'sanitation'),
+    'transit_needs': (f"Please describe what you need help with in transporting this game to {c.EVENT_NAME}.",
+                      'needs_transit'),
+    'read_faq': "Please prove that you read our FAQ.",
+}

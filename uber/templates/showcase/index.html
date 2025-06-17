@@ -4,9 +4,11 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 <div class="card card-body">
-    <h2>{{ c.EVENT_NAME }} Showcase Application for {{ studio.name }}</h2>
+    <h2>
+        {{ c.EVENT_NAME }} Showcase Application for {{ studio.name }}
+        <a class="btn btn-sm btn-primary" href="studio?id={{ studio.id }}"><i class="fa fa-cog"></i>&nbsp;Edit Studio</a>
+    </h2>
     <p>
-        This is your application-in-progress for the MAGFest Showcase for your studio <a href="studio?id={{ studio.id }}">{{ studio.name }}</a>.
         If you are not a member of {{ studio.name }} then please <a href="apply">start a new studio application</a>.
     </p>
 

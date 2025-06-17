@@ -14,6 +14,8 @@
 game_hours: {{ arcade_logistics.game_hours.data|tojson }},
 floorspace: {{ arcade_logistics.floorspace.data|tojson }},
 cabinet_type: {{ arcade_logistics.cabinet_type.data|tojson }},
+sanitation: {{ game.sanitation_requests|boolean|tojson }},
+needs_transit: {{ game.transit_needs|boolean|tojson }},
 get otherGameHours() { return this.game_hours == 'Other' },
 get otherFloorSpace() { return this.floorspace == '{{ c.OTHER }}' },
 get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
@@ -22,14 +24,17 @@ get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
 <div class="row g-sm-3 mb-3">
 {% block title_desc %}
     <div class="col-sm">
-        {% call form_macros.input(arcade_logistics.game_hours, alpine_model="game_hours") %}
+        {{ c.EVENT_NAME }} runs for 72 hours straight. It's a lot of fun but it can be taxing for physical installations. Will your game be able to run uninterrupted for this time?
+        <br/>{% call form_macros.input(arcade_logistics.game_hours, alpine_model="game_hours", show_label=False) %}
         <div x-show="otherGameHours">{{ form_macros.input(arcade_logistics.game_hours_text, required_if="otherGameHours") }}</div>
         {% endcall %}
     </div>
 </div>
 <div class="row g-sm-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(arcade_logistics.game_end_time) }}</div>
-    <div class="col-sm">{{ form_macros.input(arcade_logistics.player_count) }}</div>
+    <div class="col-sm">
+        The Indie Arcade is open until <strong>2PM EST on Sunday of the event</strong>. Will your submission be able to stay live until this time?
+        <br/>{{ form_macros.input(arcade_logistics.game_end_time, show_label=False) }}
+    </div>
 {% endblock %}
 </div>
 
@@ -46,13 +51,9 @@ get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
     <div x-show="otherCabinetType">{{ form_macros.input(arcade_logistics.cabinet_type_text, required_if="otherCabinetType") }}</div>
     {% endcall %}
   </div>
-{% endblock %}
 </div>
-
 <div class="row g-sm-3 mb-3">
-{% block one %}
-<div class="col-sm">{{ form_macros.input(arcade_logistics.sanitation) }}</div>
-<div class="col-sm">{{ form_macros.input(arcade_logistics.needs_transit) }}</div>
+  <div class="col-sm">{{ form_macros.input(arcade_logistics.player_count) }}</div>
 {% endblock %}
 </div>
 
@@ -60,6 +61,36 @@ get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
 {% block three %}
 <div class="col-sm">{{ form_macros.input(arcade_logistics.found_how) }}</div>
 <div class="col-sm">{{ form_macros.input(arcade_logistics.read_faq) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block one %}
+    <div class="col-12 alert alert-info mb-0">
+        <p>We understand that standard safety precautions such as masking, social distancing, and surface cleaning can be difficult 
+        for innovative and custom-made games. The Indie Arcade is committed to creating a safe environment for both players and games - 
+        if these precautions seriously impact the ways in which players interact with your game let us know and we'll see what we can do.</p>
+        {% call form_macros.input(arcade_logistics.sanitation, alpine_model="sanitation") %}
+        <div x-show="sanitation">{{ form_macros.input(arcade_logistics.sanitation_requests, required_if="sanitation") }}</div>
+        {% endcall %}
+    </div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block four %}
+<div class="col-sm">
+        {{ form_macros.input(arcade_logistics.needs_transit, alpine_model="needs_transit") }}
+    </div>
+</div>
+<div class="row g-sm-3" x-show="needs_transit">
+    <div class="col alert alert-warning">
+        <p>We have a limited budget to assist devs with transit. Be aware, this budget is small and you have a better chance of 
+        being accepted if you can get your game here yourself. That being said, we do not want to close the door on devs with 
+        fewer resources.</p>
+        Please let us know exactly what you would need/if you would be comfortable carpooling etc.
+        {{ form_macros.input(arcade_logistics.transit_needs, required_if="needs_transit", show_label=False) }}
+    </div>
 {% endblock %}
 </div>
 
