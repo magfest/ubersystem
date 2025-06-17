@@ -1,6 +1,6 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% extends "preregistration/preregbase.html" %}
-{% set title = c.EVENT_NAME ~ "MIVS Game" %}
+{% set title = c.EVENT_NAME ~ "Indie Arcade Game" %}
 {% block backlink %}{% endblock %}
 {% block content %}
 <div class="card card-body">
@@ -14,15 +14,18 @@
 
     <div class="card card-body pb-0 mb-3">
       <h3>Game Information</h3>
-    {% include "forms/showcase/mivs_game_info.html" %}
+    {% include "forms/showcase/arcade_game_info.html" %}
     </div>
 
     <div class="card card-body pb-0 mb-3">
-      <h3>Demo Information</h3>
-    {% include "forms/showcase/mivs_demo_info.html" %}
+      <h3>Exhibition Needs</h3>
+    {% include "forms/showcase/arcade_consents.html" %}
     </div>
 
-    {% include "forms/showcase/mivs_consents.html" %}
+    <div class="card card-body pb-0 mb-3">
+      <h3>Logistics & Setup</h3>
+    {% include "forms/showcase/arcade_logistics.html" %}
+    </div>
 
     <button type="submit" class="btn btn-primary">{% if game.is_new %}Add Game{% else %}Upload Changes{% endif %}</button>
   </form>

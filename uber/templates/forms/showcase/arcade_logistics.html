@@ -1,0 +1,75 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set arcade_logistics = arcade_logistics or forms['arcade_logistics'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    title_desc
+    dev_video
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+game_hours: {{ arcade_logistics.game_hours.data|tojson }},
+floorspace: {{ arcade_logistics.floorspace.data|tojson }},
+cabinet_type: {{ arcade_logistics.cabinet_type.data|tojson }},
+get otherGameHours() { return this.game_hours == 'Other' },
+get otherFloorSpace() { return this.floorspace == '{{ c.OTHER }}' },
+get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
+{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
+{% block title_desc %}
+    <div class="col-sm">
+        {% call form_macros.input(arcade_logistics.game_hours, alpine_model="game_hours") %}
+        <div x-show="otherGameHours">{{ form_macros.input(arcade_logistics.game_hours_text, required_if="otherGameHours") }}</div>
+        {% endcall %}
+    </div>
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(arcade_logistics.game_end_time) }}</div>
+    <div class="col-sm">{{ form_macros.input(arcade_logistics.player_count) }}</div>
+{% endblock %}
+</div>
+
+
+<div class="row g-sm-3 mb-3">
+{% block dev_video %}
+  <div class="col-sm">
+    {% call form_macros.input(arcade_logistics.floorspace, alpine_model="floorspace") %}
+    <div x-show="otherFloorSpace">{{ form_macros.input(arcade_logistics.floorspace_text, required_if="otherFloorSpace") }}</div>
+    {% endcall %}
+  </div>
+  <div class="col-sm">
+    {% call form_macros.input(arcade_logistics.cabinet_type, alpine_model="cabinet_type") %}
+    <div x-show="otherCabinetType">{{ form_macros.input(arcade_logistics.cabinet_type_text, required_if="otherCabinetType") }}</div>
+    {% endcall %}
+  </div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block one %}
+<div class="col-sm">{{ form_macros.input(arcade_logistics.sanitation) }}</div>
+<div class="col-sm">{{ form_macros.input(arcade_logistics.needs_transit) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block three %}
+<div class="col-sm">{{ form_macros.input(arcade_logistics.found_how) }}</div>
+<div class="col-sm">{{ form_macros.input(arcade_logistics.read_faq) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block two %}
+    <div class="col-sm">{{ form_macros.input(arcade_logistics.also_mivs) }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(arcade_logistics.mailing_list) }}</div>
+{% endblock %}
+</div>
+
+</div>

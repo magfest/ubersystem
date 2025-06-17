@@ -24,7 +24,7 @@ class Root:
             studio_id = game.studio.id
         
         studio = session.indie_studio(studio_id)
-        forms = load_forms(params, game, ['MivsGameInfo', 'MivsDemoInfo', 'MivsConsents'])
+        forms = load_forms(params, game, ['ArcadeGameInfo', 'ArcadeConsents', 'ArcadeLogistics'])
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -50,7 +50,7 @@ class Root:
             game = session.indie_game(params.get('id'))
 
         if not form_list:
-            form_list = ['MivsGameInfo', 'MivsDemoInfo', 'MivsConsents']
+            form_list = ['ArcadeGameInfo', 'ArcadeConsents', 'ArcadeLogistics']
         elif isinstance(form_list, str):
             form_list = [form_list]
 
@@ -62,76 +62,28 @@ class Root:
 
         return {"success": True}
 
-    def update_demo_info(self, session, id, message='', **params):
-        game = session.indie_game(id)
+    def photo(self, session, game_id, use_in_promo='', **params):
+        if params.get('id') in [None, '', 'None']:
+            photo = IndieGameImage()
+        else:
+            photo = session.indie_game_image(params.get('id'))
 
         if cherrypy.request.method == 'POST':
-            forms = load_forms(params, game, ['MivsDemoInfo'])
+            photo.game = session.indie_game(game_id)
+            forms = load_forms(params, photo, ['ArcadePhoto'])
             for form in forms.values():
-                form.populate_obj(game)
+                form.populate_obj(photo)
 
-            session.add(game)
-            raise HTTPRedirect('../showcase/index?id={}&message={}', game.studio.id,
-                                f'Demo information updated for {game.title}.')
-
-    def code(self, session, game_id, message='', **params):
-        if params.get('id') in [None, '', 'None']:
-            code = IndieGameCode()
-        else:
-            code = session.indie_game_code(params.get('id'))
-        
-        if cherrypy.request.method == 'POST':
-            code.game = session.indie_game(game_id)
-            forms = load_forms(params, code, ['MivsCode'])
-            for form in forms.values():
-                form.populate_obj(code)
-
-            session.add(code)
-            raise HTTPRedirect('../showcase/index?id={}&message={}', code.game.studio.id,
-                               'Code added.' if code.is_new else 'Code updated.')
-
-    @ajax
-    def validate_code(self, session, form_list=[], **params):
-        if params.get('id') in [None, '', 'None']:
-            code = IndieGameCode()
-        else:
-            code = session.indie_game_code(params.get('id'))
-
-        if not form_list:
-            form_list = ['MivsCode']
-        elif isinstance(form_list, str):
-            form_list = [form_list]
-
-        forms = load_forms(params, code, form_list)
-        all_errors = validate_model(forms, code)
-
-        if all_errors:
-            return {"error": all_errors}
-
-        return {"success": True}
-
-    def screenshot(self, session, game_id, use_in_promo='', **params):
-        if params.get('id') in [None, '', 'None']:
-            screenshot = IndieGameImage()
-        else:
-            screenshot = session.indie_game_image(params.get('id'))
-
-        if cherrypy.request.method == 'POST':
-            screenshot.game = session.indie_game(game_id)
-            forms = load_forms(params, screenshot, ['MivsScreenshot'])
-            for form in forms.values():
-                form.populate_obj(screenshot)
-
-            session.add(screenshot)
+            session.add(photo)
             if use_in_promo:
-                screenshot.use_in_promo = True
+                photo.use_in_promo = True
 
             if use_in_promo:
                 raise HTTPRedirect('show_info?id={}&message={}', game_id,
-                                   'Screenshot uploaded.' if screenshot.is_new else 'Screenshot updated.')
+                                   'Photo uploaded.' if photo.is_new else 'Photo updated.')
             else:
-                raise HTTPRedirect('../showcase/index?id={}&message={}', screenshot.game.studio.id,
-                                   'Screenshot uploaded.' if screenshot.is_new else 'Screenshot updated.')
+                raise HTTPRedirect('../showcase/index?id={}&message={}', photo.game.studio.id,
+                                   'Photo uploaded.' if photo.is_new else 'Photo updated.')
     
     @ajax
     def validate_image(self, session, form_list=[], **params):
@@ -141,7 +93,7 @@ class Root:
             code = session.indie_game_image(params.get('id'))
 
         if not form_list:
-            form_list = ['MivsScreenshot']
+            form_list = ['ArcadePhoto']
         elif isinstance(form_list, str):
             form_list = [form_list]
 
@@ -154,41 +106,15 @@ class Root:
         return {"success": True}
 
     def view_image(self, session, id):
-        screenshot = session.indie_game_image(id)
-        return serve_file(screenshot.filepath, name=screenshot.filename, content_type=screenshot.content_type)
+        photo = session.indie_game_image(id)
+        return serve_file(photo.filepath, name=photo.filename, content_type=photo.content_type)
 
     @csrf_protected
-    def delete_screenshot(self, session, id):
-        screenshot = session.indie_game_image(id)
-        studio_id = screenshot.game.studio.id
-        session.delete_screenshot(screenshot)
+    def delete_photo(self, session, id):
+        photo = session.indie_game_image(id)
+        studio_id = photo.game.studio.id
+        session.delete_screenshot(photo)
         raise HTTPRedirect('../showcase/index?id={}&message={}', studio_id, 'Screenshot deleted.')
-
-    @csrf_protected
-    def mark_screenshot(self, session, id):
-        screenshot = session.indie_game_image(id)
-        if len(screenshot.game.best_screenshots) >= 2:
-            raise HTTPRedirect('show_info?id={}&message={}', screenshot.game.id,
-                               'You may only have up to two "best" screenshots')
-        screenshot.use_in_promo = True
-        session.add(screenshot)
-        raise HTTPRedirect('show_info?id={}&message={}', screenshot.game.id,
-                           'Screenshot marked as one of your "best" screenshots')
-
-    @csrf_protected
-    def unmark_screenshot(self, session, id):
-        screenshot = session.indie_game_image(id, applicant=True)
-        screenshot.use_in_promo = False
-        session.add(screenshot)
-        raise HTTPRedirect('show_info?id={}&message={}', screenshot.game.id,
-                           'Screenshot unmarked as one of your "best" screenshots')
-
-    @csrf_protected
-    def delete_code(self, session, id):
-        code = session.indie_game_code(id)
-        studio_id = code.game.studio.id
-        session.delete(code)
-        raise HTTPRedirect('../showcase/index?id={}&message={}', studio_id, 'Code deleted.')
 
     def confirm(self, session, csrf_token=None, decision=None):
         studio = session.logged_in_studio()
@@ -282,7 +208,7 @@ class Root:
                 message = GuidebookUtils.check_guidebook_image_filetype(header_image)
                 if not message:
                     header_pic = IndieGameImage.upload_image(header_image, game_id=game.id,
-                                                             is_screenshot=False, is_header=True)
+                                                             is_photo=False, is_header=True)
                     if not header_pic.check_image_size():
                         message = f"Your header image must be {format_image_size(c.GUIDEBOOK_HEADER_SIZE)}."
             elif not game.guidebook_header:
@@ -293,7 +219,7 @@ class Root:
                     message = GuidebookUtils.check_guidebook_image_filetype(thumbnail_image)
                     if not message:
                         thumbnail_pic = IndieGameImage.upload_image(thumbnail_image, game_id=game.id,
-                                                                    is_screenshot=False, is_thumbnail=True)
+                                                                    is_photo=False, is_thumbnail=True)
                         if not thumbnail_pic.check_image_size():
                             message = f"Your thumbnail image must be {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)}."
                 elif not game.guidebook_thumbnail:

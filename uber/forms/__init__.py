@@ -11,7 +11,7 @@ from pockets.autolog import log
 from functools import wraps
 
 from uber.config import c
-from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking, UniqueList
+from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, SwitchInput, Ranking, UniqueList
 from uber.model_checks import invalid_phone_number
 
 
@@ -517,6 +517,7 @@ class DictWrapper(dict):
             return []
 
 
+from uber.forms.widgets import *  # noqa: F401,E402,F403
 from uber.forms.attendee import *  # noqa: F401,E402,F403
 from uber.forms.department import *  # noqa: F401,E402,F403
 from uber.forms.group import *  # noqa: F401,E402,F403

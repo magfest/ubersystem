@@ -14,6 +14,7 @@ from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
+from uber.custom_tags import readable_join
 from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, utcnow, \
@@ -108,17 +109,11 @@ class IndieStudio(MagModel):
     def primary_contact_first_names(self):
         if not self.primary_contacts:
             return ''
+        return readable_join([dev.first_name for dev in self.primary_contacts])
 
-        if len(self.primary_contacts) == 1:
-            return self.primary_contacts[0].first_name
-
-        string = self.primary_contacts[0].first_name
-        for dev in self.primary_contacts[1:-1]:
-            string += ", " + dev.first_name
-        if len(self.primary_contacts) > 2:
-            string += ","
-        string += " and " + self.primary_contacts[-1].first_name
-        return string
+    @property
+    def primary_contact_opts(self):
+        return [('', "Please select a presenter")] + [(dev.id, dev.full_name) for dev in self.primary_contacts]
 
     @property
     def mivs_games(self):
