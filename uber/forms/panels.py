@@ -23,10 +23,15 @@ __all__ = ['PanelistInfo', 'PanelistCredentials', 'PanelInfo', 'PanelOtherInfo',
 class PanelistInfo(MagForm):
     first_name = StringField('First Name', render_kw={'autocomplete': "fname"})
     last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
-    email = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
+    email = EmailField('Email Address',
+                       description="This should be the e-mail address associated with your badge.",
+                       render_kw={'placeholder': 'test@example.com'})
     cellphone = TelField('Phone Number', description='The phone number at which we can most easily reach you before the event.')
     pronouns = SelectMultipleField('Pronouns', coerce=int, choices=c.PRONOUN_OPTS, widget=MultiCheckbox(),
                                    description="We will have both pre-printed and blank pronoun ribbons at the registration desk.")
+    display_name = StringField(
+        "Public Display Name",
+        description=("The personal or group name to show on the schedule to let people know who is hosting the panel. Leave this field blank if you do not want a name displayed on the schedule."))
     other_pronouns = StringField("Other Pronouns", render_kw={'placeholder': 'e.g., Xe/Xir'})
     communication_pref = SelectMultipleField('Communication Preference', coerce=int,
                                              choices=c.COMMUNICATION_PREF_OPTS,
@@ -43,9 +48,6 @@ class PanelistCredentials(MagForm):
     guidebook_bio = TextAreaField(
         "Schedule Bio",
         render_kw={'placeholder': "Please write a short bio to be displayed on our public-facing schedule."})
-    display_name = StringField("Public Display Name",
-                               description=("A display name or group name to let people know who is hosting the panel. "
-                               "Leave this field blank if you do not want a name displayed."))
     social_media_info = TextAreaField(
         "Social Media Info",
         render_kw={'placeholder': "List social media sites you use and include a link to your page, or your username."})
@@ -102,7 +104,6 @@ class PanelOtherInfo(MagForm):
     has_cost = BooleanField("Does your event require attendees to pay an upfront cost of materials for hands-on activities?")
     cost_desc = TextAreaField("Describe your material costs",
                               description="Please describe what materials you'll be providing and how much you'll need to charge attendees to participate.")
-    tabletop = BooleanField("Is your panel related to tabletop gaming?")
 
     tech_needs = SelectMultipleField(coerce=int, choices=c.TECH_NEED_OPTS)
     other_tech_needs = TextAreaField("Technical Needs")

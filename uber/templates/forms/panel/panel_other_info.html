@@ -28,9 +28,6 @@
 <div class="row g-sm-3 mb-3" x-show="need_tables || has_cost">
     <div class="col-sm" x-show="need_tables">{{ form_macros.input(panel_other_info.tables_desc, required_if="need_tables") }}</div>
     <div class="col-sm" x-show="has_cost">{{ form_macros.input(panel_other_info.cost_desc, required_if="has_cost") }}</div>
-</div>
-<div class="row g-sm-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(panel_other_info.tabletop) }}</div>
 {% endblock %}
 </div>
 

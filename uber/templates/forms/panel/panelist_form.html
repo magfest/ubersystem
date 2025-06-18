@@ -38,24 +38,27 @@
     {% set cellphone_from_attendee = panelist and panelist.attendee|yesno and panelist_info.cellphone.data != '' and panelist_info.cellphone.data == panelist.attendee.cellphone %}
     {{ form_macros.input(panelist_info.cellphone, readonly=(pi_readonly and cellphone_from_attendee) or readonly_fields.cellphone|boolean) }}
   </div>
+</div>
+<div class="row g-sm-3 mb-3">
+  <div class="col-sm mt-0">
+      {% call form_macros.input(panelist_info.communication_pref) %}
+      <div class="d-flex gap-1 mt-2">
+        <div class="col-form-label">Or: </div><div class=flex-grow-1>{{ form_macros.input(panelist_info.other_communication_pref, show_label=False) }}</div>
+      </div>
+      {% endcall %}
+  </div>
 {% endblock %}
 </div>
 
 
 <div class="row g-sm-3 mb-3">
 {% block pronouns %}
+  <div class="col-sm">{{ form_macros.input(panelist_info.display_name) }}</div>
   <div class="col-sm">
       {% call form_macros.input(panelist_info.pronouns) %}
       <div class="row mt-2"><div class="col d-flex gap-1">
       <div class="col-form-label">Other: </div><div>{{ form_macros.input(panelist_info.other_pronouns, show_label=False) }}</div>
       </div></div>
-      {% endcall %}
-  </div>
-  <div class="col-sm">
-      {% call form_macros.input(panelist_info.communication_pref) %}
-      <div class="d-flex gap-1 mt-2">
-        <div class="col-form-label">Or: </div><div class=flex-grow-1>{{ form_macros.input(panelist_info.other_communication_pref, show_label=False) }}</div>
-      </div>
       {% endcall %}
   </div>
 {% endblock %}
@@ -82,9 +85,6 @@
 
 <div class="row g-sm-3 mb-3">
 {% block schedule_info %}
-  <div class="col-sm">
-    {{ form_macros.input(panelist_credentials.display_name) }}
-  </div>
   <div class="col-sm">
     {{ form_macros.input(panelist_credentials.guidebook_bio) }}
   </div>
