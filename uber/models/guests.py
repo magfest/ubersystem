@@ -4,8 +4,10 @@ import shutil
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
+from markupsafe import Markup
 
 from pockets import uniquify, classproperty, sluggify
+from pockets.autolog import log
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
@@ -23,7 +25,7 @@ from uber.utils import filename_extension
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
     'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph', 'GuestImage',
-    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality']
+    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality', 'GuestTrack']
 
 
 class GuestGroup(MagModel):
@@ -47,6 +49,7 @@ class GuestGroup(MagModel):
     stage_plot = relationship('GuestStagePlot', backref=backref('guest', load_on_pending=True), uselist=False)
     panel = relationship('GuestPanel', backref=backref('guest', load_on_pending=True), uselist=False)
     merch = relationship('GuestMerch', backref=backref('guest', load_on_pending=True), uselist=False)
+    tracks = relationship('GuestTrack', backref=backref('guest', load_on_pending=True))
     charity = relationship('GuestCharity', backref=backref('guest', load_on_pending=True), uselist=False)
     autograph = relationship('GuestAutograph', backref=backref('guest', load_on_pending=True), uselist=False)
     interview = relationship('GuestInterview', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -214,6 +217,13 @@ class GuestGroup(MagModel):
                     session.delete(self.bio_pic)
                 session.add(new_pic)
         return message
+
+    @property
+    def sample_tracks(self):
+        html = []
+        for track in self.tracks:
+            html.append(track.file)
+        return Markup('<br/>'.join(html))
     
     @property
     def bio_pic(self):
@@ -375,6 +385,44 @@ class GuestPanel(MagModel):
         return self.wants_panel_label
 
 
+class GuestTrack(MagModel):
+    guest_id = Column(UUID, ForeignKey('guest_group.id'))
+    filename = Column(UnicodeText)
+    content_type = Column(UnicodeText)
+    extension = Column(UnicodeText)
+
+    @property
+    def file(self):
+        if not self.filename:
+            return ''
+        return Markup(
+            f"""<a href="{self.url}" target="_blank">{self.filename}</a>""")
+
+    @file.setter
+    def file(self, value):
+        import shutil
+        import cherrypy
+
+        if not isinstance(value, cherrypy._cpreqbody.Part):
+            log.error(f"Tried to set music track for guest {self.guest.id} with invalid value type: {type(value)}")
+            return
+
+        self.filename = value.filename
+        self.content_type = value.content_type.value
+        self.extension = value.filename.split('.')[-1].lower()
+
+        with open(self.filepath, 'wb') as f:
+            shutil.copyfileobj(value.file, f)
+
+    @property
+    def url(self):
+        return f"../guests/view_track?id={self.id}"
+
+    @property
+    def filepath(self):
+        return os.path.join(c.GUESTS_INVENTORY_DIR, str('track_' + self.id))
+
+
 class GuestMerch(MagModel):
     _inventory_file_regex = re.compile(r'^(audio|image)(|\-\d+)$')
     _inventory_filename_regex = re.compile(r'^(audio|image)(|\-\d+)_filename$')
@@ -393,6 +441,8 @@ class GuestMerch(MagModel):
     check_country = Column(UnicodeText)
 
     arrival_plans = Column(UnicodeText)
+    checkin_time = Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True)
+    checkout_time = Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True)
     merch_events = Column(UnicodeText)
     inventory = Column(JSON, default={}, server_default='{}')
     inventory_updated = Column(UTCDateTime, nullable=True)
@@ -461,7 +511,12 @@ class GuestMerch(MagModel):
     @property
     def status(self):
         if self.selling_merch == c.ROCK_ISLAND:
-            return self.selling_merch_label + ('' if self.inventory else ' (No Merch)')
+            notes = []
+            if not self.inventory:
+                notes.append("No Merch")
+            if not self.checkin_time:
+                notes.append("No Arrival Details")
+            return self.selling_merch_label + ('' if not notes else f' ({', '.join(notes)})')
         return self.selling_merch_label
 
     @presave_adjustment
@@ -512,9 +567,6 @@ class GuestMerch(MagModel):
             return 'You must add some merch to your inventory!'
         messages = []
         for item_id, item in inventory.items():
-            quantity = int(item.get('quantity') or 0)
-            if quantity <= 0 and cls.total_quantity(item) <= 0:
-                messages.append('You must specify some quantity')
             for name, file in [(n, f) for (n, f) in item.items() if f]:
                 match = cls._inventory_file_regex.match(name)
                 if match and getattr(file, 'filename', None):
@@ -566,13 +618,6 @@ class GuestMerch(MagModel):
                             del item[attr]
 
     @classmethod
-    def total_quantity(cls, item):
-        total_quantity = 0
-        for attr in filter(lambda s: s.startswith('quantity'), item.keys()):
-            total_quantity += int(item[attr] if item[attr] else 0)
-        return total_quantity
-
-    @classmethod
     def item_subcategories(cls, item_type):
         s = {getattr(c, s): s for s in c.MERCH_TYPES_VARS}[int(item_type)]
         return (
@@ -591,10 +636,6 @@ class GuestMerch(MagModel):
     @classmethod
     def line_items(cls, item):
         line_items = []
-        for attr in filter(lambda s: s.startswith('quantity-'), item.keys()):
-            if int(item[attr] if item[attr] else 0) > 0:
-                line_items.append(attr)
-
         varieties, cuts, sizes = [
             [v for (v, _) in x]
             for x in cls.item_subcategories_opts(item['type'])]

@@ -23,18 +23,21 @@
   {% if HAS_ROCK_ISLAND and guest.merch_status and guest.merch.selling_merch == c.ROCK_ISLAND %}
     <tr>
       <td></td>
-      <td>{{ macros.checklist_image(guest.merch.inventory) }} <b><a href="merch?guest_id={{ guest.id }}">Rock Island Inventory</a></b></td>
+      <td>
+        {{ macros.checklist_image(guest.merch.inventory and guest.merch.checkin_time) }}
+        <b><a href="merch?guest_id={{ guest.id }}">Rock Island Inventory</a></b>
+      </td>
       <td><i>Deadline:</i> {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}</td>
     </tr>
     <tr>
       <td></td>
       <td colspan="2">
         {% if not guest.merch.inventory %}
-          You haven't uploaded any inventory for Rock Island yet!
+          You haven't uploaded any inventory{% if not guest.merch.checkin_time %} or selected check-in and check-out times{% endif %} for Rock Island yet!
         {% else %}
-           Thanks for uploading your Rock Island inventory!
+           Thanks for uploading your Rock Island inventory!{% if not guest.merch.checkin_time %} You have not yet chosen a check-in and check-out time for your inventory.{% endif %}
         {% endif %}
-        You can update your inventory using the link above.
+        You can update your inventory and check-in/check-out times using the link above.
         <br/></br>
       </td>
     </tr>
@@ -138,6 +141,54 @@
           {%- endfor %}
         {%- endif %}
       </div>
+      <div id="arrival-plans" class="modal fade" tabindex="-1" role="dialog"
+            aria-labelledby="arrival-plans-title">
+        <div class="modal-dialog modal-lg" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+              <h4 class="modal-title" id="arrival-plans-title">Rock Island Inventory Check-In and Check-Out Times</h4>
+            </div>
+            <form method="post" action="update_arrival_plans" class="form-horizontal" role="form" enctype="multipart/form-data">
+              <div class="modal-body">
+                {{ csrf_token() }}
+                <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+                <input type="hidden" name="id" value="{{ guest_merch.db_id or 'None' }}" />
+                <div class="form-group">
+                  <label class="col-sm-3 control-label">Check-In Time</label>
+                  <div class="col-sm-6">
+                    <select name="checkin_time" class="form-control" required>
+                      <option value="">Please select an option...</option>
+                      {{ options(c.GUEST_MERCH_CHECKIN_TIMES, guest_merch.checkin_time) }}
+                    </select>
+                    <p class="help-block">
+                      Please email {{ "rockisland@magfest.org"|email_to_link }} if your arrival plans change.
+                    </p>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="col-sm-3 control-label">Check-Out Time</label>
+                  <div class="col-sm-6">
+                    <select name="checkout_time" class="form-control" required>
+                      <option value="">Please select an option...</option>
+                      {{ options(c.GUEST_MERCH_CHECKOUT_TIMES, guest_merch.checkout_time) }}
+                    </select>
+                    <p class="help-block">
+                      Please email {{ "rockisland@magfest.org"|email_to_link }} if your departure plans change.
+                    </p>
+                  </div>
+                </div>
+                {{ macros.form_group(guest_merch, 'arrival_plans', label="Arrival/Departure Plans", type='textarea', is_required=True,
+                      help="Please provide details about your arrival and departure plans.") }}
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     {% endif %}
   {% endblock %}
 
@@ -192,6 +243,22 @@
         </select>
       </div>
     </div>
+    <div class="form-group" id="music-sample" style="display:none">
+      <label class="col-sm-3 control-label">Sample Tracks</label>
+      <div class="col-sm-6">
+        {% for track in guest.tracks %}
+        <div id="track-{{ track.id }}">{{ track.file }} <button type="button" class="btn btn-danger btn-xs" onClick="deleteTrack('{{ track.id }}')"><i class="glyphicon glyphicon-remove"></i></button></div>
+        {% endfor %}
+        <input type="file" class="file" multiple="true" name="sample_tracks" accept="audio/*">
+      </div>
+      <div class="clearfix"></div>
+      <p class="help-block col-sm-offset-3 col-sm-9">
+        If you're selling music, you may optionally upload up to eight sample tracks for us to make
+        available for <b>listening at the table</b>! We recommend uploading at least two tracks.
+        <br/><br/>Audio files must be in must be in mp3, m4a, or another format that includes metadata.
+        Please make sure each file's metadata includes the album art, artist name, and the correct track title!
+      </p>
+    </div>
 
     {% block form_extra %}
       {% if HAS_ROCK_ISLAND %}
@@ -209,8 +276,15 @@
             </div>
           </div>
           {% endif %}
-          <h3>Your Inventory</h3>
-          <p class="help-block">You may add or edit items in your inventory until {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}.</p>
+          <h3>Your Inventory &nbsp;<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#arrival-plans">Merch Check-In and Check-Out Times</button></h3>
+          <p>You may add or edit items in your inventory and update your check-in and check-out times until {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}.</p>
+          <p>
+            {% if not guest_merch.checkin_time %}
+            You have not yet selected a check-in and check-out time for your merch.
+            {% else %}
+            You are set to check in your inventory on {{ guest_merch.checkin_time_label }} and check out your inventory on {{ guest_merch.checkout_time_label }}.
+            {% endif %}
+          </p>
           <div id="inventory_container"{% if not guest_merch.inventory %} style="display:none"{% endif %}>
             {{ guests_macros.inventory_table(show_controls=True) }}
           </div>
@@ -289,8 +363,6 @@
             {{ macros.form_group(guest_merch, 'check_payable', label='Name on Check', is_required=True) }}
             {{ macros.address_form(guest_merch, name_prefix='check_', model_prefix='check_', is_required=True) }}
           </div>
-          {{ macros.form_group(guest_merch, 'arrival_plans', label="Arrival Plans", type='textarea', is_required=True,
-                               help="Please tell us your estimated arrival to Rock Island to check in your inventory.") }}
           {{ macros.form_group(guest_merch, 'merch_events', label="Performance Dates/Times", type='textarea',
                                help="Please tell us any signings/panels/shows you are a part of and that you would like us to be at in order to sell your merch (subject to staff approval and availability).") }}
           {{ macros.form_group(guest_merch, 'extra_info', type='textarea', label='Anything else?',
@@ -320,9 +392,41 @@
             $.field('check_country').next().prop('required', $.val('payout_method') == "{{ c.CHECK }}");
           }
 
+          var deleteTrack = function(id) {
+            bootbox.confirm({
+              backdrop: true,
+              title: 'Delete Track?',
+              message: '<p>Are you sure you want to delete this sample track?</p>',
+              buttons: {
+                confirm: { label: '<i class="glyphicon glyphicon-remove"></i> Delete', className: 'btn-danger' },
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+              },
+              callback: function (result) {
+                if (result) {
+                  $.ajax({
+                    method: 'POST',
+                    url: 'delete_sample_track',
+                    data: {
+                      id: id,
+                      csrf_token: csrf_token
+                    },
+                    success: function(response, status) {
+                      $("#message-alert").addClass("alert-info").show().children('span').html(response.message);
+                      $('#track-' + id).remove();
+                    },
+                    error: function(response, status, statusText) {
+                      showErrorMessage(response.message)
+                    }
+                  });
+                }
+              }
+            });
+          }
+
             var showOrHideRockIsland = function() {
                 var isRockIsland = $.val('selling_merch') == "{{ c.ROCK_ISLAND }}";
                 setVisible('#rockisland', isRockIsland);
+                setVisible('#music-sample', isRockIsland);
 
                 $('#rockisland input, #rockisland textarea, #rockisland select').prop('disabled', !isRockIsland);
                 if (isRockIsland) {
@@ -444,6 +548,26 @@
 
                 showOrHidePayoutExtraFields();
                 $.field('payout_method').on('change', showOrHidePayoutExtraFields);
+
+                $("form[action='merch']").submit(function(event) {
+                  var formToSubmit = this;
+                  event.preventDefault();
+
+                  var files = $('input[name="sample_tracks"]')[0].files;
+                  var totalSize = 0;
+
+                  for (var i = 0; i < files.length; i++) {
+                    // calculate total size of all files        
+                    totalSize += files[i].size;
+                  }
+                  //1x10^9 = 1 GB
+                  var sizeInMb = totalSize / 1000000;
+                  if(sizeInMb > 100){
+                    showErrorMessage('Please make sure the total uploaded size is < 100MB.')
+                  } else {
+                    formToSubmit.submit();
+                  }
+                });
 
                 $('.add_inventory').on('change', onChooseInventoryType);
 
