@@ -616,8 +616,6 @@ def is_merch_checklist_complete(guest_merch):
                 and guest_merch.check_country
             ):
                 return 'Please include the mailing address to send a check to.'
-        elif not guest_merch.arrival_plans:
-            return 'Please tell us your estimated arrival to Rock Island to check in your inventory'
 
 
 @validation.GuestTravelPlans

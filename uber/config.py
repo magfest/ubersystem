@@ -1527,6 +1527,23 @@ def parse_config(plugin_name, module_dir):
     return config
 
 
+def create_hour_opts(start_hour, end_hour, step, prefix=''):
+    """
+    Takes a start and end hour integer (in 24-hour time) and
+    iterates over the range in chunks according to `step`.
+    Returns a list of tuples to, e.g., use in dropdown lists.
+    """
+    opt_list = []
+    for index, start_time in enumerate(range(start_hour, end_hour, step), 1):
+        start_dt = time(start_time)
+        end_time = min(start_time + 2, end_hour)
+        end_dt = time(end_time)
+        opt_list.append((index,
+                         f"{prefix}{start_dt.strftime('%-I%p').lower()}-{end_dt.strftime('%-I%p').lower()}"))
+        if end_time == end_hour:
+            return opt_list
+
+
 c = Config()
 _config = parse_config("uber", pathlib.Path("/app/uber"))  # outside this module, we use the above c global instead of using this directly
 db_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -2013,6 +2030,17 @@ c.GUEST_CHECKLIST_ITEMS = [
 # Generate the possible template prefixes per step
 for item in c.GUEST_CHECKLIST_ITEMS:
     item['deadline_template'] = ['guest_checklist/', item['name'] + '_deadline.html']
+
+
+c.GUEST_MERCH_CHECKIN_TIMES = []
+wed_checkins = create_hour_opts(*c.ROCK_ISLAND_CHECKIN_HOURS[:2], 2, prefix="Wednesday ")
+thu_checkins = create_hour_opts(*c.ROCK_ISLAND_CHECKIN_HOURS[2:], 2, prefix="Thursday ")
+for index, opt in enumerate(wed_checkins + thu_checkins, 1):
+    c.GUEST_MERCH_CHECKIN_TIMES.append((index, opt[1]))
+c.GUEST_MERCH_CHECKOUT_TIMES = create_hour_opts(*c.ROCK_ISLAND_CHECKOUT_HOURS, 2, prefix="Sunday ")
+c.GUEST_MERCH_CHECKIN_TIMES.append((c.OTHER, "Other (please explain arrival/departure plans below)"))
+c.GUEST_MERCH_CHECKOUT_TIMES.append((c.OTHER, "Other (please explain arrival/departure plans below)"))
+
 
 c.SAML_SETTINGS = {}
 if c.SAML_SP_SETTINGS["privateKey"]:
