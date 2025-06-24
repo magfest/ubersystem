@@ -37,6 +37,9 @@ placeholder_check = lambda x: x.name not in placeholder_unassigned_fields(x.form
 PersonalInfo.field_validation.required_fields = {
     'first_name': ("Please provide your first name.", 'first_name', placeholder_check),
     'last_name': ("Please provide your last name.", 'last_name', placeholder_check),
+    'badge_printed_name': (
+        "Please enter a name for your custom-printed badge.", 'badge_printed_name',
+        lambda x: x.form.model.has_personalized_badge and 'badge_printed_name' not in placeholder_unassigned_fields(x.form)),
     'email': ("Please enter an email address.", 'copy_email', lambda x: not x.data and 'email' not in placeholder_unassigned_fields(x.form)),
     'ec_name': ("Please tell us the name of your emergency contact.", 'ec_name', placeholder_check),
     'ec_phone': ("Please give us an emergency contact phone number.", 'ec_phone', placeholder_check),
@@ -64,7 +67,6 @@ if c.COLLECT_FULL_ADDRESS:
 
 PersonalInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
 PersonalInfo.field_validation.validations['badge_printed_name'].update({
-    'optional': validators.Optional(),
     'length': validators.Length(max=20,
                                 message="Your printed badge name cannot be more than 20 characters long."),
     'invalid_chars': validators.Regexp(c.VALID_BADGE_PRINTED_CHARS, message="""Your printed badge name has invalid

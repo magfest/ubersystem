@@ -1892,6 +1892,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     def checkin_bools(self):
         return ['got_merch'] if c.MERCH_AT_CHECKIN else []
 
+    @classproperty
+    def skip_placeholder_fields(self):
+        return ['birthdate', 'age_group', 'ec_name', 'ec_phone', 'address1', 'city',
+                'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact',
+                'badge_printed_name', 'cellphone', 'confirm_email', 'legal_name']
+
     @property
     def assigned_depts_labels(self):
         return [d.name for d in self.assigned_depts]

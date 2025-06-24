@@ -1,6 +1,7 @@
 {% extends 'forms/attendee/other_info.html' %}
 
 {% block x_data %}
+{{ super() }}
 staffing: {{ other_info.staffing.data|tojson }},
 no_cellphone: {{ other_info.no_cellphone.data|tojson }},
 {% endblock %}

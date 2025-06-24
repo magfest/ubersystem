@@ -4,7 +4,7 @@
         if( badgeType === {{ c.STAFF_BADGE }} || badgeType === {{ c.CONTRACTOR_BADGE }}){
             staffing = true;
         }
-        if( ribbons.includes({{  c.VOLUNTEER_RIBBON }})) {
+        if( ribbons.includes({{ c.VOLUNTEER_RIBBON }})) {
             staffing = true;
         }
         return staffing;
@@ -12,10 +12,9 @@
 
     function checkBadgeName(badgeType){
         let badgeNameRequired = false;
-        let adminArea = {{ admin_area | javascript_bool }};
         let preAssignedTypes = {{ c.PREASSIGNED_BADGE_TYPES | jsonize }};
-        if (badgeType && adminArea && preAssignedTypes){
-            badgeNameRequired = preAssignedTypes.includes(badgeType);
+        if (badgeType && preAssignedTypes){
+            badgeNameRequired = preAssignedTypes.includes(parseInt(badgeType));
         }
         return badgeNameRequired;
     }
@@ -27,7 +26,7 @@
             badge_placeholder: {{ attendee.placeholder|boolean|tojson }},
             badge_ribbons: {{ attendee.ribbon_ints|tojson }},
             badge_type : {{ attendee.badge_type|tojson }},
-            require_badge_name: false,
+            require_badge_name: {{ attendee.has_personalized_badge|tojson }},
             staffing: {{ attendee.staffing|tojson }},
 
             init() {

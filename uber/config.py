@@ -1936,7 +1936,8 @@ c.MIVS_PROBLEM_STATUSES = {getattr(c, status.upper()) for status in c.MIVS_PROBL
 c.FINAL_MIVS_GAME_STATUSES = [c.ACCEPTED, c.WAITLISTED, c.DECLINED, c.CANCELLED]
 
 # used for computing the difference between the "drop-dead deadline" and the "soft deadline"
-c.SOFT_MIVS_JUDGING_DEADLINE = c.MIVS_JUDGING_DEADLINE - timedelta(days=7)
+if c.MIVS_START:
+    c.SOFT_MIVS_JUDGING_DEADLINE = c.MIVS_JUDGING_DEADLINE - timedelta(days=7)
 
 
 # =============================

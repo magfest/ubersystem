@@ -28,7 +28,7 @@
           same_legal_name: {{ (attendee.first_name != '' and attendee.legal_name == '')|boolean|jsonize }},
           get emailRequired() { return !this.copy_email },
           get legalNameRequired() {return !this.badge_placeholder && !this.same_legal_name},
-          get onsiteContactRequired() {return !this.badge_placeholder && !this.no_onsite_contact},
+          get onsiteContactRequired() {return !this.badge_placeholder && !this.no_onsite_contact && ![{{ c.STAFF_BADGE }}, {{ c.CONTRACTOR_BADGE }}].includes(this.badge_type) },
           get zipCodeRequired(){ return !this.international && !this.copy_address && !this.badge_placeholder },
           get disableCellphone() { return this.no_cellphone || this.copy_cellphone},
           get cellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.badge_placeholder },
