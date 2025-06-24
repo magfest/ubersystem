@@ -962,14 +962,6 @@ def require_staff_shirt_size(attendee):
         return ('staff_shirt', "Please select a shirt size for your staff shirt.")
 
 
-@validation.Attendee
-def volunteers_cellphone_or_checkbox(attendee):
-    if not attendee.placeholder and not attendee.no_cellphone \
-            and attendee.staffing_or_will_be and not attendee.cellphone:
-        return ('cellphone',
-                "Volunteers and staffers must provide a cellphone number or indicate they do not have a cellphone.")
-
-
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
     if attendee.promo_code:
