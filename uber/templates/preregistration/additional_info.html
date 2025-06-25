@@ -34,7 +34,7 @@
       &nbsp;
       {% if is_prereg_dealer %}
       <button type="submit" class="btn btn-primary mt-3" value="Submit Application">Submit Application</button>
-      {% elif editing %}
+      {% elif editing and not repurchase %}
       <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
       {% else %}
       <button type="submit" class="btn btn-primary mt-3" value="Add to Cart">Add to Cart</button>

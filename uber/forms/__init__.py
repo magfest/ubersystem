@@ -385,9 +385,6 @@ class MagForm(Form):
                             This is either a programming error or a malicious actor.".format(name))
                 continue
 
-            if name == 'image':
-                log.error(field.data)
-
             column = obj.__table__.columns.get(name)
             if column is not None:
                 setattr(obj, name, obj.coerce_column_data(column, field.data))
