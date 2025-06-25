@@ -35,7 +35,7 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 
 <div class="row g-sm-3 mb-3">
 {% block badge_type %}
-{{ badge_extras.badge_type(id=id_upgrade_prepend ~ "badge_type", **{'x-model': "badge_type"}) }}
+{{ badge_extras.badge_type(id=id_upgrade_prepend ~ "badge_type", **{'x-model.number': "badge_type"}) }}
 
 {% if c.BADGE_TYPE_PRICES and (not receipt or upgrade_modal) %}
     {{ form_macros.card_select(badge_extras.badge_type,

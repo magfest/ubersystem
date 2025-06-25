@@ -14,7 +14,7 @@
         let badgeNameRequired = false;
         let preAssignedTypes = {{ c.PREASSIGNED_BADGE_TYPES | jsonize }};
         if (badgeType && preAssignedTypes){
-            badgeNameRequired = preAssignedTypes.includes(parseInt(badgeType));
+            badgeNameRequired = preAssignedTypes.includes(badgeType);
         }
         return badgeNameRequired;
     }
