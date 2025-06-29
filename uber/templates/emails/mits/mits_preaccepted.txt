@@ -6,4 +6,4 @@ You can finish providing us the remaining info at {{ c.URL_BASE }}/mits/continue
 
 In the meantime, please let us know if you have any questions!
 
-{{ c.MITS_EMAIL_SIGNATURE }}
+{{ email_signature }}

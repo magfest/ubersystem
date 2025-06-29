@@ -63,6 +63,11 @@
 
 <h2>{{ attendee.full_name }} {% if c.AT_THE_CON and attendee.badge_num %}({{ attendee.badge }}){% endif %}</h2>
 
+<form method="post" id="update-shifts-info" action="../shifts_admin/update_shifts_info">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ attendee.id }}" />
+</form>
+
 <table width="100%">
 <tr>
     <td width="50%">
@@ -77,13 +82,10 @@
       </form>
     </td>
     <td width="50%" align="right">
-      <form method="post" action="../shifts_admin/update_nonshift">
-        {{ csrf_token() }}
-        <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
-        <input type="text" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_minutes / 60 }}" style="width:3.5em" />
-        <input type="submit" value="Update" class="btn btn-sm btn-primary"/>
-      </form>
+        <input type="text" form="update-shifts-info" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_minutes / 60 }}" style="width:3.5em" />
+        <input type="submit" form="update-shifts-info" value="Update" class="btn btn-sm btn-primary"/>
+      
     </td>
 </tr>
 </table>
@@ -104,7 +106,7 @@
         {{ (attendee.shift_minutes|length + attendee.nonshift_minutes) / 60 }} actual hours): </b>
         {% if c.AT_OR_POST_CON %}<br />{{ attendee.worked_hours }} hours worked.{% endif %}
     <br/> <br/>
-    <table width="95%" align="center" class="table-striped">
+    <table width="95%" align="center" class="table table-hover">
       <thead>
         <tr>
           <th>Job</th>
@@ -147,12 +149,30 @@
     <i>{{ attendee.full_name }} is not signed up for any shifts.</i>
 {% endif %}
 
-<form method="post" action="../shifts_admin/update_notes">
-{{ csrf_token() }}
-<input type="hidden" name="id" value="{{ attendee.id }}" />
-<br/> <b>Notes For Later Review:</b> <br/>
-<textarea name="for_review" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.for_review }}</textarea>
+{% if attendee.dept_memberships_with_dept_role %}
+<br/><br/>
+<b>This attendee has been assigned roles in the following departments:</b>
+<table width="95%" align="center" class="table table-hover">
+  <thead>
+    <tr>
+      <th>Department</th>
+      <th>Roles</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for membership in attendee.dept_memberships_with_dept_role %}
+    <tr>
+      <td>{{ membership.department|form_link(new_window=True) }}</td>
+      <td>{{ membership.dept_roles_names }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<br/><br/> <b>Notes For Later Review:</b> <br/>
+<textarea name="for_review" form="update-shifts-info" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.for_review }}</textarea>
 <br/> <br/> <b>Admin Notes:</b> <br/>
-<textarea name="admin_notes" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.admin_notes }}</textarea>
-<br/> <input style="margin-left:10px ; margin-top:5px" type="submit" value="Update Notes" class="btn btn-primary"/>
+<textarea name="admin_notes" form="update-shifts-info" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.admin_notes }}</textarea>
+<br/> <input style="margin-left:10px ; margin-top:5px" form="update-shifts-info" type="submit" value="Update Notes" class="btn btn-primary"/>
 </form>

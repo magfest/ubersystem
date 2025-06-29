@@ -24,10 +24,12 @@
         {% endif %}
     </div>
     <div class="card-body">
-        <table class="table table-striped datatable">
+        <table class="table table-striped datatable" x-data="{ selectall: false, }">
         <thead>
             <tr>
-            <th></th>
+            <th data-orderable="false">
+                <label class="d-block"><input type="checkbox" class="form-check-input" @click="selectall=!selectall"></label>
+            </th>
             <th>Attendee</th>
             <th>Email</th>
             <th>Badge Type</th>
@@ -39,7 +41,10 @@
         <tbody>
         {% for attendee in attendees %}
         <tr id="{{ attendee.id }}">
-            <td><input type="checkbox" name="account-row" value="{{ attendee.id }}">
+            <td>
+                <label class="d-block">
+                    <input type="checkbox" class="form-check-input" name="account-row" value="{{ attendee.id }}" x-bind:checked="selectall" />
+                </label>
             </td>
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 {{ attendee|form_link }}

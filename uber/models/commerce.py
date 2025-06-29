@@ -179,8 +179,18 @@ class ModelReceipt(MagModel):
     def payment_total_sql(cls):
         return coalesce(func.sum(ReceiptTransaction.amount).filter(
             ReceiptTransaction.amount > 0, ReceiptTransaction.cancelled == None).filter(
-                or_(ReceiptTransaction.charge_id != None,
+                or_(ReceiptTransaction.charge_id != '',
                     ReceiptTransaction.intent_id == '')), 0)
+    
+    @property
+    def manual_payments(self):
+        return [txn for txn in self.receipt_txns
+                if not txn.cancelled and txn.amount > 0 and (
+                    txn.intent_id == '' or txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY)]
+
+    @property
+    def payments_on_hold(self):
+        return [txn for txn in self.receipt_txns if txn.on_hold and not txn.cancelled]
 
     @property
     def refund_total(self):
@@ -276,6 +286,31 @@ class ModelReceipt(MagModel):
             else:
                 return txn
 
+    def process_full_refund(self, session, model, who='non-admin', exclude_fees=False):
+        from uber.payments import RefundRequest
+
+        refund_total = 0
+        receipt_manager = ReceiptManager(self, who)
+        refunds = receipt_manager.cancel_and_refund(model, exclude_fees=exclude_fees)
+
+        if receipt_manager.error_message:
+            return refund_total, receipt_manager.error_message
+        else:
+            if not refunds:
+                session.add_all(receipt_manager.items_to_add)
+            for _, (refund_amount, txns) in refunds.items():
+                refund = RefundRequest(txns, refund_amount, skip_errors=True)
+
+                error = refund.process_refund()
+                if error:
+                    return refund_total, error
+
+                refund_total += refund_amount
+                session.add_all(refund.items_to_add)
+                session.add_all(receipt_manager.items_to_add)
+                receipt_manager.items_to_add = []
+        return refund_total, ''
+
 
 class ReceiptTransaction(MagModel):
     """
@@ -318,6 +353,7 @@ class ReceiptTransaction(MagModel):
     txn_total = Column(Integer, default=0)
     processing_fee = Column(Integer, default=0)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    on_hold = Column(Boolean, default=False)
     cancelled = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
@@ -348,7 +384,7 @@ class ReceiptTransaction(MagModel):
 
     @property
     def refundable(self):
-        return not self.receipt.closed and self.charge_id and self.amount > 0 and \
+        return not self.receipt.closed and self.charge_id and self.amount > 0 and not self.on_hold and \
             self.amount_left and self.amount_left != self.calc_processing_fee()
 
     @property
@@ -500,6 +536,7 @@ class ReceiptTransaction(MagModel):
 
 
 class ReceiptItem(MagModel):
+    purchaser_id = Column(UUID, index=True, nullable=True)
     receipt_id = Column(UUID, ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',

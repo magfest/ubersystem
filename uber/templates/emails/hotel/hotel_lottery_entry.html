@@ -5,8 +5,13 @@
 <body>
 <p>
     {{ application.attendee.full_name }},<br/>
-    Thank you for {{ action_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your {% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} entry details are below.
+    Thank you for {{ action_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your{% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} entry details are below.
 </p>
+{% if maybe_swapped and application.entry_type == c.ROOM_ENTRY %}
+<p>
+    <strong>IMPORTANT</strong>: If you originally entered the lottery for a suite, please note that your current lottery entry is <strong>ONLY</strong> for a standard room. If this was a mistake, you can <a href="{{ c.URL_BASE }}/hotel_lottery/index?id={{ application.id }}" target="_blank">change your entry</a> to a suite entry.
+</p>
+{% endif %}
 {% if new_conf %}
 <p>
     <strong>IMPORTANT</strong>: Your previous lottery entry has been <strong>withdrawn</strong> and your old confirmation number is invalid. Your new confirmation number is below.
@@ -19,7 +24,7 @@
     Room groups are given additional weighting in the lottery. Note that in order to join a room group you must have a valid registration for {{ c.EVENT_NAME }}.
 </p>
 {% endif %}
-<p>You can review{% if application.entry_type != c.GROUP_ENTRY %} and update{% endif %} your {% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} lottery entry by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
+<p>You can review{% if application.entry_type != c.GROUP_ENTRY %} and update{% endif %} your{% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} lottery entry by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
 {% set confirmation = True %}
 {% include 'emails/hotel/entry_details.html' with context %}
 </body>

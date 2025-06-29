@@ -1,7 +1,9 @@
 from collections.abc import Mapping
 from collections import OrderedDict
 from datetime import datetime, time, timedelta
+from PIL import Image
 import re
+import shutil
 
 import pytz
 from pockets import camel, fieldify, listify
@@ -11,7 +13,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.schema import Column
 from sqlalchemy.sql.expression import FunctionElement
-from sqlalchemy.types import Integer, TypeDecorator
+from sqlalchemy.types import Boolean, Integer, TypeDecorator
 
 from uber.config import c, _config as config
 from uber.utils import url_domain
@@ -20,7 +22,7 @@ from uber.utils import url_domain
 __all__ = [
     'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
     'Column', 'DefaultColumn', 'JSONColumnMixin', 'MultiChoice',
-    'SocialMediaMixin', 'TakesPaymentMixin']
+    'SocialMediaMixin', 'TakesPaymentMixin', 'GuidebookImageMixin']
 
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
@@ -226,11 +228,32 @@ class Choice(TypeDecorator):
         return int(value)
 
 
-class MultiChoice(TypeDecorator):
+class UniqueList(TypeDecorator):
     """
-    Utility class for storing the results of a group of checkboxes.  Each value
+    Utility class for storing a list of unique strings or integers.
+    The list is stored as a comma-separate string.
+    """
+    impl = UnicodeText
+
+    def process_bind_param(self, value, dialect):
+        """
+        A unique list may be in one of three forms: a single string,
+        a single integer, or a list of strings. We want to end up with a single
+        comma-separated string. We also want to make sure an object has only
+        unique values in its UniqueList columns. Therefore, we listify() the
+        object to make sure it's in list form, we convert it to a set to
+        make all the values unique, and we map the values inside it to strings
+        before joining them with commas because the join function can't handle
+        a list of integers.
+        """
+        return ','.join(map(str, list(set(listify(value))))) if value else ''
+
+
+class MultiChoice(UniqueList):
+    """
+    Utility class for storing the results of a group of checkboxes. Each value
     is represented by an integer, so we store them as a comma-separated string.
-    This can be marginally more convenient than a many-to-many table.  Like the
+    This can be marginally more convenient than a many-to-many table. Like the
     Choice class, this takes an array of tuples of integers and strings.
     """
     impl = UnicodeText
@@ -238,20 +261,7 @@ class MultiChoice(TypeDecorator):
     def __init__(self, choices, **kwargs):
         self.choices = choices
         self.choices_dict = dict(choices)
-        TypeDecorator.__init__(self, **kwargs)
-
-    def process_bind_param(self, value, dialect):
-        """
-        Our MultiChoice options may be in one of three forms: a single string,
-        a single integer, or a list of strings. We want to end up with a single
-        comma-separated string. We also want to make sure an object has only
-        unique values in its MultiChoice columns. Therefore, we listify() the
-        object to make sure it's in list form, we convert it to a set to
-        make all the values unique, and we map the values inside it to strings
-        before joining them with commas because the join function can't handle
-        a list of integers.
-        """
-        return ','.join(map(str, list(set(listify(value))))) if value else ''
+        UniqueList.__init__(self, **kwargs)
 
     def process_result_value(self, value, dialect):
         """
@@ -387,6 +397,46 @@ def JSONColumnMixin(column_name, fields):
     _Mixin.__setattr__ = _Mixin__setattr__
 
     return _Mixin
+
+
+class GuidebookImageMixin():
+    filename = Column(UnicodeText)
+    content_type = Column(UnicodeText)
+    extension = Column(UnicodeText)
+    is_header = Column(Boolean, default=False)
+    is_thumbnail = Column(Boolean, default=False)
+
+    @property
+    def url(self):
+        raise NotImplementedError
+
+    @property
+    def filepath(self):
+        raise NotImplementedError
+
+    @classmethod
+    def upload_image(cls, pic, **kwargs):
+        new_pic = cls(
+            filename=pic.filename,
+            content_type=pic.content_type.value,
+            extension=pic.filename.split('.')[-1].lower()
+            )
+        for key, val in kwargs.items():
+            if hasattr(new_pic, key):
+                setattr(new_pic, key, val)
+
+        with open(new_pic.filepath, 'wb') as f:
+            shutil.copyfileobj(pic.file, f)
+        return new_pic
+
+    def check_image_size(self, size_list=None):
+        if not size_list:
+            size_list = c.GUIDEBOOK_HEADER_SIZE if self.is_header else c.GUIDEBOOK_THUMBNAIL_SIZE
+        try:
+            return Image.open(self.filepath).size == tuple(map(int, size_list))
+        except OSError:
+            # This probably isn't an image at all
+            return
 
 
 class SocialMediaMixin(JSONColumnMixin('social_media', c.SOCIAL_MEDIA)):

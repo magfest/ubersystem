@@ -280,6 +280,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         self.sender = fixture.sender
         self.cc = ','.join(fixture.cc)
         self.bcc = ','.join(fixture.bcc)
+        self.replyto = ','.join(fixture.replyto)
         self.needs_approval = fixture.needs_approval
         self.allow_at_the_con = fixture.allow_at_the_con
         self.allow_post_con = fixture.allow_post_con
@@ -292,7 +293,10 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
 
     def renderable_data(self, model_instance):
         model_name = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
-        data = {model_name: model_instance}
+        data = {
+            model_name: model_instance,
+            'email_signature': c.get_signature_by_sender(self.sender),
+            }
         if self.fixture:
             data.update(self.fixture.extra_data)
         return renderable_data(data)
@@ -321,6 +325,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 model=model_instance.to_dict('id'),
                 cc=self.cc or model_instance.cc_emails_for_ident(self.ident),
                 bcc=self.bcc or model_instance.bcc_emails_for_ident(self.ident),
+                replyto=self.replyto or model_instance.replyto_emails_for_ident(self.ident),
                 ident=self.ident,
                 automated_email=self.to_dict('id'))
             return True

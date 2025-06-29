@@ -4,4 +4,4 @@ In order to prepare for your performance at this upcoming {{ c.EVENT_NAME }}, we
 
 Failure to provide exact stage directions may result in you not receiving the setup you expect or want.  Please provide this description no later than {{ c.BAND_STAGE_PLOT_DEADLINE|datetime_local }}.
 
-{{ c.BAND_EMAIL_SIGNATURE }}
+{{ email_signature }}

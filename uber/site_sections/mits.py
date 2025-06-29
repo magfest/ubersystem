@@ -14,17 +14,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
 from uber.models import Email, MITSDocument, MITSPicture, MITSTeam
 from uber.tasks.email import send_email
-from uber.utils import check, check_image_size, localized_now, GuidebookUtils
-
-
-def add_new_image(pic, game):
-    new_pic = MITSPicture(game_id=game.id,
-                          filename=pic.filename,
-                          content_type=pic.content_type.value,
-                          extension=pic.filename.split('.')[-1].lower())
-    with open(new_pic.filepath, 'wb') as f:
-        shutil.copyfileobj(pic.file, f)
-    return new_pic
+from uber.utils import check, localized_now, GuidebookUtils
 
 
 @all_renderable(public=True)
@@ -225,9 +215,8 @@ class Root:
                 if header_image and header_image.filename:
                     message = GuidebookUtils.check_guidebook_image_filetype(header_image)
                     if not message:
-                        header_pic = add_new_image(header_image, game)
-                        header_pic.is_header = True
-                        if not check_image_size(header_pic.filepath, c.GUIDEBOOK_HEADER_SIZE):
+                        header_pic = MITSPicture.upload_image(header_image, game_id=game.id, is_header=True)
+                        if not header_pic.check_image_size():
                             message = f"Your header image must be {format_image_size(c.GUIDEBOOK_HEADER_SIZE)}."
                 elif not game.guidebook_header:
                     message = f"You must upload a {format_image_size(c.GUIDEBOOK_HEADER_SIZE)} header image."
@@ -236,9 +225,8 @@ class Root:
                 if thumbnail_image and thumbnail_image.filename:
                     message = GuidebookUtils.check_guidebook_image_filetype(thumbnail_image)
                     if not message:
-                        thumbnail_pic = add_new_image(thumbnail_image, game)
-                        thumbnail_pic.is_thumbnail = True
-                        if not check_image_size(thumbnail_pic.filepath, c.GUIDEBOOK_THUMBNAIL_SIZE):
+                        thumbnail_pic = MITSPicture.upload_image(thumbnail_image, game_id=game.id, is_thumbnail=True)
+                        if not thumbnail_pic.check_image_size():
                             message = f"Your thumbnail image must be {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)}."
                 elif not game.guidebook_thumbnail:
                     message = f"You must upload a {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)} thumbnail image."
@@ -262,7 +250,7 @@ class Root:
                     session.add(new_doc)
                 
                 for pic in [p for p in pictures if p.filename]:
-                    new_pic = add_new_image(pic, game)
+                    new_pic = MITSPicture.upload_image(pic, game_id=game.id)
                     session.add(new_pic)
                 if header_pic:
                     if game.guidebook_header:
@@ -388,7 +376,8 @@ class Root:
 
             else:
                 for applicant in team.applicants:
-                    if getattr(applicant.attendee, 'full_name', applicant.full_name) == params['waiver_signature']:
+                    if getattr(applicant.attendee, 'full_name', applicant.full_name
+                               ).lower() == params['waiver_signature'].strip().lower():
                         team.waiver_signature = params['waiver_signature']
                         team.waiver_signed = localized_now()
                         break

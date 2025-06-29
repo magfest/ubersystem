@@ -1,43 +1,42 @@
 module.exports = function (grunt) {
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
-        bower_concat: {
-            all: {
-                dest: {
-                  'js': 'uber/static/deps/combined.js',
-                  'css': 'uber/static/deps/combined.css'
-                },
-                callback: function (mainFiles, component) {
-                    if (component === 'select2') {
-                        // the default select2 file doesn't contain full functionality and we want the full thing
-                        return mainFiles.map(function(filepath) {
-                            return filepath.replace('select2.js', 'select2.full.js');
-                        });
-                    } else if (component === 'jquery-ui') {
-                        // jquery.select-to-autocomplete.js doesn't have a bower.json so we manually add it
-                        // There's already a pull request to add bower support:
-                        // https://github.com/JamieAppleseed/selectToAutocomplete/pull/93
-                        return mainFiles.concat([
-                            process.cwd() + '/bower_components/jquery-ui/themes/ui-lightness/jquery-ui.css',
-                            process.cwd() + '/uber/static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js'
-                        ]);
-                    } else if (component === 'jquery') {
-                        // jquery-datetextentry doesn't have a bower.json so we manually add it
-                        // TODO: make a pull request to the jquery-datetextentry to give them bower support
-                        return mainFiles.concat([
-                            process.cwd() + '/uber/static/deps/jquery-datetextentry/jquery.datetextentry.js',
-                            process.cwd() + '/uber/static/deps/jquery-datetextentry/jquery.datetextentry.css'
-                        ]);
-                    } else {
-                        return mainFiles;
-                    }
+        npmcopy: {
+            libs: {
+                files: {
+                    'uber/static/deps/libs/jquery.js': 'jquery:main',
+                    'uber/static/deps/libs/datepicker.js': 'eonasdan-bootstrap-datetimepicker:main',
+                    'uber/static/deps/libs/jquery-scanner.js': 'jQuery-Scanner-Detection:main',
+                    'uber/static/deps/libs/moment.js': 'moment:main',
+                    'uber/static/deps/libs/jquery-ui.js': 'jquery-ui-dist/jquery-ui.js',
+                    'uber/static/deps/libs/jquery-ui.css': 'jquery-ui-dist/jquery-ui.css',
+                    'uber/static/deps/libs/geocomplete.js': 'geocomplete:main',
+                    'uber/static/deps/libs/jquery.form.js': 'jquery-form/jquery.form.js',
+                    'uber/static/deps/libs/choices.js':'choices.js:main'
                 }
             }
         },
-        uglify: {
+        concat: {
+            js: {
+                options: {
+                    separator: ';',
+                },
+                src: ['uber/static/deps/libs/jquery.js', //Jquery must be first.
+                    'uber/static/deps/libs/moment.js',
+                    'uber/static/deps/libs/*.js',
+                    'uber/static/deps/jquery-datetextentry/jquery.datetextentry.js',
+                    'uber/static/deps/selectToAutocomplete/jquery.select-to-autocomplete.js'],
+                dest: 'uber/static/deps/combined.js',
+
+            },
+            css: {
+                src: ['uber/static/deps/libs/*.css', 'uber/static/deps/choices/choices-bootstrap.css', 'uber/static/deps/jquery-datetextentry/jquery.datetextentry.css'],
+                dest: 'uber/static/deps/combined.css',
+            }
+        },
+        terser: {
             options: {
                 mangle: false,
-                output: { comments: 'some' },
                 sourceMap: true
             },
             target: {
@@ -62,15 +61,16 @@ module.exports = function (grunt) {
                 src: ['uber/static/deps/combined.min.css.map'],
                 overwrite: true,
                 replacements: [{
-                  from: '"uber/static/deps/combined.css"',
-                  to: '"/uber/static/deps/combined.css"'
+                    from: '"uber/static/deps/combined.css"',
+                    to: '"/uber/static/deps/combined.css"'
                 }]
             }
         }
     });
-    grunt.loadNpmTasks('grunt-bower-concat');
-    grunt.loadNpmTasks('grunt-contrib-uglify');
+    grunt.loadNpmTasks('grunt-npmcopy');
+    grunt.loadNpmTasks('grunt-contrib-concat');
+    grunt.loadNpmTasks('grunt-terser');
     grunt.loadNpmTasks('grunt-contrib-cssmin');
     grunt.loadNpmTasks('grunt-text-replace');
-    grunt.registerTask('default', ['bower_concat', 'uglify', 'cssmin', 'replace']);
+    grunt.registerTask('default', ['npmcopy', 'concat', 'terser', 'cssmin', 'replace']);
 };

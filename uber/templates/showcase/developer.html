@@ -1,0 +1,23 @@
+{% import 'forms/macros.html' as form_macros with context %}
+{% extends "preregistration/preregbase.html" %}
+{% set title = c.EVENT_NAME ~ "Showcase Studio" %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<div class="card card-body">
+    <h2>
+        {% if developer.is_new %}Add Presenter for {{ studio.name }}
+        {% else %}Edit Information for {{ developer.full_name }}
+        {% endif %}
+    </h2>
+    {{ form_macros.form_validation('developer-form', 'validate_developer') }}
+    <form novalidate method="post" id="developer-form" action="developer" role="form">
+        <input type="hidden" name="id" value="{{ developer.db_id }}" />
+        <input type="hidden" name="studio_id" value="{{ studio.id }}" />
+        {{ csrf_token() }}
+    
+        {% include "forms/showcase/developer.html" %}
+
+        <button type="submit" class="btn btn-primary">{% if developer.is_new %}Add Presenter{% else %}Update {{ developer.full_name }}{% endif %}</button>
+    </form>
+</div>
+{% endblock %}

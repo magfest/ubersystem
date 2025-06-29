@@ -65,8 +65,20 @@ def datetime_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e'):
 
 
 @JinjaEnv.jinja_filter(name='datetime_local')
-def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e'):
-    return '' if not dt else datetime_filter(dt.astimezone(c.EVENT_TIMEZONE), fmt=fmt)
+def datetime_local_filter(dt, fmt='%-I:%M%p %Z on %A, %b %-e', append_ord=False):
+    if not dt:
+        return ''
+    else:
+        suffix = ''
+        local_date = dt.astimezone(c.EVENT_TIMEZONE)
+        formatted_date = datetime_filter(local_date, fmt=fmt)
+        if append_ord:
+            day = local_date.day
+            if 4 <= day <= 20 or 24 <= day <= 30:
+                suffix = "th"
+            else:
+                suffix = ["st", "nd", "rd"][day % 10 - 1]
+        return formatted_date + suffix
 
 
 @JinjaEnv.jinja_filter
@@ -242,6 +254,11 @@ def jsonize(x):
 
 
 @JinjaEnv.jinja_filter
+def boolean(x):
+    return bool(x)
+
+
+@JinjaEnv.jinja_filter
 def subtract(x, y):
     return x - y
 
@@ -341,16 +358,18 @@ def sanitize_html(text, **kw):
 
 
 @JinjaEnv.jinja_filter
-def serve_static_content(relative_url):
+def serve_static_content(relative_url, defer=False):
     hash = c.STATIC_HASH_LIST.get(relative_url, None)
     hash_str = f' integrity="{hash}" crossorigin="anonymous"' if hash and c.STATIC_URL.startswith('http') else ''
     if relative_url.endswith('.css'):
         return Markup(f'<link rel="stylesheet" type="text/css" href="{c.STATIC_URL}{relative_url}"{hash_str} />')
     elif relative_url.endswith('.js'):
-        return Markup(f'<script type="text/javascript" src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
+        if defer:
+            return Markup(f'<script defer src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
+        else:
+            return Markup(f'<script type="text/javascript" src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
     else:
         return "WARNING: Unsupported static content!"
-
 
 form_link_site_sections = {}
 
@@ -833,3 +852,10 @@ def random_hash():
     random = os.urandom(16)
     result = binascii.hexlify(random)
     return result.decode("utf-8")
+
+@JinjaEnv.jinja_filter
+def javascript_bool(val):
+    if val:
+        return 'true'
+    else:
+        return 'false'

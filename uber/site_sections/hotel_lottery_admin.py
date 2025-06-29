@@ -98,7 +98,7 @@ class Root:
             'action': action,
             'count': feed.count(),
             'feed': get_page(page, feed),
-            'action_opts': [opt for opt in c.TRACKING_OPTS if opt[0] != c.AUTO_BADGE_SHIFT],
+            'action_opts': c.TRACKING_OPTS,
             'who_opts': [
                 who for [who] in session.query(Tracking).filter(
                     Tracking.model == 'LotteryApplication').distinct().order_by(Tracking.who).values(Tracking.who)]
@@ -122,7 +122,7 @@ class Root:
             form_list = ["LotteryAdminInfo"]
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, application, form_list, get_optional=False)
+        forms = load_forms(params, application, form_list)
         all_errors = validate_model(forms, application, LotteryApplication(**application.to_dict()))
         if all_errors:
             return {"error": all_errors}
@@ -181,7 +181,7 @@ class Root:
         out.writerow(['Group Name', 'Group ID', 'Reg ID'])
 
         for dealer in session.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(
-            Group.is_dealer, Group.status.in_([c.APPROVED, c.SHARED])):
+            Group.is_dealer, Group.status.in_(c.DEALER_ACCEPTED_STATUSES)):
             out.writerow([dealer.group.name, dealer.group.id, dealer.id])
 
     @csv_file
@@ -248,7 +248,7 @@ class Root:
 
             # Config data and IDs
             dealer_id = ''
-            if app.attendee.is_dealer and app.attendee.group and app.attendee.group.status in [c.APPROVED, c.SHARED]:
+            if app.attendee.is_dealer and app.attendee.group and app.attendee.group.status in c.DEALER_ACCEPTED_STATUSES:
                 dealer_id = app.attendee.group.id
             row.extend([datetime_local_filter(app.current_lottery_deadline), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
                         c.EVENT_YEAR, app.response_id, app.confirmation_num, app.id, "RAMS_1", app.id, dealer_id])

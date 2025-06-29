@@ -110,8 +110,8 @@ class PageViewTracking(MagModel):
 class Tracking(MagModel):
     fk_id = Column(UUID, index=True)
     model = Column(UnicodeText)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    who = Column(UnicodeText)
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC), index=True)
+    who = Column(UnicodeText, index=True)
     supervisor = Column(UnicodeText)
     page = Column(UnicodeText)
     which = Column(UnicodeText)
@@ -233,9 +233,7 @@ class Tracking(MagModel):
         elif action == c.UPDATED:
             diff = cls.differences(instance)
             data = cls.format(diff)
-            if len(diff) == 1 and 'badge_num' in diff and c.SHIFT_CUSTOM_BADGES:
-                action = c.AUTO_BADGE_SHIFT
-            elif not data:
+            if not data:
                 return
         else:
             data = 'id={}'.format(instance.id)

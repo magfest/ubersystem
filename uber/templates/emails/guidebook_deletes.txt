@@ -1,0 +1,7 @@
+Attention Guidebook admins! The items below have been deleted from the system.
+
+{% for category in deleted_models %}{{ category }}(s):
+{% for item in deleted_models[category] %} - {{ item }}
+{% endfor %}{% endfor %}
+
+This email will be the only record of these item deletions. Please keep it until you delete all the above items from Guidebook.

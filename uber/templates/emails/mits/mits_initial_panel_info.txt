@@ -6,4 +6,4 @@ If you have any panel-related questions in the meantime, please email tabletoppa
 
 If you have any non-panel MITS-related questions, you can always send those to mits@magfest.org
 
-{{ c.MITS_EMAIL_SIGNATURE }}
+{{ email_signature }}

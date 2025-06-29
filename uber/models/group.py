@@ -229,12 +229,12 @@ class Group(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def attendees_have_badges(self):
-        return self.is_valid and (not self.is_dealer or self.status in [c.APPROVED, c.SHARED])
+        return self.is_valid and (not self.is_dealer or self.status in c.DEALER_ACCEPTED_STATUSES)
 
     @attendees_have_badges.expression
     def attendees_have_badges(cls):
         return and_(cls.is_valid,
-                    or_(cls.is_dealer == False, cls.status.in_([c.APPROVED, c.SHARED])))  # noqa: E712
+                    or_(cls.is_dealer == False, cls.status.in_(c.DEALER_ACCEPTED_STATUSES)))  # noqa: E712
 
     @property
     def access_sections(self):
@@ -297,6 +297,10 @@ class Group(MagModel, TakesPaymentMixin):
             emails = [a.email for a in self.attendees if a.email]
             if len(emails) == 1:
                 return emails[0]
+
+    @property
+    def gets_emails(self):
+        return self.status not in [c.DECLINED, c.CANCELLED] and not self.leader or self.leader.is_valid
 
     @hybrid_property
     def badges_purchased(self):
@@ -361,7 +365,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def amount_unpaid(self):
-        if self.is_dealer and self.status not in [c.APPROVED, c.SHARED]:
+        if self.is_dealer and self.status not in c.DEALER_ACCEPTED_STATUSES:
             return 0
 
         if self.registered:
@@ -417,6 +421,14 @@ class Group(MagModel, TakesPaymentMixin):
         return self.dealer_max_badges - self.badges
 
     @property
+    def can_add_existing_badges(self):
+        """
+        Enables the "Add by confirmation number" button on the group members page,
+        as long as the group is paid up and has no T&C to sign.
+        """
+        return False
+
+    @property
     def hours_since_registered(self):
         if not self.registered:
             return 0
@@ -464,19 +476,33 @@ class Group(MagModel, TakesPaymentMixin):
 
         physical_address = [address1, address2, city_region_zip, country]
         return '\n'.join([s for s in physical_address if s])
+
+    @property
+    def guidebook_header(self):
+        return ''
     
+    @property
+    def guidebook_thumbnail(self):
+        return ''
+
     @property
     def guidebook_edit_link(self):
         return f"../group_admin/form?id={self.id}"
 
     @property
     def guidebook_data(self):
-        category_labels = [cat for cat in self.categories_labels if 'Other' not in cat] + [self.categories_text]
+        category_labels = [cat for cat in self.categories_labels if 'Other' not in cat]
+        if self.categories_text:
+            category_labels.append(self.categories_text)
         return {
             'guidebook_name': self.name,
-            'guidebook_subtitle': ', '.join(category_labels[:5]),
+            'guidebook_subtitle': ', '.join(category_labels),
             'guidebook_desc': self.description,
             'guidebook_location': '',
             'guidebook_header': '',
             'guidebook_thumbnail': '',
         }
+    
+    @property
+    def guidebook_images(self):
+        return ['', ''], ['', '']

@@ -14,4 +14,4 @@ If you're not attending {{ c.EVENT_NAME }} this year, everything is taken care o
 
 We sincerely thank you for taking time to judge entries for this year's MIVS, and we hope you'll be able to make a future {{ c.EVENT_NAME }} event! It's due to your efforts that we were able to identify and spotlight great quality games for our {{ c.EVENT_NAME }} attendees to enjoy at the event.
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

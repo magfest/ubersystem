@@ -266,6 +266,3 @@ def before_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_
 @pytest.fixture
 def after_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', deadline_has_passed)
 
-
-@pytest.fixture
-def custom_badges_ordered(monkeypatch): monkeypatch.setattr(c, 'SHIFT_CUSTOM_BADGES', False)

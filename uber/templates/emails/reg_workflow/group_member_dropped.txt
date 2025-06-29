@@ -2,4 +2,4 @@
 
 Our records indicate that you had a {{ c.EVENT_NAME }} registration as part of the group {{ attendee.group.name }}, which has just been dropped, so that registration may now be claimed by someone else.  So you will no longer have a badge waiting for you at our registration desk.  If you believe this is in error. please let us know, or contact the leader of {{ attendee.group.name }} ({{ attendee.group.leader.full_name }}) at {{ attendee.group.email }}
 
-{{ c.REGDESK_EMAIL_SIGNATURE }}
+{{ email_signature }}

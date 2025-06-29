@@ -1,6 +1,6 @@
 {% import 'macros.html' as macros with context %}
 {% set page_ro = false %}
-{% set bootstrap5 = 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or 'art_show_applications' in c.PAGE_PATH or 'attractions' in c.PAGE_PATH or 'hotel_lottery' in c.PAGE_PATH or 'marketplace' in c.PAGE_PATH or 'staffing' in c.PAGE_PATH or admin_area %}
+{% set bootstrap5 = 'showcase' in c.PAGE_PATH or 'mivs' in c.PAGE_PATH or 'panels' in c.PAGE_PATH or 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or 'art_show_applications' in c.PAGE_PATH or 'attractions' in c.PAGE_PATH or 'hotel_lottery' in c.PAGE_PATH or 'marketplace' in c.PAGE_PATH or 'staffing' in c.PAGE_PATH or admin_area %}
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
@@ -36,6 +36,8 @@
         {{ "deps/combined.min.js"|serve_static_content }}
         {{ "deps/jquery/jquery-migrate-3.4.1.js"|serve_static_content }}
         {{ "js/common-static.js"|serve_static_content }}
+        {{ "js/alpine-mask.js"|serve_static_content(defer=true) }}
+        {{ "js/alpine.3.14.8.min.js"|serve_static_content(defer=true) }}
         {% if bootstrap5 %}
         {{ "deps/bootstrap5/bootstrap.bundle.min.js"|serve_static_content }}
         {{ "deps/bootstrap5/bootbox.all.min.js"|serve_static_content }}
@@ -45,10 +47,20 @@
         {{ "deps/bootstrap3/bootbox.min.js"|serve_static_content }}
         {{ "deps/bootstrap3/datatables.min.js"|serve_static_content }}
         {% endif %}
-        
         <script type="text/javascript">
             $(window).on("runJavaScript", function () {
-              $('[data-bs-toggle="tooltip"]').tooltip();
+                {% if bootstrap5 %}
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl)
+                    })
+                var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+                var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl)
+                })
+                {% else %}
+                $('[data-bs-toggle="tooltip"]').tooltip();
+                {% endif %}
             })
 
             {% if not c.DEV_BOX %}jQuery.migrateMute = true;{% endif %}
@@ -82,7 +94,7 @@
         {% endif %}
     {% endblock %}
 
-    {% if c.DEV_BOX %}<meta name="robots" content="noindex">{% endif %}
+    {% if c.DEV_BOX or c.PAGE_PATH not in c.INDEXABLE_PAGE_PATHS %}<meta name="robots" content="noindex">{% endif %}
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">

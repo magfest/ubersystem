@@ -11,7 +11,7 @@ from uber.forms import load_forms
 from uber.models import Attendee, ArtistMarketplaceApplication
 from uber.tasks.email import send_email
 from uber.utils import check, validate_model
-from uber.payments import TransactionRequest, ReceiptManager
+from uber.payments import TransactionRequest, ReceiptManager, RefundRequest
 
 
 @all_renderable(public=True)
@@ -122,7 +122,7 @@ class Root:
             form_list = ["ArtistMarketplaceForm"]
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, app, form_list, get_optional=False)
+        forms = load_forms(params, app, form_list)
 
         all_errors = validate_model(forms, app, ArtistMarketplaceApplication(**app.to_dict()), is_admin=False)
         if all_errors:
@@ -158,14 +158,21 @@ class Root:
                     else:
                         refund_amount = item.receipt_txn.amount_left
                     running_total = running_total - refund_amount
-                    refund = TransactionRequest(item.receipt, amount=refund_amount, who='non-admin')
-                    error = refund.refund_or_cancel(item.receipt_txn, c.ARTIST_ALLEY_RECEIPT_ITEM)
+
+                    error = ''
+                    try:
+                        refund = RefundRequest(item.receipt_txn, amount=refund_amount, who='non-admin')
+                    except ValueError as e:
+                        error = e
+
+                    if not error:
+                        error = refund.process_refund(department=c.ARTIST_ALLEY_RECEIPT_ITEM)
                     if error:
                         log.error(f"Tried to cancel marketplace app {app.id} but ran into an error: {error}")
                         raise HTTPRedirect('edit?id={}&message={}', id,
                                            f"There was an issue processing your refund. "
                                            "Please contact us at {email_only(c.ARTIST_MARKETPLACE_EMAIL)}.")
-                    session.add_all(refund.get_receipt_items_to_add())
+                    session.add_all(refund.items_to_add)
             session.commit()
             session.check_receipt_closed(session.get_receipt_by_model(app.attendee))
 
@@ -198,7 +205,8 @@ class Root:
                                                                 c.ARTIST_ALLEY_RECEIPT_ITEM,
                                                                 c.MARKETPLACE,
                                                                 "Artist Marketplace Application",
-                                                                app.amount_unpaid)
+                                                                app.amount_unpaid,
+                                                                purchaser_id=app.attendee.id)
             receipt_item.fk_id = app.id
             receipt_item.fk_model = "ArtistMarketplaceApplication"
             session.add(receipt_item)

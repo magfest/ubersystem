@@ -21,9 +21,6 @@ from uber.tasks import celery
 __all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email']
 
 
-celery.on_startup(AutomatedEmail.reconcile_fixtures)
-
-
 def _is_dev_email(email):
     """
     Returns True if `email` is a development email address.
@@ -43,17 +40,17 @@ def send_email(
         format='text',
         cc=(),
         bcc=(),
-        replyto=[],
+        replyto=(),
         model=None,
         ident=None,
         automated_email=None,
         session=None):
 
-    to, cc, bcc = map(lambda x: listify(x if x else []), [to, cc, bcc])
-    original_to, original_cc, original_bcc = to, cc, bcc
+    to, cc, bcc, replyto = map(lambda x: listify(x if x else []), [to, cc, bcc, replyto])
+    original_to, original_cc, original_bcc, original_replyto = to, cc, bcc, replyto
     ident = ident or subject
     if c.DEV_BOX:
-        to, cc, bcc = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc])
+        to, cc, bcc, replyto = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc, replyto])
 
     record_email = False
 
@@ -107,6 +104,7 @@ def send_email(
                 to=','.join(original_to),
                 cc=','.join(original_cc),
                 bcc=','.join(original_bcc),
+                replyto=','.join(original_replyto),
                 ident=ident,
                 **fk_kwargs)
 
@@ -140,6 +138,8 @@ def notify_admins_of_pending_emails():
             if sender == c.STAFF_EMAIL:
                 # STOPS receives a report on ALL the pending emails.
                 emails_by_sender = pending_emails_by_sender
+            elif sender == c.CONTACT_EMAIL:
+                continue
             else:
                 emails_by_sender = {sender: emails_by_ident}
 
@@ -196,13 +196,18 @@ def send_automated_emails():
                     session.add(automated_email)
                     session.commit()
                     unapproved_count = 0
+                    if getattr(automated_email, 'shared_ident', None):
+                        matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
+                        fk_id_list = [id for id, in matching_email_ids]
+                    else:
+                        fk_id_list = automated_email.emails_by_fk_id
 
                     log.debug("Loading instances for " + automated_email.ident)
                     model_instances = query_func(session)
                     log.trace("Finished loading instances")
                     for model_instance in model_instances:
                         log.trace("Checking " + str(model_instance.id))
-                        if model_instance.id not in automated_email.emails_by_fk_id:
+                        if model_instance.id not in fk_id_list:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
                                     if getattr(model_instance, 'active_receipt', None):

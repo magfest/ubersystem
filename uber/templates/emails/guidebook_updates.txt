@@ -1,6 +1,13 @@
 Attention Guidebook admins!
-The following categories have stale items:
+
+{% if stale_models %}The following categories have been updated in the system:
 {% for label in stale_models %}- {{ label }}
 {% endfor %}
 
-You can review all pending items here: {{ c.URL_BASE }}/schedule_reports/index
+{% endif %}{% if deleted_models %}The following items have been deleted:
+{% for category in deleted_models %}{{ category }}(s):
+{% for item in deleted_models[category] %} - {{ item }}
+{% endfor %}
+{% endfor %}
+
+{% endif %}You can review all pending items here: {{ c.URL_BASE }}/schedule_reports/index

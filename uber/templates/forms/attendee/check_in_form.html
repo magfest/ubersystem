@@ -3,6 +3,7 @@
 {% set check_in_form = check_in_form or forms['check_in_form'] %}
 
 {# BLOCK NAMES in this form:
+    x_data
     basic_info
     badge_info
     editable
@@ -12,86 +13,108 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
-{% block basic_info %}
-<div class="row g-sm-3">
-    <div class="col">{{ form_macros.form_input(check_in_form.full_name, hidden_field_text=attendee|form_link(true)) }}</div>
-    <div class="col">{{ form_macros.form_input(check_in_form.legal_name, hidden_field_text=attendee.legal_name) }}</div>
-    <div class="col">{{ form_macros.form_input(check_in_form.email, hidden_field_text=attendee.email) }}</div>
-    <div class="col">{{ form_macros.form_input(check_in_form.zip_code, hidden_field_text=attendee.zip_code) }}</div>
-</div>
-{% endblock %}
+<div x-data="{ {% block x_data %}{% endblock %} }">
 
+<div class="row g-sm-3 mb-3">
+{% block basic_info %}
+    <div class="col-sm">
+        {% call form_macros.input(check_in_form.full_name) %}
+        {{ attendee|form_link(true) }}
+        {% endcall %}
+    </div>
+    <div class="col-sm">
+        {% call form_macros.input(check_in_form.legal_name) %}
+        {{ attendee.legal_name }}
+        {% endcall %}
+    </div>
+    <div class="col-sm">
+        {% call form_macros.input(check_in_form.email) %}
+        {{ attendee.email }}
+        {% endcall %}
+    </div>
+    <div class="col-sm">
+        {% call form_macros.input(check_in_form.zip_code) %}
+        {{ attendee.zip_code }}
+        {% endcall %}
+    </div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
 {% block badge_info %}
-<div class="row g-sm-3">
-    <div class="col">
-        {% set badge_display_extra = '' if not attendee.ribbon else ' (' ~ attendee.ribbon_labels|join(" / ") ~ ')' %}
-        {{ form_macros.form_input(check_in_form.badge_type, hidden_field_text=attendee.badge_type_label ~ badge_display_extra) }}
+    <div class="col-sm">
+        {% call form_macros.input(check_in_form.badge_type) %}
+        {{ attendee.badge_type_label ~ ('' if not attendee.ribbon else ' (' ~ attendee.ribbon_labels|join(" / ") ~ ')') }}
+        {% endcall %}
     </div>
     {% if c.NUMBERED_BADGES and attendee.badge_num %}
-        <div class="col">
-            {{ form_macros.form_input(check_in_form.badge_num, force_hidden=attendee.badge_num, hidden_field_text=attendee.badge_num) }}
+        <div class="col-sm">
+            <div class="form-text">{{ check_in_form.badge_num.label }}</div>
+            {{ attendee.badge_num }}
+            <input type="hidden" name="{{ check_in_form.badge_num.name }}" value="{{ attendee.badge_num }}" />
         </div>
     {% endif %}
     {% if c.COLLECT_EXACT_BIRTHDATE and attendee.birthdate %}
-        <div class="col">
-            {{ form_macros.form_input(check_in_form.age_group, hidden_field_text=attendee.age_group_conf.desc) }}
+        <div class="col-sm">
+            {% form_macros.input(check_in_form.age_group) %}
+            {{ attendee.age_group_conf.desc }}
+            {% endcall %}
         </div>
     {% endif %}
-</div>
 {% endblock %}
+</div>
 
+<div class="row g-sm-3 mb-3">
 {% block editable %}
-<div class="row g-sm-3">
     {% if c.NUMBERED_BADGES and not attendee.badge_num %}
-        <div class="col">
-            {{ form_macros.form_input(check_in_form.badge_num, force_hidden=attendee.badge_num, hidden_field_text=attendee.badge_num) }}
+        <div class="col-sm">
+            {{ form_macros.input(check_in_form.badge_num) }}
         </div>
         <script type="text/javascript">
             $().ready(function() { $('#badge_num').focus(); });
         </script>
     {% endif %}
     {% if c.COLLECT_EXACT_BIRTHDATE %}
-        <div class="col">
-            {{ form_macros.form_input(check_in_form.birthdate) }}
+        <div class="col-sm">
+            {{ form_macros.input(check_in_form.birthdate) }}
         </div>
     {% endif %}
     {% if attendee.has_personalized_badge %}
-        <div class="col">{{ form_macros.form_input(check_in_form.badge_printed_name) }}</div>
+        <div class="col-sm">{{ form_macros.input(check_in_form.badge_printed_name) }}</div>
     {% endif %}
-</div>
 {% endblock %}
+</div>
 
+<div class="row g-sm-3 mb-3">
 {% block merch %}
 {% if attendee.merch and c.MERCH_AT_CHECKIN %}
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-6">{{ form_macros.form_input(check_in_form.got_merch) }}</div>
+        <div class="col-sm">{{ form_macros.input(check_in_form.got_merch) }}</div>
         {% if c.SEPARATE_STAFF_MERCH %}
-        <div class="col-12 col-sm-6">{{ form_macros.form_input(check_in_form.got_staff_merch) }}</div>
+        <div class="col-sm">{{ form_macros.input(check_in_form.got_staff_merch) }}</div>
         {% endif %}
-    </div>
 {% else %}
     <input type="hidden" name="got_merch" value="{{ attendee.got_merch }}" />
     <input type="hidden" name="got_staff_merch" value="{{ attendee.got_staff_merch }}" />
 {% endif %}
 {% endblock %}
+</div>
 
+<div class="row g-sm-3 mb-3">
 {% block badge_printing %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         <div class="form-text">&nbsp;</div>
         <div>
             <p><a href="#" class="btn btn-warning" data-bs-toggle="collapse" data-bs-target=".escalate-ticket" aria-expanded="false" aria-controls="escalate-ticket">Escalate to Manager</a></p>
         </div>
     </div>
 {% if c.BADGE_PRINTING_ENABLED %}
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         <label for="printer_id" class="form-text">Printer ID</label>
         <div class="mb-3"><input type="text" id="printer_id" class="form-control" name="printer_id" /></div>
     </div>
 {% endif %}
 </div>
-
-<div class="row g-sm-3">
+<div class="row g-sm-3 mb-3">
     <div class="escalate-ticket col-12 collapse bg-light card card-body">
         <p>
             This will add {{ attendee.full_name }} to the manager queue and they will not be able to check in before a manager
@@ -107,8 +130,8 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
         </div>
         </div>
     </div>
-</div>
 {% endblock %}
+</div>
 
 {% block check_in_notes %}
 {% if attendee.check_in_notes %}
@@ -117,3 +140,5 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 </div>
 {% endif %}
 {% endblock %}
+
+</div>

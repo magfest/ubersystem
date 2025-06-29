@@ -1,44 +1,70 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
+from pockets import groupify
 
 import stripe
 import time
 import pytz
 from celery.schedules import crontab
 from pockets.autolog import log
-from sqlalchemy import not_, or_
+from sqlalchemy import not_, or_, insert
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import readable_join
 from uber.decorators import render
-from uber.models import (ApiJob, Attendee, AttendeeAccount, TerminalSettlement, Email, Session, BadgePickupGroup,
-                         ReceiptInfo, ReceiptTransaction)
+from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePickupGroup, Email, Group, ModelReceipt,
+                         ReceiptInfo, ReceiptItem, ReceiptTransaction, Session, TerminalSettlement)
 from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils
-from uber.payments import ReceiptManager
+from uber.payments import ReceiptManager, TransactionRequest
+
+
+if c.AUTHORIZENET_LOGIN_ID:
+    from authorizenet import apicontractsv1, apicontrollers
 
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
            'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue',
-           'process_terminal_sale', 'send_receipt_email', 'assign_badge_num', 'create_badge_pickup_groups', 'update_receipt']
+           'process_terminal_sale', 'send_receipt_email', 'create_badge_nums', 'create_badge_pickup_groups', 'update_receipt']
 
 
-@celery.task
-def assign_badge_num(attendee_id):
-    time.sleep(1) # Allow some time to save to DB
+@celery.schedule(timedelta(days=1))
+def create_badge_nums():
+    """
+    Takes the configuration for badge ranges and creates BadgeInfo objects
+    that can be assigned to attendees as needed. This allows us to rely on
+    database-level locking to prevent badge number collisions.
+
+    We take only the smallest and largest number from all badge ranges, ignoring
+    any potential gaps -- this allows us to much more easily handle potential config
+    changes by checking the min and max badge numbers that already exist.
+    """
+
+    if not c.NUMBERED_BADGES:
+        return
+    
+    starts_ends = list(zip(*c.BADGE_RANGES.values()))
+    first_badge_num = min(starts_ends[0])
+    last_badge_num = max(starts_ends[1])
+
     with Session() as session:
-        attendee = session.query(Attendee).filter_by(id=attendee_id).first()
-        if not attendee:
-            time.sleep(60)
-            attendee = session.query(Attendee).filter_by(id=attendee_id).first()
-            if not attendee:
-                log.error(f"Timed out when trying to assign a badge number to attendee {attendee_id}!")
-                return
-        attendee.badge_num = session.get_next_badge_num(attendee.badge_type)
-        session.add(attendee)
+        any_badge = session.query(BadgeInfo).first()
+        if not any_badge:
+            new_badge_list = [{"ident": x} for x in range(first_badge_num, last_badge_num + 1)]
+        else:
+            new_badge_list = []
+            first_badge = session.query(BadgeInfo).filter(BadgeInfo.ident == first_badge_num).first()
+            last_badge = session.query(BadgeInfo).filter(BadgeInfo.ident == last_badge_num).first()
+            if not first_badge:
+                min_badge_num = session.query(BadgeInfo.ident).order_by(BadgeInfo.ident).limit(1).first()
+                new_badge_list.extend([{"ident": x} for x in range(first_badge_num, min_badge_num[0])])
+            if not last_badge:
+                max_badge_num = session.query(BadgeInfo.ident).order_by(BadgeInfo.ident.desc()).limit(1).first()
+                new_badge_list.extend([{"ident": x} for x in range(max_badge_num[0] + 1, last_badge_num + 1)])
+        session.execute(insert(BadgeInfo), new_badge_list)
         session.commit()
 
 
@@ -137,28 +163,15 @@ def check_placeholder_registrations():
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_pending_badges():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
-        emails = [[
-            'Staff',
-            c.STAFF_EMAIL,
-            Attendee.badge_type == c.STAFF_BADGE,
-            'staffing_admin'
-        ], [
-            'Attendee',
-            c.REGDESK_EMAIL,
-            Attendee.badge_type != c.STAFF_BADGE,
-            'registration'
-        ]]
-        subject = c.EVENT_NAME + ' Pending {} Badge Report for ' + localized_now().strftime('%Y-%m-%d')
+        subject = c.EVENT_NAME + ' Pending Badges Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
-            for badge_type, to, per_email_filter, site_section in emails:
-                pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
-                                                         Attendee.paid != c.PENDING,
-                                                         per_email_filter).all()
-                if pending and session.no_email(subject.format(badge_type)):
-                    body = render('emails/daily_checks/pending.html',
-                                  {'pending': pending, 'site_section': site_section}, encoding=None)
-                    send_email.delay(c.REPORTS_EMAIL, to, subject.format(badge_type), body,
-                                     format='html', model='n/a')
+            pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
+                                                        Attendee.paid != c.PENDING).all()
+            if pending and session.no_email(subject):
+                body = render('emails/daily_checks/pending.html',
+                                {'pending': pending}, encoding=None)
+                send_email.delay(c.REPORTS_EMAIL, c.STAFF_EMAIL, subject, body,
+                                    format='html', model='n/a')
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -205,6 +218,23 @@ def invalidate_at_door_badges():
 
 
 @celery.schedule(timedelta(days=1))
+def invalidate_dealer_badges():
+    if not c.DEALER_BADGE_DEADLINE or not c.AFTER_DEALER_BADGE_DEADLINE:
+        return
+
+    with Session() as session:
+        pending_badges = session.query(Attendee).filter(Attendee.admin_notes.contains('Converted badge'),
+                                                        Attendee.placeholder,
+                                                        Attendee.paid == c.NOT_PAID,
+                                                        Attendee.badge_status != c.INVALID_STATUS)
+        for badge in pending_badges:
+            badge.badge_status = c.INVALID_STATUS
+            session.add(badge)
+
+        session.commit()
+
+
+@celery.schedule(timedelta(days=1))
 def email_pending_attendees():
     if c.REMAINING_BADGES < int(c.BADGES_LEFT_ALERTS[0]) or not c.PRE_CON:
         return
@@ -216,6 +246,7 @@ def email_pending_attendees():
         pending_badges = session.query(Attendee).filter(
             Attendee.paid == c.PENDING,
             Attendee.badge_status == c.PENDING_STATUS,
+            Attendee.transfer_code == '',
             Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)).order_by(Attendee.registered)
         for badge in pending_badges:
             # Update `compare_date` to prevent early deletion of badges registered before a certain date
@@ -381,7 +412,7 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, pickup_gr
                                                   amount=txn_total,
                                                   tracker=txn_tracker,
                                                   **kwargs)
-            message = payment_request.create_stripe_intent(intent_id)
+            message = payment_request.create_payment_intent(intent_id)
             if message:
                 txn_tracker.internal_error = message
                 session.commit()
@@ -460,6 +491,70 @@ def check_missed_stripe_payments():
     return paid_ids
 
 
+@celery.schedule(timedelta(hours=3))
+def check_authnet_held_txns():
+    if not c.AUTHORIZENET_LOGIN_ID:
+        return
+
+    held_ids = []
+    
+    merchantAuth = apicontractsv1.merchantAuthenticationType(
+        name=c.AUTHORIZENET_LOGIN_ID,
+        transactionKey=c.AUTHORIZENET_LOGIN_KEY
+        )
+    
+    heldTransactionListRequest = apicontractsv1.getUnsettledTransactionListRequest()
+    heldTransactionListRequest.merchantAuthentication = merchantAuth
+    heldTransactionListRequest.status = 'pendingApproval'
+    heldTransactionListController = apicontrollers.getUnsettledTransactionListController(heldTransactionListRequest)
+    heldTransactionListController.execute()
+    heldTransactionListResponse = heldTransactionListController.getresponse()
+
+    if heldTransactionListResponse is not None:
+        if heldTransactionListResponse.messages.resultCode == apicontractsv1.messageTypeEnum.Ok:
+            if heldTransactionListResponse.totalNumInResultSet > 0:
+                for transaction in heldTransactionListResponse.transactions.transaction:
+                    held_ids.append(str(transaction.transId))
+        else:
+            if heldTransactionListResponse.messages:
+                log.debug('Failed to get unsettled transaction list.\nCode:%s \nText:%s' % (heldTransactionListResponse.messages.message[0]['code'].text,
+                                                                                            heldTransactionListResponse.messages.message[0]['text'].text))
+
+    with Session() as session:
+        hold_txns = session.query(ReceiptTransaction).filter(ReceiptTransaction.charge_id.in_(held_ids),
+                                                             ReceiptTransaction.on_hold == False)
+        release_txns = session.query(ReceiptTransaction).filter(~ReceiptTransaction.charge_id.in_(held_ids),
+                                                                ReceiptTransaction.on_hold == True)
+
+        for txn in hold_txns:
+            txn.on_hold = True
+            session.add(txn)
+
+        release_txns_by_charge_id = groupify(release_txns, 'charge_id')
+
+        for charge_id, txns in release_txns_by_charge_id.items():
+            txn_status = TransactionRequest()
+            error = txn_status.get_authorizenet_txn(charge_id)
+
+            if error:
+                log.error(f"Tried to check status of transaction {charge_id} but got the error: {error}")
+            else:
+                if txn_status.response.transactionStatus != "settledSuccessfully":
+                    body = render('emails/held_txn_declined.html',
+                                  {'txns': txns, 'status': str(txn_status.response.transactionStatus)},
+                                  encoding=None)
+                    subject = f"AuthNet Held Transaction Declined: {charge_id}"
+                    send_email.delay(c.REPORTS_EMAIL, c.REGDESK_EMAIL, subject, body,
+                                     format='html', model='n/a')
+
+                for txn in txns:
+                    if txn_status.response.transactionStatus != "settledSuccessfully":
+                        txn.cancelled = datetime.now()
+                    else:
+                        txn.on_hold = False
+                    session.add(txn)
+
+
 @celery.schedule(timedelta(days=1))
 def create_badge_pickup_groups():
     if c.ATTENDEE_ACCOUNTS_ENABLED and c.BADGE_PICKUP_GROUPS_ENABLED and (c.AFTER_PREREG_TAKEDOWN or c.DEV_BOX):
@@ -470,6 +565,48 @@ def create_badge_pickup_groups():
                 pickup_group.build_from_account(account)
                 session.add(pickup_group)
             session.commit()
+
+
+@celery.schedule(timedelta(days=14))
+def reassign_purchaser_ids():
+    with Session() as session:
+        purchaser_ids = session.query(
+            ReceiptItem.purchaser_id).filter(ReceiptItem.purchaser_id != None).join(
+                ModelReceipt).join(Attendee, ModelReceipt.owner_id == Attendee.id
+                                   ).filter(Attendee.is_valid == True).group_by(ReceiptItem.purchaser_id).all()
+        group_purchaser_ids = session.query(
+            ReceiptItem.purchaser_id).filter(ReceiptItem.purchaser_id != None).join(
+                ModelReceipt).join(Group, ModelReceipt.owner_id == Group.id
+                                   ).filter(Group.is_valid == True).group_by(ReceiptItem.purchaser_id).all()
+        purchaser_id_list = [r for r, in purchaser_ids] + [r for r, in group_purchaser_ids]
+        invalid_attendees = session.query(Attendee).filter(Attendee.is_valid == False, Attendee.id.in_(purchaser_id_list))
+
+        for attendee in invalid_attendees:
+            alt_id = None
+            valid_dupe = session.query(Attendee).filter(Attendee.is_valid == True,
+                                                        Attendee.first_name == attendee.first_name,
+                                                        Attendee.last_name == Attendee.last_name,
+                                                        Attendee.email == attendee.email).first()
+            if valid_dupe:
+                alt_id = valid_dupe.id
+            elif not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_pickup_group:
+                alt_id = attendee.badge_pickup_group.fallback_purchaser_id
+
+            if alt_id:
+                receipt_items = session.query(ReceiptItem).filter(ReceiptItem.purchaser_id == attendee.id).join(
+                    ModelReceipt).join(Attendee, ModelReceipt.owner_id == Attendee.id).filter(Attendee.is_valid == True)
+                for item in receipt_items:
+                    item.purchaser_id = alt_id
+                    session.add(item)
+
+
+@celery.schedule(timedelta(days=60))
+def sunset_empty_accounts():
+    with Session() as session:
+        empty_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.unused_years > 2)
+        for account in empty_accounts:
+            session.delete(account)
+        session.commit()
 
 
 @celery.task

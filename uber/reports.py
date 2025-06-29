@@ -1,7 +1,8 @@
 from uber.barcode import generate_barcode_from_badge_num
 from uber.config import c
-from uber.models.attendee import Attendee
+from uber.models import Attendee, BadgeInfo
 
+from pockets.autolog import log
 
 __all__ = ['PersonalizedBadgeReport', 'PrintedBadgeReport', 'ReportBase']
 
@@ -22,12 +23,13 @@ class PersonalizedBadgeReport(ReportBase):
         self._include_badge_nums = include_badge_nums
 
     def run(self, out, session, *filters, order_by=None, badge_type_override=None):
-        for a in (session.query(Attendee)
+        for a in (session.query(Attendee).join(BadgeInfo)
                          .filter(Attendee.has_badge == True, *filters)  # noqa: E712
                          .order_by(order_by).all()):
 
             # write the actual data
             row = [a.id, a.badge_num] if self._include_badge_nums else [a.id]
+            log.error(a.badge_num)
             if badge_type_override:
                 if callable(badge_type_override):
                     badge_type_label = badge_type_override(a)

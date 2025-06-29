@@ -127,7 +127,11 @@ var callStripeAction = function (autoTrigger=false) {
 var processSuccessUrl = function(success_url) {
     if(success_url == '') {
         // Special override for at-door check-in modal payment workflow
-        window[loadCheckInForm()];
+        if (typeof loadCheckInForm == "function") {
+            window[loadCheckInForm()];
+        } else {
+            window.location.reload();
+        }
     } else {
         window.location.replace(success_url);
     }

@@ -1,0 +1,7 @@
+{{ attendee.first_name }},
+
+You have successfully transferred your {{ c.EVENT_NAME }} {{ attendee.badge_type_label }} registration to badge code {{ transferee_code }} using your transfer code {{ transferer_code }}. This means you no longer have a paid registration for {{ c.EVENT_NAME }}.
+
+If this has happened in error, please contact {{ c.REGDESK_EMAIL|email_only }}. Otherwise, we hope to see you next year!
+
+{{ email_signature }}

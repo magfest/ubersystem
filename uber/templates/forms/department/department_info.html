@@ -1,0 +1,57 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set department_info = department_info or forms['department_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    basic_info
+    hours_panels
+    checkboxes
+    hidden
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+manages_panels: {{ department_info.manages_panels.data|jsonize }},
+{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
+{% block basic_info %}
+<div class="col-sm">{{ form_macros.input(department_info.name) }}</div>
+<div class="col-sm">{{ form_macros.input(department_info.description) }}</div>
+<div class="col-sm">
+    {% call form_macros.input(department_info.from_email) %}
+    <div class="form-text" x-show="manages_panels">This email address will also be used for automated panel emails under your department.</div>
+    {% endcall %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block hours_panels %}
+<div class="col-sm">{{ form_macros.input(department_info.max_consecutive_minutes,
+    value=(department_info.max_consecutive_minutes.data / 60 if department_info.max_consecutive_minutes.data else 0)) }}</div>
+<div class="col-sm pt-1">
+    <div class="form-text">&nbsp;</div>
+    {% call form_macros.input(department_info.manages_panels, alpine_model="manages_panels") %}
+    <div x-show="manages_panels">{{ form_macros.input(department_info.panels_desc) }}</div>
+    {% endcall %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block checkboxes %}
+<div class="col-sm">{{ form_macros.input(department_info.solicits_volunteers) }}</div>
+<div class="col-sm">{{ form_macros.input(department_info.is_shiftless) }}</div>
+{% endblock %}
+</div>
+
+{% block hidden %}
+{{ form_macros.input(department_info.parent_id) }}
+{{ form_macros.input(department_info.is_setup_approval_exempt) }}
+{{ form_macros.input(department_info.is_teardown_approval_exempt) }}
+{% endblock %}
+
+</div>

@@ -212,7 +212,10 @@
 </form>
 
 {%- if event.signups -%}
-  <h2 class="attendees-title">Attendees Signed Up</h2>
+  <div class="d-flex align-items-center gap-3 mt-3">
+    <h2>Attendees Signed Up</h2>
+    <a href="signups_export?id={{ event.id }}"><i class="fa fa-download"></i> Download CSV</a>
+  </div>
   <table id="attendees-table" class="table table-hover table-responsive datatable"
       data-paging="false"
       data-info="false">

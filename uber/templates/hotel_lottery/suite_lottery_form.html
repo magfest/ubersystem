@@ -1,11 +1,5 @@
 {% extends 'hotel_lottery/room_lottery_form.html' %}
 
-{% block last_step_js %}
-    if (step >= 6) {
-        $('#{{ room_text }}-lottery-form').submit();
-    }
-{% endblock %}
-
 {% block form_js %}
 {{ super() }}
 
@@ -18,6 +12,12 @@
         $('#room_opt_out').change(showOrHideRoomOpts);
     });
 </script>
+{% endblock %}
+
+{% block last_step_js %}
+    if (step >= {{ c.HOTEL_LOTTERY_FORM_STEPS['suite_final_step'] }}) {
+        $('#{{ room_text }}-lottery-form').submit();
+    }
 {% endblock %}
 
 {% block ada_info %}{% endblock %}
@@ -49,7 +49,7 @@
             {% block terms_form %}
             <div class="row g-sm-3">
                 <div class="col-12">
-                    <strong>{{ form_macros.form_input(suite_lottery.suite_terms_accepted) }}</strong>
+                    <strong>{{ form_macros.input(suite_lottery.suite_terms_accepted) }}</strong>
                 </div>
             </div>
 
@@ -90,7 +90,7 @@
             </p>
             {% endblock %}
             {% block suite_ranking_form %}
-            {{ form_macros.form_input(suite_lottery.suite_type_preference, readonly=read_only, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) }}
+            {{ form_macros.input(suite_lottery.suite_type_preference, readonly=read_only, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) }}
             
             {% if not read_only and application.current_step <= steps.counter %}
             <div class="row justify-content-end">
@@ -117,5 +117,5 @@
     by ranking your preferred hotels and standard room types in this step.
     However, if you want you can opt out of the room lottery using the checkbox below.
 </p>
-{{ form_macros.form_input(room_or_suite_lottery.room_opt_out, readonly=read_only) }}
+{{ form_macros.input(room_or_suite_lottery.room_opt_out, readonly=read_only) }}
 {% endblock %}

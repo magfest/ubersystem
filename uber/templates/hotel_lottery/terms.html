@@ -5,7 +5,7 @@
 {% set lottery_info = lottery_info or forms['lottery_info'] %}
 
 {% block content %}
-<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
+<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ attendee.full_name }}</span></h1>
 <div class="card">
     <div class="card-body">
         {{ form_macros.form_validation('lottery-info-form', 'validate_hotel_lottery', form_list=['LotteryInfo']) }}
@@ -14,17 +14,36 @@
             <input type="hidden" name="attendee_id" value="{{ attendee_id }}" />
             {{ csrf_token() }}
 
+            <h2>How the Room Lottery Works</h2>
             {% include 'hotel_lottery/lottery_tos.html' with context %}
 
-            {{ form_macros.form_input(lottery_info.terms_accepted) }}
+            {{ form_macros.input(lottery_info.terms_accepted) }}
 
             {% include 'hotel_lottery/data_policy.html' with context %}
 
-            {{ form_macros.form_input(lottery_info.data_policy_accepted) }}
+            {{ form_macros.input(lottery_info.data_policy_accepted) }}
 
-                <button type="submit" name="group" value="true" class="btn btn-primary">Join Room Group</button>
-                <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button>
-                <button type="submit" name="suite" value="true" class="btn btn-success">Enter Suite Lottery</button>
+            {% include 'hotel_lottery/contact_info_form.html' with context %}
+
+            <div class="d-flex gap-2 flex-wrap">
+            {% if attendee.managers %}
+                {% set room_group_owners = attendee.managers[0].get_room_group_owners(staff=attendee.staff_hotel_lottery_eligible) %}
+                {% if attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] %}
+                    {% for group_leader in room_group_owners %}
+                    <button type="submit" name="group_id" value="{{ group_leader.lottery_application.id }}" class="btn btn-primary">Join "{{ group_leader.lottery_application.room_group_name }}" Room Group</button>
+                    {% endfor %}
+                {% endif %}
+            {% endif %}
+            {% if attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] and room_group_owners %}
+            <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button>
+            <button type="submit" name="suite" value="true" class="btn btn-success">Enter Suite Lottery</button>
+            <button type="submit" name="group" value="true" class="btn btn-outline-primary">Search Room Groups</button>
+            {% else %}
+            <button type="submit" name="group" value="true" class="btn btn-primary">Join Room Group</button>
+            <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button>
+            <button type="submit" name="suite" value="true" class="btn btn-success">Enter Suite Lottery</button>
+            {% endif %}
+            </div>
         </form>
     </div>
 </div>

@@ -6,6 +6,7 @@
 {% set badge_extras = badge_extras or forms['badge_extras'] %}
 
 {# BLOCK NAMES in this form:
+    x_data
     promo_code
     staffing (ONLY for during prereg, use staffing_info.html otherwise)
     interests
@@ -15,20 +16,20 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<div x-data="{ {% block x_data %}{% endblock %} }">
 
+<div class="row g-sm-3 mb-3">
 {% block promo_code %}
-{% if not badge_flags and not old and c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) and not is_prereg_dealer %}
+{% if not badge_flags and not old and 'start_badge_transfer' not in c.PAGE and c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) and not is_prereg_dealer %}
     {% set promo_code_admin_text %}
         {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
         <a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove Promo Code</a>
         {% endif %}
     {% endset %}
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-6">{{ form_macros.form_input(other_info.promo_code_code,
-                                                               read_only=attendee.promo_code_code and not editing,
-                                                               help_text="" if not editing or not other_info.promo_code_code.data else "This might look different from the code you entered earlier.",
-                                                               admin_text=promo_code_admin_text) }}</div>
-    </div>
+        <div class="col-sm">{{ form_macros.input(other_info.promo_code_code,
+                                                 read_only=attendee.promo_code_code and not editing,
+                                                 help_text="" if not editing or not other_info.promo_code_code.data else "This might look different from the code you entered earlier.",
+                                                 admin_text=promo_code_admin_text) }}</div>
     {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
         <script type="text/javascript">
             var removePromoCode = function(event) {
@@ -53,26 +54,27 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     {% endif %}
 {% endif %}
 {% endblock %}
+</div>
 
-{% block staffing %}
-{% endblock %}
+<div class="row g-sm-3 mb-3">{% block staffing %}{% endblock %}</div>
 
+<div class="row g-sm-3 mb-3">
 {% block interests %}
 {% if c.INTEREST_OPTS %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(other_info.interests) }}</div>
-</div>
+    <div class="col-12">{{ form_macros.input(other_info.interests) }}</div>
 {% endif %}
 {% endblock %}
+</div>
 
-
+<div class="row g-sm-3 mb-3">
 {% block accessibility %}
 {% if c.ACCESSIBILITY_SERVICES_ENABLED and (not admin_area or c.HAS_OTHER_REPORTS_ACCESS) %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(other_info.requested_accessibility_services) }}</div>
-</div>
+    <div class="col-12">{{ form_macros.input(other_info.requested_accessibility_services) }}</div>
 {% endif %}
 {% endblock %}
+</div>
 
 {% block prereg_extras %}
 {% endblock %}
+
+</div>

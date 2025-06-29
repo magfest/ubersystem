@@ -25,6 +25,9 @@ celery.conf.update(task_ignore_result=True)
 
 
 def celery_on_startup(fn, *args, **kwargs):
+    from uber.tasks.panels import setup_panel_emails
+
+    setup_panel_emails()
     celery.conf.beat_startup_tasks.append((celery.task(fn), args, kwargs))
 
 

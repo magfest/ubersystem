@@ -13,7 +13,8 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import (default_relationship as relationship, utcnow, Choice, DefaultColumn as Column,
+                               MultiChoice, GuidebookImageMixin)
 
 
 __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument', 'MITSTimes']
@@ -208,8 +209,8 @@ class MITSGame(MagModel):
     @property
     def guidebook_data(self):
         return {
-            'guidebook_name': self.team.name,
-            'guidebook_subtitle': self.name,
+            'guidebook_name': self.name,
+            'guidebook_subtitle': self.team.name,
             'guidebook_desc': self.description,
             'guidebook_location': '',
             'guidebook_header': self.guidebook_images[0][0],
@@ -221,32 +222,19 @@ class MITSGame(MagModel):
         if not self.pictures:
             return ['', ''], ['', '']
 
-        header = None
-        thumbnail = None
-        for image in self.pictures:
-            if image.is_header and not header:
-                header = image
-            if image.is_thumbnail and not thumbnail:
-                thumbnail = image
-
-        if not header:
-            header = self.pictures[0]
-        if not thumbnail:
-            thumbnail = self.pictures[1] if len(self.pictures) > 1 else self.pictures[0]
-
+        header = self.guidebook_header
+        thumbnail = self.guidebook_thumbnail
         prepend = sluggify(self.name) + '_'
 
-        return [prepend + header.filename, prepend + thumbnail.filename], [header, thumbnail]
+        header_name = (prepend + header.filename) if header else ''
+        thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
+        
+        return [header_name, thumbnail_name], [header, thumbnail]
 
 
-class MITSPicture(MagModel):
+class MITSPicture(MagModel, GuidebookImageMixin):
     game_id = Column(UUID, ForeignKey('mits_game.id'))
-    filename = Column(UnicodeText)
-    content_type = Column(UnicodeText)
-    extension = Column(UnicodeText)
     description = Column(UnicodeText)
-    is_header = Column(Boolean, default=False)
-    is_thumbnail = Column(Boolean, default=False)
 
     @property
     def url(self):

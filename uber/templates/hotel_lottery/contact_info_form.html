@@ -1,0 +1,25 @@
+{% set attendee = attendee or application.attendee %}
+<h2>Hotel Contact Information</h2>
+
+<p>
+    Hotels require your first and last name to match the photo ID you use during check-in, plus a phone number they can contact you at.
+    {% if 'index' not in c.PAGE_PATH %}
+    We need this information even if you are planning to join a room group. Please verify your first name, last name, and phone number below.
+    {% else %}
+    You can update your contact information below. Please make sure it is accurate!
+    {% endif %}
+</p>
+
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">
+        {{ form_macros.input(lottery_info.legal_first_name, value=lottery_info.legal_first_name.data or attendee.legal_first_name) }}
+    </div>
+    <div class="col-12 col-sm-6">
+        {{ form_macros.input(lottery_info.legal_last_name, value=lottery_info.legal_last_name.data or attendee.legal_last_name) }}
+    </div>
+</div>
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">
+        {{ form_macros.input(lottery_info.cellphone, value=lottery_info.cellphone.data or attendee.cellphone) }}
+    </div>
+</div>

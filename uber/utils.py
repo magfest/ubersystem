@@ -16,7 +16,6 @@ from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 from glob import glob
 from os.path import basename
-from PIL import Image
 from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
@@ -335,7 +334,7 @@ def get_age_conf_from_birthday(birthdate, today=None):
     age = get_age_from_birthday(birthdate, today)
 
     for val, age_group in c.AGE_GROUP_CONFIGS.items():
-        if val != c.AGE_UNKNOWN and age_group['min_age'] <= age and age <= age_group['max_age']:
+        if val != c.AGE_UNKNOWN and age_group['min_age'] <= age <= age_group['max_age']:
             return age_group
 
     return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
@@ -633,14 +632,6 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def check_image_size(image, size_list):
-    try:
-        return Image.open(image).size == tuple(map(int, size_list))
-    except OSError:
-        # This probably isn't an image at all
-        return
-
-
 class GuidebookUtils():
     @classmethod
     def check_guidebook_image_filetype(cls, pic):
@@ -662,7 +653,7 @@ class GuidebookUtils():
 
     @classmethod
     def get_guidebook_models(cls, session, selected_model=''):
-        from uber.models import GuestBio, MITSPicture, IndieGameImage
+        from uber.models import GuestImage, MITSPicture, IndieGameImage
 
         model_cls = cls.parse_guidebook_model(selected_model)
         model_query = session.query(model_cls)
@@ -670,13 +661,13 @@ class GuidebookUtils():
                         cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < model_cls.last_updated]
 
         if '_band' in selected_model:
-            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.bio)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
         elif '_guest' in selected_model:
-            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.bio)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestBio.last_updated)
+            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
         elif '_dealer' in selected_model:
-            model_query = model_query.filter_by(is_dealer=True)
+            model_query = model_query.filter(model_cls.status.in_([c.APPROVED])).filter_by(is_dealer=True)
         elif 'IndieGame' in selected_model:
             model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.images)
             stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < IndieGameImage.last_updated)
@@ -725,41 +716,30 @@ class GuidebookUtils():
 
 
 def validate_model(forms, model, preview_model=None, is_admin=False):
-    from wtforms import validators
-
     all_errors = defaultdict(list)
 
     if not preview_model:
         preview_model = model
     else:
         for form in forms.values():
-            form.populate_obj(preview_model)  # We need a populated model BEFORE we get its optional fields below
+            form.populate_obj(preview_model)
         if not model.is_new:
             preview_model.is_actually_old = True
 
     for form in forms.values():
-        extra_validators = defaultdict(list)
-        for field_name in form.get_optional_fields(preview_model, is_admin):
-            field = getattr(form, field_name)
-            if field:
-                field.validators = (
-                    [validators.Optional()] +
-                    [validator for validator in field.validators
-                     if not isinstance(validator, (validators.DataRequired, validators.InputRequired))])
+        form.is_admin = is_admin
+        form.model = preview_model
 
-        # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
+        extra_validators = defaultdict(list)
+
         for key, field in form.field_list:
-            if key == 'badge_num' and field.data:
-                field_data = int(field.data)  # Badge number box is a string to accept encrypted barcodes
-            else:
-                field_data = field.data
             extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
-            if field and (model.is_new or getattr(model, key, None) != field_data):
-                extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
+            if field and (model.is_new or getattr(model, key, None) != field.data):
+                extra_validators[key].extend(form.new_or_changed.get_validations_by_field(key))
         valid = form.validate(extra_validators=extra_validators)
         if not valid:
             for key, val in form.errors.items():
-                all_errors[key].extend(map(str, val))
+                all_errors[form._prefix + key].extend(map(str, val))
 
     validations = [uber.model_checks.validation.validations]
     prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []
@@ -1683,10 +1663,23 @@ class TaskUtils:
         if dept:
             return (id, dept)
         return None
+    
+    @staticmethod
+    def _guess_dept_role(session, dept, id_name):
+        from uber.models import DeptRole
+
+        id, name = id_name
+        role = session.query(DeptRole).filter(DeptRole.department_id == dept.id, or_(
+            DeptRole.id == id,
+            DeptRole.normalized_name == DeptRole.normalize_name(name))).first()
+
+        if role:
+            return role
+        return None
 
     @staticmethod
     def attendee_import(import_job):
-        from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptMembershipRequest
+        from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptRole
         from functools import partial
 
         with uber.models.Session() as session:
@@ -1759,7 +1752,7 @@ class TaskUtils:
                 checklist_admin_depts = attendee.pop('checklist_admin_depts', {})
                 dept_head_depts = attendee.pop('dept_head_depts', {})
                 poc_depts = attendee.pop('poc_depts', {})
-                requested_depts = attendee.pop('requested_depts', {})
+                roles_depts = attendee.pop('roles_depts', {})
 
                 attendee.update({
                     'staffing': True,
@@ -1769,25 +1762,18 @@ class TaskUtils:
                 attendee = Attendee().apply(attendee, restricted=False)
 
                 for id, dept in assigned_depts.items():
-                    attendee.dept_memberships.append(DeptMembership(
+                    dept_membership = DeptMembership(
                         department=dept,
                         attendee=attendee,
                         is_checklist_admin=bool(id in checklist_admin_depts),
                         is_dept_head=bool(id in dept_head_depts),
                         is_poc=bool(id in poc_depts),
-                    ))
-
-                requested_anywhere = requested_depts.pop('All', False)
-                requested_depts = {d[0]: d[1] for d in map(partial(TaskUtils._guess_dept, session),
-                                                           requested_depts.items()) if d}
-
-                if requested_anywhere:
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
-                for id, dept in requested_depts.items():
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(
-                        department=dept,
-                        attendee=attendee,
-                    ))
+                    )
+                    for role_tuple in roles_depts.get(id, []):
+                        role = TaskUtils._guess_dept_role(session, dept, role_tuple)
+                        if role:
+                            dept_membership.dept_roles.append(role)
+                    attendee.dept_memberships.append(dept_membership)
 
             session.add(attendee)
 
@@ -1805,6 +1791,7 @@ class TaskUtils:
                     account.email = normalize_email(account.email)
                     account.imported = True
                     session.add(account)
+                account.unused_years = 0
                 attendee.managers.append(account)
 
             from sqlalchemy.exc import IntegrityError
@@ -1863,7 +1850,7 @@ class TaskUtils:
 
     @staticmethod
     def attendee_account_import(import_job):
-        from uber.models import Attendee, AttendeeAccount
+        from uber.models import Attendee, AttendeeAccount, BadgeInfo
 
         with uber.models.Session() as session:
             service, message, target_url = get_api_service_from_server(import_job.target_server,
@@ -1918,7 +1905,7 @@ class TaskUtils:
                     if not c.SSO_EMAIL_DOMAINS:
                         # Try to match staff to their existing badge, which would be newer than the one we're importing
                         old_badge_num = attendee['badge_num']
-                        existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
+                        existing_staff = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == old_badge_num).first()
                         if existing_staff:
                             existing_staff.managers.append(account)
                             session.add(existing_staff)
@@ -1941,6 +1928,15 @@ class TaskUtils:
                     import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
                     session.rollback()
                 session.commit()
+
+            # This is the only import that may import 'empty' accounts
+            # We sunset accounts that have been empty for 3 years in another task
+            if not account.attendees:
+                account.unused_years += 1
+            else:
+                account.unused_years = 0
+            session.add(account)
+            session.commit()
 
     @staticmethod
     def group_import(import_job):
@@ -2027,6 +2023,7 @@ class TaskUtils:
                         account.email = normalize_email(account.email)
                         account.imported = True
                         session.add(account)
+                    account.unused_years = 0
                     new_attendee.managers.append(account)
 
                 session.add(new_attendee)

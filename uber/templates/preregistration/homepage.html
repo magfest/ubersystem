@@ -16,11 +16,64 @@
         {{ c.EVENT_NAME_AND_YEAR }} has sold out!
     {% endif %}
 {% endset %}
+<div class="card mb-3">
+    <div class="card-header">{{ c.EVENT_NAME_AND_YEAR }} Applications</div>
+    <div class="card-body">
+        <div class="d-flex gap-3 justify-content-between">
+            {% if c.DEALER_REG_START %}
+            <div class="text-center">
+                {% if c.BEFORE_DEALER_REG_START %}
+                <span class="badge bg-secondary">{{ c.DEALER_APP_TERM|title }}s: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_DEALER_REG_SHUTDOWN %}
+                <span class="badge bg-danger">{{ c.DEALER_APP_TERM|title }}s: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">{{ c.DEALER_APP_TERM|title }}s: OPEN</span><br/>Closes {{ c.DEALER_REG_SHUTDOWN|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.HOTEL_LOTTERY_FORM_START %}
+            <div class="text-center">
+                {% if not c.HOTEL_LOTTERY_OPEN and c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0 %}
+                <span class="badge bg-info">Staff Hotel Lottery: OPEN</span><br/>Closes {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% elif c.BEFORE_LOTTERY_FORM_START %}
+                <span class="badge bg-secondary">Hotel Lottery: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_HOTEL_LOTTERY_FORM_DEADLINE %}
+                <span class="badge bg-danger">Hotel Lottery: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Hotel Lottery: OPEN</span><br/>Closes {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.ART_SHOW_ENABLED %}
+            <div class="text-center">
+                {% if c.BEFORE_ART_SHOW_REG_START %}
+                <span class="badge bg-secondary">Art Show: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_ART_SHOW_DEADLINE %}
+                <span class="badge bg-danger">Art Show: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Art Show: OPEN</span><br/>Closes {{ c.ART_SHOW_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.MARKETPLACE_REG_START %}
+            <div class="text-center">
+                {% if c.BEFORE_MARKETPLACE_REG_START %}
+                <span class="badge bg-secondary">Artist Marketplace: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_MARKETPLACE_DEADLINE %}
+                <span class="badge bg-danger">Artist Marketplace: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Artist Marketplace: OPEN</span><br/>Closes {{ c.MARKETPLACE_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% if c.AT_THE_CON and account.at_door_pending_attendees %}
     <h2 class="text-center fst-italic mt-3">Pending At-Door Registrations</h2>
     <div class="text-center">Please go to Registration to pay for and claim the badges below.</div>
     {% for attendee in account.at_door_pending_attendees %}
-    <div class="card card-body mb-3">
+    <div class="card card-body mb-3 pb-2">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% endfor %}
@@ -52,23 +105,7 @@
         {% endif %}
     </div>
 {% else %}
-<h2 class="text-center fst-italic mt-3">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
-    {% for attendee, money_owed in attendees_who_owe_money.items() %}
-    {% if loop.first %}
-    <div class="alert alert-warning" role="alert">
-        The following attendees on your account have outstanding balances:
-        <ul>
-    {% endif %}
-    <li>{{ attendee }} owes {{ (money_owed / 100)|format_currency }}</li>
-    {% if loop.last %}
-    </ul>
-    Please click "View/Edit Registration" on the appropriate attendee below to view and pay for their registration.
-    If this doesn't look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
-    </div>
-    {% endif %}
-    {% endfor %}
-
-    {% if c.HOTEL_LOTTERY_OPEN or (account.hotel_eligible_staff|length > 0 and c.STAFF_HOTEL_LOTTERY_OPEN) %}
+{% if c.HOTEL_LOTTERY_OPEN or (c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0) %}
     <div class="alert alert-info">
         <p>
             The {{ c.EVENT_NAME_AND_YEAR }} hotel lottery is now open!
@@ -86,19 +123,126 @@
         {% endif %}
         {% endif %}
     </div>
+{% endif %}
+
+<h2 class="text-center fst-italic mt-3">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
+    {% for attendee, money_owed in attendees_who_owe_money.items() %}
+    {% if loop.first %}
+    <div class="alert alert-warning" role="alert">
+        The following attendees on your account have outstanding balances:
+        <ul>
+    {% endif %}
+    <li>{{ attendee }} owes {{ (money_owed / 100)|format_currency }}</li>
+    {% if loop.last %}
+    </ul>
+    Please click "Edit Registration" on the appropriate attendee below to view and pay for their registration.
+    If this doesn't look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    {% set cancel_shortcut = account.cancellable_badges|length <= 1 %}
+    {% if not cancel_shortcut %}
+    
+<div class="modal fade" id="cancel-badges" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cancel Registration(s)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Select one or more registrations to cancel below.</p>
+                <table class="table table-hover" x-data="{ selectall: false, }">
+                <thead>
+                    <tr>
+                    <th data-orderable="false">
+                        <label class="d-block"><input type="checkbox" class="form-check-input" @click="selectall=!selectall"></label>
+                    </th>
+                    <th>Name</th>
+                    <th>Badge Name</th>
+                    <th>Upgrade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for attendee in account.cancellable_badges %}
+                    <tr id="{{ attendee.id }}">
+                        <td>
+                            <label class="d-block">
+                            <input type="checkbox" form="refund-cancel" class="form-check-input" name="abandon_ids" value="{{ attendee.id }}" x-bind:checked="selectall" />
+                            </label>
+                        </td>
+                        <td>{{ attendee.full_name }}</td>
+                        <td>{{ attendee.badge_printed_name }}</td>
+                        <td>{% if attendee.badge_type in c.BADGE_TYPE_PRICES %}{{ attendee.badge_type_label }}{% else %}No{% endif %}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+                </table>
+                <p>
+                    Pressing the "Cancel Selected Registration(s)" button will <strong>immediately and irreversibly</strong> cancel all checked registrations.
+                    Any registration fees and any upgrades purchased will be refunded to the original payment method.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <form id="refund-cancel" action="abandon_badges" method="post">
+                {{ csrf_token() }}
+                <button class="btn btn-danger">Cancel Selected Registration(s)</button>
+                </form>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Nevermind</button>
+            </div>
+        </div>
+    </div>
+</div>
+    <script type="text/javascript">
+        $(function() {
+            var cancelModal = new bootstrap.Modal(document.getElementById('cancel-badges'))
+            $(".abandon-btn").on('click', function(event) {
+                let attendeeId = $(this).data("attendeeid");
+                $("[name=abandon_ids][value=" + attendeeId + "]").prop('checked', true);
+                cancelModal.show();
+            })
+            $('#cancel-badges').on('hidden.bs.modal', function (event) {
+            $("[name=abandon_ids]").prop('checked', false);
+            })
+    })
+    </script>
     {% endif %}
 
     {% if prereg_message %}
         <div class="text-center mt-3 mb-2 text-danger">{{ prereg_message }}</div>
     {% endif %}
 
-    {% for attendee in account.valid_group_badges %}
-    <div class="card card-body mb-3">
-        {% include "preregistration/attendee_card.html" %}
+    {% for group, attendees in account.valid_badges_by_group.items() %}
+    <div class="card mb-3">
+        <div class="card-header bg-body p-3">
+            <div class="row">
+            <div class="col-sm-3"></div>
+            <div class="col-sm-6 text-center">
+                <span class="h4">{{ c.DEALER_TERM|title if group.is_dealer else 'Group' }} "{{ group.name }}"</span>
+                {% if group.is_dealer %}
+                <span class="badge bg-{{ 'success' if group.status in c.DEALER_ACCEPTED_STATUSES else 'secondary' }}">{{ group.status_label }}</span>
+                {% endif %}
+            </div>
+            <div class="col-sm-3">
+            {% if group.leader in attendees %}
+            <a href="group_members?id={{ group.id }}" class="btn btn-primary btn-sm pull-right"><i class="fa fa-pencil"></i>&nbsp;Edit {{ "Application" if group.is_dealer else "Group" }}</a>
+            {% endif %}
+            </div>
+            </div>
+        </div>
+        <div class="card-body bg-light bg-gradient p-2 pb-1">
+            <div class="card card-body mb-1 pb-2 shadow-sm">
+            {% for attendee in attendees %}
+                {% include "preregistration/attendee_card.html" %}
+                {% if not loop.last %}<hr>{% endif %}
+            {% endfor %}
+            </div>
+        </div>
     </div>
     {% endfor %}
     {% for attendee in account.valid_single_badges %}
-    <div class="card card-body mb-3">
+    <div class="card card-body mb-3 pb-2">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% endfor %}
@@ -125,7 +269,7 @@
             <br><span class="form-text">You will be able to edit or delete registrations before paying.</span>
         </div>
     {% endif %}
-    <div class="card card-body mb-3">
+    <div class="card card-body mb-3 pb-2">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% if loop.last %}
@@ -139,7 +283,7 @@
         <h2 class="text-center fst-italic mt-3">Past Registrations</h2>
         {% if not account.valid_attendees %}<div class="row justify-content-center"><div class="col-10">{% endif %}
     {% endif %}
-    <div class="card card-body mb-3">
+    <div class="card card-body mb-3 pb-2">
     {% include "preregistration/attendee_card.html" %}
     </div>
     {% if loop.last and not account.valid_attendees %}</div>{% if not account.valid_attendees %}</div>{% endif %}{% endif %}
@@ -148,7 +292,7 @@
 {% if loop.first %}
 <div class="card">
     <div class="card-header">
-        <h2 class="h4 card-title">Cancelled Registrations</h2>
+        <span class="h4 card-title">Cancelled Registrations</h2>
     </div>
     <div class="card-body">
         <table class="table table-hover">

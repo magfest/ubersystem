@@ -4,4 +4,4 @@ We're asking all department heads to make sure that their staffers get into the 
 
 Please add anyone in your department who should get a staff badge and isn't already in the system by {{ c.PRINTED_BADGE_DEADLINE|datetime_local }}.  After that, staffers will have to take a regular Attendee badge with a volunteer ribbon.
 
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}

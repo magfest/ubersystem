@@ -35,7 +35,6 @@ class Root:
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
 
     def pending(self, session, message=''):
-        AutomatedEmail.reconcile_fixtures(cleanup=False)
         emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
             AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
         emails = []
@@ -48,6 +47,19 @@ class Root:
         return {
             'message': message,
             'automated_emails': emails_by_sender,
+        }
+
+    def pending_dept(self, session, sender, message=''):
+        emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
+            AutomatedEmail.subject != '', AutomatedEmail.sender.ilike('%' + sender + '%')).all()
+        emails = []
+        for email, email_count in sorted(emails_with_count, key=lambda e: e[0].ordinal):
+            email.sent_email_count = email_count
+            emails.append(email)
+        return {
+            'message': message,
+            'automated_emails': emails,
+            'sender': sender,
         }
 
     def pending_examples(self, session, ident, message=''):
@@ -67,6 +79,7 @@ class Root:
                     to=model_instance.email,
                     cc=email.cc,
                     bcc=email.bcc,
+                    replyto=email.replyto,
                     ident=email.ident,
                     fk_id=model_instance.id,
                     automated_email_id=email.id,

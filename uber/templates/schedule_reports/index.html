@@ -43,9 +43,9 @@
     });
   }
 
-  let markItemSynced = function(event){
-    let form = $(this);
-    event.preventDefault();
+  let markItemSynced = function(){
+    let form = $(this).closest('form');
+    
     $.ajax({
       method: 'POST',
       url: 'mark_item_synced',
@@ -81,7 +81,10 @@
   }
   
   $().ready(function () {
-    $(".sync-item").submit(markItemSynced);
+    $('#schedule-table').on('click', '.sync-item', markItemSynced);
+    {% for model, label in c.GUIDEBOOK_MODELS %}
+    $('#{{ model }}-table').on('click', '.sync-item', markItemSynced);
+    {% endfor %}
   });
 </script>
 {% set now = now() %}
@@ -89,6 +92,7 @@
   <h2>Guidebook Exports and Updates -- {{ now|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
   <div>
   <a href="schedule_guidebook_xlsx" class="btn btn-primary">Download Schedule XLSX</a>
+  <a href="schedule_guidebook_xlsx?new_only=true" class="btn btn-primary">New Schedule Items XLSX</a>
   </div>
 </div>
 
@@ -101,6 +105,12 @@
         <select name="selected_model" class="form-select">
             {{ options(tables) }}
         </select>
+        </div>
+        <div class="col">
+          <select name="new_only" class="form-select">
+            <option value="">All</option>
+            <option value="true">Only New</option>
+          </select>
         </div>
         <div class="col"><button type="submit" class="btn btn-primary" onClick="form.action='export_guidebook_xlsx';">Download Data XLSX</button></div>
         <div class="col"><button type="submit" class="btn btn-success" onClick="form.action='export_guidebook_zip';">Download Images ZIP</button></div>
@@ -141,7 +151,7 @@
     <div class="tab-content">
     <div role="tabpanel" class="tab-pane active mt-3" id="schedule" aria-labelledby="schedule-tab">
       {% if schedule_updates %}
-      <div class="d-flex justify-content-between">
+      <div class="d-flex justify-content-between mb-3">
         <form method="post" action="sync_all_items">
           {{ csrf_token() }}
           <input type="hidden" name="selected_model" value="schedule" />
@@ -151,7 +161,7 @@
         </form>
         <p>Items in <em>italics</em> has been changed since the last sync.</p>
       </div>
-      <table class="table table-hover">
+      <table class="table table-hover datatable" id="schedule-table">
         <thead>
           <tr>
             <th>Name</th>
@@ -180,9 +190,12 @@
                   {{ current_data[key + 'time'] }}
                   {% if current_data[key + 'time'] != synced_data[key + 'time'] %}</em>{% endif %}
               {% else %}
-                {% if current_data[key] != synced_data[key] %}<em>{% endif %}
-                {{ current_data[key] }}
-                {% if current_data[key] != synced_data[key] %}</em>{% endif %}
+                {% if current_data[key] != synced_data[key] %}
+                  <em>{{ current_data[key]|linebreaksbr }}</em>
+                  {% if key == 'name' and synced_data[key] %}<br/>(Previously: {{ synced_data[key]|linebreaksbr }}){% endif %}
+                {% else %}
+                {{ current_data[key]|linebreaksbr }}
+                {% endif %}
               {% endif %}
             </td>
             {% endfor %}
@@ -190,14 +203,16 @@
             <td class="align-middle">{{ result.last_synced_dt('guidebook')|datetime_local("%-I:%M %p %b %-d, %Y") if result.last_synced['guidebook'] else "Never" }}</td>
             <td class="align-middle">
               <div class="d-flex gap-1 align-items-center text-nowrap">
+                {% if c.HAS_SCHEDULE_ACCESS %}
                 <a href="../schedule/form?id={{ result.id }}" target="_blank" class="btn btn-primary">View</a>
-                <form method="post" class="sync-item" action="mark_item_synced">
+                {% endif %}
+                <form method="post" action="mark_item_synced">
                   {{ csrf_token() }}
                   <input type="hidden" name="selected_model" value="schedule" />
                   <input type="hidden" name="id" value="{{ result.id }}" />
                   <input type="hidden" name="sync_time" value="{{ now }}" />
-                  <input type="hidden" name="sync_data" value='{{ current_data|jsonize }}' />
-                  <button type="submit" class="btn btn-success">Mark Synced</button>
+                  <input type="hidden" name="sync_data" value='{{ current_data|tojson }}' />
+                  <button type="button" class="btn btn-success sync-item">Mark Synced</button>
                 </form>
                 </div>
             </td>
@@ -212,7 +227,7 @@
     {% for model, label in c.GUIDEBOOK_MODELS %}
     <div role="tabpanel" class="tab-pane mt-3" id="{{ model }}" aria-labelledby="{{ model }}-tab">
       {% if cl_updates[label] %}
-      <div class="d-flex justify-content-between">
+      <div class="d-flex justify-content-between mb-3">
         <form method="post" action="sync_all_items">
           {{ csrf_token() }}
           <input type="hidden" name="selected_model" value="{{ model }}" />
@@ -222,7 +237,7 @@
         </form>
         <p>Items in <em>italics</em> has been changed since the last sync.</p>
       </div>
-      <table class="table table-hover">
+      <table class="table table-hover datatable" id="{{ model }}-table">
         <thead>
           <tr>
             {% for key, label in c.GUIDEBOOK_PROPERTIES %}
@@ -248,9 +263,10 @@
                 {% endif %}
               {% else %}
                 {% if current_data[key] != synced_data[key] %}
-                  <em>{{ current_data[key] }}</em>
+                  <em>{{ current_data[key]|linebreaksbr }}</em>
+                  {% if key == 'name' and synced_data[key] %}<br/>(Previously: {{ synced_data[key]|linebreaksbr }}){% endif %}
                 {% else %}
-                  {{ current_data[key] }}
+                  {{ current_data[key]|linebreaksbr }}
                 {% endif %}
               {% endif %}
             </td>
@@ -259,14 +275,16 @@
             <td class="align-middle">{{ result.last_synced_dt('guidebook')|datetime_local("%-I:%M %p %b %-d, %Y") if result.last_synced['guidebook'] else "Never" }}</td>
             <td class="align-middle">
               <div class="d-flex gap-1 align-items-center text-nowrap">
-              <a href="{{ result.guidebook_edit_link }}" target="_blank" class="btn btn-primary">View</a>
-              <form method="post" class="sync-item" action="mark_item_synced">
+              {% if result.guidebook_edit_link.split('/')[1] in (c.GETTABLE_SITE_PAGES[0] + c.ADMIN_ACCESS_SET|list) %}
+                <a href="{{ result.guidebook_edit_link }}" target="_blank" class="btn btn-primary">View</a>
+              {% endif %}
+              <form method="post" action="mark_item_synced">
                 {{ csrf_token() }}
                 <input type="hidden" name="selected_model" value="{{ model }}" />
                 <input type="hidden" name="id" value="{{ result.id }}" />
                 <input type="hidden" name="sync_time" value="{{ now }}" />
-                <input type="hidden" name="sync_data" value='{{ current_data|jsonize }}' />
-                <button type="submit" class="btn btn-success">Mark Synced</button>
+                <input type="hidden" name="sync_data" value='{{ current_data|tojson }}' />
+                <button type="button" class="btn btn-success sync-item">Mark Synced</button>
               </form>
               </div>
             </td>

@@ -11,9 +11,9 @@ class Root:
     @log_pageview
     def dealer_receipt_discrepancies(self, session, only_dealers=False):
         if only_dealers:
-            filters = [Group.is_dealer == True, Group.status.in_([c.APPROVED, c.SHARED])]  # noqa: E712
+            filters = [Group.is_dealer == True, Group.status.in_(c.DEALER_ACCEPTED_STATUSES)]  # noqa: E712
         else:
-            filters = [or_(Group.is_dealer == False, Group.status.in_([c.APPROVED, c.SHARED]))]
+            filters = [or_(Group.is_dealer == False, Group.status.in_(c.DEALER_ACCEPTED_STATUSES))]
 
         groups = session.query(Group).filter(*filters).join(Group.active_receipt).outerjoin(
             ModelReceipt.receipt_items).group_by(ModelReceipt.id).group_by(Group.id).having(
@@ -99,7 +99,7 @@ class Root:
         ])
         dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()  # noqa: E712
         for group in dealer_groups:
-            if group.status in [c.APPROVED, c.SHARED]:
+            if group.status in c.DEALER_ACCEPTED_STATUSES:
                 full_name = group.leader.full_name if group.leader else ''
                 out.writerow([
                     group.name,
@@ -175,7 +175,7 @@ class Root:
         dealer_groups = session.query(Group).filter(Group.tables > 0).all()
         rows = []
         for group in dealer_groups:
-            if group.status in [c.APPROVED, c.SHARED] and group.is_dealer:
+            if group.status in c.DEALER_ACCEPTED_STATUSES and group.is_dealer:
                 rows.append([
                     group.name,
                     group.email,
@@ -245,7 +245,7 @@ class Root:
 
     @xlsx_file
     def seller_tax_info(self, out, session):
-        approved_groups = session.query(Group).filter(Group.status.in_([c.APPROVED, c.SHARED])).all()
+        approved_groups = session.query(Group).filter(Group.status.in_(c.DEALER_ACCEPTED_STATUSES)).all()
         rows = []
         for group in approved_groups:
             if group.is_dealer:

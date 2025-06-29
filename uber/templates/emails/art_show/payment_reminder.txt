@@ -6,4 +6,4 @@ You can use the credit card button on your application's page to pay the {{ app.
 
 If you are having issues with payment or need an extension please contact us at {{ c.ART_SHOW_EMAIL|email_only }}.
 
-{{ c.ART_SHOW_EMAIL_SIGNATURE }}
+{{ email_signature }}

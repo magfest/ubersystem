@@ -216,7 +216,7 @@
 {%- endmacro %}
 
 
-{% macro base_inventory_form(type, show_quantity=True, item=None, suffix='') -%}
+{% macro base_inventory_form(type, item=None, suffix='') -%}
   {%- set label = c.MERCH_TYPES[type] -%}
   <input type="hidden" name="inventory_type{{ suffix }}" value="{{ type }}"/>
   <input type="hidden" name="inventory_id{{ suffix }}" {% if item and item.id %}value="{{ item.id }}"{% endif %}/>
@@ -241,14 +241,6 @@
       (Sales Tax: 6%; Square Fees: <a href="https://squareup.com/pricing">https://squareup.com/pricing</a>)
     </p>
   </div>
-  {% if show_quantity %}
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Estimated Quantity</label>
-      <div class="col-sm-6">
-        <input class="form-control" type="number" name="inventory_quantity{{ suffix }}" value="{{ item.quantity }}" placeholder="How many do you have for sale?" min="0" required />
-      </div>
-    </div>
-  {% endif %}
   <div class="form-group">
     <label class="col-sm-3 control-label">Promo Picture</label>
     <div class="col-sm-6">
@@ -269,7 +261,7 @@
 
 {% macro apparel_inventory_form(type, item=None, suffix='') -%}
   {%- set varieties_opts, cuts_opts, sizes_opts = GuestMerch.item_subcategories_opts(type) -%}
-  {% call base_inventory_form(type, show_quantity=False, item=item, suffix=suffix) %}
+  {% call base_inventory_form(type, item=item, suffix=suffix) %}
     {%- set step_count = varieties_opts|length -%}
     {%- set col_size = ([4, (12 / step_count)|round(0, 'floor')|int] | sort)[-1] -%}
     {% for variety_value, variety_label in varieties_opts %}
@@ -316,30 +308,6 @@
           {{ options(c.ALBUM_MEDIA_OPTS, item.media) }}
         </select>
       </div>
-    </div>
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Sample Tracks</label>
-      <div class="col-sm-6">
-        {%- set vars = {'break': False} -%}
-        {% for index in range(0, 3) %}
-          {%- if not vars['break'] -%}
-            {%- set filename_attr = 'audio-' ~ loop.index0 ~ '_filename' -%}
-            {%- if item and filename_attr in item and item[filename_attr] -%}
-              {{ inventory_form_audio(item, loop.index0, suffix) }}
-            {%- else -%}
-              {{ inventory_form_audio(item, loop.index0, suffix) }}
-              {%- if vars.update({'break': True}) -%}{%- endif -%}
-            {%- endif -%}
-          {%- endif -%}
-        {% endfor %}
-      </div>
-      <div class="clearfix"></div>
-      <p class="help-block col-sm-offset-3 col-sm-9">
-        You may optionally upload sample tracks from the album for us to make
-        available for <b>listening at the table</b>! Audio files must be in
-        {{ c.ALLOWED_INVENTORY_AUDIO_EXTENSIONS|readable_join('or') }} format –
-        mp3 and m4a are preferable.
-      </p>
     </div>
   {% endcall %}
 {%- endmacro %}
@@ -420,10 +388,6 @@
         <div class="inventory-item-price data-item">
           <dt>Price</dt>
           <dd>{{ item.price|format_currency }}</dd>
-        </div>
-        <div class="inventory-item-quantity data-item">
-          <dt>Estimated Quantity</dt>
-          <dd>{{ quantity }}</dd>
         </div>
       </dl>
     </td>

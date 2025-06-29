@@ -256,20 +256,14 @@ class Root:
         raise HTTPRedirect('../staffing/index')
 
     @ajax
-    def update_nonshift(self, session, id, nonshift_hours):
+    def update_shifts_info(self, session, id, nonshift_hours, admin_notes, for_review=None):
         attendee = session.attendee(id, allow_invalid=True)
         attendee.nonshift_minutes = int(float(nonshift_hours or 0) * 60)
-        session.commit()
-        return {'success': True, 'message': 'Non-shift hours updated'}
-
-    @ajax
-    def update_notes(self, session, id, admin_notes, for_review=None):
-        attendee = session.attendee(id, allow_invalid=True)
         attendee.admin_notes = admin_notes
         if for_review is not None:
             attendee.for_review = for_review
         session.commit()
-        return {'success': True, 'message': 'Notes updated'}
+        return {'success': True, 'message': 'Non-shift hours and admin notes updated'}
 
     @ajax
     def assign_shift(self, session, staffer_id, job_id):

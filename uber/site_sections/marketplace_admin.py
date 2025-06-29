@@ -7,7 +7,7 @@ from uber.config import c
 from uber.decorators import all_renderable, ajax, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, Tracking, ArtistMarketplaceApplication, Email, PageViewTracking, ReceiptTransaction
+from uber.models import Attendee, BadgeInfo, Tracking, ArtistMarketplaceApplication, Email, PageViewTracking, ReceiptTransaction
 from uber.utils import check, remove_opt, validate_model
 
 
@@ -45,9 +45,9 @@ class Root:
             app = session.artist_marketplace_application(params)
         attendee = None
 
-        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.is_valid == True,  # noqa: E712
-                    Attendee.badge_status != c.WATCHED_STATUS)
+        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident) \
+            .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '', Attendee.is_valid == True,  # noqa: E712
+                                                     Attendee.badge_status != c.WATCHED_STATUS)
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -100,7 +100,7 @@ class Root:
             form_list = ["AdminArtistMarketplaceForm"]
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, app, form_list, get_optional=False)
+        forms = load_forms(params, app, form_list)
 
         all_errors = validate_model(forms, app, ArtistMarketplaceApplication(**app.to_dict()), is_admin=True)
         if all_errors:

@@ -1,0 +1,57 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set developer_info = developer_info or forms['developer_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    name
+    contact_info
+    consents
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+gets_emails: {{ developer_info.gets_emails.data|jsonize }},
+get cellphoneRequired() { return this.gets_emails },
+{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
+{% block name %}
+<div class="col-sm">{{ form_macros.input(developer_info.first_name) }}</div>
+<div class="col-sm">{{ form_macros.input(developer_info.last_name) }}</div>
+{% endblock %}
+</div>
+
+
+<div class="row g-sm-3 mb-3">
+{% block contact_info %}
+  <div class="col-sm">
+    {{ form_macros.input(developer_info.email) }}
+  </div>
+  <div class="col-sm">
+    {{ form_macros.input(developer_info.cellphone, required_if="cellphoneRequired") }}
+  </div>
+{% if 'apply' not in c.PAGE_PATH %}
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {{ form_macros.input(developer_info.gets_emails, alpine_model="gets_emails") }}
+    </div>
+{% else %}
+<input type="hidden" name="{{ developer_info.gets_emails.name }}" value="{{ developer_info.gets_emails.data }}" />
+{% endif %}
+{% endblock %}
+</div>
+
+
+<div class="row g-sm-3 mb-3">
+{% block consents %}
+    <div class="col-sm">{{ form_macros.input(developer_info.agreed_coc) }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(developer_info.agreed_data_policy) }}</div>
+{% endblock %}
+</div>
+
+</div>

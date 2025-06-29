@@ -1,8 +1,106 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Schedule{% endblock %}
 {% block content %}
+<h2>{% if event.is_new %}Add{% else %}Edit{% endif %} Event</h2>
+<form method="post" action="form" id="save-event">
+{{ csrf_token() }}
+<input type="hidden" name="id" value="{{ event.db_id }}" />
+
+<div class="row g-sm-3 mb-3">
+    <div class="col-12 col-sm-6">
+        <label for="location" class="form-text">Location</label>
+        <select name="location" class="form-select">
+            {{ options(c.EVENT_LOCATION_OPTS,event.location) }}
+        </select>
+    </div>
+    <div class="col-12 col-sm-6">
+        <label for="location" class="form-text">Event Name</label>
+        <div><input class="form-control" type="text" name="name" value="{{ event.name }}" /></div>
+    </div>
+</div>
+
+<div class="row g-sm-3 mb-3">
+    <div class="col-12 col-sm-6">
+        <label for="description" class="form-text">Description</label>
+        <div><textarea rows="6" cols="40" class="form-control" name="description">{{ event.description }}</textarea></div>
+    </div>
+    <div class="col-12 col-sm-6">
+        <label for="description" class="form-text">Public Description</label>
+        <div><textarea rows="6" cols="40" class="form-control" name="public_description">{{ event.public_description }}</textarea></div>
+    </div>
+</div>
+
+<div class="row g-sm-3 mb-3">
+    <div class="col-12 col-sm-6">
+        <label for="start_time" class="form-text">Start Time</label>
+        <div class="input-group">
+            <input
+            id="start-time"
+            name="start_time"
+            type="text"
+            class="form-control"
+            value="{{ event.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if event.start_time else '' }}">
+            <span class="input-group-text">
+              <i class="fa fa-calendar"></i>
+            </span>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6">
+        <label for="duration" class="form-text">Duration</label>
+        <div class="input-group">
+            <input type="text" class="form-control" onfocus="this.select();" name="duration_hours" placeholder="# hours" value="{{ ((event.duration or 0) / 60)|int }}" />
+            <span class="input-group-text">hours,</span>
+            <input type="text" class="form-control" onfocus="this.select();" name="duration_minutes" placeholder="# minutes" value="{{ (event.duration or 0) % 60 }}" />
+            <span class="input-group-text">minutes</span>
+        </div>
+    </div>
+</div>
+
+<div class="row g-sm-3 mb-3">
+    <div class="col-12 col-sm-6">
+        <label for="panel_id" class="form-text">Panel Applications</label>
+        <select name="panel_id" id="panel_id" class="form-select">
+            <option selected="true" value="">Associate a panel application with this event</option>
+            {% for panel in approved_panel_apps %}
+              <option value="{{ panel.id }}">{{ panel.name }} ({{ panel.length_text if panel.length_text else panel.length_label }})</option>
+            {% endfor %}
+        </select>
+        {% for app in event.applications %}
+        <br/> (<a href="../panels_admin/app?id={{ app.id }}">view application for {{ app.name }}</a>)
+        {% endfor %}
+    </div>
+    <div class="col-12 col-sm-6">
+        <label for="panel_id" class="form-text">Panelists</label>
+        <div><a class="btn btn-primary" id="add" href="#" onClick="addPanelist(); return false">Add a Panelist</a></div>
+    </div>
+</div>
+</form>
+
+<div class="d-flex gap-3 align-items-start mb-3">
+    <div><input type="submit" class="btn btn-primary" form="save-event" value="Upload Event Data" /></div>
+    {% if not event.is_new %}
+    <div>
+        <form method="post" action="delete" onSubmit="return confirm('Are you sure you want to delete this event?');">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ event.id }}" />
+        <input type="submit" value="Delete This Event" class="btn btn-danger" />
+        </form>
+        {% if c.HAS_PANELS_ADMIN_ACCESS and not event.is_new %}
+    </div><div><a class="btn btn-outline-primary" href="../panels_admin/panel_feedback?event_id={{ event.id }}">Leave panel feedback</a></div>
+    {% endif %}</div>
+    {% endif %}
+</div>
 
 <script type="text/javascript">
+    $('#start-time').datetimepicker({
+      sideBySide: true,
+      useCurrent: false,
+      defaultDate: '{{ c.PANELS_EPOCH.isoformat()[:-6] }}',
+      minDate: '{{ c.PANELS_EPOCH.isoformat()[:-6] }}',
+      maxDate: '{{ c.PANELS_ESCHATON.isoformat()[:-6] }}',
+      format: 'M/D/Y h:mm A'
+    });
+
     var panelists = {{ panelists|jsonize }};
     
     var $panelists = $("<select/>").attr("name", "panelists").css("margin-right", "10px");
@@ -41,90 +139,5 @@
         });
     {% endif %}
 </script>
-
-<form method="post" action="form">
-{{ csrf_token() }}
-<input type="hidden" name="id" value="{{ event.db_id }}" />
-
-<table width="100%" cellspacing="5" cellpadding="5">
-<tr>
-    <td width="25%"><b>Location:</b></td>
-    <td width="75%">
-        <select name="location">
-            {{ options(c.EVENT_LOCATION_OPTS,event.location) }}
-        </select>
-    </td>
-</tr>
-<tr>
-    <td><b>Time:</b></td>
-    <td>
-        <select name="start_time">
-            {{ options(c.EVENT_START_TIME_OPTS,event.start_time_local) }}
-        </select>
-    </td>
-</tr>
-<tr>
-    <td><b>Duration:</b></td>
-    <td>
-        <select name="duration">
-            {{ options(c.EVENT_DURATION_OPTS,event.duration) }}
-        </select>
-    </td>
-</tr>
-<tr>
-  <td>Panel Application:</td>
-  <td>
-    <select name="panel_id" id="panel_id">
-      <option selected="true" value="">Associate a panel application with this event</option>
-      {% for panel in approved_panel_apps %}
-        <option value="{{ panel.id }}">{{ panel.name }} ({{ panel.length_text if panel.length_text else panel.length_label }})</option>
-      {% endfor %}
-    </select>
-    {% for app in event.applications %}
-      <br/> (<a href="../panels_admin/app?id={{ app.id }}">view application for {{ app.name }}</a>)
-    {% endfor %}
-  </td>
-</tr>
-<tr class="card-details">
-    <td valign="top">Panelists</td>
-    <td>
-        <a id="add" href="#" onClick="addPanelist(); return false">Add a Panelist</a>
-    </td>
-</tr>
-<tr class="card-details">
-    <td><b>Event Name:</b></td>
-    <td>
-        <input class="focus" type="text" name="name" value="{{ event.name }}" />
-    </td>
-</tr>
-<tr class="card-details">
-    <td valign="top">Description:</td>
-    <td> <textarea rows="6" cols="40" name="description">{{ event.description }}</textarea> </td>
-</tr>
-<tr class="card-details">
-    <td valign="top">Public/Schedule Description:</td>
-    <td> <textarea rows="6" cols="40" name="public_description">{{ event.public_description }}</textarea> </td>
-</tr>
-</table>
-
-<div style="width:75% ; margin-left:25%">
-    <input type="submit" value="Upload Event Data" />
-</div>
-
-</form>
-
-{% if not event.is_new %}
-    <br/>
-    <div style="width:75% ; margin-left:25%">
-        <form method="post" action="delete" onSubmit="return confirm('Are you sure you want to delete this event?');">
-            {{ csrf_token() }}
-            <input type="hidden" name="id" value="{{ event.id }}" />
-            <input type="submit" value="Delete This Event" />
-        </form>
-        {% if c.HAS_PANELS_ADMIN_ACCESS and not event.is_new %}
-            <br/> <a href="../panels_admin/panel_feedback?event_id={{ event.id }}">Leave panel feedback</a>
-        {% endif %}
-    </div>
-{% endif %}
 
 {% endblock %}

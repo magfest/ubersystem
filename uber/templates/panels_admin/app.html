@@ -1,14 +1,46 @@
-{% import 'panel_macros.html' as panel_macros %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Panel Submission{% endblock %}
+{% set title = "Panel Application" %}
 {% block content %}
-{% include "panels_common.html" %}
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript">
+$().ready(function () {
+    let input = document.getElementById('tags');
+    tagify = new Tagify(input, {
+        whitelist: {{ panel_tags|safe }},
+        dropdown: {
+            highlightFirst: true,
+            maxItems: 20,           // <- maximum allowed rendered suggestions
+            classname: 'tags-look', // <- custom classname for this dropdown, so it could be targeted
+            enabled: 0,             // <- show suggestions on focus
+            closeOnSelect: false    // <- do not hide the suggestions dropdown once an item has been selected
+        }
+    })
+})
+</script>
 
-<h2>Panel Application <small><a href="index">View all panel applications</a></small></h2>
+<h2>Panel Application{% if not app.is_new %} for {{ app.name }}{% endif %}
+    <small><a href="index">View all panel applications</a>{% if department %} or
+        <a href="index?department_id={{ department.id }}">View panel applications for {{ department.name }} Department</a>{% endif %}</small></h2>
 
 <div class="card card-body">
-    <div class="row g-sm-3">
-        <div class="col-12 col-sm-4 form-control-static">
+    <div class="row g-sm-3 mb-3">
+        {% if app.status == c.ACCEPTED %}
+            <div class="col-sm">
+                <label class="form-text">Event</label>
+                <br/>
+                {% if app.event_id %}
+                    <a href="../schedule/form?id={{ app.event_id }}">{{ app.event.name }}</a>
+                    (<a href="panel_feedback?event_id={{ app.event_id }}">leave feedback</a>)
+                {% else %}
+                    <a href="associate?id={{ app.id }}">Click here</a> to associate
+                    this application with an event on the schedule.
+                {% endif %}
+            </div>
+        {% endif %}
+        <div class="col-sm">
         <label class="form-text">Panel Status</label>
             <form method="post" action="mark">
                 {{ csrf_token() }}
@@ -33,50 +65,42 @@
                 {{ macros.popup_link("email_statuses", "Will this trigger an email?") }}
             </form>
         </div>
-        <div class="col-12 col-sm-4 form-control-static">
-        <label class="form-text">Panel Track</label>
-        <form method="post" action="update_track">
+        <div class="col-sm" x-data="{
+            group_id: '{{ app.group.id if app.group else '' }}',
+            get groupFormLink() { return this.group_id ? `../group_admin/form?id=${this.group_id}` : '' }
+        }">
+        <label class="form-text">Guest Type</label>
+        <form method="post" action="assign_guest">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ app.id }}" />
-            <div class="row">
-                <div class="col-auto">
-                    <div class="input-group">
-                    <input type="text" class="form-control" name="track" value="{{ app.track }}" />
-                        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        Use Existing Track <span class="caret"></span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-right">
-                        {% for track in current_tracks %}
-                        <li><a href="#" onClick="setTrack('{{ track[0] }}')">{{ track[0] }}</a></li>
+            <div class="d-flex gap-3">
+                <div>
+                    <select name="group_id" class="form-select" x-model="group_id">
+                        <option value="">Select a guest to assign to this panel</option>
+                        {% for id, display in guests %}
+                        <option value="{{ id }}"{% if app.group.guest and app.group.guest.id == id %} selected="selected"{% endif %}>{{ display }}</option>
                         {% endfor %}
-                        </ul>
-                    </div><!-- /input-group -->
-                </div><!-- /col-auto -->
-                <div class="col-auto"><button type="submit" class="btn btn-primary">Update</button></div>
-            </div><!-- /row -->
+                    </select>
+                    <a id="group_link" x-show="groupFormLink" x-bind:href="groupFormLink" target="_blank">View this Guest's Page</a>
+                </div>
+                <div><button type="submit" class="btn btn-primary">Assign Guest</button></div>
+            </div>
         </form>
         </div>
-        {% if app.status == c.ACCEPTED %}
-            <div class="col-12 col-sm-4 form-control-static">
-                <label class="form-text">Event</label>
-                <br/>
-                {% if app.event_id %}
-                    <a href="../schedule/form?id={{ app.event_id }}">{{ app.event.name }}</a>
-                    (<a href="panel_feedback?event_id={{ app.event_id }}">leave feedback</a>)
-                {% else %}
-                    <a href="associate?id={{ app.id }}">Click here</a> to associate
-                    this application with an event on the schedule.
-                {% endif %}
+        <div class="col-sm">
+        <label class="form-text">Panel Tags</label>
+        <form method="post" action="update_tags">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ app.id }}" />
+            <div class="d-flex gap-3">
+                <div class="flex-grow-1">
+                    <input id="tags" name="tags" class="form-control" value="{{ app.tags }}" placeholder="Type tags separated by a comma">
+                </div>
+                <div><button type="submit" class="btn btn-primary">Update</button></div>
             </div>
-        {% endif %}
+        </form>
+        </div>
     </div>
-    <script type="text/javascript">
-        var setTrack = function(track) {
-            if ($.field('track')) {
-                $.field('track').val(track);
-            }
-        }
-    </script>
 
     <div class="row g-sm-3">
         {% if app.poc_id %}
@@ -111,222 +135,100 @@
     </div>
 
     <hr/>
-    {% if app.poc and app.poc.guest_group %}
-      <div class="row">
-        <label class="form-text">Guest Type</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.poc.guest_group.group_type_label }} "{{ app.poc.group|form_link }}"
-        </div>
-    </div>
-    {% endif %}
 
     <div class="row">
-        <label class="form-text">Panel Name</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.name }}
-        </div>
-    </div>
-
-    {% if c.PANEL_DEPT_OPTS|length > 1 %}
-    <div class="row">
-        <div class="col-12 col-sm-4 form-control-static">
-            <label class="form-text">Department</label>
-                <br/>{{ app.department_label }}
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="row">
-        <label class="form-text">Panel Type</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.presentation_label }}
-            {% if app.presentation == c.OTHER %}
-                <br/> {{ app.other_presentation }}
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="row">
-        <label class="form-text">Description</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.description|linebreaksbr }}
-        </div>
-    </div>
-
-    {% if app.public_description %}
-    <div class="row">
-        <label class="form-text">Schedule Description</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.public_description|linebreaksbr }}
-        </div>
-    </div>
-    {% endif %}
-
-    {% if c.PANEL_RATING_OPTS|length > 1 %}
-    <div class="row">
-        <label class="form-text">Rating</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.rating_label }}
-        </div>
-    </div>
-    {% endif %}
-
-    {% if c.PANEL_CONTENT_OPTS|length > 1 %}
-    <div class="row">
-        <label class="form-text">Content</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.granular_rating_labels|join(', ') }}
-        </div>
-    </div>
-
-    <div class="row">
-        <label class="form-text">Opted in to MAGScouts?</label>
-        <div class="col-sm-6 form-control-static">
-            {{ "N/A" if app.magscouts_opt_in == c.NO_CHOICE else app.magscouts_opt_in_label }}
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="row">
-        <label class="form-text">Expected Length</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.length_label if app.length != c.OTHER and not app.length_text else app.length_text }}
-        </div>
-    </div>
-
-    {% if app.length_reason %}
-        <div class="row">
-            <label class="form-text">Reason for Length</label>
-            <div class="col-sm-6 form-control-static">
-                {{ app.length_reason }}
+        <div class="col-lg">
+            <h2>Panel Information</h2>
+            <div class="card card-body shadow-sm">
+                {{ form_macros.form_validation('panel-app-form', 'validate_panel_app') }}
+                <form novalidate id="panel-app-form" method="post" action="form" role="form">
+                    <input type="hidden" name="id" value="{{ app.id }}" />
+                    {{ csrf_token() }}
+                    {% include 'forms/panel/panel_info.html' %}
+                    {% include 'forms/panel/panel_other_info.html' %}
+                    <button type="submit" class="btn btn-primary">Update Panel Information</button>
+                </form>
             </div>
         </div>
-    {% endif %}
-
-    <div class="row">
-        <label class="form-text">Noise Level</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.noise_level_label }}
+        {% set is_guest = app.group and app.group.guest %}
+        <div class="col-lg">
+            <h2>
+                Panelists
+                <a class="btn btn-sm btn-primary" data-bs-toggle="collapse" href="#new-panelist" role="button">Add Panelist</a>
+            </h2>
+            <div class="card card-body mb-3 collapse shadow-sm" id="new-panelist">
+                <h3>
+                    New Panelist
+                    <small><a class="btn-close pull-right" data-bs-toggle="collapse" href="#new-panelist" role="button"></a></small>
+                </h3>
+                <hr>
+                {{ form_macros.form_validation('new-applicant-form', 'validate_panelist') }}
+                <form novalidate id="new-applicant-form" method="post" action="edit_panelist" role="form">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="app_id" value="{{ app.id }}" />
+                    {% set panelist_form = panelist_forms['new'] %}
+                    {% include "forms/panel/panelist_form.html" %}
+                    <button type="submit" class="btn btn-primary">Add Panelist</button>
+                </form>
+            </div>
+            {% for panelist in [app.submitter] + app.other_panelists %}
+            <div class="card card-body mb-3 shadow-sm">
+                <h3 class="d-flex gap-3">
+                    <div>
+                    {% if app.submitter and panelist == app.submitter %}
+                    Point of Contact
+                    {% else %}
+                    Other Panelist #{{ loop.index0 }}
+                    {% endif %}
+                    {% if panelist.attendee %}
+                    <small>
+                        <a href="#attendee_form?id={{ panelist.attendee.id }}">
+                        View attendee record for {{ panelist.attendee.full_name }}
+                        </a>
+                    </small>
+                    {% endif %}
+                    </div>
+                    {% if not app.submitter or panelist != app.submitter %}
+                    <small class="ms-auto d-flex gap-1">
+                        <form method="post" action="change_submitter">
+                            {{ csrf_token() }}
+                            <input type="hidden" name="app_id" value="{{ app.id }}" />
+                            <input type="hidden" name="applicant_id" value="{{ panelist.id }}" />
+                            <input type="submit" class="btn btn-sm btn-primary" value="Make POC" />
+                        </form>
+                        {% if panelist.submitter %}
+                        {% else %}
+                        <form method="post" action="remove_panelist" onSubmit="return
+                                confirm('Are you sure you want to remove {{ panelist.full_name }}?');">
+                            {{ csrf_token() }}
+                            <input type="hidden" name="app_id" value="{{ app.id }}" />
+                            <input type="hidden" name="applicant_id" value="{{ panelist.id }}" />
+                            <input type="submit" class="btn btn-sm btn-danger" value="Remove Panelist" />
+                        </form>
+                        {% endif %}
+                    </small>
+                    {% endif %}
+                </h3>
+                {% for app in panelist.applications|rejectattr("id", "equalto", app.id) %}
+                {% if loop.first %}<small><em>Other panels:{% endif %}
+                    {{ app|form_link }}{% if not loop.last %}, {% endif %}
+                {% if loop.last %}</em></small>{% endif %}
+                {% endfor %}
+                <hr>
+                {{ form_macros.form_validation('applicant-' ~ panelist.id ~ '-form', 'validate_panelist') }}
+                <form novalidate id="applicant-{{ panelist.id }}-form" method="post" action="edit_panelist" role="form">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="id" value="{{ panelist.id }}" />
+                    <input type="hidden" name="app_id" value="{{ app.id }}" />
+                    {% set panelist_form = panelist_forms[panelist.id] %}
+                    {% include "forms/panel/panelist_form.html" %}
+                    <button type="submit" class="btn btn-primary">
+                        Update {{ "Point of Contact" if app.submitter and panelist == app.submitter else "Panelist" }} Information
+                    </button>
+                </form>
+                </div>
+            {% endfor %}
         </div>
     </div>
-
-    <div class="row">
-        <label class="form-text">How do they feel about recording or livestreaming?</label>
-        {% if c.LIVE_STREAM_OPTS|length > 2 %}
-        <div class="col-sm-6 form-control-static">
-            {{ app.livestream_label }}
-        </div>
-        {% else %}
-        <div class="col-sm-6 form-control-static">
-            Recording: {{ app.record_label }}
-        </div>
-        <div class="col-sm-6 form-control-static">
-            Livestreaming: {{ app.livestream_label }}
-        </div>
-        {% endif %}
-    </div>
-
-    {% if app.tables_desc %}
-        <div class="row">
-            <label class="form-text">Special Table Set-up</label>
-            <div class="col-sm-6 form-control-static">
-                {{ app.tables_desc }}
-            </div>
-        </div>
-    {% endif %}
-
-    {% if app.cost_desc %}
-        <div class="row">
-            <label class="form-text">Upfront Cost and Materials</label>
-            <div class="col-sm-6 form-control-static">
-                {{ app.cost_desc }}
-            </div>
-        </div>
-    {% endif %}
-
-    {% if app.available %}
-    <div class="row">
-        <label class="form-text">Availability</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.available|linebreaksbr }}
-        </div>
-    </div>
-    {% endif %}
-
-    {% if app.unavailable %}
-    <div class="row">
-        <label class="form-text">Unavailability</label>
-        <div class="col-sm-6 form-control-static">
-            {{ app.unavailable|linebreaksbr }}
-        </div>
-    </div>
-    {% endif %}
-
-    {% if app.tech_needs or app.other_tech_needs %}
-        {{ macros.form_checkgroup(
-            app,
-            'tech_needs',
-            other_field='other_tech_needs',
-            other_placeholder='Additional technical needs',
-            label='Technical Needs',
-            desc='Check the following technical needs that apply. Panel rooms will by default have VGA compatible projector with 3.5mm (1/8") audio, and a local PA with enough microphones setup.',
-            is_readonly=True,
-            is_required=True,
-            is_admin=True) }}
-    {% endif %}
-
-    {% if app.presentation == c.MUSIC %}
-      <div class="row">
-        <label class="form-text">Loud Environment Requested</label>
-        <div class="col-sm-6 form-control-static">
-          {{ app.is_loud|yesno }}
-        </div>
-      </div>
-    {% endif %}
-
-    {% if app.extra_info %}
-        <div class="row">
-            <label class="form-text">Extra Info for Internal Use</label>
-            <div class="col-sm-6 form-control-static">
-                {{ app.extra_info }}
-            </div>
-        </div>
-    {% endif %}
-
-    {% if app.panelist_bringing %}
-        <div class="row">
-            <label class="form-text">Panelist is bringing</label>
-            <div class="col-sm-6 form-control-static">
-                {{ app.panelist_bringing }}
-            </div>
-        </div>
-    {% endif %}
-
-    {% if app.affiliations %}
-        <div class="row">
-            <label class="form-text">Affiliations</label>
-            <div class="col-sm-6 form-control-static">
-                {{ app.affiliations|linebreaksbr }}
-            </div>
-        </div>
-    {% endif %}
-
-    {% if app.past_attendance %}
-        <div class="row">
-            <label class="form-text">Past Attendance</label>
-            <div class="col-sm-6 form-control-static">
-                {{ app.past_attendance }}
-            </div>
-        </div>
-    {% endif %}
-
-    <div class="row" style="margin-top: 15px;">
-      <div class="col-sm-9 col-sm-offset-3">
-        <a href="form?id={{ app.id }}" class="btn btn-primary">Edit this application</a>
-      </div>
-    </div>
-</div>
-
-    {{ panel_macros.app_panelists_form(app, is_readonly=True, is_admin=True) }}
 </div>
 {% endblock %}

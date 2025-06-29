@@ -26,11 +26,16 @@
     Registration Information
   </div>
   <div class="card-body">
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_application or attendee.is_group_leader %}
       {% include 'confirm_tabs.html' with context %}
-    {% endif %}
 
-      {% if not attendee.is_valid %}
+      {% if attendee.badge_status == c.PENDING_STATUS and attendee.paid == c.PENDING and attendee.transfer_code %}
+      <div class="alert alert-warning" role="alert">
+        <p><strong>You do not yet have a valid registration for {{ c.EVENT_NAME }}.</strong></p>
+        <p>Someone with a valid badge must use your transfer code (<strong>{{ attendee.transfer_code }}</strong>) to transfer their badge to you
+        before you are able to pick up a badge.</p>
+        You can review and update your pending badge's information below.
+      </div>
+      {% elif not attendee.is_valid %}
       <div class="alert alert-danger" role="alert">
         Your registration is currently marked as <strong>{{ attendee.badge_status_label }}</strong>
         and is not considered a valid registration. Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
@@ -73,7 +78,7 @@
         {% if attendee.is_dealer %}
           {% if attendee.group.status == c.DECLINED %}
             {% set bg_class = 'danger' %}
-          {% elif attendee.group.status in [c.APPROVED, c.SHARED] %}
+          {% elif attendee.group.status in c.DEALER_ACCEPTED_STATUSES %}
             {% set bg_class = 'success' %}
           {% elif attendee.group.status == c.WAITLISTED %}
             {% set bg_class = 'warning' %}
@@ -108,8 +113,9 @@
       {% endif %}
 
       {{ form_macros.form_validation('confirm') }}
+      {% include 'forms/alpine/attendee_metadata.html' %}
 
-      <form novalidate method="post" action="confirm" id="confirm">
+      <form novalidate method="post" action="confirm" id="confirm" x-data="attendeeMetadata()">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <input type="hidden" name="return_to" value="{{ return_to }}" />

@@ -1,15 +1,15 @@
 Hello {{ guest.group.name }}!
 
 <br/><br/>Friendly reminder to please make sure you complete your Guest Checklist
-with all the info about you and your group, panels, events, and plans. If you’ve
+with all the info about you and your group, panels, events, and plans. If you've
 already filled in all your info, thank you!
 
 <br/><br/>You can get to your checklist from this link:
 <a href="{{ c.URL_BASE }}/guests/index?id={{ guest.id }}" target="_blank">{{ c.URL_BASE }}/guests/index?id={{ guest.id }}</a>
 
-{% if c.BEFORE_GUEST_BIO_DEADLINE %}<br/><br/>Please remember that <strong>the deadline to complete the checklist is {{ c.GUEST_TAXES_DEADLINE|datetime_local }}</strong>.{% endif %}
+<br/><br/>Please remember that <strong>the deadline to complete the checklist is {{ c.GUEST_TRAVEL_PLANS_DEADLINE|datetime_local }}</strong>.
 
 <br/><br/>If you have any questions or run into any snags, hit us up at {{ c.GUEST_EMAIL|email_only }}.
 
 <br/><br/>Thanks a bunch!
-<br/>-The Guests & MAGMoves Crews
+<br/>-The Guests & MAGMoves Crews 

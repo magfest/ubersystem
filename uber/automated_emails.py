@@ -85,6 +85,7 @@ class AutomatedEmailFixture:
             filter,
             ident,
             *,
+            shared_ident='',
             query=(),
             query_options=(),
             when=(),
@@ -111,6 +112,7 @@ class AutomatedEmailFixture:
         self.format = 'text' if template.endswith('.txt') else 'html'
         self.filter = lambda x: (x.gets_emails and filter(x))
         self.ident = ident
+        self.shared_ident = shared_ident
         self.query = listify(query)
         self.query_options = listify(query_options)
         self.sender = sender or c.REGDESK_EMAIL
@@ -259,7 +261,7 @@ AutomatedEmailFixture(
     lambda g: (
       c.AFTER_GROUP_PREREG_TAKEDOWN
       and g.unregistered_badges
-      and (not g.is_dealer or g.status in [c.APPROVED, c.SHARED])),
+      and (not g.is_dealer or g.status in c.DEALER_ACCEPTED_STATUSES)),
     # query=and_(
     #     Group.unregistered_badges == True,
     #     or_(Group.is_dealer == False, Group.status == c.APPROVED)),
@@ -465,7 +467,7 @@ if c.DEALER_REG_START:
     MarketplaceEmailFixture(
         'Reminder to pay for your {} {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
-        lambda g: g.status in [c.APPROVED, c.SHARED] and days_after(30, g.approved)() and g.is_unpaid,
+        lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and days_after(30, g.approved)() and g.is_unpaid,
         # query=and_(
         #     Group.status == c.APPROVED,
         #     Group.approved < (func.now() - timedelta(days=30)),
@@ -479,7 +481,7 @@ if c.DEALER_REG_START:
                                                     c.EPOCH.strftime('%b %Y'),
                                                     c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
-        lambda g: g.status in [c.APPROVED, c.SHARED] and g.is_unpaid,
+        lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
         when=days_before(7, c.DEALER_PAYMENT_DUE, 2),
         needs_approval=True,
@@ -490,7 +492,7 @@ if c.DEALER_REG_START:
                                                         c.EPOCH.strftime('%b %Y'),
                                                         c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
-        lambda g: g.status in [c.APPROVED, c.SHARED] and g.is_unpaid,
+        lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
         when=days_before(2, c.DEALER_PAYMENT_DUE),
         needs_approval=True,
@@ -548,12 +550,12 @@ def band_placeholder(a): return a.placeholder and a.badge_type == c.GUEST_BADGE 
             and a.group.guest.group_type == c.BAND)
 
 
-def dealer_placeholder(a): return a.placeholder and a.is_dealer and a.group.status in [c.APPROVED, c.SHARED]
+def dealer_placeholder(a): return a.placeholder and a.is_dealer and a.group.status in c.DEALER_ACCEPTED_STATUSES
 
 
 def staff_import_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
                                                            and (a.admin_account or
-                                                                "staff import".lower() in a.admin_notes.lower()))
+                                                                "staff import" in a.admin_notes.lower()))
 
 
 def volunteer_placeholder(a): return a.staffing and a.placeholder and a.registered_local > c.PREREG_OPEN and \
@@ -583,7 +585,7 @@ AutomatedEmailFixture(
     Attendee,
     'Please complete your {EVENT_NAME} {EVENT_YEAR} registration',
     'placeholders/regular.txt',
-    lambda a: generic_placeholder(a) and a.paid != c.NEED_NOT_PAY,
+    lambda a: generic_placeholder(a) and a.paid != c.NEED_NOT_PAY and "converted badge" not in a.admin_notes.lower(),
     sender=c.CONTACT_EMAIL,
     allow_at_the_con=True,
     ident='generic_badge_confirmation')
@@ -913,7 +915,7 @@ class MIVSGuestEmailFixture(AutomatedEmailFixture):
             **kwargs)
 
 
-if c.MIVS_ENABLED:
+if c.MIVS_START:
 
     MIVSEmailFixture(
         IndieStudio,
@@ -1272,37 +1274,30 @@ class PanelAppEmailFixture(AutomatedEmailFixture):
             template,
             lambda app: filter(app) and (
                 not app.submitter or
-                not app.submitter.attendee_id or
-                app.submitter.attendee.badge_type != c.GUEST_BADGE),
+                not app.submitter.attendee_id
+                ),
             ident,
-            sender=c.PANELS_EMAIL,
+            sender=kwargs.pop('sender', c.PANELS_EMAIL),
             **kwargs)
 
 
-if c.PANELS_ENABLED:
-    PanelAppEmailFixture(
-        'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
-        'panels/application.html',
-        lambda a: True,
-        needs_approval=False,
-        ident='panel_received')
-
+if c.PANELS_START:
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
         'panels/panel_app_accepted.txt',
-        lambda app: app.status == c.ACCEPTED,
+        lambda app: app.status == c.ACCEPTED and app.department in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_accepted')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Declined: {{ app.name }}',
         'panels/panel_app_declined.txt',
-        lambda app: app.status == c.DECLINED,
+        lambda app: app.status == c.DECLINED and app.department in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_declined')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Waitlisted: {{ app.name }}',
         'panels/panel_app_waitlisted.txt',
-        lambda app: app.status == c.WAITLISTED,
+        lambda app: app.status == c.WAITLISTED and app.department in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_waitlisted')
 
     PanelAppEmailFixture(
@@ -1311,13 +1306,14 @@ if c.PANELS_ENABLED:
         lambda app: (
             c.PANELS_CONFIRM_DEADLINE
             and app.confirm_deadline
+            and app.department in c.EMAILLESS_PANEL_DEPTS
             and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
         ident='panel_accept_reminder')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
         'panels/panel_app_scheduled.txt',
-        lambda app: app.event_id,
+        lambda app: app.event_id and app.department in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_scheduled')
 
     AutomatedEmailFixture(

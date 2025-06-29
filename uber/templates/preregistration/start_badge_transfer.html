@@ -1,0 +1,138 @@
+{% extends "./preregistration/preregbase.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
+
+{% set title_text = "Start " ~ c.EVENT_NAME ~ " Registration Transfer" %}
+{% block content %}
+
+<div class="card">
+  <div class="card-body">
+    {% if duplicate_bypass %}
+    <div class="alert alert-warning">
+      <h3>You may already be registered!</h3>
+      <p>
+        We already have a {{ duplicate.full_name }} with email address {{ duplicate.email }} in our database with a
+        {% if duplicate.paid == c.PAID_BY_GROUP and duplicate.group.status == c.WAITLISTED %}
+            waitlisted
+        {% elif duplicate.paid == c.HAS_PAID or duplicate.paid == c.PAID_BY_GROUP or duplicate.promo_code and duplicate.promo_code.group %}
+            paid
+        {% elif duplicate.paid == c.NEED_NOT_PAY %}
+            complimentary
+        {% elif duplicate.paid == c.NOT_PAID %}
+            unpaid
+        {% else %}
+            {{ duplicate.paid_label }}
+        {% endif %}
+        {{ duplicate.badge_type_label }}
+        {% if duplicate.ribbon %}
+            ({{ duplicate.ribbon_labels|join(", ") }})
+        {% endif %}
+        badge{% if duplicate.group or duplicate.promo_code and duplicate.promo_code.group %}
+        {% set group = duplicate.group or duplicate.promo_code.group %}
+            (with the group {{ group.name }}){% endif %}.
+      </p>
+
+      <p>If you have any questions then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.</p>
+
+      {% if duplicate.group and duplicate.group.is_dealer and duplicate.group.status not in c.DEALER_ACCEPTED_STATUSES %}
+        <p>
+          It looks like your {{ c.DEALER_REG_TERM }} application has not been approved yet. If your application
+          is not approved, you will be able to purchase badges for yourself and the number of assistants on the application
+          at the pre-registration price of {{ duplicate.badge_cost|format_currency }} when the waitlist is exhausted. You will receive an email
+          when these badges are available for purchase.
+        </p>
+      {% endif %}
+
+      {% if duplicate.badge_type == c.STAFF_BADGE and duplicate.registered == [c.PREREG_OPEN, c.DEALER_REG_START]|min %}
+        <p>
+          You were registered automatically for a complimentary Staff badge as thanks for volunteering
+          last year. You should have already received an email letting you know about this; if you didn't
+          then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> and let us know.
+        </p>
+      {% endif %}
+
+    <p>If you're absolutely sure that this is someone else, you can continue below.</p>
+      <button class="btn btn-info" form="start-transfer">I'm someone else, let me register!</button>
+    </div>
+    {% elif ban_bypass %}
+    <div class="alert alert-danger">
+      <h3>You may be banned from {{ c.EVENT_NAME }}!</h3>
+      <p>
+        Our list of banned people includes someone named <b>{{ attendee.full_name }}</b>. Every banned attendee has
+        been told they are banned, so if this is not a mistake then you should definitely know it. However, if you
+        just happen to have the same name as someone who has been banned, then go ahead and continue. If we see someone
+        on our banned list complete their registration then we'll contact you to verify that you're someone else.
+      </p>
+      <button class="btn btn-info" form="start-transfer">I'm someone else, let me register!</button>
+    </div>
+    {% elif code %}
+        {% if not transfer_badge or not transfer_badge.has_badge %}
+        <div class="alert alert-danger" role="alert">
+            This transfer code (<strong>{{ code }}</strong>) is not associated with a valid, transferable badge.
+        </div>
+        {% else %}
+            {% set badge_details %}
+            The original badge cost was {{ transfer_badge.badge_cost|format_currency }}.
+            {% if transfer_badge.amount_extra %}This badge includes a {{ c.DONATION_TIERS[transfer_badge.amount_extra] }} merch package ({{ transfer_badge.amount_extra|format_currency }}).{% endif %}
+            {% endset %}
+            {% if transfer_badge.active_receipt and transfer_badge.active_receipt.current_amount_owed %}
+            <div class="alert alert-warning" role="alert">
+                <p>
+                    The badge associated with this transfer code (<strong>{{ code }}</strong>) currently has an outstanding balance
+                    of <strong>{{ (transfer_badge.active_receipt.current_amount_owed / 100)|format_currency }}</strong>.
+                </p>
+                <p>Otherwise, the badge is valid and can be transferred.</p>
+                {{ badge_details }}
+            </div>
+            {% else %}
+            <div class="alert alert-info" role="alert">
+                <p>The badge associated with this transfer code (<strong>{{ code }}</strong>) is valid and can be transferred.</p>
+                {{ badge_details }}
+            </div>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+    <p>Enter a transfer code below to check its validity.</p>
+    <form method="post" class="d-flex gap-2 mb-3" action="start_badge_transfer">
+        <div><input type="text" class="form-control" name="code" placeholder="XXX-XXX-XXX" {% if transfer_badge %}value="{{ transfer_badge.transfer_code }}"{% endif %} /></div>
+        <div><button type="submit" class="btn btn-primary">Check Transfer Code</button></div>
+    </form>
+    <p>Or, fill out the form below to get a code that someone can use to transfer their badge to you.</p>
+
+    {% if receipt and receipt.current_amount_owed %}
+    <div class="alert alert-danger" role="alert">
+      This badge currently has an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+      You will be prompted for payment after transferring the badge.
+    </div>
+    {% endif %}
+
+    {{ form_macros.form_validation('start-transfer') }}
+    {% include 'forms/alpine/attendee_metadata.html' %}
+
+    <form method="POST" novalidate action="start_badge_transfer" id="start-transfer" x-data="attendeeMetadata()">
+      {{ csrf_token() }}
+      {% if ban_bypass %}
+        <input type="hidden" name="ban_bypass" value="True" />
+      {% endif %}
+      {% if duplicate_bypass %}
+        <input type="hidden" name="duplicate_bypass" value="True" />
+      {% endif %}
+
+      {% include "forms/attendee/personal_info.html" %}
+      {% include "forms/attendee/staffing_info.html" %}
+      {% include "forms/attendee/other_info.html" %}
+      {% include "forms/attendee/consents.html" %}
+
+      {# Deprecated form included for backwards compatibility with old plugins #}
+      {% include "regform.html" %}
+
+      <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+          <button type="submit" class="btn btn-primary">Get Transfer Code</button>
+        </div>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{% endblock %}

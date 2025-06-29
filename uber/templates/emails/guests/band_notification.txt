@@ -4,4 +4,4 @@ As a guest performing at {{ c.EVENT_NAME_AND_YEAR }}, we need you to complete ou
 
 You can complete every step on the checklist at {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
 
-{{ c.BAND_EMAIL_SIGNATURE }}
+{{ email_signature }}

@@ -4,4 +4,4 @@ Because your act is being compensated, {{ c.EVENT_NAME }} requires a completed W
 
 Please upload your completed W9 no later than {{ c.BAND_TAXES_DEADLINE }}.
 
-{{ c.BAND_EMAIL_SIGNATURE }}
+{{ email_signature }}

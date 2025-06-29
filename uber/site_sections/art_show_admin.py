@@ -17,7 +17,7 @@ from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
-                        Attendee, Email, Tracking, PageViewTracking, ArbitraryCharge, ReceiptItem, ReceiptTransaction, WorkstationAssignment
+                        Attendee, BadgeInfo, Email, Tracking, PageViewTracking, ReceiptItem, ReceiptTransaction, WorkstationAssignment
 from uber.utils import check, get_static_file_path, localized_now, Order
 from uber.payments import TransactionRequest, ReceiptManager
 
@@ -42,9 +42,9 @@ class Root:
         attendee = None
         app_paid = 0 if new_app else app.amount_paid
 
-        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.is_valid == True,  # noqa: E712
-                    Attendee.badge_status != c.WATCHED_STATUS)
+        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident) \
+            .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '', Attendee.is_valid == True,  # noqa: E712
+                                                     Attendee.badge_status != c.WATCHED_STATUS)
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -507,10 +507,11 @@ class Root:
                     except Exception:
                         filters.append(Attendee.badge_printed_name.ilike('%{}%'.format(search_text)))
                     else:
-                        filters.append(or_(Attendee.badge_num == badge_num,
+                        filters.append(or_(BadgeInfo.ident == badge_num,
                                            and_(Attendee.art_show_bidder != None,
                                                 ArtShowBidder.bidder_num.ilike('%{search_text}%'))))
-                    attendees = session.query(Attendee).outerjoin(ArtShowBidder).filter(*filters).filter(Attendee.is_valid == True)  # noqa: E712
+                    attendees = session.query(Attendee).join(BadgeInfo).outerjoin(
+                        ArtShowBidder).filter(*filters).filter(Attendee.is_valid == True)  # noqa: E712
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_bidder)
 
@@ -635,8 +636,8 @@ class Root:
                 except Exception:
                     raise HTTPRedirect('sales_search?message={}', 'Please search by bidder number or badge number.')
                 else:
-                    filters.append(or_(Attendee.badge_num == badge_num))
-                attendees = session.query(Attendee).filter(*filters)
+                    filters.append(or_(BadgeInfo.ident == badge_num))
+                attendees = session.query(Attendee).join(BadgeInfo).filter(*filters)
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_receipts)
 
@@ -839,6 +840,7 @@ class Root:
             session.refresh(attendee_receipt)
 
             sales_item = ReceiptItem(
+                purchaser_id=receipt.attendee.id,
                 receipt_id=attendee_receipt.id,
                 fk_id=receipt.id,
                 fk_model="ArtShowReceipt",

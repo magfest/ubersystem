@@ -4,8 +4,10 @@ import shutil
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
+from markupsafe import Markup
 
 from pockets import uniquify, classproperty, sluggify
+from pockets.autolog import log
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
@@ -15,14 +17,15 @@ from uber.config import c
 from uber.custom_tags import yesno
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, MultiChoice
+from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column,
+                               MultiChoice, GuidebookImageMixin)
 from uber.utils import filename_extension
 
 
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
-    'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph',
-    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality']
+    'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph', 'GuestImage',
+    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality', 'GuestTrack']
 
 
 class GuestGroup(MagModel):
@@ -39,11 +42,14 @@ class GuestGroup(MagModel):
     needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
     badges_assigned = Column(Boolean, default=False)
     info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
+    images = relationship(
+        'GuestImage', backref=backref('guest', load_on_pending=True), order_by='GuestImage.id')
     bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
     taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
     stage_plot = relationship('GuestStagePlot', backref=backref('guest', load_on_pending=True), uselist=False)
     panel = relationship('GuestPanel', backref=backref('guest', load_on_pending=True), uselist=False)
     merch = relationship('GuestMerch', backref=backref('guest', load_on_pending=True), uselist=False)
+    tracks = relationship('GuestTrack', backref=backref('guest', load_on_pending=True))
     charity = relationship('GuestCharity', backref=backref('guest', load_on_pending=True), uselist=False)
     autograph = relationship('GuestAutograph', backref=backref('guest', load_on_pending=True), uselist=False)
     interview = relationship('GuestInterview', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -110,6 +116,10 @@ class GuestGroup(MagModel):
     @property
     def email(self):
         return self.group.email
+
+    @property
+    def gets_emails(self):
+        return self.group.gets_emails
 
     @property
     def normalized_group_name(self):
@@ -193,17 +203,47 @@ class GuestGroup(MagModel):
             return getattr(subclass, 'status', getattr(subclass, 'id'))
         return ''
     
+    def handle_images_from_params(self, session, **params):
+        # Designed to let us add required header/thumbnail images for Super MAGFest
+        # Ideally this will be refactored out when this is converted to WTForms
+        message = ''
+        bio_pic = params.get('bio_pic')
+        if bio_pic and bio_pic.filename:
+            new_pic = GuestImage.upload_image(bio_pic, guest_id=self.id)
+            if new_pic.extension not in c.ALLOWED_BIO_PIC_EXTENSIONS:
+                message = 'Bio pic must be one of ' + ', '.join(c.ALLOWED_BIO_PIC_EXTENSIONS)
+            else:
+                if self.bio_pic:
+                    session.delete(self.bio_pic)
+                session.add(new_pic)
+        return message
+
+    @property
+    def sample_tracks(self):
+        html = []
+        for track in self.tracks:
+            html.append(track.file)
+        return Markup('<br/>'.join(html))
+    
+    @property
+    def bio_pic(self):
+        for image in self.images:
+            if not image.is_header and not image.is_thumbnail:
+                return image
+        return ''
+
     @property
     def guidebook_header(self):
-        # Temp: we need real header/thumbnail images later
-        if self.bio:
-            return self.bio
+        for image in self.images:
+            if image.is_header:
+                return image
         return ''
 
     @property
     def guidebook_thumbnail(self):
-        if self.bio:
-            return self.bio
+        for image in self.images:
+            if image.is_thumbnail:
+                return image
         return ''
     
     @property
@@ -223,12 +263,17 @@ class GuestGroup(MagModel):
 
     @property
     def guidebook_images(self):
-        if not self.bio:
+        if not self.images:
             return ['', ''], ['', '']
-        
-        prepend = sluggify(self.group.name) + '_'
 
-        return [prepend + self.bio.pic_filename, prepend + self.bio.pic_filename], [self.bio, self.bio]
+        header = self.guidebook_header
+        thumbnail = self.guidebook_thumbnail
+        prepend = sluggify(self.title) + '_'
+
+        header_name = (prepend + header.filename) if header else ''
+        thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
+        
+        return [header_name, thumbnail_name], [header, thumbnail]
 
 
 class GuestInfo(MagModel):
@@ -242,6 +287,23 @@ class GuestInfo(MagModel):
     @property
     def status(self):
         return "Yes" if self.poc_phone else ""
+
+
+class GuestImage(MagModel, GuidebookImageMixin):
+    guest_id = Column(UUID, ForeignKey('guest_group.id'))
+
+    @property
+    def url(self):
+        return '../guests/view_image?id={}'.format(self.id)
+
+    @property
+    def filepath(self):
+        return os.path.join(c.GUESTS_BIO_PICS_DIR, str(self.id))
+
+    @property
+    def download_filename(self):
+        name = self.guest.normalized_group_name
+        return name + '.' + self.pic_extension
 
 
 class GuestBio(MagModel):
@@ -258,32 +320,6 @@ class GuestBio(MagModel):
     spotify = Column(UnicodeText)
     other_social_media = Column(UnicodeText)
     teaser_song_url = Column(UnicodeText)
-
-    pic_filename = Column(UnicodeText)
-    pic_content_type = Column(UnicodeText)
-
-    @property
-    def pic_url(self):
-        if self.uploaded_pic:
-            return '../guests/view_bio_pic?id={}'.format(self.guest.id)
-        return ''
-
-    @property
-    def pic_fpath(self):
-        return os.path.join(c.GUESTS_BIO_PICS_DIR, self.id)
-
-    @property
-    def uploaded_pic(self):
-        return os.path.exists(self.pic_fpath)
-
-    @property
-    def pic_extension(self):
-        return filename_extension(self.pic_filename)
-
-    @property
-    def download_filename(self):
-        name = self.guest.normalized_group_name
-        return name + '_bio_pic.' + self.pic_extension
 
     @property
     def status(self):
@@ -330,7 +366,9 @@ class GuestStagePlot(MagModel):
 
     @property
     def status(self):
-        return self.url if self.url else ''
+        if self.url:
+            return self.url
+        return self.notes
 
 
 class GuestPanel(MagModel):
@@ -345,6 +383,44 @@ class GuestPanel(MagModel):
     @property
     def status(self):
         return self.wants_panel_label
+
+
+class GuestTrack(MagModel):
+    guest_id = Column(UUID, ForeignKey('guest_group.id'))
+    filename = Column(UnicodeText)
+    content_type = Column(UnicodeText)
+    extension = Column(UnicodeText)
+
+    @property
+    def file(self):
+        if not self.filename:
+            return ''
+        return Markup(
+            f"""<a href="{self.url}" target="_blank">{self.filename}</a>""")
+
+    @file.setter
+    def file(self, value):
+        import shutil
+        import cherrypy
+
+        if not isinstance(value, cherrypy._cpreqbody.Part):
+            log.error(f"Tried to set music track for guest {self.guest.id} with invalid value type: {type(value)}")
+            return
+
+        self.filename = value.filename
+        self.content_type = value.content_type.value
+        self.extension = value.filename.split('.')[-1].lower()
+
+        with open(self.filepath, 'wb') as f:
+            shutil.copyfileobj(value.file, f)
+
+    @property
+    def url(self):
+        return f"../guests/view_track?id={self.id}"
+
+    @property
+    def filepath(self):
+        return os.path.join(c.GUESTS_INVENTORY_DIR, str('track_' + self.id))
 
 
 class GuestMerch(MagModel):
@@ -365,6 +441,8 @@ class GuestMerch(MagModel):
     check_country = Column(UnicodeText)
 
     arrival_plans = Column(UnicodeText)
+    checkin_time = Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True)
+    checkout_time = Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True)
     merch_events = Column(UnicodeText)
     inventory = Column(JSON, default={}, server_default='{}')
     inventory_updated = Column(UTCDateTime, nullable=True)
@@ -433,7 +511,12 @@ class GuestMerch(MagModel):
     @property
     def status(self):
         if self.selling_merch == c.ROCK_ISLAND:
-            return self.selling_merch_label + ('' if self.inventory else ' (No Merch)')
+            notes = []
+            if not self.inventory:
+                notes.append("No Merch")
+            if not self.checkin_time:
+                notes.append("No Arrival Details")
+            return self.selling_merch_label + ('' if not notes else f' ({', '.join(notes)})')
         return self.selling_merch_label
 
     @presave_adjustment
@@ -484,9 +567,6 @@ class GuestMerch(MagModel):
             return 'You must add some merch to your inventory!'
         messages = []
         for item_id, item in inventory.items():
-            quantity = int(item.get('quantity') or 0)
-            if quantity <= 0 and cls.total_quantity(item) <= 0:
-                messages.append('You must specify some quantity')
             for name, file in [(n, f) for (n, f) in item.items() if f]:
                 match = cls._inventory_file_regex.match(name)
                 if match and getattr(file, 'filename', None):
@@ -538,13 +618,6 @@ class GuestMerch(MagModel):
                             del item[attr]
 
     @classmethod
-    def total_quantity(cls, item):
-        total_quantity = 0
-        for attr in filter(lambda s: s.startswith('quantity'), item.keys()):
-            total_quantity += int(item[attr] if item[attr] else 0)
-        return total_quantity
-
-    @classmethod
     def item_subcategories(cls, item_type):
         s = {getattr(c, s): s for s in c.MERCH_TYPES_VARS}[int(item_type)]
         return (
@@ -563,10 +636,6 @@ class GuestMerch(MagModel):
     @classmethod
     def line_items(cls, item):
         line_items = []
-        for attr in filter(lambda s: s.startswith('quantity-'), item.keys()):
-            if int(item[attr] if item[attr] else 0) > 0:
-                line_items.append(attr)
-
         varieties, cuts, sizes = [
             [v for (v, _) in x]
             for x in cls.item_subcategories_opts(item['type'])]

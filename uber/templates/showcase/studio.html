@@ -1,0 +1,22 @@
+{% import 'forms/macros.html' as form_macros with context %}
+{% extends "preregistration/preregbase.html" %}
+{% set title = c.EVENT_NAME ~ "Showcase Studio" %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<div class="card card-body">
+    <h2>Edit Information for {{ studio.name }}</h2>
+    {{ form_macros.form_validation('studio-form', 'validate_studio') }}
+    <form novalidate method="post" id="studio-form" action="studio" role="form">
+        <input type="hidden" name="id" value="{{ studio.id }}" />
+        {{ csrf_token() }}
+    
+        {% include "forms/showcase/studio.html" %}
+
+        <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            <button type="submit" class="btn btn-primary">Update Studio Information</button>
+        </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

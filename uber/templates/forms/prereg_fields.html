@@ -4,13 +4,9 @@
 {% set group_info = group_info or forms['group_info'] %}
 
 {% if c.FORMATTED_REG_TYPES and c.FORMATTED_REG_TYPES|length > 1 %}
-<div class="row g-sm-3">
+<div class="row g-sm-3 mb-3">
     {{ form_macros.card_select(badge_extras.badge_type,
         c.FORMATTED_REG_TYPES, disabled_opts=c.UNAVAILABLE_REG_TYPES,
         target_field_id="badge_type", disabled_card_text="Unavailable", label="Registration Type") }}
 </div>
-{% if c.GROUPS_ENABLED %}
-{{ form_macros.toggle_fields_js(badge_extras.badge_type, [group_info.name, group_info.badges],
-                                on_values=[c.PSEUDO_GROUP_BADGE], toggle_required=True) }}
-{% endif %}
 {% endif %}

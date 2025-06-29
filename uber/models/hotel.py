@@ -2,6 +2,7 @@ import random
 
 import checkdigit.verhoeff as verhoeff
 from datetime import timedelta, datetime
+from pytz import UTC
 from markupsafe import Markup
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
@@ -262,7 +263,7 @@ class LotteryApplication(MagModel):
 
     @property
     def qualifies_for_staff_lottery(self):
-        return self.attendee.badge_type == c.STAFF_BADGE
+        return self.attendee.staff_hotel_lottery_eligible
     
     @property
     def current_lottery_deadline(self):
@@ -275,7 +276,9 @@ class LotteryApplication(MagModel):
     
     @property
     def last_step(self):
-        return 6 if self.entry_type and self.entry_type == c.SUITE_ENTRY else 5
+        if self.entry_type == c.SUITE_ENTRY:
+            return c.HOTEL_LOTTERY_FORM_STEPS['suite_final_step']
+        return c.HOTEL_LOTTERY_FORM_STEPS['room_final_step']
 
     @property
     def homepage_link(self):
