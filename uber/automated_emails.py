@@ -85,6 +85,7 @@ class AutomatedEmailFixture:
             filter,
             ident,
             *,
+            shared_ident='',
             query=(),
             query_options=(),
             when=(),
@@ -111,6 +112,7 @@ class AutomatedEmailFixture:
         self.format = 'text' if template.endswith('.txt') else 'html'
         self.filter = lambda x: (x.gets_emails and filter(x))
         self.ident = ident
+        self.shared_ident = shared_ident
         self.query = listify(query)
         self.query_options = listify(query_options)
         self.sender = sender or c.REGDESK_EMAIL
@@ -913,7 +915,7 @@ class MIVSGuestEmailFixture(AutomatedEmailFixture):
             **kwargs)
 
 
-if c.MIVS_ENABLED:
+if c.MIVS_START:
 
     MIVSEmailFixture(
         IndieStudio,
@@ -1272,37 +1274,30 @@ class PanelAppEmailFixture(AutomatedEmailFixture):
             template,
             lambda app: filter(app) and (
                 not app.submitter or
-                not app.submitter.attendee_id or
-                app.submitter.attendee.badge_type != c.GUEST_BADGE),
+                not app.submitter.attendee_id
+                ),
             ident,
-            sender=c.PANELS_EMAIL,
+            sender=kwargs.pop('sender', c.PANELS_EMAIL),
             **kwargs)
 
 
-if c.PANELS_ENABLED:
-    PanelAppEmailFixture(
-        'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
-        'panels/application.html',
-        lambda a: True,
-        needs_approval=False,
-        ident='panel_received')
-
+if c.PANELS_START:
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
         'panels/panel_app_accepted.txt',
-        lambda app: app.status == c.ACCEPTED,
+        lambda app: app.status == c.ACCEPTED and app.department in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_accepted')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Declined: {{ app.name }}',
         'panels/panel_app_declined.txt',
-        lambda app: app.status == c.DECLINED,
+        lambda app: app.status == c.DECLINED and app.department in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_declined')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Waitlisted: {{ app.name }}',
         'panels/panel_app_waitlisted.txt',
-        lambda app: app.status == c.WAITLISTED,
+        lambda app: app.status == c.WAITLISTED and app.department in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_waitlisted')
 
     PanelAppEmailFixture(
@@ -1311,13 +1306,14 @@ if c.PANELS_ENABLED:
         lambda app: (
             c.PANELS_CONFIRM_DEADLINE
             and app.confirm_deadline
+            and app.department in c.EMAILLESS_PANEL_DEPTS
             and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
         ident='panel_accept_reminder')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
         'panels/panel_app_scheduled.txt',
-        lambda app: app.event_id,
+        lambda app: app.event_id and app.department in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_scheduled')
 
     AutomatedEmailFixture(

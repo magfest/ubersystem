@@ -35,7 +35,7 @@ class Root:
             'Needs Rehearsal?',
         ])
         for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
-            absolute_pic_url = convert_to_absolute_url(getattr(guest.bio, 'pic_url', ''))
+            absolute_pic_url = convert_to_absolute_url(getattr(guest.bio_pic, 'url', ''))
             absolute_stageplot_url = convert_to_absolute_url(getattr(guest.stage_plot, 'url', ''))
             num_panels = 0 if not guest.group or not guest.group.leader or not guest.group.leader.submitted_panels \
                 else len(guest.group.leader.submitted_panels)
@@ -248,7 +248,8 @@ class Root:
 
         out.writerow(['Group Name', 'PoC Name', 'PoC Phone #', 'PoC Email', 'PoC Address 1', 'PoC Address 2',
                       'PoC City', 'PoC Region', 'PoC ZipCode', 'PoC Country', 'Meet N Greet', 'Delivery Method',
-                      'Preferred Payout Method', 'Payout Info', 'Trusted Handlers'])
+                      'Preferred Payout Method', 'Payout Info', 'Trusted Handlers', 'Check-In', 'Check-Out',
+                      'Arrival/Departure Plans'])
 
         def attr_or_not_set(guest_merch, attr):
             if guest_merch.full_name:
@@ -282,7 +283,8 @@ class Root:
                           attr_or_not_set(guest.merch, 'poc_city'), attr_or_not_set(guest.merch, 'poc_region'),
                           attr_or_not_set(guest.merch, 'poc_zip_code'), attr_or_not_set(guest.merch, 'poc_country'),
                           meet_greet, guest.merch.delivery_method_label, guest.merch.payout_method_label, payout_info,
-                          ', '.join(trusted_handlers)
+                          ', '.join(trusted_handlers), attr_or_not_set(guest.merch, 'checkin_time_label'),
+                          attr_or_not_set(guest.merch, 'checkout_time_label'), attr_or_not_set(guest.merch, 'arrival_plans')
                           ])
 
     @csv_file

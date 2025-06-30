@@ -1,0 +1,49 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set panel_consents = panel_consents or forms['panel_consents'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    checkboxes
+    poc_tos
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
+{% block checkboxes %}
+    <div class="col-sm">{{ form_macros.input(panel_consents.verify_waiting) }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(panel_consents.coc_agreement) }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(panel_consents.data_agreement) }}</div>
+{% endblock %}
+</div>
+
+{% block poc_tos %}
+<div class="alert alert-info">
+    "Panelists" at {{ c.EVENT_NAME }} are eligible for free admission and
+        the ability to present an awesome panel for like-minded
+        people.  No travel, hotel, or other accommodations are
+        provided by {{ c.EVENT_NAME }}.  If you have any questions,
+        please contact <b>{{ c.PANELS_EMAIL }}</b>.
+        <br/><br/>{{ form_macros.input(panel_consents.verify_tos) }}
+</div>
+{{ form_macros.input(panel_consents.other_panelists, **{'x-bind:value': 'other_panelists'}) }}
+<div class="alert alert-info" x-show="showPanelist(1)">
+    I understand that by submitting this application, I am
+        designating myself as the team leader and primary point of
+        contact for this panel. I further understand that if I need
+        to add or change panelists for this event I may be required
+        to provide justification, and that this will be approved at
+        the sole discretion of {{ c.EVENT_NAME }} Staff.
+        <br/><br/>{{ form_macros.input(panel_consents.verify_poc, required_if="showPanelist(1)") }}
+</div>
+{% endblock %}
+
+</div>

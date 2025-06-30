@@ -10,4 +10,4 @@ You will be emailed when the Volunteer Checklist launches. The Checklist will ne
 
 Please let us know if you have any questions.
 
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}

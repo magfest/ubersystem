@@ -254,6 +254,11 @@ def jsonize(x):
 
 
 @JinjaEnv.jinja_filter
+def boolean(x):
+    return bool(x)
+
+
+@JinjaEnv.jinja_filter
 def subtract(x, y):
     return x - y
 
@@ -847,3 +852,10 @@ def random_hash():
     random = os.urandom(16)
     result = binascii.hexlify(random)
     return result.decode("utf-8")
+
+@JinjaEnv.jinja_filter
+def javascript_bool(val):
+    if val:
+        return 'true'
+    else:
+        return 'false'

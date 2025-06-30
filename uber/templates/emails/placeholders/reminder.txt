@@ -5,4 +5,4 @@
 {% if c.PLACEHOLDER_DEADLINE %}We're going to delete all un-accepted preregistrations at {{ c.PLACEHOLDER_DEADLINE|datetime_local }}, so please make sure to fill out the form before then.
 {% endif %}
 
-{{ c.REGDESK_EMAIL_SIGNATURE }}
+{{ email_signature }}

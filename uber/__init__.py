@@ -10,6 +10,7 @@ from uber import config  # noqa: F401
 from uber import api  # noqa: F401
 from uber import automated_emails  # noqa: F401
 from uber import custom_tags  # noqa: F401
+from uber import forms  # noqa: F401
 from uber import jinja  # noqa: F401
 from uber import menu  # noqa: F401
 from uber import models  # noqa: F401
@@ -18,6 +19,7 @@ from uber import receipt_items  # noqa: F401
 from uber import sep_commands  # noqa: F401
 from uber import server  # noqa: F401
 from uber import tasks  # noqa: F401
+from uber import validations  # noqa: F401
 from uber.serializer import serializer # noqa: F401
 
 # NOTE: this will decrease the precision of some serialized decimal.Decimals

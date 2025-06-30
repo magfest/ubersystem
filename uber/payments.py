@@ -20,8 +20,8 @@ from uber.utils import report_critical_exception
 import uber.spin_rest_utils as spin_rest_utils
 
 if c.AUTHORIZENET_LOGIN_ID:
+    # Importing this library takes ~150MB ram, so we only do it if we need it.
     from authorizenet import apicontractsv1, apicontrollers
-
 
 class MockStripeIntent(dict):
     """

@@ -201,6 +201,12 @@ class Root:
                 if group.guest_group_type:
                     group.guest = group.guest or GuestGroup()
                     group.guest.group_type = group.guest_group_type
+                    if params.get('payment', None):
+                        group.guest.payment = 1
+                    else:
+                        group.guest.payment = 0
+                elif group.guest:
+                    session.delete(group.guest)
 
                 if group.is_new and group.is_dealer:
                     if group.status in c.DEALER_ACCEPTED_STATUSES and group.amount_unpaid:
@@ -251,7 +257,7 @@ class Root:
                 form_list.append('LeaderInfo')
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, group, form_list, get_optional=False)
+        forms = load_forms(params, group, form_list)
 
         all_errors = validate_model(forms, group, Group(**group.to_dict()), is_admin=True)
         if all_errors:

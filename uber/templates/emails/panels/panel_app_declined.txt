@@ -9,4 +9,4 @@ Finally, as always, we encourage you to please apply again next year!
 If you have any questions or concerns, please don't hesitate to send them to {{ c.PANELS_EMAIL|email_only }}.
 
 
-{{ c.PANELS_EMAIL_SIGNATURE }}
+{{ email_signature }}

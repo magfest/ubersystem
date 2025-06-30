@@ -1,0 +1,88 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Automated Emails Pending Approval{% endblock %}
+{% block content %}
+<h2>Pending Automated Emails for {{ sender }} <small><a href="pending">View All Pending Emails</a></small></h2>
+<div class="card card-body">
+    {% if not automated_emails %}
+    <p>
+        There are currently no automated emails sent from {{ sender }}.
+    </p>
+    {% else %}
+    <p>
+        The emails below will be sent to any qualifying attendee or group as long as that email is active and approved.
+        Attendees or groups who qualify for an email before it is approved will receive the email when it is approved.
+    </p>
+    <p>
+        If there are date restrictions for an email, that email will not be sent outside of those dates.
+        Emails may be "unapproved" after approval to stop them being sent to newly qualifying attendees or groups.
+    </p>
+    <p>
+        Please note that the emails below represent most, <em>but not all</em>, of the automated emails the system sends.
+        Any emails that don't appear here are sent in response to an action (e.g., a dealer changing their application) and cannot be approved or unapproved.
+    </p>
+    {% endif %}
+    <table class="table table-striped datatable"
+      data-paging="false"
+      data-info="false"
+      data-ordering="false">
+    <thead>
+    <tr class="header">
+      <th>Subject</th>
+      <th>Template</th>
+      <th>Sender</th>
+      <th>Emails Sent</th>
+      <th>Emails Waiting to Send</th>
+      <th>Examples</th>
+      <th>Approval Status</th>
+      <th>Date Restrictions</th>
+    </tr>
+    </thead>
+    <tbody>
+      {% for email in automated_emails %}
+        {% set is_pending = email.unapproved_count > 0 and not email.approved %}
+        <tr class="{% if is_pending %}pending{% endif %}">
+          <td class="subject">
+            <span>{{ email.subject }}</span>
+            {% if is_pending %}
+              <br>
+              {{ email.unapproved_count }}
+              pending email{{ email.unapproved_count|pluralize }}
+              require{{ email.unapproved_count|pluralize('s', '') }} approval
+            {% endif %}
+          </td>
+          <td>
+            {% if email.fixture.template_url %}
+            <a href="{{ email.fixture.template_url }}" target="_blank">{{ email.fixture.template_plugin_name }}</a>
+            {% else %}{{ email.fixture.template_plugin_name }}{% endif %}
+          </td>
+          <td>{{ email.sender }}</td>
+          <td>{{ email.sent_email_count }}</td>
+          <td>{{ email.unapproved_count }}</td>
+          <td><a href="pending_examples?ident={{ email.ident|urlencode }}">Examples</a></td>
+          <td>
+            {% if not email.needs_approval %}
+                Automatic
+            {% else %}
+                {% if not email.approved %}
+                    <form method="post" action="approve">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="ident" value="{{ email.ident }}" />
+                    <input type="submit" value="Approve" class="btn btn-sm btn-success"/>
+                    </form>
+                {% else %}
+                    Approved
+                    <form method="post" action="unapprove">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="ident" value="{{ email.ident }}" />
+                    <input type="submit" value="Undo Approval" class="btn btn-sm btn-warning"/>
+                    </form>
+                {% endif %}
+            {% endif %}
+        </td>
+        <td>{{ email.active_when_label|linebreaksbr }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

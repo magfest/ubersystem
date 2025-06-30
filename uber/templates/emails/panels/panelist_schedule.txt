@@ -2,4 +2,4 @@
 
 You are signed up to present {{ attendee.assigned_panelists|length }} panel{{ attendee.assigned_panelists|length|pluralize }} at this coming {{ c.EVENT_NAME }}.  You can find a printable panel schedule at {{ c.URL_BASE }}/schedule/panelist_schedule?id={{ attendee.id }}
 
-{{ c.PANELS_EMAIL_SIGNATURE }}
+{{ email_signature }}

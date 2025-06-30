@@ -1,11 +1,41 @@
-{% macro form_label(field, label_text='', required=None) %}
-{% set is_required = required == True or (required == None and field.flags.required) %}
-<label for="{{ field.label.field_id }}"
-{% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}><span class="form-label">{{ label_text }}</span>
-  <span class="required-indicator text-danger"{% if not is_required %} style="display: none"{% endif %}> *</span></label>
+{% macro label(field, label_text='', required_if=None) %}
+  <label for="{{ field.label.field_id }}"
+{% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>{{ label_text }}
+  <span class="required-indicator text-danger" x-show="{{ required_if }}"> *</span></label>
 {% endmacro %}
 
-{% macro form_input_extras(field, help_text='', admin_text='', extra_field=None) %}
+
+{% macro input(field, label_text='', help_text='', admin_text='', show_label=True, label_kwargs={}) %}
+{#
+  Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
+  field (Field): WTForms form field.
+  help_text (str): Extra text to display on non-admin pages underneath the field.
+  admin_text (str): Extra text to display on admin pages underneath the field.
+  show_label (bool): Set to False to avoid rendering the label for the field.
+#}
+
+{% set custom_kwargs = {} %}
+
+{% set label_required = kwargs.pop('required_if') if 'required_if' in kwargs else ("true" if field.flags.required else "false") %}
+{% for key, val in kwargs.items() %}
+  {% if key.startswith('alpine_') %}
+  {% set _ = custom_kwargs.update({'x-' ~ key[7:]: val}) %}
+  {% else %}
+  {% set _ = custom_kwargs.update({key: val}) %}
+  {% endif %}
+{% endfor %}
+
+{% if locked_fields|default(None, true) and field.name in locked_fields and not upgrade_modal %}
+{% set _ = custom_kwargs.update({'readonly': true}) %}
+{% endif %}
+
+{% set widget = field.widget|string %}
+{% set label_text = label_text or field.label.text %}
+{% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
+
+{% set text_below_field %}
+  {% if field.form.admin_desc %}{% set admin_text = admin_text or field.description %}{% endif %}
+
   {% if not admin_area and (help_text or field.description) %}
     <div class="form-text">
     {{ help_text or field.description }}
@@ -15,192 +45,48 @@
     {{ admin_text }}
     </div>
   {% endif %}
-  {% if extra_field %}
-    {{ extra_field }}
-  {% endif %}
   <div id="{{ field.id }}-validation" class="invalid-feedback" role="alert"></div>
-{% endmacro %}
+{% endset %}
 
-{% macro form_input(field, label_text='', help_text='', admin_text='', extra_field=None, no_margin=False, hidden_field_text='', force_hidden=False) %}
-{#
-  Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
-  field (Field): WTForms form field.
-  help_text (str): Extra text to display on non-admin pages underneath the field.
-  admin_text (str): Extra text to display on admin pages underneath the field.
-  extra_field (Field): A second field to render underneath this field. Particularly useful for a toggle checkbox that affects the 
-        field.
-  no_margin (bool): If true, removes the `mb-3` class. Useful in cases where a containing div already has a margin.
-  hidden_field_text (str): For fields with the HiddenInput widget, this is the custom display text for the field, which is 
-        useful in situations where a field is always read-only. If not set, the field is rendered without any scaffolding.
-  force_hidden (bool): If true, the field is rendered as a hidden field instead of whatever its widget is.
-#}
-
-{% set custom_kwargs = kwargs %}
-{% if locked_fields|default(None, true) and field.name in locked_fields and not upgrade_modal %}
-{% set _ = custom_kwargs.update({'readonly': true}) %}
+{% if show_label and 'Checkbox' not in widget and 'SwitchInput' not in widget %}
+  <div class="form-text">{{ label(field, label_text, label_required, **label_kwargs) }}</div>
 {% endif %}
-
-{% set type = field.meta.get_field_type(field) %}
-{% set label_text = label_text or field.label.text %}
-{% set label_required = kwargs['required'] if 'required' in kwargs else field.flags.required %}
-{% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
-{% if type == 'hidden' or force_hidden %}
-{% set field_data = field.data|yesno("True,False") if force_hidden and type in ['checkbox','switch'] else field.data %}
-  {% if hidden_field_text %}
-    <div class="form-text">{{ label_text }}</div>
-    <div{% if not no_margin %} class="mb-3"{% endif %}>
-      {% if force_hidden %}
-        <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field_data or kwargs['default']|default('') }}" />
-      {% else %}
-        {{ field(**custom_kwargs) }}
-      {% endif %}
-      {{ hidden_field_text }}
-    </div>
-  {% else %}
-  {% if force_hidden %}
-    <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field_data or kwargs['default']|default('') }}" />
-  {% else %}
-    {{ field(**custom_kwargs) }}
-  {% endif %}
-  {% endif %}
-{% elif type in ['checkbox','switch'] %}
-<div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
-  {% if is_readonly %}
-  <input type="hidden" name="{{ field.id }}" value="{{ field.data }}" />
-  {{ field(class="form-check-input", checked=field.data, disabled=true, value=1, **custom_kwargs) }}
-  {% else %}
-  {{ field(class="form-check-input", checked=field.data, value=1, **custom_kwargs) }}
-  {% endif %}
-
-  {{ form_label(field, label_text=label_text, required=label_required, class="form-check-label") }}
-  {{ form_input_extras(field, help_text, admin_text, extra_field) }}
-</div>
-{% elif type == 'inputgroup' %}
-<div class="form-text">{{ form_label(field, label_text=label_text, required=label_required) }}</div>
-<div {% if not no_margin %}class="mb-3"{% endif %}>
-<div class="input-group">
-{{ field(class="form-control", **custom_kwargs) }}
-</div>
-{{ form_input_extras(field, help_text, admin_text, extra_field) }}
-</div>
-{% elif type == 'checkgroup' %}
-<div class="card card-body{% if not no_margin %} mb-3{% endif %}">
-    {{ field(**custom_kwargs) }}
-    {% if extra_field %}
-    <div class="col col-6 mt-1">
-      {{ extra_field }}
-    </div>
+{% if 'CheckboxInput' in widget or 'SwitchInput' in widget %}
+  <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
+    {% if is_readonly %}
+    <input type="hidden" name="{{ field.id }}" value="{{ field.data }}" />
+    {{ field(checked=custom_kwargs.pop('checked') if 'checked' in custom_kwargs else field.data, disabled=true, value=1, **custom_kwargs) }}
+    {% else %}
+    {{ field(checked=custom_kwargs.pop('checked') if 'checked' in custom_kwargs else field.data, value=1, **custom_kwargs) }}
     {% endif %}
-    {{ form_input_extras(field, help_text, admin_text) }}
-</div>
-{% elif type == 'select' %}
-<div class="form-floating{% if not no_margin %} mb-3{% endif %}">
-    {{ field(class="form-select", **custom_kwargs) }}
-    {{ form_label(field, label_text=label_text, required=label_required) }}
-    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
-</div>
-{% elif type == 'customselect' %}
-<div class="form-floating{% if not no_margin %} mb-3{% endif %}">
-    {{ field(**custom_kwargs) }}
-    {{ form_label(field, label_text=label_text, required=label_required) }}
-    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
-</div>
-{% elif type == 'ranking' %}
-  {% if is_readonly %}
-  {{ field(**custom_kwargs) }}
-  {{ form_input_extras(field, help_text, admin_text, extra_field) }}
-  {% else %}
-  <div{% if not no_margin %} class="mb-3"{% endif %}>
-    {{ field(**custom_kwargs) }}
-    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
+    {{ label(field, label_text, label_required, **label_kwargs) }}
+    {{ text_below_field }}
+    {% if caller %}{{ caller() }}{% endif %}
   </div>
-  {% endif %}
-{% elif type == 'file' %}
-<div class="form-text">{{ form_label(field, label_text=label_text, required=label_required) }}</div>
-<div{% if not no_margin %} class="mb-3"{% endif %}>
-  {% if field.data %}{{ field.data }}<br/>{% endif %}
+{% elif 'InputGroup' in widget %}
+  <div class="input-group">
   {{ field(**custom_kwargs) }}
-  {% if extra_field %}
-  <div class="col col-6 mt-1">
-    {{ extra_field }}
   </div>
-  {% endif %}
-  {{ form_input_extras(field, help_text, admin_text) }}
-</div>
+  {{ text_below_field }}
+  {% if caller %}{{ caller() }}{% endif %}
+{% elif 'MultiCheckbox' in widget %}
+<fieldset id="{{ field.id }}">
+  {% if show_label %}<legend class="mb-0 form-text">{{ label(field, label_text, label_required, **label_kwargs) }}</legend>{% endif %}
+  <div class="card card-body">
+    <div class="checkgroup">
+      {{ field(**custom_kwargs) }}
+      {% if caller %}{{ caller() }}{% endif %}
+    </div>
+  </div>
+  {{ text_below_field }}
+</fieldset>
 {% else %}
-<div class="form-floating{% if not no_margin %} mb-3{% endif %}">
-    {{ field(class="form-control", **custom_kwargs) }}
-    {{ form_label(field, label_text=label_text, required=label_required) }}
-    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
-</div>
+  {% if 'FileInput' in widget and field.data %}{{ field.data }}<br/>{% endif %}
+  {{ field(**custom_kwargs) }}
+  {{ text_below_field }}
+  {% if caller %}{{ caller() }}{% endif %}
 {% endif %}
 {% endmacro %}
-
-{% macro toggle_checkbox(checkbox_field, target_fields, toggle_required=False, hide_on_checked=False, prop='visibility', closest_hide_selector='.row') -%}
-{{ form_input(checkbox_field, **kwargs) }}
-
-{{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop, closest_hide_selector=closest_hide_selector) }}
-{%- endmacro %}
-
-{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id='', target_call_func='', target_field_prepend='') %}
-{% set source_id = source_field_id or source_field.id %}
-{% set suffix = "_" ~ source_id %}
-<script type="text/javascript">
-    var toggleField{{ suffix }} = function() {
-        var toggleOn, toggleVal;
-
-        // Get the checked/unchecked status if the field is a checkbox, otherwise get the field's value
-        if ($("#{{ source_id }}").is(':checkbox')) {
-            toggleVal = $('#{{ source_id }}').prop('checked') ? "1" : "0";
-        } else if ($("#{{ source_id }}").is("fieldset")) {
-            // For checkgroup source fields, we only support a single on_value
-            toggleOn = $('#{{ source_id }}-{{ on_values[0]|string }}').prop('checked') ? true : false;
-        } else {
-            toggleVal = $("#{{ source_id }}").val();
-        }
-
-        // Set whether we should toggle the target fields "on" or "off" based on the values provided
-        // If no off_values or on_values were provided, we rely on truthiness instead
-        if (toggleOn === undefined) {
-            {% if off_values %}
-                toggleOn = ({{ off_values|safe }}.map(String).includes(toggleVal) === false);
-            {% elif on_values %}
-                toggleOn = {{ on_values|safe }}.map(String).includes(toggleVal);
-            {% else %}
-                toggleOn = Boolean(isNaN(parseInt(toggleVal)) ? toggleVal : parseInt(toggleVal));
-            {% endif %}
-        }
-
-        {% for target_field in target_fields %}
-          {%- if prop == 'visibility' %}
-              $('#{{ target_field_prepend ~ target_field.id }}').toggle(toggleOn);
-              {%- if closest_hide_selector %}
-                  $('#{{ target_field_prepend ~ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
-              {%- endif %}
-          {%- elif prop %}
-              $('#{{ target_field_prepend ~ target_field.id }}').prop('{{ prop }}', {{ "!" if prop != 'required' and prop != 'checked' else '' }}toggleOn);
-          {%- endif %}
-          {%- if toggle_required %}
-            $('#{{ target_field_prepend ~ target_field.id }}').prop('required', toggleOn);
-            $('#{{ target_field_prepend ~ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
-          {%- endif %}
-          {% if not target_call_func %}
-            $('#{{ target_field_prepend ~ target_field.id }}').trigger('change');
-          {% endif %}
-        {% endfor %}
-    }
-
-    $(function () {
-        toggleField{{ suffix }}();
-        $('#{{ source_id }}').change(toggleField{{ suffix }});
-        {% for target_field in target_fields %}
-          {% if target_call_func %}
-            $('#{{ target_field_prepend ~ target_fields[0].id }}').change({{ target_call_func }});
-          {% endif %}
-        {% endfor %}
-    });
-</script>
-{%- endmacro %}
 
 {% macro card_select(target_field, opts, text_class="text-center", help_text="", disabled_opts=[], target_field_id="", disabled_card_text="Sold Out") %}
 {# 
@@ -230,7 +116,7 @@
     {{ kwargs['label'] if 'label' in kwargs else target_field.label.text }}{% if label_required %}<span class="required-indicator text-danger"> *</span>{% endif %}
   </legend>
 {% endif %}
-<div class="card-group mt-0{% if not show_desc %} mb-3{% endif %}">
+<div class="card-group mt-0">
 {% for opt in opts %}
 {% set disabled_card = opt.value in disabled_opts %}
   <div class="card {{ target_field.name }}_card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 18rem;">
@@ -273,7 +159,7 @@
 {% endfor %}
 </div>
 <div id="{{ target_field.id }}-validation" class="invalid-feedback" role="alert"></div>
-{% if show_desc %}<div class="form-text mb-3">{{ help_text or target_field.description }}</div>{% endif %}
+{% if show_desc %}<div class="form-text">{{ help_text or target_field.description }}</div>{% endif %}
 {% if not is_preview %}
 </fieldset>
 {% endif %}
@@ -281,6 +167,9 @@
 <script type="text/javascript">
     var setField_{{ target_field.name }} = function(value) {
         $("#{{ field_id }}").val(value).trigger('change');
+        {% if not is_preview %}
+          document.getElementById('{{ field_id }}').dispatchEvent(new Event('input')); // make alpine happy
+        {% endif %}
         $(".{{ target_field.name }}_card").each(function(){
             var header = $(this).children('.card-header');
             var body = $(this).children('.card-body');
@@ -308,68 +197,73 @@
 </script>
 {%- endmacro %}
 
-{% macro address_fields(model, form_obj) %}
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
-    {{ form_input(form_obj.address1) }}
-  </div>
-  <div class="col-12 col-sm-6">
-    {{ form_input(form_obj.address2) }}
-  </div>
-</div>
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
-    {{ form_input(form_obj.country) }}
-    <div class="form-floating selectToAutocomplete">
-      <label for="{{ form_obj.country.id }}-selectToAutocomplete">
-        {{ form_obj.country.label.text }}
-        {% if form_obj.country.flags.required %}<span class="required-indicator text-danger"> *</span>{% endif %}
-      </label>
+{% macro address_fields(form_obj) %}
+<script type="module">
+  import Autocomplete from "https://cdn.jsdelivr.net/gh/lekoala/bootstrap5-autocomplete@master/autocomplete.js";
+
+  let countryOpts = {{ c.COUNTRY_OPTS|tojson }};
+  let stateOpts = {{ c.REGION_OPTS_US|tojson }};
+  let provinceOpts = {{ c.REGION_OPTS_CANADA|tojson }};
+  let idToOpts = {
+    '{{ form_obj.country.id }}': countryOpts,
+    '{{ form_obj.region_us.id }}': stateOpts,
+    '{{ form_obj.region_canada.id }}': provinceOpts,
+  }
+
+  for (const [key, value] of Object.entries(idToOpts)) {
+    Autocomplete.init('#' + key, {
+    items: value,
+    fullWidth: true,
+    searchFields: ['value', 'alt_spellings'],
+    tabSelect: true,
+    suggestionsThreshold: 0,
+    clearControl: '',
+    onChange: function (item) { if (item === undefined) { $('#' + key).val(''); } },
+    onSelectItem: function() {
+      document.getElementById(key).dispatchEvent(new Event('input'));
+    },
+  })
+  }
+</script>
+<div x-data='{
+  country: {{ form_obj.country.data|tojson }},
+  get copyAddress() { return this.copy_address },
+  get isGlobal() { return this.country != "United States" && this.country != "Canada"},
+  get addressRequired() { return !this.copy_address & !this.badge_placeholder },
+}'>
+  <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.address1, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+    </div>
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.address2, **{':disabled':'copyAddress'}) }}
     </div>
   </div>
-  <div class="col-12 col-sm-6">
-    {{ form_input(form_obj.region_us) }}
-    {{ form_input(form_obj.region_canada) }}
-    {{ form_input(form_obj.region) }}
+  <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.country, required_if="addressRequired", **{'x-model': 'country', ':disabled': 'copyAddress'}) }}
+    </div>
+    <div class="col-sm">
+      <div x-show="country == 'United States'">
+        {{ form_macros.input(form_obj.region_us, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+      </div>
+      <div x-show="country == 'Canada'">
+        {{ form_macros.input(form_obj.region_canada, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+      </div>
+      <div x-show="isGlobal">
+        {{ form_macros.input(form_obj.region, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+      </div>
+    </div>
+  </div>
+  <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.city, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+    </div>
+    <div class="col-sm">
+      {{ form_macros.input(form_obj.zip_code, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+    </div>
   </div>
 </div>
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">
-    {{ form_input(form_obj.city) }}
-  </div>
-  <div class="col-12 col-sm-6">
-    {{ form_input(form_obj.zip_code) }}
-  </div>
-</div>
-<script type="text/javascript">
-    {%- set country_id = form_obj.country.id %}
-    var regionChange{{ country_id }} = function() {
-        $('#{{ form_obj.region_us.id }}').prop('disabled', true).parent('.form-floating').hide();
-        $('#{{ form_obj.region_canada.id }}').prop('disabled', true).parent('.form-floating').hide();
-        $('#{{ form_obj.region.id }}').prop('disabled', false).parent('.form-floating').show();
-        var whichCountry = $('#{{ country_id }}').find(':selected').text();
-        switch(whichCountry) {
-              case 'United States':
-                $('#{{ form_obj.region.id }}').prop('disabled', true).parent('.form-floating').hide();
-                $('#{{ form_obj.region_us.id }}').prop('disabled', false).parent('.form-floating').show();
-                break;
-              case 'Canada':
-                $('#{{ form_obj.region.id }}').prop('disabled', true).parent('.form-floating').hide();
-                $('#{{ form_obj.region_canada.id }}').prop('disabled', false).parent('.form-floating').show();
-                break;
-          }
-    }
-    $(function() {
-        $('#{{ country_id }}').selectToAutocomplete().prop("required", false).change(function() {
-            regionChange{{ country_id }}();
-        });
-        $('#{{ country_id }}').parents('.form-floating').addClass('visually-hidden');
-        $('#{{ country_id }}').siblings("input.form-control.ui-autocomplete-input").attr(
-          "id", "{{ country_id }}-selectToAutocomplete").insertBefore('label[for="{{ country_id }}-selectToAutocomplete');
-        $('#{{ country_id }}-validation').insertAfter('label[for="{{ country_id }}-selectToAutocomplete');
-        regionChange{{ country_id }}();
-    })
-</script>
 {%- endmacro %}
 
 {% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false, callback='', always_use_callback=True) %}

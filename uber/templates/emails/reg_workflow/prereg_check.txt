@@ -4,4 +4,4 @@ Thank you for double-checking your registration for {{ c.EVENT_NAME_AND_YEAR }}.
 
 If you have any questions about your badge, please contact us at {{ c.REGDESK_EMAIL|email_only }}. Thank you!
 
-{{ c.REGDESK_EMAIL_SIGNATURE }}
+{{ email_signature }}

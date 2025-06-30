@@ -293,7 +293,10 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
 
     def renderable_data(self, model_instance):
         model_name = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
-        data = {model_name: model_instance}
+        data = {
+            model_name: model_instance,
+            'email_signature': c.get_signature_by_sender(self.sender),
+            }
         if self.fixture:
             data.update(self.fixture.extra_data)
         return renderable_data(data)

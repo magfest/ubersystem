@@ -1,25 +1,30 @@
-{% extends "mivs_base.html" %}
-{% block body %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% extends "preregistration/preregbase.html" %}
+{% set title = c.EVENT_NAME ~ "MIVS Game" %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<div class="card card-body">
+  <h2>{% if game.is_new %}Register a Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
 
-  <script>
-      var showOrHideCodeInstructions = function () {
-          setVisible(
-              $.field('code_instructions').parents('.form-group'),
-              _({{ c.MIVS_CODES_REQUIRING_INSTRUCTIONS|jsonize }}).contains($.val('code_type'))
-          );
-      };
-      $(function () {
-          showOrHideCodeInstructions();
-          $.field('code_type').on('change', showOrHideCodeInstructions);
-      });
-  </script>
-
-  <h2>{% if game.is_new %}Register a Game{% else %}Edit Game Information{% endif %}</h2>
-
-  <form method="post" action="game" class="form-horizontal" role="form">
+  {{ form_macros.form_validation('game-form', 'validate_game') }}
+  <form novalidate method="post" id="game-form" action="game" role="form">
     <input type="hidden" name="id" value="{{ game.db_id }}" />
+    <input type="hidden" name="studio_id" value="{{ studio.id }}" />
     {{ csrf_token() }}
 
+    <div class="card card-body pb-0 mb-3">
+      <h3>Game Information</h3>
+    {% include "forms/showcase/mivs_game_info.html" %}
+    </div>
+
+    <div class="card card-body pb-0 mb-3">
+      <h3>Demo Information</h3>
+    {% include "forms/showcase/mivs_demo_info.html" %}
+    </div>
+
+    {% include "forms/showcase/mivs_consents.html" %}
+
+    {#
     <div class="form-group">
       <label class="col-sm-3 control-label">Game Title</label>
       <div class="col-sm-6">
@@ -175,12 +180,9 @@
         ") }}
       </div>
     </div>
+    #}
 
-    <div class="form-group">
-      <div class="col-sm-6 col-sm-offset-3">
-        <button type="submit" class="btn btn-primary">{% if game.is_new %}Add Game{% else %}Upload Changes{% endif %}</button>
-      </div>
-    </div>
+    <button type="submit" class="btn btn-primary">{% if game.is_new %}Add Game{% else %}Upload Changes{% endif %}</button>
   </form>
-
+</div>
 {% endblock %}

@@ -1,0 +1,32 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set studio_info = studio_info or forms['studio_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    name_website
+    other_links
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+
+<div class="row g-sm-3 mb-3">
+{% block name_website %}
+<div class="col-sm">{{ form_macros.input(studio_info.name) }}</div>
+<div class="col-sm">{{ form_macros.input(studio_info.website) }}</div>
+{% endblock %}
+</div>
+
+
+<div class="row g-sm-3 mb-3">
+{% block other_links %}
+  <div class="col-sm">
+    {{ form_macros.input(studio_info.other_links, num_fields=3, placeholder="Link") }}
+  </div>
+{% endblock %}
+</div>
+
+</div>

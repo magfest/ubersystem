@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber.config import c
 from uber.decorators import ajax, all_renderable, render
 from uber.errors import HTTPRedirect
-from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans
+from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel, GuestTrack
 from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check
 from uber.tasks.email import send_email
@@ -67,21 +67,15 @@ class Root:
             'message': message
         }
 
-    def bio(self, session, guest_id, message='', bio_pic=None, **params):
+    def bio(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_bio = session.guest_bio(params, restricted=True)
         if cherrypy.request.method == 'POST':
             if not guest_bio.desc:
                 message = 'Please provide a brief bio for our website'
 
-            if not message and bio_pic.filename:
-                guest_bio.pic_filename = bio_pic.filename
-                guest_bio.pic_content_type = bio_pic.content_type.value
-                if guest_bio.pic_extension not in c.ALLOWED_BIO_PIC_EXTENSIONS:
-                    message = 'Bio pic must be one of ' + ', '.join(c.ALLOWED_BIO_PIC_EXTENSIONS)
-                else:
-                    with open(guest_bio.pic_fpath, 'wb') as f:
-                        shutil.copyfileobj(bio_pic.file, f)
+            if not message:
+                message = guest.handle_images_from_params(session, **params)
 
             if not message:
                 guest.bio = guest_bio
@@ -165,6 +159,16 @@ class Root:
             'guest_panel': guest.panel or guest_panel,
             'message': message
         }
+    
+    def decline_panel(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        guest_panel = GuestPanel(
+            guest_id=guest.id,
+            wants_panel=c.NO_PANEL,
+            )
+        session.add(guest_panel)
+        raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have declined to run a panel.')
+
 
     def mc(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
@@ -191,6 +195,14 @@ class Root:
             'message': message
         }
 
+    @ajax
+    def delete_sample_track(self, session, id, **params):
+        track = session.guest_track(id)
+        if track:
+            session.delete(track)
+            session.commit()
+        return {'success': True, 'message': "Track deleted."}
+
     def merch(self, session, guest_id, message='', coverage=False, warning=False, **params):
         guest = session.guest_group(guest_id)
         guest_merch = session.guest_merch(params, checkgroups=GuestMerch.all_checkgroups, bools=GuestMerch.all_bools)
@@ -205,10 +217,28 @@ class Root:
         group_params = dict()
 
         if cherrypy.request.method == 'POST':
-            message = check(guest_merch)
+            sample_tracks = params.get('sample_tracks', [])
+            if isinstance(sample_tracks, cherrypy._cpreqbody.Part):
+                sample_tracks = [sample_tracks]
+            if len(guest.sample_tracks) + len(sample_tracks) > 8:
+                message = "Please upload no more than eight sample tracks total."
+            else:
+                try:
+                    for track in [track for track in sample_tracks if track.file]:
+                        new_track = GuestTrack(guest_id=guest_id)
+                        new_track.file = track
+                        session.add(new_track)
+                except Exception as e:
+                    session.rollback()
+                    log.error(f'Error uploading sample track for guest {guest.id}: {e}')
+                    message = f"There was an issue with uploading one of your sample tracks. Please try again or contact us at rockisland@magfest.org"
+
+            if not message:
+                message = check(guest_merch)
             
             if not message:
-                if not guest.deadline_from_model('autograph') and params.get('rock_island_autographs', '') == '':
+                if not guest.deadline_from_model('autograph') and guest.group_type in c.ROCK_ISLAND_GROUPS \
+                        and params.get('rock_island_autographs', '') == '':
                     message = 'Please select whether you would like to have a Meet N Greet at Rock Island.'
                 elif c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE \
                         and guest_merch.selling_merch == c.OWN_TABLE \
@@ -293,6 +323,28 @@ class Root:
             session.add(guest_merch)
             session.commit()
         return {'error': message}
+
+    def update_arrival_plans(self, session, guest_id, **params):
+        guest = session.guest_group(guest_id)
+        guest_merch = session.guest_merch(params)
+        errors = []
+
+        if not guest_merch.checkin_time:
+            errors.append('Please select an estimated arrival time to check in your Rock Island inventory.')
+        elif guest_merch.checkin_time == c.OTHER and not guest_merch.arrival_plans:
+            errors.append('Please explain your arrival plans for checking in your inventory.')
+        if not guest_merch.checkout_time:
+            errors.append('Please select an estimated check-out time to pick up your merch from Rock Island.')
+        elif guest_merch.checkout_time == c.OTHER and not guest_merch.arrival_plans:
+            errors.append('Please explain your departure plans for checking out your inventory.')
+
+        if errors:
+            message = ' '.join(errors)
+        else:
+            guest.merch = guest_merch
+            message = "Arrival plans updated."
+        raise HTTPRedirect('merch?guest_id={}&message={}', guest_id, message)
+
 
     def charity(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
@@ -610,13 +662,22 @@ class Root:
                 else:
                     raise cherrypy.HTTPError(404, "File not found")
 
+    def view_track(self, session, id):
+        track = session.guest_track(id)
+        cherrypy.response.headers['Cache-Control'] = 'no-store'
+        return serve_file(
+            track.filepath,
+            disposition="attachment",
+            name=track.filename,
+            content_type=track.content_type)
+
     def view_bio_pic(self, session, id):
         guest = session.guest_group(id)
         cherrypy.response.headers['Cache-Control'] = 'no-store'
         return serve_file(
-            guest.bio.pic_fpath,
+            guest.bio_pic.filepath,
             disposition="attachment",
-            name=guest.bio.download_filename,
+            name=guest.bio_pic.download_filename,
             content_type=guest.bio.pic_content_type)
 
     def view_stage_plot(self, session, id):

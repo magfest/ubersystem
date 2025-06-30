@@ -20,7 +20,7 @@
   {% endif %}
 
   {{ macros.form_group(guest.bio, 'desc', label='Bio', is_readonly=True) }}
-  {{ macros.form_group(guest.bio, 'pic_url',
+  {{ macros.form_group(guest.bio_pic, 'url',
         url_text="Click here to view the band's uploaded picture",
         url_is_relative=True,
         label='Bio Pic',

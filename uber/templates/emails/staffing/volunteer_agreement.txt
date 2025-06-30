@@ -6,4 +6,4 @@ Before volunteering, we need you to agree to the terms of the volunteer agreemen
 {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }}
 
 Thanks!
-{{ c.STOPS_EMAIL_SIGNATURE }}
+{{ email_signature }}

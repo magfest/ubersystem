@@ -7,7 +7,9 @@
 <div class="card">
     <div class="card-body">
     {{ form_macros.form_validation('prereg-form', 'validate_badge_claim', include_disclaimers_modal=True) }}
-    <form novalidate method="post" action="claim_badge" id="prereg-form">
+    {% include 'forms/alpine/attendee_metadata.html' %}
+
+    <form novalidate method="post" action="claim_badge" id="prereg-form"  x-data="attendeeMetadata()">
         {{ csrf_token() }}
 
         <div class="row g-sm-3">

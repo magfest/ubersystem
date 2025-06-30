@@ -476,7 +476,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     submitted_panels = relationship(
         'PanelApplication',
         secondary='panel_applicant',
-        secondaryjoin='and_(PanelApplicant.app_id == PanelApplication.id)',
+        secondaryjoin='and_(PanelApplicant.id == PanelApplication.submitter_id)',
         primaryjoin='and_(Attendee.id == PanelApplicant.attendee_id, PanelApplicant.submitter == True)',
         viewonly=True
         )
@@ -1563,7 +1563,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         Returns: Integer representing the number of free event shirts this attendee should get.
         """
         return max(0, self.num_event_shirts) if self.gets_staff_shirt else bool(
-            self.volunteer_event_shirt_eligible or (self.badge_type == c.STAFF_BADGE and c.HOURS_FOR_SHIRT))
+            self.volunteer_event_shirt_eligible or (self.badge_type == c.STAFF_BADGE and c.STAFF_GET_EVENT_SHIRTS))
 
     @property
     def num_free_event_shirts(self):
@@ -1891,6 +1891,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @classproperty
     def checkin_bools(self):
         return ['got_merch'] if c.MERCH_AT_CHECKIN else []
+
+    @classproperty
+    def skip_placeholder_fields(self):
+        return ['birthdate', 'age_group', 'ec_name', 'ec_phone', 'address1', 'city',
+                'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact',
+                'badge_printed_name', 'cellphone', 'confirm_email', 'legal_name']
 
     @property
     def assigned_depts_labels(self):

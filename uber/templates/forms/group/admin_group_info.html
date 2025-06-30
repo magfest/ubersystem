@@ -3,7 +3,5 @@
 {% include 'forms/group/admin_shared.html' %}
 
 {% block admin_info %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.admin_notes) }}</div>
-</div>
+    <div class="col-sm">{{ form_macros.input(group_info.admin_notes) }}</div>
 {% endblock %}

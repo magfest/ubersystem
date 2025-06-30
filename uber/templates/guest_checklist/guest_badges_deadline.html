@@ -7,9 +7,12 @@
   {% if guest.all_badges_claimed %}
     You have already assigned all badges which have been assigned to your group, but you may change who your
     complimentary badges are assigned to using the link above anytime until the start of {{ c.EVENT_NAME }}.
-  {% else %}
-    You currently have {{ guest.group.floating|length }} unassigned complimentary
+  {% elif guest.group.floating %}
+    <p>You currently have {{ guest.group.floating|length }} unassigned complimentary
     badge{{ guest.group.floating|length|pluralize }} available to your group.  You may use the link above to
-    assign these badges.
+    assign these badges.</p>
+  {% else %}
+    <p>All of your badges are currently assigned, but not all of them have been filled out. Use the link above to
+    see which badges are incomplete.</p>
   {% endif %}
 {% endblock %}

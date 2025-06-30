@@ -270,18 +270,19 @@ class Root:
         new_attendee.badge_type = c.PSEUDO_DEALER_BADGE
 
         old_group = session.group(old_attendee.group.id)
-        old_group_dict = old_group.to_dict(c.GROUP_REAPPLY_ATTRS)  # TODO: c.GROUP_REAPPLY_ATTRS doesn't exist??
+        old_group_dict = old_group.to_dict(c.GROUP_REAPPLY_ATTRS)
         del old_group_dict['id']
         new_group = Group(**old_group_dict)
 
         new_attendee.group_id = new_group.id
+        new_group.is_dealer = True
         new_group.attendees = [new_attendee]
 
         cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
 
         PreregCart.pending_dealers[new_group.id] = PreregCart.to_sessionized(new_group,
                                                                              badge_count=old_group.badges_purchased)
-        raise HTTPRedirect("dealer_registration?edit_id={}", new_group.id)
+        raise HTTPRedirect("dealer_registration?edit_id={}&repurchase=1", new_group.id)
 
     def repurchase(self, session, id, skip_confirm=False, **params):
         errors = check_if_can_reg()
@@ -380,7 +381,8 @@ class Root:
                 if 'go_to_cart' in params:
                     raise HTTPRedirect('additional_info?group_id={}{}'
                                        .format(group.id, "&editing={}".format(edit_id) if edit_id else ""))
-                raise HTTPRedirect("form?dealer_id={}", group.id)
+                raise HTTPRedirect("form?dealer_id={}{}".format(group.id,
+                                   "&repurchase=1" if params.get('repurchase', '') else ""))
         else:
             if c.DEALER_REG_SOFT_CLOSED:
                 message = '{} is closed, but you can ' \
@@ -394,6 +396,7 @@ class Root:
                 'group':      group,
                 'attendee':   Attendee(),
                 'edit_id':    edit_id,
+                'repurchase': params.get('repurchase', ''),
                 'badges': badges,
                 'invite_code': params.get('invite_code', ''),
             }
@@ -647,8 +650,9 @@ class Root:
 
                     if edit_id and params.get('go_to_cart'):
                         raise HTTPRedirect('index')
-                    raise HTTPRedirect('additional_info?{}{}'.format(url_string,
-                                                                     "&editing={}".format(edit_id) if edit_id else ""))
+                    raise HTTPRedirect('additional_info?{}{}{}'.format(
+                        url_string, "&editing={}".format(edit_id) if edit_id else "",
+                        "&repurchase=1" if params.get('repurchase', '') else ""))
 
         promo_code_group = None
         if attendee.promo_code:
@@ -704,6 +708,7 @@ class Root:
             'message':    message,
             'attendee':   attendee,
             'editing': editing,
+            'repurchase': params.get('repurchase', ''),
             'forms': forms,
         }
 
@@ -2083,6 +2088,11 @@ class Root:
     @ajax
     def create_account(self, session, **params):
         email = params.get('account_email')  # This email has already been validated
+        if c.PREREG_CONFIRM_EMAIL_ENABLED:
+            if not params.get('confirm_email'):
+                return {'success': False, 'message': "Please confirm your email address."}
+            elif email != params.get('confirm_email'):
+                return {'success': False, 'message': "Your email address and email confirmation do not match."}
         account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).first()
         if account:
             return {'success': False,
@@ -2251,7 +2261,7 @@ class Root:
             form_list = ['ContactInfo', 'TableInfo']
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, group, form_list, get_optional=False)
+        forms = load_forms(params, group, form_list)
 
         all_errors = validate_model(forms, group, Group(**group.to_dict()))
         if all_errors:
@@ -2281,7 +2291,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, attendee, form_list, get_optional=False)
+        forms = load_forms(params, attendee, form_list)
 
         all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
         if all_errors:

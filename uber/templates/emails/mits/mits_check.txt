@@ -4,4 +4,4 @@ Your MITS application is currently {{ team.status_label }}. You can view{% if te
 
 If you have any questions about your application, please contact us at {{ c.MITS_EMAIL|email_only }}. Thank you!
 
-{{ c.MITS_EMAIL_SIGNATURE }}
+{{ email_signature }}

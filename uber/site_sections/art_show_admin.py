@@ -3,6 +3,7 @@ from barcode import Code39
 from barcode.writer import ImageWriter
 import re
 import math
+import six
 
 from datetime import datetime
 from decimal import Decimal
@@ -345,24 +346,20 @@ class Root:
                 if message:
                     session.rollback()
                     break
-                else:
-                    if params.get('hanging', '') and piece.status == c.EXPECTED:
-                        piece.status = c.HANGING
-                    elif params.get('check_in', '') and piece.status in [c.EXPECTED, c.HANGING]:
-                        piece.status = c.HUNG
-                    elif params.get('check_out', ''):
-                        if piece.orig_value_of('status') == c.PAID:
-                            # Accounts for the surprisingly-common situation where an
-                            # artist checks out WHILE their pieces are actively being paid for
-                            piece.status = c.PAID
-                        elif piece.status == c.HUNG:
-                            piece.status = c.RETURN
-                    session.commit()  # We save as we go so it's less annoying if there's an error
-        for piece in app.art_show_pieces:
-            if 'check_in' in params and params['check_in'] and piece.status == c.EXPECTED:
-                piece.status = c.HUNG
-            elif 'check_out' in params and params['check_out'] and piece.status == c.HUNG:
-                piece.status = c.SOLD
+        if not message:
+            for piece in app.art_show_pieces:
+                if params.get('hanging', None) and piece.status == c.EXPECTED:
+                    piece.status = c.HANGING
+                elif params.get('check_in', None) and piece.status in [c.EXPECTED, c.HANGING]:
+                    piece.status = c.HUNG
+                elif params.get('check_out', None) and piece.status == c.HUNG:
+                    if piece.orig_value_of('status') == c.PAID:
+                        # Accounts for the surprisingly-common situation where an
+                        # artist checks out WHILE their pieces are actively being paid for
+                        piece.status = c.PAID
+                    else:
+                        piece.status = c.RETURN
+            session.commit()
 
         return {
             'id': app.id,
@@ -381,6 +378,9 @@ class Root:
     def update_all(self, session, message='', **params):
         if 'id' in params:
             app_list = []
+            if isinstance(params.get('id'), six.string_types):
+                params['id'] = [params.get('id')]
+
             for id in params.get('id'):
                 app_params = {key.replace(f'_{id}', ''): val for key, val in params.items() if f'_{id}' in key}
                 app_params['id'] = id
@@ -483,15 +483,16 @@ class Root:
         search_text = search_text.strip()
         if search_text:
             order = order or 'badge_printed_name'
-            if re.match(r'\w-[0-9]{3,4}', search_text):
+            if re.match(r'^[a-zA-Z]-[0-9]+', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
                     ArtShowBidder.bidder_num.ilike(search_text.lower()))
                 if not attendees.first():
                     existing_bidder_num = session.query(Attendee).join(Attendee.art_show_bidder).filter(
-                        ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(search_text)}%")).first()
+                        ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(search_text)}%"))
                     message = f"There is no one with the bidder number {search_text}."
-                    if existing_bidder_num:
-                        message += f" Search for bidder {existing_bidder_num.art_show_bidder.bidder_num} instead."
+                    if existing_bidder_num.first():
+                        message += f" Showing bidder {existing_bidder_num.first().art_show_bidder.bidder_num} instead."
+                        attendees = existing_bidder_num
             else:
                 if c.INDEPENDENT_ART_SHOW:
                     # Independent art shows likely won't have badge numbers or badge names
@@ -560,13 +561,25 @@ class Root:
 
         for field_name in params.copy().keys():
             if params.get(field_name, None):
-                if hasattr(attendee, field_name) and not hasattr(ArtShowBidder(), field_name):
+                if hasattr(attendee, field_name) and (not hasattr(ArtShowBidder(), field_name) or field_name == 'email'):
                     setattr(attendee, field_name, params.pop(field_name))
             elif field_name in ArtShowBidder.required_fields.keys():
                 missing_fields.append(ArtShowBidder.required_fields[field_name])
 
         if missing_fields:
             return {'error': "Please fill out the following fields: " + readable_join(missing_fields) + ".",
+                    'attendee_id': attendee.id}
+
+        if 'phone_type' not in params:
+            return {'error': "You must select whether your phone number is a mobile number or a landline.",
+                    'attendee_id': attendee.id}
+        
+        if 'pickup_time_acknowledged' not in params:
+            return {'error': "You must acknowledge that you understand our art pickup policies.",
+                    'attendee_id': attendee.id}
+
+        if not re.match("^[a-zA-Z]-[0-9]+", params['bidder_num']):
+            return {'error': "Bidder numbers must be in the format X-000 (e.g., A-100).",
                     'attendee_id': attendee.id}
 
         if params['id']:
@@ -625,7 +638,7 @@ class Root:
         search_text = search_text.strip()
         if search_text:
             order = order or 'badge_num'
-            if re.match(r'\w-[0-9]{4}', search_text):
+            if re.match(r'^[a-zA-Z]-[0-9]+', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
                     ArtShowBidder.bidder_num.ilike('%{}%'.format(ArtShowBidder.strip_bidder_num(search_text))))
             else:
@@ -692,7 +705,7 @@ class Root:
             .filter_by(reg_station_id=reg_station_id or -1).first()
 
         if search_text:
-            if re.match(r'\w+-[0-9]+', search_text):
+            if re.match(r'^[a-zA-Z]-[0-9]+', search_text):
                 artist_id, piece_id = search_text.split('-')
                 pieces = session.query(ArtShowPiece).join(ArtShowPiece.app).filter(
                     ArtShowPiece.piece_id == int(piece_id),

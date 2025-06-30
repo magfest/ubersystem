@@ -3,6 +3,7 @@
 {% set staffing_info = staffing_info or forms['staffing_info'] %}
 
 {# BLOCK NAMES in this form:
+    x_data
     staffing
     merch_info (admin-only, only shown if c.SEPARATE_STAFF_MERCH is true)
     checklist_info (admin-only)
@@ -10,6 +11,9 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
 {% block staffing %}
 {% set staffing_message = "" %}
 {% if not admin_area %}
@@ -19,17 +23,19 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     {% set staffing_message = "Please " ~ 'see Staffing Operations to change your volunteer status.' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status.' %}
     {% endif %}
 {% endif %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.toggle_checkbox(staffing_info.staffing, 
-        [staffing_info.requested_depts_ids], toggle_required=True, help_text=staffing_message) }}</div>
-</div>
-
+{% if staffing_message != '' %}<input type="hidden" name="{{ staffing_info.staffing.name }}" value="1">{% endif %}
+    <div class="col-12">
+        {{ form_macros.input(staffing_info.staffing, help_text=staffing_message, disabled=staffing_message != '', **{'x-model.boolean':'staffing'}) }}
+    </div>
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(staffing_info.requested_depts_ids) }}</div>
 </div>
+<div class="row g-sm-3 mb-3" x-show="staffing">
+    <div class="col-12">{{ form_macros.input(staffing_info.requested_depts_ids, required_if="staffing") }}</div>
 {% endif %}
 {% endblock %}
+</div>
 
-{% block merch_info %}{% endblock %}
-{% block checklist_info %}{% endblock %}
+<div class="row g-sm-3 mb-3" x-show="staffing">{% block merch_info %}{% endblock %}</div>
+<div class="row g-sm-3 mb-3" x-show="staffing">{% block checklist_info %}{% endblock %}</div>
+
+</div>

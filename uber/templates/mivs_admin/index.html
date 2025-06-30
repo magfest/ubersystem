@@ -32,7 +32,15 @@
 </tbody>
 </table>
 
-<h3>MIVS Submitted Games</h3>
+<h3>
+    {% if show_all %}
+    All MIVS Games
+    <small><a href="index" class="btn btn-sm btn-primary">Show Submitted Games</a></small>
+    {% else %}
+    MIVS Submitted Games
+    <a href="index?show_all=True" class="btn btn-sm btn-outline-primary">Show All Games</a>
+    {% endif %}
+</h3>
 
 <table class="table datatable" data-page-length="-1">
 <thead>
@@ -64,7 +72,7 @@
             {% endif %}
             {% if game.status == c.ACCEPTED and not game.confirmed %}Confirm deadline: {{ game.studio.confirm_deadline|datetime_local('%x %-I:%M%p') }}{% endif %}
         </td>
-        <td><a href="../mivs/continue_app?id={{ game.studio.id }}" target="_blank">{{ game.studio.name }}</a></td>
+        <td><a href="../showcase/index?id={{ game.studio.id }}" target="_blank">{{ game.studio.name }}</a></td>
         <td>{{ game.studio.primary_contacts[0].full_name if game.studio.primary_contacts else 'N/A' }}</td>
         <td><a href="assign_judges?game_id={{ game.id }}">{{ game.reviews|length }}</a></td>
         <td>

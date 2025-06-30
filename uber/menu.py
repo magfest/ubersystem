@@ -123,6 +123,7 @@ c.MENU = MenuItem(name='Root', submenu=[
     ]),
 
     MenuItem(name='Schedule', submenu=[
+        MenuItem(name='Panels', href='../panels_admin/'),
         MenuItem(name=get_external_schedule_menu_name(), href='../schedule/'),
         MenuItem(name='Edit Schedule', href='../schedule/edit'),
         MenuItem(name='Schedule Changes', href='../schedule_reports/'),
@@ -135,7 +136,7 @@ c.MENU = MenuItem(name='Root', submenu=[
 ])
 
 
-if c.MIVS_ENABLED:
+if c.MIVS_START:
     c.MENU['People'].append_menu_item(MenuItem(name='MIVS', href='../group_admin/#mivs',
                                                access_override='mivs_admin'), position=5)
 

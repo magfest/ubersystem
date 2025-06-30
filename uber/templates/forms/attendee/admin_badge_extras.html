@@ -3,32 +3,25 @@
 {% block badge_type %}{% endblock %}
 
 {% block add_ons %}
-{{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True, 
-                                closest_hide_selector='.row' if not attendee.gets_staff_shirt or c.STAFF_SHIRTS_OPTIONAL or c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS else '.form-floating',
-                                source_field_id=id_upgrade_prepend ~ "amount_extra") }}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.amount_extra) }}</div>
-</div>
+    <div class="col-sm" x-show="showShirtOptOut">{{ form_macros.input(badge_extras.shirt_opt_out, **{'x-model.number': "shirt_opt_out"}) }}</div>
+    <div class="col-sm" x-show="showStaffEventShirtOpts">{{ form_macros.input(badge_extras.num_event_shirts, **{'x-model.number': "num_event_shirts"}) }}</div>
+    <div class="col-sm">{{ form_macros.input(badge_extras.amount_extra, alpine_model="amount_extra") }}</div>
 {% endblock %}
 
 {% block merch_info %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-4">
+    <div class="col-sm">
         <div class="form-text">Merch Owed</div>
         <div class="mb-3">{{ attendee.merch }}</div>
     </div>
-    <div class="col-12 col-sm-4">{{ form_macros.form_input(badge_extras.extra_merch) }}</div>
-    <div class="col-12 col-sm-4">
+    <div class="col-sm">{{ form_macros.input(badge_extras.extra_merch) }}</div>
+    <div class="col-sm">
         <div class="form-text">Received Merch</div>
-        <div class="mb-3">{{ form_macros.form_input(badge_extras.got_merch) }}</div>
+        <div class="mb-3">{{ form_macros.input(badge_extras.got_merch) }}</div>
     </div>
-</div>
 {% endblock %}
 
 {% block donation %}
 {% if c.COLLECT_EXTRA_DONATION %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.extra_donation) }}</div>
-</div>
+    <div class="col-sm">{{ form_macros.input(badge_extras.extra_donation) }}</div>
 {% endif %}
 {% endblock %}
