@@ -153,10 +153,6 @@ class Root:
 
         return {"success": True}
 
-    def view_image(self, session, id):
-        screenshot = session.indie_game_image(id)
-        return serve_file(screenshot.filepath, name=screenshot.filename, content_type=screenshot.content_type)
-
     @csrf_protected
     def delete_screenshot(self, session, id):
         screenshot = session.indie_game_image(id)

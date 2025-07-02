@@ -117,10 +117,10 @@ class MivsScreenshot(MagForm):
 
 class ArcadeGameInfo(MagForm):
     title = StringField('Submission Name')
-    primary_contact = SelectField('Primary Contact',
-                                  description="This is who we will reach out to with information about this submission.",
-                                  widget=SelectDynamicChoices(),
-                                  validate_choice=False)
+    primary_contact_id = SelectField('Primary Contact',
+                                     description="This is who we will reach out to with information about this submission.",
+                                     widget=SelectDynamicChoices(),
+                                     validate_choice=False)
     description = TextAreaField('Brief Description', description="Just a few sentences, no more than two paragraphs.")
     link_to_video = URLField('Link to Video')
 
@@ -133,7 +133,7 @@ class ArcadeGameInfo(MagForm):
 
 class ArcadeConsents(MagForm):
     agreed_showtimes = BooleanField(
-        f'At least one person from our team will be present at {c.EVENT_NAME} to set up our game on Jan 22nd (or early Jan 23rd) and remain all weekend to run the game.',
+        f'At least one person from our team will be present at {c.EVENT_NAME} to set up our game on {c.INDIE_ARCADE_SETUP_TEXT} and remain all weekend to run the game.',
         description="The Indie Arcade staff can assist with a few games each year, but we do not have the resources to set up more than one or two games on our own.")
     agreed_equipment = BooleanField(
         'I understand that I will be responsible for supplying ALL equipment required to run my game, including power strips, screens, and speakers if necessary.',
@@ -171,10 +171,6 @@ class ArcadeLogistics(MagForm):
     transit_needs = TextAreaField('Transit Needs')
     found_how = StringField('How did you learn about the Indie Arcade?')
     read_faq = StringField(Markup("Did you read the FAQ?"))
-    also_mivs = BooleanField(
-        'This game is also being submitted to MIVS.',
-        description="Indie Arcade is home to games and digital experiences with custom hardware components, such as alt control games and arcade cabinets. If you're looking to submit a more traditional game to the Indie Videogames Showcase, tune in to super.magfest.org/mivs for information on when and where to submit in the near future. If you have any questions, email mivs@magfest.org."
-    )
     mailing_list = BooleanField(
         Markup("I would like to sign up this game's primary contact for the Indie Arcade mailing list."),
         description="We're starting a mailing list for Indie Arcade announcements and PR! You'll be able to opt out at any time via MailChimp."

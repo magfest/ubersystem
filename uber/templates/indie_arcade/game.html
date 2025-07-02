@@ -4,7 +4,17 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 <div class="card card-body">
-  <h2>{% if game.is_new %}Register a Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
+  <h2>{% if game.is_new %}Register an Indie Arcade Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
+  <p>
+    Indie Arcade is home to games and digital experiences with custom hardware components, such as alt control games and arcade cabinets.
+  </p>
+
+    {% if not c.AFTER_MIVS_DEADLINE %}
+    <p>
+        If you're looking to submit a more traditional game to {{ c.EVENT_NAME }} Indies, you can
+        {% if c.MIVS_SUBMISSIONS_OPEN %}<a href="../mivs/game?studio_id={{ studio.id }}">register a game</a> for the Indie Videogames Showcase (MIVS){% elif c.BEFORE_MIVS_START %}register a game for the Indie Videogames Showcase (MIVS) starting on {{ c.MIVS_START|datetime_local }}{% endif %} instead.
+    </p>
+    {% endif %}
 
   {{ form_macros.form_validation('game-form', 'validate_game') }}
   <form novalidate method="post" id="game-form" action="game" role="form">

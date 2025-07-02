@@ -4,7 +4,7 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 <div class="card card-body">
-  <h2>{% if game.is_new %}Register a Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
+  <h2>{% if game.is_new %}Register an Indie Videogame Showcase Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
 
   {{ form_macros.form_validation('game-form', 'validate_game') }}
   <form novalidate method="post" id="game-form" action="game" role="form">

@@ -103,7 +103,7 @@ def image_size(form, field):
 
 ArcadeGameInfo.field_validation.required_fields = {
     'title': "Please enter a name for this game.",
-    'primary_contact': "Please select a primary contact for this game.",
+    'primary_contact_id': "Please select a primary contact for this game.",
     'description': "Please provide a brief description for this game.",
     'link_to_video': "Please provide a link to footage of people playing your game, and a password if required."
 }
@@ -123,9 +123,11 @@ ArcadeLogistics.field_validation.required_fields = {
     'game_end_time': "Please let us know if you can keep this game running until our standard end time.",
     'player_count': "Please select how many players this game is designed for.",
     'floorspace': "Please select your estimated required floorspace.",
-    'floorspace_text': "Please provide approximate width/depth measurements for your required floorspace.",
+    'floorspace_text': ("Please provide approximate width/depth measurements for your required floorspace.",
+                        'floorspace', lambda x: x == c.OTHER),
     'cabinet_type': "Please select your cabinet/installation type.",
-    'cabinet_type_text': "Please describe your installation in detail, including exact measurements.",
+    'cabinet_type_text': ("Please describe your installation in detail, including exact measurements.",
+                          'cabinet_type', lambda x: x == c.OTHER),
     'sanitation_requests': ("Please describe the special considerations this game has regarding sanitation.",
                             'sanitation'),
     'transit_needs': (f"Please describe what you need help with in transporting this game to {c.EVENT_NAME}.",

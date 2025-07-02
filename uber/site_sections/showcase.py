@@ -73,6 +73,11 @@ class Root:
                 for code in game.codes:
                     code_forms[code.id] = load_forms({}, code, ['MivsCode'],
                                                      prefix_dict={code.id: 'MivsCode'})
+        for game in studio.arcade_games:
+            image_forms['new'] = load_forms({}, IndieGameImage(), ['ArcadePhoto'])
+            for image in game.submission_images:
+                image_forms[image.id] = load_forms({}, image, ['ArcadePhoto'],
+                                                   prefix_dict={image.id: 'ArcadePhoto'})
 
         return {
             'message': message,
@@ -81,6 +86,10 @@ class Root:
             'code_forms': code_forms,
             'image_forms': image_forms,
         }
+
+    def view_image(self, session, id):
+        image = session.indie_game_image(id)
+        return serve_file(image.filepath, name=image.filename, content_type=image.content_type)
     
     def studio(self, session, id, message='', **params):
         studio = session.indie_studio(id)

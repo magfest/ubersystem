@@ -121,7 +121,7 @@ class IndieStudio(MagModel):
 
     @property
     def arcade_games(self):
-        return [g for g in self.games if g.showcase_type == c.ARCADE]
+        return [g for g in self.games if g.showcase_type == c.INDIE_ARCADE]
 
     @property
     def confirm_deadline(self):
@@ -291,6 +291,23 @@ class IndieGame(MagModel, ReviewMixin):
     photosensitive_warning = Column(Boolean, default=False)
     description = Column(UnicodeText)
 
+    primary_contact_id = Column(UUID, ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True)
+    primary_contact = relationship(IndieDeveloper, backref='arcade_games',
+                                   foreign_keys=primary_contact_id, cascade='save-update,merge,refresh-expire,expunge')
+    game_hours = Column(UnicodeText)
+    game_hours_text = Column(UnicodeText)
+    game_end_time = Column(Boolean, default=False)
+    player_count = Column(UnicodeText)
+    floorspace = Column(Choice(c.INDIE_ARCADE_FLOORSPACE_OPTS), nullable=True)
+    floorspace_text = Column(UnicodeText)
+    cabinet_type = Column(Choice(c.INDIE_ARCADE_CABINET_OPTS), nullable=True)
+    cabinet_type_text = Column(UnicodeText)
+    sanitation_requests = Column(UnicodeText)
+    transit_needs = Column(UnicodeText)
+    found_how = Column(UnicodeText)
+    read_faq = Column(UnicodeText)
+    mailing_list = Column(Boolean, default=False)
+
     how_to_play = Column(UnicodeText)
     link_to_video = Column(UnicodeText)
     link_to_game = Column(UnicodeText)
@@ -303,6 +320,7 @@ class IndieGame(MagModel, ReviewMixin):
 
     agreed_liability = Column(Boolean, default=False)
     agreed_showtimes = Column(Boolean, default=False)
+    agreed_equipment = Column(Boolean, default=False)
 
     link_to_promo_video = Column(UnicodeText)
     link_to_webpage = Column(UnicodeText)
@@ -356,6 +374,10 @@ class IndieGame(MagModel, ReviewMixin):
     @property
     def href(self):
         return make_url(self.link_to_game)
+    
+    @property
+    def submission_images(self):
+        return [img for img in self.images if not img.is_header and not img.is_thumbnail]
 
     @property
     def screenshots(self):
@@ -369,7 +391,7 @@ class IndieGame(MagModel, ReviewMixin):
 
     def accepted_image_downloads(self, count=2):
         all_screenshots = reversed(sorted(
-            [image for image in self.images if not image.is_header and not image.is_thumbnail],
+            self.submission_images,
             key=lambda img: (
                 img.is_screenshot and img.use_in_promo,
                 img.is_screenshot,
@@ -423,8 +445,10 @@ class IndieGame(MagModel, ReviewMixin):
                     and len(self.codes) < c.MIVS_CODES_REQUIRED:
                 steps.append(
                     f'attach at least {c.MIVS_CODES_REQUIRED} codes for our judges')
-        if len(self.screenshots) < 2:
+        if self.showcase_type == c.MIVS and len(self.screenshots) < 2:
             steps.append('upload at least two screenshots')
+        elif len(self.submission_images) < 2:
+            steps.append('upload at least two photos')
 
         return steps
 
@@ -523,7 +547,7 @@ class IndieGameImage(MagModel, GuidebookImageMixin):
         if not self.filename:
             return ''
         return Markup(
-            f"""<a href="{self.url}" target="_blank">{self.filename}</a>""")
+            f"""<a href="{self.url}" target="_blank"><img class="img-fluid" src="{self.url}" /><br/>{self.filename}</a>""")
 
     @image.setter
     def image(self, value):
@@ -543,7 +567,7 @@ class IndieGameImage(MagModel, GuidebookImageMixin):
 
     @property
     def url(self):
-        return f"../mivs/view_image?id={self.id}"
+        return f"../showcase/view_image?id={self.id}"
 
     @property
     def filepath(self):

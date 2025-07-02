@@ -268,7 +268,7 @@ class MagForm(Form):
         elif isinstance(widget, wtforms_widgets.Select):
             bootstrap_class = 'form-select'
         elif not isinstance(widget, (MultiCheckbox, IntSelect, Ranking, wtforms_widgets.FileInput,
-                                        wtforms_widgets.HiddenInput)):
+                                     wtforms_widgets.HiddenInput)):
             bootstrap_class = 'form-control'
 
         if 'class' in render_kw and bootstrap_class:

@@ -32,6 +32,7 @@ class Root:
 
             session.add(game)
             game.studio = studio
+            game.showcase_type = c.INDIE_ARCADE
             raise HTTPRedirect('../showcase/index?id={}&message={}', studio_id,
                                 'Game information uploaded.')
 
@@ -105,16 +106,12 @@ class Root:
 
         return {"success": True}
 
-    def view_image(self, session, id):
-        photo = session.indie_game_image(id)
-        return serve_file(photo.filepath, name=photo.filename, content_type=photo.content_type)
-
     @csrf_protected
     def delete_photo(self, session, id):
         photo = session.indie_game_image(id)
         studio_id = photo.game.studio.id
         session.delete_screenshot(photo)
-        raise HTTPRedirect('../showcase/index?id={}&message={}', studio_id, 'Screenshot deleted.')
+        raise HTTPRedirect('../showcase/index?id={}&message={}', studio_id, 'Photo deleted.')
 
     def confirm(self, session, csrf_token=None, decision=None):
         studio = session.logged_in_studio()
