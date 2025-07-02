@@ -202,6 +202,7 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% set can_delete_screenshots = not game.submitted or game.screenshots|length > 2 %}
                     {% for image in game.screenshots %}
                     {% set mivs_screenshot = image_forms[image.id]['mivs_screenshot'] %}
                         <tr x-data="">
@@ -219,11 +220,13 @@
                                     <input type="hidden" name="id" value="{{ image.db_id }}" />
                                     <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check"></i></button>
                                 </form>
+                                {% if can_delete_screenshots %}
                                 <form method="post" action="../mivs/delete_screenshot">
                                     {{ csrf_token() }}
                                     <input type="hidden" name="id" value="{{ image.id }}" />
                                     <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
                                 </form>
+                                {% endif %}
                                 </div>
                             </td>
                         </tr>

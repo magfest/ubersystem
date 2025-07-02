@@ -9,7 +9,7 @@ from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
 from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, CustomValidation, UniqueList)
+                        HiddenBoolField, HiddenIntField, SelectDynamicChoices, UniqueList, SelectButtonGroup)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
 from uber.models import Attendee, BadgeInfo, Session, PromoCodeGroup
@@ -113,3 +113,72 @@ class MivsScreenshot(MagForm):
     description = TextAreaField("Screenshot Description")
     image = FileField("Image File (max 5MB)", render_kw={'accept': "image/*"})
     is_screenshot = HiddenBoolField('', default=True)
+
+
+class ArcadeGameInfo(MagForm):
+    title = StringField('Submission Name')
+    primary_contact_id = SelectField('Primary Contact',
+                                     description="This is who we will reach out to with information about this submission.",
+                                     widget=SelectDynamicChoices(),
+                                     validate_choice=False)
+    description = TextAreaField('Brief Description', description="Just a few sentences, no more than two paragraphs.")
+    link_to_video = URLField('Link to Video')
+
+    def link_to_video_desc(self):
+        return "Please provide footage of people playing your arcade game. \
+            Cellphone video is fine, so long as we can see the action. \
+            Please do not only send us a gameplay trailer that does not show the physical setup. \
+            If the video is private, please provide a password."
+
+
+class ArcadeConsents(MagForm):
+    agreed_showtimes = BooleanField(
+        f'At least one person from our team will be present at {c.EVENT_NAME} to set up our game on {c.INDIE_ARCADE_SETUP_TEXT} and remain all weekend to run the game.',
+        description="The Indie Arcade staff can assist with a few games each year, but we do not have the resources to set up more than one or two games on our own.")
+    agreed_equipment = BooleanField(
+        'I understand that I will be responsible for supplying ALL equipment required to run my game, including power strips, screens, and speakers if necessary.',
+        description="We highly recommend bringing a spare extension cord & labeling all of your equipment."
+    )
+    agreed_liability = BooleanField(
+        f'I understand that I will be responsible for the safety and security of my own equipment during {c.EVENT_NAME}, which has a show floor open to the public for the entire event.',
+        description="Some devs feel comfortable leaving their equipment on the show-floor overnight. If you do not, you will need to have a plan to secure it or bring it back to your room as we do not have a locked space."
+    )
+
+
+class ArcadeLogistics(MagForm):
+    game_hours = SelectField(
+        "Can Run 72 Hours",
+        choices=['Yes','Other'], widget=SelectButtonGroup())
+    game_hours_text = StringField('Let us know what your plans are for keeping your game up running for our prime hours.')
+    game_end_time = SelectField(
+        'Online Until 2pm Sunday',
+        description="We're committed to keeping our space active and safe for attendees until 2pm, but if you need to pack up your submission early on Sunday for travel, that is an option that we can discuss on a team-by-team basis.",
+        choices=['Yes','No'], widget=SelectButtonGroup())
+    player_count = SelectField('How many players is your submission designed for?',
+                               choices=['1', '2', '3 or more'], widget=SelectButtonGroup())
+    floorspace = SelectField('Required Floorspace',
+                             description="If possible, provide approximate width/depth measurements for the space your players will need.",
+                             coerce=int, choices=[(0, 'Please select an option')] + c.INDIE_ARCADE_FLOORSPACE_OPTS)
+    floorspace_text = StringField('Width/Depth Measurements')
+    cabinet_type = SelectField(
+        'Cabinet/Installation Type',
+        description='We provide floorspace and optional standard height folding tables.',
+        coerce=int, choices=[(0, 'Please select an option')] + c.INDIE_ARCADE_CABINET_OPTS)
+    cabinet_type_text = TextAreaField('Installation Description', description="Please be extremely descriptive and provide exact measurements.")
+    sanitation = BooleanField('This game has special considerations with regard to sanitation.')
+    sanitation_requests = TextAreaField('Sanitation Considerations')
+    needs_transit = BooleanField(f'We will or may need assistance to get this game to {c.EVENT_NAME}.')
+    transit_needs = TextAreaField('Transit Needs')
+    found_how = StringField('How did you learn about the Indie Arcade?')
+    read_faq = StringField(Markup("Did you read the FAQ?"))
+    mailing_list = BooleanField(
+        Markup("I would like to sign up this game's primary contact for the Indie Arcade mailing list."),
+        description="We're starting a mailing list for Indie Arcade announcements and PR! You'll be able to opt out at any time via MailChimp."
+    )
+
+    def read_faq_desc(self):
+        return Markup("Prove it. <a href='https://super.magfest.org/indie-arcade' target='_blank'>You can find it right here</a>.")
+
+
+class ArcadePhoto(MagForm):
+    image = FileField("Image File (max 5MB)", render_kw={'accept': "image/*"})
