@@ -1328,14 +1328,21 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "Please ask the artist you're agenting for {} first.".format(
                 "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
             )
-        
+
         reason = ""
-        if self.paid == c.NEED_NOT_PAY and not self.promo_code:
-            reason = "You cannot abandon a comped badge."
-        elif self.is_group_leader and self.group.is_valid:
-            reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
-        elif self.amount_paid:
-            reason = self.cannot_self_service_refund_reason
+        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
+            account = self.managers[0]
+            other_adult_badges = [a for a in account.valid_adults if a.id != self.id]
+            if account.badges_needing_adults and not other_adult_badges:
+                reason = f"You cannot cancel the last adult badge on an account with an attendee under {c.ACCOMPANYING_ADULT_AGE}."
+
+        if not reason:
+            if self.paid == c.NEED_NOT_PAY and not self.promo_code:
+                reason = "You cannot abandon a comped badge."
+            elif self.is_group_leader and self.group.is_valid:
+                reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
+            elif self.amount_paid:
+                reason = self.cannot_self_service_refund_reason
 
         if reason:
             return reason + " Please {} contact us at {}{}.".format(
@@ -2537,6 +2544,10 @@ class AttendeeAccount(MagModel):
     @property
     def valid_adults(self):
         return [attendee for attendee in self.valid_attendees if attendee.birthdate and attendee.age_now_or_at_con >= 17]
+    
+    @property
+    def badges_needing_adults(self):
+        return [a for a in self.valid_attendees if a.birthdate and a.age_now_or_at_con < c.ACCOMPANYING_ADULT_AGE]
 
     @property
     def valid_single_badges(self):

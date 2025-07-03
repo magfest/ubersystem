@@ -1868,6 +1868,14 @@ class Root:
 
         if isinstance(abandon_ids, str):
             abandon_ids = [abandon_ids]
+        
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account = session.current_attendee_account()
+            if account.badges_needing_adults and set([a.id for a in account.valid_adults]).issubset(abandon_ids):
+                if not set([a.id for a in account.badges_needing_adults]).issubset(abandon_ids):
+                    raise HTTPRedirect(
+                        "homepage?&message={}",
+                        f"You cannot cancel the last adult badge(s) on an account with an attendee under {c.ACCOMPANYING_ADULT_AGE}.")
 
         for id in abandon_ids:
             attendee = session.attendee(id)
@@ -1887,7 +1895,8 @@ class Root:
                         session.add_all(receipt_manager.items_to_add)
                         attendee.active_receipt.closed = datetime.now()
                         attendee.badge_status = c.REFUNDED_STATUS
-                        attendee.paid = c.REFUNDED
+                        if attendee.paid != c.NEED_NOT_PAY:
+                            attendee.paid = c.REFUNDED
 
                     for charge_id, (refund_amount, txns) in refunds.items():
                         all_refunds[charge_id][0] += refund_amount
