@@ -931,6 +931,26 @@ class Attendee(MagModel, TakesPaymentMixin):
         return uber.badge_funcs.get_real_badge_type(self.badge_type)
 
     @property
+    def attendance_type(self):
+        return c.SINGLE_DAY if self.badge_type in [c.ONE_DAY_BADGE, c.FRIDAY, c.SATURDAY, c.SUNDAY] else c.WEEKEND
+
+    @property
+    def available_attendance_types(self):
+        return c.FORMATTED_ATTENDANCE_TYPES
+
+    @property
+    def available_single_badge_opts(self):
+        # You can't switch between single-day badges, so this is all or nothing
+        if self.is_new or self.is_unpaid:
+            return c.FORMATTED_SINGLE_BADGES
+
+        return [{
+            'name': self.badge_type_label,
+            'desc': 'Can be upgraded to an Attendee badge later.',
+            'value': self.badge_type
+            }]
+
+    @property
     def available_badge_type_opts(self):
         if self.is_new or self.badge_type == c.ATTENDEE_BADGE and self.is_unpaid:
             return c.FORMATTED_BADGE_TYPES
@@ -2513,6 +2533,10 @@ class AttendeeAccount(MagModel):
     @property
     def valid_attendees(self):
         return [attendee for attendee in self.attendees if attendee.is_valid]
+    
+    @property
+    def valid_adults(self):
+        return [attendee for attendee in self.valid_attendees if attendee.birthdate and attendee.age_now_or_at_con >= 17]
 
     @property
     def valid_single_badges(self):
@@ -2523,6 +2547,7 @@ class AttendeeAccount(MagModel):
         group_attendees = [attendee for attendee in self.valid_attendees if attendee.group and attendee.group.is_valid]
         if group_attendees:
             return groupify(group_attendees, 'group')
+        return {}
 
     @property
     def cancellable_badges(self):

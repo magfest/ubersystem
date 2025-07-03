@@ -35,6 +35,37 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 
 <div class="row g-sm-3 mb-3">
 {% block badge_type %}
+{{ badge_extras.attendance_type(id=id_upgrade_prepend ~ "attendance_type") }}
+
+{% if c.PRESELL_ONE_DAYS and c.FORMATTED_ATTENDANCE_TYPES|length > 1 and (not receipt or upgrade_modal and attendee.attendance_type == c.SINGLE_DAY) %}
+    {{ form_macros.card_select(badge_extras.attendance_type,
+                               c.FORMATTED_ATTENDANCE_TYPES,
+                               target_field_id=id_upgrade_prepend ~ "attendance_type") }}
+    </div>
+    <div id="one-day-alert" class="row">
+        <div class="col"><div class="alert alert-info mb-0"><em>Please select which day you would like to attend.</em></div></div>
+    </div>
+    <div class="row g-sm-3 mb-3">
+        <input type="hidden" id="badge_type_single" /> {# Dummy attribute to make validation message hideable #}
+        {{ form_macros.card_select(badge_extras.badge_type_single,
+                                    attendee.available_single_badge_opts, disabled_opts=c.SOLD_OUT_BADGES_SINGLE[1:] if attendee.badge_type in c.SOLD_OUT_BADGES_SINGLE else c.SOLD_OUT_BADGES_SINGLE,
+                                    target_field_id=id_upgrade_prepend ~ "badge_type") }}
+    </div>
+    <script type="text/javascript">
+        var switchBadgeTypeOpts = function() {
+            let attendanceType = $('#{{ id_upgrade_prepend }}attendance_type').val();
+            setVisible($('#badge_type_single-select').parents('.row'), attendanceType == '{{ c.SINGLE_DAY }}');
+            setVisible($('#one-day-alert'), attendanceType == '{{ c.SINGLE_DAY }}');
+            setVisible($('#badge_type-select').parents('.row'), attendanceType == '{{ c.WEEKEND }}');
+        }
+        $(function () {
+            switchBadgeTypeOpts();
+            $('#{{ id_upgrade_prepend }}attendance_type').on('change', switchBadgeTypeOpts);
+        })
+    </script>
+    <div class="row g-sm-3 mb-3">
+{% endif %}
+
 {{ badge_extras.badge_type(id=id_upgrade_prepend ~ "badge_type", **{'x-model.number': "badge_type"}) }}
 
 {% if c.BADGE_TYPE_PRICES and (not receipt or upgrade_modal) %}

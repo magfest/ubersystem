@@ -211,6 +211,12 @@ def upgrade_sold_out(form, field):
         raise ValidationError("The upgrade you have selected is no longer available.")
 
 
+@BadgeExtras.field_validation('badge_type_single')
+def must_select_day(form, field):
+    if form.attendance_type.data and form.attendance_type.data == c.SINGLE_DAY and field.data not in [c.FRIDAY, c.SATURDAY, c.SUNDAY]:
+        raise ValidationError("Please select which day you would like to attend.")
+
+
 @BadgeExtras.new_or_changed('badge_type')
 def no_more_custom_badges(form, field):
     if field.data in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
