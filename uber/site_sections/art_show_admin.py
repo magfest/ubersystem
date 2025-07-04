@@ -591,10 +591,11 @@ class Root:
             attendee.art_show_bidder = bidder
 
         bidder.apply(params, restricted=False, bools=['email_won_bids'])
+        regex_search = f"\w-{ArtShowBidder.strip_bidder_num(params.get('bidder_num'))}"
 
         bidder_num_dupe = session.query(ArtShowBidder).filter(
             ArtShowBidder.id != bidder.id,
-            ArtShowBidder.bidder_num.ilike(f"%{ArtShowBidder.strip_bidder_num(params.get('bidder_num'))}%")).first()
+            ArtShowBidder.bidder_num.regexp_match(regex_search, flags="i")).first()
         if bidder_num_dupe:
             session.rollback()
             return {
