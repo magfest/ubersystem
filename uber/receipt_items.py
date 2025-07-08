@@ -274,7 +274,16 @@ def one_day_or_upgraded_badge_cost(attendee):
 
 @receipt_calculation.Attendee
 def badge_upgrade_cost(attendee, new_attendee=None):
-    if not new_attendee:
+    if not new_attendee and attendee.badge_type in c.BADGE_TYPE_PRICES:
+        new_cost = c.BADGE_TYPE_PRICES[attendee.badge_type] * 100
+        old_cost = cost_from_base_badge_item(attendee, new_attendee)
+        if old_cost == 0:
+            if skip_badge_cost_calc(attendee, new_receipt=True):
+                old_cost = attendee.calculate_badge_price(include_price_override=False) * 100
+            else:
+                return
+        return (f"Upgrade to {attendee.badge_type_label} Badge", new_cost - old_cost, 'badge_type')
+    elif not new_attendee:
         return
 
     if not needs_badge_change_calc(attendee) and not needs_badge_change_calc(new_attendee):
