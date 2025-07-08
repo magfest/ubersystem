@@ -39,7 +39,7 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 
 {% if c.PRESELL_ONE_DAYS and c.FORMATTED_ATTENDANCE_TYPES|length > 1 and (not receipt or upgrade_modal and attendee.attendance_type == c.SINGLE_DAY) %}
     {{ form_macros.card_select(badge_extras.attendance_type,
-                               c.FORMATTED_ATTENDANCE_TYPES,
+                               attendee.available_attendance_type_opts,
                                target_field_id=id_upgrade_prepend ~ "attendance_type") }}
     </div>
     <div id="one-day-alert" class="row">

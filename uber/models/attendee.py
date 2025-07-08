@@ -932,11 +932,24 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def attendance_type(self):
-        return c.SINGLE_DAY if self.badge_type in [c.ONE_DAY_BADGE, c.FRIDAY, c.SATURDAY, c.SUNDAY] else c.WEEKEND
+        return c.SINGLE_DAY if self.badge_type == c.ONE_DAY_BADGE or self.is_presold_oneday else c.WEEKEND
 
     @property
-    def available_attendance_types(self):
-        return c.FORMATTED_ATTENDANCE_TYPES
+    def available_attendance_type_opts(self):
+        if self.is_new or self.is_unpaid:
+            return c.FORMATTED_ATTENDANCE_TYPES
+        attendance_types = [{
+            'name': c.ATTENDANCE_TYPES[c.WEEKEND],
+            'desc': "Allows access to the convention for its duration.",
+            'value': c.WEEKEND,
+        }]
+        if self.attendance_type == c.SINGLE_DAY:
+            attendance_types.append({
+            'name': c.ATTENDANCE_TYPES[c.SINGLE_DAY],
+            'desc': "Allows access to the convention for one day.",
+            'value': c.SINGLE_DAY,
+            })
+        return attendance_types
 
     @property
     def available_single_badge_opts(self):

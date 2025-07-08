@@ -194,7 +194,7 @@ def base_badge_cost(attendee, new_attendee=None):
     Special logic for new receipts only:
     - Skip entirely if this attendee is buying a promo code group, as that is its own item
     - If the badge is upgraded, log the attendee badge type/price, as the upgrade is its own item
-    - All badges in c.DEFAULT_COMPED_BADGE_TYPES check for "need not pay" to see if the badge is free,
+    - All badges in c.DEFAULT_COMPED_BADGE_TYPES are free if they're prereg badges or marked NEED_NOT_PAY,
         otherwise we log their normal cost and add the comp as a separate line-item in another function
     - Finally, if a badge is 'paid by group' it is also logged as a free item
     """
@@ -214,7 +214,8 @@ def base_badge_cost(attendee, new_attendee=None):
     else:
         label = f"{attendee.badge_type_label} Badge for {attendee.full_name}"
 
-    if orig_badge_type not in c.DEFAULT_COMPED_BADGE_TYPES and attendee.paid == c.NEED_NOT_PAY:
+    if orig_badge_type in c.DEFAULT_COMPED_BADGE_TYPES and (attendee.paid == c.NEED_NOT_PAY or
+                                                            attendee.creator is None):
         cost = 0
     if attendee.paid == c.PAID_BY_GROUP:
         cost = 0
