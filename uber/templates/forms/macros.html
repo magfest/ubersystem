@@ -81,7 +81,7 @@
   {{ text_below_field }}
 </fieldset>
 {% else %}
-  {% if 'FileInput' in widget and field.data %}{{ field.data }}<br/>{% endif %}
+  {% if 'FileInput' in widget and field.data %}<p>{{ field.data }}</p>{% endif %}
   {{ field(**custom_kwargs) }}
   {{ text_below_field }}
   {% if caller %}{{ caller() }}{% endif %}

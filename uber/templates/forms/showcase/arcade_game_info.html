@@ -1,0 +1,30 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set arcade_game_info = arcade_game_info or forms['arcade_game_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    title_desc
+    dev_video
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
+{% block title_desc %}
+<div class="col-sm">{{ form_macros.input(arcade_game_info.title) }}</div>
+<div class="col-sm">{{ form_macros.input(arcade_game_info.primary_contact_id, choices=studio.primary_contact_opts) }}</div>
+{% endblock %}
+</div>
+
+
+<div class="row g-sm-3 mb-3">
+{% block dev_video %}
+  <div class="col-sm">{{ form_macros.input(arcade_game_info.description) }}</div>
+  <div class="col-sm">{{ form_macros.input(arcade_game_info.link_to_video) }}</div>
+{% endblock %}
+</div>
+
+</div>

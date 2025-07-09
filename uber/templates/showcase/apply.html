@@ -5,15 +5,18 @@
 {% block content %}
 
   <div class="card card-body">
-    <h2>{{ c.EVENT_NAME }} Indie Showcase</h2>
+    <h2>{{ c.EVENT_NAME }} Indies</h2>
     {% if not c.INDIE_SHOWCASE_OPEN and not c.HAS_ANY_SHOWCASE_ADMIN_ACCESS %}
-        {% if c.BEFORE_MIVS_START %}MAGFest Indie Videogame Showcase applications open {{ c.MIVS_START|datetime_local }}.
-            Please check back then!
-        {% else %} The deadline for submitting to the MAGFest Indie Videogame Showcase was {{ c.MIVS_DEADLINE|datetime_local }},
-            so no new studios may be registered for this year's showcase. If you would
-            like to continue an existing registration, you may do so using the link sent to you in the email you received
-            when you first registered your studio.
+        <p>Applications are currently closed for the {% if c.MIVS_START %}Indie Videogame Showcase (MIVS){% if c.INDIE_ARCADE_START %} and the {% endif %}{% endif %}
+        {% if c.INDIE_ARCADE_START %}Indie Arcade{% endif %}. Please refer to the schedule below.</p>
+        {% if c.INDIE_RETRO_START %}
+        <p>To enter the Indie Retro showcase, <a href="">click here</a>.</p>
         {% endif %}
+        {% if c.MITS_ENABLED %}
+            <p>To enter the Indie Tabletop Showcase (MITS), <a href="../mits/team">click here</a>.</p>
+        {% endif %}
+
+        {% include 'showcase/deadlines.html' %}
     {% else %}
         {% if c.HAS_ANY_SHOWCASE_ADMIN_ACCESS and not c.INDIE_SHOWCASE_OPEN %}
         <div class="alert alert-warning">
@@ -22,15 +25,18 @@
         </div>
         {% endif %}
         <p>
-            Welcome to the {{ c.EVENT_NAME }} indie showcase!
-            To create a studio, please fill out your and your studio's information below.
-            If you've already created a studio, check your confirmation email for a link to access it.
+            Welcome to {{ c.EVENT_NAME }} Indies!
+             To create a studio, please fill out the information below for you and your studio.
+            If you've already created a studio, check your confirmation email for a link to access your studio page.
         </p>
         <p>
-            After creating a studio, you will be able to enter games into the 
+            After creating a studio, you will be able to enter games into the
             {% if c.MIVS_START %}Indie Videogame Showcase (MIVS){% if c.INDIE_ARCADE_START %} and the {% endif %}{% endif %}
-            {% if c.INDIE_ARCADE_START %}Indie Arcade Showcase{% endif %} according to the schedule below.
+            {% if c.INDIE_ARCADE_START %}Indie Arcade{% endif %} according to the schedule below.
         </p>
+        {% if c.INDIE_RETRO_START %}
+        <p>To enter the Indie Retro showcase, <a href="">click here</a>.</p>
+        {% endif %}
         {% if c.MITS_ENABLED %}
             <p>To enter the Indie Tabletop Showcase (MITS), <a href="../mits/team">click here</a>.</p>
         {% endif %}
