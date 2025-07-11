@@ -16,9 +16,7 @@ RUN pip install setuptools==77.0.3
 # import lxml.etree
 # lxml.etree.LIBXML_VERSION
 # Alternatively, build lxml from source to link against system libxml2: RUN uv pip install --system --no-binary lxml lxml
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk --update-cache upgrade && \
-    apk add git libxml2 xmlsec-dev build-base jq curl openssh && \
+RUN apk add git libxml2 xmlsec-dev build-base jq curl openssh && \
     sh /tmp/install-uv.sh && \
     rm /tmp/install-uv.sh
 
