@@ -19,6 +19,7 @@ RUN pip install setuptools==77.0.3
 RUN apk add git libxml2 xmlsec-dev build-base jq curl && \
     sh /tmp/install-uv.sh && \
     rm /tmp/install-uv.sh
+RUN uv pip install --system --no-binary lxml lxml
 
 RUN $HOME/.local/bin/uv pip install --system https://github.com/magfest/lxml/releases/download/v5.4.1/lxml-5.4.1-cp312-cp312-musllinux_1_2_$(uname -m).whl
 ADD requirements.txt /app/
