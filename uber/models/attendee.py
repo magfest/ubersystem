@@ -931,6 +931,39 @@ class Attendee(MagModel, TakesPaymentMixin):
         return uber.badge_funcs.get_real_badge_type(self.badge_type)
 
     @property
+    def attendance_type(self):
+        return c.SINGLE_DAY if self.badge_type == c.ONE_DAY_BADGE or self.is_presold_oneday else c.WEEKEND
+
+    @property
+    def available_attendance_type_opts(self):
+        if self.is_new or self.is_unpaid:
+            return c.FORMATTED_ATTENDANCE_TYPES
+        attendance_types = [{
+            'name': c.ATTENDANCE_TYPES[c.WEEKEND],
+            'desc': "Allows access to the convention for its duration.",
+            'value': c.WEEKEND,
+        }]
+        if self.attendance_type == c.SINGLE_DAY:
+            attendance_types.append({
+            'name': c.ATTENDANCE_TYPES[c.SINGLE_DAY],
+            'desc': "Allows access to the convention for one day.",
+            'value': c.SINGLE_DAY,
+            })
+        return attendance_types
+
+    @property
+    def available_single_badge_opts(self):
+        # You can't switch between single-day badges, so this is all or nothing
+        if self.is_new or self.is_unpaid:
+            return c.FORMATTED_SINGLE_BADGES
+
+        return [{
+            'name': self.badge_type_label,
+            'desc': 'Can be upgraded to an Attendee badge later.',
+            'value': self.badge_type
+            }]
+
+    @property
     def available_badge_type_opts(self):
         if self.is_new or self.badge_type == c.ATTENDEE_BADGE and self.is_unpaid:
             return c.FORMATTED_BADGE_TYPES
@@ -1308,14 +1341,21 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "Please ask the artist you're agenting for {} first.".format(
                 "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
             )
-        
+
         reason = ""
-        if self.paid == c.NEED_NOT_PAY and not self.promo_code:
-            reason = "You cannot abandon a comped badge."
-        elif self.is_group_leader and self.group.is_valid:
-            reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
-        elif self.amount_paid:
-            reason = self.cannot_self_service_refund_reason
+        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
+            account = self.managers[0]
+            other_adult_badges = [a for a in account.valid_adults if a.id != self.id]
+            if account.badges_needing_adults and not other_adult_badges:
+                reason = f"You cannot cancel the last adult badge on an account with an attendee under {c.ACCOMPANYING_ADULT_AGE}."
+
+        if not reason:
+            if self.paid == c.NEED_NOT_PAY and not self.promo_code:
+                reason = "You cannot abandon a comped badge."
+            elif self.is_group_leader and self.group.is_valid:
+                reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
+            elif self.amount_paid:
+                reason = self.cannot_self_service_refund_reason
 
         if reason:
             return reason + " Please {} contact us at {}{}.".format(
@@ -2513,6 +2553,14 @@ class AttendeeAccount(MagModel):
     @property
     def valid_attendees(self):
         return [attendee for attendee in self.attendees if attendee.is_valid]
+    
+    @property
+    def valid_adults(self):
+        return [attendee for attendee in self.valid_attendees if attendee.birthdate and attendee.age_now_or_at_con >= 17]
+    
+    @property
+    def badges_needing_adults(self):
+        return [a for a in self.valid_attendees if a.birthdate and a.age_now_or_at_con < c.ACCOMPANYING_ADULT_AGE]
 
     @property
     def valid_single_badges(self):
@@ -2523,6 +2571,7 @@ class AttendeeAccount(MagModel):
         group_attendees = [attendee for attendee in self.valid_attendees if attendee.group and attendee.group.is_valid]
         if group_attendees:
             return groupify(group_attendees, 'group')
+        return {}
 
     @property
     def cancellable_badges(self):
