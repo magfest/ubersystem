@@ -576,6 +576,73 @@ class Config(_Overridable):
             for badge_type, desc in self.AT_THE_DOOR_BADGE_OPTS
             if self.BADGES[badge_type] in c.DAYS_OF_WEEK
         }
+    
+    @request_cached_property
+    @dynamic
+    def FORMATTED_ATTENDANCE_TYPES(self):
+        attendance_types = [{
+            'name': c.ATTENDANCE_TYPES[c.WEEKEND],
+            'desc': "Allows access to the convention for its duration.",
+            'value': c.WEEKEND,
+        }]
+        if hasattr(self, 'SINGLE_DAY') and c.SINGLE_DAY in c.ATTENDANCE_TYPES:
+            attendance_types.append({
+            'name': c.ATTENDANCE_TYPES[c.SINGLE_DAY],
+            'desc': "Allows access to the convention for one day.",
+            'value': c.SINGLE_DAY,
+            })
+        return attendance_types
+    
+    @request_cached_property
+    @dynamic
+    def SOLD_OUT_BADGES_SINGLE(self):
+        opts = []
+
+        if not self.FRIDAY_AVAILABLE:
+            opts.append(self.FRIDAY)
+        if not self.SATURDAY_AVAILABLE:
+            opts.append(self.SATURDAY)
+        if not self.SUNDAY_AVAILABLE:
+            opts.append(self.SUNDAY)
+
+        return opts
+
+    def single_day_opt(self, day_name):
+        price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
+        badge = getattr(self, day_name.upper())
+        if getattr(self, day_name.upper() + '_AVAILABLE', None):
+            return {
+                        'name': day_name,
+                        'desc': "Can be upgraded to an Attendee badge later.",
+                        'value': badge,
+                        'price': price,
+                    }
+        
+    @request_cached_property
+    @dynamic
+    def FORMATTED_SINGLE_BADGES(self):
+        badge_types = []
+        if self.ONE_DAYS_ENABLED:
+            if self.PRESELL_ONE_DAYS and c.BEFORE_PREREG_TAKEDOWN:
+                for day_name in ["Friday", "Saturday", "Sunday"]:
+                    new_opt = self.single_day_opt(day_name)
+                    badge_types += [new_opt] if new_opt is not None else []
+            elif self.PRESELL_ONE_DAYS and localized_now().date() >= self.EPOCH.date():
+                after_today = False
+                today_name = localized_now().strftime('%A')
+                for day_name in ["Friday", "Saturday", "Sunday"]:
+                    if after_today or day_name == today_name:
+                        new_opt = self.single_day_opt(day_name)
+                        badge_types += [new_opt] if new_opt is not None else []
+                        after_today = True
+            elif self.ONE_DAY_BADGE_AVAILABLE:
+                badge_types.append({
+                    'name': 'Single Day',
+                    'desc': "Can be upgraded to an Attendee badge later.",
+                    'value': c.ONE_DAY_BADGE,
+                    'price': self.DEFAULT_SINGLE_DAY
+                })
+        return badge_types
 
     @property
     def FORMATTED_BADGE_TYPES(self):
@@ -1683,6 +1750,7 @@ c.TERMINAL_ID_TABLE = {k.lower().replace('-', ''): v for k, v in _config['secret
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
+c.DEFAULT_COMPED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DEFAULT_COMPED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
 
 c.MIVS_CHECKLIST = _config['mivs_checklist']

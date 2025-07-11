@@ -179,10 +179,12 @@
                 {% endfor %}
                 </tbody>
                 </table>
+                {% block multi_cancel_modal_text scoped %}
                 <p>
                     Pressing the "Cancel Selected Registration(s)" button will <strong>immediately and irreversibly</strong> cancel all checked registrations.
                     Any registration fees and any upgrades purchased will be refunded to the original payment method.
                 </p>
+                {% endblock %}
             </div>
             <div class="modal-footer">
                 <form id="refund-cancel" action="abandon_badges" method="post">

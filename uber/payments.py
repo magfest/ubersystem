@@ -265,6 +265,49 @@ class PreregCart:
     @cached_property
     def dollar_amount(self):
         return self.total_cost // 100
+    
+    def prereg_cart_checks(self, session):
+        # Runs validations that take into account the entire prereg cart
+        adults_in_cart = [attendee for attendee in self.attendees if attendee.age_now_or_at_con >= 17]
+        self.used_promo_codes = defaultdict(int)
+
+        for attendee in self.attendees:
+            if attendee.promo_code_code:
+                message = self.check_promo_code(session, attendee)
+                if message:
+                    return message
+                self.used_promo_codes[attendee.promo_code_code] += 1
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                account = session.current_attendee_account()
+                if attendee.age_now_or_at_con < c.ACCOMPANYING_ADULT_AGE and not adults_in_cart and not account.valid_adults:
+                    return f"Attendees under {c.ACCOMPANYING_ADULT_AGE} must have at least one accompanying adult with them. \
+                        Please add a registration for {attendee.full_name}'s accompany adult."
+            
+
+    def check_promo_code(self, session, attendee):
+        """
+        Prevents double-use of promo codes if two people have the same promo code in their cart but only one use is
+        remaining. If the attendee originally entered a 'universal' group code, which we track via
+        PreregCart.universal_promo_codes, we instead try to find a different valid code and only throw an error if
+        there are none left.
+        """
+        from uber.models import PromoCode
+
+        promo_code = session.query(PromoCode).filter(PromoCode.id == attendee.promo_code_id).with_for_update().one()
+
+        if not promo_code.is_unlimited and (not promo_code.uses_remaining or
+                                            promo_code.uses_remaining - self.used_promo_codes[promo_code.code] <= 0):
+            universal_code = PreregCart.universal_promo_codes.get(attendee.id)
+            if universal_code:
+                message = session.add_promo_code_to_attendee(attendee, universal_code, self.used_promo_codes)
+                session.commit()
+                if message:
+                    return f"There are no more badges left in the group {attendee.full_name} " \
+                        f"is trying to claim a badge in."
+                return ""
+            attendee.promo_code_id = None
+            session.commit()
+            return "The promo code you're using for {} has been used already.".format(attendee.full_name)
 
     def prereg_receipt_preview(self):
         """
