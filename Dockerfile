@@ -16,10 +16,11 @@ RUN pip install setuptools==77.0.3
 # import lxml.etree
 # lxml.etree.LIBXML_VERSION
 # Alternatively, build lxml from source to link against system libxml2: RUN uv pip install --system --no-binary lxml lxml
-RUN apk add git libxml2 xmlsec-dev build-base jq curl && \
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk --update-cache upgrade && \
+    apk add git libxml2 xmlsec-dev build-base jq curl openssh && \
     sh /tmp/install-uv.sh && \
     rm /tmp/install-uv.sh
-RUN $HOME/.local/bin/uv pip install --system --no-binary lxml lxml
 
 RUN $HOME/.local/bin/uv pip install --system https://github.com/magfest/lxml/releases/download/v5.4.1/lxml-5.4.1-cp312-cp312-musllinux_1_2_$(uname -m).whl
 ADD requirements.txt /app/
