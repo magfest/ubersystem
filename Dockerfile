@@ -20,6 +20,7 @@ RUN apk add git libxml2 xmlsec-dev build-base jq curl openssh && \
     sh /tmp/install-uv.sh && \
     rm /tmp/install-uv.sh
 
+RUN $HOME/.local/bin/uv pip install --system --no-binary lxml lxml
 ADD requirements.txt /app/
 #RUN --mount=type=cache,target=/root/.cache \
 RUN $HOME/.local/bin/uv pip install --system -r requirements.txt;
