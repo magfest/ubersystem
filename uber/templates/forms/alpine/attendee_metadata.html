@@ -27,6 +27,7 @@
             badge_placeholder: {{ attendee.placeholder|boolean|tojson }},
             badge_ribbons: {{ attendee.ribbon_ints|tojson }},
             badge_type : {{ attendee.badge_type|tojson }},
+            group_id: {{ attendee.group_id|jsonize }},
             type_requires_name: false,
             staffing: {{ attendee.staffing|tojson }},
 

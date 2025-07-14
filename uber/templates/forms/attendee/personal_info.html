@@ -28,7 +28,6 @@
           same_legal_name: {{ (attendee.first_name != '' and attendee.legal_name == '')|boolean|jsonize }},
           first_name: {{ personal_info.first_name.data|jsonize }},
           last_name: {{ personal_info.last_name.data|jsonize }},
-          group_id: {{ attendee.group_id|jsonize }},
           get unassignedBadge() { return this.first_name == '' && this.last_name == '' && this.group_id != '' && {{ admin_area|boolean|tojson }} },
           get unassignedOrPlaceholder() { return this.badge_placeholder || this.unassignedBadge },
           get emailRequired() { return !this.copy_email && !this.unassignedBadge },
