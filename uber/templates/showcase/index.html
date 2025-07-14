@@ -15,8 +15,12 @@
     {% include 'showcase/deadlines.html' %}
 
     <h3>Team Members</h3>
-    <p>If accepted to MIVS, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complementary badges and a 10'x10' booth space.</p>
-    <p>If accepted to Indie Arcade, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complementary badges and the floor space as indicated on your submission form.</p>
+    {% if c.MIVS_START %}
+    <p>If accepted to MIVS, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complimentary badges and a 10'x10' booth space.</p>
+    {% endif %}
+    {% if c.INDIE_ARCADE_START %}
+    <p>If accepted to Indie Arcade, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complimentary badges and the floor space as indicated on your submission form.</p>
+    {% endif %}
     <p>Additional team members must purchase their badges. Transfer of badges between team members is prohibited.</p>
     <div class="table-responsive">
     <table class="table table-hover">
@@ -58,11 +62,9 @@
     </div>
 
     <h3>Registered Games</h3>
-    <p>
         {% if not studio.games and c.INDIE_SHOWCASE_OPEN %}
-        You have not registered any games yet. Use one of the buttons below to get started.
+        <p>You have not registered any games yet. Use one of the buttons below to get started.</p>
         {% endif %}
-
         {% if studio.mivs_games %}
         <div class="card">
             <div class="card-header text-white bg-primary">MIVS Showcase Games</div>
@@ -83,7 +85,7 @@
                     </p>
                 {% endif %}
                 {% for game in studio.mivs_games %}
-                {% include 'showcase/mivs_game_modals.html' with context %}
+                {% include 'mivs/game_modals.html' with context %}
                 {% endfor %}
                 <div class="table-responsive">
                 <table class="table">
@@ -184,7 +186,7 @@
                     </p>
                 {% endif %}
                 {% for game in studio.arcade_games %}
-                {% include 'showcase/arcade_game_modals.html' with context %}
+                {% include 'indie_arcade/game_modals.html' with context %}
                 {% endfor %}
                 <div class="table-responsive">
                 <table class="table">
@@ -204,7 +206,7 @@
                         </td>
                         <td>
                             {{ game.submission_images|length }} photo{{ game.submission_images|length|pluralize }}
-                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-photo-{{ game.id }}"><i class="fa fa-plus"></i></button>
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#showcase-types"><i class="fa fa-plus"></i></button>
                         </td>
                         <td>
                             {% if not game.submitted %}
@@ -251,7 +253,6 @@
             </div>
         </div>
         {% endif %}
-    </p>
     <p>
         {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_MIVS_ADMIN_ACCESS %}
         <a href="../mivs/game?studio_id={{ studio.id }}" class="btn btn-primary">Add MIVS Game</a>
@@ -259,6 +260,8 @@
         {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_INDIE_ARCADE_ACCESS %}
         <a href="../indie_arcade/game?studio_id={{ studio.id }}" class="btn btn-info">Add Indie Arcade Game</a>
         {% endif %}
+        {% include 'showcase/showcase_types.html' %}
+        <a href="#" data-bs-toggle="modal" data-bs-target="#showcase-types"><i class="fa fa-question-circle" aria-hidden="true"></i> What type of game should I submit?</a>
     </p>
 </div>
 {% endblock %}

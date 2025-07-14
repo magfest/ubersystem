@@ -1219,17 +1219,32 @@ class Config(_Overridable):
         return ""
 
     # =========================
-    # indie showcases (mivs, indie arcade)
+    # indie showcases (mivs, indie arcade, indie retro)
     # =========================
+
+    @property
+    def ENABLED_INDIES_STR(self):
+        from uber.custom_tags import readable_join
+        # Convenience function to list enabled (not necessarily open) applications
+        # This only includes apps that use the /showcase/ form, which MITS does not
+        list = []
+        if c.MIVS_START:
+            list.append("the Indie Videogame Showcase (MIVS)")
+        if c.INDIE_ARCADE_START:
+            list.append("the Indie Arcade")
+        if c.INDIE_RETRO_START:
+            list.append("Indie Retro")
+        return readable_join(list)
 
     @property
     @dynamic
     def INDIE_SHOWCASE_OPEN(self):
-        return self.MIVS_SUBMISSIONS_OPEN or self.INDIE_ARCADE_SUBMISSIONS_OPEN
+        return self.MIVS_SUBMISSIONS_OPEN or self.INDIE_ARCADE_SUBMISSIONS_OPEN or self.INDIE_RETRO_SUBMISSIONS_OPEN
 
     @property
     def HAS_ANY_SHOWCASE_ADMIN_ACCESS(self):
-        return self.HAS_MIVS_ADMIN_ACCESS or self.HAS_INDIE_ARCADE_ACCESS or self.HAS_SHOWCASE_ADMIN_ACCESS
+        return self.HAS_MIVS_ADMIN_ACCESS or self.HAS_INDIE_ARCADE_ACCESS \
+            or self.HAS_SHOWCASE_ADMIN_ACCESS or self.HAS_INDIE_RETRO_ADMIN_ACCESS
 
     @property
     @dynamic
@@ -1240,6 +1255,11 @@ class Config(_Overridable):
     @dynamic
     def INDIE_ARCADE_SUBMISSIONS_OPEN(self):
         return self.INDIE_ARCADE_START and self.BEFORE_INDIE_ARCADE_DEADLINE and self.AFTER_INDIE_ARCADE_START
+    
+    @property
+    @dynamic
+    def INDIE_RETRO_SUBMISSIONS_OPEN(self):
+        return self.INDIE_RETRO_START and self.BEFORE_INDIE_RETRO_DEADLINE and self.AFTER_INDIE_RETRO_START
 
     # =========================
     # panels

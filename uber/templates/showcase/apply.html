@@ -7,12 +7,8 @@
   <div class="card card-body">
     <h2>{{ c.EVENT_NAME }} Indies</h2>
     {% if not c.INDIE_SHOWCASE_OPEN and not c.HAS_ANY_SHOWCASE_ADMIN_ACCESS %}
-        <p>Applications are currently closed for the {% if c.MIVS_START %}Indie Videogame Showcase (MIVS){% if c.INDIE_ARCADE_START %} and the {% endif %}{% endif %}
-        {% if c.INDIE_ARCADE_START %}Indie Arcade{% endif %}. Please refer to the schedule below.</p>
-        {% if c.INDIE_RETRO_START %}
-        <p>To enter the Indie Retro showcase, <a href="">click here</a>.</p>
-        {% endif %}
-        {% if c.MITS_ENABLED %}
+        <p>Applications are currently closed for {{ c.ENABLED_INDIES_STR }}. Please refer to the schedule below.</p>
+        {% if c.MITS_START %}
             <p>To enter the Indie Tabletop Showcase (MITS), <a href="../mits/team">click here</a>.</p>
         {% endif %}
 
@@ -30,14 +26,9 @@
             If you've already created a studio, check your confirmation email for a link to access your studio page.
         </p>
         <p>
-            After creating a studio, you will be able to enter games into the
-            {% if c.MIVS_START %}Indie Videogame Showcase (MIVS){% if c.INDIE_ARCADE_START %} and the {% endif %}{% endif %}
-            {% if c.INDIE_ARCADE_START %}Indie Arcade{% endif %} according to the schedule below.
+            After creating a studio, you will be able to enter games into {{ c.ENABLED_INDIES_STR }} according to the schedule below.
         </p>
-        {% if c.INDIE_RETRO_START %}
-        <p>To enter the Indie Retro showcase, <a href="">click here</a>.</p>
-        {% endif %}
-        {% if c.MITS_ENABLED %}
+        {% if c.MITS_START %}
             <p>To enter the Indie Tabletop Showcase (MITS), <a href="../mits/team">click here</a>.</p>
         {% endif %}
 

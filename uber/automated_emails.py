@@ -1169,7 +1169,7 @@ class MITSEmailFixture(AutomatedEmailFixture):
         AutomatedEmailFixture.__init__(self, MITSTeam, *args, **kwargs)
 
 
-if c.MITS_ENABLED:
+if c.MITS_START:
 
     # We wait an hour before sending out this email because the most common case
     # of someone registering their team is that they'll immediately fill out the
