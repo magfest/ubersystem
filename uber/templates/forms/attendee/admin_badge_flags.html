@@ -215,7 +215,7 @@
     {% endif %}
 {% endset %}
 <div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_flags.group_id, admin_text=group_extra_text) }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_flags.group_membership, admin_text=group_extra_text) }}</div>
     {% if c.BADGE_PROMO_CODES_ENABLED and c.GROUPS_ENABLED %}
     <div class="col-12 col-sm-6">
         <div class="form-text">Promo Code Group</div>
@@ -235,7 +235,7 @@
 </div>
 <script type="text/javascript">
     var setGroupLink = function () {
-        var group = $('#{{ badge_flags.group_id.id }}').val();
+        var group = $('#{{ badge_flags.group_membership.id }}').val();
         if (group === '') {
             $('#group_link').hide();
             {% if create_new_group_link %}$('#new_group').show();{% endif %}
@@ -246,7 +246,7 @@
     };
     $(function () {
         setGroupLink();
-        $('#{{ badge_flags.group_id.id }}').change(setGroupLink);
+        $('#{{ badge_flags.group_membership.id }}').change(setGroupLink);
     });
 </script>
 {% endblock %}

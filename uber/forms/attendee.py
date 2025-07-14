@@ -440,7 +440,7 @@ class BadgeFlags(MagForm):
 
 class AdminBadgeFlags(BadgeFlags):
     new_or_changed_validation = CustomValidation()
-    dynamic_choices_fields = {'group_id': lambda: AdminBadgeFlags.get_valid_groups()}
+    dynamic_choices_fields = {'group_membership': lambda: AdminBadgeFlags.get_valid_groups()}
 
     can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
     badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)
@@ -449,7 +449,7 @@ class AdminBadgeFlags(BadgeFlags):
     no_badge_num = BooleanField('Omit badge #')
     ribbon = SelectMultipleField('Ribbons', coerce=int, validators=[validators.Optional()],
                                  choices=c.RIBBON_OPTS, widget=MultiCheckbox())
-    group_id = SelectField('Group')
+    group_membership = SelectField('Group')
     paid = SelectField('Paid Status', coerce=int, choices=c.PAYMENT_OPTS)
     overridden_price = IntegerField('Base Badge Price', validators=[
         validators.NumberRange(min=0, message="Base badge price must be a number that is 0 or higher.")
