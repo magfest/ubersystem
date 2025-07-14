@@ -715,16 +715,20 @@ class GuidebookUtils():
         return cl_updates, schedule_updates
 
 
-def validate_model(forms, model, preview_model=None, is_admin=False):
+def validate_model(forms, model, create_preview_model=True, is_admin=False):
+    # Create_preview_model should only be false in the VERY rare case
+    # where we are re-checking a model with no changes
+
     all_errors = defaultdict(list)
 
-    if not preview_model:
-        preview_model = model
-    else:
+    if create_preview_model:
+        preview_model = model.__class__(**model.to_dict())
         for form in forms.values():
             form.populate_obj(preview_model)
         if not model.is_new:
             preview_model.is_actually_old = True
+    else:
+        preview_model = model
 
     for form in forms.values():
         form.is_admin = is_admin
