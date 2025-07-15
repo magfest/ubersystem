@@ -3,6 +3,7 @@
 FROM python:3.12.3-alpine as build
 ARG PLUGINS="[]"
 ARG PLUGIN_NAMES="[]"
+ARG LXML="6.0.0"
 WORKDIR /app
 ENV PYTHONPATH=/app
 ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.cargo/bin
@@ -22,7 +23,7 @@ RUN --mount=type=cache,target=/var/cache/apk \
     sh /tmp/install-uv.sh && \
     rm /tmp/install-uv.sh
 
-RUN $HOME/.local/bin/uv pip install --system https://github.com/magfest/lxml/releases/download/v5.4.1/lxml-5.4.1-cp312-cp312-musllinux_1_2_$(uname -m).whl
+RUN $HOME/.local/bin/uv pip install --system https://github.com/magfest/lxml/releases/download/v$LXML/lxml-$LXML-cp312-cp312-musllinux_1_2_$(uname -m).whl
 ADD requirements.txt /app/
 #RUN --mount=type=cache,target=/root/.cache \
 RUN $HOME/.local/bin/uv pip install --system -r requirements.txt;
