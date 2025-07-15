@@ -1,6 +1,6 @@
 # syntax = docker/dockerfile:1.4.0
 
-FROM python:3.12.3-alpine as build
+FROM python:3.13-alpine as build
 ARG PLUGINS="[]"
 ARG PLUGIN_NAMES="[]"
 ARG LXML="6.0.0"
@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/var/cache/apk \
     sh /tmp/install-uv.sh && \
     rm /tmp/install-uv.sh
 
-RUN $HOME/.local/bin/uv pip install --system https://github.com/magfest/lxml/releases/download/v$LXML/lxml-$LXML-cp312-cp312-musllinux_1_2_$(uname -m).whl
+RUN $HOME/.local/bin/uv pip install --system https://github.com/magfest/lxml/releases/download/v$LXML/lxml-$LXML-cp313-cp313-musllinux_1_2_$(uname -m).whl
 ADD requirements.txt /app/
 #RUN --mount=type=cache,target=/root/.cache \
 RUN $HOME/.local/bin/uv pip install --system -r requirements.txt;
