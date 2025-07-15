@@ -893,7 +893,7 @@ class Root:
 
                     forms = load_forms(params, attendee, form_list, checkboxes_present=False)
 
-                    all_errors = validate_model(forms, attendee)
+                    all_errors = validate_model(forms, attendee, create_preview_model=False)
                     if all_errors:
                         pass
                         # Flatten the errors as we don't have fields on this page
@@ -2253,7 +2253,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, group, form_list)
 
-        all_errors = validate_model(forms, group, Group(**group.to_dict()))
+        all_errors = validate_model(forms, group)
         if all_errors:
             return {"error": all_errors}
 
@@ -2283,7 +2283,7 @@ class Root:
 
         forms = load_forms(params, attendee, form_list)
 
-        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
+        all_errors = validate_model(forms, attendee)
         if all_errors:
             log.error(all_errors)
             return {"error": all_errors}
@@ -2343,7 +2343,7 @@ class Root:
 
         forms = load_forms(params, attendee, ['BadgeExtras'])
 
-        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
+        all_errors = validate_model(forms, attendee)
         if all_errors:
             # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
             message = ' '.join([item for sublist in all_errors.values() for item in sublist])

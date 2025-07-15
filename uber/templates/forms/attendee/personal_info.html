@@ -26,12 +26,16 @@
           no_cellphone: {{ personal_info.no_cellphone.data|boolean|jsonize }},
           no_onsite_contact: {{ personal_info.no_onsite_contact.data|boolean|jsonize }},
           same_legal_name: {{ (attendee.first_name != '' and attendee.legal_name == '')|boolean|jsonize }},
-          get emailRequired() { return !this.copy_email },
-          get legalNameRequired() {return !this.badge_placeholder && !this.same_legal_name},
-          get onsiteContactRequired() {return !this.badge_placeholder && !this.no_onsite_contact},
-          get zipCodeRequired(){ return !this.international && !this.copy_address && !this.badge_placeholder },
+          first_name: {{ personal_info.first_name.data|jsonize }},
+          last_name: {{ personal_info.last_name.data|jsonize }},
+          get unassignedBadge() { return this.first_name == '' && this.last_name == '' && this.group_id != '' && {{ admin_area|boolean|tojson }} },
+          get unassignedOrPlaceholder() { return this.badge_placeholder || this.unassignedBadge },
+          get emailRequired() { return !this.copy_email && !this.unassignedBadge },
+          get legalNameRequired() {return !this.unassignedOrPlaceholder && !this.same_legal_name},
+          get onsiteContactRequired() {return !this.unassignedOrPlaceholder && !this.no_onsite_contact},
+          get zipCodeRequired(){ return !this.international && !this.copy_address && !this.unassignedOrPlaceholder },
           get disableCellphone() { return this.no_cellphone || this.copy_cellphone},
-          get cellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.badge_placeholder },
+          get cellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.unassignedOrPlaceholder },
         {% endblock %}
       }
     }
@@ -44,8 +48,8 @@
 <div class="row g-sm-3 mb-3">
 {% block name %}
   {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
-  <div class="col-sm">{{ form_macros.input(personal_info.first_name, required_if="!badge_placeholder") }}</div>
-  <div class="col-sm">{{ form_macros.input(personal_info.last_name, value=attendee_last_name, required_if="!badge_placeholder") }}</div>
+  <div class="col-sm">{{ form_macros.input(personal_info.first_name, alpine_model="first_name", required_if="!unassignedBadge") }}</div>
+  <div class="col-sm">{{ form_macros.input(personal_info.last_name, value=attendee_last_name, alpine_model="last_name", required_if="!unassignedBadge") }}</div>
 
   {% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
   </div>
@@ -63,7 +67,7 @@
   {% if admin_area or attendee.has_personalized_badge %}
   </div>
   <div class="row g-sm-3 mb-3">
-    <div class="col-12">{{ form_macros.input(personal_info.badge_printed_name, required_if="require_badge_name") }}</div>
+    <div class="col-12">{{ form_macros.input(personal_info.badge_printed_name, required_if="type_requires_name && !unassignedOrPlaceholder") }}</div>
   {% endif %}
 {% endblock %}
 </div>
@@ -104,9 +108,9 @@
 {% block age %}
   <div class="col-sm">
     {% if c.COLLECT_EXACT_BIRTHDATE %}
-      {{ form_macros.input(personal_info.birthdate, admin_text=attendee.age_group_conf.desc, required_if="!badge_placeholder") }}
+      {{ form_macros.input(personal_info.birthdate, admin_text=attendee.age_group_conf.desc, required_if="!unassignedOrPlaceholder") }}
     {% else %}
-      {{ form_macros.input(personal_info.age_group, required_if="!badge_placeholder") }}
+      {{ form_macros.input(personal_info.age_group, required_if="!unassignedOrPlaceholder") }}
     {% endif %}
   </div>
   <div class="col-sm">
@@ -150,10 +154,10 @@
 {% set show_ec = admin_area and ((attendee.admin_read_access() and attendee.admin_read_access() > 2) or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS) or (attendee.is_new or not admin_area) %}
 {% if show_ec or not personal_info.ec_name.data %}
   <div class="col-sm">
-    {{ form_macros.input(personal_info.ec_name, required_if="!badge_placeholder") }}
+    {{ form_macros.input(personal_info.ec_name, required_if="!unassignedOrPlaceholder") }}
   </div>
   <div class="col-sm">
-    {{ form_macros.input(personal_info.ec_phone, required_if="!badge_placeholder") }}
+    {{ form_macros.input(personal_info.ec_phone, required_if="!unassignedOrPlaceholder") }}
   </div>
 {% endif %}
 {% if show_ec or not personal_info.onsite_contact.data %}

@@ -80,4 +80,4 @@ LeaderInfo.field_validation.required_fields = {
 }
 
 
-LeaderInfo.field_validation.validations['email']['optional'] = validators.Optional()
+LeaderInfo.field_validation.validations['leader_email']['optional'] = validators.Optional()
