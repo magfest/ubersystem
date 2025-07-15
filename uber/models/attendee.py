@@ -749,7 +749,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.group and self.group.leader_id == self.id:
             self.session.add(self.group)
             self.group.leader_id = None
-        self.group_id = value
+        if value:
+            self.group_id = value
+        else:
+            self.group_id = None
 
     @property
     def badge_num(self):
