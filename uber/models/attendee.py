@@ -566,7 +566,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
-            if value.isupper() or value.islower():
+            if value.isupper() or value.islower() and value.lower() != self.orig_value_of(value).lower():
                 setattr(self, attr, value.title())
 
         if self.legal_name and self.full_name == self.legal_name:
