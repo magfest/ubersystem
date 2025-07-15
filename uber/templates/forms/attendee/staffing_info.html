@@ -23,8 +23,9 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     {% set staffing_message = "Please " ~ 'see Staffing Operations to change your volunteer status.' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status.' %}
     {% endif %}
 {% endif %}
+{% if staffing_message != '' %}<input type="hidden" name="{{ staffing_info.staffing.name }}" value="1">{% endif %}
     <div class="col-12">
-        {{ form_macros.input(staffing_info.staffing, help_text=staffing_message, **{'x-model.boolean':'staffing'}) }}
+        {{ form_macros.input(staffing_info.staffing, help_text=staffing_message, disabled=staffing_message != '', **{'x-model.boolean':'staffing'}) }}
     </div>
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 </div>

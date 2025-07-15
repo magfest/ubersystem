@@ -47,7 +47,15 @@
 {%- endmacro -%}
 
 {%- macro check_in_form(app, printable=not admin_area) -%}
-<span{% if printable %} style="font-size: 125%;"{% endif %}>
+{% if printable %}
+<style>
+  tr td, th{
+  padding: 2px !important;
+  margin: 2px !important;
+}
+</style>
+{% endif %}
+<span{% if printable and not checkout %} style="font-size: 125%;"{% endif %}>
 
 <input type="hidden" name="app_id" value="{{ app.id }}" />
 {% if checkout %}
@@ -69,6 +77,7 @@
     </div>
   </div>
 </div>
+{% if not c.INDEPENDENT_ART_SHOW %}
 <div class="row g-sm-3">
   {% if app.attendee.country != 'United States' and app.country != 'United States' and printable %}
     <div class="col-12 col-sm-6">
@@ -80,6 +89,18 @@
   {% elif app.attendee.country != 'United States' and app.country != 'United States' %}
     {{ macros.form_group(app, 'paypal_address', label="Paypal Address", help="The Paypal address for the artist, whose personal address is outside the US.", placeholder='email@example.com', use_bs5=True) }}
   {% endif %}
+{% endif %}
+<div class="row g-sm-3">
+  {{ macros.name_form_group(app.attendee, label="Artist Full Name", is_readonly=printable, use_bs5=True) }}
+  {{ macros.form_group(app.attendee, 'legal_name', label="Artist Legal Name", placeholder="Name exactly as it appears on Photo ID", is_readonly=printable, use_bs5=True) }}
+  {% if app.attendee.cellphone %}
+    {{ macros.form_group(app.attendee, 'cellphone', label="Artist Phone", placeholder="A phone number we can use to contact the artist", is_readonly=printable, use_bs5=True) }}
+  {% endif %}
+</div>
+
+{% if app.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW %}
+{{ macros.address_form(app, label_prefix="Artist", is_readonly=printable, use_bs5=True) }}
+{% endif %}
 {% else %}
 <div class="row g-sm-3 p-0">
   <div class="col text-start">
@@ -149,6 +170,7 @@
   {{ macros.address_form(app, label_prefix="Mailing" if app.delivery_method == c.BY_MAIL else "", is_readonly=printable, use_bs5=True) }}
   {% endif %}
 
+  <div class="row g-sm-3">
   <div class="col">
     <label class="form-text">Artist Type</label>
     <div class="mb-3">
@@ -173,9 +195,9 @@
     </div>
   </div>
   {% endif %}
-</div>
-<div class="row g-sm-3">
+  </div>
 {% endif %}
+<div class="row g-sm-3 mb-3">
 {% if not app.check_payable and printable %}
   <div class="col-12 col-sm-6">
     <label class="form-text">Name on Check</label>
@@ -191,6 +213,7 @@
 </div>
 
 {% if app.check_in_notes or not printable %}
+<div class="row g-sm-3 mb-3">
 <div class="col-12">
   <label class="form-text">Check-In Notes</label>
   <div class="mb-3">
@@ -203,9 +226,23 @@
     {% endif %}
   </div>
 </div>
+</div>
 {% endif %}
 
-<div class="table-responsive">
+{% if not printable %}
+<div class="d-flex gap-3">
+  <span class="ms-auto">Piece Stats:</span>
+  <em>{{ app.art_show_pieces|length }} Total</em>
+  /
+  <em>{{ app.num_pieces_gallery(c.GENERAL) }} in General, {{ app.num_pieces_gallery(c.MATURE) }} in Mature</em>
+  {% if checkout %}
+  /
+  <em>{{ app.num_pieces_status(c.HUNG) }} Hung, {{ app.num_pieces_status(c.RETURN) }} Return to Artist</em>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="table-responsive{% if printable and not checkout %} mt-3 mb-3{% endif %}">
   <table class="table table-striped"{% if not printable %} id="datatable_{{ app.id }}" {% endif %}>
     <thead>
     <tr>

@@ -270,6 +270,16 @@ class ArtShowApplication(MagModel):
     def has_mature_space(self):
         return self.panels_ad or self.tables_ad
 
+    def num_pieces_gallery(self, gallery):
+        if gallery not in c.ART_PIECE_GALLERYS:
+            return "Invalid Gallery!"
+        return len([piece for piece in self.art_show_pieces if piece.gallery == gallery])
+    
+    def num_pieces_status(self, status):
+        if status not in c.ART_PIECE_STATUS:
+            return "Invalid Status!"
+        return len([piece for piece in self.art_show_pieces if piece.status == status])
+
     @property
     def highest_piece_id(self):
         if len(self.art_show_pieces) > 1:

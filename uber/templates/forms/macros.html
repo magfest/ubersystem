@@ -167,7 +167,9 @@
 <script type="text/javascript">
     var setField_{{ target_field.name }} = function(value) {
         $("#{{ field_id }}").val(value).trigger('change');
-        document.getElementById('{{ field_id }}').dispatchEvent(new Event('input')); // make alpine happy
+        {% if not is_preview %}
+          document.getElementById('{{ field_id }}').dispatchEvent(new Event('input')); // make alpine happy
+        {% endif %}
         $(".{{ target_field.name }}_card").each(function(){
             var header = $(this).children('.card-header');
             var body = $(this).children('.card-body');
@@ -258,7 +260,7 @@
       {{ form_macros.input(form_obj.city, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
     <div class="col-sm">
-      {{ form_macros.input(form_obj.zip_code, required_if="zipCodeRequired", **{':disabled':'copyAddress'}) }}
+      {{ form_macros.input(form_obj.zip_code, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
   </div>
 </div>

@@ -32,7 +32,7 @@
           get unassignedOrPlaceholder() { return this.badge_placeholder || this.unassignedBadge },
           get emailRequired() { return !this.copy_email && !this.unassignedBadge },
           get legalNameRequired() {return !this.unassignedOrPlaceholder && !this.same_legal_name},
-          get onsiteContactRequired() {return !this.unassignedOrPlaceholder && !this.no_onsite_contact},
+          get onsiteContactRequired() {return !this.unassignedOrPlaceholder && !this.no_onsite_contact && ![{{ c.STAFF_BADGE }}, {{ c.CONTRACTOR_BADGE }}].includes(this.badge_type) },
           get zipCodeRequired(){ return !this.international && !this.copy_address && !this.unassignedOrPlaceholder },
           get disableCellphone() { return this.no_cellphone || this.copy_cellphone},
           get cellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.unassignedOrPlaceholder },

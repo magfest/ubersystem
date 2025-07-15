@@ -962,14 +962,6 @@ def require_staff_shirt_size(attendee):
         return ('staff_shirt', "Please select a shirt size for your staff shirt.")
 
 
-@validation.Attendee
-def volunteers_cellphone_or_checkbox(attendee):
-    if not attendee.placeholder and not attendee.no_cellphone \
-            and attendee.staffing_or_will_be and not attendee.cellphone:
-        return ('cellphone',
-                "Volunteers and staffers must provide a cellphone number or indicate they do not have a cellphone.")
-
-
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
     if attendee.promo_code:
@@ -1046,7 +1038,7 @@ def not_in_range(attendee):
 @validation.Attendee
 def dealer_needs_group(attendee):
     if attendee.is_dealer and not attendee.group_id and attendee.badge_type != c.PSEUDO_DEALER_BADGE:
-        return ('group_id', '{}s must be associated with a group'.format(c.DEALER_TERM.title()))
+        return ('group_id', '{}s must be associated with a group.'.format(c.DEALER_TERM.title()))
 
 
 @validation.Attendee

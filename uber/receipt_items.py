@@ -194,7 +194,7 @@ def base_badge_cost(attendee, new_attendee=None):
     Special logic for new receipts only:
     - Skip entirely if this attendee is buying a promo code group, as that is its own item
     - If the badge is upgraded, log the attendee badge type/price, as the upgrade is its own item
-    - All badges in c.DEFAULT_COMPED_BADGE_TYPES check for "need not pay" to see if the badge is free,
+    - All badges in c.DEFAULT_COMPED_BADGE_TYPES are free if they're prereg badges or marked NEED_NOT_PAY,
         otherwise we log their normal cost and add the comp as a separate line-item in another function
     - Finally, if a badge is 'paid by group' it is also logged as a free item
     """
@@ -214,7 +214,8 @@ def base_badge_cost(attendee, new_attendee=None):
     else:
         label = f"{attendee.badge_type_label} Badge for {attendee.full_name}"
 
-    if orig_badge_type not in c.DEFAULT_COMPED_BADGE_TYPES and attendee.paid == c.NEED_NOT_PAY:
+    if orig_badge_type in c.DEFAULT_COMPED_BADGE_TYPES and (attendee.paid == c.NEED_NOT_PAY or
+                                                            attendee.creator is None):
         cost = 0
     if attendee.paid == c.PAID_BY_GROUP:
         cost = 0
@@ -273,7 +274,16 @@ def one_day_or_upgraded_badge_cost(attendee):
 
 @receipt_calculation.Attendee
 def badge_upgrade_cost(attendee, new_attendee=None):
-    if not new_attendee:
+    if not new_attendee and attendee.badge_type in c.BADGE_TYPE_PRICES:
+        new_cost = c.BADGE_TYPE_PRICES[attendee.badge_type] * 100
+        old_cost = cost_from_base_badge_item(attendee, new_attendee)
+        if old_cost == 0:
+            if skip_badge_cost_calc(attendee, new_receipt=True):
+                old_cost = attendee.calculate_badge_price(include_price_override=False) * 100
+            else:
+                return
+        return (f"Upgrade to {attendee.badge_type_label} Badge", new_cost - old_cost, 'badge_type')
+    elif not new_attendee:
         return
 
     if not needs_badge_change_calc(attendee) and not needs_badge_change_calc(new_attendee):

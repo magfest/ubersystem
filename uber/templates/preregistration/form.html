@@ -56,6 +56,7 @@
     <button type="submit" class="btn btn-primary" value="Update">Update</button>
     <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
   {% else %}
+    {% if repurchase %}<input type="hidden" name="repurchase" value="1" />{% endif %}
     <button type="submit" class="btn btn-primary" value="Next">Next</button>
   {% endif %}
 
