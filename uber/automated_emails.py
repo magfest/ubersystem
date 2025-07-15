@@ -99,7 +99,6 @@ class AutomatedEmailFixture:
             extra_data=None):
 
         assert ident, 'AutomatedEmail ident may not be empty.'
-        assert ident not in AutomatedEmail._fixtures, 'AutomatedEmail ident "{}" already registered.'.format(ident)
 
         AutomatedEmail._fixtures[ident] = self
 
