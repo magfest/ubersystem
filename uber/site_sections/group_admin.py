@@ -188,7 +188,7 @@ class Root:
                 leader.ribbon_ints = group.new_ribbons
                 leader_params = {key[7:]: val for key, val in params.items() if key.startswith('leader_')}
                 leader_forms = load_forms(leader_params, leader, ['PersonalInfo'])
-                all_errors = validate_model(leader_forms, leader, Attendee(**leader.to_dict()), is_admin=True)
+                all_errors = validate_model(leader_forms, leader, is_admin=True)
                 if all_errors:
                     session.delete(group)
                     session.commit()
@@ -259,7 +259,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, group, form_list)
 
-        all_errors = validate_model(forms, group, Group(**group.to_dict()), is_admin=True)
+        all_errors = validate_model(forms, group, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 

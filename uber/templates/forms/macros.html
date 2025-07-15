@@ -227,7 +227,7 @@
   country: {{ form_obj.country.data|tojson }},
   get copyAddress() { return this.copy_address },
   get isGlobal() { return this.country != "United States" && this.country != "Canada"},
-  get addressRequired() { return !this.copy_address & !this.badge_placeholder },
+  get addressRequired() { return !this.copy_address & !this.unassignedOrPlaceholder },
 }'>
   <div class="row g-sm-3 mb-3">
     <div class="col-sm">
