@@ -566,7 +566,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
-            if value.isupper() or value.islower():
+            if value.isupper() or value.islower() and value.lower() != self.orig_value_of(value).lower():
                 setattr(self, attr, value.title())
 
         if self.legal_name and self.full_name == self.legal_name:
@@ -574,6 +574,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.promo_code and self.promo_code_groups:
             self.promo_code = None
+        
+        if self.group:
+            self.group.presave_adjustments()
 
     @presave_adjustment
     def _status_adjustments(self):
@@ -733,7 +736,24 @@ class Attendee(MagModel, TakesPaymentMixin):
                 return f"Pending Payment"
         else:
             return "Print Job Errored"
-        
+
+    @property
+    def group_membership(self):
+        return self.group_id or ''
+
+    @group_membership.setter
+    def group_membership(self, value):
+        if self.group_id and self.group_id == value:
+            return
+
+        if self.group and self.group.leader_id == self.id:
+            self.session.add(self.group)
+            self.group.leader_id = None
+        if value:
+            self.group_id = value
+        else:
+            self.group_id = None
+
     @property
     def badge_num(self):
         if self.active_badge:

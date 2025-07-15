@@ -185,7 +185,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
         <a id="new_group" href="../group_admin/new_group_from_attendee?id={{ attendee.id }}" target="_blank">Create New Group</a>
     {% endif %}
 {% endset %}
-    <div class="col-sm">{{ form_macros.input(badge_flags.group_id, admin_text=group_extra_text) }}</div>
+    <div class="col-sm">{{ form_macros.input(badge_flags.group_membership, admin_text=group_extra_text, alpine_model="group_id") }}</div>
     {% if c.BADGE_PROMO_CODES_ENABLED and c.GROUPS_ENABLED %}
     <div class="col-sm">
         <div class="form-text">Promo Code Group</div>
@@ -204,7 +204,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
     {% endif %}
 <script type="text/javascript">
     var setGroupLink = function () {
-        var group = $('#{{ badge_flags.group_id.id }}').val();
+        var group = $('#{{ badge_flags.group_membership.id }}').val();
         if (group === '') {
             $('#group_link').hide();
             {% if create_new_group_link %}$('#new_group').show();{% endif %}
@@ -215,7 +215,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
     };
     $(function () {
         setGroupLink();
-        $('#{{ badge_flags.group_id.id }}').change(setGroupLink);
+        $('#{{ badge_flags.group_membership.id }}').change(setGroupLink);
     });
 </script>
 {% endblock %}

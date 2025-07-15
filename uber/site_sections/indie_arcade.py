@@ -89,17 +89,17 @@ class Root:
     @ajax
     def validate_image(self, session, form_list=[], **params):
         if params.get('id') in [None, '', 'None']:
-            code = IndieGameImage()
+            image = IndieGameImage()
         else:
-            code = session.indie_game_image(params.get('id'))
+            image = session.indie_game_image(params.get('id'))
 
         if not form_list:
             form_list = ['ArcadePhoto']
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, code, form_list)
-        all_errors = validate_model(forms, code)
+        forms = load_forms(params, image, form_list)
+        all_errors = validate_model(forms, image)
 
         if all_errors:
             return {"error": all_errors}
