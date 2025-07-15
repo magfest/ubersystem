@@ -1,12 +1,18 @@
 {{ attendee.first_name }},
 
-You're eligible for space in one of our volunteer hotel rooms at this year's {{ c.EVENT_NAME }}!  If you accept, we'll assign you to a room with up to 3 other volunteers.  You can accept or decline this offer as part of our volunteer checklist at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }}
+You're eligible for space in one of our volunteer hotel rooms at this year's MAGFest! If you accept, we'll assign you to a room with up to 3 other volunteers. You can accept or decline this offer as part of our volunteer checklist at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }}
 {% if attendee.hotel_requests %}
-Our records indicate that you've already filled out the hotel room form, so thanks for jumping on that so quickly!  You can edit the hotel room form anytime until {{ c.ROOM_DEADLINE|datetime_local }}.
+Our records indicate that you've already filled out the hotel room form, so thanks for jumping on that so quickly! You can edit the hotel room form anytime until {{ c.ROOM_DEADLINE|datetime_local }}.
 {% else %}
 If you want hotel room space, you must sign up by {{ c.ROOM_DEADLINE|datetime_local }}.
 {% endif %}
-All volunteers who receive hotel room space must sign up for at least {{ c.HOURS_FOR_HOTEL_SPACE }} weighted hours worth of shifts, but you won't be charged any money.  Let us know if you're interested in helping with setup and/or teardown shifts for {{ c.EVENT_NAME }}, and if we haven't already selected enough volunteers to help, you'll be approved for the extra night(s). Your department head will have to approve the extra nights and those shifts can count towards the {{ c.HOURS_FOR_HOTEL_SPACE }} hour requirement.
+All volunteers who receive hotel room space must sign up for at least {{ c.HOURS_FOR_HOTEL_SPACE }} weighted hours worth of shifts, but you won't be charged any money.
+
+All staff are approved for Thursday, Friday, and Saturday automatically. If you are requesting Monday, Tuesday, or Wednesday, please ensure you have a corresponding shift on that day, and please make a note of it in the “Notes” section of your request. If you are requesting Sunday, you must have a Sunday evening shift.
+
+If you have travel plans or extenuating circumstances that cause you to need lodging on an edge night, please email STOPS at {{ c.STAFF_EMAIL|email_only }}. We will do our best to accommodate staff needs where possible. 
+
+Staff Room FAQs are available here: https://www.notion.so/magfest/Staff-Room-FAQ-656edde68e324dae97891c2002439465
 
 Please let us know if you have any questions.
 
