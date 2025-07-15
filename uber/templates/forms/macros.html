@@ -81,7 +81,7 @@
   {{ text_below_field }}
 </fieldset>
 {% else %}
-  {% if 'FileInput' in widget and field.data %}{{ field.data }}<br/>{% endif %}
+  {% if 'FileInput' in widget and field.data %}<p>{{ field.data }}</p>{% endif %}
   {{ field(**custom_kwargs) }}
   {{ text_below_field }}
   {% if caller %}{{ caller() }}{% endif %}
@@ -229,7 +229,7 @@
   country: {{ form_obj.country.data|tojson }},
   get copyAddress() { return this.copy_address },
   get isGlobal() { return this.country != "United States" && this.country != "Canada"},
-  get addressRequired() { return !this.copy_address & !this.badge_placeholder },
+  get addressRequired() { return !this.copy_address & !this.unassignedOrPlaceholder },
 }'>
   <div class="row g-sm-3 mb-3">
     <div class="col-sm">

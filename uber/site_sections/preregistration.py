@@ -854,12 +854,18 @@ class Root:
                 return {'error': prereg_cart_error}
             
             for attendee in cart.attendees:
-                form_list = ['BadgeExtras'] # Re-check purchase limits
-                forms = load_forms({}, attendee, form_list, checkboxes_present=False)
+                if not message and attendee.promo_code_code:
+                    message = check_prereg_promo_code(session, attendee, used_codes)
+                if not message:
+                    used_codes[attendee.promo_code_code] += 1
+                    form_list = ['BadgeExtras'] # Re-check purchase limits
 
-                all_errors = validate_model(forms, attendee)
-                if all_errors:
-                    message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+                    forms = load_forms(params, attendee, form_list, checkboxes_present=False)
+
+                    all_errors = validate_model(forms, attendee, create_preview_model=False)
+                    if all_errors:
+                        message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+
                 if message:
                     message += f" Please click 'Edit' next to {attendee.full_name}'s registration to fix any issues."
                     break
@@ -2230,7 +2236,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, group, form_list)
 
-        all_errors = validate_model(forms, group, Group(**group.to_dict()))
+        all_errors = validate_model(forms, group)
         if all_errors:
             return {"error": all_errors}
 
@@ -2260,7 +2266,7 @@ class Root:
 
         forms = load_forms(params, attendee, form_list)
 
-        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
+        all_errors = validate_model(forms, attendee)
         if all_errors:
             return {"error": all_errors}
 
@@ -2319,7 +2325,7 @@ class Root:
 
         forms = load_forms(params, attendee, ['BadgeExtras'])
 
-        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
+        all_errors = validate_model(forms, attendee)
         if all_errors:
             # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
             message = ' '.join([item for sublist in all_errors.values() for item in sublist])

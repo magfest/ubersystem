@@ -1,5 +1,5 @@
 from markupsafe import escape, Markup
-from wtforms.widgets import NumberInput, html_params, CheckboxInput, TextInput
+from wtforms.widgets import NumberInput, html_params, CheckboxInput, TextInput, Select
 from uber.config import c
 from uber.custom_tags import linebreaksbr
 
@@ -52,6 +52,56 @@ class IntSelect():
 # Dummy class for our Jinja2 macros -- switches in Bootstrap are set in the scaffolding, not on the input
 class SwitchInput(CheckboxInput):
     pass
+
+
+class SelectButtonGroup(Select):
+    def __init__(self, multiple=False):
+        self.multiple = multiple
+        self.default_opt_kwargs = {
+            'type': 'checkbox' if self.multiple else 'radio',
+            'btn_cls': 'btn-outline-secondary',
+        }
+
+    @classmethod
+    def render_option(cls, value, label, selected, **kwargs):
+        if value is True:
+            value = "true"
+
+        options = dict(kwargs, value=value)
+        btn_cls = options.pop('btn_cls', 'btn-outline-secondary')
+        if selected:
+            options['checked'] = True
+        html = [f'<input class="btn-check" autocomplete="off" {html_params(**options)}>']
+        html.append(f'<label class="btn {btn_cls}" for="{options['id']}">{escape(label)}</label>')
+        return ''.join(html)
+
+    def __call__(self, field, **kwargs):
+        kwargs.setdefault('id', field.id)
+
+        if 'required' not in kwargs and 'required' in getattr(field, 'flags', []):
+            kwargs['required'] = True
+
+        html = ['<div class="btn-group" role="group">']
+        for value, label, selected, render_kw in field.iter_choices():
+            options = {
+                'id': f"{kwargs['id']}-{value}",
+                'name': field.name,
+                **self.default_opt_kwargs
+                }
+            options.update(render_kw)
+            for opt, val in kwargs.items():
+                if opt.startswith('x-'):
+                    options[opt] = val
+            html.append(self.render_option(value, label, selected, **options))
+        html.append('</div>')
+        return Markup(''.join(html))
+
+
+class SelectDynamicChoices(Select):
+    def __call__(self, field, choices=None, **kwargs):
+        choices = choices or [('', "ERROR: No choices provided")]
+        field.choices = choices
+        return super().__call__(field, **kwargs)
 
 
 class NumberInputGroup(NumberInput):
