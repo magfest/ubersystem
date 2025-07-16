@@ -1,0 +1,11 @@
+{{ studio.primary_contact_first_names }},
+
+Thanks for registering your studio ({{ studio.name }}) with Indies at MAGFest.
+
+As your studio's representative, you are eligible to submit one or more games for consideration to the MAGFest Indie Videogame Showcase (MIVS), the Indie Arcade (IA), and Indie Retro. You can continue your application at any time at {{ c.URL_BASE }}/showcase/index?id={{ studio.id }}
+
+Remember that all games must contain original assets and IP or those for which you own the rights. AI art and other assets are not allowed. Please email us if you have questions regarding this policy.
+
+As always, the latest information including dates and submission criteria are available at https://super.magfest.org/indie-games
+
+{{ email_signature }}

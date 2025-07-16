@@ -913,15 +913,24 @@ class MIVSGuestEmailFixture(AutomatedEmailFixture):
             sender=c.MIVS_EMAIL,
             **kwargs)
 
+if c.ENABLED_INDIES_STR:
+    AutomatedEmailFixture(
+        IndieStudio,
+        'Your Studio Has Been Registered',
+        'indie_studio_registered.txt',
+        ident='showcase_studio_registered',
+        sender=c.INDIE_SHOWCASE_EMAIL,
+    )
+
+if c.INDIE_ARCADE_START:
+    MIVSEmailFixture(
+        IndieGame,
+        'Your Indie Arcade Game Has Been Submitted',
+        'indie_arcade/game_submitted.txt',
+        lambda game: game.submitted,
+        ident='ia_game_submitted')
 
 if c.MIVS_START:
-
-    MIVSEmailFixture(
-        IndieStudio,
-        'Your MIVS Studio Has Been Registered',
-        'mivs/studio_registered.txt',
-        ident='mivs_studio_registered')
-
     MIVSEmailFixture(
         IndieGame,
         'Your MIVS Game Has Been Submitted',
@@ -1168,7 +1177,7 @@ class MITSEmailFixture(AutomatedEmailFixture):
         AutomatedEmailFixture.__init__(self, MITSTeam, *args, **kwargs)
 
 
-if c.MITS_ENABLED:
+if c.MITS_START:
 
     # We wait an hour before sending out this email because the most common case
     # of someone registering their team is that they'll immediately fill out the
