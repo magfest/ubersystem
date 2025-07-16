@@ -206,7 +206,7 @@
                         </td>
                         <td>
                             {{ game.submission_images|length }} photo{{ game.submission_images|length|pluralize }}
-                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#showcase-types"><i class="fa fa-plus"></i></button>
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-photo-{{ game.id }}"><i class="fa fa-plus"></i></button>
                         </td>
                         <td>
                             {% if not game.submitted %}
