@@ -575,7 +575,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.promo_code and self.promo_code_groups:
             self.promo_code = None
         
-        if self.group:
+        if self.group and not self.is_group_save:
             self.group.presave_adjustments()
 
     @presave_adjustment
