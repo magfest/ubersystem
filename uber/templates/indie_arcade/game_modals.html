@@ -34,6 +34,7 @@
     </div>
 </div>
 
+{% if game.submission_images %}
 <div
     id="edit-photos-{{ game.id }}"
     class="modal fade"
@@ -50,7 +51,7 @@
         </h4>
         </div>
         <div class="modal-body">
-            {% for image in game.screenshots %}
+            {% for image in game.submission_images %}
             {{ form_macros.form_validation(image.id ~ '-form', '../indie_arcade/validate_image') }}
             {% endfor %}
             <div class="table-responsive">
@@ -63,7 +64,7 @@
                 </thead>
                 <tbody>
                     {% set can_delete_photos = not game.submitted or game.submission_images|length > 2 %}
-                    {% for image in game.screenshots %}
+                    {% for image in game.submission_images %}
                     {% set arcade_photo = image_forms[image.id]['arcade_photo'] %}
                         <tr x-data="">
                             <td>

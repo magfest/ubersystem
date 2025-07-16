@@ -31,6 +31,7 @@
     </div>
 </div>
 
+{% if game.code_type != c.NO_CODE %}
 <div
     id="new-code-{{ game.id }}"
     class="modal fade"
@@ -69,6 +70,7 @@
     </div>
     </div>
 </div>
+{% endif %}
 
 <div
     id="new-screenshot-{{ game.id }}"
@@ -110,6 +112,7 @@
     </div>
 </div>
 
+{% if game.code_type != c.NO_CODE and game.codes %}
 <div
     id="edit-codes-{{ game.id }}"
     class="modal fade"
@@ -172,7 +175,9 @@
     </div>
     </div>
 </div>
+{% endif %}
 
+{% if game.screenshots %}
 <div
     id="edit-screenshots-{{ game.id }}"
     class="modal fade"
@@ -242,3 +247,4 @@
     </div>
     </div>
 </div>
+{% endif %}
