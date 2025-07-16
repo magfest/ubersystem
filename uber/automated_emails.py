@@ -891,8 +891,48 @@ if c.HOTELS_ENABLED:
 
 
 # =============================
-# mivs
+# showcase
 # =============================
+
+if c.ENABLED_INDIES_STR:
+    AutomatedEmailFixture(
+        IndieStudio,
+        'Your Studio Has Been Registered',
+        'indie_studio_registered.txt',
+        filter=lambda x: True,
+        ident='showcase_studio_registered',
+        sender=c.INDIE_SHOWCASE_EMAIL,
+    )
+
+
+class IAEmailFixture(AutomatedEmailFixture):
+    def __init__(self, *args, **kwargs):
+        if len(args) < 4 and 'filter' not in kwargs:
+            kwargs['filter'] = lambda x: True
+        AutomatedEmailFixture.__init__(self, *args, sender=c.INDIE_ARCADE_EMAIL, **kwargs)
+
+
+class IAGuestEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(
+            self,
+            GuestGroup,
+            subject,
+            template,
+            lambda mg: mg.group_type == c.MIVS and mg.group.studio and filter(mg),
+            ident,
+            sender=c.INDIE_ARCADE_EMAIL,
+            **kwargs)
+
+
+if c.INDIE_ARCADE_START:
+    IAEmailFixture(
+        IndieGame,
+        'Your Indie Arcade Game Has Been Submitted',
+        'indie_arcade/game_submitted.txt',
+        lambda game: game.submitted and game.showcase_type == c.INDIE_ARCADE,
+        ident='ia_game_submitted')
+
 
 class MIVSEmailFixture(AutomatedEmailFixture):
     def __init__(self, *args, **kwargs):
@@ -913,23 +953,6 @@ class MIVSGuestEmailFixture(AutomatedEmailFixture):
             sender=c.MIVS_EMAIL,
             **kwargs)
 
-if c.ENABLED_INDIES_STR:
-    AutomatedEmailFixture(
-        IndieStudio,
-        'Your Studio Has Been Registered',
-        'indie_studio_registered.txt',
-        filter=lambda x: True,
-        ident='showcase_studio_registered',
-        sender=c.INDIE_SHOWCASE_EMAIL,
-    )
-
-if c.INDIE_ARCADE_START:
-    MIVSEmailFixture(
-        IndieGame,
-        'Your Indie Arcade Game Has Been Submitted',
-        'indie_arcade/game_submitted.txt',
-        lambda game: game.submitted and game.showcase_type == c.INDIE_ARCADE,
-        ident='ia_game_submitted')
 
 if c.MIVS_START:
     MIVSEmailFixture(
