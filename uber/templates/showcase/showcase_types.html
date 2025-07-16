@@ -40,7 +40,7 @@
                 {% endif %}
                 </ul>
             </p>
-            <p>If your game meets the criteria for multiple departments, you are free to submit to all of them. Feel free to reach out to each respective department with questions or email {{ "indies@magfest.org"|email_to_link }} and we will direct your query to the proper team.</p>
+            <p>If your game meets the criteria for multiple departments, you are free to submit to all of them. Feel free to reach out to each respective department with questions or email {{ c.INDIE_SHOWCASE_EMAIL|email_only|email_to_link }} and we will direct your query to the proper team.</p>
             {% if c.PAGE_PATH != '/showcase/index' %}
             <p></p>
             {% endif %}
