@@ -15,7 +15,7 @@
         </div>
         <form novalidate method="post" action="../indie_arcade/photo" id="new-photo-{{ game.id }}-form" role="form" enctype="multipart/form-data">
         <div class="modal-body">
-            {% set arcade_photo = image_forms['new']['arcade_photo'] %}
+            {% set arcade_photo = image_forms['arcade_new']['arcade_photo'] %}
             {{ form_macros.form_validation('new-photo-' ~ game.id ~ '-form', '../indie_arcade/validate_image') }}
             {{ csrf_token() }}
             <input type="hidden" name="game_id" value="{{ game.id }}" />
@@ -100,3 +100,4 @@
     </div>
     </div>
 </div>
+{% endif %}

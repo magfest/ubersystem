@@ -89,7 +89,7 @@
         </div>
         <form novalidate method="post" action="../mivs/screenshot" id="new-screenshot-{{ game.id }}-form" role="form" enctype="multipart/form-data">
         <div class="modal-body">
-            {% set mivs_screenshot = image_forms['new']['mivs_screenshot'] %}
+            {% set mivs_screenshot = image_forms['mivs_new']['mivs_screenshot'] %}
             {{ form_macros.form_validation('new-screenshot-' ~ game.id ~ '-form', '../mivs/validate_image') }}
             {{ csrf_token() }}
             <input type="hidden" name="game_id" value="{{ game.id }}" />

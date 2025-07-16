@@ -66,7 +66,7 @@
         <p>You have not registered any games yet. Use one of the buttons below to get started.</p>
         {% endif %}
         {% if studio.mivs_games %}
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header text-white bg-primary">MIVS Showcase Games</div>
             <div class="card-body">
                 {% if c.HAS_MIVS_ADMIN_ACCESS or c.MIVS_SUBMISSIONS_OPEN %}
@@ -167,7 +167,7 @@
         </div>
         {% endif %}
         {% if studio.arcade_games %}
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header bg-info">Indie Arcade Games</div>
             <div class="card-body">
                 {% if c.HAS_INDIE_ARCADE_ADMIN_ACCESS or c.INDIE_ARCADE_SUBMISSIONS_OPEN %}
