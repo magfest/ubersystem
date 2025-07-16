@@ -918,6 +918,7 @@ if c.ENABLED_INDIES_STR:
         IndieStudio,
         'Your Studio Has Been Registered',
         'indie_studio_registered.txt',
+        filter=lambda x: True,
         ident='showcase_studio_registered',
         sender=c.INDIE_SHOWCASE_EMAIL,
     )
@@ -927,7 +928,7 @@ if c.INDIE_ARCADE_START:
         IndieGame,
         'Your Indie Arcade Game Has Been Submitted',
         'indie_arcade/game_submitted.txt',
-        lambda game: game.submitted,
+        lambda game: game.submitted and game.showcase_type == c.INDIE_ARCADE,
         ident='ia_game_submitted')
 
 if c.MIVS_START:
@@ -935,7 +936,7 @@ if c.MIVS_START:
         IndieGame,
         'Your MIVS Game Has Been Submitted',
         'mivs/game_submitted.txt',
-        lambda game: game.submitted,
+        lambda game: game.submitted and game.showcase_type == c.MIVS,
         ident='mivs_game_submitted')
 
     MIVSEmailFixture(
