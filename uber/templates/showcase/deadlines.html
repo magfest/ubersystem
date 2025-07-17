@@ -37,6 +37,8 @@
             {% endif %}
             {% if c.MITS_START %}
             <div class="text-center">
+                {% if c.BEFORE_MITS_START %}
+                <span class="badge bg-secondary">Tabletop Showcase: NOT OPEN</span><br/>Check back soon!
                 {% if c.AFTER_MITS_SUBMISSION_DEADLINE %}
                 <span class="badge bg-secondary">Tabletop Showcase: NO NEW ENTRIES</span><br/>Editing closes {{ c.MITS_EDITING_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
                 {% elif c.AFTER_MITS_EDITING_DEADLINE %}
