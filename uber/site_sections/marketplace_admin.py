@@ -100,9 +100,9 @@ class Root:
             form_list = ["AdminArtistMarketplaceForm"]
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, app, form_list, get_optional=False)
+        forms = load_forms(params, app, form_list)
 
-        all_errors = validate_model(forms, app, ArtistMarketplaceApplication(**app.to_dict()), is_admin=True)
+        all_errors = validate_model(forms, app, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 

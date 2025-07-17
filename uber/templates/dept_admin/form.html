@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}{{ department.name }}{% endblock %}
 
 {% block content %}
@@ -188,52 +189,12 @@
             Edit {{ department.name }}
           </h4>
         </div>
-        <form method="post" action="form" class="form-horizontal" role="form">
+        <form novalidate method="post" action="form" id="edit-dept-form" role="form">
           <div class="modal-body">
+            {{ form_macros.form_validation('edit-dept-form', 'validate_department') }}
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ department.id }}" />
-            {{ macros.form_group(department, 'name') }}
-            {{ macros.form_group(
-                department,
-                'description',
-                help='The description will be displayed to potential volunteers during registration.') }}
-            <div class="form-group">
-              <label class="col-sm-3 control-label">Shiftless?</label>
-              <div class="col-sm-9">
-                <div class="form-control-static checkbox">
-                  {{ macros.checkbox(
-                      department,
-                      'is_shiftless',
-                      label='This department does not have any shifts') }}
-                </div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="col-sm-3 control-label">Solicits Volunteers?</label>
-              <div class="col-sm-9">
-                <div class="form-control-static checkbox">
-                  {{ macros.checkbox(
-                      department,
-                      'solicits_volunteers',
-                      label='This department publicly asks volunteers for help') }}
-                </div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="col-sm-3 control-label optional-field">Max Consecutive Hours</label>
-              <div class="col-sm-6">
-                  <input
-                            class="form-control"
-                            type="text"
-                            name="max_consecutive_hours"
-                            value="{{ department.max_consecutive_minutes / 60 }}"
-                  />
-              </div>
-                <div class="clearfix"></div>
-                <p class="col-sm-9 col-sm-offset-3 help-block">
-                  The maximum number of consecutive hours a staffer may work. Enter 0 for no limit.
-                </p>
-            </div>
+            {% include 'forms/department/department_info.html' %}
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
@@ -249,7 +210,7 @@
   {{ department.name }} Department
   {% if is_admin_dept_head -%}
     <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#edit_department">
-      <i class="fa fa-cog"></i>
+      <i class="fa fa-cog"></i> Edit Details
     </button>
     <form
         method="post"
@@ -269,18 +230,28 @@
           {% if department.member_count > 1 %}disabled="disabled"{% endif %}>
     </form>
   {%- endif %}
+  <small><a href="index">View all departments</a></small>
 </h1>
+{% if department.from_email %}<p>
+  {{ department.from_email }}
+</p>{% endif %}
 <p>{{ department.description }}</p>
+<div class="card card-body mb-3">
 {% if department.is_shiftless -%}
   <p>This department is <b>shiftless</b>; it does not track staff hours using shifts.</p>
 {%- else -%}
 {% if not department.max_consecutive_minutes -%}
-  <p>Members of this department may work <strong>any number of hours</strong> in a row</p>
+  <p>Members of this department may work <strong>any number of hours</strong> in a row.</p>
 {%- else -%}
-  <p>Members of this department may work <strong>{{ department.max_consecutive_minutes / 60 }} hours</strong> in a row</p>
+  <p>Members of this department may work <strong>{{ department.max_consecutive_minutes / 60 }} hours</strong> in a row.</p>
 {%- endif %}
 {%- endif %}
 <p>This department {% if department.solicits_volunteers %}solicits{% else %}<b>does not</b> solicit{% endif %} volunteers.</p>
+{% if department.manages_panels %}
+<p>This department is available as an option on the <a href="../panels/" target="_blank">panels application</a>.{% if department.panels_desc %}
+  Anyone who selects this department will see the following description: <em>{{ department.panels_desc }}</em>.{% endif %}</p>
+{% endif %}
+<div class="d-flex gap-3">
 {% if is_admin_checklist_admin or can_admin_dept -%}
   <p>
     <a href="../dept_checklist/index?department_id={{ department.id }}">
@@ -291,27 +262,45 @@
 {%- endif %}
 <p>
   <a href="../shifts_admin/index?department_id={{ department.id }}">
-    <i class="fa fa-time"></i>
+    <i class="fa fa-calendar"></i>
     View Department Jobs
   </a>
 </p>
+{% if department.from_email %}
+<p>
+  <a href="../email_admin/pending_dept?sender={{ department.from_email }}">
+    <i class="fa fa-envelope-o"></i>
+    View Pending Emails
+  </a>
+</p>
+{% endif %}
+{% if department.manages_panels %}
+<p>
+  <a href="../panels_admin/index?department_id={{ department.id }}">
+    <i class="fa fa-file-text-o"></i>
+    View Panel Applications
+  </a>
+</p>
+{% endif %}
 {% if is_admin_dept_member or can_admin_dept -%}
   <p>
     <a href="mailto:{{ department.pocs|selectattr('email')|map(attribute='email')|join(',') }}">
       <i class="fa fa-envelope"></i>
       Email Points of Contact
     </a>
-  <p>
+  </p>
 {%- endif %}
+</div>
 
-<div>
+<div class="card card-body mb-3">
   <div class="row">
     {{ inherent_role_list('dept_heads', 'Department Heads', 'user') }}
     {{ inherent_role_list('pocs', 'Points of Contact', 'envelope') }}
     {{ inherent_role_list('checklist_admins', 'Checklist Admins', 'edit') }}
   </div>
-  <div class="row">
-    <div class="col-sm-12 dept_roles">
+</div>
+<div class="card card-body mb-3">
+    <div class="dept_roles">
       <h3>
         Roles
         {% if can_admin_dept -%}
@@ -386,10 +375,10 @@
         <div class="empty-message">No roles have been created for the {{ department.name }} department yet.</div>
       {% endif %}
     </div>
-  </div>
-  <div class="row">
-    <div class="col-sm-12">
-      <h3>Members</h3>
+</div>
+<div class="card card-body mb-3">
+  <h3>Members</h3>
+  <div class="d-flex gap-3">
       <p>
         <a href="requests?department_id={{ department.id }}">
           <i class="fa fa-bell"></i>
@@ -420,6 +409,7 @@
             <i class="fa fa-download"></i> Download CSV
           </a>
         </p>
+    </div>
         <div class="table-responsive">
           <table class="table table-hover datatable" data-page-length="25">
             <thead>

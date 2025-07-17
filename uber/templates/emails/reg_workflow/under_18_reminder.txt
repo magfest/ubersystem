@@ -6,4 +6,4 @@ If you are actually over 18, please update your age in our database at {{ c.URL_
 
 We look forward to seeing you at {{ c.EVENT_NAME_AND_YEAR }}!
 
-{{ c.REGDESK_EMAIL_SIGNATURE }}
+{{ email_signature }}

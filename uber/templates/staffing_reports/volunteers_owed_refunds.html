@@ -2,14 +2,18 @@
 {% block title %}Volunteers Owed Refunds{% endblock %}
 {% block content %}
 
-{% for title, matching in attendees %}
-    <h2>{{ title }} ({{ matching|length }})</h2>
-    <table style="width:100%">
+<div class="card card-body">
+    <h2>Volunteer Refund Report <small><a href="volunteers_owed_refunds_csv"><i class="fa fa-download"></i>Download CSV</a></small></h2>
+    <hr>
+{% for title, matching, sum in attendees %}
+    <h3>{{ title }} <small>({{ matching|length }} volunteers) ({{ sum|format_currency }} Total)</small></h3>
+    <table class="table mb-5">
     <thead>
         <tr>
             <th>Volunteer</th>
             <th>Departments</th>
             <th>Hours Worked / Hours Taken</th>
+            <th>Badge Cost</th>
         </tr>
     </thead>
     <tbody>
@@ -18,10 +22,12 @@
                 <td>{{ attendee|form_link }}</td>
                 <td>{{ attendee.assigned_depts_labels|join(' / ') }}</td>
                 <td>{{ attendee.worked_hours }} / {{ attendee.weighted_hours }}</td>
+                <td>{{ attendee.badge_cost|format_currency }}</td>
             </tr>
         {% endfor %}
     </tbody>
     </table>
 {% endfor %}
+</div>
 
 {% endblock %}

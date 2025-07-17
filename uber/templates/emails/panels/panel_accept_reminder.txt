@@ -8,4 +8,4 @@ If you don't confirm you can run the panel by {{ app.confirm_deadline|datetime_l
 
 If you cannot make it, please contact us at {{ c.PANELS_EMAIL|email_only }} to let us know. Thank you!
 
-{{ c.PANELS_EMAIL_SIGNATURE }}
+{{ email_signature }}

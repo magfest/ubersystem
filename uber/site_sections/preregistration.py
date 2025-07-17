@@ -14,7 +14,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.custom_tags import email_only
+from uber.custom_tags import email_only, readable_join
 from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
@@ -24,7 +24,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, BadgePickupGroup,
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode
-from uber.payments import PreregCart, TransactionRequest, ReceiptManager, SpinTerminalRequest
+from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
 
 
 def check_if_can_reg(is_dealer_reg=False):
@@ -312,6 +312,12 @@ class Root:
         return {
             'id': id
         }
+    
+    def cancel_repurchase(self, session, **params):
+        PreregCart.unpaid_preregs.clear()
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            raise HTTPRedirect('homepage?message={}', "Registration cancelled.")
+        raise HTTPRedirect('../landing/index?message={}', "Registration cancelled.")
 
     def resume_pending(self, session, id=None, account_id=None, **params):
         if account_id:
@@ -577,6 +583,7 @@ class Root:
                 'group':      group,
                 'edit_id':    edit_id,
                 'cart_not_empty': PreregCart.unpaid_preregs,
+                'repurchase': params.get('repurchase', ''),
                 'name': name,
                 'badges': badges,
                 'invite_code': params.get('invite_code', ''),
@@ -660,6 +667,7 @@ class Root:
             'promo_code_group': promo_code_group,
             'edit_id':    edit_id,
             'cart_not_empty': PreregCart.unpaid_preregs,
+            'repurchase': params.get('repurchase', ''),
             'promo_code_code': params.get('promo_code', ''),
             'invite_code': params.get('invite_code', ''),
         }
@@ -885,7 +893,7 @@ class Root:
 
                     forms = load_forms(params, attendee, form_list, checkboxes_present=False)
 
-                    all_errors = validate_model(forms, attendee)
+                    all_errors = validate_model(forms, attendee, create_preview_model=False)
                     if all_errors:
                         pass
                         # Flatten the errors as we don't have fields on this page
@@ -943,7 +951,7 @@ class Root:
                                                 description=cart.description,
                                                 amount=sum([receipt.current_amount_owed for receipt in receipts]),
                                                 who='non-admin')
-                    message = charge.create_stripe_intent()
+                    message = charge.create_payment_intent()
 
         if message:
             return {'error': message}
@@ -1888,6 +1896,101 @@ class Root:
 
     @csrf_protected
     @requires_account(Attendee)
+    def abandon_badges(self, session, abandon_ids=[]):
+        failed_attendees = set()
+        success_names = set()
+        receipt_managers = {}
+        txn_attendees = {}  # Dumb, but avoids a lot of DB calls
+        all_refunds = defaultdict(lambda: [0, []])
+
+        if isinstance(abandon_ids, str):
+            abandon_ids = [abandon_ids]
+
+        for id in abandon_ids:
+            attendee = session.attendee(id)
+            if attendee.cannot_abandon_badge_reason:
+                failed_attendees.add(attendee)
+            elif attendee.amount_paid:
+                receipt_manager = ReceiptManager(attendee.active_receipt, 'non-admin')
+
+                refunds = receipt_manager.cancel_and_refund(
+                    attendee, exclude_fees=c.EXCLUDE_FEES_FROM_REFUNDS and not c.AUTHORIZENET_LOGIN_ID)
+
+                if receipt_manager.error_message:
+                    failed_attendees.add(attendee)
+                else:
+                    if not refunds:
+                        # Nothing left to refund, we'll just do the bookkeeping
+                        session.add_all(receipt_manager.items_to_add)
+                        attendee.active_receipt.closed = datetime.now()
+                        attendee.badge_status = c.REFUNDED_STATUS
+                        attendee.paid = c.REFUNDED
+
+                    for charge_id, (refund_amount, txns) in refunds.items():
+                        all_refunds[charge_id][0] += refund_amount
+                        all_refunds[charge_id][1].extend(txns)
+                        for txn in txns:
+                            txn_attendees[txn.id] = attendee
+                receipt_managers[attendee] = receipt_manager
+            else:
+                # if attendee is part of a group, we must delete attendee and remove them from the group
+                if attendee.group and attendee.group.is_valid:
+                    session.assign_badges(
+                        attendee.group,
+                        attendee.group.badges + 1,
+                        new_badge_type=attendee.badge_type,
+                        new_ribbon_type=attendee.ribbon,
+                        registered=attendee.registered,
+                        paid=attendee.paid)
+
+                    session.delete_from_group(attendee, attendee.group)
+                # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
+                else:
+                    attendee.badge_status = c.REFUNDED_STATUS
+                    for shift in attendee.shifts:
+                        session.delete(shift)
+                success_names.add(attendee.full_name)
+
+        refunded_attendees = set()
+
+        for charge_id, (refund_amount, txns) in all_refunds.items():
+            refund = RefundRequest(txns, refund_amount, skip_errors=True)
+
+            error = refund.process_refund()
+            if error:
+                for txn in txns:
+                    failed_attendees.add([txn_attendees[txn.id]])
+            else:
+                for txn in txns:
+                    refunded_attendees.add(txn_attendees[txn.id])
+                session.add_all(refund.items_to_add)
+                session.commit()
+
+        for attendee, manager in receipt_managers.items():
+            if attendee in refunded_attendees:
+                session.add_all(manager.items_to_add)
+
+                if attendee not in failed_attendees:
+                    success_names.add(attendee.full_name)
+                    session.add(attendee.active_receipt)
+                    attendee.active_receipt.closed = datetime.now()
+                    attendee.badge_status = c.REFUNDED_STATUS
+                    attendee.paid = c.REFUNDED
+
+        messages = []
+        if success_names:
+            messages.append(f"Successfully cancelled registration{'s' if len(success_names) > 1 else ''} for \
+                            {readable_join(success_names)}.")
+        if failed_attendees:
+            messages.append(f"Could not cancel registration{'s' if len(failed_attendees) > 1 else ''} for \
+                            {readable_join([a.full_name for a in failed_attendees])}. \
+                            Please contact {email_only(c.REGDESK_EMAIL)} for assistance.")
+
+        raise HTTPRedirect("homepage?&message={}", ' '.join(messages))
+
+
+    @csrf_protected
+    @requires_account(Attendee)
     def abandon_badge(self, session, id):
         from uber.custom_tags import format_currency
         attendee = session.attendee(id)
@@ -1909,44 +2012,12 @@ class Root:
 
         if attendee.amount_paid:
             receipt = session.get_receipt_by_model(attendee)
-            refund_total = 0
-            session.add(ReceiptItem(
-                receipt_id=receipt.id,
-                department=c.REG_RECEIPT_ITEM,
-                category=c.CANCEL_ITEM,
-                desc=f"Refunding and Cancelling {attendee.full_name}'s Badge",
-                amount=-(receipt.payment_total - receipt.refund_total),
-                who='non-admin',
-            ))
-            session.commit()
-            session.refresh(receipt)
-            for txn in receipt.refundable_txns:
-                if txn.department == getattr(attendee, 'department', c.OTHER_RECEIPT_ITEM):
-                    refund_amount = txn.amount_left
-                    if not c.AUTHORIZENET_LOGIN_ID and c.EXCLUDE_FEES_FROM_REFUNDS:
-                        processing_fees = txn.calc_processing_fee(refund_amount)
-                        session.add(ReceiptItem(
-                            receipt_id=txn.receipt.id,
-                            department=c.OTHER_RECEIPT_ITEM,
-                            category=c.PROCESSING_FEES,
-                            desc=f"Processing Fees for Full Refund of {txn.desc}",
-                            amount=processing_fees,
-                            who='non-admin',
-                        ))
-                        refund_amount -= processing_fees
-                        session.commit()
-                        session.refresh(receipt)
+            refund_total, error = receipt.process_full_refund(
+                session, attendee, who='non-admin',
+                exclude_fees=c.EXCLUDE_FEES_FROM_REFUNDS and not c.AUTHORIZENET_LOGIN_ID)
 
-                    if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
-                        refund = SpinTerminalRequest(receipt=receipt, amount=refund_amount, method=txn.method)
-                    else:
-                        refund = TransactionRequest(receipt=receipt, amount=refund_amount, method=txn.method)
-
-                    error = refund.refund_or_skip(txn)
-                    if error:
-                        raise HTTPRedirect('confirm?id={}&message={}', id, error)
-                    session.add_all(refund.get_receipt_items_to_add())
-                    refund_total += refund.amount
+            if error:
+                raise HTTPRedirect('confirm?id={}&message={}', id, f"Error refunding badge: {error}")
 
             receipt.closed = datetime.now()
             session.add(receipt)
@@ -2043,19 +2114,8 @@ class Root:
         attendees_who_owe_money = {}
         if not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY:
             for attendee in account.valid_attendees:
-                if attendee not in account.at_door_pending_attendees:
-                    receipt = session.get_receipt_by_model(attendee)
-                    if receipt and receipt.current_amount_owed:
-                        attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
-
-        account_attendee = None
-        account_attendees = session.valid_attendees().filter(~Attendee.badge_status.in_([c.REFUNDED_STATUS,
-                                                                                         c.NOT_ATTENDING]))\
-            .filter(Attendee.normalized_email == normalize_email_legacy(account.email))
-        if account_attendees.count() == 1:
-            account_attendee = account_attendees.first()
-            if account_attendee not in account.attendees:
-                account_attendee = None
+                if attendee not in account.at_door_pending_attendees and attendee.active_receipt and not attendee.is_paid:
+                    attendees_who_owe_money[attendee.full_name] = attendee.active_receipt.current_amount_owed
 
         if not account:
             raise HTTPRedirect('../landing/index')
@@ -2064,7 +2124,6 @@ class Root:
             'id': params.get('id'),
             'message': message,
             'homepage_account': account,
-            'account_attendee': account_attendee,
             'attendees_who_owe_money': attendees_who_owe_money,
         }
 
@@ -2174,7 +2233,7 @@ class Root:
     def validate_dealer(self, session, form_list=[], is_prereg=False, **params):
         id = params.get('id', params.get('edit_id'))
         if id in [None, '', 'None']:
-            group = Group(tables=1)
+            group = Group(is_dealer=True)
         else:
             try:
                 group = session.group(id)
@@ -2192,9 +2251,9 @@ class Root:
             form_list = ['ContactInfo', 'TableInfo']
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, group, form_list, get_optional=False)
+        forms = load_forms(params, group, form_list)
 
-        all_errors = validate_model(forms, group, Group(**group.to_dict()))
+        all_errors = validate_model(forms, group)
         if all_errors:
             return {"error": all_errors}
 
@@ -2222,10 +2281,11 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, attendee, form_list, get_optional=False)
+        forms = load_forms(params, attendee, form_list)
 
-        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
+        all_errors = validate_model(forms, attendee)
         if all_errors:
+            log.error(all_errors)
             return {"error": all_errors}
 
         return {"success": True}
@@ -2283,7 +2343,7 @@ class Root:
 
         forms = load_forms(params, attendee, ['BadgeExtras'])
 
-        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
+        all_errors = validate_model(forms, attendee)
         if all_errors:
             # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
             message = ' '.join([item for sublist in all_errors.values() for item in sublist])

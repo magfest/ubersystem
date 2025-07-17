@@ -19,7 +19,7 @@
                 <form novalidate method="post" id="lottery-confirm" action="guarantee_confirm">
                     <input type="hidden" name="id" value="{{ application.id }}" />
                     {{ csrf_token() }}
-                    {{ form_macros.form_input(lottery_confirm.guarantee_policy_accepted) }}
+                    {{ form_macros.input(lottery_confirm.guarantee_policy_accepted) }}
                     <button type="submit" class="btn btn-success">Confirm and Enter {{ application.entry_type_label }} Lottery</button>
                 </form>
             </div>

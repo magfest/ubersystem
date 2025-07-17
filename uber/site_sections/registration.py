@@ -161,13 +161,11 @@ class Root:
                          'BadgeAdminNotes', 'OtherInfo']
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, attendee, form_list, get_optional=False)
-        new_attendee = Attendee(**attendee.to_dict())
-
         if 'promo_code_code' not in params and attendee.promo_code:
-            new_attendee.promo_code = attendee.promo_code
+            params['promo_code_code'] = attendee.promo_code_code
+        forms = load_forms(params, attendee, form_list)
 
-        all_errors = validate_model(forms, attendee, new_attendee, is_admin=True)
+        all_errors = validate_model(forms, attendee, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 
@@ -322,8 +320,8 @@ class Root:
         if error:
             return {'error': error}
 
-        req = SpinTerminalRequest(terminal_id)
-        response = req.check_txn_status(intent_id)
+        req = SpinTerminalRequest(terminal_id, ref_id=intent_id)
+        response = req.check_txn_status()
         if response:
             response_json = response.json()
             if req.api_response_successful(response_json):
@@ -368,7 +366,7 @@ class Root:
             if not txn:
                 return {'success': True} # They'll end up with the error from poll_terminal_payment
             req = SpinTerminalRequest(terminal_id, amount=txn.txn_total, tracker=tracker, ref_id=intent_id)
-            response = req.check_txn_status(intent_id)
+            response = req.check_txn_status()
             if response:
                 response_json = response.json()
                 if req.api_response_successful(response_json):

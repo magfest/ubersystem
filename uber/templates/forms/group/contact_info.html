@@ -9,18 +9,18 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<div class="row g-sm-3 mb-3">
 {% block contact_info %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">
-      {{ form_macros.form_input(contact_info.email_address) }}
+    <div class="col-sm">
+      {{ form_macros.input(contact_info.email_address) }}
     </div>
   
-    <div class="col-12 col-sm-6">
-      {{ form_macros.form_input(contact_info.phone) }}
+    <div class="col-sm">
+      {{ form_macros.input(contact_info.phone) }}
     </div>
-  </div>
 {% endblock %}
+</div>
 
 {% block address %}
-    {{ form_macros.address_fields(group, contact_info) }}
+  {{ form_macros.address_fields(contact_info) }}
 {% endblock %}

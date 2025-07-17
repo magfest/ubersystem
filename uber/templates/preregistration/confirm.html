@@ -113,8 +113,9 @@
       {% endif %}
 
       {{ form_macros.form_validation('confirm') }}
+      {% include 'forms/alpine/attendee_metadata.html' %}
 
-      <form novalidate method="post" action="confirm" id="confirm">
+      <form novalidate method="post" action="confirm" id="confirm" x-data="attendeeMetadata()">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <input type="hidden" name="return_to" value="{{ return_to }}" />

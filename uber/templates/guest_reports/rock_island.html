@@ -35,6 +35,10 @@
       <div class="text-danger"><b>Merch POC not set!</b></div>
     {% endif %}
   </div>
+  <div class="col header-group sample-tracks">
+    <div class="form-text">Sample Tracks</div>
+    <div>{{ guest_merch.guest.sample_tracks|default("No Tracks Uploaded",true) }}</div>
+  </div>
   <div class="col header-group meet-and-greet">
     <div class="form-text">Meet N Greet Requested</div>
     <div>{{ guest_merch.guest.autograph.rock_island_autographs|yesno("Yes, No") if guest_merch.guest.autograph else 'Not Selected' }}</div>

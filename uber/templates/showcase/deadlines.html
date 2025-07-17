@@ -1,0 +1,51 @@
+<div class="card mb-3">
+    <div class="card-header">{{ c.EVENT_NAME_AND_YEAR }} Showcase Applications</div>
+    <div class="card-body">
+        <div class="d-flex gap-3 flex-wrap justify-content-evenly">
+            {% if c.MIVS_START %}
+            <div class="text-center">
+                {% if c.BEFORE_MIVS_START %}
+                <span class="badge bg-secondary">Videogame Showcase: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_MIVS_DEADLINE %}
+                <span class="badge bg-danger">Videogame Showcase: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Videogame Showcase: OPEN</span><br/>Closes {{ c.MIVS_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.INDIE_ARCADE_START %}
+            <div class="text-center">
+                {% if c.BEFORE_INDIE_ARCADE_START %}
+                <span class="badge bg-secondary">Arcade Showcase: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_INDIE_ARCADE_DEADLINE %}
+                <span class="badge bg-danger">Arcade Showcase: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Arcade Showcase: OPEN</span><br/>Closes {{ c.INDIE_ARCADE_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.INDIE_RETRO_START %}
+            <div class="text-center">
+                {% if c.BEFORE_INDIE_RETRO_START %}
+                <span class="badge bg-secondary">Retro Showcase: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_INDIE_RETRO_DEADLINE %}
+                <span class="badge bg-danger">Retro Showcase: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Retro Showcase: OPEN</span><br/>Closes {{ c.INDIE_RETRO_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.MITS_START %}
+            <div class="text-center">
+                {% if c.AFTER_MITS_SUBMISSION_DEADLINE %}
+                <span class="badge bg-secondary">Tabletop Showcase: NO NEW ENTRIES</span><br/>Editing closes {{ c.MITS_EDITING_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% elif c.AFTER_MITS_EDITING_DEADLINE %}
+                <span class="badge bg-danger">Tabletop Showcase: CLOSED</span>
+                {% else %}
+                <span class="badge bg-success">Tabletop Showcase: OPEN</span><br/>Closes {{ c.MITS_SUBMISSION_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

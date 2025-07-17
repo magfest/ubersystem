@@ -1,4 +1,4 @@
-import cgi
+import html
 import csv
 import functools
 import inspect
@@ -729,7 +729,7 @@ def attendee_view(func):
                 if not session.admin_attendee_max_access(attendee):
                     return "<div id='attendeeData' style='padding: 10px;'>" \
                            "You are not allowed to view this attendee. If you think this is an error, " \
-                           "please email us at {}.</div>".format(cgi.escape(c.DEVELOPER_EMAIL))
+                           "please email us at {}.</div>".format(html.escape(c.DEVELOPER_EMAIL))
         return func(*args, **kwargs)
     return with_check
 

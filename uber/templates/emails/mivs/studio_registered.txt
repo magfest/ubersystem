@@ -1,9 +1,0 @@
-{{ studio.primary_contact_first_names }},
-
-Thanks for registering your studio ({{ studio.name }}) with the MAGFest Indie Videogame Showcase (MIVS).
-
-As your studio's representative, you are eligible to submit one or more games for consideration.  You can continue your application at any time at {{ c.URL_BASE }}/mivs/continue_app?id={{ studio.id }}
-
-As always, the latest information including dates and submission criteria are available at https://super.magfest.org/mivs
-
-{{ c.MIVS_EMAIL_SIGNATURE }}

@@ -1084,6 +1084,14 @@ class Config(_Overridable):
 
         return shirt_count
 
+    @property
+    def STAFF_SHIRT_FIELD_ENABLED(self):
+        return c.SHIRTS_PER_STAFFER > 0 and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS
+
+    @property
+    def STAFF_GET_EVENT_SHIRTS(self):
+        return (c.SHIRTS_PER_STAFFER > 0 and c.STAFF_EVENT_SHIRT_OPTS) or (c.SHIRTS_PER_STAFFER == 0 and c.HOURS_FOR_SHIRT)
+
     @request_cached_property
     @dynamic
     def SEASON_COUNT(self):
@@ -1200,20 +1208,58 @@ class Config(_Overridable):
                             'is_download': getattr(method, 'site_map_download', False)
                         })
         return public_site_sections, public_pages, pages
+    
+    def get_signature_by_sender(self, sender):
+        from uber.custom_tags import email_only
+
+        config_opt = email_only(sender).split('@')[0]
+        signature_key = getattr(self, config_opt, None)
+        if signature_key:
+            return self.EMAIL_SIGNATURES[signature_key]
+        return ""
 
     # =========================
-    # mivs
+    # indie showcases (mivs, indie arcade, indie retro)
     # =========================
 
     @property
+    def ENABLED_INDIES_STR(self):
+        from uber.custom_tags import readable_join
+        # Convenience function to list enabled (not necessarily open) applications
+        # This only includes apps that use the /showcase/ form, which MITS does not
+        list = []
+        if c.MIVS_START:
+            list.append("the Indie Videogame Showcase (MIVS)")
+        if c.INDIE_ARCADE_START:
+            list.append("the Indie Arcade")
+        if c.INDIE_RETRO_START:
+            list.append("Indie Retro")
+        return readable_join(list)
+
+    @property
     @dynamic
-    def CAN_SUBMIT_MIVS(self):
-        return self.MIVS_SUBMISSIONS_OPEN or self.HAS_MIVS_ADMIN_ACCESS
+    def INDIE_SHOWCASE_OPEN(self):
+        return self.MIVS_SUBMISSIONS_OPEN or self.INDIE_ARCADE_SUBMISSIONS_OPEN or self.INDIE_RETRO_SUBMISSIONS_OPEN
+
+    @property
+    def HAS_ANY_SHOWCASE_ADMIN_ACCESS(self):
+        return self.HAS_MIVS_ADMIN_ACCESS or self.HAS_INDIE_ARCADE_ACCESS \
+            or self.HAS_SHOWCASE_ADMIN_ACCESS or self.HAS_INDIE_RETRO_ADMIN_ACCESS
 
     @property
     @dynamic
     def MIVS_SUBMISSIONS_OPEN(self):
-        return not really_past_mivs_deadline(c.MIVS_DEADLINE) and self.AFTER_MIVS_START
+        return self.MIVS_START and not really_past_mivs_deadline(c.MIVS_DEADLINE) and self.AFTER_MIVS_START
+    
+    @property
+    @dynamic
+    def INDIE_ARCADE_SUBMISSIONS_OPEN(self):
+        return self.INDIE_ARCADE_START and self.BEFORE_INDIE_ARCADE_DEADLINE and self.AFTER_INDIE_ARCADE_START
+    
+    @property
+    @dynamic
+    def INDIE_RETRO_SUBMISSIONS_OPEN(self):
+        return self.INDIE_RETRO_START and self.BEFORE_INDIE_RETRO_DEADLINE and self.AFTER_INDIE_RETRO_START
 
     # =========================
     # panels
@@ -1229,6 +1275,61 @@ class Config(_Overridable):
                 for a in session.query(AdminAccount).options(joinedload(AdminAccount.attendee))
                 if 'panels_admin' in a.read_or_write_access_set
             ], key=lambda tup: tup[1], reverse=False)
+        
+    @request_cached_property
+    @dynamic
+    def get_panels_id(self):
+        from uber.models import Session, Department
+
+        with Session() as session:
+            panels_dept = session.query(Department).filter(Department.manages_panels == True, 
+                                                           Department.name == "Panels").first()
+            if panels_dept:
+                return panels_dept.id
+            else:
+                return c.PANELS
+
+    @request_cached_property
+    @dynamic
+    def PANELS_DEPT_OPTS_WITH_DESC(self):
+        from uber.models import Session, Department
+        opt_list = []
+
+        with Session() as session:
+            panel_depts = session.query(Department).filter(Department.manages_panels == True)
+            panels = panel_depts.filter(Department.name == "Panels").first()
+
+            if panels:
+                opt_list.append((panels.id, panels.name, panels.panels_desc))
+            else:
+                opt_list.append((str(c.PANELS), "Panels", ''))
+            
+            if not panel_depts.count():
+                return opt_list
+
+            for dept in panel_depts:
+                if dept.name != "Panels":
+                    opt_list.append((dept.id, dept.name, dept.panels_desc))
+
+        return opt_list
+    
+    @request_cached_property
+    @dynamic
+    def PANELS_DEPT_OPTS(self):
+        return [(key, name) for key, name, _ in self.PANELS_DEPT_OPTS_WITH_DESC]
+    
+    @request_cached_property
+    @dynamic
+    def EMAILLESS_PANEL_DEPTS(self):
+        from uber.models import Session, Department
+
+        id_list = [c.PANELS]
+        with Session() as session:
+            panels_depts_query = session.query(Department).filter(Department.manages_panels == True)
+            for dept in panels_depts_query.filter(or_(Department.from_email == '',
+                                                      Department.from_email == c.PANELS_EMAIL)):
+                id_list.append(dept.id)
+        return id_list
 
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
@@ -1446,6 +1547,23 @@ def parse_config(plugin_name, module_dir):
     return config
 
 
+def create_hour_opts(start_hour, end_hour, step, prefix=''):
+    """
+    Takes a start and end hour integer (in 24-hour time) and
+    iterates over the range in chunks according to `step`.
+    Returns a list of tuples to, e.g., use in dropdown lists.
+    """
+    opt_list = []
+    for index, start_time in enumerate(range(start_hour, end_hour, step), 1):
+        start_dt = time(start_time)
+        end_time = min(start_time + 2, end_hour)
+        end_dt = time(end_time)
+        opt_list.append((index,
+                         f"{prefix}{start_dt.strftime('%-I%p').lower()}-{end_dt.strftime('%-I%p').lower()}"))
+        if end_time == end_hour:
+            return opt_list
+
+
 c = Config()
 _config = parse_config("uber", pathlib.Path("/app/uber"))  # outside this module, we use the above c global instead of using this directly
 db_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -1631,24 +1749,32 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
             c.PREASSIGNED_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
-c.COUNTRY_OPTS = ['']
-c.COUNTRY_ALT_SPELLINGS = {}
+c.COUNTRY_OPTS = []
 for country in list(pycountry.countries):
+    insert_idx = None
     country_name = country.name if "Taiwan" not in country.name else "Taiwan"
     country_dict = country.__dict__['_fields']
     alt_spellings = [val for val in map(lambda x: country_dict.get(x), ['alpha_2', 'common_name']) if val]
     if country_name == 'United States':
         alt_spellings.extend(["USA", "United States of America"])
+        insert_idx = 0
     elif country_name == 'United Kingdom':
         alt_spellings.extend(["Great Britain", "England", "UK", "Wales", "Scotland", "Northern Ireland"])
+        insert_idx = 2
+    elif country_name == 'Canada':
+        insert_idx = 1
 
-    c.COUNTRY_ALT_SPELLINGS[country_name] = " ".join(alt_spellings)
-    c.COUNTRY_OPTS.append(country_name)
+    opt = {'value': country_name, 'label': country_name, 'alt_spellings': " ".join(alt_spellings)}
+    if insert_idx is not None:
+        c.COUNTRY_OPTS.insert(insert_idx, opt)
+    else:
+        c.COUNTRY_OPTS.append(opt)
 
-c.REGION_OPTS_US = [('', 'Select a state')] + sorted(
-    [(region.name, region.name) for region in list(pycountry.subdivisions.get(country_code='US'))])
-c.REGION_OPTS_CANADA = [('', 'Select a province')] + sorted(
-    [(region.name, region.name) for region in list(pycountry.subdivisions.get(country_code='CA'))])
+
+c.REGION_OPTS_US = sorted([{'value': region.name, 'label': region.name, 'alt_spellings': region.code[2:]
+      } for region in list(pycountry.subdivisions.get(country_code='US'))], key=lambda x: x['label'])
+c.REGION_OPTS_CANADA = sorted([{'value': region.name, 'label': region.name, 'alt_spellings': region.code[2:]
+      } for region in list(pycountry.subdivisions.get(country_code='CA'))], key=lambda x: x['label'])
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 
@@ -1832,14 +1958,6 @@ c.FINAL_MIVS_GAME_STATUSES = [c.ACCEPTED, c.WAITLISTED, c.DECLINED, c.CANCELLED]
 # used for computing the difference between the "drop-dead deadline" and the "soft deadline"
 c.SOFT_MIVS_JUDGING_DEADLINE = c.MIVS_JUDGING_DEADLINE - timedelta(days=7)
 
-# Automatically generates all the previous MIVS years based on the eschaton and c.MIVS_START_YEAR
-c.PREV_MIVS_YEAR_OPTS, c.PREV_MIVS_YEARS = [], {}
-for num in range(c.ESCHATON.year - c.MIVS_START_YEAR):
-    val = c.MIVS_START_YEAR + num
-    desc = c.EVENT_NAME + ' MIVS ' + str(val)
-    c.PREV_MIVS_YEAR_OPTS.append((val, desc))
-    c.PREV_MIVS_YEARS[val] = desc
-
 
 # =============================
 # mits
@@ -1932,6 +2050,17 @@ c.GUEST_CHECKLIST_ITEMS = [
 # Generate the possible template prefixes per step
 for item in c.GUEST_CHECKLIST_ITEMS:
     item['deadline_template'] = ['guest_checklist/', item['name'] + '_deadline.html']
+
+
+c.GUEST_MERCH_CHECKIN_TIMES = []
+wed_checkins = create_hour_opts(*c.ROCK_ISLAND_CHECKIN_HOURS[:2], 2, prefix="Wednesday ")
+thu_checkins = create_hour_opts(*c.ROCK_ISLAND_CHECKIN_HOURS[2:], 2, prefix="Thursday ")
+for index, opt in enumerate(wed_checkins + thu_checkins, 1):
+    c.GUEST_MERCH_CHECKIN_TIMES.append((index, opt[1]))
+c.GUEST_MERCH_CHECKOUT_TIMES = create_hour_opts(*c.ROCK_ISLAND_CHECKOUT_HOURS, 2, prefix="Sunday ")
+c.GUEST_MERCH_CHECKIN_TIMES.append((c.OTHER, "Other (please explain arrival/departure plans below)"))
+c.GUEST_MERCH_CHECKOUT_TIMES.append((c.OTHER, "Other (please explain arrival/departure plans below)"))
+
 
 c.SAML_SETTINGS = {}
 if c.SAML_SP_SETTINGS["privateKey"]:

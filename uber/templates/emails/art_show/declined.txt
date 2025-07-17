@@ -5,4 +5,4 @@ Your registration is unaffected by the state of your application, so if you have
 {% elif app.attendee.badge_status == c.NOT_ATTENDING %}
 Since you indicated you would not be attending {{ c.EVENT_NAME }}, no further action is required at this time.
 {% endif %}
-{{ c.ART_SHOW_EMAIL_SIGNATURE }}
+{{ email_signature }}

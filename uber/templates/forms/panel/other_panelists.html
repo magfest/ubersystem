@@ -1,0 +1,19 @@
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm-6">
+        <div class="form-text">
+            <label for="other_panelists">How many other panelists will be on this panel?</label>
+        </div>
+        <select name="other_panelists_select" id="other_panelists_select" class="form-select" x-model="other_panelists">
+            {{ int_options(0, 4, other_panelists) }}
+        </select>
+    </div>
+</div>
+
+{% for num in range(1, 5) %}
+{% set panelist_form = panelist_forms[num] %}
+<div class="card card-body pb-0 mb-3" x-show="showPanelist({{ num }})">
+    <h2>Other Panelist #{{ num }}</h2>
+    <hr>
+    {% include "forms/panel/panelist_form.html" %}
+</div>
+{% endfor %}

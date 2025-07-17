@@ -188,7 +188,7 @@ class Root:
                 leader.ribbon_ints = group.new_ribbons
                 leader_params = {key[7:]: val for key, val in params.items() if key.startswith('leader_')}
                 leader_forms = load_forms(leader_params, leader, ['PersonalInfo'])
-                all_errors = validate_model(leader_forms, leader, Attendee(**leader.to_dict()), is_admin=True)
+                all_errors = validate_model(leader_forms, leader, is_admin=True)
                 if all_errors:
                     session.delete(group)
                     session.commit()
@@ -201,6 +201,12 @@ class Root:
                 if group.guest_group_type:
                     group.guest = group.guest or GuestGroup()
                     group.guest.group_type = group.guest_group_type
+                    if params.get('payment', None):
+                        group.guest.payment = 1
+                    else:
+                        group.guest.payment = 0
+                elif group.guest:
+                    session.delete(group.guest)
 
                 if group.is_new and group.is_dealer:
                     if group.status in c.DEALER_ACCEPTED_STATUSES and group.amount_unpaid:
@@ -251,9 +257,9 @@ class Root:
                 form_list.append('LeaderInfo')
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, group, form_list, get_optional=False)
+        forms = load_forms(params, group, form_list)
 
-        all_errors = validate_model(forms, group, Group(**group.to_dict()), is_admin=True)
+        all_errors = validate_model(forms, group, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 

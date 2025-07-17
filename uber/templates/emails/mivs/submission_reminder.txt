@@ -4,13 +4,13 @@ Thanks again for wanting to submit your game ({{ game.title }}) to the MAGFest I
 
 We just wanted to remind you that {{ c.MIVS_DEADLINE|datetime_local }} is the last chance to submit a playable demo with at least 15 minutes of gameplay for your game.
 
-{% if game.submittable %}You've met all the prerequisites for submitting your game, so the only thing left is for you to use the link below and click the button marked "Submit Game For Consideration".{% else %}You can submit your game as soon as you meet the following steps:
+{% if not game.missing_steps %}You've met all the prerequisites for submitting your game, so the only thing left is for you to use the link below and click the button marked "Submit Game For Consideration".{% else %}You can submit your game as soon as you meet the following steps:
 {% for step in game.missing_steps %}
  - {{ step }}
 {% endfor %}
- - You have not clicked the button marked "Submit Game For Consideration".
+ - go to your showcase application page and click the button marked "Submit Game For Consideration"
 {% endif %}
 
-You can finish your application anytime until the deadline at {{ c.URL_BASE }}/mivs/continue_app?id={{ game.studio.id }}
+You can finish your application anytime until the deadline at {{ c.URL_BASE }}/showcase/index?id={{ game.studio.id }}
 
-{{ c.MIVS_EMAIL_SIGNATURE }}
+{{ email_signature }}

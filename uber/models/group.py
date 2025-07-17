@@ -99,6 +99,7 @@ class Group(MagModel, TakesPaymentMixin):
             self.leader.ribbon = add_opt(self.leader.ribbon_ints, c.DEALER_RIBBON)
         if not self.is_unpaid or self.orig_value_of('status') != self.status:
             for a in self.attendees:
+                a.is_group_save = True
                 a.presave_adjustments()
 
     @presave_adjustment

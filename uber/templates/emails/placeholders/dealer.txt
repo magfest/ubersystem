@@ -4,4 +4,4 @@
 
 Please let us know if you have any questions.
 
-{{ c.MARKETPLACE_EMAIL_SIGNATURE }}
+{{ email_signature }}

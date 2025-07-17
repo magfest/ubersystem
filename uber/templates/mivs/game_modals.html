@@ -1,0 +1,250 @@
+<div
+    id="demo-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="demo-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="demo-{{ game.id }}-title">
+            <i class="fa fa-cog"></i>&nbsp;
+            Demo Information for {{ game.title }}
+        </h4>
+        </div>
+        <form novalidate method="post" action="../mivs/update_demo_info" id="demo-{{ game.id }}-form" role="form">
+        <div class="modal-body">
+            {% set forms = demo_forms[game.id] %}
+            {{ form_macros.form_validation('demo-' ~ game.id ~ '-form', '../mivs/validate_game', form_list=['MivsDemoInfo']) }}
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ game.id }}" />
+            {% include 'forms/showcase/mivs_demo_info.html' %}
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Update Demo Info for {{ game.title }}</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </form>
+    </div>
+    </div>
+</div>
+
+{% if game.code_type != c.NO_CODE %}
+<div
+    id="new-code-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="new-code-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="new-code-{{ game.id }}-title">
+            Add Game Code
+        </h4>
+        </div>
+        <form novalidate method="post" action="../mivs/code" id="new-code-{{ game.id }}-form" role="form">
+        <div class="modal-body">
+            {% set mivs_code = code_forms['new']['mivs_code'] %}
+            {{ form_macros.form_validation('new-code-' ~ game.id ~ '-form', '../mivs/validate_code') }}
+            {{ csrf_token() }}
+            <input type="hidden" name="game_id" value="{{ game.id }}" />
+            <div x-data="">
+                <div class="row g-sm-3 mb-3">
+                    <div class="col-sm">{{ form_macros.input(mivs_code.code) }}</div>
+                </div>
+                <div class="row g-sm-3 mb-3">
+                    <div class="col-sm">{{ form_macros.input(mivs_code.unlimited_use) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-success">Add Code</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </form>
+    </div>
+    </div>
+</div>
+{% endif %}
+
+<div
+    id="new-screenshot-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="new-screenshot-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="new-screenshot-{{ game.id }}-title">
+            Upload Screenshot
+        </h4>
+        </div>
+        <form novalidate method="post" action="../mivs/screenshot" id="new-screenshot-{{ game.id }}-form" role="form" enctype="multipart/form-data">
+        <div class="modal-body">
+            {% set mivs_screenshot = image_forms['mivs_new']['mivs_screenshot'] %}
+            {{ form_macros.form_validation('new-screenshot-' ~ game.id ~ '-form', '../mivs/validate_image') }}
+            {{ csrf_token() }}
+            <input type="hidden" name="game_id" value="{{ game.id }}" />
+            <div x-data="">
+                <div class="row g-sm-3 mb-3">
+                    <div class="col-sm">{{ form_macros.input(mivs_screenshot.image) }}</div>
+                </div>
+                <div class="row g-sm-3 mb-3">
+                    <div class="col-sm">{{ form_macros.input(mivs_screenshot.description) }}</div>
+                </div>
+                {{ form_macros.input(mivs_screenshot.is_screenshot) }}
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-success">Upload Screenshot</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </form>
+    </div>
+    </div>
+</div>
+
+{% if game.code_type != c.NO_CODE and game.codes %}
+<div
+    id="edit-codes-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="edit-codes-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="edit-codes-{{ game.id }}-title">
+            {{ game.title }} Game Codes
+        </h4>
+        </div>
+        <div class="modal-body">
+            {% for code in game.codes %}
+            {{ form_macros.form_validation(code.id ~ '-form', '../mivs/validate_code') }}
+            {% endfor %}
+            <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Shared?</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for code in game.codes %}
+                    {% set mivs_code = code_forms[code.id]['mivs_code'] %}
+                        <tr x-data="">
+                            <td>{{ form_macros.input(mivs_code.code, show_label=False, form=code.id ~ "-form") }}</td>
+                            <td>{{ form_macros.input(mivs_code.unlimited_use, label_text="Yes", form=code.id ~ "-form") }}</td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                <form novalidate method="post" action="../mivs/code" id="{{ code.id }}-form" role="form">
+                                    {{ csrf_token() }}
+                                    <input type="hidden" name="game_id" value="{{ game.id }}" />
+                                    <input type="hidden" name="id" value="{{ code.db_id }}" />
+                                    <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check"></i></button>
+                                </form>
+                                <form method="post" action="../mivs/delete_code">
+                                    {{ csrf_token() }}
+                                    <input type="hidden" name="id" value="{{ code.id }}" />
+                                    <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
+                                </form>
+                                </div>
+                            </td>
+                        </tr>
+                    </form>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+    </div>
+</div>
+{% endif %}
+
+{% if game.screenshots %}
+<div
+    id="edit-screenshots-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="edit-screenshots-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="edit-screenshots-{{ game.id }}-title">
+            {{ game.title }} Screenshots
+        </h4>
+        </div>
+        <div class="modal-body">
+            {% for image in game.screenshots %}
+            {{ form_macros.form_validation(image.id ~ '-form', '../mivs/validate_image') }}
+            {% endfor %}
+            <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>Description</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set can_delete_screenshots = not game.submitted or game.screenshots|length > 2 %}
+                    {% for image in game.screenshots %}
+                    {% set mivs_screenshot = image_forms[image.id]['mivs_screenshot'] %}
+                        <tr x-data="">
+                            <td>
+                                {{ form_macros.input(mivs_screenshot.image, show_label=False, form=image.id ~ "-form") }}
+                            </td>
+                            <td>
+                                {{ form_macros.input(mivs_screenshot.description, show_label=False, form=image.id ~ "-form") }}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                <form novalidate method="post" action="../mivs/screenshot" id="{{ image.id }}-form" role="form" enctype="multipart/form-data">
+                                    {{ csrf_token() }}
+                                    <input type="hidden" name="game_id" value="{{ game.id }}" />
+                                    <input type="hidden" name="id" value="{{ image.db_id }}" />
+                                    <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check"></i></button>
+                                </form>
+                                {% if can_delete_screenshots %}
+                                <form method="post" action="../mivs/delete_screenshot">
+                                    {{ csrf_token() }}
+                                    <input type="hidden" name="id" value="{{ image.id }}" />
+                                    <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
+                                </form>
+                                {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    </form>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+    </div>
+</div>
+{% endif %}

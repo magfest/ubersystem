@@ -6,4 +6,4 @@ Thanks so much for pre-ordering {{ c.DONATION_TIERS[attendee.amount_extra] }} wi
 {% endfor %}
 Please note that pre-ordered merchandise is non-refundable; we reserve it just for you! If you do not pick up your merch during the event, you will be contacted after the event for a mailing address and shipping payment.
 
-{{ c.MERCH_EMAIL_SIGNATURE }}
+{{ email_signature }}

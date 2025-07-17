@@ -21,4 +21,4 @@ If you have the time, we would love to hear your feedback about how MITS this ye
 8. Do you have any comments you would like to make about how this year went for you that haven't been covered above?
 
 Thanks for your time!
-{{ c.MITS_EMAIL_SIGNATURE }}
+{{ email_signature }}

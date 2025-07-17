@@ -1,0 +1,56 @@
+{% import 'forms/macros.html' as form_macros with context %}
+{% extends "preregistration/preregbase.html" %}
+{% set title = c.EVENT_NAME ~ "Showcase Application" %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+  <div class="card card-body">
+    <h2>{{ c.EVENT_NAME }} Indies</h2>
+    {% if not c.INDIE_SHOWCASE_OPEN and not c.HAS_ANY_SHOWCASE_ADMIN_ACCESS %}
+        <p>Applications are currently closed for {{ c.ENABLED_INDIES_STR }}. Please refer to the schedule below.</p>
+        {% if c.MITS_START %}
+            <p>To enter the Indie Tabletop Showcase (MITS), <a href="../mits/team">click here</a>.</p>
+        {% endif %}
+
+        {% include 'showcase/deadlines.html' %}
+    {% else %}
+        {% if c.HAS_ANY_SHOWCASE_ADMIN_ACCESS and not c.INDIE_SHOWCASE_OPEN %}
+        <div class="alert alert-warning">
+            ADMIN NOTE: Because you are logged in as a MIVS or Indie Arcade admin, you can still use this form to manually enter a new
+            studio. For non-admin users, they will see a message about the deadline being passed.
+        </div>
+        {% endif %}
+        <p>
+            Welcome to {{ c.EVENT_NAME }} Indies!
+             To create a studio, please fill out the information below for you and your studio.
+            If you've already created a studio, check your confirmation email for a link to access your studio page.
+        </p>
+        <p>
+            After creating a studio, you will be able to enter games into {{ c.ENABLED_INDIES_STR }} according to the schedule below.
+        </p>
+        {% if c.MITS_START %}
+            <p>To enter the Indie Tabletop Showcase (MITS), <a href="../mits/team">click here</a>.</p>
+        {% endif %}
+
+        {% include 'showcase/deadlines.html' %}
+
+        {{ form_macros.form_validation('showcase-form', 'validate_new_studio') }}
+        <form novalidate method="post" id="showcase-form" action="apply" role="form">
+          {{ csrf_token() }}
+          
+          <h3>Studio Information</h3>
+          {% include "forms/showcase/studio.html" %}
+
+          <h3>Your Information</h3>
+          {% include "forms/showcase/developer.html" %}
+
+          <div class="form-group">
+            <div class="col-sm-6 col-sm-offset-3">
+              <button type="submit" class="btn btn-primary">Create Studio</button>
+            </div>
+          </div>
+        </form>
+        {% endif %}
+  </div>
+
+{% endblock %}

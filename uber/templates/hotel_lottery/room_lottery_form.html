@@ -9,6 +9,7 @@
 {# BLOCK NAMES in this form:
     ranking_js
     form_js
+    x_data
     terms
     legal_name
     check_in_out_dates
@@ -120,6 +121,10 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 {% endif %}
 {% endblock %}
 
+<div x-data="{ {% block x_data %}
+wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
+{% endblock %} }">
+
 {% block terms %}{% endblock %}
 
 {% if c.SHOW_HOTEL_LOTTERY_DATE_OPTS %}
@@ -150,19 +155,19 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 
             {% block check_in_out_dates_form %}
             <div class="row g-sm-3">
-                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.earliest_checkin_date, readonly=read_only) }}</div>
-                <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.latest_checkout_date, readonly=read_only) }}</div>
+                <div class="col-12 col-sm-6">{{ form_macros.input(room_or_suite_lottery.earliest_checkin_date, readonly=read_only) }}</div>
+                <div class="col-12 col-sm-6">{{ form_macros.input(room_or_suite_lottery.latest_checkout_date, readonly=read_only) }}</div>
             </div>
             {% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date or not read_only %}
             <div class="row g-sm-3 mb-3">
                 <div class="col-12 col-sm-6">
                     {% if app_or_parent.latest_checkin_date or not read_only %}
-                    {{ form_macros.form_input(room_or_suite_lottery.latest_checkin_date, readonly=read_only) }}
+                    {{ form_macros.input(room_or_suite_lottery.latest_checkin_date, readonly=read_only) }}
                     {% endif %}
                 </div>
                 <div class="col-12 col-sm-6">
                     {% if app_or_parent.earliest_checkout_date or not read_only %}
-                    {{ form_macros.form_input(room_or_suite_lottery.earliest_checkout_date, readonly=read_only) }}
+                    {{ form_macros.input(room_or_suite_lottery.earliest_checkout_date, readonly=read_only) }}
                     {% endif %}
                 </div>
             </div>
@@ -213,10 +218,10 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         {% endblock %}
         {% block ada_info_form %}
         <div class="row g-sm-3">
-            <div class="col-12"><strong>{{ form_macros.toggle_checkbox(room_or_suite_lottery.wants_ada, [room_or_suite_lottery.ada_requests], toggle_required=True, disabled=read_only) }}</strong></div>
+            <div class="col-12"><strong>{{ form_macros.input(room_or_suite_lottery.wants_ada, alpine_model="wants_ada") }}</strong></div>
         </div>
-        <div class="row g-sm-3">
-            <div class="col-12 col-sm-6">{{ form_macros.form_input(room_or_suite_lottery.ada_requests, readonly=read_only) }}</div>
+        <div class="row g-sm-3" x-show="wants_ada">
+            <div class="col-12 col-sm-6">{{ form_macros.input(room_or_suite_lottery.ada_requests, readonly=read_only, required_if="wants_ada", **{':readonly':'!wants_ada'}) }}</div>
             <div class="col-12 col-sm-6 alert alert-info">
                 {% block ada_requests_desc %}
                 Please describe what accommodations may best suit your needs, e.g., "wide doorways" or "roll in shower."
@@ -269,9 +274,9 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             {% block hotel_and_room_type_ranking_form %}
             <div class="hotel_and_room_type_ranking">
             {% if c.HOTEL_LOTTERY_HOTELS_OPTS %}
-            {{ form_macros.form_input(room_or_suite_lottery.hotel_preference, readonly=read_only) }}
+            {{ form_macros.input(room_or_suite_lottery.hotel_preference, readonly=read_only) }}
             {% endif %}
-            {{ form_macros.form_input(room_or_suite_lottery.room_type_preference, readonly=read_only) }}
+            {{ form_macros.input(room_or_suite_lottery.room_type_preference, readonly=read_only) }}
             </div>
             {% if not read_only and application.current_step <= steps.counter %}
             <div class="row justify-content-end">
@@ -311,7 +316,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             {% include 'hotel_lottery/priorities_example.html' with context %}
             {% endblock %}
             {% block priorities_form %}
-            {{ form_macros.form_input(room_or_suite_lottery.selection_priorities, readonly=read_only) }}
+            {{ form_macros.input(room_or_suite_lottery.selection_priorities, readonly=read_only) }}
 
             {% if not read_only and application.current_step <= steps.counter %}
             <div class="row justify-content-end">
@@ -332,3 +337,5 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
 {% endif %}
+
+</div>

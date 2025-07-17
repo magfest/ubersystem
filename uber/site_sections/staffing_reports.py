@@ -162,21 +162,44 @@ class Root:
 
     def volunteers_owed_refunds(self, session):
         attendees = session.all_attendees(only_staffing=True).all()
+        owed = [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
+                and a.worked_hours >= c.HOURS_FOR_REFUND]
+        refunded = [a for a in attendees if a.has_been_refunded]
+        maybe = [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
+                 and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
 
         return {
             'attendees': [(
                 'Volunteers Owed Refunds',
-                [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
-                 and a.worked_hours >= c.HOURS_FOR_REFUND]
+                owed,
+                sum([a.badge_cost for a in owed])
             ), (
                 'Volunteers Already Refunded',
-                [a for a in attendees if a.has_been_refunded]
+                refunded,
+                sum([a.badge_cost for a in refunded])
             ), (
                 'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
-                [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
-                    and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
+                maybe,
+                sum([a.badge_cost for a in maybe])
             )]
         }
+
+    @csv_file
+    def volunteers_owed_refunds_csv(self, out, session):
+        attendees = session.all_attendees(only_staffing=True).all()
+        out.writerow(['Volunteer', 'Departments', 'Hours Worked', 'Hours Taken',
+                      'Badge Cost', 'Owed/Refunded/Maybe'])
+        for attendee in attendees:
+            if attendee.has_been_refunded or attendee.paid_for_badge:
+                if attendee.has_been_refunded:
+                    owed = "Refunded"
+                elif attendee.worked_hours >= c.HOURS_FOR_REFUND:
+                    owed = "Owed Refund"
+                elif attendee.weighted_hours >= c.HOURS_FOR_REFUND:
+                    owed = "Once Shifts Marked"
+                out.writerow([attendee.full_name, ' / '.join(attendee.assigned_depts_labels),
+                            attendee.worked_hours, attendee.weighted_hours,
+                            attendee.badge_cost, owed])
 
     @csv_file
     def volunteer_checklist_csv(self, out, session):

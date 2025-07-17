@@ -2,6 +2,12 @@
 
 {% include 'forms/group/admin_shared.html' %}
 
+{% block x_data %}
+{{ super() }}
+group_status: {{ table_info.status.data|jsonize }},
+get showConvertBadges() { return this.group_status == '{{ c.DECLINED }}' },
+{% endblock %}
+
 {% block group_status %}
 {% set convert_explanation %}
 <span class="popup"><a href="../dealer_admin/convert_example?id={{ group.id }}" target="_blank"><i class="fa fa-question-circle" aria-hidden="true"></i> What does this do?</a></span>
@@ -9,13 +15,17 @@
 {% set status_explanation %}
 <span class="popup"><a href="../dealer_admin/dealer_statuses?id={{ group.id }}" target="_blank"><i class="fa fa-question-circle"></i> What are {{ c.DEALER_TERM }} statuses?</a></span>
 {% endset %}
-<div class="row g-sm-3">
-  <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.status, admin_text=status_explanation, extra_field=form_macros.form_input(table_info.convert_badges, label_text=table_info.convert_badges.label.text ~ " " ~ convert_explanation)) }}</div>
-  {{ form_macros.toggle_fields_js(table_info.status, [table_info.convert_badges], on_values=[c.DECLINED], closest_hide_selector='.form-check') }}
+  <div class="col-sm">
+    {% call form_macros.input(table_info.status, admin_text=status_explanation, alpine_model="group_status") %}
+    <span x-show="showConvertBadges">
+      {{ form_macros.input(table_info.convert_badges, label_text=table_info.convert_badges.label.text ~ " " ~ convert_explanation) }}
+    </span>
+    {% endcall %}
+  </div>
 
   {% if c.ALLOW_SHARED_TABLES %}
     {% if group.table_shares %}
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
       <div class="form-text">Shared Tables</div>
       <div>
       {% if group.table_shares|length == 1 %}
@@ -42,10 +52,9 @@
         });
       </script>
       {% set shared_link = '' if not table_info.shared_with_name else group.shared_with|form_link(True, 'View ') %}
-      <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.shared_with_name, admin_text=shared_link) }}</div>
-      </div><div class="row g-sm-3">
+      <div class="col-sm">{{ form_macros.input(table_info.shared_with_name, admin_text=shared_link) }}</div>
+      </div><div class="row g-sm-3 mb-3">
     {% endif %}
   {% endif %}
-  <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.admin_notes) }}</div>
-</div>
+  <div class="col-sm">{{ form_macros.input(table_info.admin_notes) }}</div>
 {% endblock %}

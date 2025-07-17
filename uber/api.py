@@ -418,7 +418,6 @@ class GuestLookup:
             'discord': True,
             'other_social_media': True,
             'teaser_song_url': True,
-            'pic_url': True
         },
         'interview': {
             'will_interview': True,
