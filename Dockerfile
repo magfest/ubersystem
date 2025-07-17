@@ -15,12 +15,12 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     git \
-    libxml2-dev \
-    libxslt1-dev \
-    libxmlsec1-dev \
-    libz-dev \
-    build-essential \
-    pkg-config \
+#    libxml2-dev \
+#    libxslt1-dev \
+#    libxmlsec1-dev \
+#    libz-dev \
+#    build-essential \
+#    pkg-config \
     jq \
     curl && \
     apt-get clean && \
@@ -45,8 +45,9 @@ RUN --mount=type=cache,target=/var/cache/apk \
 RUN $HOME/.local/bin/uv pip install --system https://github.com/magfest/lxml/releases/download/v$LXML/lxml-$LXML-cp313-cp313-musllinux_1_2_$(uname -m).whl
 ADD requirements.txt /app/
 RUN uv pip install --system setuptools==77.0.3 && \
-    uv pip install --system --no-binary lxml -r requirements.txt
+    uv pip install --system -r requirements.txt
 
+#RUN uv pip install --system psutil
 COPY --chmod=755 uber-wrapper.sh /usr/local/bin/
 
 RUN <<EOF cat >> PLUGINS.json

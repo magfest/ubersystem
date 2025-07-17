@@ -1,23 +1,46 @@
+import psutil
+process = psutil.Process()
+ram_usage = 0
+
+def print_ram(arg):
+    global ram_usage
+    total = process.memory_info().rss
+    diff = total - ram_usage
+    ram_usage = total
+    print(f"{arg}: Total {total / 1000000:0.1f}, Added {diff / 1000000:0.1f}")
+
+print_ram("      PAYMENTS: start")
 import checkdigit.verhoeff as verhoeff
+print_ram("      PAYMENTS: checkdigit")
 import pytz
 from typing import Iterable
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 from uuid import uuid4
+print_ram("      PAYMENTS: stdlib")
 
 import cherrypy
+print_ram("      PAYMENTS: cherrypy")
 import requests
+print_ram("      PAYMENTS: requests")
 import stripe
+print_ram("      PAYMENTS: stripe")
 
 from pockets import cached_property, classproperty, is_listy, listify
 from pockets.autolog import log
+print_ram("      PAYMENTS: pockets")
 
 import uber
+print_ram("      PAYMENTS: uber")
 from uber.config import c
+print_ram("      PAYMENTS: config")
 from uber.custom_tags import format_currency, email_only
+print_ram("      PAYMENTS: custom_tags")
 from uber.utils import report_critical_exception
+print_ram("      PAYMENTS: utils")
 import uber.spin_rest_utils as spin_rest_utils
+print_ram("      PAYMENTS: spin_rest_utils")
 
 if c.AUTHORIZENET_LOGIN_ID:
     # Importing this library takes ~150MB ram, so we only do it if we need it.
@@ -1797,3 +1820,4 @@ class ReceiptManager:
 
         session.close()
         return matching_txns
+print_ram("      PAYMENTS: everything else")

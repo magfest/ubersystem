@@ -38,7 +38,7 @@ def weight_entry(entry, hotel_room):
         should be to get that particular room.
     """
     # Higher weight increases the odds of them getting this room.
-    weight = 1.1
+    weight = 1.0
     
     # Give 10 points for being the first choice hotel, 9 points for the second, etc
     hotel_choice_rank = 10 - entry["hotels"].index(hotel_room["id"])
