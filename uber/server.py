@@ -1,6 +1,3 @@
-import psutil
-process = psutil.Process()
-print(f"Start {process.memory_info().rss}")
 import json
 import mimetypes
 import os
@@ -11,36 +8,23 @@ import traceback
 import threading
 import importlib
 from pprint import pformat
-print(f"Post-stdlib {process.memory_info().rss}")
 
 import cherrypy
-print(f"Import Cherrypy {process.memory_info().rss}")
 import sentry_sdk
-print(f"Import sentry {process.memory_info().rss}")
 import jinja2
-print(f"Import jinja2 {process.memory_info().rss}")
 from cherrypy import HTTPError
-print(f"Import from cherrypy {process.memory_info().rss}")
 from pockets import is_listy
-print(f"Import is_listy {process.memory_info().rss}")
 from pockets.autolog import log
-print(f"Import autolog {process.memory_info().rss}")
 
 from uber.config import c, Config
-print(f"Import uber.config {process.memory_info().rss}")
 from uber.decorators import all_renderable, render
-print(f"Import uber.decorators {process.memory_info().rss}")
 from uber.errors import HTTPRedirect
-print(f"import uber.errors {process.memory_info().rss}")
 from uber.utils import mount_site_sections, static_overrides
-print(f"Import uber.utils {process.memory_info().rss}")
 from uber.redis_session import RedisSession
-print(f"Import uber.redis_session {process.memory_info().rss}")
 
 cherrypy.lib.sessions.RedisSession = RedisSession
 
 mimetypes.init()
-print(f"mimetypes.init() {process.memory_info().rss}")
 
 if c.SENTRY['enabled']:
     sentry_sdk.init(
@@ -53,7 +37,6 @@ if c.SENTRY['enabled']:
         # We recommend adjusting this value in production.
         traces_sample_rate=c.SENTRY['sample_rate'] / 100
     )
-    print(f"Sentry Init {process.memory_info().rss}")
 
 def sentry_start_transaction():
     cherrypy.request.sentry_transaction = sentry_sdk.start_transaction(
@@ -71,7 +54,7 @@ def sentry_end_transaction():
 
 
 cherrypy.tools.sentry_end_transaction = cherrypy.Tool('on_end_request', sentry_end_transaction)
-print(f"Sentry Transactions {process.memory_info().rss}")
+
 
 @cherrypy.tools.register('before_finalize', priority=60)
 def secureheaders():
@@ -156,7 +139,7 @@ def redirect_site_section(original, redirect, new_page='', *path, **params):
 
 
 cherrypy.tools.custom_verbose_logger = cherrypy.Tool('before_error_response', log_exception_with_verbose_context)
-print(f"Functions defined {process.memory_info().rss}")
+
 
 class StaticViews:
     @classmethod
@@ -216,10 +199,10 @@ class Root:
         raise HTTPRedirect(path)
 
     static_views = StaticViews()
-print(f"Classes Defined {process.memory_info().rss}")
+
 
 mount_site_sections(c.MODULE_ROOT)
-print(f"Mount Site_sections {process.memory_info().rss}")
+
 
 def error_page_404(status, message, traceback, version):
     return "Sorry, page not found!<br/><br/>{}<br/>{}".format(status, message)
@@ -228,7 +211,6 @@ def error_page_404(status, message, traceback, version):
 c.APPCONF['/']['error_page.404'] = error_page_404
 
 cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
-print(f"Cherrypy tree mount {process.memory_info().rss}")
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
 
 cherrypy_config = {}
@@ -240,7 +222,6 @@ for setting, value in c.CHERRYPY.items():
             value = value.lower() == 'true'
     cherrypy_config[setting] = value
 cherrypy.config.update(cherrypy_config)
-print(f"Cherrypy config {process.memory_info().rss}")
 
 libpthread_path = ctypes.util.find_library("pthread")
 pthread_setname_np = None
@@ -250,7 +231,6 @@ if libpthread_path:
         pthread_setname_np = libpthread.pthread_setname_np
         pthread_setname_np.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
         pthread_setname_np.restype = ctypes.c_int
-print(f"pthread {process.memory_info().rss}")
 
 
 def _set_current_thread_ids_from(thread):
@@ -276,7 +256,6 @@ def _thread_name_insert(self):
 threading.current_thread().name = 'ubersystem_main'
 _set_current_thread_ids_from(threading.current_thread())
 
-print(f"Before load plugins {process.memory_info().rss}")
 log.info("Loading plugins")
 for plugin_name in c.PLUGINS:
     log.info(f"Loading plugin {plugin_name}")
@@ -284,4 +263,3 @@ for plugin_name in c.PLUGINS:
     plugin = importlib.import_module(plugin_name)
     if callable(getattr(plugin, 'on_load', None)):
         plugin.on_load()
-    print(f"{plugin_name} loaded {process.memory_info().rss}")

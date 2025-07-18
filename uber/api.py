@@ -1,66 +1,37 @@
-import psutil
-process = psutil.Process()
-ram_usage = 0
-
-def print_ram(arg):
-    global ram_usage
-    total = process.memory_info().rss
-    diff = total - ram_usage
-    ram_usage = total
-    print(f"{arg}: Total {total / 1000000:0.1f}, Added {diff / 1000000:0.1f}")
-print_ram("  API: start")
 import re
 import uuid
 from collections import defaultdict
 from datetime import datetime
 from functools import wraps
-print_ram("  API: import stdlib")
 from pockets import is_listy
 from pockets.autolog import log
-print_ram("  API: import pockets")
 
 import cherrypy
-print_ram("  API: cherrypy")
 import pytz
 import json
 import six
 import traceback
-print_ram("  API: more stdlib")
 from cherrypy import HTTPError
-print_ram("  API: more cherrypy")
 from dateutil import parser as dateparser
-print_ram("  API: dateparser")
 from pockets import unwrap
-print_ram("  API: unwrap")
 from time import mktime
-print_ram("  API: mktime")
 from residue import UTCDateTime
-print_ram("  API: residue")
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.types import Boolean, Date
 from sqlalchemy.sql.elements import not_
-print_ram("  API: sqlalchemy")
 
 from uber.barcode import get_badge_num_from_barcode
-print_ram("  API: barcode")
 from uber.config import c
-print_ram("  API: config")
 from uber.decorators import department_id_adapter
-print_ram("  API: decorators")
 from uber.errors import CSRFException
-print_ram("  API: errors")
 from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, Room, HotelRequests, RoomAssignment)
-print_ram("  API: models")
 from uber.models.badge_printing import PrintJob
-print_ram("  API: printjob")
 from uber.serializer import serializer
-print_ram("  API: serializer")
 from uber.utils import check, check_csrf, normalize_email, normalize_newlines
-print_ram("  API: utils")
 
 
 __version__ = '1.0'
@@ -1759,7 +1730,7 @@ class PrintJobLookup:
 
             return results
 
-print_ram("  API: end def")
+
 if c.API_ENABLED:
     register_jsonrpc(AttendeeLookup(), 'attendee')
     register_jsonrpc(AttendeeAccountLookup(), 'attendee_account')
@@ -1773,4 +1744,3 @@ if c.API_ENABLED:
     register_jsonrpc(HotelLookup(), 'hotel')
     register_jsonrpc(ScheduleLookup(), 'schedule')
     register_jsonrpc(PrintJobLookup(), 'print_job')
-    print_ram("  API: registered")

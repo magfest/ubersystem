@@ -18,6 +18,9 @@ from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, Pa
 from uber.tasks.email import send_email
 from uber.utils import Order, get_page, RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
 
+def beep_on_start():
+    print("Beeping!\a", flush=True)
+cherrypy.engine.subscribe('start', beep_on_start)
 
 def _search(session, text):
     applications = session.query(LotteryApplication).outerjoin(LotteryApplication.attendee)
@@ -86,7 +89,7 @@ def solve_lottery(applications, hotel_rooms):
             }
             entries[app.id] = entry
             for hotel_room in hotel_rooms:
-                if hotel_room["id"] in entry["hotels"]:
+                if hotel_room["id"] in entry["hotels"] and hotel_room["room_type"] in entry["room_types"]:
                     weight = weight_entry(entry, hotel_room)                 
                     
                     # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
@@ -107,12 +110,12 @@ def solve_lottery(applications, hotel_rooms):
             solver.Add(is_assigned * num_entrants <= hotel_room["capacity"])
     
     ## Only allow each group to have one room
-        solver.Add(solver.Sum([x[0] for x in entry["constraints"]]) <= 1)
+        solver.Add(sum([x[0] for x in entry["constraints"]]) <= 1)
     
     ## Only allow each room type to fit only the quantity available
     for hotel_room in hotel_rooms:
         if hotel_room["constraints"]:
-            solver.Add(solver.Sum(hotel_room["constraints"]) <= hotel_room["quantity"])
+            solver.Add(sum(hotel_room["constraints"]) <= hotel_room["quantity"])
             
     # Set up Objective function
     objective = solver.Objective()
@@ -284,26 +287,36 @@ class Root:
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application))
         }
         
-    def run_lottery(self, session, staff_lottery=False):
+    def run_lottery(self, session, staff_lottery=False, **params):
         applications = session.query(LotteryApplication).join(LotteryApplication.attendee
                                                               ).filter(LotteryApplication.status != c.PROCESSED,
                                                                        Attendee.hotel_lottery_eligible == True)
         if staff_lottery:
-            applications = applications.filter(LotteryApplication.is_staff_entry == True)
+            applications = applications.filter(LotteryApplication.is_staff_entry == True).all()
         else:
-            applications = applications.filter(LotteryApplication.is_staff_entry == False)
-            
-        # TODO: Get actual rooms
-        available_rooms = [
-            {
-                "id": random.choice(c.HOTEL_LOTTERY_HOTELS_OPTS.keys()),
-                "capacity": 4,
-                "room_type": random.choice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS.keys()),
-                "quantity": 100
-            } * 50
-        ]
+            applications = applications.filter(LotteryApplication.is_staff_entry == False).all()
         
-        assignments = self.solve_lottery(applications, available_rooms)
+        hotel_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_HOTELS.values()}
+        room_type_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_ROOM_TYPES.values()}
+        # TODO: Get actual rooms
+        room_types = c.HOTEL_LOTTERY_ROOM_TYPES
+        available_rooms = []
+        for key, item in c.HOTEL_LOTTERY_HOTELS.items():
+            hotel_enum, hotel = item
+            for room_type_key, quantity in hotel.get('inventory', {}).items():
+                room_type_enum, room_type = room_types.get(room_type_key)
+                if not room_type:
+                    raise ValueError(f"Could not locate hotel room_type {room_type_key}")
+                available_rooms.append({
+                    "id": str(hotel_enum),
+                    "capacity": int(room_type['capacity']),
+                    "room_type": str(room_type_enum),
+                    "quantity": int(quantity)
+                })
+        assignments = solve_lottery(applications, available_rooms)
+        return {
+            'assignments': {x: (hotel_enum_lookup[y[0]], room_type_enum_lookup[y[1]]) for x,y in assignments.items()},
+        }
         
     def lottery_setup(self, session, message='', page='0', search_text='', order='status'):
         if c.DEV_BOX and not int(page):

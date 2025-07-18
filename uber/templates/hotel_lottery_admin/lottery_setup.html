@@ -40,9 +40,9 @@
         <span class="ms-2">{{ complete_count }} completed application{{ complete_count|pluralize }}</span>
     </div>
     <div class="col col-auto mb-3">
-        <form method="post" action="mark_staff_processed">
+        <form method="post" action="run_lottery">
           {{ csrf_token() }}
-          <button type="submit" class="btn btn-primary">Unlock Staff Entries</button>
+          <button type="submit" class="btn btn-primary">Run Lottery</button>
         </form>
     </div>
 </div>

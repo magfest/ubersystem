@@ -1,15 +1,3 @@
-import psutil
-process = psutil.Process()
-ram_usage = 0
-
-def print_ram(arg):
-    global ram_usage
-    total = process.memory_info().rss
-    diff = total - ram_usage
-    ram_usage = total
-    print(f"{arg}: Total {total / 1000000:0.1f}, Added {diff / 1000000:0.1f}")
-    
-print_ram("    MODELS: start")
 import json
 import operator
 import os
@@ -22,57 +10,36 @@ from datetime import date, datetime, timedelta
 from functools import wraps
 from itertools import chain
 from uuid import uuid4
-print_ram("    MODELS: stdlib")
 
 import bcrypt
 import cherrypy
 import six
 import sqlalchemy
 from dateutil import parser as dateparser
-print_ram("    MODELS: thirdparty")
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
-print_ram("    MODELS: pockets")
 from pytz import UTC
-print_ram("    MODELS: pytz")
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
-print_ram("    MODELS: residue")
 from sqlalchemy import and_, func, or_
-print_ram("    MODELS: sql and")
 from sqlalchemy.dialects.postgresql.json import JSONB
-print_ram("    MODELS: sql jsonb")
 from sqlalchemy.event import listen
-print_ram("    MODELS: listen")
 from sqlalchemy.exc import IntegrityError, NoResultFound
-print_ram("    MODELS: integ")
 from sqlalchemy.ext.mutable import MutableDict
-print_ram("    MODELS: mutable")
 from sqlalchemy.orm import Query, joinedload, subqueryload
-print_ram("    MODELS: orm")
 from sqlalchemy.orm.attributes import get_history, instance_state
-print_ram("    MODELS: attr")
 from sqlalchemy.schema import MetaData
-print_ram("    MODELS: schema")
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
-print_ram("    MODELS: types")
 from sqlalchemy.util import immutabledict
-print_ram("    MODELS: other imports")
 
 import uber
-print_ram("    MODELS: import uber")
 from uber.config import c, create_namespace_uuid
-print_ram("    MODELS: import config")
 from uber.errors import HTTPRedirect
-print_ram("    MODELS: import errors")
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
-print_ram("    MODELS: dec")
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow, UniqueList
-print_ram("    MODELS: types")
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     RegistrationCode, valid_email, valid_password
-print_ram("    MODELS: utils")
 from uber.payments import ReceiptManager
-print_ram("    MODELS: uber imports")
+
 
 def _make_getter(model):
     def getter(
@@ -640,7 +607,7 @@ class MagModel:
         else:
             return startstr + self.start_time_local.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
 
-print_ram("    MODELS: start mass import")
+
 # Make all of our model classes available from uber.models
 from uber.models.admin import *  # noqa: F401,E402,F403
 from uber.models.promo_code import *  # noqa: F401,E402,F403
@@ -681,7 +648,7 @@ from uber.models.showcase import IndieJudge, IndieGame, IndieStudio  # noqa: E40
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
 from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
-print_ram("    MODELS: end mass import")
+
 
 class Session(SessionManager):
     # This looks strange, but `sqlalchemy.create_engine` will throw an error
@@ -2326,7 +2293,6 @@ def register_attribute_listeners():
         listen(collection, 'append', _track_collection_append, propagate=True)
         listen(collection, 'remove', _track_collection_remove, propagate=True)
 
-print_ram("    MODELS: end def")
+
 register_session_listeners()
 register_attribute_listeners()
-print_ram("    MODELS: end")

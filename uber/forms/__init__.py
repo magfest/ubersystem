@@ -503,7 +503,7 @@ class SelectAvailableField(SelectField):
             if coerced_val in sold_out_list:
                 label = f"{label} {self.sold_out_text}"
 
-            yield (value, label, coerced_val == self.data)
+            yield (value, label, coerced_val == self.data, {})
 
 
 class DictWrapper(dict):
