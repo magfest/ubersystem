@@ -61,7 +61,7 @@ def weight_entry(entry, hotel_room):
     
     return weight
     
-def solve_lottery(applications, hotel_rooms):
+def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
     """Takes a set of hotel_rooms and applications and assigns the hotel_rooms mostly randomly.
         Parameters:
         applications List[Application]: Iterable set of Application objects to assign
@@ -80,13 +80,21 @@ def solve_lottery(applications, hotel_rooms):
         hotel_room["constraints"] = []
     entries = {}
     for app in applications:
-        if app.entry_type and not app.parent_application:
-            entry = {
-                "members": [app],
-                "hotels": app.hotel_preference.split(","),
-                "room_types": app.room_type_preference.split(","),
-                "constraints": []
-            }
+        if app.entry_type == lottery_type:
+            if lottery_type == c.ROOM_ENTRY:
+                entry = {
+                    "members": [app],
+                    "hotels": app.hotel_preference.split(","),
+                    "room_types": app.room_type_preference.split(","),
+                    "constraints": []
+                }
+            elif lottery_type == c.SUITE_ENTRY:
+                entry = {
+                    "members": [app],
+                    "hotels": app.hotel_preference.split(","),
+                    "room_types": app.suite_type_preference.split(","),
+                    "constraints": []
+                }
             entries[app.id] = entry
             for hotel_room in hotel_rooms:
                 if hotel_room["id"] in entry["hotels"] and hotel_room["room_type"] in entry["room_types"]:
@@ -98,7 +106,7 @@ def solve_lottery(applications, hotel_rooms):
                     hotel_room["constraints"].append(constraint)
                     
     for app in applications:
-        if app.entry_type and app.parent_application in entries:
+        if app.entry_type == lottery_type and app.parent_application in entries:
             entries[app.parent_application]["members"].append(app)
                     
     # Set up constraints
@@ -287,23 +295,35 @@ class Root:
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application))
         }
         
-    def run_lottery(self, session, staff_lottery=False, **params):
+    def run_lottery(self, session, staff_lottery=False, lottery_type=c.ROOM_ENTRY, **params):
         applications = session.query(LotteryApplication).join(LotteryApplication.attendee
-                                                              ).filter(LotteryApplication.status != c.PROCESSED,
+                                                              ).filter(LotteryApplication.status == c.COMPLETE,
                                                                        Attendee.hotel_lottery_eligible == True)
-        if staff_lottery:
-            applications = applications.filter(LotteryApplication.is_staff_entry == True).all()
+
+        # We always grab all roommate entries, but the solver only looks at those that have a matching parent
+        # in the lottery batch.
+        applications = applications.filter(LotteryApplication.entry_type.in_([lottery_type, c.GROUP_ENTRY]))
+        if lottery_type == c.SUITE_ENTRY:
+            room_type_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES.values()}
+            room_types = c.HOTEL_LOTTERY_SUITE_ROOM_TYPES
+            inventory_type = "suite_inventory"
         else:
-            applications = applications.filter(LotteryApplication.is_staff_entry == False).all()
-        
+            room_type_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_ROOM_TYPES.values()}
+            room_types = c.HOTEL_LOTTERY_ROOM_TYPES
+            inventory_type = "room_inventory"
+
+        if staff_lottery:
+            applications = applications.filter(LotteryApplication.is_staff_entry == True)
+        else:
+            applications = applications.filter(LotteryApplication.is_staff_entry == False)
+            
+        applications = applications.all()
         hotel_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_HOTELS.values()}
-        room_type_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_ROOM_TYPES.values()}
-        # TODO: Get actual rooms
-        room_types = c.HOTEL_LOTTERY_ROOM_TYPES
+
         available_rooms = []
         for key, item in c.HOTEL_LOTTERY_HOTELS.items():
             hotel_enum, hotel = item
-            for room_type_key, quantity in hotel.get('inventory', {}).items():
+            for room_type_key, quantity in hotel.get(inventory_type, {}).items():
                 room_type_enum, room_type = room_types.get(room_type_key)
                 if not room_type:
                     raise ValueError(f"Could not locate hotel room_type {room_type_key}")
@@ -313,7 +333,21 @@ class Root:
                     "room_type": str(room_type_enum),
                     "quantity": int(quantity)
                 })
-        assignments = solve_lottery(applications, available_rooms)
+        assignments = solve_lottery(applications, available_rooms, lottery_type=lottery_type)
+        
+        for application in applications:
+            if application.id in assignments:
+                hotel, room_type = assignments[application.id]
+                application.assigned_hotel = hotel
+                if lottery_type == c.SUITE_ENTRY:
+                    application.assigned_suite_type = room_type
+                elif lottery_type == c.ROOM_ENTRY:
+                    application.assigned_room_type = room_type
+                else:
+                    raise NotImplementedError(f"Unknown lottery type {lottery_type}")
+                application.status = c.PROCESSED
+                session.add(application)
+        session.commit()
         return {
             'assignments': {x: (hotel_enum_lookup[y[0]], room_type_enum_lookup[y[1]]) for x,y in assignments.items()},
         }
