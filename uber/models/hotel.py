@@ -284,7 +284,8 @@ class LotteryApplication(MagModel):
     def homepage_link(self):
         entry_text = 'Suite Lottery Entry' if self.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry'
         if self.status == c.COMPLETE:
-            return f'index?attendee_id={self.attendee.id}', f'View {entry_text}'
+            prepend = "View " if c.ATTENDEE_ACCOUNTS_ENABLED else ""
+            return f'index?attendee_id={self.attendee.id}', f'{prepend}{entry_text}'
         elif self.entry_form_completed:
             return f'guarantee_confirm?id={self.id}', f"Finish {entry_text}"
         elif self.entry_type == c.SUITE_ENTRY:
