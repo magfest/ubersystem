@@ -102,8 +102,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           context: "."
           push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           tags: ghcr.io/${{ vars.UBER_REPO || github.repository }}:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
