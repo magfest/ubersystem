@@ -385,9 +385,6 @@ class MagForm(Form):
                             This is either a programming error or a malicious actor.".format(name))
                 continue
 
-            if name == 'image':
-                log.error(field.data)
-
             column = obj.__table__.columns.get(name)
             if column is not None:
                 setattr(obj, name, obj.coerce_column_data(column, field.data))
@@ -498,12 +495,13 @@ class SelectAvailableField(SelectField):
         else:
             _choices = zip(choices, choices)
 
-        for value, label in _choices:
+        for value, label, *other_args in _choices:
             coerced_val = self.coerce(value)
             if coerced_val in sold_out_list:
                 label = f"{label} {self.sold_out_text}"
-
-            yield (value, label, coerced_val == self.data)
+            selected = coerced_val == self.data
+            render_kw = other_args[0] if len(other_args) else {}
+            yield (value, label, selected, render_kw)
 
 
 class DictWrapper(dict):
