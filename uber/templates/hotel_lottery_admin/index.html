@@ -102,8 +102,9 @@
             <th># Group Members</th>
             <th>Admin Notes</th>
             <th><a href="index?order={{ order.is_staff_entry }}&page={{ page }}&search_text={{ search_text|urlencode }}">Staff Entry</a></th>
-            <th><a href="index?order={{ order.hotel }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hotel</a></th>
-            <th><a href="index?order={{ order.room_type }}&page={{ page }}&search_text={{ search_text|urlencode }}">Room Type</a></th>
+            <th><a href="index?order={{ order.assigned_hotel }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hotel</a></th>
+            <th><a href="index?order={{ order.assigned_room_type }}&page={{ page }}&search_text={{ search_text|urlencode }}">Room Type</a></th>
+            <th><a href="index?order={{ order.assigned_suite_type }}&page={{ page }}&search_text={{ search_text|urlencode }}">Suite Type</a></th>
             {% endblock tableheadings %}
           </tr>
         </thead>
@@ -124,7 +125,8 @@
                 <td>{{ app.admin_notes }}</td>
                 <td>{{ app.is_staff_entry|yesno("Yes,No") }}</td>
                 <td>{{ app.assigned_hotel_label['name'] }}</td>
-                <td>{{ app.assigned_room_type_label['name'] if app.entry_type == c.ROOM_ENTRY else app.assigned_suite_type_label['name'] }}</td>
+                <td>{{ app.assigned_room_type_label['name'] }}</td>
+                <td>{{ app.assigned_suite_type_label['name'] }}</td>
               {% endblock tablerows %}
             </tr>
           {% endfor %}

@@ -73,6 +73,7 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
         
         Returns Dict[Applications -> hotel, room_type]: A mapping of Application.id -> (id, room_type) or None if it failed
     """
+    random.shuffle(applications)
     solver = pywraplp.Solver.CreateSolver("SAT")
     
     # Set up our data structures
@@ -317,6 +318,9 @@ class Root:
         
         for app in applications:
             app.status = c.COMPLETE
+            app.assigned_hotel = None
+            app.assigned_room_type = None
+            app.assigned_suite_type = None
             session.add(app)
         session.commit()
         raise HTTPRedirect('index?message={}',
