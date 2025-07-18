@@ -3,8 +3,6 @@
 {% block content %}
 
   <div class="row g-sm-1 row-cols-auto">
-    <div class="col-12 col-sm-10 col-md-8">
-      <div class="row g-sm-1 row-cols-2">
         <div class="col-12 col-sm-6">
           <form role="form" method="get" action="index" id="search_form">
           <input type="hidden" name="order" value="{{ order }}" />
@@ -26,23 +24,38 @@
             </div>
           </form>
         </div>
-      </div>
-    </div>
-    <div class="col flex-grow-1 text-end">
-      Download <a href="interchange_export"><i class="fa fa-download"></i> Interchange CSV</a>
-      OR <a href="interchange_export?staff_lottery=True"><i class="fa fa-download"></i> Staff Lottery CSV</a>
-    </div>
   </div>
 
 <div class="row mt-3 justify-content-between">
     <div class="col col-auto">
         <span class="ms-2">{{ total_count }} total application{{ total_count|pluralize }}</span>
         <span class="ms-2">{{ complete_count }} completed application{{ complete_count|pluralize }}</span>
+        <div>
+          Download <a href="interchange_export"><i class="fa fa-download"></i> Interchange CSV</a>
+          OR <a href="interchange_export?staff_lottery=True"><i class="fa fa-download"></i> Staff Lottery CSV</a>
+        </div>
     </div>
     <div class="col col-auto mb-3">
-        <form method="post" action="run_lottery">
+        <form method="post" action="run_lottery" class="mb-3">
           {{ csrf_token() }}
-          <button type="submit" class="btn btn-primary">Run Lottery</button>
+          <div class="form-text">
+            <label for="lottery_group">Lottery Group</label>
+          </div>
+          <select class="form-select" id="lottery_group" name="lottery_group">
+            <option selected="true" value="attendee">Attendee</option>
+            <option value="staff">Staff</option>
+            <option value="both">Both</option>
+          </select>
+          <div class="form-text">
+            <label for="lottery_type">Lottery Type</label>
+          </div>
+          <select class="form-select" id="lottery_type" name="lottery_type">
+            <option selected="true" value="room">Room</option>
+            <option value="suite">Suite</option>
+          </select>
+          <button type="submit" formaction="run_lottery" class="btn btn-primary">Run Lottery</button>
+          <button type="submit" formaction="reset_lottery" class="btn btn-danger">Reset Lottery</button>
+          <button type="submit" formaction="award_lottery" class="btn btn-warning">Award Winners</button>
         </form>
     </div>
 </div>

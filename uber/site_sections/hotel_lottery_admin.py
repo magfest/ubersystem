@@ -295,7 +295,65 @@ class Root:
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application))
         }
         
-    def run_lottery(self, session, staff_lottery=False, lottery_type=c.ROOM_ENTRY, **params):
+    def reset_lottery(self, session, **params):
+        lottery_type_val = params.get("lottery_type", "room")
+        if lottery_type_val == "room":
+            lottery_type = c.ROOM_ENTRY
+        elif lottery_type_val == "suite":
+            lottery_type_val = c.SUITE_ENTRY
+        else:
+            raise ValueError(f"Unknown lottery_type {lottery_type_val}")
+        
+        applications = session.query(LotteryApplication).filter(LotteryApplication.status == c.PROCESSED,
+                                                            Attendee.hotel_lottery_eligible == True)
+        applications = applications.filter(LotteryApplication.entry_type == lottery_type)
+        lottery_group_val = params.get("lottery_group", "attendee")
+        if lottery_group_val == "attendee":
+            applications = applications.filter(LotteryApplication.is_staff_entry == False)
+        elif lottery_group_val == "staff":
+            applications = applications.filter(LotteryApplication.is_staff_entry == True)
+        
+        applications = applications.all()
+        
+        for app in applications:
+            app.status = c.COMPLETE
+            session.add(app)
+        session.commit()
+        raise HTTPRedirect('lottery_setup?message={}',
+                           "All processed lottery entries are reset to completed.")
+        
+    def award_lottery(self, session, **params):
+        lottery_type_val = params.get("lottery_type", "room")
+        if lottery_type_val == "room":
+            lottery_type = c.ROOM_ENTRY
+        elif lottery_type_val == "suite":
+            lottery_type_val = c.SUITE_ENTRY
+        else:
+            raise ValueError(f"Unknown lottery_type {lottery_type_val}")
+        
+        applications = session.query(LotteryApplication).filter(LotteryApplication.status == c.PROCESSED,
+                                                            Attendee.hotel_lottery_eligible == True)
+        applications = applications.filter(LotteryApplication.entry_type == lottery_type)
+        lottery_group_val = params.get("lottery_group", "attendee")
+        if lottery_group_val == "attendee":
+            applications = applications.filter(LotteryApplication.is_staff_entry == False)
+        elif lottery_group_val == "staff":
+            applications = applications.filter(LotteryApplication.is_staff_entry == True)
+        
+        applications = applications.all()
+        
+        for app in applications:
+            app.status = c.AWARDED
+            session.add(app)
+        session.commit()
+        raise HTTPRedirect('lottery_setup?message={}',
+                           "All processed lottery entries have been awarded.")
+        
+    def run_lottery(self, session, lottery_group="attendee", lottery_type="room", **params):
+        if lottery_type == "room":
+            lottery_type = c.ROOM_ENTRY
+        if lottery_type == "suite":
+            lottery_type = c.SUITE_ENTRY
         applications = session.query(LotteryApplication).join(LotteryApplication.attendee
                                                               ).filter(LotteryApplication.status == c.COMPLETE,
                                                                        Attendee.hotel_lottery_eligible == True)
@@ -312,14 +370,17 @@ class Root:
             room_types = c.HOTEL_LOTTERY_ROOM_TYPES
             inventory_type = "room_inventory"
 
-        if staff_lottery:
+        # If lottery_group is "both" don't filter either way
+        if lottery_group == "staff":
             applications = applications.filter(LotteryApplication.is_staff_entry == True)
-        else:
+        elif lottery_group == "attendee":
             applications = applications.filter(LotteryApplication.is_staff_entry == False)
             
         applications = applications.all()
         hotel_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_HOTELS.values()}
-
+        assigned_applications = session.query(LotteryApplication).join(LotteryApplication.attendee
+                                                                  ).filter(LotteryApplication.status.in_([c.PROCESSED, c.AWARDED, c.SECURED])).all()
+        
         available_rooms = []
         for key, item in c.HOTEL_LOTTERY_HOTELS.items():
             hotel_enum, hotel = item
@@ -327,11 +388,24 @@ class Root:
                 room_type_enum, room_type = room_types.get(room_type_key)
                 if not room_type:
                     raise ValueError(f"Could not locate hotel room_type {room_type_key}")
+                assigned_count = 0
+                for app in assigned_applications:
+                    if app.assigned_hotel != hotel_enum:
+                        continue
+                    if lottery_type == c.ROOM_ENTRY:
+                        if app.assigned_room_type != room_type_enum:
+                            continue
+                    elif lottery_type == c.SUITE_ENTRY:
+                        if app.assigned_suite_type != room_type_enum:
+                            continue
+                    else:
+                        continue
+                    assigned_count += 1
                 available_rooms.append({
                     "id": str(hotel_enum),
                     "capacity": int(room_type['capacity']),
                     "room_type": str(room_type_enum),
-                    "quantity": int(quantity)
+                    "quantity": int(quantity) - assigned_count
                 })
         assignments = solve_lottery(applications, available_rooms, lottery_type=lottery_type)
         
@@ -348,8 +422,13 @@ class Root:
                 application.status = c.PROCESSED
                 session.add(application)
         session.commit()
+        application_lookup = {x.id: x for x in applications}
+        
         return {
-            'assignments': {x: (hotel_enum_lookup[y[0]], room_type_enum_lookup[y[1]]) for x,y in assignments.items()},
+            'num_rooms_available_before': sum([x['quantity'] for x in available_rooms]),
+            'num_rooms_available_after': sum([x['quantity'] for x in available_rooms]) - len(assignments),
+            'num_entries': len([x for x in applications if x.entry_type == lottery_type]),
+            'assignments': [(application_lookup[x], hotel_enum_lookup[y[0]], room_type_enum_lookup[y[1]]) for x,y in assignments.items()],
         }
         
     def lottery_setup(self, session, message='', page='0', search_text='', order='status'):
