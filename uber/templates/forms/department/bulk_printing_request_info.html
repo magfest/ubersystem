@@ -1,0 +1,70 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set bulk_printing_request_info = bulk_printing_request_info or forms['bulk_printing_request_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+paper_type: {{ bulk_printing_request_info.paper_type.data|tojson }},
+size: {{ bulk_printing_request_info.size.data|tojson }},
+get customPaperType() { return this.paper_type == {{ c.CUSTOM|tojson }} },
+get customSize() { return this.size == {{ c.CUSTOM|tojson }} },
+{% endblock %} }">
+
+<div class="row g-sm-3 mb-3">
+{% block link_copies %}
+<div class="col-sm-8">{{ form_macros.input(bulk_printing_request_info.link) }}</div>
+<div class="col-sm">{{ form_macros.input(bulk_printing_request_info.copies) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block color_orientation %}
+<div class="col-sm">{{ form_macros.input(bulk_printing_request_info.color) }}</div>
+<div class="col-sm">{{ form_macros.input(bulk_printing_request_info.print_orientation) }}</div>
+<div class="col-sm">{{ form_macros.input(bulk_printing_request_info.cut_orientation) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block paper_type_size %}
+<div class="col-sm">
+  {% call form_macros.input(bulk_printing_request_info.paper_type, alpine_model="paper_type") %}
+  <div x-show="customPaperType">{{ form_macros.input(bulk_printing_request_info.paper_type_text, required_if="customPaperType") }}</div>
+  {% endcall %}
+</div>
+<div class="col-sm">
+  {% call form_macros.input(bulk_printing_request_info.size, alpine_model="size") %}
+  <div x-show="customSize">{{ form_macros.input(bulk_printing_request_info.size_text, required_if="customSize") }}</div>
+  {% endcall %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block double_sided_stapled %}
+  <div class="col-sm">{{ form_macros.input(bulk_printing_request_info.notes) }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+  <div class="col-sm">{{ form_macros.input(bulk_printing_request_info.double_sided) }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+  <div class="col-sm">{{ form_macros.input(bulk_printing_request_info.stapled) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-sm-3 mb-3">
+{% block checkboxes %}
+  <div class="col-12">{{ form_macros.input(bulk_printing_request_info.required) }}</div>
+</div>
+<div class="row g-sm-3 mb-3">
+  <div class="col-12">{{ form_macros.input(bulk_printing_request_info.link_is_shared) }}</div>
+{% endblock %}
+</div>
+
+</div>

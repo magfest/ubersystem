@@ -64,7 +64,7 @@ class Root:
 
         for game in studio.mivs_games:
             demo_forms[game.id] = load_forms({}, game, ['MivsDemoInfo'])
-            image_forms['new'] = load_forms({}, IndieGameImage(), ['MivsScreenshot'])
+            image_forms['mivs_new'] = load_forms({}, IndieGameImage(), ['MivsScreenshot'])
             for image in game.screenshots:
                 image_forms[image.id] = load_forms({}, image, ['MivsScreenshot'],
                                                    prefix_dict={image.id: 'MivsScreenshot'})
@@ -74,7 +74,7 @@ class Root:
                     code_forms[code.id] = load_forms({}, code, ['MivsCode'],
                                                      prefix_dict={code.id: 'MivsCode'})
         for game in studio.arcade_games:
-            image_forms['new'] = load_forms({}, IndieGameImage(), ['ArcadePhoto'])
+            image_forms['arcade_new'] = load_forms({}, IndieGameImage(), ['ArcadePhoto'])
             for image in game.submission_images:
                 image_forms[image.id] = load_forms({}, image, ['ArcadePhoto'],
                                                    prefix_dict={image.id: 'ArcadePhoto'})

@@ -6,30 +6,29 @@
 {% block content %}
 {% include 'hotel_lottery/withdraw_confirm.html' with context %}
 
-<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
-<div class="card">
-    <div class="card-body">
-        {{ form_macros.form_validation('lottery-confirm', 'validate_hotel_lottery', form_list=['LotteryConfirm']) }}
+<div class="card card-body">
+    <h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
+    <hr/>
+    {{ form_macros.form_validation('lottery-confirm', 'validate_hotel_lottery', form_list=['LotteryConfirm']) }}
 
-        <h2>Reservations and Payment Guarantees</h2>
-        {% include 'hotel_lottery/guarantee_info.html' %}
+    <h2>Reservations and Payment Guarantees</h2>
+    {% include 'hotel_lottery/guarantee_info.html' %}
 
-        <div class="row g-sm-1">
-            <div class="col col-auto">
-                <form novalidate method="post" id="lottery-confirm" action="guarantee_confirm">
-                    <input type="hidden" name="id" value="{{ application.id }}" />
-                    {{ csrf_token() }}
-                    {{ form_macros.input(lottery_confirm.guarantee_policy_accepted) }}
-                    <button type="submit" class="btn btn-success">Confirm and Enter {{ application.entry_type_label }} Lottery</button>
-                </form>
-            </div>
-            <div class="col col-auto">
-                <form novalidate method="post" id="withdraw-lottery" action="withdraw_entry">
-                    <input type="hidden" name="id" value="{{ application.id }}" />
-                    {{ csrf_token() }}
-                    <button type="submit" class="btn btn-danger">Cancel and Delete {{ application.entry_type_label }} Lottery Entry</button>
-                </form>
-            </div>
+    <div class="row g-sm-1">
+        <div class="col col-auto">
+            <form novalidate method="post" id="lottery-confirm" action="guarantee_confirm">
+                <input type="hidden" name="id" value="{{ application.id }}" />
+                {{ csrf_token() }}
+                {{ form_macros.input(lottery_confirm.guarantee_policy_accepted) }}
+                <button type="submit" class="btn btn-success">Confirm and Enter {{ application.entry_type_label }} Lottery</button>
+            </form>
+        </div>
+        <div class="col col-auto">
+            <form novalidate method="post" id="withdraw-lottery" action="withdraw_entry">
+                <input type="hidden" name="id" value="{{ application.id }}" />
+                {{ csrf_token() }}
+                <button type="submit" class="btn btn-danger">Cancel and Delete {{ application.entry_type_label }} Lottery Entry</button>
+            </form>
         </div>
     </div>
 </div>

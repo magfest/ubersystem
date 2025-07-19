@@ -1,0 +1,9 @@
+Howdy {{ game.studio.primary_contact_first_names }},
+
+This is a confirmation that you have submitted your game {{ game.title }} to our curation team for consideration for the {{ c.EVENT_YEAR }} {{ c.EVENT_NAME }} Indie Arcade.
+
+We expect to begin announcing results by early October.
+
+Thank you!
+
+{{ email_signature }}
