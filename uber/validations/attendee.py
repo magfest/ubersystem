@@ -67,6 +67,7 @@ if c.COLLECT_FULL_ADDRESS:
 
 PersonalInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
 PersonalInfo.field_validation.validations['badge_printed_name'].update({
+    'optional': validators.Optional(),
     'length': validators.Length(max=20,
                                 message="Your printed badge name cannot be more than 20 characters long."),
     'invalid_chars': validators.Regexp(c.VALID_BADGE_PRINTED_CHARS, message="""Your printed badge name has invalid
@@ -213,13 +214,16 @@ def upgrade_sold_out(form, field):
 
 @BadgeExtras.field_validation('badge_type_single')
 def must_select_day(form, field):
+    if form.is_admin or form.model.attendance_type == form.attendance_type.data:
+        return
+
     if form.attendance_type.data and form.attendance_type.data == c.SINGLE_DAY and c.BADGES[field.data] not in c.DAYS_OF_WEEK:
         raise ValidationError("Please select which day you would like to attend.")
 
 
 @BadgeExtras.field_validation('badge_type')
 def must_select_type(form, field):
-    if not c.BADGE_TYPE_PRICES:
+    if not c.BADGE_TYPE_PRICES or form.is_admin or form.model.attendance_type == form.attendance_type.data:
         return
 
     if form.attendance_type.data and form.attendance_type.data == c.WEEKEND and \
