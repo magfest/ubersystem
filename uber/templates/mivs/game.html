@@ -5,6 +5,15 @@
 {% block content %}
 <div class="card card-body">
   <h2>{% if game.is_new %}Register an Indie Videogame Showcase Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
+  <p>
+    The Indie Videogame Showcase (MIVS) is home to digital games in any format including mobile, PC, console, VR, etc. where members of the development team will be on-hand to interact with attendees. Games can be in any stage of development, but must have a working demo.
+  </p>
+  <p>
+    All games must contain original assets or those used with explicit permission.
+    AI art and other assets are not allowed. Please email us at {{ c.MIVS_EMAIL|email_only|email_to_link }} if you have questions regarding this policy.
+  </p>
+  <p>Not sure where to submit your game? <a href="#" data-bs-toggle="modal" data-bs-target="#showcase-types">Check here</a> for a list of all {{ c.EVENT_NAME }} indie showcases.</p>
+  {% include 'showcase/showcase_types.html' %}
 
   {{ form_macros.form_validation('game-form', 'validate_game') }}
   <form novalidate method="post" id="game-form" action="game" role="form">

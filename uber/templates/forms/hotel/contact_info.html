@@ -10,16 +10,16 @@
     {% endif %}
 </p>
 
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
         {{ form_macros.input(lottery_info.legal_first_name, value=lottery_info.legal_first_name.data or attendee.legal_first_name) }}
     </div>
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         {{ form_macros.input(lottery_info.legal_last_name, value=lottery_info.legal_last_name.data or attendee.legal_last_name) }}
     </div>
 </div>
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
         {{ form_macros.input(lottery_info.cellphone, value=lottery_info.cellphone.data or attendee.cellphone) }}
     </div>
 </div>

@@ -1,4 +1,4 @@
-{% extends 'hotel_lottery/room_lottery_form.html' %}
+{% extends 'forms/hotel/room_lottery.html' %}
 
 {% block form_js %}
 {{ super() }}
@@ -47,7 +47,7 @@
             <p>Suite policies, floor plans and other details pertaining to suites may be found on the Suite FAQ.</p>
             {% endblock %}
             {% block terms_form %}
-            <div class="row g-sm-3">
+            <div class="row g-sm-3 mb-3">
                 <div class="col-12">
                     <strong>{{ form_macros.input(suite_lottery.suite_terms_accepted) }}</strong>
                 </div>

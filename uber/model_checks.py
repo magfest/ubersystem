@@ -373,35 +373,41 @@ def vr_text(judge):
 
 
 @validation.IndieStudio
-def mivs_new_studio_deadline(studio):
+def showcase_new_studio_deadline(studio):
     if studio.is_new and not c.INDIE_SHOWCASE_OPEN:
         return 'Sorry, but the deadline has already passed, so no new studios may be registered.'
 
 
 @validation.IndieStudio
-def mivs_valid_url(studio):
+def showcase_valid_url(studio):
     if studio.website and _is_invalid_url(studio.website_href):
         return 'We cannot contact that website; please enter a valid url ' \
             'or leave the website field blank until your website goes online.'
 
 
 @validation.IndieStudio
-def mivs_unique_name(studio):
+def showcase_unique_name(studio):
     with Session() as session:
         if session.query(IndieStudio).filter(IndieStudio.name == studio.name, IndieStudio.id != studio.id).count():
             return "That studio name is already taken."
 
 
 @validation.IndieStudio
-def mivs_studio_contact_phone(studio):
+def showcase_studio_contact_phone(studio):
     if studio.contact_phone and invalid_phone_number(studio.contact_phone):
-        return 'Please enter a valid phone number'
+        return 'Please enter a valid phone number.'
 
 
 @validation.IndieGame
 def mivs_new_game_deadline(game):
-    if game.is_new and not c.INDIE_SHOWCASE_OPEN:
-        return 'Sorry, but the deadline has already passed, so no new games may be registered'
+    if game.is_new and game.showcase_type == c.MIVS and not c.MIVS_SUBMISSIONS_OPEN:
+        return 'Sorry, but the deadline has already passed, so no new MIVS games may be registered.'
+
+
+@validation.IndieGame
+def arcade_new_game_deadline(game):
+    if game.is_new and game.showcase_type == c.INDIE_ARCADE and not c.INDIE_ARCADE_SUBMISSIONS_OPEN:
+        return 'Sorry, but the deadline has already passed, so no new Indie Arcade games may be registered.'
 
 
 @validation.IndieGame
