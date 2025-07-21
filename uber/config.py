@@ -660,7 +660,7 @@ class Config(_Overridable):
             'value': c.ATTENDEE_BADGE,
             'price': c.get_attendee_price()
             })
-        for badge_type in c.BADGE_TYPE_PRICES:
+        for badge_type in sorted(c.BADGE_TYPE_PRICES, key=c.BADGE_TYPE_PRICES.get):
             badge_types.append({
                 'name': c.BADGES[badge_type],
                 'desc': 'Donate extra to get an upgraded badge with perks.',
