@@ -400,7 +400,7 @@ class AuthNetRequestMixin:
         if not self.response:
             return
         return self.response.transId
-    
+
     def generate_payment_intent(self, intent_id=''):
         return MockStripeIntent(
             amount=self.amount,

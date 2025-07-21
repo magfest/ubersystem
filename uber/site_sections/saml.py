@@ -35,7 +35,7 @@ class Root:
         if not errors:
             if c.REDIS_STORE.hget(c.REDIS_PREFIX + 'processed_saml_assertions', assertion_id):
                 log.error("Existing SAML assertion was replayed: {}. "
-                          "This is either an attack or a programming error.".format(assertion_id))
+                          "This is either an attack, a programming error, or someone tried to log in while the server was down.".format(assertion_id))
                 raise HTTPRedirect("../landing/index?message={}", "Authentication unsuccessful.")
 
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'processed_saml_assertions', assertion_id,
