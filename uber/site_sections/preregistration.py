@@ -852,7 +852,8 @@ class Root:
             prereg_cart_error = cart.prereg_cart_checks(session)
             if prereg_cart_error:
                 return {'error': prereg_cart_error}
-            
+
+            used_codes = defaultdict(int)
             for attendee in cart.attendees:
                 if not message and attendee.promo_code_code:
                     message = check_prereg_promo_code(session, attendee, used_codes)
