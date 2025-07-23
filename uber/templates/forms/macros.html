@@ -112,9 +112,7 @@
 {% set field_id = target_field_id or target_field.id %}
 {% set show_desc = not admin_area and not is_preview and (help_text or target_field.description) %}
 
-{% if is_preview %}
-<strong>The following badges are currently available:</strong>
-{% else %}
+{% if not is_preview %}
 <fieldset id="{{ target_field.id }}-select">
   <legend class="mt-3 mb-0 form-text">
     {{ kwargs['label'] if 'label' in kwargs else target_field.label.text }}{% if label_required %}<span class="required-indicator text-danger"> *</span>{% endif %}
