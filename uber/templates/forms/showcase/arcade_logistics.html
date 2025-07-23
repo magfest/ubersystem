@@ -12,8 +12,8 @@
 
 <div x-data="{ {% block x_data %}
 game_hours: '{{ arcade_logistics.game_hours.data }}',
-floorspace: {{ arcade_logistics.floorspace.data|tojson }},
-cabinet_type: {{ arcade_logistics.cabinet_type.data|tojson }},
+floorspace: '{{ arcade_logistics.floorspace.data }}',
+cabinet_type: '{{ arcade_logistics.cabinet_type.data }}',
 sanitation: {{ game.sanitation_requests|boolean|tojson }},
 needs_transit: {{ game.transit_needs|boolean|tojson }},
 get otherGameHours() { return this.game_hours == 'Other' },

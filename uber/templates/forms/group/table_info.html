@@ -18,7 +18,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div x-data="{ {% block x_data %}
 is_dealer: {{ group.is_dealer|tojson }},
-categories: {{ table_info.categories.data|jsonize }},
+categories: {{ table_info.categories.data|map('string')|list }},
 get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 {% endblock %} }">
 

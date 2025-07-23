@@ -16,8 +16,8 @@
 
 <div 
 x-data="{ {% block x_data %}
-   presentation: {{ panel_info.presentation.data|jsonize }},
-   panel_length: {{ panel_info.length.data|jsonize }},
+   presentation: '{{ panel_info.presentation.data }}',
+   panel_length: '{{ panel_info.length.data }}',
    department: '{{ panel_info.department.data }}',
    dept_descs: {
     {% for key, _, desc in c.PANELS_DEPT_OPTS_WITH_DESC %}
