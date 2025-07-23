@@ -1365,7 +1365,7 @@ class Root:
             if group.cost == 0:
                 attendee.registered = localized_now()
 
-            return_to = 'group_members' if c.ATTENDEE_ACCOUNTS_ENABLED else 'confirm' 
+            return_to = 'group_members' if c.ATTENDEE_ACCOUNTS_ENABLED else 'confirm'
             if not receipt:
                 new_receipt = session.get_receipt_by_model(attendee, who='non-admin', create_if_none="DEFAULT")
                 if new_receipt.current_amount_owed and not new_receipt.pending_total:
@@ -1911,22 +1911,22 @@ class Root:
                             txn_attendees[txn.id] = attendee
                 receipt_managers[attendee] = receipt_manager
             else:
-                # if attendee is part of a group, we must delete attendee and remove them from the group
+                # if attendee is part of a group, we must remove them from the group
                 if attendee.group and attendee.group.is_valid:
+                    badge_type = c.ATTENDEE_BADGE if attendee.badge_type in c.BADGE_TYPE_PRICES and attendee.group.cost else attendee.badge_type
                     session.assign_badges(
                         attendee.group,
                         attendee.group.badges + 1,
-                        new_badge_type=attendee.badge_type,
+                        new_badge_type=badge_type,
                         new_ribbon_type=attendee.ribbon,
                         registered=attendee.registered,
                         paid=attendee.paid)
 
-                    session.delete_from_group(attendee, attendee.group)
-                # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
-                else:
-                    attendee.badge_status = c.REFUNDED_STATUS
-                    for shift in attendee.shifts:
-                        session.delete(shift)
+                    attendee.group.attendees.remove(attendee)
+
+                attendee.badge_status = c.REFUNDED_STATUS
+                for shift in attendee.shifts:
+                    session.delete(shift)
                 success_names.add(attendee.full_name)
 
         refunded_attendees = set()
@@ -2005,24 +2005,23 @@ class Root:
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
 
-        # if attendee is part of a group, we must delete attendee and remove them from the group
+        # if attendee is part of a group, we must remove them from the group
         if attendee.group and attendee.group.is_valid:
+            badge_type = c.ATTENDEE_BADGE if attendee.badge_type in c.BADGE_TYPE_PRICES and attendee.group.cost else attendee.badge_type
             session.assign_badges(
                 attendee.group,
                 attendee.group.badges + 1,
-                new_badge_type=attendee.badge_type,
+                new_badge_type=badge_type,
                 new_ribbon_type=attendee.ribbon,
                 registered=attendee.registered,
                 paid=attendee.paid)
 
-            session.delete_from_group(attendee, attendee.group)
-            raise HTTPRedirect('{}?message={}', page_redirect, success_message)
-        # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
-        else:
-            attendee.badge_status = c.REFUNDED_STATUS
-            for shift in attendee.shifts:
-                session.delete(shift)
-            raise HTTPRedirect('{}?message={}', page_redirect, success_message)
+            attendee.group.attendees.remove(attendee)
+
+        attendee.badge_status = c.REFUNDED_STATUS
+        for shift in attendee.shifts:
+            session.delete(shift)
+        raise HTTPRedirect('{}?message={}', page_redirect, success_message)
 
     def badge_updated(self, session, id, message=''):
         return {
@@ -2431,9 +2430,11 @@ class Root:
         session.commit()
 
         return_to = params.get('return_to')
-
-        success_url_base = 'confirm?id=' + id + '&' if not return_to or return_to == 'confirm' else return_to + (
-            '?' if '?' not in return_to else '&')
+        if return_to == 'group_members':
+            success_url_base = return_to + '?id=' + attendee.group.id + '&'
+        else:
+            success_url_base = 'confirm?id=' + id + '&' if not return_to or return_to == 'confirm' else return_to + (
+                '?' if '?' not in return_to else '&')
 
         return {'stripe_intent': charge.intent,
                 'success_url': '{}message={}'.format(success_url_base, 'Payment accepted!'),
