@@ -20,7 +20,7 @@
             {{ csrf_token() }}
             <input type="hidden" name="game_id" value="{{ game.id }}" />
             <div x-data="">
-                <div class="row g-sm-3 mb-3">
+                <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(arcade_photo.image) }}</div>
                 </div>
             </div>

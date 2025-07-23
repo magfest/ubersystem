@@ -16,7 +16,7 @@
       <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
         <input type="hidden" id="estimatedCost" name="estimated_cost" value="{{ group.new_badge_cost|default(0, true) }}" />
-        <div class="row g-sm-3">
+        <div class="row g-3">
             <div class="col-auto">
             {%- set min_badges = group.min_badges_addable -%}
             Enter the number of {{ member }}s to add.
@@ -97,14 +97,14 @@ OR
     <form method="post" id="find-group-member-form" action="find_group_member">
         <input type="hidden" name="id" value="{{ group.id }}" />
         {{ csrf_token() }}
-        <div class="row g-sm-3">
+        <div class="row g-3">
             <div class="col-auto">
                 If one of your {{ member }}s has already bought a badge,
                 you can add them to your group by entering their registration confirmation number, first name, and last name below.
                 They can find their registration confirmation number in the confirmation email they received when they registered.
             </div>
         </div>
-        <div class="row g-sm-3">
+        <div class="row g-3">
             <div class="col-12 col-sm-6">
                 <label class="form-text">Confirmation #</label>
                 <div>
@@ -124,7 +124,7 @@ OR
                 </div>
             </div>
         </div>
-        <div class="row g-sm-3">
+        <div class="row g-3">
             <div class="col-12 col-sm-6">
                 <button type="submit" class="btn btn-primary">Search</button>
             </div>

@@ -13,7 +13,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block staffing %}
 {% set staffing_message = "" %}
 {% if not admin_area %}
@@ -29,13 +29,13 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     </div>
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 </div>
-<div class="row g-sm-3 mb-3" x-show="staffing">
+<div class="row g-3 mb-3" x-show="staffing">
     <div class="col-12">{{ form_macros.input(staffing_info.requested_depts_ids, required_if="staffing") }}</div>
 {% endif %}
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3" x-show="staffing">{% block merch_info %}{% endblock %}</div>
-<div class="row g-sm-3 mb-3" x-show="staffing">{% block checklist_info %}{% endblock %}</div>
+<div class="row g-3 mb-3" x-show="staffing">{% block merch_info %}{% endblock %}</div>
+<div class="row g-3 mb-3" x-show="staffing">{% block checklist_info %}{% endblock %}</div>
 
 </div>

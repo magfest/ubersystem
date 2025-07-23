@@ -46,7 +46,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
     {% endif %}
     {% if attendee.allocated_badges and (attendee.allocated_badges|length > 1 or not attendee.active_badge) %}
     </div>
-    <div class="row g-sm-3 mb-3">
+    <div class="row g-3 mb-3">
         <div class="col-sm">
             {% if attendee.active_badge %}
             Besides their current badge (#{{ attendee.badge_num }}), t{% else %}T{% endif %}his
@@ -67,7 +67,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
         </div>
     {% endif %}
     </div>
-    <div class="row g-sm-3 mb-3">
+    <div class="row g-3 mb-3">
         {% if attendee.panel_applicants and c.HAS_PANELS_ADMIN_ACCESS -%}
         <div class="col-sm">
             <div class="form-text">Panel Applications</div>
@@ -114,7 +114,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
         </div>
         {% endif %}
     </div>
-    <div class="row g-sm-3 mb-3">
+    <div class="row g-3 mb-3">
 {% endif %}
     <div class="col-sm">
         <div class="form-text">Placeholder</div>
@@ -143,7 +143,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
     {% endif %}
 {% if c.HAS_ACCOUNTS_ACCESS %}
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">
         <div class="form-text">Admin Account</div>
         <div class="mb-3">

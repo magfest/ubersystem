@@ -84,7 +84,7 @@ if($.field('return_to')) {
 {% endset %}
 
 {% if not attendee.is_new %}
-<div class="row g-sm-3 mt-1 mb-3">
+<div class="row g-3 mt-1 mb-3">
   <div class="col">
     {% if not attendee.is_new %}
     <a class="btn btn-primary" href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">View as Attendee</a>

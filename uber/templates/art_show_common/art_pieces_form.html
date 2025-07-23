@@ -26,7 +26,7 @@
           <input type="hidden" name="app_id" value="{{ app.id }}" />
           <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
           {{ csrf_token() }}
-          <div class="row g-sm-3">
+          <div class="row g-3">
             <div class="col-12 col-sm-6">
               <label for="name-{{ real_piece.id or 'new' }}" class="form-text">Piece Name</label>
               <input type="text" name="name" id="name-{{ real_piece.id or 'new' }}" value="{{ real_piece.name or '' }}" class="form-control" placeholder="The title of this piece" required maxlength="{{ c.PIECE_NAME_LENGTH }}">
@@ -48,7 +48,7 @@
           </div>
 
           <div class="for_sale">
-            <div class="row g-sm-3">
+            <div class="row g-3">
               <div class="col-12 col-sm-6">
                 <label class="form-text" for="opening_bid-{{ real_piece.id or 'new' }}">Opening Bid</label>
                 <div class="input-group">
@@ -70,7 +70,7 @@
             </div>
           </div>
 
-          <div class="row g-sm-3">
+          <div class="row g-3">
             <div class="col-12 col-sm-6">
               <label class="form-text">Gallery</label>
               <br/>
@@ -133,7 +133,7 @@
     <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
     {{ csrf_token() }}
     {% if admin_area %}
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         <label for="banner_name" class="form-text">Locations</label>
         {% if readonly %}
@@ -145,7 +145,7 @@
     </div>
     {% endif %}
 
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         <label for="banner_name" class="form-text">Banner Name</label>
         {% if readonly %}
@@ -168,7 +168,7 @@
       {% endif %}
     </div>
 
-    <div class="row g-sm-3 mb-3">
+    <div class="row g-3 mb-3">
       <div class="col-12 col-sm-6">
         <label for="hotel_name" class="form-text">Hotel Staying At</label>
         {% if readonly %}
@@ -187,7 +187,7 @@
       </div>
     </div>
 
-    <div class="row g-sm-3 mb-3">
+    <div class="row g-3 mb-3">
       <div class="col-12 col-sm-6">
         <label for="check_payable" class="form-text">Name on Check</label>
         {% if readonly %}
@@ -219,7 +219,7 @@
     {% endif %}
 
     {% if not readonly %}
-    <div class="row g-sm-3 mb-3">
+    <div class="row g-3 mb-3">
       <div class="col-12 col-sm-6">
           <button type="submit" class="btn btn-primary">Update Info</button>
       </div>
@@ -228,7 +228,7 @@
   </form>
   <h3 class="card-title">Art Show Pieces</h3>
   {% if not readonly and (not app.checked_in or admin_area) %}
-  <div class="row g-sm-3 mb-3 text-center">
+  <div class="row g-3 mb-3 text-center">
     <div class="col-4">
       <button class="btn btn-primary" id="add_piece_modal">Add {% if app.art_show_pieces %}Another {% endif %}Piece</button>
     </div>

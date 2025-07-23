@@ -39,13 +39,13 @@
   {% set address_model = attendee %}
 {% endif %}
 {% set attendee_fields_ro = printable or not c.INDEPENDENT_ART_SHOW %}
-<div class="row g-sm-3 p-0">
+<div class="row g-3 p-0">
 {{ macros.name_form_group(attendee, label="First & Last Name", is_readonly=attendee_fields_ro, use_bs5=True, is_required=True) }}
 {{ macros.form_group(attendee, 'legal_name', label="Name on Photo ID", help="The name on your ID, if different from your first and last name.", is_readonly=attendee_fields_ro, use_bs5=True) }}
 </div>
 
 {% if attendee.cellphone or attendee.email or not printable %}
-<div class="row g-sm-3">
+<div class="row g-3">
   {% if attendee.email or not printable %}
   {{ macros.form_group(attendee, 'email', label="Email Address", is_readonly=printable, use_bs5=True, is_required=True) }}
   {% endif %}
@@ -61,7 +61,7 @@
 </div>
 
 {% if attendee.cellphone or not printable %}
-<div class="row g-sm-3">
+<div class="row g-3">
   <p class="form-text">
     {{ macros.checkbox(attendee.art_show_bidder, 'share_email', label="It's OK to share my email address with artists whose work I buy.", is_readonly=printable) }}
   </p>
@@ -72,11 +72,11 @@
 {{ macros.address_form(address_model, is_readonly=attendee_fields_ro, use_bs5=True) }}
 {% endif %}
 
-<div class="row g-sm-3">
+<div class="row g-3">
 {% if not admin_area %}{{ macros.form_group(attendee, 'badge_num', label="Badge Number", type="number", is_readonly=attendee_fields_ro, use_bs5=True, is_required=True) }}{% endif %}
 </div>
 
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col">
     <div class="mb-3">
       <br/>
@@ -94,7 +94,7 @@
 
 {% if admin_area %}
 <h6><span>Staff Fields</span></h6>
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col">
     {{ macros.form_group(attendee, 'badge_printed_name', label="Badge Name", is_readonly=attendee_fields_ro, use_bs5=True, is_required=True) }}
   </div>
@@ -118,7 +118,7 @@
   <input type="hidden" name="id" class="bidder_id" value="{{ attendee.art_show_bidder.id }}" />
 </div>
 
-<div class="row g-sm-3">
+<div class="row g-3">
 {{ macros.form_group(attendee.art_show_bidder, 'admin_notes', type='textarea', label="Notes", is_readonly=printable, use_bs5=True) }}
 <div class="col-12 col-sm-6">
   <div class="form-text">Email List of Won Pieces?</div>
@@ -138,7 +138,7 @@
 </strong>
 </span>
 <br/>
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col-12 col-sm-6">
     <label class="form-text">Signature</label>
     <div class="mb-3">
@@ -147,7 +147,7 @@
   </div>
 </div>
 
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col-12 col-sm-6">
     <label class="form-text">Date</label>
     <div class="mb-3">

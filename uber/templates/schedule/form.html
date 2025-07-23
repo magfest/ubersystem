@@ -6,7 +6,7 @@
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ event.db_id }}" />
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-12 col-sm-6">
         <label for="location" class="form-text">Location</label>
         <select name="location" class="form-select">
@@ -19,7 +19,7 @@
     </div>
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-12 col-sm-6">
         <label for="description" class="form-text">Description</label>
         <div><textarea rows="6" cols="40" class="form-control" name="description">{{ event.description }}</textarea></div>
@@ -30,7 +30,7 @@
     </div>
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-12 col-sm-6">
         <label for="start_time" class="form-text">Start Time</label>
         <div class="input-group">
@@ -56,7 +56,7 @@
     </div>
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-12 col-sm-6">
         <label for="panel_id" class="form-text">Panel Applications</label>
         <select name="panel_id" id="panel_id" class="form-select">

@@ -43,7 +43,7 @@
         {% set read_only = False %}
         {% include 'forms/hotel/room_lottery.html' with context %}
     </div>
-        <div class="row g-sm-3 mb-3">
+        <div class="row g-3 mb-3">
             <div class="col-12">
                 <a id="return-btn" class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">{% if not application.entry_type %}Cancel and {% endif %}Return to Options</a>
                 {% if application.entry_form_completed %}

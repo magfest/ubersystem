@@ -21,7 +21,7 @@
   </div>
   {% endif %}
 
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col-12 col-sm-6">
     <label for="artist_name" class="form-text">Artist Name</label>
     {% if readonly %}
@@ -64,7 +64,7 @@
   {% endif %}
   </div>
 </div>
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col-12 col-sm-6">
     <label for="banner_name" class="form-text">Banner Name</label>
     {% if readonly %}
@@ -102,7 +102,7 @@
 </div>
 
 {% if c.ARTIST_PAYOUT_METHOD_OPTS|length > 2 %}
-  <div class="row g-sm-3">
+  <div class="row g-3">
     <div class="col-12 col-sm-6">
       <label class="form-text">Preferred Payout Method</label>
       <div class="mb-3">
@@ -151,7 +151,7 @@
 {% endif %}
 {% endif %}
 
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col-12 col-sm-6">
     <label for="panels" class="form-text">General Panels</label>
     {% if app.panels and app.panels > max_panels and not admin_area %}
@@ -180,7 +180,7 @@
   </div>
 </div>
 
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col-12 col-sm-6">
     <label for="panels_ad" class="form-text">Mature Panels</label>
     {% if app.panels_ad and app.panels_ad > max_panels and not admin_area %}
@@ -216,7 +216,7 @@
 </div>
 {% endif %}
 
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col-12 col-sm-6">
     <label for="description" class="form-text">Description</label>
     {% if readonly %}
@@ -237,7 +237,7 @@
   </div>
 </div>
 
-<div class="row g-sm-3">
+<div class="row g-3">
   <div class="col-12 col-sm-6">
     <label for="contact_at_con" class="form-text">How should we contact you at-con?</label>
     {% if readonly %}

@@ -12,7 +12,7 @@ no_cellphone: {{ other_info.no_cellphone.data|tojson }},
 
 {% if include_cellphone %}
 </div>
-<div class="row g-sm-3 mb-3" x-show="staffing">
+<div class="row g-3 mb-3" x-show="staffing">
     <div class="col-12">
         {% call form_macros.input(other_info.cellphone, required_if="staffing && !no_cellphone", **{':disabled':'no_cellphone'}) %}
         {{ form_macros.input(other_info.no_cellphone, alpine_model="no_cellphone") }}
@@ -24,7 +24,7 @@ no_cellphone: {{ other_info.no_cellphone.data|tojson }},
 
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-12" x-show="staffing">{{ form_macros.input(other_info.requested_depts_ids) }}</div>
 {% endif %}
 {% endblock %}

@@ -70,7 +70,7 @@
         <div class="modal-body">
           <form id="update-printers" action="update_printers" method="post">
             <input type="hidden" name="reg_station_id" value="{{ reg_station_id }}" />
-            <div class="row g-sm-3">
+            <div class="row g-3">
               <div class="col-12 col-sm-6">
                 <label for="printer_id" class="form-text">Printer ID <span class="text-danger"> *</span></label>
                 <input type="text" name="printer_id" id="printer_id" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" placeholder="E.g., printer_01" class="form-control" required>
@@ -93,7 +93,7 @@
 
 {% endblock adminheader %}
 {% block admin_controls %}
-<div class="row g-sm-3 row-cols-auto">
+<div class="row g-3 row-cols-auto">
     <div class="col-12 col-sm-6 col-md-5">
       <form role="form" method="get" action="index" id="search_form">
         <div class="row g-sm-1 row-cols-auto">

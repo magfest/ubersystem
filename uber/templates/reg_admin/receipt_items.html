@@ -523,7 +523,7 @@
         <form action="edit_receipt_item" method="post">
           <input type="hidden" value="{{ item.id }}" name="id" />
           {{ csrf_token() }}
-          <div class="row g-sm-3">
+          <div class="row g-3">
             <div class="col-12 col-sm-4">
               <div class="form-text">Added</div>
               <div class="mb-3">{{ item.added|datetime_local("%b %-d, %-I:%M%p") }}</div>
@@ -544,7 +544,7 @@
               </div>
             </div>
           </div>
-          <div class="row g-sm-3">
+          <div class="row g-3">
             <div class="col-12 col-sm-4">
               <div class="form-text">Description</div>
               <div class="mb-3">{{ item.desc }}</div>
@@ -563,7 +563,7 @@
               <div class="mb-3">{{ item.purchaser_id }}</div>
             </div>
           </div>
-          <div class="row g-sm-3">
+          <div class="row g-3">
             <div class="col-12">
               <div class="form-text">Transaction</div>
               <div class="mb-3">
@@ -593,7 +593,7 @@
               </div>
             </div>
           </div>
-          <div class="row g-sm-3">
+          <div class="row g-3">
             <div class="col-12 col-sm-6">
               <label for="department-{{ item.id }}" class="form-text">Department</label>
               <div class="mb-3">
@@ -712,7 +712,7 @@
           </div>
           <div role="tabpanel" class="tab-pane active" id="txn-{{ txn.id }}">
         {% endif %}
-        <div class="row g-sm-3">
+        <div class="row g-3">
           <div class="col-12 col-sm-6">
             <div class="form-text">Added</div>
             <div class="mb-3">{{ txn.added|datetime_local("%b %-d, %-I:%M%p") }}</div>
@@ -733,7 +733,7 @@
           </div>
         </div>
         {% if txn.method in [c.STRIPE, c.SQUARE, c.MANUAL] %}
-        <div class="row g-sm-3">
+        <div class="row g-3">
           <div class="col-12 col-sm-6">
             <div class="form-text">{{ processors[txn.method] }} ID(s)</div>
             <div class="mb-3">
@@ -752,7 +752,7 @@
           {% endif %}
         </div>
         {% endif %}
-        <div class="row g-sm-3">
+        <div class="row g-3">
           <div class="col-12 col-sm-6">
             <div class="form-text">Description</div>
             <div class="mb-3">{{ txn.desc }}</div>
@@ -767,7 +767,7 @@
             </div>
           </div>
         </div>
-        <div class="row g-sm-3">
+        <div class="row g-3">
           <div class="col-12 col-sm-6">
             <div class="form-text">{{ "Payment" if txn.amount > 0 else "Refund" }} Method</div>
             <div class="mb-3">{{ txn.method_label }}</div>
@@ -828,7 +828,7 @@
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ receipt.id }}" />
       <input type="hidden" name="item_type" value="{{ type }}" />
-      <div class="row g-sm-3 justify-content-end">
+      <div class="row g-3 justify-content-end">
         <label for="department-{{ type }}" class="col-auto col-form-label">Department</label>
         <div class="col-auto">
           <select name="department" id="department-{{ type }}" class="form-select" onChange="setItemCategories('{{ type }}')">
@@ -874,7 +874,7 @@
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ receipt.id }}" />
       <input type="hidden" name="txn_type" value="{{ type }}" />
-      <div class="row g-sm-3 justify-content-end">
+      <div class="row g-3 justify-content-end">
         <label for="amount" class="col-auto col-form-label">{{ type|title }} Method</label>
         <div class="col-auto">
           <select name="method" class="form-select">
