@@ -234,9 +234,7 @@ def overridden_badge_cost(attendee, new_attendee=None):
         old_cost = cost_from_base_badge_item(attendee, new_attendee)
         if old_cost == 0:
             if skip_badge_cost_calc(attendee, new_receipt=True):
-                old_cost = attendee.calculate_badge_price(include_price_override=False) * 100
-            else:
-                return
+                old_cost = attendee.calculate_badge_cost(include_price_override=False) * 100
         return ("Custom Badge Price", (attendee.overridden_price * 100) - old_cost, 'overridden_price')
 
     if attendee.overridden_price is None and new_attendee.overridden_price is None:
@@ -279,9 +277,7 @@ def badge_upgrade_cost(attendee, new_attendee=None):
         old_cost = cost_from_base_badge_item(attendee, new_attendee)
         if old_cost == 0:
             if skip_badge_cost_calc(attendee, new_receipt=True):
-                old_cost = attendee.calculate_badge_price(include_price_override=False) * 100
-            else:
-                return
+                old_cost = attendee.calculate_badge_cost(include_price_override=False) * 100
         return (f"Upgrade to {attendee.badge_type_label} Badge", new_cost - old_cost, 'badge_type')
     elif not new_attendee:
         return

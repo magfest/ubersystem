@@ -21,7 +21,7 @@
 <div class="text-center h4 mb-3">
 {{ attendee.full_name }}
 </div>
-<div class="d-flex gap-3 justify-content-around mb-2">
+<div class="d-flex flex-wrap gap-3 justify-content-start justify-content-sm-around text-start mb-2">
     <div>{{ left }}</div>
     <div>{{ right }}</div>
 </div>
@@ -53,13 +53,12 @@
     </div>
 </div>
 {% endif %}
-<div class="d-flex gap-1 mt-2 align-items-center">
+<div class="d-flex flex-wrap gap-1 mt-2 justify-content-between align-items-center">
+    <div class="d-flex gap-1">
     {% if attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
-    <div>
         <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-success mb-1" value="Edit">
         <i class="fa fa-address-card-o"></i> Finish Registering
         </a>
-    </div>
     {% else %}
         {% if not attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
         <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info">
@@ -89,8 +88,9 @@
             {% endif %}
         {% endif %}
     {% endif %}
+    </div>
     {% if attendee.is_valid %}
-    <div class="ms-auto">{% include 'preregistration/badge_refund.html' with context %}</div>
+    <div>{% include 'preregistration/badge_refund.html' with context %}</div>
     {% endif %}
 </div>
 

@@ -7,7 +7,7 @@
     Afterwards, p{% else %}P{% endif %}lease take a moment to load {{ attendees|length }} blank badge{{ attendees|length|pluralize }} from the minor badge stock onto printer "{{ printer_id }}" before continuing.
     <div class="alert" role="alert" id="minor-check-message"><span></span></div>
     <form action="/" role="form" class="minor-check-id">
-        <div class="row g-sm-3">
+        <div class="row g-3">
         <div class="col-12 col-sm-6">
             <label for="printer_id" class="form-text">Printer ID</label>
             <input type="text" class="form-control" onKeyUp="changeButtonLabel()" value="{{ printer_id }}" name="printer_id" />

@@ -24,7 +24,7 @@
     <form method="post" action="mark_as_paid">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
-        <div class="row g-sm-3 row-cols-auto justify-content-center">
+        <div class="row g-3 row-cols-auto justify-content-center">
             <div class="col">
                 <select name="payment_method" class="form-select" onChange="toggleMarkButton(this)">
                     <option value="">Payment Method</option>

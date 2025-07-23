@@ -566,7 +566,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
-            if value.isupper() or value.islower() and value.lower() != self.orig_value_of(value).lower():
+            if (value.isupper() or value.islower()) and value.lower() != self.orig_value_of(attr).lower():
                 setattr(self, attr, value.title())
 
         if self.legal_name and self.full_name == self.legal_name:
@@ -2632,7 +2632,8 @@ class AttendeeAccount(MagModel):
     @property
     def refunded_deferred_attendees(self):
         return [attendee for attendee in self.attendees
-                if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]]
+                if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]
+                and not attendee.current_attendee]
 
 
 class BadgePickupGroup(MagModel):

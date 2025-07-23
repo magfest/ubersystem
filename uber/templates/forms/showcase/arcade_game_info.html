@@ -12,7 +12,7 @@
 
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block title_desc %}
 <div class="col-sm">{{ form_macros.input(arcade_game_info.title) }}</div>
 <div class="col-sm">{{ form_macros.input(arcade_game_info.primary_contact_id, choices=studio.primary_contact_opts) }}</div>
@@ -20,7 +20,7 @@
 </div>
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block dev_video %}
   <div class="col-sm">{{ form_macros.input(arcade_game_info.description) }}</div>
   <div class="col-sm">{{ form_macros.input(arcade_game_info.link_to_video) }}</div>

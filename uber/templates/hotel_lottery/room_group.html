@@ -183,7 +183,7 @@
                 {% endif %}
                 <p>Room group members will be able to view your initials ({{ application.group_leader_name }}) and most of the details of your lottery entry. They will NOT see your check-in name{% if application.entry_type == c.ROOM_ENTRY %} or any ADA-related requests{% endif %}.</p>
                 
-                <div class="row g-sm-3">
+                <div class="row g-3">
                     <div class="col-12 col-sm-6">
                         <form method="post" action="save_group" id="update-group">
                             {{ csrf_token() }}
@@ -272,7 +272,7 @@
             <form method="post" id="group-lookup-form" action="room_group_search">
             <input type="hidden" name="member_id" value="{{ application.id }}" />
             {{ csrf_token() }}
-            <div class="row g-sm-3">
+            <div class="row g-3">
                 {% if False %}
                 <div class="col-12 col-sm-4">
                     <div class="form-text">Invite Code</div>
@@ -302,7 +302,7 @@
             <form method="post" action="join_group" id="join-group-form">
                 <input type="hidden" name="id" value="{{ application.id }}">
                 <input type="hidden" id="room_group_id" name="room_group_id" value="">
-                <div class="row g-sm-3">
+                <div class="row g-3">
                     <div class="col-12 col-sm-6">
                         <button type="button" class="btn btn-outline-secondary" onClick="setStep('#group-lookup')">
                             Back
@@ -326,13 +326,13 @@
         </p>
         <form method="post" action="save_group" id="create-group-form">
             {{ csrf_token() }}
-            <div class="row g-sm-3">
+            <div class="row g-3">
                 <input type="hidden" name="id" value="{{ application.id }}">
                 <div class="col-12 col-sm-6">
                     {{ form_macros.input(lottery_room_group.room_group_name) }}
                 </div>
             </div>
-            <div class="row g-sm-3">
+            <div class="row g-3">
                 <div class="col-12 col-sm-6">
                     <button type="submit" class="btn btn-primary">Create Room Group</button>
                 </div>

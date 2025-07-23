@@ -24,7 +24,7 @@ get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 
 {% set max_badges = c.MAX_DEALERS if group.is_dealer and c.MAX_DEALERS else c.MAX_GROUP_SIZE %}
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block name_desc %}
 {% if not admin_area %}
 <input type="hidden" name="is_dealer" x-model="is_dealer">
@@ -64,7 +64,7 @@ get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 {% endif %}
 {% endblock %}
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block badges_tables %}
 {% if is_prereg_dealer %}
         <div class="col-sm">{{ form_macros.input(table_info.tables, choices=c.PREREG_TABLE_OPTS, required=True) }}</div>
@@ -76,8 +76,8 @@ get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">{% block cost %}{% endblock %}</div>
-<div class="row g-sm-3 mb-3">{% block group_status %}{% endblock %}</div>
+<div class="row g-3 mb-3">{% block cost %}{% endblock %}</div>
+<div class="row g-3 mb-3">{% block group_status %}{% endblock %}</div>
 
 {% if admin_area %}
 {% if not group.is_new %}
@@ -180,13 +180,13 @@ get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 <div class="form-text">Table Info</div>
 {% endif %}
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block website %}
     <div class="col-sm">{{ form_macros.input(table_info.website, required_if="is_dealer") }}</div>
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block categories %}
     <div class="col">
         {% call form_macros.input(table_info.categories, alpine_model="categories", required_if="is_dealer") %}
@@ -199,11 +199,11 @@ get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 
 {% set extra_fields = '' %}
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block textareas %}
     <div class="col">{{ form_macros.input(table_info.wares, required_if="is_dealer") }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col">{{ form_macros.input(table_info.special_needs) }}</div>
     {{ extra_fields }}
 {% endblock %}

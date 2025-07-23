@@ -11,7 +11,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block admin_notes %}
     <div class="col-sm">{{ form_macros.input(badge_admin_notes.regdesk_info, admin_text="Any instructions here are shown at the top of this form.") }}</div>
     {% set review_link = 'for <a href="../registration/review" target="_blank">reviewing after the event</a>'|safe if c.HAS_REGISTRATION_ACCESS else 'collected for registration admins after the event' %}

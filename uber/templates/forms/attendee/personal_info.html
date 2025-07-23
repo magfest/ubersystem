@@ -45,7 +45,7 @@
 {# Badge related values and staffing values are found in a higher level x-data that we leverage here. #}
 <div x-data="personalInfo()">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block name %}
   {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
   <div class="col-sm">{{ form_macros.input(personal_info.first_name, alpine_model="first_name", required_if="!unassignedBadge") }}</div>
@@ -53,7 +53,7 @@
 
   {% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
   </div>
-  <div class="row g-sm-3 mb-3">
+  <div class="row g-3 mb-3">
     <div class="col-sm">
         {{ form_macros.input(personal_info.same_legal_name, alpine_model='same_legal_name') }}
     </div>
@@ -66,13 +66,13 @@
 
   {% if admin_area or attendee.has_personalized_badge %}
   </div>
-  <div class="row g-sm-3 mb-3">
+  <div class="row g-3 mb-3">
     <div class="col-12">{{ form_macros.input(personal_info.badge_printed_name, required_if="type_requires_name && !unassignedOrPlaceholder") }}</div>
   {% endif %}
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block contact_info %}
   {% set attendee_email = attendee.masked_email if limited_read else attendee.email %}
   <div class="col-sm">
@@ -88,7 +88,7 @@
                            required_if="emailRequired", **{':disabled':'copy_email'}) }}
     </div>
     </div>
-    <div class="row g-sm-3 mb-3">
+    <div class="row g-3 mb-3">
   {% endif %}
   <div class="col-sm">
     {% call form_macros.input(personal_info.cellphone, required_if="cellphoneRequired", **{':disabled':'disableCellphone'}) %}
@@ -104,7 +104,7 @@
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block age %}
   <div class="col-sm">
     {% if c.COLLECT_EXACT_BIRTHDATE %}
@@ -130,7 +130,7 @@
 {% block address %}
   {% if c.COLLECT_FULL_ADDRESS %}
     {% if is_prereg_dealer %}
-    <div class="row g-sm-3 mb-3">
+    <div class="row g-3 mb-3">
       <div class="col-sm">
           {{ form_macros.input(personal_info.copy_address, **{'x-model.boolean':'copy_address'}) }}
       </div>
@@ -138,7 +138,7 @@
     {% endif %}
     {{ form_macros.address_fields(personal_info) }}
   {% else %}
-  <div class="row g-sm-3 mb-3">
+  <div class="row g-3 mb-3">
     <div class="col-sm-6">
         {% call form_macros.input(personal_info.zip_code, required_if="zipCodeRequired", **{':disabled':'copy_address'}) %}
           {{ form_macros.input(personal_info.international,  **{'x-model.boolean':'international'}) }}
@@ -149,7 +149,7 @@
 {% endblock %}
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block ec_info %}
 {% set show_ec = admin_area and ((attendee.admin_read_access() and attendee.admin_read_access() > 2) or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS) or (attendee.is_new or not admin_area) %}
 {% if show_ec or not personal_info.ec_name.data %}
@@ -162,13 +162,13 @@
 {% endif %}
 {% if show_ec or not personal_info.onsite_contact.data %}
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
   <div class="col-sm">
       {{ form_macros.input(personal_info.onsite_contact, extra_field=onsite_extra_field, maxlength="500", required_if="onsiteContactRequired", **{':disabled':'no_onsite_contact'}) }}
       {{ form_macros.input(personal_info.no_onsite_contact, **{'x-model.boolean':'no_onsite_contact'}) }}
   </div>
   <div class="col-sm">
-    <div class="alert alert-info mt-4" role="alert">
+    <div class="alert alert-info mb-0" role="alert">
     Please provide names and contact info for a trusted friend or friends who will be at or near the venue during the event.
     </div>
   </div>
