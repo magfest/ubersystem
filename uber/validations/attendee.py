@@ -214,7 +214,7 @@ def upgrade_sold_out(form, field):
 
 @BadgeExtras.field_validation('badge_type_single')
 def must_select_day(form, field):
-    if form.is_admin or form.model.attendance_type == form.attendance_type.data:
+    if form.is_admin or (form.model.attendance_type == form.attendance_type.data and not form.model.is_new):
         return
 
     if form.attendance_type.data and form.attendance_type.data == c.SINGLE_DAY and c.BADGES[field.data] not in c.DAYS_OF_WEEK:
@@ -223,7 +223,7 @@ def must_select_day(form, field):
 
 @BadgeExtras.field_validation('badge_type')
 def must_select_type(form, field):
-    if not c.BADGE_TYPE_PRICES or form.is_admin or form.model.attendance_type == form.attendance_type.data:
+    if not c.BADGE_TYPE_PRICES or form.is_admin or (form.model.attendance_type == form.attendance_type.data and not form.model.is_new):
         return
 
     if form.attendance_type.data and form.attendance_type.data == c.WEEKEND and \
