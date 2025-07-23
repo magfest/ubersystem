@@ -1416,20 +1416,10 @@ class Root:
                 attendees = list(chain(*attendees_by_name_email.values()))
 
             if models and which_import == 'accounts':
-                accounts = models
-                accounts_by_email = groupify(accounts, lambda a: normalize_email(a['email']))
-
-                existing_accounts = session.query(AttendeeAccount).filter(
-                    AttendeeAccount.email.in_(accounts_by_email.keys())) \
-                    .options(subqueryload(AttendeeAccount.attendees)).all()
-                for account in existing_accounts:
-                    existing_key = account.email
-                    accounts_by_email.pop(existing_key, {})
-                accounts = list(chain(*accounts_by_email.values()))
                 admin_id = cherrypy.session.get('account_id')
                 admin_name = session.admin_attendee().full_name
-                import_attendee_accounts.delay(accounts, admin_id, admin_name, target_server, api_token)
-                message = f"{len(accounts)} attendee accounts queued for import." 
+                import_attendee_accounts.delay(models, admin_id, admin_name, target_server, api_token)
+                message = f"{len(models)} attendee accounts queued for import. Existing accounts and pending imports will be skipped."
 
             if models and which_import == 'groups':
                 groups = models
