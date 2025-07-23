@@ -11,8 +11,8 @@
 <div class="card">
   <div class="card-body">
     {% include 'forms/prereg_intro.html' %}
-
-  {{ form_macros.form_validation('prereg-form') }}
+    
+  {{ form_macros.form_validation('prereg-form', form_list=form_list) }}
 {% include 'forms/alpine/attendee_metadata.html' %}
 
 {#- The action is set to "post_form" in order to bypass the NGINX cache. -#}

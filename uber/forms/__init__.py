@@ -365,7 +365,7 @@ class MagForm(Form):
                   or isinstance(field.widget, SelectButtonGroup)
                   ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
-                    formdata[name] = getattr(field, 'default', [])
+                    formdata[name] = []
                 elif field_in_obj and isinstance(getattr(obj, name), str):
                     formdata[name] = getattr(obj, name).split(',')
                 else:
