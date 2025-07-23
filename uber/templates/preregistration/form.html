@@ -72,7 +72,7 @@
 {% if is_prereg_dealer %}
 {{ "js/warn-before-logout-dealer.js"|serve_static_content }}
 {% else %}
-<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
+<div class="text-center mt-1"><em class="badge bg-dark fw-normal text-wrap lh-sm">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
 {% if cart_not_empty %}{{ "js/warn-before-logout.js"|serve_static_content }}{% endif %}
 {% endif %}
 {% endblock %}
