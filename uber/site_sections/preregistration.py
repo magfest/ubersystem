@@ -852,19 +852,17 @@ class Root:
             prereg_cart_error = cart.prereg_cart_checks(session)
             if prereg_cart_error:
                 return {'error': prereg_cart_error}
-            
+
+            used_codes = defaultdict(int)
             for attendee in cart.attendees:
-                if not message and attendee.promo_code_code:
-                    message = check_prereg_promo_code(session, attendee, used_codes)
-                if not message:
-                    used_codes[attendee.promo_code_code] += 1
-                    form_list = ['BadgeExtras'] # Re-check purchase limits
+                used_codes[attendee.promo_code_code] += 1
+                form_list = ['BadgeExtras'] # Re-check purchase limits
 
-                    forms = load_forms(params, attendee, form_list, checkboxes_present=False)
+                forms = load_forms(params, attendee, form_list, checkboxes_present=False)
 
-                    all_errors = validate_model(forms, attendee, create_preview_model=False)
-                    if all_errors:
-                        message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+                all_errors = validate_model(forms, attendee, create_preview_model=False)
+                if all_errors:
+                    message = ' '.join([item for sublist in all_errors.values() for item in sublist])
 
                 if message:
                     message += f" Please click 'Edit' next to {attendee.full_name}'s registration to fix any issues."
