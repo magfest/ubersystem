@@ -2632,7 +2632,8 @@ class AttendeeAccount(MagModel):
     @property
     def refunded_deferred_attendees(self):
         return [attendee for attendee in self.attendees
-                if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]]
+                if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]
+                and not attendee.current_attendee]
 
 
 class BadgePickupGroup(MagModel):
