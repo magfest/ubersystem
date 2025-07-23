@@ -281,6 +281,8 @@
     if (submit_button_name != '') {
       form_data.set(submit_button_name, submit_button_val);
     }
+    $('.invalid-feedback').hide();
+    $(':input').removeClass("is-invalid");
     $.ajax({
       method: 'POST',
       url: "{{ page_handler }}",
