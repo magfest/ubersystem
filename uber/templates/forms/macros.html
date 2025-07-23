@@ -25,6 +25,10 @@
   {% endif %}
 {% endfor %}
 
+{% if field.form.read_only and not 'readonly' in kwargs %}
+{% set _ = custom_kwargs.update({'readonly': true}) %}
+{% endif %}
+
 {% if locked_fields|default(None, true) and field.name in locked_fields and not upgrade_modal %}
 {% set _ = custom_kwargs.update({'readonly': true}) %}
 {% endif %}

@@ -2353,8 +2353,8 @@ class Root:
         if c.AUTHORIZENET_LOGIN_ID:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
-            new_txn_requent = TransactionRequest(txn.receipt, attendee.email, txn.desc, txn.amount)
-            stripe_intent = new_txn_requent.stripe_or_mock_intent()
+            new_txn_request = TransactionRequest(txn.receipt, attendee.email, txn.desc, txn.amount)
+            stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
             session.commit()
         else:
@@ -2393,8 +2393,8 @@ class Root:
                 receipt_email = group.leader.email
             elif group.attendees:
                 receipt_email = group.attendees[0].email
-            new_txn_requent = TransactionRequest(txn.receipt, receipt_email, txn.desc, txn.amount)
-            stripe_intent = new_txn_requent.stripe_or_mock_intent()
+            new_txn_request = TransactionRequest(txn.receipt, receipt_email, txn.desc, txn.amount)
+            stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
             session.commit()
         else:
@@ -2467,7 +2467,6 @@ class Root:
             if new_receipt.current_amount_owed:
                 raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
             raise HTTPRedirect(page + 'message=Your registration has been confirmed')
-        log.error(message)
         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' +
                            return_to + '&message=There was a problem resetting your receipt.')
 
