@@ -1323,7 +1323,7 @@ if c.PANELS_ENABLED:
         Attendee,
         'Your {EVENT_NAME} Event Schedule',
         'panels/panelist_schedule.txt',
-        lambda a: a.badge_type != c.GUEST_BADGE and a.assigned_panelists,
+        lambda a: a.assigned_panelists,
         ident='event_schedule',
         sender=c.PANELS_EMAIL)
 
