@@ -1269,10 +1269,7 @@ class PanelAppEmailFixture(AutomatedEmailFixture):
             PanelApplication,
             subject,
             template,
-            lambda app: filter(app) and (
-                not app.submitter or
-                not app.submitter.attendee_id or
-                app.submitter.attendee.badge_type != c.GUEST_BADGE),
+            lambda app: True and filter(app),
             ident,
             sender=c.PANELS_EMAIL,
             **kwargs)
