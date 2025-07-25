@@ -54,7 +54,7 @@ Use the form below to associate this application with an event on the schedule. 
     <select name="event_id">
         <option value="">Select an event</option>
         {% for event in panels %}
-            <option value="{{ event.id }}">{{ event.name }} [{{ event.location_label }}] ({{ event.timespan(minute_increment=30) }})</option>
+            <option value="{{ event.id }}">{{ event.name }} [{{ event.location_label }}] ({{ event.timespan() }})</option>
         {% endfor %}
     </select>
     <input type="submit" value="Associate" />

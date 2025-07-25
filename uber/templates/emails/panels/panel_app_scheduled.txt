@@ -1,6 +1,6 @@
 {{ app.submitter.first_name }},
 
-"{{ app.name }}", the panel you submitted for {{ c.EVENT_NAME }}, has been scheduled. {{ c.EVENT_NAME }} is {{ c.EPOCH|datetime_local("%A, %B %-d") }} through {{ c.ESCHATON|datetime_local("%A, %B %-d") }}, and your panel is currently scheduled for {{ app.event.timespan(minute_increment=30) }}.
+"{{ app.name }}", the panel you submitted for {{ c.EVENT_NAME }}, has been scheduled. {{ c.EVENT_NAME }} is {{ c.EPOCH|datetime_local("%A, %B %-d") }} through {{ c.ESCHATON|datetime_local("%A, %B %-d") }}, and your panel is currently scheduled for {{ app.event.timespan() }}.
 
 This scheduling can potentially be changed in the event of a cancellation or other request to switch, but was chosen based on yours and others' declared availability from your submission.
 
