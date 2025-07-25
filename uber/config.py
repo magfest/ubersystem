@@ -245,19 +245,38 @@ class _Overridable:
         c object for each enum.
         """
         opts, lookup, varnames = [], {}, []
+        other_val = self.create_enum_val('other')
+        other_var, other_opt = None, None
+
         for name, desc in section.items():
             if isinstance(desc, int):
                 val, desc = desc, name
             else:
-                varnames.append(name.upper())
                 val = self.create_enum_val(name)
+                if val == other_val:
+                    other_var = name.upper()
+                else:
+                    varnames.append(name.upper())
 
             if desc:
-                opts.append((val, desc))
-                if prices:
-                    lookup[desc] = val
+                if val == other_val:
+                    other_opt = (val, desc)
                 else:
-                    lookup[val] = desc
+                    opts.append((val, desc))
+                    if prices:
+                        lookup[desc] = val
+                    else:
+                        lookup[val] = desc
+
+        if other_var is not None:
+            varnames.append(other_var)
+
+        if other_opt is not None:
+            opts.append(other_opt)
+            if prices:
+                lookup[other_opt[1]] = other_opt[0]
+            else:
+                lookup[other_opt[0]] = other_opt[1]
 
         enum_name = enum_name.upper()
         setattr(self, enum_name + '_OPTS', opts)
