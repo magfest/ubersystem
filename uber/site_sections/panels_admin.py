@@ -395,7 +395,7 @@ class Root:
                 getattr(app.event, 'status', app.status_label),
                 getattr(app.event, 'name', app.name),
                 getattr(app.event, 'location_label', '(not scheduled)'),
-                app.event.timespan(minute_increment=30) if app.event else '(not scheduled)',
+                app.event.timespan() if app.event else '(not scheduled)',
                 '\n'.join([
                     '{} ({}) {}'.format(
                         a.full_name,
