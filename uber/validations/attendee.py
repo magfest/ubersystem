@@ -227,7 +227,7 @@ def must_select_type(form, field):
         return
 
     if form.attendance_type.data and form.attendance_type.data == c.WEEKEND and \
-            field.data != c.ATTENDEE_BADGE and field.data not in c.BADGE_TYPE_PRICES:
+            field.data not in [c.ATTENDEE_BADGE, c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] + list(c.BADGE_TYPE_PRICES.keys()):
         raise ValidationError("Please select what type of badge you want.")
 
 
