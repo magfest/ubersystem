@@ -1,0 +1,34 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set art_show_info = art_show_info or forms['art_show_info'] %}
+
+<div x-data="{ {% block x_data %}
+separate_ad_banner: '{{ app.banner_name_ad }}',
+{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block checkboxes %}
+<input type="hidden" name="{{ art_show_info.us_only.name }}" value="1" />
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block banner_names %}
+    <div class="col-sm">{{ form_macros.input(art_show_info.banner_name, readonly=False) }}</div>
+    {% if app.has_mature_space %}
+    <div class="col-sm">
+        {{ form_macros.input(art_show_info.banner_name_ad, required_if="separate_ad_banner", readonly=False, **{':class':"separate_ad_banner || 'visually-hidden'"}) }}
+        {{ form_macros.input(art_show_info.separate_ad_banner, alpine_model="separate_ad_banner", readonly=False) }}
+    </div>
+    {% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block at_con_info %}
+    <div class="col-sm">{{ form_macros.input(art_show_info.check_payable, readonly=False) }}</div>
+    <div class="col-sm">{{ form_macros.input(art_show_info.contact_at_con, readonly=False) }}</div>
+{% endblock %}    
+</div>
+
+</div>

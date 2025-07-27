@@ -67,7 +67,9 @@ class PersonalInfo(AddressForm):
 class BadgeExtras(MagForm):
     dynamic_choices_fields = {'shirt': lambda: c.SHIRT_OPTS, 'staff_shirt': lambda: c.STAFF_SHIRT_OPTS}
 
+    attendance_type = HiddenIntField('Single Day or Weekend Badge?')
     badge_type = HiddenIntField('Badge Type')
+    badge_type_single = HiddenIntField('Badge Type', default=c.ATTENDEE_BADGE)
     amount_extra = HiddenIntField('Pre-order Merch')
     extra_donation = IntegerField('Extra Donation', widget=NumberInputGroup(),
                                   description=popup_link("../static_views/givingExtra.html", "Learn more"))
@@ -240,7 +242,7 @@ class BadgeFlags(MagForm):
 
 
 class AdminBadgeFlags(BadgeFlags):
-    dynamic_choices_fields = {'group_id': lambda: AdminBadgeFlags.get_valid_groups()}
+    dynamic_choices_fields = {'group_membership': lambda: AdminBadgeFlags.get_valid_groups()}
 
     can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
     badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)
@@ -248,7 +250,7 @@ class AdminBadgeFlags(BadgeFlags):
     badge_num = IntegerField('Badge #', default='', widget=TextInput())
     no_badge_num = BooleanField('Omit badge #')
     ribbon = SelectMultipleField('Ribbons', coerce=int, choices=c.RIBBON_OPTS, widget=MultiCheckbox())
-    group_id = SelectField('Group')
+    group_membership = SelectField('Group')
     paid = SelectField('Paid Status', coerce=int, choices=c.PAYMENT_OPTS)
     overridden_price = IntegerField('Base Badge Price', widget=NumberInputGroup())
     no_override = BooleanField('Let the system determine base badge price. (uncheck to override badge price)')

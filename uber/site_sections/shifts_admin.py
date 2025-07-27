@@ -109,12 +109,16 @@ class Root:
 
         cherrypy.session['prev_department_id'] = department_id
 
+        for filter in ['signups_show_past_shifts', 'signups_show_restricted',
+                       'signups_show_nonpublic', 'signups_show_filled_shifts']:
+            cherrypy.session.setdefault(filter, True)
+
         if toggle_filter:
             cherrypy.session[toggle_filter] = not cherrypy.session.get(toggle_filter)
 
-        show_past_shifts = cherrypy.session.get('signups_show_past_shifts', True)
-        show_restricted = cherrypy.session.get('signups_show_restricted', True)
-        show_nonpublic = cherrypy.session.get('signups_show_nonpublic', True)
+        show_past_shifts = cherrypy.session.get('signups_show_past_shifts')
+        show_restricted = cherrypy.session.get('signups_show_restricted')
+        show_nonpublic = cherrypy.session.get('signups_show_nonpublic')
 
         jobs = []
 
@@ -140,9 +144,9 @@ class Root:
             'message': message,
             'department_id': 'All' if department_id is None else department_id,
             'show_past_shifts': show_past_shifts,
+            'show_filled_shifts': cherrypy.session.get('signups_show_filled_shifts'),
             'show_restricted': show_restricted,
             'show_nonpublic': show_nonpublic,
-            'hide_filled': cherrypy.session.get('signups_hide_filled'),
             'attendees': session.staffers_for_dropdown(),
             'jobs': [job_dict(job) for job in jobs],
             'checklist': department_id and checklist
@@ -164,6 +168,9 @@ class Root:
             department_id = ''
         elif department_id == 'All':
             department_id = None
+
+        for filter in ['unfilled_show_past_shifts', 'unfilled_show_restricted', 'unfilled_show_nonpublic']:
+            cherrypy.session.setdefault(filter, False)
 
         if toggle_filter:
             cherrypy.session[toggle_filter] = not cherrypy.session.get(toggle_filter)

@@ -4,7 +4,7 @@
         if( badgeType === {{ c.STAFF_BADGE }} || badgeType === {{ c.CONTRACTOR_BADGE }}){
             staffing = true;
         }
-        if( ribbons.includes({{  c.VOLUNTEER_RIBBON }})) {
+        if( ribbons.includes({{ c.VOLUNTEER_RIBBON }})) {
             staffing = true;
         }
         return staffing;
@@ -12,9 +12,8 @@
 
     function checkBadgeName(badgeType){
         let badgeNameRequired = false;
-        let adminArea = {{ admin_area | javascript_bool }};
         let preAssignedTypes = {{ c.PREASSIGNED_BADGE_TYPES | jsonize }};
-        if (badgeType && adminArea && preAssignedTypes){
+        if (badgeType && preAssignedTypes){
             badgeNameRequired = preAssignedTypes.includes(badgeType);
         }
         return badgeNameRequired;
@@ -27,11 +26,12 @@
             badge_placeholder: {{ attendee.placeholder|boolean|tojson }},
             badge_ribbons: {{ attendee.ribbon_ints|tojson }},
             badge_type : {{ attendee.badge_type|tojson }},
-            require_badge_name: false,
+            group_id: {{ attendee.group_id|jsonize }},
+            type_requires_name: {{ attendee.has_personalized_badge|tojson }},
             staffing: {{ attendee.staffing|tojson }},
 
             init() {
-                this.require_badge_name = checkBadgeName(this.badge_type);
+                this.type_requires_name = checkBadgeName(this.badge_type);
                 if(this.forbid_placeholder){
                     this.badge_placeholder = false;
                 } else if (this.default_placeholder) {
@@ -44,7 +44,7 @@
                 this.$watch('badge_type',
                     (btype) => {
                         this.staffing = checkStaffing(Alpine.raw(this.badge_ribbons), btype);
-                        this.require_badge_name = checkBadgeName(btype);
+                        this.type_requires_name = checkBadgeName(btype);
                 })
             }
         }

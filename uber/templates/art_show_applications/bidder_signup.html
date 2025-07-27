@@ -1,0 +1,25 @@
+{% extends "preregistration/preregbase.html" %}
+{% import 'art_show_common/bidder_signup_macros.html' as bidder_signup_macros with context %}
+{% include "region_opts.html" %}
+{% block title %}Sign Up for Bidder Number{% endblock %}
+
+{% block content %}
+<div class="card card-body">
+    <h2>{{ c.EVENT_NAME }} Art Show Bidder Sign-Up</h2>
+    {% if signup_complete %}
+    <p>
+        Thanks for entering your information! You are <strong>NOT</strong> ready to bid yet -- 
+        please check in with a staff member at a "Bidder Sign-Up" table to finish signing up and get your bidder number.
+    </p>
+    {% else %}
+    <p>
+        To sign up for a bidder number, fill out the form below and then check in with a staff member at a "Bidder Sign-Up" table.
+        If you are an artist in the Art Show, go straight to a "Bidder Sign-Up" table.
+    </p>
+    <form method="post" action="bidder_signup" role="form">
+    {{ bidder_signup_macros.sign_up_form(attendee, printable=False) }}
+    <button type="submit" class="btn btn-primary">Begin Bidder Sign-Up</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

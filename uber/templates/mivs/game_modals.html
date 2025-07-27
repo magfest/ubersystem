@@ -31,6 +31,7 @@
     </div>
 </div>
 
+{% if game.code_type != c.NO_CODE %}
 <div
     id="new-code-{{ game.id }}"
     class="modal fade"
@@ -53,10 +54,10 @@
             {{ csrf_token() }}
             <input type="hidden" name="game_id" value="{{ game.id }}" />
             <div x-data="">
-                <div class="row g-sm-3 mb-3">
+                <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(mivs_code.code) }}</div>
                 </div>
-                <div class="row g-sm-3 mb-3">
+                <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(mivs_code.unlimited_use) }}</div>
                 </div>
             </div>
@@ -69,6 +70,7 @@
     </div>
     </div>
 </div>
+{% endif %}
 
 <div
     id="new-screenshot-{{ game.id }}"
@@ -87,15 +89,15 @@
         </div>
         <form novalidate method="post" action="../mivs/screenshot" id="new-screenshot-{{ game.id }}-form" role="form" enctype="multipart/form-data">
         <div class="modal-body">
-            {% set mivs_screenshot = image_forms['new']['mivs_screenshot'] %}
+            {% set mivs_screenshot = image_forms['mivs_new']['mivs_screenshot'] %}
             {{ form_macros.form_validation('new-screenshot-' ~ game.id ~ '-form', '../mivs/validate_image') }}
             {{ csrf_token() }}
             <input type="hidden" name="game_id" value="{{ game.id }}" />
             <div x-data="">
-                <div class="row g-sm-3 mb-3">
+                <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(mivs_screenshot.image) }}</div>
                 </div>
-                <div class="row g-sm-3 mb-3">
+                <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(mivs_screenshot.description) }}</div>
                 </div>
                 {{ form_macros.input(mivs_screenshot.is_screenshot) }}
@@ -110,6 +112,7 @@
     </div>
 </div>
 
+{% if game.code_type != c.NO_CODE and game.codes %}
 <div
     id="edit-codes-{{ game.id }}"
     class="modal fade"
@@ -172,7 +175,9 @@
     </div>
     </div>
 </div>
+{% endif %}
 
+{% if game.screenshots %}
 <div
     id="edit-screenshots-{{ game.id }}"
     class="modal fade"
@@ -202,6 +207,7 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% set can_delete_screenshots = not game.submitted or game.screenshots|length > 2 %}
                     {% for image in game.screenshots %}
                     {% set mivs_screenshot = image_forms[image.id]['mivs_screenshot'] %}
                         <tr x-data="">
@@ -219,11 +225,13 @@
                                     <input type="hidden" name="id" value="{{ image.db_id }}" />
                                     <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check"></i></button>
                                 </form>
+                                {% if can_delete_screenshots %}
                                 <form method="post" action="../mivs/delete_screenshot">
                                     {{ csrf_token() }}
                                     <input type="hidden" name="id" value="{{ image.id }}" />
                                     <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
                                 </form>
+                                {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -239,3 +247,4 @@
     </div>
     </div>
 </div>
+{% endif %}

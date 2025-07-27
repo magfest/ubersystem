@@ -1,0 +1,38 @@
+{% import 'forms/macros.html' as form_macros with context %}
+{% extends "preregistration/preregbase.html" %}
+{% set title = c.EVENT_NAME ~ "Indie Arcade Game" %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<div class="card card-body">
+  <h2>{% if game.is_new %}Register an Indie Arcade Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
+  <p>
+    Indie Arcade is home to games and digital experiences with custom hardware components, such as alt control games and arcade cabinets.
+  </p>
+  <p>Not sure where to submit your game? <a href="#" data-bs-toggle="modal" data-bs-target="#showcase-types">Check here</a> for a list of all {{ c.EVENT_NAME }} indie showcases.</p>
+  {% include 'showcase/showcase_types.html' %}
+
+  {{ form_macros.form_validation('game-form', 'validate_game') }}
+  <form novalidate method="post" id="game-form" action="game" role="form">
+    <input type="hidden" name="id" value="{{ game.db_id }}" />
+    <input type="hidden" name="studio_id" value="{{ studio.id }}" />
+    {{ csrf_token() }}
+
+    <div class="card card-body pb-0 mb-3">
+      <h3>Game Information</h3>
+    {% include "forms/showcase/arcade_game_info.html" %}
+    </div>
+
+    <div class="card card-body pb-0 mb-3">
+      <h3>Exhibition Needs</h3>
+    {% include "forms/showcase/arcade_consents.html" %}
+    </div>
+
+    <div class="card card-body pb-0 mb-3">
+      <h3>Logistics & Setup</h3>
+    {% include "forms/showcase/arcade_logistics.html" %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">{% if game.is_new %}Add Game{% else %}Upload Changes{% endif %}</button>
+  </form>
+</div>
+{% endblock %}

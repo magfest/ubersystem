@@ -154,18 +154,18 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
             {% endblock %}
 
             {% block check_in_out_dates_form %}
-            <div class="row g-sm-3">
-                <div class="col-12 col-sm-6">{{ form_macros.input(room_or_suite_lottery.earliest_checkin_date, readonly=read_only) }}</div>
-                <div class="col-12 col-sm-6">{{ form_macros.input(room_or_suite_lottery.latest_checkout_date, readonly=read_only) }}</div>
+            <div class="row g-3 mb-3">
+                <div class="col-sm">{{ form_macros.input(room_or_suite_lottery.earliest_checkin_date, readonly=read_only) }}</div>
+                <div class="col-sm">{{ form_macros.input(room_or_suite_lottery.latest_checkout_date, readonly=read_only) }}</div>
             </div>
             {% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date or not read_only %}
-            <div class="row g-sm-3 mb-3">
-                <div class="col-12 col-sm-6">
+            <div class="row g-3 mb-3">
+                <div class="col-sm">
                     {% if app_or_parent.latest_checkin_date or not read_only %}
                     {{ form_macros.input(room_or_suite_lottery.latest_checkin_date, readonly=read_only) }}
                     {% endif %}
                 </div>
-                <div class="col-12 col-sm-6">
+                <div class="col-sm">
                     {% if app_or_parent.earliest_checkout_date or not read_only %}
                     {{ form_macros.input(room_or_suite_lottery.earliest_checkout_date, readonly=read_only) }}
                     {% endif %}
@@ -217,12 +217,12 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
         </p>
         {% endblock %}
         {% block ada_info_form %}
-        <div class="row g-sm-3">
+        <div class="row g-3 mb-3">
             <div class="col-12"><strong>{{ form_macros.input(room_or_suite_lottery.wants_ada, alpine_model="wants_ada") }}</strong></div>
         </div>
-        <div class="row g-sm-3" x-show="wants_ada">
-            <div class="col-12 col-sm-6">{{ form_macros.input(room_or_suite_lottery.ada_requests, readonly=read_only, required_if="wants_ada", **{':readonly':'!wants_ada'}) }}</div>
-            <div class="col-12 col-sm-6 alert alert-info">
+        <div class="row g-3 mb-3" x-show="wants_ada">
+            <div class="col-sm">{{ form_macros.input(room_or_suite_lottery.ada_requests, readonly=read_only, required_if="wants_ada", **{':readonly':'!wants_ada'}) }}</div>
+            <div class="col-sm alert alert-info">
                 {% block ada_requests_desc %}
                 Please describe what accommodations may best suit your needs, e.g., "wide doorways" or "roll in shower."
                 This gives us an early idea as to which ADA room will work for you.

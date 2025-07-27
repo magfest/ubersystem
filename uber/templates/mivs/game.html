@@ -4,7 +4,16 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 <div class="card card-body">
-  <h2>{% if game.is_new %}Register a Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
+  <h2>{% if game.is_new %}Register an Indie Videogame Showcase Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
+  <p>
+    The Indie Videogame Showcase (MIVS) is home to digital games in any format including mobile, PC, console, VR, etc. where members of the development team will be on-hand to interact with attendees. Games can be in any stage of development, but must have a working demo.
+  </p>
+  <p>
+    All games must contain original assets or those used with explicit permission.
+    AI art and other assets are not allowed. Please email us at {{ c.MIVS_EMAIL|email_only|email_to_link }} if you have questions regarding this policy.
+  </p>
+  <p>Not sure where to submit your game? <a href="#" data-bs-toggle="modal" data-bs-target="#showcase-types">Check here</a> for a list of all {{ c.EVENT_NAME }} indie showcases.</p>
+  {% include 'showcase/showcase_types.html' %}
 
   {{ form_macros.form_validation('game-form', 'validate_game') }}
   <form novalidate method="post" id="game-form" action="game" role="form">
@@ -23,164 +32,6 @@
     </div>
 
     {% include "forms/showcase/mivs_consents.html" %}
-
-    {#
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Game Title</label>
-      <div class="col-sm-6">
-        <input class="form-control focus" type="text" name="title" value="{{ game.title }}" />
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Brief Description</label>
-      <div class="col-sm-6">
-        <input class="form-control" type="text" maxlength="140" name="brief_description" value="{{ game.brief_description }}" />
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Genres</label>
-      <div class="col-sm-6">
-        {{ macros.checkgroup(game, 'genres') }}
-        <p class="help-block">
-          Please select all that apply.
-        </p>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Multiplayer?</label>
-      <div class="col-sm-6 checkbox">
-        {{ macros.toggle_checkbox(
-                  '.player_count',
-                  'This is a multiplayer game.',
-                  suffix='_player_count',
-                  name='is_multiplayer',
-                  required_selector='.player_count',
-                  hide_on_checked=False,
-                  checked=game.is_multiplayer) }}
-      </div>
-      <div class="col-sm-6 col-sm-offset-3 player_count">
-        <input type="text" class="form-control" name="player_count" placeholder="Number of players (e.g., 1-4)" value="{{ game.player_count }}" />
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Platforms</label>
-      <div class="col-sm-6">
-        {{ macros.checkgroup(game, 'platforms') }}
-        <p class="help-block">
-          This is used to match your game with judges that own these platforms, so please only select platforms
-          which your game <em>currently</em> runs on.
-        </p>
-      </div>
-      <div class="clearfix"></div>
-      <div class="col-sm-6 col-sm-offset-3">
-        <input id="platforms-other" class="form-control" type="text" name="platforms_text" value="{{ game.platforms_text }}" placeholder="Other platform(s)"/>
-      </div>
-    </div>
-
-    {% if c.HAS_MIVS_ADMIN_ACCESS %}
-      <div class="form-group">
-        <label class="col-sm-3 control-label optional-field">Previous MIVS Entries</label>
-        <div class="col-sm-6">
-          {{ macros.checkgroup(game, 'alumni_years') }}
-          <p class="help-block">
-            The prior years this game has been in MIVS, if any. This form is shown only to admins.
-          </p>
-        </div>
-      </div>
-    {% endif %}
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Content/Trigger Warning</label>
-      <div class="col-sm-6 checkbox">
-        {{ macros.toggle_checkbox(
-                  '.warning_desc',
-                  'I would like to add a content or trigger warning for my game.',
-                  suffix='_warning_desc',
-                  name='content_warning',
-                  required_selector='.warning_desc',
-                  hide_on_checked=False,
-                  checked=game.content_warning) }}
-      </div>
-      <div class="col-sm-6 col-sm-offset-3 warning_desc">
-        <br/><p class="help-block">Please enter the content/trigger warning below.</p>
-        <textarea class="form-control" name="warning_desc" rows="4">{{ game.warning_desc }}</textarea>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Photosensitivity Warning</label>
-      <div class="col-sm-6 checkbox">
-        {{ macros.checkbox(game, 'photosensitive_warning', label_class="optional-field", label="My game may trigger photosensitivity issues.") }}
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Full Description</label>
-      <div class="col-sm-6">
-        <textarea class="form-control" name="description" rows="4">{{ game.description }}</textarea>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label optional-field">How to Play</label>
-      <div class="col-sm-6">
-        <textarea class="form-control" name="how_to_play" rows="2">{{ game.how_to_play }}</textarea>
-        <p class="help-block">
-          Please include any instructions necessary to play, especially for things which might
-          not be obvious.
-        </p>
-      </div>
-    </div>
-
-    {% include 'mivs/game_build_info.html' %}
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label optional-field">Demoed At Other Events</label>
-      <div class="col-sm-6">
-        <textarea class="form-control" name="shown_events" rows="3">{{ game.shown_events }}</textarea>
-        <p class="help-block">
-          Please list the name and year of any other event(s) where this game has be previously shown.
-        </p>
-      </div>
-    </div>
-
-    {% if game.alumni_years %}
-      <div class="form-group">
-        <label class="col-sm-3 control-label optional-field">Game Updates Since Last MIVS Showing</label>
-        <div class="col-sm-6">
-          <textarea class="form-control" name="alumni_update" rows="3">{{ game.alumni_update }}</textarea>
-          <p class="help-block">
-            Please list what has changed in your game since it was last shown in MIVS.
-          </p>
-        </div>
-      </div>
-    {% endif %}
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Showtime Agreement</label>
-      <div class="col-sm-6">
-        {{ macros.checkbox(game, 'agreed_showtimes', label_class="optional-field", label="
-        At least one person from my team will be available to man our booth from 11am to 7pm each full convention day and
-        on the last day from 11am to 2pm.  Core hours exist each day to ensure games are setup for attendees to play. Games
-        may be setup past core hours as the MIVS area is open 24 hours and will have volunteers on hand during this time.
-        ") }}
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Liability Waiver</label>
-      <div class="col-sm-6">
-        {{ macros.checkbox(game, 'agreed_liability', label_class="optional-field", label="
-        I understand that I am responsible for all equipment brought to the indie showcase by myself or my team,
-        and we do not hold liable MAGFest, MIVS, or the venue in the event equipment is stolen or damaged.
-        ") }}
-      </div>
-    </div>
-    #}
 
     <button type="submit" class="btn btn-primary">{% if game.is_new %}Add Game{% else %}Upload Changes{% endif %}</button>
   </form>

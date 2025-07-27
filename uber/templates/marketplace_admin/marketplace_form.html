@@ -1,7 +1,7 @@
 {% extends 'marketplace/marketplace_form.html' %}
 
 {% block attendee_app_info %}
-<div class="row g-sm-3 row-cols-sm-auto">
+<div class="row g-3 row-cols-sm-auto">
     {% if not new_app %}
     <div class="col flex-fill">
         <div class="form-text">Registered</div>
@@ -27,7 +27,7 @@
 {% endblock %}
 
 {% block status_cost %}
-<div class="row g-sm-3 row-cols-sm-3">
+<div class="row g-3 row-cols-sm-3">
     <div class="col">
         {{ form_macros.input(artist_marketplace_form.status) }}
     </div>
@@ -47,7 +47,7 @@
 
 {% block terms %}
 {{ super() }}
-<div class="row g-sm-3">
+<div class="row g-3">
     <div class="col-12 col-sm-6">{{ form_macros.input(artist_marketplace_form.admin_notes) }}</div>
 </div>
 {% endblock %}

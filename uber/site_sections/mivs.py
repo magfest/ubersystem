@@ -12,7 +12,7 @@ from uber.forms import load_forms
 from uber.models import Attendee, Group, GuestGroup, IndieDeveloper, IndieGame, IndieGameImage, IndieGameCode
 from uber.utils import add_opt, check, check_csrf, GuidebookUtils, validate_model
 
-from pockets.autolog import log
+
 @all_renderable(public=True)
 class Root:
     def game(self, session, id='', message='', **params):
@@ -54,7 +54,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, game, form_list)
+        forms = load_forms(params, game, form_list, field_prefix='new' if game.is_new else game.id)
         all_errors = validate_model(forms, game)
 
         if all_errors:
@@ -66,7 +66,7 @@ class Root:
         game = session.indie_game(id)
 
         if cherrypy.request.method == 'POST':
-            forms = load_forms(params, game, ['MivsDemoInfo'])
+            forms = load_forms(params, game, ['MivsDemoInfo'], field_prefix=game.id)
             for form in forms.values():
                 form.populate_obj(game)
 
@@ -82,7 +82,7 @@ class Root:
         
         if cherrypy.request.method == 'POST':
             code.game = session.indie_game(game_id)
-            forms = load_forms(params, code, ['MivsCode'])
+            forms = load_forms(params, code, ['MivsCode'], field_prefix='new' if code.is_new else code.id)
             for form in forms.values():
                 form.populate_obj(code)
 
@@ -102,7 +102,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, code, form_list)
+        forms = load_forms(params, code, form_list, field_prefix='new' if code.is_new else code.id)
         all_errors = validate_model(forms, code)
 
         if all_errors:
@@ -118,7 +118,8 @@ class Root:
 
         if cherrypy.request.method == 'POST':
             screenshot.game = session.indie_game(game_id)
-            forms = load_forms(params, screenshot, ['MivsScreenshot'])
+
+            forms = load_forms(params, screenshot, ['MivsScreenshot'], field_prefix='new' if screenshot.is_new else screenshot.id)
             for form in forms.values():
                 form.populate_obj(screenshot)
 
@@ -136,26 +137,22 @@ class Root:
     @ajax
     def validate_image(self, session, form_list=[], **params):
         if params.get('id') in [None, '', 'None']:
-            code = IndieGameImage()
+            image = IndieGameImage()
         else:
-            code = session.indie_game_image(params.get('id'))
+            image = session.indie_game_image(params.get('id'))
 
         if not form_list:
             form_list = ['MivsScreenshot']
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, code, form_list)
-        all_errors = validate_model(forms, code)
+        forms = load_forms(params, image, form_list, field_prefix='new' if image.is_new else image.id)
+        all_errors = validate_model(forms, image)
 
         if all_errors:
             return {"error": all_errors}
 
         return {"success": True}
-
-    def view_image(self, session, id):
-        screenshot = session.indie_game_image(id)
-        return serve_file(screenshot.filepath, name=screenshot.filename, content_type=screenshot.content_type)
 
     @csrf_protected
     def delete_screenshot(self, session, id):

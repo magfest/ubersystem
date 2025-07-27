@@ -4,29 +4,28 @@
 {% import 'forms/macros.html' as form_macros with context %}
 
 {% block content %}
-<h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ attendee.full_name }}</span></h1>
-<div class="card">
-    <div class="card-body">
-        <p>
-            Hello and welcome to the {{ c.EVENT_YEAR }} {{ c.EVENT_NAME }} room lottery!
-            Before you get started, please note that there's no need to rush, as your time of entry has absolutely no bearing on the lottery results.
-            Take your time and read the instructions carefully, as the rules outlined in the steps ahead are binding on all entries.
-            If you get stuck, don't hesitate to reach out to {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} with any questions.
-        </p>
+<div class="card card-body">
+    <h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ attendee.full_name }}</span></h1>
+    <hr/>
+    <p>
+        Hello and welcome to the {{ c.EVENT_YEAR }} {{ c.EVENT_NAME }} room lottery!
+        Before you get started, please note that there's no need to rush, as your time of entry has absolutely no bearing on the lottery results.
+        Take your time and read the instructions carefully, as the rules outlined in the steps ahead are binding on all entries.
+        If you get stuck, don't hesitate to reach out to {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} with any questions.
+    </p>
 
-        <p class="text-danger">
-            <strong>Note: Your entry is <u>not</u> complete until you reach the last ("confirmation") page.</strong>
-        </p>
+    <p class="text-danger">
+        <strong>Note: Your entry is <u>not</u> complete until you reach the last ("confirmation") page.</strong>
+    </p>
 
-        <p>
-            If you close your browser before you finish or are unable to complete the entry process for any reason, you may return at any time while the lottery is still open and start again.
-        </p>
+    <p>
+        If you close your browser before you finish or are unable to complete the entry process for any reason, you may return at any time while the lottery is still open and start again.
+    </p>
 
-        <p>
-            Once your entry is complete, you'll receive an email with the entry details. You can return to this page at any time to edit your entry, manage a room group, or join or leave a room group.
-        </p>
+    <p>
+        Once your entry is complete, you'll receive an email with the entry details. You can return to this page at any time to edit your entry, manage a room group, or join or leave a room group.
+    </p>
 
-        <p><a class="btn btn-primary" href="terms?attendee_id={{ attendee.id }}">Continue</a></p>
-    </div>
+    <p><a class="btn btn-primary" href="terms?attendee_id={{ attendee.id }}">Continue</a></p>\
 </div>
 {% endblock %}

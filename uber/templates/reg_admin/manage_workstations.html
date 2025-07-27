@@ -130,7 +130,7 @@
         </p>
         
         <form action="close_out_terminals" method="post">
-            <div class="row g-sm-3 row-cols-auto">
+            <div class="row g-3 row-cols-auto">
             <div class="col">
                 <input type="text" class="form-control" id="workstation_ids" name="workstation_ids" placeholder="100-199, 1, 2" />
             </div>
@@ -152,7 +152,7 @@
         </p>
         <form method="post" action="../registration/check_txn_status">
             {{ csrf_token() }}
-            <div class="row g-sm-3 row-cols-auto">
+            <div class="row g-3 row-cols-auto">
                 <div class="col"><input class="form-control" id="intent_id" name="intent_id" placeholder="RS23##" /></div>
                 <div class="col"><button type="submit" class="btn btn-primary">Check Transaction Status</button></div>
             </div>

@@ -4,19 +4,24 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 <div class="card card-body">
-    <h2>{{ c.EVENT_NAME }} Showcase Application for {{ studio.name }}</h2>
+    <h2>
+        {{ c.EVENT_NAME }} Showcase Application for {{ studio.name }}
+        <a class="btn btn-sm btn-primary" href="studio?id={{ studio.id }}"><i class="fa fa-cog"></i>&nbsp;Edit Studio</a>
+    </h2>
     <p>
-        This is your application-in-progress for the MAGFest Showcase for your studio <a href="studio?id={{ studio.id }}">{{ studio.name }}</a>.
         If you are not a member of {{ studio.name }} then please <a href="apply">start a new studio application</a>.
     </p>
 
     {% include 'showcase/deadlines.html' %}
 
     <h3>Team Members</h3>
-    <p>
-        If your game is accepted, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complementary badges along with your booth space.
-        Additional team members must purchase their badges. Transfer of badges between team members is prohibited.
-    </p>
+    {% if c.MIVS_START %}
+    <p>If accepted to MIVS, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complimentary badges and a 10'x10' booth space.</p>
+    {% endif %}
+    {% if c.INDIE_ARCADE_START %}
+    <p>If accepted to Indie Arcade, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complimentary badges and the floor space as indicated on your submission form.</p>
+    {% endif %}
+    <p>Additional team members must purchase their badges. Transfer of badges between team members is prohibited.</p>
     <div class="table-responsive">
     <table class="table table-hover">
         <thead>
@@ -57,13 +62,11 @@
     </div>
 
     <h3>Registered Games</h3>
-    <p>
         {% if not studio.games and c.INDIE_SHOWCASE_OPEN %}
-        You have not registered any games yet. Use one of the buttons below to get started.
+        <p>You have not registered any games yet. Use one of the buttons below to get started.</p>
         {% endif %}
-
         {% if studio.mivs_games %}
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header text-white bg-primary">MIVS Showcase Games</div>
             <div class="card-body">
                 {% if c.HAS_MIVS_ADMIN_ACCESS or c.MIVS_SUBMISSIONS_OPEN %}
@@ -82,9 +85,8 @@
                     </p>
                 {% endif %}
                 {% for game in studio.mivs_games %}
-                {% include 'showcase/mivs_game_modals.html' with context %}
+                {% include 'mivs/game_modals.html' with context %}
                 {% endfor %}
-                {% if studio.mivs_games %}
                 <div class="table-responsive">
                 <table class="table">
                     <thead>
@@ -113,8 +115,6 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% set needs_screenshots = game.screenshots|length < 2 %}
-                            {% set can_delete_screenshots = not game.submitted or game.screenshots|length > 2 %}
                             {{ game.screenshots|length }} screenshot{{ game.screenshots|length|pluralize }}
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-screenshot-{{ game.id }}"><i class="fa fa-plus"></i></button>
                         </td>
@@ -163,11 +163,96 @@
                     </tbody>
                 </table>
                 </div>
-                {% endif %}
             </div>
         </div>
         {% endif %}
-    </p>
+        {% if studio.arcade_games %}
+        <div class="card mb-3">
+            <div class="card-header bg-info">Indie Arcade Games</div>
+            <div class="card-body">
+                {% if c.HAS_INDIE_ARCADE_ADMIN_ACCESS or c.INDIE_ARCADE_SUBMISSIONS_OPEN %}
+                    <p>
+                        The deadline for Indie Arcade game submissions is <strong>{{ c.INDIE_ARCADE_DEADLINE|datetime_local }}</strong>.
+                    </p>
+                    <p>
+                        You can edit game information and photos for all games, including submitted games, up until the deadline.
+                    </p>
+                    {% if c.HAS_INDIE_ARCADE_ADMIN_ACCESS and not c.INDIE_ARCADE_SUBMISSIONS_OPEN %}
+                    <p class="text-danger">The Indie Arcade submission deadline has passed. Only logged-in admins can edit or submit Indie Arcade games.</p>
+                    {% endif %}
+                {% else %}
+                    <p>
+                        The deadline for submitting games to Indie Arcade has passed. Once judging is completed, you can review each game's status below.
+                    </p>
+                {% endif %}
+                {% for game in studio.arcade_games %}
+                {% include 'indie_arcade/game_modals.html' with context %}
+                {% endfor %}
+                <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                        <th>Title</th>
+                        <th>Photos</th>
+                        <th>Status</th>
+                        <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                {% for game in studio.arcade_games %}
+                        <tr>
+                        <td>
+                            {{ game.title }}
+                        </td>
+                        <td>
+                            {{ game.submission_images|length }} photo{{ game.submission_images|length|pluralize }}
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-photo-{{ game.id }}"><i class="fa fa-plus"></i></button>
+                        </td>
+                        <td>
+                            {% if not game.submitted %}
+                            <span class="text-danger">Not Submitted</span>
+                            {% elif game.status == c.NEW %}<span class="text-success">Submitted</span>
+                            {% else %}{{ game.status_label }}{% endif %}
+                        </td>
+                        <td>
+                            {% if c.HAS_INDIE_ARCADE_ADMIN_ACCESS or c.INDIE_ARCADE_SUBMISSIONS_OPEN %}
+                            <a href="../indie_arcade/game?id={{ game.id }}" class="btn btn-sm btn-primary"><i class="fa fa-pencil"></i></a>
+                            {% endif %}
+                        </td>
+                        </tr>
+                        <tr>
+                            <td colspan="6">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    {% if game.submission_images %}
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit-photos-{{ game.id }}">View Photo{{ game.submission_images|length|pluralize }}</button>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        {% if not game.submitted %}
+                                        {% if game.missing_steps %}
+                                        <span class="d-inline-block" tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-content="To submit this game for consideration, please {{ game.missing_steps|readable_join }}.">
+                                            <button type="button" class="btn btn-sm btn-warning" disabled>Not Ready to Submit</button>
+                                        </span>
+                                        {% else %}
+                                        <form method="post" action="submit_game">
+                                            {{ csrf_token() }}
+                                            <input type="hidden" name="id" value="{{ game.id }}" />
+                                            <button type="submit" class="btn btn-sm btn-success" type="submit">Submit Game for Consideration</button>
+                                        </form>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     <p>
         {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_MIVS_ADMIN_ACCESS %}
         <a href="../mivs/game?studio_id={{ studio.id }}" class="btn btn-primary">Add MIVS Game</a>
@@ -175,6 +260,8 @@
         {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_INDIE_ARCADE_ACCESS %}
         <a href="../indie_arcade/game?studio_id={{ studio.id }}" class="btn btn-info">Add Indie Arcade Game</a>
         {% endif %}
+        {% include 'showcase/showcase_types.html' %}
+        <a href="#" data-bs-toggle="modal" data-bs-target="#showcase-types"><i class="fa fa-question-circle" aria-hidden="true"></i> What type of game should I submit?</a>
     </p>
 </div>
 {% endblock %}

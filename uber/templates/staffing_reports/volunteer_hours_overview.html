@@ -71,7 +71,7 @@
 
   <div class="card-body">
     <h2> Volunteer Hours Overview </h2>
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-3">
         <strong>Filter by Weighted Hours</strong>
         <p class="form-inline">Min: <input type="text" class="form-control" id="min_hours" name="min_hours">
@@ -102,6 +102,7 @@
         <th>First Name</th>
         <th>Legal Name</th>
         <th>Email</th>
+        <th>Unweighted Hours</th>
         <th>Weighted Hours</th>
         <th>Hours Worked</th>
         <th>Supporter Package</th>
@@ -116,6 +117,7 @@
           <td>{{ volunteer.first_name }}</td>
           <td>{{ volunteer.legal_name }}</td>
           <td>{{ volunteer.email }}</td>
+          <td>{{ volunteer.unweighted_hours }}</td>
           <td>{{ volunteer.weighted_hours }}</td>
           <td>{{ volunteer.worked_hours }}</td>
           <td>{{ (volunteer.amount_extra >= c.SUPPORTER_LEVEL)|yesno }}</td>

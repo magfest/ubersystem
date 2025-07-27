@@ -1,0 +1,148 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% block title %}Department Checklist - Bulk Printing Requests{% endblock %}
+{% block content %}
+
+<h2>Bulk Printing Requests for {{ department_name }}</h2>
+
+<div class="card card-body">
+<p>
+    STOPS has a paper cutter and a printer for small jobs (less than 50 pages).
+    If you need more than 50 copies of a document, please fill out the request form below.
+</p>
+
+<p>You'll be able to add multiple requests. Make sure to confirm when you're done adding requests using the button at the bottom of the page.</p>
+
+{%- macro print_request_modal(modal_id="new") -%}
+<div
+    id="request-modal-{{ modal_id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="{{ modal_id }}-request-title"
+    style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="{{ modal_id }}-request-title">
+            {% if modal_id == 'new' %}Add{% else %}Update{% endif %} Bulk Printing Request
+        </h4>
+        </div>
+        <form novalidate method="post" id="{{ modal_id }}-print-job" action="bulk_print_jobs">
+        <div class="modal-body">
+            {{ form_macros.form_validation(modal_id ~ '-print-job', 'validate_bulk_printing_request') }}
+            {{ csrf_token() }}
+            <input type="hidden" name="department_id" value="{{ department_id }}" />
+            {% if modal_id != 'new' %}<input type="hidden" name="id" value="{{ modal_id }}" />{% endif %}
+            {% set bulk_printing_request_info = forms[modal_id]['bulk_printing_request_info'] %}
+            {% include 'forms/department/bulk_printing_request_info.html' with context %}
+        </div>
+        <div class="modal-footer">
+            {% if modal_id == 'new' %}
+            <button type="submit" class="btn btn-primary">Submit Request</button>
+            <button type="submit" name="additional_request" value="1" class="btn btn-success">Submit and Add Another</button>
+            {% else %}
+            <button type="submit" class="btn btn-primary">Update Request</button>
+            {% endif %}
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </form>
+    </div>
+    </div>
+</div>
+{% endmacro %}
+
+<div id="print-request-modals">
+  {{ print_request_modal() }}
+  {% for request in requests -%}
+  {{ print_request_modal(request.id) }}
+  {%- endfor %}
+</div>
+
+<p><button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#request-modal-new">Add Bulk Printing Request</button></p>
+
+{% if department_id %}
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Document Link</th>
+            <th># of Copies</th>
+            <th>Color</th>
+            <th>Custom Requests</th>
+            <th>Additional Information</th>
+            <th>Required?</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for request in requests %}
+        <tr>
+            <td><a href="{{ request.link }}" target="_blank">{{ request.link }}</a></td>
+            <td>{{ request.copies }}</td>
+            <td>{{ request.color_label }}</td>
+            <td>
+                {% if request.paper_type == c.CUSTOM %}Paper Type: {{ request.paper_type_text }}{% endif %}
+                {% if request.paper_type == c.CUSTOM and request.size == c.CUSTOM %}<br/>{% endif %}
+                {% if request.size == c.CUSTOM %}Size: {{ request.size_text }}{% endif %}
+                {% if request.paper_type != c.CUSTOM and request.size != c.CUSTOM %}None{% endif %}
+            </td>
+            <td>{{ request.notes|default("None", true) }}</td>
+            <td>{{ request.required|yesno|title }}</td>
+            <td class="d-flex gap-1">
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#request-modal-{{ request.id }}">Edit</button>
+                <form method="post" action="delete_print_request">
+                    <input type="hidden" name="id" value="{{ request.id }}" />
+                    <input type="hidden" name="department_id" value="{{ department_id }}" />
+                    {{ csrf_token() }}
+                    <button class="btn btn-sm btn-danger delete-request">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if checklist.relevant and checklist.completed %}
+    You've already indicated that this list is complete; emails STOPS if you completed this in error.
+{% elif checklist.relevant %}
+<form method="post" action="../dept_checklist/mark_item_complete">
+    {{ csrf_token() }}
+    <input type="hidden" name="department_id" value="{{ department_id }}" />
+    <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+    <button type="submit" class="btn btn-primary">I've added all my department's bulk print requests</button>
+</form>
+{% endif %}
+</div>
+
+<script type="text/javascript">
+    $('.delete-request').on('click', function (event) {
+    var $formToSubmit = $(this).closest('form');
+    event.preventDefault();
+    hideMessageBox();
+    bootbox.confirm({
+        backdrop: true,
+        title: 'Delete Printing Request?',
+        message: 'Are you sure you want to delete this bulk printing request? This cannot be undone.',
+        buttons: {
+        confirm: { label: 'Yes, Delete', className: 'btn-danger' },
+        cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+        },
+        callback: function (result) {
+        if (result) {
+            $formToSubmit.submit();
+        }
+        }
+    });
+    });
+
+    $().ready(function() {
+        if(window.location.hash == '#request-modal-new') {
+            new bootstrap.Modal($('#request-modal-new')).show();
+            window.location.hash = "";
+        }
+    })
+</script>
+
+{% endblock %}

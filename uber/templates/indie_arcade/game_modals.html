@@ -1,0 +1,103 @@
+<div
+    id="new-photo-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="new-photo-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="new-photo-{{ game.id }}-title">
+            Upload Photo
+        </h4>
+        </div>
+        <form novalidate method="post" action="../indie_arcade/photo" id="new-photo-{{ game.id }}-form" role="form" enctype="multipart/form-data">
+        <div class="modal-body">
+            {% set arcade_photo = image_forms['arcade_new']['arcade_photo'] %}
+            {{ form_macros.form_validation('new-photo-' ~ game.id ~ '-form', '../indie_arcade/validate_image') }}
+            {{ csrf_token() }}
+            <input type="hidden" name="game_id" value="{{ game.id }}" />
+            <div x-data="">
+                <div class="row g-3 mb-3">
+                    <div class="col-sm">{{ form_macros.input(arcade_photo.image) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-success">Upload Photo</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </form>
+    </div>
+    </div>
+</div>
+
+{% if game.submission_images %}
+<div
+    id="edit-photos-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="edit-photos-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="edit-photos-{{ game.id }}-title">
+            {{ game.title }} Photos
+        </h4>
+        </div>
+        <div class="modal-body">
+            {% for image in game.submission_images %}
+            {{ form_macros.form_validation(image.id ~ '-form', '../indie_arcade/validate_image') }}
+            {% endfor %}
+            <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set can_delete_photos = not game.submitted or game.submission_images|length > 2 %}
+                    {% for image in game.submission_images %}
+                    {% set arcade_photo = image_forms[image.id]['arcade_photo'] %}
+                        <tr x-data="">
+                            <td>
+                                {{ form_macros.input(arcade_photo.image, show_label=False, form=image.id ~ "-form") }}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                <form novalidate method="post" action="../indie_arcade/photo" id="{{ image.id }}-form" role="form" enctype="multipart/form-data">
+                                    {{ csrf_token() }}
+                                    <input type="hidden" name="game_id" value="{{ game.id }}" />
+                                    <input type="hidden" name="id" value="{{ image.db_id }}" />
+                                    <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check"></i></button>
+                                </form>
+                                {% if can_delete_photos %}
+                                <form method="post" action="../indie_arcade/delete_photo">
+                                    {{ csrf_token() }}
+                                    <input type="hidden" name="id" value="{{ image.id }}" />
+                                    <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
+                                </form>
+                                {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    </form>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+    </div>
+</div>
+{% endif %}

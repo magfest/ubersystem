@@ -33,9 +33,41 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 
 {% set id_upgrade_prepend = "upgrade_" if upgrade_modal else "" %}
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block badge_type %}
-{{ badge_extras.badge_type(id=id_upgrade_prepend ~ "badge_type", **{'x-model': "badge_type"}) }}
+{% if c.PRESELL_ONE_DAYS and c.FORMATTED_ATTENDANCE_TYPES|length > 1 and (not receipt or upgrade_modal) and (attendee.attendance_type == c.SINGLE_DAY or is_prereg_attendee) %}
+    {{ badge_extras.attendance_type(id=id_upgrade_prepend ~ "attendance_type") }}
+    {{ form_macros.card_select(badge_extras.attendance_type,
+                               attendee.available_attendance_type_opts,
+                               target_field_id=id_upgrade_prepend ~ "attendance_type") }}
+    </div>
+    {% if is_prereg_attendee %}
+    <div id="one-day-alert" class="row">
+        <div class="col"><div class="alert alert-info mb-0"><em>Please select which day you would like to attend.</em></div></div>
+    </div>
+    {% endif %}
+    <div class="row g-3 mb-3">
+        <input type="hidden" id="badge_type_single" /> {# Dummy attribute to make validation message hideable #}
+        {{ form_macros.card_select(badge_extras.badge_type_single,
+                                    attendee.available_single_badge_opts, disabled_opts=c.SOLD_OUT_BADGES_SINGLE[1:] if attendee.badge_type in c.SOLD_OUT_BADGES_SINGLE else c.SOLD_OUT_BADGES_SINGLE,
+                                    target_field_id=id_upgrade_prepend ~ "badge_type") }}
+    </div>
+    <script type="text/javascript">
+        var switchBadgeTypeOpts = function() {
+            let attendanceType = $('#{{ id_upgrade_prepend }}attendance_type').val();
+            setVisible($('#badge_type_single-select').parents('.row'), attendanceType == '{{ c.SINGLE_DAY }}');
+            setVisible($('#one-day-alert'), attendanceType == '{{ c.SINGLE_DAY }}');
+            setVisible($('#badge_type-select').parents('.row'), attendanceType == '{{ c.WEEKEND }}');
+        }
+        $(function () {
+            switchBadgeTypeOpts();
+            $('#{{ id_upgrade_prepend }}attendance_type').on('change', switchBadgeTypeOpts);
+        })
+    </script>
+    <div class="row g-3 mb-3">
+{% endif %}
+
+{{ badge_extras.badge_type(id=id_upgrade_prepend ~ "badge_type", **{'x-model.number': "badge_type"}) }}
 
 {% if c.BADGE_TYPE_PRICES and (not receipt or upgrade_modal) %}
     {{ form_macros.card_select(badge_extras.badge_type,
@@ -50,12 +82,12 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block merch_info %}
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block add_ons %}
 {% if c.ADDONS_ENABLED %}
     {{ badge_extras.amount_extra(id=id_upgrade_prepend ~ "amount_extra", **{'x-model': "amount_extra"}) }}
@@ -73,7 +105,7 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block perk_info %}
 {% set staff_shirts_on_reg_form = not c.STAFF_SHIRTS_OPTIONAL and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
 {% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt or admin_area %}
@@ -87,7 +119,7 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block donation %}
 {% if c.COLLECT_EXTRA_DONATION %}
     <div class="col-sm">
@@ -98,7 +130,7 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
     </div>
 
     <div class="col-sm">
-        <div class="alert alert-warning" role="alert">
+        <div class="alert alert-warning mb-0" role="alert">
         <strong>This donation <em>is not a kick-in</em> and does not come with merchandise.</strong><br/>
         {{ c.ORGANIZATION_NAME }} is a 501(c)(3) charitable organization, and additional donations may be tax deductible.
         Your employer may also have a charitable donation matching program. Contact us at {{ c.CONTACT_URL }} for details.

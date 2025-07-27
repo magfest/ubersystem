@@ -1,3 +1,4 @@
+import cherrypy
 from datetime import datetime
 
 from pytz import UTC
@@ -7,8 +8,9 @@ from uber.config import c
 from uber.custom_tags import linebreaksbr
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, xlsx_file
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, DeptChecklistItem, HotelRequests, RoomAssignment, Shift
-from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept
+from uber.forms import load_forms
+from uber.models import Attendee, Department, DeptChecklistItem, BulkPrintingRequest, HotelRequests, RoomAssignment, Shift
+from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept, validate_model
 
 
 def _submit_checklist_item(session, department_id, submitted, csrf_token, slug, custom_message=''):
@@ -262,6 +264,84 @@ class Root:
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
         # We actually submit from this page to `form`, this just lets us render a custom page
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'printed_signs')
+
+    @department_id_adapter
+    def bulk_print_jobs(self, session, department_id=None, message='', **params):
+        redirect_to_allowed_dept(session, department_id, 'bulk_print_jobs')
+
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
+            department_id = None
+
+        requests = session.query(BulkPrintingRequest)
+        if department_id not in ['', None]:
+            requests = session.query(BulkPrintingRequest).filter(BulkPrintingRequest.department_id == department_id)
+
+        request_forms = {}
+        request_forms['new'] = load_forms(params, BulkPrintingRequest(), ['BulkPrintingRequestInfo'])
+        for request in requests:
+            request_forms[request.id] = load_forms(params, request, ['BulkPrintingRequestInfo'],
+                                                   field_prefix=request.id)
+
+        try:
+            checklist = session.checklist_status('bulk_print_jobs', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
+        if cherrypy.request.method == 'POST':
+            if params.get('id') in [None, '', 'None']:
+                request = BulkPrintingRequest()
+                request.department_id = department_id
+                forms = request_forms['new']
+            else:
+                request = session.bulk_printing_request(params.get('id'))
+                forms = request_forms[request.id]
+
+            for form in forms.values():
+                form.populate_obj(request)
+            session.add(request)
+
+            hash = "#new-request" if params.get('additional_request', None) else ''
+            raise HTTPRedirect('bulk_print_jobs?department_id={}&message={}' + hash,
+                               department_id, "Bulk printing request added.")
+
+        return {
+            'message': message,
+            'department_id': 'All' if department_id is None else department_id,
+            'department_name': c.DEPARTMENTS.get(department_id, 'All'),
+            'checklist': checklist,
+            'requests': requests,
+            'forms': request_forms,
+        }  # noqa: E712
+    
+    @ajax
+    def validate_bulk_printing_request(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            request = BulkPrintingRequest()
+        else:
+            request = session.bulk_printing_request(params.get('id'))
+
+        if not form_list:
+            form_list = ['BulkPrintingRequestInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, request, form_list, field_prefix='new' if request.is_new else request.id)
+        all_errors = validate_model(forms, request)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
+    
+    @department_id_adapter
+    def delete_print_request(self, session, id, department_id=None, **params):
+        request = session.bulk_printing_request(id)
+        if request:
+            session.delete(request)
+        raise HTTPRedirect('bulk_print_jobs?department_id={}&message={}',
+                           department_id, "Bulk printing request deleted.")
 
     @department_id_adapter
     def treasury(self, session, department_id=None, submitted=None, csrf_token=None):

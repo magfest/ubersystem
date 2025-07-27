@@ -11,7 +11,7 @@ from pockets.autolog import log
 from functools import wraps
 
 from uber.config import c
-from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, NumberInputGroup, SwitchInput, Ranking, UniqueList
+from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, SwitchInput, Ranking, UniqueList
 from uber.model_checks import invalid_phone_number
 
 
@@ -25,7 +25,8 @@ def get_override_attr(form, field_name, suffix, *args):
     return getattr(form, field_name + suffix, lambda *args: '')(*args)
 
 
-def load_forms(params, model, form_list, prefix_dict={}, truncate_prefix='admin', checkboxes_present=True):
+def load_forms(params, model, form_list, field_prefix='', truncate_prefix='admin',
+               checkboxes_present=True, force_form_defaults=True, read_only=False):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
@@ -35,12 +36,18 @@ def load_forms(params, model, form_list, prefix_dict={}, truncate_prefix='admin'
     `params` should be a dictionary from a form submission, usually passed straight from the page handler.
     `model` is the object itself, e.g., the attendee we're loading the form for.
     `form_list` is a list of strings of which form classes to load, e.g., ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
-    `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms
-        with conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all
-        GroupInfo fields.
+    `field_prefix` is an optional string to use as a prefix. This is useful for loading forms
+        with conflicting field names on the same page, e.g., passing 'group_' will add group_ to all the forms loaded
+        in this call.
     `truncate_prefix` allows you to remove a single word from the form, so e.g. a truncate_prefix of "admin" will save
         "AdminTableInfo" as "table_info." This allows loading admin and prereg versions of forms while using the
         same form template.
+    `checkboxes_present` lets us avoid setting unchecked checkboxes to false if they are not present on the form.
+    `force_form_defaults` makes the field default value override the model's value if there are no parameters passed
+        and the object has not been saved to the database.
+    `read_only` lets you set all fields in the loaded forms to be read-only. Input types that don't use the readonly property,
+        such as checkboxes, will be set to disabled instead. To make only some fields in a form read-only, pass `readonly`
+        or `disabled` to the form input macro instead.
 
     Returns a dictionary of form objects with the snake-case version of the form as the ID, e.g.,
     the PersonalInfo class will be returned as form_dict['personal_info'].
@@ -72,9 +79,11 @@ def load_forms(params, model, form_list, prefix_dict={}, truncate_prefix='admin'
                 else:
                     alias_dict[aliased_field] = alias_val
 
-        loaded_form = form_cls(params, model, prefix=prefix_dict.get(form_name, ''))
+        loaded_form = form_cls(params, model, prefix=field_prefix)
+        loaded_form.read_only = read_only
 
-        loaded_form.process(params, model, checkboxes_present=checkboxes_present, data=alias_dict)
+        loaded_form.process(params, model, checkboxes_present=checkboxes_present,
+                            data=alias_dict, force_form_defaults=force_form_defaults)
 
         form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', form_name).lower()
         if truncate_prefix and form_label.startswith(truncate_prefix + '_'):
@@ -193,10 +202,10 @@ class MagForm(Form):
 
     def __init_subclass__(cls, *args, **kwargs):
         cls.field_validation, cls.new_or_changed = CustomValidation(), CustomValidation()
-        cls.kwarg_overrides = {}
         cls.has_inherited = False
         cls.is_admin = False
         cls.model = None
+        cls.read_only = False
 
     @classmethod
     def set_overrides_and_validations(cls):
@@ -268,7 +277,7 @@ class MagForm(Form):
         elif isinstance(widget, wtforms_widgets.Select):
             bootstrap_class = 'form-select'
         elif not isinstance(widget, (MultiCheckbox, IntSelect, Ranking, wtforms_widgets.FileInput,
-                                        wtforms_widgets.HiddenInput)):
+                                     wtforms_widgets.HiddenInput)):
             bootstrap_class = 'form-control'
 
         if 'class' in render_kw and bootstrap_class:
@@ -323,7 +332,8 @@ class MagForm(Form):
                 setattr(target, name, getattr(form, name))
         return target
 
-    def process(self, formdata=None, obj=None, data=None, extra_filters=None, checkboxes_present=True, **kwargs):
+    def process(self, formdata={}, obj=None, data=None, extra_filters=None,
+                checkboxes_present=True, force_form_defaults=True, **kwargs):
         formdata = self.meta.wrap_formdata(self, formdata)
 
         # Special form data preprocessing!
@@ -335,6 +345,8 @@ class MagForm(Form):
         # We also convert our MultiChoice value (a string) into the list of strings that WTForms expects
         # and convert DOBs into the format that our DateMaskInput expects
         # and process our UniqueList field data if it's been submitted as multiple fields
+
+        force_defaults = force_form_defaults and not formdata and (not obj or obj.is_new)
 
         for name, field in self._fields.items():
             field_in_obj = hasattr(obj, name)
@@ -350,6 +362,7 @@ class MagForm(Form):
                         if isinstance(formdata[name], six.string_types) else formdata[name]
             elif (isinstance(field, SelectMultipleField)
                   or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
+                  or isinstance(field.widget, SelectButtonGroup)
                   ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
                     formdata[name] = []
@@ -361,6 +374,9 @@ class MagForm(Form):
                 formdata[name] = getattr(obj, name).strftime('%m/%d/%Y')
             elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[name], list):
                 formdata[name] = ','.join(formdata[name])
+
+            if force_defaults and field.default is not None:
+                formdata[name] = field.default
 
         super().process(formdata, obj, data, extra_filters, **kwargs)
 
@@ -384,9 +400,6 @@ class MagForm(Form):
                 log.warning("Someone tried to edit their {} value, but it was locked. \
                             This is either a programming error or a malicious actor.".format(name))
                 continue
-
-            if name == 'image':
-                log.error(field.data)
 
             column = obj.__table__.columns.get(name)
             if column is not None:
@@ -498,12 +511,13 @@ class SelectAvailableField(SelectField):
         else:
             _choices = zip(choices, choices)
 
-        for value, label in _choices:
+        for value, label, *other_args in _choices:
             coerced_val = self.coerce(value)
             if coerced_val in sold_out_list:
                 label = f"{label} {self.sold_out_text}"
-
-            yield (value, label, coerced_val == self.data)
+            selected = coerced_val == self.data
+            render_kw = other_args[0] if len(other_args) else {}
+            yield (value, label, selected, render_kw)
 
 
 class DictWrapper(dict):
@@ -517,6 +531,8 @@ class DictWrapper(dict):
             return []
 
 
+from uber.forms.widgets import *  # noqa: F401,E402,F403
+from uber.forms.art_show import *  # noqa: F401,E402,F403
 from uber.forms.attendee import *  # noqa: F401,E402,F403
 from uber.forms.department import *  # noqa: F401,E402,F403
 from uber.forms.group import *  # noqa: F401,E402,F403

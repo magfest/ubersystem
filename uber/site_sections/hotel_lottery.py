@@ -428,7 +428,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, application, form_list)
 
-        all_errors = validate_model(forms, application, LotteryApplication(**application.to_dict()))
+        all_errors = validate_model(forms, application)
         check_date = params.get('earliest_suite_checkin_date', params.get('earliest_room_checkin_date', ''))
         if attendee.birthdate and check_date and get_age_from_birthday(attendee.birthdate,
                                                                        check_date) < 21:

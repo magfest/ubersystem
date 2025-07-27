@@ -16,7 +16,7 @@
 manages_panels: {{ department_info.manages_panels.data|jsonize }},
 {% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block basic_info %}
 <div class="col-sm">{{ form_macros.input(department_info.name) }}</div>
 <div class="col-sm">{{ form_macros.input(department_info.description) }}</div>
@@ -28,7 +28,7 @@ manages_panels: {{ department_info.manages_panels.data|jsonize }},
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block hours_panels %}
 <div class="col-sm">{{ form_macros.input(department_info.max_consecutive_minutes,
     value=(department_info.max_consecutive_minutes.data / 60 if department_info.max_consecutive_minutes.data else 0)) }}</div>
@@ -41,7 +41,7 @@ manages_panels: {{ department_info.manages_panels.data|jsonize }},
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block checkboxes %}
 <div class="col-sm">{{ form_macros.input(department_info.solicits_volunteers) }}</div>
 <div class="col-sm">{{ form_macros.input(department_info.is_shiftless) }}</div>

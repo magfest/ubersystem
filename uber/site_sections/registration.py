@@ -161,13 +161,11 @@ class Root:
                          'BadgeAdminNotes', 'OtherInfo']
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, attendee, form_list)
-        new_attendee = Attendee(**attendee.to_dict())
-
         if 'promo_code_code' not in params and attendee.promo_code:
-            new_attendee.promo_code = attendee.promo_code
+            params['promo_code_code'] = attendee.promo_code_code
+        forms = load_forms(params, attendee, form_list)
 
-        all_errors = validate_model(forms, attendee, new_attendee, is_admin=True)
+        all_errors = validate_model(forms, attendee, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 

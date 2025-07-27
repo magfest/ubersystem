@@ -44,6 +44,7 @@ for field_name, message in address_required_validators.items():
 for field_name in ['region', 'region_us', 'region_canada']:
     ContactInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(field_name)
 
+
 ContactInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
 
 
@@ -57,8 +58,8 @@ TableInfo.field_validation.required_fields = {
               'wares', lambda x: x.form.model.is_dealer),
     'categories': ("Please select at least one category your wares fall under.",
                    'categories', lambda x: x.form.model.is_dealer),
-    'categories_text': ("Please describe what 'other' categories your wares fall under.",
-                        'categories', lambda x: x == c.OTHER)
+    'categories_text': ("Please describe what 'other' category your wares fall under.",
+                        'categories', lambda x: c.OTHER in x)
 }
 
 
@@ -80,4 +81,4 @@ LeaderInfo.field_validation.required_fields = {
 }
 
 
-LeaderInfo.field_validation.validations['email']['optional'] = validators.Optional()
+LeaderInfo.field_validation.validations['leader_email']['optional'] = validators.Optional()
