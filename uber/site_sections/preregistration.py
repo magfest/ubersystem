@@ -280,6 +280,9 @@ class Root:
             if old_attendee.badge_type in c.BADGE_TYPE_PRICES and old_attendee.badge_type not in c.SOLD_OUT_BADGE_TYPES:
                 new_attendee.badge_type = old_attendee.badge_type
                 new_attendee.shirt = old_attendee.shirt
+            elif (old_attendee.badge_type == c.ONE_DAY_BADGE or old_attendee.is_presold_oneday
+                    ) and old_attendee.badge_type not in c.SOLD_OUT_BADGE_TYPES:
+                new_attendee.badge_type = old_attendee.badge_type
 
             cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
 
