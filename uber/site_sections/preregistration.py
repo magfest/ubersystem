@@ -1937,7 +1937,7 @@ class Root:
             error = refund.process_refund()
             if error:
                 for txn in txns:
-                    failed_attendees.add([txn_attendees[txn.id]])
+                    failed_attendees.add(txn_attendees[txn.id])
             else:
                 for txn in txns:
                     refunded_attendees.add(txn_attendees[txn.id])
