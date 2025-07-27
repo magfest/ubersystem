@@ -809,6 +809,9 @@
 
 <div class="card card-body pb-0">
   <p>See the <a href="receipt_items_guide" target="_blank">receipt items guide</a> for information on how to use this page.</p>
+  {% if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers %}
+  <p>If you need to, you can <a href="../reg_admin/attendee_account_form?id={{ attendee.managers[0].id }}">refund and cancel multiple badges</a> on this attendee's account.</p>
+  {% endif %}
   {% if other_purchased_badges %}
     <p>
       <strong>Note</strong>: This {{ model_str }} is listed as the purchaser for the following badges:
