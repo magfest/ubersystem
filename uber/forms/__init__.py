@@ -180,6 +180,14 @@ class CustomValidation:
     def set_phone_validators(self, field_name):
         self.validations[field_name]['valid'] = valid_cellphone
 
+    def set_upper_character_limit(self, field_name):
+        self.validations[field_name]['length'] = validators.Length(
+            max=10000, message="Text cannot be longer than 10,000 characters.")
+    
+    def set_absolute_maximum(self, field_name):
+        self.validations[field_name]['max'] = validators.NumberRange(
+            max=100000000001, message="Numbers cannot be higher than 100,000,000,000.")
+
     def get_validations_by_field(self, field_name):
         field_validations = self.validations.get(field_name)
         return list(field_validations.values()) if field_validations else []
@@ -245,6 +253,12 @@ class MagForm(Form):
                         form.field_validation.set_email_validators(field_name)
                     elif ufield.field_class.__name__ == "TelField":
                         form.field_validation.set_phone_validators(field_name)
+                    elif 'length' not in form.field_validation.validations[field_name]:
+                        if ufield.field_class.__name__ in ["IntegerField", "HiddenIntField"] or \
+                                ufield.kwargs.get('coerce', None) == int:
+                            form.field_validation.set_absolute_maximum(field_name)
+                        else:
+                            form.field_validation.set_upper_character_limit(field_name)
 
     @classmethod
     def inherit_validations(cls, form, inherit_from):
