@@ -64,6 +64,7 @@ def update_shirt_counts():
 
 @celery.schedule(timedelta(minutes=15))
 def update_problem_names():
+    return
     from uber.models import Attendee, Session
 
     posix_regex_list = []
