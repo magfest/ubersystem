@@ -21,6 +21,32 @@ def valid_cellphone(form, field):
                               'include a country code (e.g. +44) for international numbers.')
 
 
+def maximum_values(form, field):
+    if not field.data:
+        return
+
+    if isinstance(field.data, six.string_types) and len(field.data) > 10000:
+        raise ValidationError('Please enter under 10,000 characters.')
+    if isinstance(field.data, list) and len(field.data) > 1000:
+        raise ValidationError('Please select fewer than 1,000 options.')
+    if isinstance(field.data, cherrypy._cpreqbody.Part):
+        if field.data.file:
+            field.data.file.seek(0)
+            file_size = len(field.data.file.read()) / (1024 * 1024)
+            field.data.file.seek(0)
+            if file_size > 5:
+                raise ValidationError("Please upload a file under 5MB.")
+
+    try:
+        val = int(field.data)
+        if val > 100000000001:
+            raise ValidationError('Please enter a number under 100,000,000,000.')
+        if val < -100000000001:
+            raise ValidationError('Please enter a number above -100,000,000,000.')
+    except (ValueError, TypeError):
+        pass
+
+
 def get_override_attr(form, field_name, suffix, *args):
     return getattr(form, field_name + suffix, lambda *args: '')(*args)
 
@@ -180,13 +206,8 @@ class CustomValidation:
     def set_phone_validators(self, field_name):
         self.validations[field_name]['valid'] = valid_cellphone
 
-    def set_upper_character_limit(self, field_name):
-        self.validations[field_name]['length'] = validators.Length(
-            max=10000, message="Text cannot be longer than 10,000 characters.")
-    
-    def set_absolute_maximum(self, field_name):
-        self.validations[field_name]['max'] = validators.NumberRange(
-            max=100000000001, message="Numbers cannot be higher than 100,000,000,000.")
+    def set_server_max(self, field_name):
+        self.validations[field_name]['server_max'] = maximum_values
 
     def get_validations_by_field(self, field_name):
         field_validations = self.validations.get(field_name)
@@ -254,11 +275,7 @@ class MagForm(Form):
                     elif ufield.field_class.__name__ == "TelField":
                         form.field_validation.set_phone_validators(field_name)
                     elif 'length' not in form.field_validation.validations[field_name]:
-                        if ufield.field_class.__name__ in ["IntegerField", "HiddenIntField"] or \
-                                ufield.kwargs.get('coerce', None) == int:
-                            form.field_validation.set_absolute_maximum(field_name)
-                        else:
-                            form.field_validation.set_upper_character_limit(field_name)
+                        form.field_validation.set_server_max(field_name)
 
     @classmethod
     def inherit_validations(cls, form, inherit_from):
