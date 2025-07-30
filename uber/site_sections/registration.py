@@ -47,6 +47,7 @@ def load_attendee(session, params):
 
     if id in [None, '', 'None']:
         attendee = Attendee()
+        session.add(attendee)
     else:
         attendee = session.attendee(id)
 
