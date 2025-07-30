@@ -1369,6 +1369,19 @@ if c.PANELS_START:
 # guests
 # =============================
 
+class ArenaEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(
+            self,
+            GuestGroup,
+            subject,
+            template,
+            lambda b: b.group_type == c.ARENA and filter(b),
+            ident,
+            sender=c.ARENA_EMAIL,
+            **kwargs)
+
+
 class BandEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(
@@ -1518,6 +1531,26 @@ GuestEmailFixture(
     lambda g: not g.checklist_completed,
     when=days_after(7, c.GUEST_INFO_DEADLINE),
     ident='guest_reminder_2')
+
+ArenaEmailFixture(
+    'It\'s time to send us your info for {EVENT_NAME}!',
+    'guests/guest_checklist_announce.html',
+    lambda g: True,
+    ident='arena_checklist_inquiry')
+
+ArenaEmailFixture(
+    'Reminder: Please complete your Arena Checklist for {EVENT_NAME}!',
+    'guests/guest_checklist_reminder.html',
+    lambda g: not g.checklist_completed,
+    when=days_before(7, c.ARENA_INFO_DEADLINE),
+    ident='arena_reminder_1')
+
+ArenaEmailFixture(
+    'Have you forgotten anything? Your {EVENT_NAME} Arena Checklist needs you!',
+    'guests/guest_checklist_reminder.html',
+    lambda g: not g.checklist_completed,
+    when=days_after(7, c.ARENA_INFO_DEADLINE),
+    ident='arena_reminder_2')
 
 AutomatedEmailFixture(
     GuestGroup,

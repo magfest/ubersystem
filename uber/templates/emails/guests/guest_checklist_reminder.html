@@ -1,15 +1,15 @@
 Hello {{ guest.group.name }}!
 
-<br/><br/>Friendly reminder to please make sure you complete your Guest Checklist
+<br/><br/>Friendly reminder to please make sure you complete your {{ c.GROUP_TYPES[guest.group_type]|title }} Checklist
 with all the info about you and your group, panels, events, and plans. If you've
 already filled in all your info, thank you!
 
 <br/><br/>You can get to your checklist from this link:
 <a href="{{ c.URL_BASE }}/guests/index?id={{ guest.id }}" target="_blank">{{ c.URL_BASE }}/guests/index?id={{ guest.id }}</a>
 
-<br/><br/>Please remember that <strong>the deadline to complete the checklist is {{ c.GUEST_TRAVEL_PLANS_DEADLINE|datetime_local }}</strong>.
+<br/><br/>Please remember that <strong>the deadline to complete the checklist is {{ {{ guest.deadline_from_model('taxes')|datetime_local }}|datetime_local }}</strong>.
 
-<br/><br/>If you have any questions or run into any snags, hit us up at {{ c.GUEST_EMAIL|email_only }}.
+<br/><br/>If you have any questions or run into any snags, hit us up at {% if guest.group_type == c.ARENA %}{{ c.ARENA_EMAIL|email_only }}{% else %}{{ c.GUEST_EMAIL|email_only }}{% endif %}.
 
 <br/><br/>Thanks a bunch!
-<br/>-The Guests & MAGMoves Crews 
+<br/>{{ email_signature|linebreaksbr }}
