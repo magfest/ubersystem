@@ -653,7 +653,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.paid = c.NEED_NOT_PAY
 
     @presave_adjustment
-    def _badge_adjustments(self):
+    def badge_adjustments(self):
         from uber.badge_funcs import needs_badge_num
 
         if self.badge_type == c.PSEUDO_DEALER_BADGE:
