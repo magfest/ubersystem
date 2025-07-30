@@ -35,8 +35,9 @@
                     </button>
                 </form>
             </div>
-        {% endif %}
+            {% endif %}
         </div>
+        <br/><em>To change or cancel an upgrade, select "Cancel All Extras" or email us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.</em>
     </div>
 </div>
 {% endblock %}

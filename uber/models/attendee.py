@@ -1051,8 +1051,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.calculate_badge_cost()
 
     def undo_extras(self):
-        if self.active_receipt:
-            return "Could not undo extras, this attendee has an open receipt!"
+        receipt = self.active_receipt
+        if receipt and receipt.payment_total and receipt.payment_total != receipt.pending_total:
+            return "Could not undo extras, this attendee has payments recorded!"
         self.amount_extra = 0
         self.extra_donation = 0
         if self.badge_type in c.BADGE_TYPE_PRICES:

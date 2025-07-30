@@ -2467,6 +2467,7 @@ class Root:
             receipt = session.get_receipt_by_model(attendee)
             receipt.closed = datetime.now()
             session.add(receipt)
+            session.commit()
 
             new_receipt = session.get_receipt_by_model(attendee, who='non-admin', create_if_none="DEFAULT")
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
@@ -2474,7 +2475,7 @@ class Root:
                 raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
             raise HTTPRedirect(page + 'message=Your registration has been confirmed')
         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' +
-                           return_to + '&message=There was a problem resetting your receipt.')
+                           return_to + "&message=We can't reset your receipt after you've made payments on it.")
 
     @ajax
     @credit_card
