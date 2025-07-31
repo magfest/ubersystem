@@ -53,6 +53,7 @@
     </div>
 </div>
 {% endif %}
+{% if attendee.is_valid %}
 <div class="d-flex flex-wrap gap-1 mt-2 justify-content-between align-items-center">
     <div class="d-flex gap-1">
     {% if attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
@@ -89,10 +90,9 @@
         {% endif %}
     {% endif %}
     </div>
-    {% if attendee.is_valid %}
     <div>{% include 'preregistration/badge_refund.html' with context %}</div>
-    {% endif %}
 </div>
+{% endif %}
 
 <div class="d-flex gap-3">
     {% if attendee.badge_status == c.IMPORTED_STATUS and not attendee.current_attendee %}
