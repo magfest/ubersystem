@@ -187,6 +187,9 @@ BadgeExtras.field_validation.validations['extra_donation']['minimum'] = validato
 
 @BadgeExtras.field_validation('shirt')
 def require_shirt(form, field):
+    if form.is_admin:
+        return
+
     if (form.amount_extra.data and form.amount_extra.data > 0
             or form.badge_type.data in c.BADGE_TYPE_PRICES) and (field.data == c.NO_SHIRT or not field.data):
         raise ValidationError("Please select a shirt size.")
