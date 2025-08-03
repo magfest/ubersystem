@@ -13,13 +13,12 @@ def get_common_required_fields(check_func):
     return {
         'earliest_checkin_date': ("Please enter your preferred check-in date.", 'earliest_checkin_date', check_func),
         'latest_checkout_date': ("Please enter your preferred check-out date.", 'earliest_checkin_date', check_func),
-        'hotel_preference': ("Please select at least one preferred hotel.", 'hotel_preference', check_func),
-        'room_type_preference': ("Please select at least one preferred room type.", 'room_type_preference', check_func),
+        'selection_priorities': ("Please rank your priorities for selecting a hotel room.", 'selection_priorities', check_func),
     }
 
 
 def date_in_range(field, str, min, max):
-    if field.data and field.data < min.date() or field.data > max.date():
+    if field.data and (field.data < min.date() or field.data > max.date()):
         raise ValidationError(f"Your {str} date must be between {html_format_date(min)} and {html_format_date(max)}.")
 
 
@@ -74,8 +73,11 @@ room_steps_check = lambda x: x.name not in check_required_room_steps(x.form)
 
 
 RoomLottery.field_validation.required_fields = get_common_required_fields(room_steps_check)
-RoomLottery.field_validation.required_fields['ada_requests'] = (
-    "Please explain some of the ADA accommodations you will require.", 'wants_ada')
+RoomLottery.field_validation.required_fields.update({
+    'ada_requests': ("Please explain some of the ADA accommodations you will require.", 'wants_ada'),
+    'hotel_preference': ("Please select at least one preferred hotel.", 'hotel_preference', room_steps_check),
+    'room_type_preference': ("Please select at least one preferred room type.", 'room_type_preference', room_steps_check),
+    })
 
 
 RoomLottery.field_validation.validations['latest_checkin_date']['optional'] = validators.Optional()
@@ -170,10 +172,18 @@ suite_steps_check = lambda x: x.name not in check_required_suite_steps(x.form)
 
 SuiteLottery.field_validation.required_fields = get_common_required_fields(suite_steps_check)
 SuiteLottery.field_validation.required_fields.update({
+    'hotel_preference': ("Please select at least one preferred hotel for a room, or opt out of the room lottery.",
+                         'hotel_preference', suite_steps_check),
+    'room_type_preference': ("Please select at least one preferred standard room type, or opt out of the room lottery.",
+                             'room_type_preference', suite_steps_check),
     'suite_terms_accepted': "You must agree to the suite lottery policies to enter the suite lottery.",
     'suite_type_preference': ("Please select at least one preferred suite type.",
                               'suite_type_preference', suite_steps_check),
 })
+
+
+SuiteLottery.field_validation.validations['earliest_checkin_date']['optional'] = validators.Optional()
+SuiteLottery.field_validation.validations['latest_checkout_date']['optional'] = validators.Optional()
 
 
 lottery_form_fields = ['earliest_checkin_date', 'latest_checkin_date', 'earliest_checkout_date', 'latest_checkout_date',
