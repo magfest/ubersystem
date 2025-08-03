@@ -53,7 +53,7 @@ def no_dashes(form, field):
 
 
 def check_required_room_steps(form):
-    optional_list = ['suite_type_preference']
+    optional_list = ['suite_type_preference', 'suite_terms_accepted']
 
     room_step = int(form.model.current_step) if form.model.current_step else 0
 
@@ -176,7 +176,8 @@ SuiteLottery.field_validation.required_fields.update({
                          'hotel_preference', suite_steps_check),
     'room_type_preference': ("Please select at least one preferred standard room type, or opt out of the room lottery.",
                              'room_type_preference', suite_steps_check),
-    'suite_terms_accepted': "You must agree to the suite lottery policies to enter the suite lottery.",
+    'suite_terms_accepted': ("You must agree to the suite lottery policies to enter the suite lottery.",
+                             'suite_terms_accepted', lambda x: True),  # Allow LotteryAdminInfo to override
     'suite_type_preference': ("Please select at least one preferred suite type.",
                               'suite_type_preference', suite_steps_check),
 })
@@ -204,6 +205,18 @@ admin_steps_check = lambda x: x.name not in check_required_admin_steps(x.form)
 
 
 LotteryAdminInfo.field_validation.required_fields = get_common_required_fields(admin_steps_check)
+LotteryAdminInfo.field_validation.required_fields.update({
+    'hotel_preference': (
+        "Please select at least one preferred hotel for a room, or check the room lottery opt-out checkbox if this is a suite entry.",
+        'hotel_preference', admin_steps_check),
+    'room_type_preference': (
+        "Please select at least one preferred standard room type, or check the room lottery opt-out checkbox if this is a suite entry.",
+        'room_type_preference', admin_steps_check),
+    'suite_terms_accepted': ("You must agree to the suite lottery policies to enter the suite lottery.",
+                             'suite_terms_accepted', admin_steps_check),
+    'suite_type_preference': ("Please select at least one preferred suite type.",
+                              'suite_type_preference', admin_steps_check),
+})
 
 
 LotteryAdminInfo.field_validation.validations['current_step']['optional'] = validators.Optional()

@@ -58,7 +58,7 @@
 
 {{ form_macros.form_validation('application-form', 'validate_hotel_lottery') }}
 
-<form novalidate method="post" id="application-form" action="form">
+<form novalidate method="post" id="application-form" action="form" x-data="{}">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ application.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
