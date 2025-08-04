@@ -1915,6 +1915,7 @@ c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
 for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
     opts = []
+    dictionary = {}
     for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
         if isinstance(item, dict):
             item.__hash__ = lambda x: hash(x.name + x.description)
@@ -1922,7 +1923,9 @@ for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
             dict_key = int(sha512(base_key.encode()).hexdigest()[:7], 16)
             setattr(c, base_key, dict_key)
             opts.append((dict_key, item))
+            dictionary[name] = (dict_key, item)
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
+    setattr(c, f"HOTEL_LOTTERY_{key.upper()}", dictionary)
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'

@@ -1,11 +1,13 @@
 import base64
 import uuid
 import cherrypy
+import random
 import math
 from datetime import datetime, date
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import and_, func, or_
+from ortools.linear_solver import pywraplp
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
@@ -16,6 +18,9 @@ from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, Pa
 from uber.tasks.email import send_email
 from uber.utils import Order, get_page, RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
 
+def beep_on_start():
+    print("Beeping!\a", flush=True)
+cherrypy.engine.subscribe('start', beep_on_start)
 
 def _search(session, text):
     applications = session.query(LotteryApplication).outerjoin(LotteryApplication.attendee)
@@ -31,6 +36,121 @@ def _search(session, text):
     
     return applications.filter(or_(*check_list)), ''
 
+def weight_entry(entry, hotel_room):
+    """Takes a lottery entry and a hotel room and returns an arbitrary score for how likely that applicant
+        should be to get that particular room.
+    """
+    # Higher weight increases the odds of them getting this room.
+    weight = 1.0
+    
+    # Give 10 points for being the first choice hotel, 9 points for the second, etc
+    hotel_choice_rank = 10 - entry["hotels"].index(hotel_room["id"])
+    weight += hotel_choice_rank
+    
+    # Give 10 points for being the first choice room type, 9 points for the second, etc
+    try:
+        room_type_rank = 10 - entry["room_types"].index(hotel_room["room_type"])
+        assert room_type_rank >= 0
+        weight += room_type_rank
+    except ValueError:
+        # room types are optional, so we need to figure out how much weight to give people who don't choose any
+        weight += 9 # Probably fine?
+
+    # Give one point for each group member
+    weight += len(entry["members"])
+    
+    return weight
+    
+def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
+    """Takes a set of hotel_rooms and applications and assigns the hotel_rooms mostly randomly.
+        Parameters:
+        applications List[Application]: Iterable set of Application objects to assign
+        hotel_rooms  List[hotels]: Iterable set of hotel rooms, represented as dictionaries with the following keys:
+        * id: c.HOTEL_LOTTERY_HOTELS_OPTS
+        * capacity: int
+        * room_type: c.HOTEL_LOTTERY_ROOM_TYPE_OPTS
+        * quantity: int
+        
+        Returns Dict[Applications -> hotel, room_type]: A mapping of Application.id -> (id, room_type) or None if it failed
+    """
+    random.shuffle(applications)
+    solver = pywraplp.Solver.CreateSolver("SAT")
+    
+    # Set up our data structures
+    for hotel_room in hotel_rooms:
+        hotel_room["constraints"] = []
+    entries = {}
+    for app in applications:
+        if app.entry_type == lottery_type:
+            if lottery_type == c.ROOM_ENTRY:
+                entry = {
+                    "members": [app],
+                    "hotels": app.hotel_preference.split(","),
+                    "room_types": app.room_type_preference.split(","),
+                    "constraints": []
+                }
+            elif lottery_type == c.SUITE_ENTRY:
+                entry = {
+                    "members": [app],
+                    "hotels": app.hotel_preference.split(","),
+                    "room_types": app.suite_type_preference.split(","),
+                    "constraints": []
+                }
+            entries[app.id] = entry
+            for hotel_room in hotel_rooms:
+                if hotel_room["id"] in entry["hotels"] and hotel_room["room_type"] in entry["room_types"]:
+                    weight = weight_entry(entry, hotel_room)                 
+                    
+                    # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
+                    constraint = solver.BoolVar(f'{app.id}_assigned_to_{hotel_room["id"]}')
+                    entry["constraints"].append((constraint, weight, hotel_room))
+                    hotel_room["constraints"].append(constraint)
+                    
+    for app in applications:
+        if app.entry_type == lottery_type and app.parent_application in entries:
+            entries[app.parent_application]["members"].append(app)
+                    
+    # Set up constraints
+    
+    ## Limit capacity of each room to fit the groups
+    for app, entry in entries.items():
+        num_entrants = len(entry["members"])
+        for is_assigned, weight, hotel_room in entry["constraints"]:
+            solver.Add(is_assigned * num_entrants <= hotel_room["capacity"])
+    
+    ## Only allow each group to have one room
+        solver.Add(sum([x[0] for x in entry["constraints"]]) <= 1)
+    
+    ## Only allow each room type to fit only the quantity available
+    for hotel_room in hotel_rooms:
+        if hotel_room["constraints"]:
+            solver.Add(sum(hotel_room["constraints"]) <= hotel_room["quantity"])
+            
+    # Set up Objective function
+    objective = solver.Objective()
+    
+    for app, entry in entries.items():
+        for is_assigned, weight, hotel_room in entry["constraints"]:
+            objective.SetCoefficient(is_assigned, weight)
+    
+    objective.SetMaximization()
+    
+    # Run the solver
+    status = solver.Solve()
+    if status in [pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE]:
+        # If it's optimal we know we got an ideal solution
+        # If it's feasible then we may have been on the way to an ideal solution,
+        # but we gave up searching because we ran out of time or something
+        assignments = {}
+        for app, entry in entries.items():
+            for is_assigned, weight, hotel_room in entry["constraints"]:
+                if is_assigned.solution_value() > 0.5:
+                    assert not app in assignments
+                    assignments[app] = (hotel_room["id"], hotel_room["room_type"])
+        return assignments
+    else:
+        log.error(f"Error solving room lottery: {status}")
+        return None
 
 @all_renderable()
 class Root:
@@ -174,6 +294,145 @@ class Root:
             'changes': session.query(Tracking).filter(Tracking.model == 'LotteryApplication', Tracking.fk_id == id
                                                       ).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application))
+        }
+        
+    def reset_lottery(self, session, **params):
+        lottery_type_val = params.get("lottery_type", "room")
+        if lottery_type_val == "room":
+            lottery_type = c.ROOM_ENTRY
+        elif lottery_type_val == "suite":
+            lottery_type_val = c.SUITE_ENTRY
+        else:
+            raise ValueError(f"Unknown lottery_type {lottery_type_val}")
+        
+        applications = session.query(LotteryApplication).filter(LotteryApplication.status == c.PROCESSED,
+                                                            Attendee.hotel_lottery_eligible == True)
+        applications = applications.filter(LotteryApplication.entry_type == lottery_type)
+        lottery_group_val = params.get("lottery_group", "attendee")
+        if lottery_group_val == "attendee":
+            applications = applications.filter(LotteryApplication.is_staff_entry == False)
+        elif lottery_group_val == "staff":
+            applications = applications.filter(LotteryApplication.is_staff_entry == True)
+        
+        applications = applications.all()
+        
+        for app in applications:
+            app.status = c.COMPLETE
+            app.assigned_hotel = None
+            app.assigned_room_type = None
+            app.assigned_suite_type = None
+            session.add(app)
+        session.commit()
+        raise HTTPRedirect('index?message={}',
+                           "All processed lottery entries are reset to completed.")
+        
+    def award_lottery(self, session, **params):
+        lottery_type_val = params.get("lottery_type", "room")
+        if lottery_type_val == "room":
+            lottery_type = c.ROOM_ENTRY
+        elif lottery_type_val == "suite":
+            lottery_type_val = c.SUITE_ENTRY
+        else:
+            raise ValueError(f"Unknown lottery_type {lottery_type_val}")
+        
+        applications = session.query(LotteryApplication).filter(LotteryApplication.status == c.PROCESSED,
+                                                            Attendee.hotel_lottery_eligible == True)
+        applications = applications.filter(LotteryApplication.entry_type == lottery_type)
+        lottery_group_val = params.get("lottery_group", "attendee")
+        if lottery_group_val == "attendee":
+            applications = applications.filter(LotteryApplication.is_staff_entry == False)
+        elif lottery_group_val == "staff":
+            applications = applications.filter(LotteryApplication.is_staff_entry == True)
+        
+        applications = applications.all()
+        
+        for app in applications:
+            app.status = c.AWARDED
+            session.add(app)
+        session.commit()
+        raise HTTPRedirect('index?message={}',
+                           "All processed lottery entries have been awarded.")
+        
+    def run_lottery(self, session, lottery_group="attendee", lottery_type="room", **params):
+        if lottery_type == "room":
+            lottery_type = c.ROOM_ENTRY
+        if lottery_type == "suite":
+            lottery_type = c.SUITE_ENTRY
+        applications = session.query(LotteryApplication).join(LotteryApplication.attendee
+                                                              ).filter(LotteryApplication.status == c.COMPLETE,
+                                                                       Attendee.hotel_lottery_eligible == True)
+
+        # We always grab all roommate entries, but the solver only looks at those that have a matching parent
+        # in the lottery batch.
+        applications = applications.filter(LotteryApplication.entry_type.in_([lottery_type, c.GROUP_ENTRY]))
+        if lottery_type == c.SUITE_ENTRY:
+            room_type_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES.values()}
+            room_types = c.HOTEL_LOTTERY_SUITE_ROOM_TYPES
+            inventory_type = "suite_inventory"
+        else:
+            room_type_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_ROOM_TYPES.values()}
+            room_types = c.HOTEL_LOTTERY_ROOM_TYPES
+            inventory_type = "room_inventory"
+
+        # If lottery_group is "both" don't filter either way
+        if lottery_group == "staff":
+            applications = applications.filter(LotteryApplication.is_staff_entry == True)
+        elif lottery_group == "attendee":
+            applications = applications.filter(LotteryApplication.is_staff_entry == False)
+            
+        applications = applications.all()
+        hotel_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_HOTELS.values()}
+        assigned_applications = session.query(LotteryApplication).join(LotteryApplication.attendee
+                                                                  ).filter(LotteryApplication.status.in_([c.PROCESSED, c.AWARDED, c.SECURED])).all()
+        
+        available_rooms = []
+        for key, item in c.HOTEL_LOTTERY_HOTELS.items():
+            hotel_enum, hotel = item
+            for room_type_key, quantity in hotel.get(inventory_type, {}).items():
+                room_type_enum, room_type = room_types.get(room_type_key)
+                if not room_type:
+                    raise ValueError(f"Could not locate hotel room_type {room_type_key}")
+                assigned_count = 0
+                for app in assigned_applications:
+                    if app.assigned_hotel != hotel_enum:
+                        continue
+                    if lottery_type == c.ROOM_ENTRY:
+                        if app.assigned_room_type != room_type_enum:
+                            continue
+                    elif lottery_type == c.SUITE_ENTRY:
+                        if app.assigned_suite_type != room_type_enum:
+                            continue
+                    else:
+                        continue
+                    assigned_count += 1
+                available_rooms.append({
+                    "id": str(hotel_enum),
+                    "capacity": int(room_type['capacity']),
+                    "room_type": str(room_type_enum),
+                    "quantity": int(quantity) - assigned_count
+                })
+        assignments = solve_lottery(applications, available_rooms, lottery_type=lottery_type)
+        
+        for application in applications:
+            if application.id in assignments:
+                hotel, room_type = assignments[application.id]
+                application.assigned_hotel = hotel
+                if lottery_type == c.SUITE_ENTRY:
+                    application.assigned_suite_type = room_type
+                elif lottery_type == c.ROOM_ENTRY:
+                    application.assigned_room_type = room_type
+                else:
+                    raise NotImplementedError(f"Unknown lottery type {lottery_type}")
+                application.status = c.PROCESSED
+                session.add(application)
+        session.commit()
+        application_lookup = {x.id: x for x in applications}
+        
+        return {
+            'num_rooms_available_before': sum([x['quantity'] for x in available_rooms]),
+            'num_rooms_available_after': sum([x['quantity'] for x in available_rooms]) - len(assignments),
+            'num_entries': len([x for x in applications if x.entry_type == lottery_type]),
+            'assignments': [(application_lookup[x], hotel_enum_lookup[y[0]], room_type_enum_lookup[y[1]]) for x,y in assignments.items()],
         }
 
     @csv_file

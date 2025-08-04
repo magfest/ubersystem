@@ -96,6 +96,12 @@ class SuiteLottery(RoomLottery):
     def room_opt_out_label(self):
         return Markup('I do NOT want to enter the room lottery. <strong>I understand that this means I will not be eligible for a room award if my entry is not chosen for the suite lottery.</strong>')
 
+def nullable_int(val):
+    val = int(val)
+    if val <= 0:
+        return None
+    return val
+
 class LotteryAdminInfo(SuiteLottery):
     response_id = IntegerField('Response ID', render_kw={'readonly': "true"})
     current_step = IntegerField('Current Step')
@@ -112,3 +118,6 @@ class LotteryAdminInfo(SuiteLottery):
     data_policy_accepted = BooleanField('Agreed to Data Policies', render_kw={'readonly': "true"})
     guarantee_policy_accepted = BooleanField('Acknowledged Payment Guarantee Policy', render_kw={'readonly': "true"})
     suite_terms_accepted = BooleanField(f'Agreed to Suite Policies', render_kw={'readonly': "true"})
+    assigned_hotel = SelectField('Assigned Hotel', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_HOTELS_OPTS])
+    assigned_room_type = SelectField('Assigned Hotel Room Type', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_ROOM_TYPES_OPTS])
+    assigned_suite_type = SelectField('Assigned Suite Room Type', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS])

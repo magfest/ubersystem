@@ -3,7 +3,7 @@
 <body>
 
 Your {{ group.is_dealer|yesno(c.DEALER_REG_TERM + ",group") }} ({{ group.name }}) has been preregistered for
-{{ c.EVENT_NAME }} this coming {{ event_dates() }} and your payment of {{ (group.amount_paid / 100)|format_currency }} has been received.
+{{ c.EVENT_NAME }} this coming {{ event_dates() }}{% if group.cost > 0 %} and your payment of {{ (group.amount_paid / 100)|format_currency }} has been received{% endif %}.
 
 {% if group.unregistered_badges %}
     <br/> <br/>
@@ -18,7 +18,7 @@ Your {{ group.is_dealer|yesno(c.DEALER_REG_TERM + ",group") }} ({{ group.name }}
     <b>Your</b> registration confirmation number is {{ group.leader_id }}, and you can update your information, preorder merch,
     or donate extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader_id }}">here</a>.
 
-    {% if not group.is_dealer %}
+    {% if not group.is_dealer and group.cost > 0 %}
         <br/> <br/>
         You can add badges to your group using the above link, but you must add
         at least {{ c.MIN_GROUP_ADDITION }} badges at a time.
