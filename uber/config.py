@@ -1250,7 +1250,7 @@ class Config(_Overridable):
     @dynamic
     def MIVS_SUBMISSIONS_OPEN(self):
         return self.MIVS_START and not really_past_mivs_deadline(c.MIVS_DEADLINE) and self.AFTER_MIVS_START
-    
+
     @property
     @dynamic
     def INDIE_ARCADE_SUBMISSIONS_OPEN(self):
@@ -1260,6 +1260,11 @@ class Config(_Overridable):
     @dynamic
     def INDIE_RETRO_SUBMISSIONS_OPEN(self):
         return self.INDIE_RETRO_START and self.BEFORE_INDIE_RETRO_DEADLINE and self.AFTER_INDIE_RETRO_START
+
+    @property
+    @dynamic
+    def MITS_SUBMISSIONS_OPEN(self):
+        return self.MITS_START and self.BEFORE_MITS_SUBMISSION_DEADLINE and self.AFTER_MITS_START
 
     # =========================
     # panels

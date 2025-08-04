@@ -18,7 +18,7 @@ from uber.models.types import default_relationship as relationship, Choice, Defa
 
 __all__ = [
     'dept_membership_dept_role', 'job_required_role', 'Department',
-    'DeptChecklistItem', 'DeptMembership', 'DeptMembershipRequest',
+    'DeptChecklistItem', 'BulkPrintingRequest', 'DeptMembership', 'DeptMembershipRequest',
     'DeptRole', 'Job', 'Shift']
 
 
@@ -57,6 +57,24 @@ class DeptChecklistItem(MagModel):
     __table_args__ = (
         UniqueConstraint('department_id', 'attendee_id', 'slug'),
     )
+
+
+class BulkPrintingRequest(MagModel):
+    department_id = Column(UUID, ForeignKey('department.id'))
+    link = Column(UnicodeText)
+    copies = Column(Integer)
+    print_orientation = Column(Choice(c.PRINT_ORIENTATION_OPTS), default=c.PORTRAIT)
+    cut_orientation = Column(Choice(c.CUT_ORIENTATION_OPTS), default=c.NONE)
+    color = Column(Choice(c.PRINT_REQUEST_COLOR_OPTS), default=c.BW)
+    paper_type = Column(Choice(c.PRINT_REQUEST_PAPER_TYPE_OPTS), default=c.STANDARD)
+    paper_type_text = Column(UnicodeText)
+    size = Column(Choice(c.PRINT_REQUEST_SIZE_OPTS), default=c.STANDARD)
+    size_text = Column(UnicodeText)
+    double_sided = Column(Boolean, default=False)
+    stapled = Column(Boolean, default=False)
+    notes = Column(UnicodeText)
+    required = Column(Boolean, default=False)
+    link_is_shared = Column(Boolean, default=False)
 
 
 class DeptMembership(MagModel):

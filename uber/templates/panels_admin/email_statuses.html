@@ -17,5 +17,7 @@
             <li>Panel Accepted: {{ emails['panel_accepted']|yesno("approved,queued") }}</li>
             <li>Panel Scheduled: {{ emails['panel_scheduled']|yesno("approved,queued") }}</li>
         </ul>
+
+        {% if c.ACCESSIBILITY_EMAIL %}If a panelist has requested to be contacted by accessibility services, an email will be sent to {{ c.ACCESSIBILITY_EMAIL|email_only }} when their panel is approved.{% endif %}
     </body>
 </html>
