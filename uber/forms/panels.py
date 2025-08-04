@@ -38,10 +38,14 @@ class PanelistInfo(MagForm):
                                              widget=MultiCheckbox())
     other_communication_pref = StringField("Other Communication Preference",
                                            render_kw={'placeholder': "What other way should we contact you?"})
+    requested_accessibility_services = BooleanField(
+        f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department if my panel is accepted '
+        'and I understand my contact information will be shared with Accessibility Services for this purpose.',
+        widget=SwitchInput())
 
 
 class PanelistCredentials(MagForm):
-    occupation = StringField("Occupation", render_kw={'placeholder': "What do you do?"})
+    occupation = StringField("Occupation (if relevant)", render_kw={'placeholder': "What do you do?"})
     website = StringField("Website", render_kw={'placeholder': "www.example.com"})
     other_credentials = TextAreaField("Other Experience",
                                       render_kw={'placeholder': "What else qualifies you to conduct this panel?"})
