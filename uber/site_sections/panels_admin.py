@@ -9,12 +9,13 @@ from sqlalchemy import func, literal_column
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render
 from uber.errors import HTTPRedirect
 from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
     PanelApplicant, PanelApplication, GuestGroup
 from uber.utils import add_opt, check, localized_now, validate_model
 from uber.forms import load_forms
+from uber.tasks.email import send_email
 
 
 @all_renderable()
@@ -208,6 +209,16 @@ class Root:
         if app.status != c.ACCEPTED and int(status) == c.ACCEPTED:
             app.accepted = datetime.now()
             app.add_credentials_to_desc()
+            if c.ACCESSIBILITY_EMAIL and any([panelist for panelist in app.applicants if panelist.requested_accessibility_services]):
+                body = render('emails/panels/accessibility_requested.txt', {
+                'app': app,
+                }, encoding=None)
+                send_email.delay(
+                    c.ADMIN_EMAIL,
+                    c.ACCESSIBILITY_EMAIL,
+                    f'{c.EVENT_NAME} Panel Accepted With Accessibility Request(s)',
+                    body,
+                    model='n/a')
         app.status = int(status)
         if not app.poc:
             app.poc_id = session.admin_attendee().id

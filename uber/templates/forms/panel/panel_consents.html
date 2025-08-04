@@ -34,7 +34,7 @@
         please contact <b>{{ c.PANELS_EMAIL }}</b>.
         <br/><br/>{{ form_macros.input(panel_consents.verify_tos) }}
 </div>
-{{ form_macros.input(panel_consents.other_panelists, **{'x-bind:value': 'other_panelists'}) }}
+{{ form_macros.input(panel_consents.other_panelists, show_label=False, **{'x-bind:value': 'other_panelists'}) }}
 <div class="alert alert-info" x-show="showPanelist(1)">
     I understand that by submitting this application, I am
         designating myself as the team leader and primary point of

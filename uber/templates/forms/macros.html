@@ -52,7 +52,7 @@
   <div class="form-text">{{ label(field, label_text, label_required, **label_kwargs) }}</div>
 {% endif %}
 {% if 'CheckboxInput' in widget or 'SwitchInput' in widget %}
-  <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
+  <div class="form-check{% if 'SwitchInput' in widget %} form-switch{% endif %}">
     {% if is_readonly %}
     <input type="hidden" name="{{ field.id }}" value="{{ field.data }}" />
     {{ field(checked=custom_kwargs.pop('checked') if 'checked' in custom_kwargs else field.data, disabled=true, value=1, **custom_kwargs) }}
