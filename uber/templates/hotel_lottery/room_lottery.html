@@ -18,13 +18,13 @@
     </div>
     {% endif %}
 
-    <h2>Standard Room{% if suite %} & Suite{% endif %} Lottery <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a></h2>
+    <h2>Standard Room Lottery{% if application.status == c.COMPLETE %} <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a>{% endif %}</h2>
     {% if application.status != c.COMPLETE %}
     <p>
         Please read the instructions for each step below carefully. Any completed steps (steps with a <i class='fa fa-check'></i>) will be saved if you leave and come back later, but your lottery entry is <strong>NOT</strong> complete until you see the confirmation screen.
     </p>
     <p>You can review or edit completed (<i class='fa fa-check'></i>) steps by clicking the name of the step. Changes to completed steps are saved when you click the "Save and Continue" button on your current step.</p>
-    {% elif not c.HOTEL_LOTTERY_OPEN %}
+    {% elif application.current_lottery_closed %}
     <p>
         <strong><span class="text-danger">The hotel lottery is now closed.</span></strong>
         You can view your entry details below. Your entry is already being processed; any changes you make will NOT affect your potential room award.

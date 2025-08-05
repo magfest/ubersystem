@@ -4,14 +4,14 @@
 {% if group.is_valid and c.REMAINING_BADGES > 50 %}
   <br/>
   <p>
-  {% if group.is_dealer and group.min_badges_addable %}
+  {% if group.is_dealer and group.min_badges_addable > 0 and group.dealer_badges_remaining > 0 %}
     You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional {{ c.DEALER_HELPER_TERM }} badges.
   {% elif group.is_dealer and group.status != c.SHARED %}
     Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional {{ c.DEALER_HELPER_TERM }} badges.
   {% endif %}
   </p>
 
-  {% if group.min_badges_addable %}
+  {% if group.min_badges_addable > 0 and (group.dealer_badges_remaining > 0 or not group.is_dealer) %}
     <div id="add" style="display:none;">
       <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
@@ -85,7 +85,7 @@
   {% endif %}
 {% endif %}
 {% if group.is_valid and not add_badges_disabled and group.can_add_existing_badges %}
-{% if group.is_valid and c.REMAINING_BADGES > 50 and group.min_badges_addable %}
+{% if group.is_valid and c.REMAINING_BADGES > 50 and group.min_badges_addable and (group.dealer_badges_remaining > 0 or not group.is_dealer) %}
 OR
 {% endif %}
 <button id="attach-btn"{% if add_badges_disabled %} disabled{% endif %} class="btn btn-primary mt-1">
