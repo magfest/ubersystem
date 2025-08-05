@@ -67,7 +67,9 @@ class PersonalInfo(AddressForm):
 class BadgeExtras(MagForm):
     dynamic_choices_fields = {'shirt': lambda: c.SHIRT_OPTS, 'staff_shirt': lambda: c.STAFF_SHIRT_OPTS}
 
+    attendance_type = HiddenIntField('Single Day or Weekend Badge?')
     badge_type = HiddenIntField('Badge Type')
+    badge_type_single = HiddenIntField('Badge Type', default=c.ATTENDEE_BADGE)
     amount_extra = HiddenIntField('Pre-order Merch')
     extra_donation = IntegerField('Extra Donation', widget=NumberInputGroup(),
                                   description=popup_link("../static_views/givingExtra.html", "Learn more"))

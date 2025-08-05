@@ -98,7 +98,7 @@ def _reset_group_member(application):
         application.data_policy_accepted = False
     
     if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
-            application.is_staff_entry = True
+        application.is_staff_entry = True
     else:
         application.is_staff_entry = False
 

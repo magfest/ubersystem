@@ -270,12 +270,20 @@ class LotteryApplication(MagModel):
 
     @property
     def qualifies_for_staff_lottery(self):
-        return self.attendee.staff_hotel_lottery_eligible
-    
+        return self.attendee and self.attendee.staff_hotel_lottery_eligible
+
     @property
     def current_lottery_deadline(self):
         return c.HOTEL_LOTTERY_STAFF_DEADLINE if c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery \
             else c.HOTEL_LOTTERY_FORM_DEADLINE
+
+    @property
+    def current_lottery_closed(self):
+        if self.is_staff_entry:
+            return not c.STAFF_HOTEL_LOTTERY_OPEN
+        elif self.qualifies_for_staff_lottery:
+            return not c.STAFF_HOTEL_LOTTERY_OPEN and not c.HOTEL_LOTTERY_OPEN
+        return not c.HOTEL_LOTTERY_OPEN
 
     @property
     def entry_form_completed(self):

@@ -4,7 +4,7 @@
 {% set group_info = group_info or forms['group_info'] %}
 
 {% if c.FORMATTED_REG_TYPES and c.FORMATTED_REG_TYPES|length > 1 %}
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     {{ form_macros.card_select(badge_extras.badge_type,
         c.FORMATTED_REG_TYPES, disabled_opts=c.UNAVAILABLE_REG_TYPES,
         target_field_id="badge_type", disabled_card_text="Unavailable", label="Registration Type") }}

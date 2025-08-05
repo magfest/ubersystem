@@ -16,8 +16,8 @@
 
 <div 
 x-data="{ {% block x_data %}
-   presentation: {{ panel_info.presentation.data|jsonize }},
-   panel_length: {{ panel_info.length.data|jsonize }},
+   presentation: '{{ panel_info.presentation.data }}',
+   panel_length: '{{ panel_info.length.data }}',
    department: '{{ panel_info.department.data }}',
    dept_descs: {
     {% for key, _, desc in c.PANELS_DEPT_OPTS_WITH_DESC %}
@@ -31,7 +31,7 @@ x-data="{ {% block x_data %}
    get lengthReason() { return this.panel_length != '{{ c.SIXTY_MIN }}' && this.panel_length != '0' },
 {% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block name %}
 <div class="col-sm">{{ form_macros.input(panel_info.name) }}</div>
 {% if c.PANELS_DEPT_OPTS_WITH_DESC|length > 1 %}
@@ -48,11 +48,11 @@ x-data="{ {% block x_data %}
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block type_length %}
   <div class="col-sm">
     {% call form_macros.input(panel_info.presentation, alpine_model='presentation') %}
-    <div x-show="otherPresentation" class="row g-sm-3 mb-3">
+    <div x-show="otherPresentation" class="row g-3 mb-3">
         <div class="col-sm-6">
         {{ form_macros.input(panel_info.other_presentation, required_if="otherPresentation") }}
         </div>
@@ -76,14 +76,14 @@ x-data="{ {% block x_data %}
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block desc %}
   <div class="col-sm">{{ form_macros.input(panel_info.description) }}</div>
   <div class="col-sm">{{ form_macros.input(panel_info.public_description) }}</div>
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block record_livestream %}
     <div class="col-sm">{{ form_macros.input(panel_info.noise_level) }}</div>
     {% if c.LIVESTREAM_OPTS|length <= 2 %}
@@ -95,7 +95,7 @@ x-data="{ {% block x_data %}
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block rating %}
 {% if c.PANEL_CONTENT_OPTS|length > 1 or c.PANEL_RATING_OPTS|length > 1 %}
     {% if c.PANEL_CONTENT_OPTS|length > 1 %}

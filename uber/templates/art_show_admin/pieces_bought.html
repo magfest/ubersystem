@@ -136,7 +136,7 @@
       <tr><td colspan="9" class="text-end">Owed: {{ (receipt.owed / 100)|format_currency }}</td></tr>
       <tr><td colspan="9" class="text-end">
         <form role="form" method="post" action="record_payment">
-          <div class="row g-sm-3 row-cols-auto justify-content-end">
+          <div class="row g-3 row-cols-auto justify-content-end">
             <div class="col">
               <input type="hidden" name="id" value="{{ receipt.id }}" />
               <input type="hidden" name="type" value="{{ c.CASH }}" />
@@ -149,7 +149,7 @@
         </form>
       </td></tr>
       <tr><td colspan="9" class="text-end">
-      <div class="row g-sm-3 row-cols-auto justify-content-end">
+      <div class="row g-3 row-cols-auto justify-content-end">
         {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY and not reg_station_id %}
         <div class="col align-self-center">Please set workstation ID to process card payments.</div>
         {% else %}
@@ -173,7 +173,7 @@
       {% endif %}
       <tr><td colspan="9" class="text-end">
         <form role="form" method="post" action="record_payment">
-          <div class="row g-sm-3 row-cols-auto justify-content-end">
+          <div class="row g-3 row-cols-auto justify-content-end">
             <div class="col">
               <input type="hidden" name="id" value="{{ receipt.id }}" />
               <input type="hidden" name="type" value="{{ c.REFUND }}" />

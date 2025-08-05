@@ -52,7 +52,7 @@
     <input type="hidden" name="id" value="{{ entry.db_id }}" />
 
     {% if not entry.is_new %}
-      <div class="row g-sm-3">
+      <div class="row g-3">
         <div class="col">
           <div class="form-text">Created</div>
           <div class="mb-3">{{ entry.created_info.when|full_datetime_local }} by {{ entry.created_info.who }}</div>
@@ -65,7 +65,7 @@
         {% endif %}
       </div>
     {% endif %}
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         {{ form_macros.input(watchlist_entry.first_names) }}
       </div>
@@ -73,7 +73,7 @@
         {{ form_macros.input(watchlist_entry.last_name) }}
       </div>
     </div>
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         {{ form_macros.input(watchlist_entry.email) }}
       </div>
@@ -81,7 +81,7 @@
         {{ form_macros.input(watchlist_entry.birthdate) }}
       </div>
     </div>
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         {{ form_macros.input(watchlist_entry.reason, admin_text="The reason this attendee is on the watchlist.") }}
       </div>
@@ -89,12 +89,12 @@
         {{ form_macros.input(watchlist_entry.action, admin_text="What, if anything, the attendee should do before checking in.") }}
       </div>
     </div>
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         {{ form_macros.input(watchlist_entry.expiration, admin_text="The watchlist will deactivate on this day.") }}
       </div>
     </div>
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         {{ form_macros.input(watchlist_entry.active) }}
       </div>

@@ -34,7 +34,7 @@
       &nbsp;
       {% if is_prereg_dealer %}
       <button type="submit" class="btn btn-primary mt-3" value="Submit Application">Submit Application</button>
-      {% elif editing %}
+      {% elif editing and not repurchase %}
       <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
       {% else %}
       <button type="submit" class="btn btn-primary mt-3" value="Add to Cart">Add to Cart</button>
@@ -45,7 +45,7 @@
 {% if is_prereg_dealer %}
 {{ "js/warn-before-logout-dealer.js"|serve_static_content }}
 {% else %}
-<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
+<div class="text-center mt-1"><em class="badge bg-dark fw-normal text-wrap lh-sm">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
 {{ "js/warn-before-logout.js"|serve_static_content }}
 {% endif %}
 {% endblock %}

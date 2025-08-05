@@ -63,7 +63,7 @@
             <p>Suite policies, floor plans and other details pertaining to suites may be found on the Suite FAQ.</p>
             {% endblock %}
             {% block terms_form %}
-            <div class="row g-sm-3 mb-3">
+            <div class="row g-3 mb-3">
                 <div class="col-12">
                     <strong>{{ form_macros.input(suite_lottery.suite_terms_accepted) }}</strong>
                 </div>
@@ -132,6 +132,8 @@
     In addition to your suite lottery entry, we <strong>strongly</strong> recommend opting into the standard room lottery
     by ranking your preferred hotels and standard room types in this step.
     However, if you want you can opt out of the room lottery using the checkbox below.
-</p>
+
 {{ form_macros.input(room_or_suite_lottery.room_opt_out, readonly=read_only) }}
+</p>
+<hr class="hotel_and_room_type_ranking" />
 {% endblock %}

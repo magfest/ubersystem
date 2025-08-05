@@ -223,7 +223,7 @@ class Tracking(MagModel):
 
     @classmethod
     def track(cls, action, instance):
-        from uber.models import AutomatedEmail
+        from uber.models import ApiJob
 
         if action in [c.CREATED, c.UNPAID_PREREG, c.EDITED_PREREG]:
             vals = {
@@ -248,6 +248,11 @@ class Tracking(MagModel):
             who = 'server admin'
         else:
             who = AdminAccount.admin_or_volunteer_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+        
+        if isinstance(instance, ApiJob) and who == 'non-admin':
+            # Automated processing of API jobs is tracked in the jobs themselves
+            # Skipping these logs saves us tens of thousands of extra rows
+            return
 
         try:
             snapshot = json.dumps(instance.to_dict(), cls=serializer)

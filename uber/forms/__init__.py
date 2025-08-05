@@ -21,11 +21,38 @@ def valid_cellphone(form, field):
                               'include a country code (e.g. +44) for international numbers.')
 
 
+def maximum_values(form, field):
+    if not field.data:
+        return
+
+    if isinstance(field.data, six.string_types) and len(field.data) > 10000:
+        raise ValidationError('Please enter under 10,000 characters.')
+    if isinstance(field.data, list) and len(field.data) > 1000:
+        raise ValidationError('Please select fewer than 1,000 options.')
+    if isinstance(field.data, cherrypy._cpreqbody.Part):
+        if field.data.file:
+            field.data.file.seek(0)
+            file_size = len(field.data.file.read()) / (1024 * 1024)
+            field.data.file.seek(0)
+            if file_size > 5:
+                raise ValidationError("Please upload a file under 5MB.")
+
+    try:
+        val = int(field.data)
+        if val > 100000000001:
+            raise ValidationError('Please enter a number under 100,000,000,000.')
+        if val < -100000000001:
+            raise ValidationError('Please enter a number above -100,000,000,000.')
+    except (ValueError, TypeError):
+        pass
+
+
 def get_override_attr(form, field_name, suffix, *args):
     return getattr(form, field_name + suffix, lambda *args: '')(*args)
 
 
-def load_forms(params, model, form_list, prefix_dict={}, truncate_prefix='admin', checkboxes_present=True):
+def load_forms(params, model, form_list, field_prefix='', truncate_prefix='admin',
+               checkboxes_present=True, force_form_defaults=True, read_only=False):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
@@ -35,12 +62,18 @@ def load_forms(params, model, form_list, prefix_dict={}, truncate_prefix='admin'
     `params` should be a dictionary from a form submission, usually passed straight from the page handler.
     `model` is the object itself, e.g., the attendee we're loading the form for.
     `form_list` is a list of strings of which form classes to load, e.g., ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
-    `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms
-        with conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all
-        GroupInfo fields.
+    `field_prefix` is an optional string to use as a prefix. This is useful for loading forms
+        with conflicting field names on the same page, e.g., passing 'group_' will add group_ to all the forms loaded
+        in this call.
     `truncate_prefix` allows you to remove a single word from the form, so e.g. a truncate_prefix of "admin" will save
         "AdminTableInfo" as "table_info." This allows loading admin and prereg versions of forms while using the
         same form template.
+    `checkboxes_present` lets us avoid setting unchecked checkboxes to false if they are not present on the form.
+    `force_form_defaults` makes the field default value override the model's value if there are no parameters passed
+        and the object has not been saved to the database.
+    `read_only` lets you set all fields in the loaded forms to be read-only. Input types that don't use the readonly property,
+        such as checkboxes, will be set to disabled instead. To make only some fields in a form read-only, pass `readonly`
+        or `disabled` to the form input macro instead.
 
     Returns a dictionary of form objects with the snake-case version of the form as the ID, e.g.,
     the PersonalInfo class will be returned as form_dict['personal_info'].
@@ -72,9 +105,11 @@ def load_forms(params, model, form_list, prefix_dict={}, truncate_prefix='admin'
                 else:
                     alias_dict[aliased_field] = alias_val
 
-        loaded_form = form_cls(params, model, prefix=prefix_dict.get(form_name, ''))
+        loaded_form = form_cls(params, model, prefix=field_prefix)
+        loaded_form.read_only = read_only
 
-        loaded_form.process(params, model, checkboxes_present=checkboxes_present, data=alias_dict)
+        loaded_form.process(params, model, checkboxes_present=checkboxes_present,
+                            data=alias_dict, force_form_defaults=force_form_defaults)
 
         form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', form_name).lower()
         if truncate_prefix and form_label.startswith(truncate_prefix + '_'):
@@ -171,6 +206,9 @@ class CustomValidation:
     def set_phone_validators(self, field_name):
         self.validations[field_name]['valid'] = valid_cellphone
 
+    def set_server_max(self, field_name):
+        self.validations[field_name]['server_max'] = maximum_values
+
     def get_validations_by_field(self, field_name):
         field_validations = self.validations.get(field_name)
         return list(field_validations.values()) if field_validations else []
@@ -193,10 +231,10 @@ class MagForm(Form):
 
     def __init_subclass__(cls, *args, **kwargs):
         cls.field_validation, cls.new_or_changed = CustomValidation(), CustomValidation()
-        cls.kwarg_overrides = {}
         cls.has_inherited = False
         cls.is_admin = False
         cls.model = None
+        cls.read_only = False
 
     @classmethod
     def set_overrides_and_validations(cls):
@@ -236,6 +274,8 @@ class MagForm(Form):
                         form.field_validation.set_email_validators(field_name)
                     elif ufield.field_class.__name__ == "TelField":
                         form.field_validation.set_phone_validators(field_name)
+                    elif 'length' not in form.field_validation.validations[field_name]:
+                        form.field_validation.set_server_max(field_name)
 
     @classmethod
     def inherit_validations(cls, form, inherit_from):
@@ -323,7 +363,8 @@ class MagForm(Form):
                 setattr(target, name, getattr(form, name))
         return target
 
-    def process(self, formdata=None, obj=None, data=None, extra_filters=None, checkboxes_present=True, **kwargs):
+    def process(self, formdata={}, obj=None, data=None, extra_filters=None,
+                checkboxes_present=True, force_form_defaults=True, **kwargs):
         formdata = self.meta.wrap_formdata(self, formdata)
 
         # Special form data preprocessing!
@@ -335,6 +376,8 @@ class MagForm(Form):
         # We also convert our MultiChoice value (a string) into the list of strings that WTForms expects
         # and convert DOBs into the format that our DateMaskInput expects
         # and process our UniqueList field data if it's been submitted as multiple fields
+
+        force_defaults = force_form_defaults and not formdata and (not obj or obj.is_new)
 
         for name, field in self._fields.items():
             field_in_obj = hasattr(obj, name)
@@ -350,6 +393,7 @@ class MagForm(Form):
                         if isinstance(formdata[name], six.string_types) else formdata[name]
             elif (isinstance(field, SelectMultipleField)
                   or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
+                  or isinstance(field.widget, SelectButtonGroup)
                   ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
                     formdata[name] = []
@@ -361,6 +405,9 @@ class MagForm(Form):
                 formdata[name] = getattr(obj, name).strftime('%m/%d/%Y')
             elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[name], list):
                 formdata[name] = ','.join(formdata[name])
+
+            if force_defaults and field.default is not None:
+                formdata[name] = field.default
 
         super().process(formdata, obj, data, extra_filters, **kwargs)
 
@@ -515,6 +562,7 @@ class DictWrapper(dict):
 
 
 from uber.forms.widgets import *  # noqa: F401,E402,F403
+from uber.forms.art_show import *  # noqa: F401,E402,F403
 from uber.forms.attendee import *  # noqa: F401,E402,F403
 from uber.forms.department import *  # noqa: F401,E402,F403
 from uber.forms.group import *  # noqa: F401,E402,F403

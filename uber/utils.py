@@ -1866,7 +1866,7 @@ class TaskUtils:
             try:
                 account_to_import = TaskUtils.get_attendee_account_by_id(import_job.query, service)
             except Exception as ex:
-                import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
                 session.commit()
                 return
 
@@ -2016,8 +2016,7 @@ class TaskUtils:
                     try:
                         account_to_import = TaskUtils.get_attendee_account_by_id(id, service)
                     except Exception as ex:
-                        import_job.errors += "; {}".format("; ".join(str(ex)))\
-                            if import_job.errors else "; ".join(str(ex))
+                        import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
 
                     account = session.query(AttendeeAccount).filter(
                         AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()

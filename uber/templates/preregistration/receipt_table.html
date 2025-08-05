@@ -1,4 +1,4 @@
-<table class="table table-striped" id="upgrade-preview">
+<table class="table table-striped">
     <tbody>
       {% for item in receipt.all_sorted_items_and_txns|rejectattr("cancelled")|rejectattr("is_pending_charge") %}
       <tr>

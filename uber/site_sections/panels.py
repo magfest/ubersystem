@@ -21,8 +21,7 @@ def get_other_panelists_forms(num, submitter=None, **params):
         panelist_forms = {}
 
     for i in range(1, int(num) + 1):
-        panelist_forms[i] = load_forms(params, PanelApplicant(), panelist_form_list,
-                                       {form_name: str(i) for form_name in panelist_form_list})
+        panelist_forms[i] = load_forms(params, PanelApplicant(), panelist_form_list, field_prefix=str(i))
     return panelist_forms
 
 
