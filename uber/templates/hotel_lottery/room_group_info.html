@@ -4,20 +4,20 @@
     This allows us to more efficiently fill rooms from the start and avoid cancellation churn.
 </p>
 
-<h3>Creating Room Groups</h3>
+<h3>Creating {{ c.HOTEL_LOTTERY_GROUP_TERM }}s</h3>
 <p>
-    To form a room group:
+    To form a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}:
     <ol>
         <li>Choose one person to be the "group leader." They will be the main responsible party, able to update the group's room and/or suite entry, and remove people from the group.</li>
         <li>Have the group leader log into their homepage and complete a lottery entry for a room and/or suite.</li>
         <li>After completing a lottery entry, the group leader will receive a confirmation email with a link to create the group and their confirmation number.</li>
         <li>After using the link to create a group, the group leader should send the other group members their confirmation number and email address.</li>
-        <li>The other group members (up to three) can then log in and use the "Join Room Group" button on their lottery options page, then enter the confirmation number and email address to join the group.</li>
+        <li>The other group members (up to three) can then log in and use the "Join {{ c.HOTEL_LOTTERY_GROUP_TERM }}" button on their lottery options page, then enter the confirmation number and email address to join the group.</li>
     </ol>
 </p>
 
 <p>
-    When you join a room group, <strong>any existing entry is automatically withdrawn from the lottery</strong>.
+    When you join a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}, <strong>any existing entry is automatically withdrawn from the lottery</strong>.
     For example, if you currently have a suite lottery entry, but join a group that only has a room lottery entry, you will <em>only</em> be entered into the room lottery.
 </p>
 
@@ -30,15 +30,15 @@
 </p>
 
 <p>
-    If a room group exceeds the occupancy limit of the awarded room, the group leader will be booked,
+    If a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} exceeds the occupancy limit of the awarded room, the group leader will be booked,
     followed by the roommates in the order they entered the lottery until the limit is met.
     Award notices will clearly show who was booked.
 </p>
 
-<h3>Additional Notes on Room Groups</h3>
+<h3>Additional Notes on {{ c.HOTEL_LOTTERY_GROUP_TERM }}s</h3>
 <p>
     <ul>
-        <li>Room groups awarded a room are not guaranteed rollaway beds.</li>
+        <li>{{ c.HOTEL_LOTTERY_GROUP_TERM|capitalize }}s awarded a room are not guaranteed rollaway beds.</li>
         <li>For privacy and security reasons, {{ c.EVENT_NAME }} is unable to answer questions related to group members or status.</li>
         <li>
             By their very nature, hotel bookings include the legal names of all guests.

@@ -162,7 +162,7 @@
     </div>
 </div>
 
-{% if c.SHOW_HOTEL_LOTTERY_DATE_OPTS %}
+{% if 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
 <div class="row g-3">
     <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.earliest_checkin_date) }}</div>
     <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.latest_checkout_date) }}</div>
@@ -181,7 +181,7 @@
 {{ form_macros.input(lottery_admin_info.suite_type_preference) }}
 {{ form_macros.input(lottery_admin_info.hotel_preference) }}
 {{ form_macros.input(lottery_admin_info.room_type_preference) }}
-{% if c.HOTEL_LOTTERY_PREF_RANKING %}
+{% if 'room_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
 {{ form_macros.input(lottery_admin_info.selection_priorities) }}
 {% endif %}
 

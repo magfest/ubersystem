@@ -1,7 +1,7 @@
 """Adding hotel lottery awards
 
 Revision ID: 21cb18083129
-Revises: 6d8333eaf58a
+Revises: 34f9d87b62f4
 Create Date: 2025-05-14 05:31:58.802292
 
 """
@@ -9,7 +9,7 @@ Create Date: 2025-05-14 05:31:58.802292
 
 # revision identifiers, used by Alembic.
 revision = '21cb18083129'
-down_revision = '6d8333eaf58a'
+down_revision = '34f9d87b62f4'
 branch_labels = None
 depends_on = None
 

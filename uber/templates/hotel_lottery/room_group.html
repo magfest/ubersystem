@@ -75,7 +75,7 @@
         var formToSubmit = this;
         event.preventDefault();
         bootbox.confirm({
-            title: "Disband Room Group?",
+            title: "Disband {{ c.HOTEL_LOTTERY_GROUP_TERM }}?",
             message: "<p>This remove all group members from your group. They will be notified via email.</p>" + 
                      "<p>This will not withdraw you from the lottery, but it WILL generate a new confirmation number for your lottery entry.</p>" +
                      "<p>Are you sure?</p>",
@@ -101,7 +101,7 @@
         var formToSubmit = this;
         event.preventDefault();
         bootbox.confirm({
-            title: "Join Room Group?",
+            title: "Join {{ c.HOTEL_LOTTERY_GROUP_TERM }}?",
             message: "<p>This will withdraw your current lottery entry and generate a new confirmation number.</p>" + 
                      "<p>You will ONLY be entered for the suite and/or room lottery if your group has an entry for it. " +
                      "You will be able to view your group's lottery entries after joining.</p>" +
@@ -149,26 +149,26 @@
     <div id="select-action" class="collapse">
         {% if application.room_group_name or application.parent_application %}
             {{ form_macros.form_validation('update-group', 'validate_hotel_lottery', form_list=['LotteryRoomGroup']) }}
-            <h2>Your Room Group</h2>
+            <h2>Your {{ c.HOTEL_LOTTERY_GROUP_TERM }}</h2>
             {% if application.parent_application %}
             <p>
-                You are in room group "{{ application.parent_application.room_group_name }}".
+                You are in {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} "{{ application.parent_application.room_group_name }}".
                 {{ application.parent_application.group_leader_name }} is your group leader.
                 Your confirmation number is <strong>{{ application.confirmation_num }}</strong>.
             </p>
             {% else %}
-                <p>Your room group name is "{{ application.room_group_name }}" and your group has {{ application.group_members|length + 1 }} group member(s), including yourself. You can edit your group name{% if application.group_members|length > 0 %} and view your group's members{% endif %} below.</p>
+                <p>Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} name is "{{ application.room_group_name }}" and your group has {{ application.group_members|length + 1 }} group member(s), including yourself. You can edit your group name{% if application.group_members|length > 0 %} and view your group's members{% endif %} below.</p>
                 <p>In order to join your group, group members need both the confirmation number (<strong>{{ application.confirmation_num }}</strong>) and your current email address (<strong>{{ application.attendee.email }}</strong>).</p>
                 {% if application.attendee.managers and application.attendee.managers[0].hotel_eligible_attendees|length > 1 %}
                 <p>
-                    <strong>Other badges on your account are NOT automatically part of your room group.</strong>
+                    <strong>Other badges on your account are NOT automatically part of your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.</strong>
                     {% set potential_room_group_members = application.attendee.managers[0].get_potential_room_group_members(staff=application.is_staff_entry) %}
                     {% if application.group_members|length < 3 and potential_room_group_members|length > 1 %}
                     Below is a list of the badges on your account that are currently eligible to join the group.
                 </p>
                 <p>
-                    We require each room group member to agree to our hotel lottery policies and provide their legal name and a contact phone number for the hotel.
-                    Click on one of the badges below, fill out the form, and then select "Join "{{ application.room_group_name }}" Room Group" to add that badge to your room group.
+                    We require each {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} member to agree to our hotel lottery policies and provide their legal name and a contact phone number for the hotel.
+                    Click on one of the badges below, fill out the form, and then select "Join "{{ application.room_group_name }}" {{ c.HOTEL_LOTTERY_GROUP_TERM }}" to add that badge to your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.
                     <div class="list-group w-25 text-nowrap text-center">
                         {% for attendee in potential_room_group_members %}
                         <a href="terms?attendee_id={{ attendee.id }}" class="list-group-item list-group-item-action">{{ attendee.full_name }}</a>
@@ -176,12 +176,12 @@
                     </div>
                     <hr/>
                     {% elif application.group_members %}
-                    Your current room group members are listed below.
+                    Your current {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members are listed below.
                     {% else %} You currently have no other badges on your account that can join your room group.
                     {% endif %}
                 </p>
                 {% endif %}
-                <p>Room group members will be able to view your initials ({{ application.group_leader_name }}) and most of the details of your lottery entry. They will NOT see your check-in name{% if application.entry_type == c.ROOM_ENTRY %} or any ADA-related requests{% endif %}.</p>
+                <p>{{ c.HOTEL_LOTTERY_GROUP_TERM|capitalize }} members will be able to view your initials ({{ application.group_leader_name }}) and most of the details of your lottery entry. They will NOT see your check-in name{% if application.entry_type == c.ROOM_ENTRY %} or any ADA-related requests{% endif %}.</p>
                 
                 <div class="row g-3">
                     <div class="col-12 col-sm-6">
@@ -246,25 +246,25 @@
             </form>
             {% endif %}
         {% else %}
-            <h2>Room Group Information</h2>
+            <h2>{{ c.HOTEL_LOTTERY_GROUP_TERM }} Information</h2>
             {% include 'hotel_lottery/room_group_info.html' with context %}
 
             {% if application.status != c.COMPLETE %}
             <p class="mb-0">
                 <button class="btn btn-primary" onClick="setStep('#join-group')">Continue</button>
             {% else %}
-            <h2>Room Group Options</h2>
+            <h2>{{ c.HOTEL_LOTTERY_GROUP_TERM }} Options</h2>
             <p class="mb-0">
-            <button class="btn btn-primary" onClick="setStep('#join-group')">Join Room Group</button>
-            <button class="btn btn-info" onClick="setStep('#create-group')">Create Room Group</button>
+            <button class="btn btn-primary" onClick="setStep('#join-group')">Join {{ c.HOTEL_LOTTERY_GROUP_TERM }}</button>
+            <button class="btn btn-info" onClick="setStep('#create-group')">Create {{ c.HOTEL_LOTTERY_GROUP_TERM }}</button>
             {% endif %}
             <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
             </p>
         {% endif %}
     </div>
     <div id="join-group" class="collapse">
-        <h2>Join Room Group
-            {% if application.status == c.COMPLETE %}<button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button>
+        <h2>Join {{ c.HOTEL_LOTTERY_GROUP_TERM }}
+            {% if application.status == c.COMPLETE %}<button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to {{ c.HOTEL_LOTTERY_GROUP_TERM }} Options</button>
             {% else %}<a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>{% endif %}
         </h2>
         <div class="show" id="group-lookup">
@@ -318,7 +318,7 @@
         {# This div's contents are behind an if-check because otherwise they interfere with group update validations #}
 
         {{ form_macros.form_validation('create-group-form', 'validate_hotel_lottery', form_list=['LotteryRoomGroup']) }}
-        <h2>Create Room Group <button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to Room Group Options</button></h2>
+        <h2>Create {{ c.HOTEL_LOTTERY_GROUP_TERM }} <button type="button" class="btn btn-outline-secondary pull-right" onClick="setStep('#select-action')">Back to {{ c.HOTEL_LOTTERY_GROUP_TERM }} Options</button></h2>
     
         <p>
             Please enter a name for your room group below. People joining your room group will be shown this name,
@@ -334,19 +334,21 @@
             </div>
             <div class="row g-3">
                 <div class="col-12 col-sm-6">
-                    <button type="submit" class="btn btn-primary">Create Room Group</button>
+                    <button type="submit" class="btn btn-primary">Create {{ c.HOTEL_LOTTERY_GROUP_TERM }}</button>
                 </div>
             </div>
         </form>
         {% endif %}
     </div>
     <div id="confirm" class="collapse">
-        <h2>Room Group {{ action.title() }}</h2>
+        <h2>{{ c.HOTEL_LOTTERY_GROUP_TERM }} {{ action.title() }}</h2>
         
         {% if action == 'created' %}
             <p>You have successfully created the room group "{{ application.room_group_name }}"!</p>
             <p>
                 Your group confirmation number is <strong>{{ application.confirmation_num }}</strong>.
+                {{ c.HOTEL_LOTTERY_GROUP_TERM|capitalize }} members can use this confirmation number and your email address,
+                <strong>{{ application.attendee.email }}</strong>, to find and enter your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.
             </p>
         {% elif action == 'updated' %}
             <p>You have updated your room group name to "{{ application.room_group_name }}".</p>
@@ -367,11 +369,11 @@
                 {% endif %}
             </p>
         {% endif %}
-        {% if action == 'created' %}
-        <button type="button" class="btn btn-primary" onClick="setStep('#select-action')">Room Group Options</button>
+        {% if action in ['created', 'updated'] %}
+        <button type="button" class="btn btn-primary" onClick="setStep('#select-action')">View {{ c.HOTEL_LOTTERY_GROUP_TERM }}</button>
         <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
         {% else %}
-        <a class="btn btn-primary" href="index?attendee_id={{ application.attendee.id }}">View Room Group</a>
+        <a class="btn btn-primary" href="index?attendee_id={{ application.attendee.id }}">View {{ c.HOTEL_LOTTERY_GROUP_TERM }}</a>
         {% endif %}
     </div>
 </div>

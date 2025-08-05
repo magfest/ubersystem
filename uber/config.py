@@ -443,10 +443,6 @@ class Config(_Overridable):
         return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
 
     @property
-    def SHOW_HOTEL_LOTTERY_DATE_OPTS(self):
-        return c.HOTEL_LOTTERY_CHECKIN_START != c.HOTEL_LOTTERY_CHECKIN_END
-
-    @property
     def HOTEL_LOTTERY_FORM_STEPS(self):
         """
         We have to run our form validations based on which 'step' in the form someone is, but
@@ -456,30 +452,15 @@ class Config(_Overridable):
 
         steps = {}
         step = 0
-        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+        for step_name in c.HOTEL_LOTTERY_ROOM_STEPS:
             step += 1
-            steps['room_dates'] = step
-        step += 1
-        steps['room_ada_info'] = step
-        step += 1
-        steps['room_hotel_type'] = step
-        if c.HOTEL_LOTTERY_PREF_RANKING:
-            step += 1
-            steps['room_selection_pref'] = step
+            steps[f'room_{step_name}'] = step
         steps['room_final_step'] = step
 
-        step = 1
-        steps['suite_agreement'] = step
-        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+        step = 0
+        for step_name in c.HOTEL_LOTTERY_SUITE_STEPS:
             step += 1
-            steps['suite_dates'] = step
-        step += 1
-        steps['suite_type'] = step
-        step += 1
-        steps['suite_hotel_type'] = step
-        if c.HOTEL_LOTTERY_PREF_RANKING:
-            step += 1
-            steps['suite_selection_pref'] = step
+            steps[f'suite_{step_name}'] = step
         steps['suite_final_step'] = step
 
         return steps
