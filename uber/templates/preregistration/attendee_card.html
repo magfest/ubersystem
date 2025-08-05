@@ -33,7 +33,7 @@
     <strong>Hotel Lottery Status</strong>:
     {% if attendee.lottery_application.status == c.PARTIAL %}Not Entered
     {% elif attendee.lottery_application.status == c.COMPLETE %}
-        {% if attendee.lottery_application.entry_type == c.GROUP_ENTRY %}Joined Room Group
+        {% if attendee.lottery_application.entry_type == c.GROUP_ENTRY %}Joined {{ c.HOTEL_LOTTERY_GROUP_TERM }}
         {% else %}Entered{% if attendee.lottery_application.room_group_name %}, Group Leader{% endif %}
         {% endif %}
     {% else %}{{ attendee.lottery_application.status_label }}

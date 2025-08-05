@@ -37,10 +37,10 @@ class LotteryConfirm(MagForm):
 class LotteryRoomGroup(MagForm):
     field_validation = CustomValidation()
 
-    room_group_name = StringField('Room Group Name',
-                                  description='This will be shared with anyone you invite to your room group.')
-    invite_code = StringField('Room Group Invite Code',
-                              description='Send this code to up to three friends to invite them to your room group.',
+    room_group_name = StringField(f'{c.HOTEL_LOTTERY_GROUP_TERM} Name',
+                                  description=f'This will be shared with anyone you invite to your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.')
+    invite_code = StringField(f'{c.HOTEL_LOTTERY_GROUP_TERM} Invite Code',
+                              description=f'Send this code to up to three friends to invite them to your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.',
                               render_kw={'readonly': "true"})
     
     def get_non_admin_locked_fields(self, app):
@@ -111,8 +111,8 @@ class LotteryAdminInfo(SuiteLottery):
     cellphone = LotteryInfo.cellphone
     status = SelectField('Entry Status', coerce=int, choices=c.HOTEL_LOTTERY_STATUS_OPTS)
     entry_type = SelectField('Entry Type', coerce=int, choices=[(0, "N/A")] + c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS)
-    room_group_name = StringField('Room Group Name')
-    invite_code = StringField('Room Group Invite Code', render_kw={'readonly': "true"})
+    room_group_name = StringField(f'{c.HOTEL_LOTTERY_GROUP_TERM} Name')
+    invite_code = StringField(f'{c.HOTEL_LOTTERY_GROUP_TERM} Invite Code', render_kw={'readonly': "true"})
     admin_notes = TextAreaField('Admin Notes')
     terms_accepted = BooleanField('Agreed to Lottery Policies', render_kw={'readonly': "true"})
     data_policy_accepted = BooleanField('Agreed to Data Policies', render_kw={'readonly': "true"})

@@ -20,7 +20,23 @@
     }
 {% endblock %}
 
-{% block ada_info %}{% endblock %}
+{% block ada_info %}
+{% if 'suite_ada_info' in c.HOTEL_LOTTERY_FORM_STEPS %}
+{{ super() }}
+{% endif %}
+{% endblock %}
+
+{% block check_in_out_dates %}
+{% if 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
+{{ super() }}
+{% endif %}
+{% endblock %}
+
+{% block priorities %}
+{% if 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
+{{ super() }}
+{% endif %}
+{% endblock %}
 
 {% block terms %}
 {% if not read_only %}
@@ -90,7 +106,7 @@
             </p>
             {% endblock %}
             {% block suite_ranking_form %}
-            {{ form_macros.input(suite_lottery.suite_type_preference, readonly=read_only, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) }}
+            {{ form_macros.input(suite_lottery.suite_type_preference, readonly=read_only, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery, show_label=not read_only) }}
             
             {% if not read_only and application.current_step <= steps.counter %}
             <div class="row justify-content-end">

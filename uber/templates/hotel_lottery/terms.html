@@ -30,16 +30,16 @@
             {% set room_group_owners = attendee.managers[0].get_room_group_owners(staff=attendee.staff_hotel_lottery_eligible) %}
             {% if attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] %}
                 {% for group_leader in room_group_owners %}
-                <button type="submit" name="group_id" value="{{ group_leader.lottery_application.id }}" class="btn btn-primary">Join "{{ group_leader.lottery_application.room_group_name }}" Room Group</button>
+                <button type="submit" name="group_id" value="{{ group_leader.lottery_application.id }}" class="btn btn-primary">Join "{{ group_leader.lottery_application.room_group_name }}" {{ c.HOTEL_LOTTERY_GROUP_TERM }}</button>
                 {% endfor %}
             {% endif %}
         {% endif %}
         {% if attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] and room_group_owners %}
         <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button>
         <button type="submit" name="suite" value="true" class="btn btn-success">Enter Suite Lottery</button>
-        <button type="submit" name="group" value="true" class="btn btn-outline-primary">Search Room Groups</button>
+        <button type="submit" name="group" value="true" class="btn btn-outline-primary">Search {{ c.HOTEL_LOTTERY_GROUP_TERM }}s</button>
         {% else %}
-        <button type="submit" name="group" value="true" class="btn btn-primary">Join Room Group</button>
+        <button type="submit" name="group" value="true" class="btn btn-primary">Join {{ c.HOTEL_LOTTERY_GROUP_TERM }}</button>
         <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button>
         <button type="submit" name="suite" value="true" class="btn btn-success">Enter Suite Lottery</button>
         {% endif %}
