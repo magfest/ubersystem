@@ -510,8 +510,8 @@ class Root:
                                                                  c.REG_RECEIPT_ITEM,
                                                                  c.GROUP_BADGE,
                                                                  f'Adding {badges} Badge{"s" if badges > 1 else ""}',
-                                                                 badges * int(cost_per_badge) * 100),
-                                                                 purchaser_id=buyer_id if buyer_id != None else buyer.id)
+                                                                 badges * int(cost_per_badge) * 100,
+                                                                 purchaser_id=buyer_id if buyer_id != None else buyer.id))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
 
         return {
