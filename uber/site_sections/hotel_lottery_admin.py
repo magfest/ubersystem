@@ -3,6 +3,8 @@ import uuid
 import cherrypy
 import random
 import math
+from copy import deepcopy
+from collections import defaultdict
 from datetime import datetime, date
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText
@@ -16,7 +18,7 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, PageViewTracking
 from uber.tasks.email import send_email
-from uber.utils import Order, get_page, RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
+from uber.utils import Order, get_page, localized_now, validate_model, get_age_from_birthday, normalize_email_legacy
 
 def beep_on_start():
     print("Beeping!\a", flush=True)
@@ -365,14 +367,6 @@ class Root:
         # We always grab all roommate entries, but the solver only looks at those that have a matching parent
         # in the lottery batch.
         applications = applications.filter(LotteryApplication.entry_type.in_([lottery_type, c.GROUP_ENTRY]))
-        if lottery_type == c.SUITE_ENTRY:
-            room_type_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES.values()}
-            room_types = c.HOTEL_LOTTERY_SUITE_ROOM_TYPES
-            inventory_type = "suite_inventory"
-        else:
-            room_type_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_ROOM_TYPES.values()}
-            room_types = c.HOTEL_LOTTERY_ROOM_TYPES
-            inventory_type = "room_inventory"
 
         # If lottery_group is "both" don't filter either way
         if lottery_group == "staff":
@@ -382,37 +376,30 @@ class Root:
             
         applications = applications.all()
         hotel_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_HOTELS.values()}
-        assigned_applications = session.query(LotteryApplication).join(LotteryApplication.attendee
-                                                                  ).filter(LotteryApplication.status.in_([c.PROCESSED, c.AWARDED, c.SECURED])).all()
+        assigned_applications = session.query(LotteryApplication.assigned_hotel,
+                                              LotteryApplication.assigned_room_type,
+                                              func.count(LotteryApplication.id)).join(LotteryApplication.attendee).filter(
+                                                  LotteryApplication.status.in_([c.PROCESSED, c.AWARDED, c.SECURED])
+                                                  ).group_by(LotteryApplication.assigned_hotel).group_by(
+                                                      LotteryApplication.assigned_room_type).all()
         
-        available_rooms = []
-        for key, item in c.HOTEL_LOTTERY_HOTELS.items():
-            hotel_enum, hotel = item
-            for room_type_key, quantity in hotel.get(inventory_type, {}).items():
-                room_type_enum, room_type = room_types.get(room_type_key)
-                if not room_type:
-                    raise ValueError(f"Could not locate hotel room_type {room_type_key}")
-                assigned_count = 0
-                for app in assigned_applications:
-                    if app.assigned_hotel != hotel_enum:
-                        continue
-                    if lottery_type == c.ROOM_ENTRY:
-                        if app.assigned_room_type != room_type_enum:
-                            continue
-                    elif lottery_type == c.SUITE_ENTRY:
-                        if app.assigned_suite_type != room_type_enum:
-                            continue
-                    else:
-                        continue
-                    assigned_count += 1
-                available_rooms.append({
-                    "id": str(hotel_enum),
-                    "capacity": int(room_type['capacity']),
-                    "room_type": str(room_type_enum),
-                    "quantity": int(quantity) - assigned_count
-                })
+        assigned_applications_dict = {(hotel, room_type): count for hotel, room_type, count in assigned_applications}
+
+        if lottery_type == c.SUITE_ENTRY:
+            room_or_suite_lookup = dict(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS)
+            inventory_table = c.HOTEL_SUITE_INVENTORY
+        else:
+            room_or_suite_lookup = dict(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS)
+            inventory_table = c.HOTEL_ROOM_INVENTORY
+
+        available_rooms = deepcopy(inventory_table)
+        for hotel_and_room in available_rooms:
+            hotel, room_type = int(hotel_and_room['id']), int(hotel_and_room['room_type'])
+            if assigned_applications_dict.get((hotel, room_type)):
+                hotel_and_room['quantity'] -= assigned_applications_dict[(hotel, room_type)]
+
         assignments = solve_lottery(applications, available_rooms, lottery_type=lottery_type)
-        
+
         for application in applications:
             if application.id in assignments:
                 hotel, room_type = assignments[application.id]
@@ -429,10 +416,52 @@ class Root:
         application_lookup = {x.id: x for x in applications}
         
         return {
+            'lottery_type': lottery_type,
             'num_rooms_available_before': sum([x['quantity'] for x in available_rooms]),
             'num_rooms_available_after': sum([x['quantity'] for x in available_rooms]) - len(assignments),
             'num_entries': len([x for x in applications if x.entry_type == lottery_type]),
-            'assignments': [(application_lookup[x], hotel_enum_lookup[y[0]], room_type_enum_lookup[y[1]]) for x,y in assignments.items()],
+            'assignments': [(application_lookup[x], y[0], y[1]) for x, y in assignments.items()],
+            'hotel_lookup': dict(c.HOTEL_LOTTERY_HOTELS_OPTS),
+            'room_or_suite_lookup': room_or_suite_lookup,
+        }
+    
+    def hotel_inventory(self, session, message=''):
+        assigned_applications = session.query(
+            LotteryApplication.assigned_hotel, LotteryApplication.assigned_room_type, LotteryApplication.status,
+            func.count(LotteryApplication.id)).join(LotteryApplication.attendee).filter(
+                LotteryApplication.status.in_([c.PROCESSED, c.AWARDED, c.SECURED])
+                ).group_by(LotteryApplication.assigned_hotel).group_by(
+                    LotteryApplication.assigned_room_type).group_by(LotteryApplication.status).all()
+        
+        assigned_applications_dict = defaultdict(list)
+        for hotel, room_type, status, count in assigned_applications:
+            assigned_applications_dict[(hotel, room_type)].append((status, count))
+
+        room_inventory = defaultdict(list)
+        for inventory_info in c.HOTEL_ROOM_INVENTORY:
+            hotel, room_type = int(inventory_info['id']), int(inventory_info['room_type'])
+            info_for_room = {'room_type': room_type, 'quantity': inventory_info['quantity']}
+            if assigned_applications_dict.get((hotel, room_type)):
+                for status, count in assigned_applications_dict[(hotel, room_type)]:
+                    info_for_room[status] = count
+            room_inventory[hotel].append(info_for_room)
+
+        suite_inventory = defaultdict(list)
+        for inventory_info in c.HOTEL_SUITE_INVENTORY:
+            hotel, room_type = int(inventory_info['id']), int(inventory_info['room_type'])
+            info_for_room = {'room_type': room_type, 'quantity': inventory_info['quantity']}
+            if assigned_applications_dict.get((hotel, room_type)):
+                for status, count in assigned_applications_dict[(hotel, room_type)]:
+                    info_for_room[status] = count
+            suite_inventory[hotel].append(info_for_room)
+
+        return {
+            'room_inventory': room_inventory,
+            'suite_inventory': suite_inventory,
+            'hotel_lookup': dict(c.HOTEL_LOTTERY_HOTELS_OPTS),
+            'room_lookup': dict(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS),
+            'suite_lookup': dict(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS),
+            'now': localized_now(),
         }
 
     @csv_file

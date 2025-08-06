@@ -2,20 +2,18 @@
 {% block title %}Hotel Lottery Results{% endblock %}
 {% block content %}
 
-<div class="row mt-3 justify-content-between">
-    <div class="col col-auto">
-        <span class="ms-2">{{ num_entries }} group{{ num_entries|pluralize }} entered</span>
-        <span class="ms-2">{{ assignments|length }} group{{ num_entries|pluralize }} assigned</span><br>
-        <span class="ms-2">{{ num_rooms_available_before }} room{{ num_rooms_available_before|pluralize }} entered lottery</span>
-        <span class="ms-2">{{ num_rooms_available_after }} room{{ num_rooms_available_after|pluralize }} now left</span>
-    </div>
-    <div class="col col-auto mb-3">
-        <a href="index">Back</a>
-    </div>
-</div>
+<h2>
+   Hotel Lottery Results
+  <small><a href="index">View all hotel lottery entries</a></small>
+</h2>
+
+<span class="ms-2">{{ num_entries }} group{{ num_entries|pluralize }} entered</span>
+<span class="ms-2">{{ assignments|length }} group{{ num_entries|pluralize }} assigned</span><br>
+<span class="ms-2">{{ num_rooms_available_before }} room{{ num_rooms_available_before|pluralize }} entered lottery</span>
+<span class="ms-2">{{ num_rooms_available_after }} room{{ num_rooms_available_after|pluralize }} now left</span>
 
 {% block table %}
-<div class="card card-body">
+<div class="card card-body mt-3">
     <table class="table table-hover" data-page-size="9999999">
         <thead>
             <tr>
@@ -50,8 +48,8 @@
                 <td>{{ app.group_members|length if app.room_group_name else "" }}</td>
                 <td>{{ app.admin_notes }}</td>
                 <td>{{ app.is_staff_entry|yesno("Yes,No") }}</td>
-                <td>{{ assigned_hotel.name }}</td>
-                <td>{{ assigned_room_type.name }}</td>
+                <td>{{ hotel_lookup[assigned_hotel|int]['name'] }}</td>
+                <td>{{ room_or_suite_lookup[assigned_room_type|int]['name'] }}</td>
                 {% endblock tablerows %}
             </tr>
             {% endfor %}

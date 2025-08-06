@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Hotel Lottery Inventory{% endblock %}
+{% block content %}
+
+{% macro inventory_table(inventory, room_type_lookup, display_hotel=True) %}
+    {% for hotel_id in inventory.keys() %}
+    {% set room_list = inventory[hotel_id] %}
+    <tr>
+        <td{% if not display_hotel %} class="d-none"{% endif %}>{{ hotel_lookup[hotel_id|int]['name'] }}</td>
+
+        {% if room_list %}
+        {% set first_row = room_list[0] %}
+        <td>{{ room_type_lookup[first_row['room_type']]['name'] }}</td>
+        <td>{{ first_row['quantity'] }}</td>
+        <td>{{ first_row[c.PROCESSED] }}</td>
+        <td>{{ first_row[c.AWARDED] }}</td>
+        <td>{{ first_row[c.SECURED] }}</td>
+        {% else %}
+        <td colspan="5">No Inventory</td>
+        {% endif %}
+    </tr>
+    {% for room in room_list %}
+        {% if not loop.first %}
+        <tr>
+            <td{% if not display_hotel %} class="d-none"{% endif %}></td>
+            <td>{{ room_type_lookup[room['room_type']]['name'] }}</td>
+            <td>{{ room['quantity'] }}</td>
+            <td>{{ room[c.PROCESSED] }}</td>
+            <td>{{ room[c.AWARDED] }}</td>
+            <td>{{ room[c.SECURED] }}</td>
+        </tr>
+        {% endif %}
+    {% endfor %}
+    {% endfor %}
+{% endmacro %}
+
+<h2 class="mb-3">
+    Hotel Lottery Inventory -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}
+    <small><a href="index">Back to Lottery Entries</a></small>
+</h2>
+
+<h3>Standard Rooms</h3>
+<table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
+    <thead>
+        <tr>
+            <th>Hotel</th>
+            <th>Room Type</th>
+            <th>Quantity</th>
+            <th>Assigned</th>
+            <th>Awarded</th>
+            <th>Secured</th>
+        </tr>
+    </thead>
+    {{ inventory_table(room_inventory, room_lookup) }}
+</table>
+
+<h3>Suites</h3>
+<table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
+    <thead>
+        <tr>
+            <th class="d-none">Hotel</th>
+            <th>Suite Type</th>
+            <th>Quantity</th>
+            <th>Assigned</th>
+            <th>Awarded</th>
+            <th>Secured</th>
+        </tr>
+    </thead>
+    {{ inventory_table(suite_inventory, suite_lookup, display_hotel=False) }}
+</table>
+
+{% endblock content %}

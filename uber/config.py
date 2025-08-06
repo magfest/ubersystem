@@ -1636,6 +1636,24 @@ def create_hour_opts(start_hour, end_hour, step, prefix=''):
             return opt_list
 
 
+def build_hotel_inventory(inventory_type, room_types):
+    hotel_inventory = []
+    for key, item in c.HOTEL_LOTTERY_HOTELS.items():
+        hotel_enum, hotel = item
+        for room_type_key, quantity in hotel.get(inventory_type, {}).items():
+            room_type_enum, room_type = room_types.get(room_type_key)
+            if not room_type:
+                raise ValueError(f"Could not locate hotel room_type {room_type_key}")
+            capacity = room_type.get(f'{key}_capacity', room_type['capacity'])
+            hotel_inventory.append({
+                "id": str(hotel_enum),
+                "capacity": int(capacity),
+                "room_type": str(room_type_enum),
+                "quantity": int(quantity)
+            })
+    return hotel_inventory
+    
+
 c = Config()
 _config = parse_config("uber", pathlib.Path("/app/uber"))  # outside this module, we use the above c global instead of using this directly
 db_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -1907,6 +1925,9 @@ for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
             dictionary[name] = (dict_key, item)
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}", dictionary)
+
+c.HOTEL_ROOM_INVENTORY = build_hotel_inventory('room_inventory', c.HOTEL_LOTTERY_ROOM_TYPES)
+c.HOTEL_SUITE_INVENTORY = build_hotel_inventory('suite_inventory', c.HOTEL_LOTTERY_SUITE_ROOM_TYPES)
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
