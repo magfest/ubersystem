@@ -128,7 +128,7 @@
         {% if application.parent_application %}
         <h2>Your Group's {{ app_or_parent.entry_type_label }} Lottery Application</h2>
         <div class="h5 text-muted mb-3">Confirmation # {{ app_or_parent.confirmation_num }}</div>
-        {% elif application.status != c.COMPLETE and application.status not in c.c.HOTEL_LOTTERY_AWARD_STATUSES and app_editable %}
+        {% elif application.status != c.COMPLETE and application.status not in c.HOTEL_LOTTERY_AWARD_STATUSES and app_editable %}
         <h2 class="text-danger">Incomplete Lottery Application</h2>
         <p>
             You have an <span class="text-danger">incomplete</span> {{ application.entry_type_label|lower }} application.
