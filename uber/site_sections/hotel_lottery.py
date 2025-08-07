@@ -36,6 +36,7 @@ def _join_room_group(session, application, group_id):
         defaults = LotteryApplication().to_dict()
         for attr in defaults:
             if attr not in ['id', 'attendee_id', 'response_id',
+                            'legal_first_name', 'legal_last_name', 'cellphone',
                             'terms_accepted', 'data_policy_accepted',
                             'entry_started', 'entry_metadata']:
                 setattr(application, attr, defaults.get(attr))
