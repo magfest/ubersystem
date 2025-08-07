@@ -8,7 +8,9 @@
     <ul>
         <li>The lottery is only open to registered attendees and dealers.</li>
         <li>Only one room entry and one suite entry is allowed per attendee. Entries may be changed, modified, or withdrawn while the lottery is open.</li>
+        {% if c.SHOW_HOTEL_LOTTERY_GROUPS %}
         <li>Attendees wishing to enter as a group should designate a "group leader" to complete a single room and/or suite entry. They can then invite others to join their group as group members.</li>
+        {% endif %}
         <li>You will be able to rank your hotel choice, the type of room, and your check-in and check-out dates in order of preference.</li>
         <li>Results will take approximately seven business days after the lottery closes.</li>
         <li>Suites require a one night non-refundable deposit.</li>

@@ -8,7 +8,7 @@
 <p>
     {% if application.status == c.COMPLETE %}
     Since you completed a {{ application.entry_type_label|lower }} lottery entry before joining the room group, we have reverted you back to your status before joining.
-    You {{ application.current_status_str }}.
+    You {{ application.application_status_str }}.
 </p>
 <p><strong>Your new confirmation number is {{ application.confirmation_num }}.</strong> Your previous confirmation number is now invalid.</p>
 <p>

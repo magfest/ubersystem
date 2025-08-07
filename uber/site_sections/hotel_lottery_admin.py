@@ -375,11 +375,10 @@ class Root:
             applications = applications.filter(LotteryApplication.is_staff_entry == False)
             
         applications = applications.all()
-        hotel_enum_lookup = {str(x):y for x,y in c.HOTEL_LOTTERY_HOTELS.values()}
         assigned_applications = session.query(LotteryApplication.assigned_hotel,
                                               LotteryApplication.assigned_room_type,
                                               func.count(LotteryApplication.id)).join(LotteryApplication.attendee).filter(
-                                                  LotteryApplication.status.in_([c.PROCESSED, c.AWARDED, c.SECURED])
+                                                  LotteryApplication.status.in_(c.c.HOTEL_LOTTERY_AWARD_STATUSES)
                                                   ).group_by(LotteryApplication.assigned_hotel).group_by(
                                                       LotteryApplication.assigned_room_type).all()
         
@@ -410,6 +409,9 @@ class Root:
                     application.assigned_room_type = room_type
                 else:
                     raise NotImplementedError(f"Unknown lottery type {lottery_type}")
+                # For now, everyone gets the dates they picked
+                application.assigned_check_in_date = application.earliest_checkin_date
+                application.assigned_check_out_date = application.latest_checkout_date
                 application.status = c.PROCESSED
                 session.add(application)
         session.commit()
@@ -429,7 +431,7 @@ class Root:
         assigned_applications = session.query(
             LotteryApplication.assigned_hotel, LotteryApplication.assigned_room_type, LotteryApplication.status,
             func.count(LotteryApplication.id)).join(LotteryApplication.attendee).filter(
-                LotteryApplication.status.in_([c.PROCESSED, c.AWARDED, c.SECURED])
+                LotteryApplication.status.in_(c.c.HOTEL_LOTTERY_AWARD_STATUSES)
                 ).group_by(LotteryApplication.assigned_hotel).group_by(
                     LotteryApplication.assigned_room_type).group_by(LotteryApplication.status).all()
         

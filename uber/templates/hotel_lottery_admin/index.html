@@ -71,6 +71,11 @@
     <button type="submit" formaction="award_lottery" class="btn btn-warning">Award Winners</button>
   </div>
 </form>
+{% else %}
+<form method="post" action="mark_staff_processed">
+  {{ csrf_token() }}
+  <button type="submit" class="btn btn-primary">Unlock Staff Entries</button>
+</form>
 {% endif %}
 
 {% if search_results %}
@@ -125,10 +130,10 @@
         </thead>
         <tbody>
           {% for app in applications %}
-            <tr{% if app.status not in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] %} class="bg-light"{% endif %}>
+            <tr{% if app.status != c.COMPLETE and app.status not in c.c.HOTEL_LOTTERY_AWARD_STATUSES %} class="bg-light"{% endif %}>
                 {% block tablerows scoped %}
                 <td>
-                  {% if app.status in [c.WITHDRAWN, c.DISQUALIFIED] %}
+                  {% if app.status in [c.WITHDRAWN, c.DISQUALIFIED, c.REJECTED] %}
                   <span class="text-danger">{{ app.status_label }}</span>
                   {% else %}{{ app.status_label }}{% endif %}
                 </td>

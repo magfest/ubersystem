@@ -176,6 +176,7 @@ class Root:
     def index(self, session, attendee_id=None, message="", **params):
         if 'id' in params:
             application = session.lottery_application(params['id'])
+            attendee_id = application.attendee.id
         elif attendee_id:
             attendee = session.attendee(attendee_id)
             application = attendee.lottery_application
@@ -232,7 +233,23 @@ class Root:
         raise HTTPRedirect('index?id={}&message={}',
                            application.id,
                            "Your staff lottery entry has been entered into the attendee lottery.")
-    
+
+    @requires_account(LotteryApplication)
+    def reenter_lottery(self, session, id=None, **params):
+        application = session.lottery_application(id)
+        _reset_group_member(application)
+        session.add(application)
+        if application.status == c.COMPLETE:
+            raise HTTPRedirect('index?id={}&message={}&confirm={}&action={}',
+                               application.id,
+                               f'Your lottery entry has been re-entered.',
+                               "suite" if application.entry_type == c.SUITE_ENTRY else "room",
+                               're-entered')
+        else:
+            raise HTTPRedirect('start?attendee_id={}&message={}',
+                               application.attendee.id,
+                               "Your lottery entry has been reset and you may now re-enter.")
+
     @requires_account(LotteryApplication)
     def withdraw_entry(self, session, id=None, **params):
         application = session.lottery_application(id)

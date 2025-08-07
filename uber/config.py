@@ -1928,6 +1928,7 @@ for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
 
 c.HOTEL_ROOM_INVENTORY = build_hotel_inventory('room_inventory', c.HOTEL_LOTTERY_ROOM_TYPES)
 c.HOTEL_SUITE_INVENTORY = build_hotel_inventory('suite_inventory', c.HOTEL_LOTTERY_SUITE_ROOM_TYPES)
+c.HOTEL_LOTTERY_AWARD_STATUSES = [c.PROCESSED, c.AWARDED, c.SECURED]
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
