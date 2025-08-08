@@ -246,8 +246,8 @@ class Root:
                             attendee.amount_unpaid_if_valid)
                         stay_on_form = True
                     else:
-                        attendee.check_in()
                         session.commit()
+                        attendee.check_in()
                         message = '{} saved and checked in as {}{}.'.format(
                             attendee.full_name, attendee.badge, attendee.accoutrements)
                         stay_on_form = False
@@ -894,7 +894,8 @@ class Root:
 
         for form in forms.values():
             form.populate_obj(attendee, is_admin=True)
-
+        
+        session.commit()
         pre_badge = attendee.badge_num
         success, increment = False, False
 
@@ -1251,11 +1252,11 @@ class Root:
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('index?message={}', 'You must set your reg station number')
 
+        session.commit()
         attendee.check_in()
         attendee.reg_station = cherrypy.session.get('reg_station')
         message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
         checked_in = attendee.id
-        session.commit()
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
