@@ -601,6 +601,7 @@ AutomatedEmailFixture(
     'placeholders/deferred.html',
     deferred_attendee_placeholder,
     when=after(c.PREREG_OPEN),
+    allow_at_the_con=True,
     ident='claim_deferred_badge')
 
 AutomatedEmailFixture(
@@ -609,6 +610,7 @@ AutomatedEmailFixture(
     'placeholders/panelist.txt',
     panelist_placeholder,
     sender=c.PANELS_EMAIL,
+    allow_at_the_con=True,
     ident='panelist_badge_confirmation')
 
 AutomatedEmailFixture(
@@ -618,6 +620,7 @@ AutomatedEmailFixture(
     guest_placeholder,
     # query=and_(Attendee.placeholder == True, Attendee.badge_type == c.GUEST_BADGE),
     sender=c.GUEST_EMAIL,
+    allow_at_the_con=True,
     ident='guest_badge_confirmation')
 
 AutomatedEmailFixture(
@@ -626,6 +629,7 @@ AutomatedEmailFixture(
     'placeholders/band.txt',
     band_placeholder,
     sender=c.BAND_EMAIL,
+    allow_at_the_con=True,
     ident='band_badge_confirmation')
 
 AutomatedEmailFixture(
@@ -640,6 +644,7 @@ AutomatedEmailFixture(
     #     Group.is_dealer == True,
     #     Group.status == c.APPROVED))),
     sender=c.MARKETPLACE_EMAIL,
+    allow_at_the_con=True,
     ident='dealer_info_required')
 
 AutomatedEmailFixture(
