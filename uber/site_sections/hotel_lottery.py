@@ -641,6 +641,9 @@ class Root:
 
         if room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
             return {'error': "No valid room group found. Please check the confirmation number and leader email address."}
+        
+        if room_group.finalized:
+            return {'error': "No valid room group found."}
 
         return {
             'success': True,

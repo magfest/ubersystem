@@ -124,10 +124,22 @@
     </div>
 </div>
 
-<div class="row g-sm-3">
+<div class="row g-sm-3 mb-3">
 <div class="col-12 col-sm-6">
     {{ form_macros.input(lottery_admin_info.admin_notes) }}
 </div>
+</div>
+
+<div class="row g-3 row-cols-sm-3">
+    <div class="col">
+        {{ form_macros.input(lottery_admin_info.legal_first_name) }}
+    </div>
+    <div class="col">
+        {{ form_macros.input(lottery_admin_info.legal_last_name) }}
+    </div>
+    <div class="col">
+        {{ form_macros.input(lottery_admin_info.cellphone) }}
+    </div>
 </div>
 
 {% if application.parent_application %}
@@ -149,18 +161,6 @@
     <!-- <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.invite_code) }}</div> -->
 </div>
 {% endif %}
-
-<div class="row g-3 row-cols-sm-3">
-    <div class="col">
-        {{ form_macros.input(lottery_admin_info.legal_first_name) }}
-    </div>
-    <div class="col">
-        {{ form_macros.input(lottery_admin_info.legal_last_name) }}
-    </div>
-    <div class="col">
-        {{ form_macros.input(lottery_admin_info.cellphone) }}
-    </div>
-</div>
 
 {% if 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
 <div class="row g-3">
