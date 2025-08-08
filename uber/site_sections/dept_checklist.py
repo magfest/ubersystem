@@ -282,7 +282,7 @@ class Root:
         request_forms['new'] = load_forms(params, BulkPrintingRequest(), ['BulkPrintingRequestInfo'])
         for request in requests:
             request_forms[request.id] = load_forms(params, request, ['BulkPrintingRequestInfo'],
-                                                   prefix_dict={request.id: 'BulkPrintingRequestInfo'})
+                                                   field_prefix=request.id)
 
         try:
             checklist = session.checklist_status('bulk_print_jobs', department_id)
@@ -327,7 +327,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, request, form_list)
+        forms = load_forms(params, request, form_list, field_prefix='new' if request.is_new else request.id)
         all_errors = validate_model(forms, request)
 
         if all_errors:

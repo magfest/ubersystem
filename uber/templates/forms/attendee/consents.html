@@ -12,13 +12,13 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block optional %}
     <div class="col-12">{{ form_macros.input(consents.can_spam) }}</div>
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block required %}
     <div class="col-12">{{ form_macros.input(consents.pii_consent) }}</div>
 {% endblock %}

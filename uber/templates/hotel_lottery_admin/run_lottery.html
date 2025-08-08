@@ -1,0 +1,61 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Hotel Lottery Results{% endblock %}
+{% block content %}
+
+<h2>
+   Hotel Lottery Results
+  <small><a href="index">View all hotel lottery entries</a></small>
+</h2>
+
+<span class="ms-2">{{ num_entries }} group{{ num_entries|pluralize }} entered</span>
+<span class="ms-2">{{ assignments|length }} group{{ num_entries|pluralize }} assigned</span><br>
+<span class="ms-2">{{ num_rooms_available_before }} room{{ num_rooms_available_before|pluralize }} entered lottery</span>
+<span class="ms-2">{{ num_rooms_available_after }} room{{ num_rooms_available_after|pluralize }} now left</span>
+
+{% block table %}
+<div class="card card-body mt-3">
+    <table class="table table-hover" data-page-size="9999999">
+        <thead>
+            <tr>
+            {% block tableheadings %}
+            <th>Entry Status</th>
+            <th>Entry Type</th>
+            <th>Confirmation #</th>
+            <th>{{ c.HOTEL_LOTTERY_GROUP_TERM }} Name</th>
+            <th>Attendee</th>
+            <th># Group Members</th>
+            <th>Admin Notes</th>
+            <th>Staff Entry</th>
+            <th>Hotel</th>
+            <th>Room Type</th>
+            {% endblock tableheadings %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for ass in assignments %}
+            {% set app, assigned_hotel, assigned_room_type = ass %}
+            <tr{% if app.status != c.COMPLETE %} class="bg-light"{% endif %}>
+                {% block tablerows scoped %}
+                <td>
+                    {% if app.status in [c.WITHDRAWN, c.DISQUALIFIED] %}
+                    <span class="text-danger">{{ app.status_label }}</span>
+                    {% else %}{{ app.status_label }}{% endif %}
+                </td>
+                <td>{{ app.entry_type_label }}</td>
+                <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
+                <td>{{ app.room_group_name }}</td>
+                <td>{{ app.attendee|form_link if app.attendee else 'Dissociated/No Attendee' }}</td>
+                <td>{{ app.group_members|length if app.room_group_name else "" }}</td>
+                <td>{{ app.admin_notes }}</td>
+                <td>{{ app.is_staff_entry|yesno("Yes,No") }}</td>
+                <td>{{ hotel_lookup[assigned_hotel|int]['name'] }}</td>
+                <td>{{ room_or_suite_lookup[assigned_room_type|int]['name'] }}</td>
+                {% endblock tablerows %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock table %}
+{% endblock content %}

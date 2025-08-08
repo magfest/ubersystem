@@ -91,7 +91,7 @@
             is currently {{ attendee.group.status_label }}.</p>
             {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.SHARED, c.CANCELLED] and attendee.is_group_leader %}
             <p>If you would like, you may instead
-            <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a></p>
+            <a href="../marketplace/apply?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a></p>
             {% endif %}
             {% if attendee.group.status not in [c.APPROVED, c.SHARED, c.UNAPPROVED] and attendee.paid == c.PAID_BY_GROUP and c.DEALER_BADGE_PRICE == c.INITIAL_ATTENDEE %}
             <p>If you'd like to attend the event regardless of your group's status, you can purchase your badge now by clicking the button below.</p>

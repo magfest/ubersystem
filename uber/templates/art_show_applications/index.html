@@ -53,7 +53,7 @@
     <form method="post" action="index" role="form">
       <h3>Your Information</h3>
       {% if not c.INDEPENDENT_ART_SHOW %}
-      <div class="row g-sm-3">
+      <div class="row g-3">
         <div class="col-12 col-sm-6">
           <label for="attendee_id" class="form-text">Confirmation Number</label>
           <input type="text" name="attendee_id" class="form-control" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
@@ -63,7 +63,7 @@
         </div>
       </div>
       {% if not attendee_id %}
-      <div class="row g-sm-3">
+      <div class="row g-3">
         <div class="col-12">
           <input type="checkbox" class="form-check-input" name="new_badge" id="no_badge"
                    {% if new_badge %}checked {% endif %}/>
@@ -73,7 +73,7 @@
         </div>
       </div>
 
-      <div class="row g-sm-3 new-badge mt-2">
+      <div class="row g-3 new-badge mt-2">
         <p class="col-12 col-sm-9">
           Enter your information below. A new badge will be created for you, and you'll have the
           opportunity to complete your registration after submitting your {{ c.ART_SHOW_APP_TERM }}.
@@ -88,7 +88,7 @@
       <h3 class="mt-3">Art Information</h3>
       {% include 'art_show_applications/art_show_form.html' %}
 
-      <div class="row g-sm-3">
+      <div class="row g-3">
         <div class="col-12 col-sm-6">
           <button type="submit" class="btn btn-primary">Submit {{ c.ART_SHOW_APP_TERM|title }}</button>
         </div>

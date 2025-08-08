@@ -30,20 +30,20 @@
         <form method="post" action="update_account">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ homepage_account.id }}" />
-            <div class="row g-sm-3">
+            <div class="row g-3">
                 <div class="col-12 col-sm-6">
                     <label for="current_password" class="form-text">Current Password</label>
                 <input type="password" name="current_password" id="current_password" value="" class="form-control" placeholder="Enter account password to make changes" required>
                 </div>
             </div>
             <hr>
-            <div class="row g-sm-3">
+            <div class="row g-3">
                 <div class="col-12 col-sm-6">
                     <label for="email" class="form-text">Account Email</label>
                     <input type="email" name="account_email" id="account_email" value="{{ homepage_account.email }}" class="form-control" placeholder="Account email address" required>
                 </div>
             </div>
-            <div class="row g-sm-3">
+            <div class="row g-3">
                 <div class="col-12 col-sm-6">
                     <label for="new-password" class="form-text">New Password</label>
                     <input type="password" name="new_password" id="new-password" value="" class="form-control" placeholder="Leave blank to keep current password">

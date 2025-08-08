@@ -1,0 +1,98 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+
+{# IMPORTANT NOTICE: Due to the way the inheritence works, you'll need to set your own artist_check_in_out_info variable for this form #}
+
+{# BLOCK NAMES in this form:
+    x_data
+    artist_ids
+    artist_names
+    attendee_names
+    delivery_method_agent
+    money_info
+    notes
+    pieces_table
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block artist_ids %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id) }}</div>
+{% if artist_check_in_out_info.artist_id_ad.data %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id_ad) }}</div>
+{% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">{% block artist_names %}{% endblock %}</div>
+
+<div class="row g-3 mb-3">
+{% block attendee_names %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.attendee_first_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.attendee_last_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.attendee_legal_name) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">{% block delivery_method_agent %}{% endblock %}</div>
+
+<div class="row g-3 mb-3">
+{% block money_info %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.payout_method) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.check_payable) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">{% block notes %}{% endblock %}</div>
+
+</div>
+
+{% block piece_status %}
+{% if not printable %}
+<hr/>
+<div class="d-flex gap-3">
+  <span class="ms-auto">Piece Stats:</span>
+  <em>{{ app.art_show_pieces|length }} Total</em>
+  /
+  <em>{{ app.num_pieces_gallery(c.GENERAL) }} in General, {{ app.num_pieces_gallery(c.MATURE) }} in Mature</em>
+  {% if checkout %}
+  /
+  <em>{{ app.num_pieces_status(c.HUNG) }} Hung, {{ app.num_pieces_status(c.RETURN) }} Return to Artist</em>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block pieces_table %}
+<div class="table-responsive">
+    <table class="table {% if not printable %}table-hover check-in-out-datatable{% else %}table-striped{% endif %}">
+        <thead>
+        <tr>
+        <th>ID</th>
+        <th>Status</th>
+        <th>Gallery</th>
+        <th>Name</th>
+        <th>Min. Bid</th>
+        <th>QuickSale</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for piece in app.art_show_pieces|sort(attribute='piece_id')|sort(attribute='gallery_label') %}
+        {% set piece_check_in_out = piece_forms[piece.id]['piece_check_in_out'] %}
+        <tr class="piece-row" data-piece_id="{{ piece.piece_id }}">
+        <td class="text-nowrap" data-order="{{ piece.piece_id }}"> {{ piece.artist_and_piece_id }} </td>
+        <td data-order="{{ piece.status_label }}">{{ form_macros.input(piece_check_in_out.status, show_label=False) }}</td>
+        <td data-order="{{ piece.gallery_label }}">{{ form_macros.input(piece_check_in_out.gallery, show_label=False) }}</td>
+        <td data-order="{{ piece.name }}">{{ form_macros.input(piece_check_in_out.name, show_label=False) }}</td>
+        <td data-order="{{ piece.opening_bid }}">{{ form_macros.input(piece_check_in_out.opening_bid, show_label=False) }}</td>
+        <td data-order="{{ piece.quick_sale_price }}">{{ form_macros.input(piece_check_in_out.quick_sale_price, show_label=False) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

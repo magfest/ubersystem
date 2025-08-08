@@ -29,7 +29,7 @@
     Enter the artist code and piece number and select the piece's status.
     <form role="form" method="post" action="close_out">
     {{ csrf_token() }}
-    <div class="row g-sm-3 row-cols-auto align-items-end">
+    <div class="row g-3 row-cols-auto align-items-end">
       <div class="col">
         <label class="form-text">Piece Code</label>
         <div class="mb-3">
@@ -52,7 +52,7 @@
     </div>
     <div id="winning-bidder-info">
     Enter the winning bidder number and bid below.<br/>
-      <div class="row g-sm-3 row-cols-auto align-items-end">
+      <div class="row g-3 row-cols-auto align-items-end">
         <div class="col">
           <label class="form-text">Bidder Number</label>
           <div class="mb-3">
@@ -77,7 +77,7 @@
     </div>
     </form>
     {% if piece %}
-    <div class="row g-sm-3 row-cols-auto align-items-end">
+    <div class="row g-3 row-cols-auto align-items-end">
       <div class="col">
         <div class="form-text">Piece ID</div>
         <div class="mb-3">{{ piece.artist_and_piece_id }}</div>

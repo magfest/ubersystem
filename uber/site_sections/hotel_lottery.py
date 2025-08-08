@@ -76,7 +76,7 @@ def _disband_room_group(session, application):
         send_email.delay(
             c.HOTEL_LOTTERY_EMAIL,
             member.attendee.email_to_address,
-            f'{c.EVENT_NAME} Lottery Room Group "{old_room_group_name}" Disbanded',
+            f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{old_room_group_name}" Disbanded',
             body,
             format='html',
             model=member.to_dict('id'))
@@ -98,7 +98,7 @@ def _reset_group_member(application):
         application.data_policy_accepted = False
     
     if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
-            application.is_staff_entry = True
+        application.is_staff_entry = True
     else:
         application.is_staff_entry = False
 
@@ -154,7 +154,7 @@ class Root:
                 if application.status not in [c.PARTIAL, c.WITHDRAWN]:
                     message = "Application status has changed, please view your new options below."
                 elif not group_id:
-                    message = 'Group lookup failed. Please use the "Join Room Group" button to try again.'
+                    message = f'Group lookup failed. Please use the "Join {c.HOTEL_LOTTERY_GROUP_TERM}" button to try again.'
                 else:
                     message, _ = _join_room_group(session, application, group_id)
 
@@ -176,6 +176,7 @@ class Root:
     def index(self, session, attendee_id=None, message="", **params):
         if 'id' in params:
             application = session.lottery_application(params['id'])
+            attendee_id = application.attendee.id
         elif attendee_id:
             attendee = session.attendee(attendee_id)
             application = attendee.lottery_application
@@ -232,7 +233,23 @@ class Root:
         raise HTTPRedirect('index?id={}&message={}',
                            application.id,
                            "Your staff lottery entry has been entered into the attendee lottery.")
-    
+
+    @requires_account(LotteryApplication)
+    def reenter_lottery(self, session, id=None, **params):
+        application = session.lottery_application(id)
+        _reset_group_member(application)
+        session.add(application)
+        if application.status == c.COMPLETE:
+            raise HTTPRedirect('index?id={}&message={}&confirm={}&action={}',
+                               application.id,
+                               f'Your lottery entry has been re-entered.',
+                               "suite" if application.entry_type == c.SUITE_ENTRY else "room",
+                               're-entered')
+        else:
+            raise HTTPRedirect('start?attendee_id={}&message={}',
+                               application.attendee.id,
+                               "Your lottery entry has been reset and you may now re-enter.")
+
     @requires_account(LotteryApplication)
     def withdraw_entry(self, session, id=None, **params):
         application = session.lottery_application(id)
@@ -258,7 +275,7 @@ class Root:
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,
                 old_room_group.attendee.email_to_address,
-                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery Room Group',
+                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
                 body,
                 format='html',
                 model=old_room_group.to_dict('id'))
@@ -512,8 +529,9 @@ class Root:
 
         if application.entry_type == c.ROOM_ENTRY:
             application.entry_type = c.SUITE_ENTRY
-            application.wants_ada = False
-            application.ada_requests = ''
+            if 'suite_ada_info' not in c.HOTEL_LOTTERY_FORM_STEPS:
+                application.wants_ada = False
+                application.ada_requests = ''
         elif application.entry_type == c.SUITE_ENTRY:
             application.entry_type = c.ROOM_ENTRY
             application.suite_terms_accepted = False
@@ -584,7 +602,7 @@ class Root:
         send_email.delay(
             c.HOTEL_LOTTERY_EMAIL,
             member.attendee.email_to_address,
-            f'Removed From {c.EVENT_NAME} Lottery Room Group "{application.room_group_name}"',
+            f'Removed From {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{application.room_group_name}"',
             body,
             format='html',
             model=member.to_dict('id'))
@@ -623,6 +641,9 @@ class Root:
 
         if room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
             return {'error': "No valid room group found. Please check the confirmation number and leader email address."}
+        
+        if room_group.finalized:
+            return {'error': "No valid room group found."}
 
         return {
             'success': True,
@@ -658,7 +679,7 @@ class Root:
                 send_email.delay(
                     c.HOTEL_LOTTERY_EMAIL,
                     room_group.attendee.email_to_address,
-                    f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery Room Group',
+                    f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
                     body,
                     format='html',
                     model=room_group.to_dict('id'))
@@ -689,7 +710,7 @@ class Root:
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,
                 room_group.attendee.email_to_address,
-                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery Room Group',
+                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
                 body,
                 format='html',
                 model=room_group.to_dict('id'))

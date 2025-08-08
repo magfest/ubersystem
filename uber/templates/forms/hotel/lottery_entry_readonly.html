@@ -10,7 +10,9 @@
 
 {% block check_in_out_dates %}
 {% block check_in_out_dates_form %}
+{% if app_or_parent.earliest_checkin_date %}
 {{ super () }}
+{% endif %}
 {% endblock %}
 {% endblock %}
 
@@ -50,6 +52,8 @@
 
 {% block priorities %}
 {% block priorities_form %}
+{% if app_or_parent.selection_priorities %}
 {{ super () }}
+{% endif %}
 {% endblock %}
 {% endblock %}

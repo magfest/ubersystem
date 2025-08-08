@@ -22,7 +22,7 @@ class Root:
         else:
             game = session.indie_game(id)
             studio_id = game.studio.id
-        
+
         studio = session.indie_studio(studio_id)
         forms = load_forms(params, game, ['ArcadeGameInfo', 'ArcadeConsents', 'ArcadeLogistics'])
 
@@ -71,7 +71,9 @@ class Root:
 
         if cherrypy.request.method == 'POST':
             photo.game = session.indie_game(game_id)
-            forms = load_forms(params, photo, ['ArcadePhoto'])
+
+            forms = load_forms(params, photo, ['ArcadePhoto'],
+                               field_prefix='new' if photo.is_new else photo.id)
             for form in forms.values():
                 form.populate_obj(photo)
 
@@ -98,7 +100,8 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, image, form_list)
+        forms = load_forms(params, image, form_list,
+                           field_prefix='new' if image.is_new else image.id)
         all_errors = validate_model(forms, image)
 
         if all_errors:

@@ -19,7 +19,7 @@
 <div class="card mb-3">
     <div class="card-header">{{ c.EVENT_NAME_AND_YEAR }} Applications</div>
     <div class="card-body">
-        <div class="d-flex gap-3 justify-content-between">
+        <div class="d-flex flex-wrap gap-3 justify-content-between">
             {% if c.DEALER_REG_START %}
             <div class="text-center">
                 {% if c.BEFORE_DEALER_REG_START %}
@@ -35,7 +35,7 @@
             <div class="text-center">
                 {% if not c.HOTEL_LOTTERY_OPEN and c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0 %}
                 <span class="badge bg-info">Staff Hotel Lottery: OPEN</span><br/>Closes {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
-                {% elif c.BEFORE_LOTTERY_FORM_START %}
+                {% elif c.BEFORE_HOTEL_LOTTERY_FORM_START %}
                 <span class="badge bg-secondary">Hotel Lottery: NOT OPEN</span><br/>Check back soon!
                 {% elif c.AFTER_HOTEL_LOTTERY_FORM_DEADLINE %}
                 <span class="badge bg-danger">Hotel Lottery: CLOSED</span>
@@ -179,10 +179,12 @@
                 {% endfor %}
                 </tbody>
                 </table>
+                {% block multi_cancel_modal_text scoped %}
                 <p>
                     Pressing the "Cancel Selected Registration(s)" button will <strong>immediately and irreversibly</strong> cancel all checked registrations.
                     Any registration fees and any upgrades purchased will be refunded to the original payment method.
                 </p>
+                {% endblock %}
             </div>
             <div class="modal-footer">
                 <form id="refund-cancel" action="abandon_badges" method="post">

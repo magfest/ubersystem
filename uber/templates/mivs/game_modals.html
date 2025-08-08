@@ -54,10 +54,10 @@
             {{ csrf_token() }}
             <input type="hidden" name="game_id" value="{{ game.id }}" />
             <div x-data="">
-                <div class="row g-sm-3 mb-3">
+                <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(mivs_code.code) }}</div>
                 </div>
-                <div class="row g-sm-3 mb-3">
+                <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(mivs_code.unlimited_use) }}</div>
                 </div>
             </div>
@@ -94,10 +94,10 @@
             {{ csrf_token() }}
             <input type="hidden" name="game_id" value="{{ game.id }}" />
             <div x-data="">
-                <div class="row g-sm-3 mb-3">
+                <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(mivs_screenshot.image) }}</div>
                 </div>
-                <div class="row g-sm-3 mb-3">
+                <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(mivs_screenshot.description) }}</div>
                 </div>
                 {{ form_macros.input(mivs_screenshot.is_screenshot) }}

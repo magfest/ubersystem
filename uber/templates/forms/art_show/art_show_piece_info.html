@@ -1,0 +1,64 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set art_show_piece_info = art_show_piece_info or forms['art_show_piece_info'] %}
+
+{% set max_tables = c.MAX_ART_TABLES if not admin_area else 30 %}
+{% set max_panels = c.MAX_ART_PANELS if not admin_area else 30 %}
+{% set readonly = not app.editable and not admin_area %}
+
+{# BLOCK NAMES in this form:
+    x_data
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+
+<div 
+x-data="{ {% block x_data %}
+   for_sale: {{ '\'\'' if piece.is_new else piece.valid_for_sale|boolean|tojson }},
+   no_quick_sale: {{ art_show_piece_info.no_quick_sale.data|boolean|tojson }},
+   type: {{ art_show_piece_info.type.data|tojson }},
+   get isOriginal() { return this.type == {{ c.ORIGINAL|tojson }} },
+   get isPrint() { return this.type == {{ c.PRINT|tojson }} },
+   get openingPlaceholder() { return !this.for_sale ? 'N/A' : '' },
+   get qsPlaceholder() { return (!this.for_sale || this.no_quick_sale) ? 'N/A' : '' },
+{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block name_for_sale %}
+<div class="col-sm">{{ form_macros.input(art_show_piece_info.name) }}</div>
+<div class="col-sm">{{ form_macros.input(art_show_piece_info.for_sale, **{'x-model.boolean': "for_sale"}) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block prices %}
+<div class="col-sm">{{ form_macros.input(art_show_piece_info.opening_bid, required_if="for_sale", **{':disabled': "!for_sale", ':placeholder': "openingPlaceholder"}) }}</div>
+<div class="col-sm">
+    {% call form_macros.input(art_show_piece_info.quick_sale_price, required_if="for_sale && !no_quick_sale", **{':disabled': "!for_sale || no_quick_sale", ':placeholder': "qsPlaceholder"}) %}
+    {{ form_macros.input(art_show_piece_info.no_quick_sale, alpine_model="no_quick_sale", **{':disabled': "!for_sale"}) }}
+    {% endcall %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block gallery_type %}
+<div class="col-sm">{{ form_macros.input(art_show_piece_info.gallery) }}</div>
+<div class="col-sm">
+    {% call form_macros.input(art_show_piece_info.type, alpine_model="type") %}
+    <div x-show="isOriginal">{{ form_macros.input(art_show_piece_info.media, required_if="isOriginal") }}</div>
+    <div x-show="isPrint">
+        <div class="form-text">Print Number<span class="required-indicator text-danger" x-show="isPrint"> *</span></div>
+        <div class="input-group">
+        {{ form_macros.input(art_show_piece_info.print_run_num, show_label=False) }}
+        <span class="input-group-text">OF</span>
+        {{ form_macros.input(art_show_piece_info.print_run_total, show_label=False) }}
+        </div>
+    </div>
+    {% endcall %}
+</div>
+{% endblock %}
+</div>
+
+</div>
