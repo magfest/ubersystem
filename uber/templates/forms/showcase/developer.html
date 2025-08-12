@@ -16,7 +16,7 @@ gets_emails: {{ developer_info.gets_emails.data|jsonize }},
 get cellphoneRequired() { return this.gets_emails },
 {% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block name %}
 <div class="col-sm">{{ form_macros.input(developer_info.first_name) }}</div>
 <div class="col-sm">{{ form_macros.input(developer_info.last_name) }}</div>
@@ -24,7 +24,7 @@ get cellphoneRequired() { return this.gets_emails },
 </div>
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block contact_info %}
   <div class="col-sm">
     {{ form_macros.input(developer_info.email) }}
@@ -34,7 +34,7 @@ get cellphoneRequired() { return this.gets_emails },
   </div>
 {% if 'apply' not in c.PAGE_PATH %}
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">
         {{ form_macros.input(developer_info.gets_emails, alpine_model="gets_emails") }}
     </div>
@@ -45,11 +45,11 @@ get cellphoneRequired() { return this.gets_emails },
 </div>
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block consents %}
     <div class="col-sm">{{ form_macros.input(developer_info.agreed_coc) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(developer_info.agreed_data_policy) }}</div>
 {% endblock %}
 </div>

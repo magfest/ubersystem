@@ -26,7 +26,7 @@ $().ready(function () {
         <a href="index?department_id={{ department.id }}">View panel applications for {{ department.name }} Department</a>{% endif %}</small></h2>
 
 <div class="card card-body">
-    <div class="row g-sm-3 mb-3">
+    <div class="row g-3 mb-3">
         {% if app.status == c.ACCEPTED %}
             <div class="col-sm">
                 <label class="form-text">Event</label>
@@ -102,7 +102,7 @@ $().ready(function () {
         </div>
     </div>
 
-    <div class="row g-sm-3">
+    <div class="row g-3">
         {% if app.poc_id %}
             <div class="col-12 col-sm-6 form-control-static">
             <label class="form-text">Point of Contact</label>

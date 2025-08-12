@@ -9,7 +9,7 @@
     })
 </script>
 {% set can_print = "Queued" not in attendee.print_status and attendee.print_status not in ["Ready to Print", "Pending Payment"] %}
-<div class="row g-sm-3 align-items-end mb-3">
+<div class="row g-3 align-items-end mb-3">
     <div class="align-self-start col-12{% if can_print and attendee.times_printed < 1 %} col-sm-6{% endif %} d-flex align-items-start gap-3">
         <div>
             <div class="form-text">Print Status</div>

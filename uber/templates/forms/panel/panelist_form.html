@@ -21,7 +21,7 @@
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
 <h3>Personal Information</h3>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block name %}
 <div class="col-sm">{{ form_macros.input(panelist_info.first_name, readonly=(pi_readonly or readonly_fields.first_name|boolean)) }}</div>
 <div class="col-sm">{{ form_macros.input(panelist_info.last_name, readonly=pi_readonly or readonly_fields.last_name|boolean) }}</div>
@@ -29,7 +29,7 @@
 </div>
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block contact_info %}
   <div class="col-sm">
     {{ form_macros.input(panelist_info.email, readonly=pi_readonly or readonly_fields.email|boolean) }}
@@ -39,7 +39,7 @@
     {{ form_macros.input(panelist_info.cellphone, readonly=(pi_readonly and cellphone_from_attendee) or readonly_fields.cellphone|boolean) }}
   </div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
   <div class="col-sm mt-0">
       {% call form_macros.input(panelist_info.communication_pref) %}
       <div class="d-flex gap-1 mt-2">
@@ -51,7 +51,7 @@
 </div>
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block pronouns %}
   <div class="col-sm">{{ form_macros.input(panelist_info.display_name) }}</div>
   <div class="col-sm">
@@ -72,12 +72,12 @@
 
 {% if not is_guest %}
 <h3>Credentials</h3>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block credentials %}
 <div class="col-sm">{{ form_macros.input(panelist_credentials.occupation) }}</div>
 <div class="col-sm">{{ form_macros.input(panelist_credentials.website) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">
         {{ form_macros.input(panelist_credentials.other_credentials) }}
     </div>
@@ -88,7 +88,7 @@
 </div>
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block schedule_info %}
   <div class="col-sm">
     {{ form_macros.input(panelist_credentials.guidebook_bio) }}

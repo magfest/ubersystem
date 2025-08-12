@@ -53,7 +53,7 @@ get showConvertBadges() { return this.group_status == '{{ c.DECLINED }}' },
       </script>
       {% set shared_link = '' if not table_info.shared_with_name else group.shared_with|form_link(True, 'View ') %}
       <div class="col-sm">{{ form_macros.input(table_info.shared_with_name, admin_text=shared_link) }}</div>
-      </div><div class="row g-sm-3 mb-3">
+      </div><div class="row g-3 mb-3">
     {% endif %}
   {% endif %}
   <div class="col-sm">{{ form_macros.input(table_info.admin_notes) }}</div>

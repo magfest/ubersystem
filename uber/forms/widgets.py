@@ -15,6 +15,8 @@ class MultiCheckbox():
         for value, label, checked, _html_attribs in field.iter_choices():
             choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
+            if 'readonly' in options:
+                options['disabled'] = True
             if checked:
                 options['checked'] = 'checked'
             html.append('<label for="{}" class="checkbox-label">'.format(choice_id))
@@ -88,6 +90,8 @@ class SelectButtonGroup(Select):
                 'name': field.name,
                 **self.default_opt_kwargs
                 }
+            if 'readonly' in kwargs:
+                options['disabled'] = True
             options.update(render_kw)
             for opt, val in kwargs.items():
                 if opt.startswith('x-'):

@@ -28,7 +28,6 @@ $(function () {
   $("form[action*='/security_admin/']").submit(function (event) {
     event.preventDefault();
     var old_hash = window.location.hash;
-    console.log($(this).serializeArray())
     $.post($(this).attr('action'), $(this).serializeArray())
     .success(function (json) {
         if(window.loadForm !== undefined) {

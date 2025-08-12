@@ -11,12 +11,12 @@
     <div class="card-body">
         In order to complete your registration, please pay for the following items:
         {% include 'preregistration/receipt_table.html' %}
-        <div class="row">
-            <div class="col col-auto">
+        <div class="d-flex gap-2">
+            <div>
                 {{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, return_to=return_to) }}
             </div>
             {% if attendee.has_extras %}
-            <div class="col col-auto">
+            <div>
                 <form method="post" action="reset_receipt">
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}"/>
@@ -26,7 +26,7 @@
             </div>
             {% endif %}
             {% if not attendee.cannot_abandon_badge_reason %}
-            <div class="col col-auto">
+            <div>
                 <form method="post" action="abandon_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}"/>
                     {{ csrf_token() }}
@@ -35,8 +35,9 @@
                     </button>
                 </form>
             </div>
-        {% endif %}
+            {% endif %}
         </div>
+        <br/><em>To change or cancel an upgrade, select "Cancel All Extras" or email us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.</em>
     </div>
 </div>
 {% endblock %}

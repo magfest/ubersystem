@@ -1,0 +1,38 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set attendee_info = attendee_info or forms['attendee_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    names_email
+    not_attending
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block names_email %}
+    <div class="col-sm">
+        <label for="first_name" class="form-text">Name<span class="required-indicator text-danger"> *</span></label>
+        <div class="input-group">
+        {{ form_macros.input(attendee_info.first_name, show_label=False, placeholder="First Name") }}
+        {{ form_macros.input(attendee_info.last_name, show_label=False, placeholder="Last Name") }}
+        </div>
+    </div>
+    <div class="col-sm">{{ form_macros.input(attendee_info.email) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block not_attending %}
+{% if c.INDEPENDENT_ART_SHOW %}
+    <input type="hidden" name="not_attending" value="1">
+    {% else %}
+    <div class="col-12">{{ form_macros.input(attendee_info.not_attending, alpine_model="not_attending") }}</div>
+{% endif %}
+{% endblock %}
+</div>
+
+</div>

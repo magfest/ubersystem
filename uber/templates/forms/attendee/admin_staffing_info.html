@@ -17,18 +17,18 @@
         {{ form_macros.input(staffing_info.staffing, admin_text=staffing_admin_text, **{'x-model.boolean':'staffing'}) }}
     </div>
 </div>
-<div class="row g-sm-3 mb-3" x-show="staffing">
+<div class="row g-3 mb-3" x-show="staffing">
     <div class="col-12">
         <div class="form-text">Walk-On Volunteer</div>
         {{ form_macros.input(staffing_info.walk_on_volunteer) }}
     </div>
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 </div>
-<div class="row g-sm-3 mb-3" x-show="staffing">
+<div class="row g-3 mb-3" x-show="staffing">
     <div class="col-12">{{ form_macros.input(staffing_info.requested_depts_ids) }}</div>
 {% endif %}
 </div>
-<div class="row g-sm-3 mb-3" x-show="staffing">
+<div class="row g-3 mb-3" x-show="staffing">
     <div class="col-12">{{ form_macros.input(staffing_info.assigned_depts_ids) }}</div>
 {% endblock %}
 

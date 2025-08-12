@@ -189,7 +189,7 @@
   {% if use_bs5 or is_admin %}
   <div class="col {{ form_class }}">
     <label class="form-text">
-      {{ label }}
+      {{ label }}{% if is_required %} <span class="text-danger">*</span>{% endif %}
     </label>
     <div class="mb-3">
         {{ caller() }}
@@ -354,7 +354,7 @@
 {% macro name_form_group(model=None, label='Name', first_name_attr='first_name', last_name_attr='last_name', prefix='', suffix='', form_class='', is_required=False, is_readonly=False, use_bs5=False) -%}
 {% if use_bs5 %}
   <div class="col {{ form_class }}">
-    <label class="form-text">{{ label }}</label>
+    <label class="form-text">{{ label }}{% if is_required %} <span class="text-danger">*</span>{% endif %}</label>
     <div class="mb-3">
       {%- if is_readonly -%}
         {{ model[first_name_attr] ~ ' ' ~ model[last_name_attr] }}
@@ -519,7 +519,7 @@
   </script>
   <input type="hidden" class="address_suffixes" value="{{ suffix }}" />
   {% if use_bs5 %}
-  <div class="row g-sm-3">
+  <div class="row g-3">
     <div class="col {{ name_prefix }}address_details{{ suffix }}">
       <label for="{{ name_prefix }}country{{ suffix }}" class="form-text">{{ label_prefix }} Country</label>
       <div class="mb-3">
@@ -555,7 +555,7 @@
     </div>
   {%- endif -%}
   </div>
-  <div class="row g-sm-3">
+  <div class="row g-3">
     <div class="col {{ name_prefix }}address_details{{ suffix }}">
       <label for="{{ name_prefix }}city{{ suffix }}" class="form-text">{{ label_prefix }} City</label>
       <div class="mb-3">

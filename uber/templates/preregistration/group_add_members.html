@@ -4,19 +4,19 @@
 {% if group.is_valid and c.REMAINING_BADGES > 50 %}
   <br/>
   <p>
-  {% if group.is_dealer and group.min_badges_addable %}
+  {% if group.is_dealer and group.min_badges_addable > 0 and group.dealer_badges_remaining > 0 %}
     You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional {{ c.DEALER_HELPER_TERM }} badges.
   {% elif group.is_dealer and group.status != c.SHARED %}
     Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional {{ c.DEALER_HELPER_TERM }} badges.
   {% endif %}
   </p>
 
-  {% if group.min_badges_addable %}
+  {% if group.min_badges_addable > 0 and (group.dealer_badges_remaining > 0 or not group.is_dealer) %}
     <div id="add" style="display:none;">
       <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
         <input type="hidden" id="estimatedCost" name="estimated_cost" value="{{ group.new_badge_cost|default(0, true) }}" />
-        <div class="row g-sm-3">
+        <div class="row g-3">
             <div class="col-auto">
             {%- set min_badges = group.min_badges_addable -%}
             Enter the number of {{ member }}s to add.
@@ -85,7 +85,7 @@
   {% endif %}
 {% endif %}
 {% if group.is_valid and not add_badges_disabled and group.can_add_existing_badges %}
-{% if group.is_valid and c.REMAINING_BADGES > 50 and group.min_badges_addable %}
+{% if group.is_valid and c.REMAINING_BADGES > 50 and group.min_badges_addable and (group.dealer_badges_remaining > 0 or not group.is_dealer) %}
 OR
 {% endif %}
 <button id="attach-btn"{% if add_badges_disabled %} disabled{% endif %} class="btn btn-primary mt-1">
@@ -97,14 +97,14 @@ OR
     <form method="post" id="find-group-member-form" action="find_group_member">
         <input type="hidden" name="id" value="{{ group.id }}" />
         {{ csrf_token() }}
-        <div class="row g-sm-3">
+        <div class="row g-3">
             <div class="col-auto">
                 If one of your {{ member }}s has already bought a badge,
                 you can add them to your group by entering their registration confirmation number, first name, and last name below.
                 They can find their registration confirmation number in the confirmation email they received when they registered.
             </div>
         </div>
-        <div class="row g-sm-3">
+        <div class="row g-3">
             <div class="col-12 col-sm-6">
                 <label class="form-text">Confirmation #</label>
                 <div>
@@ -124,7 +124,7 @@ OR
                 </div>
             </div>
         </div>
-        <div class="row g-sm-3">
+        <div class="row g-3">
             <div class="col-12 col-sm-6">
                 <button type="submit" class="btn btn-primary">Search</button>
             </div>

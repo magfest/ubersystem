@@ -34,9 +34,10 @@
   <div class="card-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
-      {% if cart.attendees or cart.groups %}
-        {% include 'preregistration/index_payment_form.html' %}
+  {% if cart.attendees or cart.groups %}
+  {% include 'preregistration/index_payment_form.html' %}
   <br/>
+  <div class="table-responsive">
   <table class="charge table table-striped">
     <caption class="visually-hidden">A table listing the preregistrations currently in your cart. 
       Column one shows the name associated with the preregistration along with a list of purchased items and discounts,
@@ -131,11 +132,12 @@
       </tfoot>
     {% endif %}
   </table>
+  </div>
   {% endif %}
 
   {% include "preregistration/disclaimers.html" %}
 </div>
 </div>
-<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
+<div class="text-center mt-1"><em class="badge bg-dark fw-normal text-wrap lh-sm">Please note: your badge and any upgrades are not reserved until you complete the registration process{% if not c.AT_THE_CON %}, including payment{% endif %}.</em></div>
 {{ "js/warn-before-logout.js"|serve_static_content }}
 {% endblock %}

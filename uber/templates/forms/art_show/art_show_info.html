@@ -1,0 +1,150 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set art_show_info = art_show_info or forms['art_show_info'] %}
+
+{% set max_tables = c.MAX_ART_TABLES if not admin_area else 30 %}
+{% set max_panels = c.MAX_ART_PANELS if not admin_area else 30 %}
+{% set readonly = not app.editable and not admin_area %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    attendee_info
+    status_ids
+    money_info
+    name_delivery
+    banner_names
+    payout
+    general_space
+    mature_space
+    extra_space_info
+    description_website
+    contact_needs
+    admin_notes
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+
+<div 
+x-data="{ {% block x_data %}
+   delivery_method: {{ art_show_info.delivery_method.data|tojson }},
+   panels_ad: {{ art_show_info.panels_ad.data|tojson }},
+   tables_ad: {{ art_show_info.tables_ad.data|tojson }},
+   separate_ad_banner: '{{ app.banner_name_ad }}',
+   get deliveryByMail() { return this.delivery_method == {{ c.BY_MAIL|tojson }} },
+{% endblock %} }">
+
+
+<div class="row g-3 mb-3">{% block attendee_info %}{% endblock %}</div>
+<div class="row g-3 mb-3">{% block status_ids %}{% endblock %}</div>
+<div class="row g-3 mb-3">{% block money_info %}{% endblock %}</div>
+
+
+<div class="row g-3 mb-3">
+{% block name_delivery %}
+{{ form_macros.input(art_show_info.not_attending, show_label=False, alpine_model="not_attending") }}
+<div class="col-sm">{{ form_macros.input(art_show_info.artist_name) }}</div>
+<div class="col-sm">
+    {% call form_macros.input(art_show_info.delivery_method, alpine_model="delivery_method", disabled=readonly) %}
+        {% if c.ART_MAILING_FEE or c.BY_MAIL_US_ONLY %}
+        <div x-show="deliveryByMail">
+            {% if c.ART_MAILING_FEE %}
+            <span class="form-text">Mailing your art to the show incurs a fee of {{ c.ART_MAILING_FEE|format_currency }}.</span>
+            {% endif %}
+            {% if c.BY_MAIL_US_ONLY %}
+            {{ form_macros.input(art_show_info.us_only, required_if="deliveryByMail", disabled=readonly) }}
+            {% endif %}
+        </div>
+        {% endif %}
+    {% endcall %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block banner_names %}
+<div class="col-sm">{{ form_macros.input(art_show_info.banner_name) }}</div>
+<div class="col-sm">
+    {{ form_macros.input(art_show_info.banner_name_ad, required_if="separate_ad_banner", **{':class':"separate_ad_banner || 'visually-hidden'"}) }}
+    {{ form_macros.input(art_show_info.separate_ad_banner, alpine_model="separate_ad_banner") }}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block payout %}
+{% if c.ARTIST_PAYOUT_METHOD_OPTS|length > 2 %}
+<div class="col-sm">{{ form_macros.input(art_show_info.payout_method) }}</div>
+<div class="col-sm">{{ form_macros.input(art_show_info.check_payable) }}</div>
+{% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block general_space %}
+<div class="col-sm">
+    {% if app.panels and app.panels > max_panels and not admin_area %}
+        An admin has granted you {{ app.panels }} general panels. Please contact us via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+        if you wish to change the number of panels on your {{ c.ART_SHOW_APP_TERM }}.
+    {% else %}
+        {{ form_macros.input(art_show_info.panels, choices=int_choices(0, max_panels), disabled=readonly) }}
+    {% endif %}
+</div>
+<div class="col-sm">
+    {% if app.tables and app.tables > max_tables and not admin_area %}
+        An admin has granted you {{ app.tables }} general table sections. Please contact us via via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+        if you wish to change the number of table sections on your {{ c.ART_SHOW_APP_TERM }}.
+    {% else %}
+        {{ form_macros.input(art_show_info.tables, choices=int_choices(0, max_tables), disabled=readonly) }}
+    {% endif %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block mature_space %}
+<div class="col-sm">
+    {% if app.panels_ad and app.panels_ad > max_panels and not admin_area %}
+        An admin has granted you {{ app.panels_ad }} mature panels. Please contact us via via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+        if you wish to change the number of panels on your {{ c.ART_SHOW_APP_TERM }}.
+    {% else %}
+        {{ form_macros.input(art_show_info.panels_ad, choices=int_choices(0, max_panels), alpine_model="panels_ad", disabled=readonly) }}
+    {% endif %}
+</div>
+<div class="col-sm">
+    {% if app.tables_ad and app.tables_ad > max_tables and not admin_area %}
+        An admin has granted you {{ app.tables_ad }} mature table sections. Please contact us via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+        if you wish to change the number of table sections on your {{ c.ART_SHOW_APP_TERM }}.
+    {% else %}
+        {{ form_macros.input(art_show_info.tables_ad, choices=int_choices(0, max_tables), alpine_model="tables_ad", disabled=readonly) }}
+    {% endif %}
+</div>
+{% endblock %}
+</div>
+
+{% block extra_space_info %}
+{% if not readonly and not admin_area and (app.panels < max_panels or app.tables < max_tables or app.tables_ad < max_tables or app.panels_ad < max_panels) %}
+<div class="form-text text-center mt-2">
+  You may contact us via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} to request more
+  than {{ c.MAX_ART_PANELS }} panels or{% if c.MAX_ART_PANELS != c.MAX_ART_TABLES %} {{ c.MAX_ART_TABLES }}{% endif %} table sections.<br/><br/>
+</div>
+{% endif %}
+{% endblock %}
+
+<div class="row g-3 mb-3">
+{% block description_website %}
+<div class="col-sm">{{ form_macros.input(art_show_info.description) }}</div>
+<div class="col-sm">{{ form_macros.input(art_show_info.website) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block contact_needs %}
+<div class="col-sm">{{ form_macros.input(art_show_info.contact_at_con) }}</div>
+<div class="col-sm">{{ form_macros.input(art_show_info.special_needs) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">{% block admin_notes %}{% endblock %}</div>
+
+</div>

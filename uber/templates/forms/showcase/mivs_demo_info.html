@@ -17,11 +17,11 @@ code_type: {{ mivs_demo_info.code_type.data|tojson }},
 get codeRequiresInstructions() { return {{ c.MIVS_CODES_REQUIRING_INSTRUCTIONS|tojson }}.includes(this.code_type) },
 {% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block links %}
 <div class="col-sm">{{ form_macros.input(mivs_demo_info.link_to_video) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(mivs_demo_info.link_to_game) }}</div>
     <div class="col-sm">
         {% call form_macros.input(mivs_demo_info.password_to_game, required_if="!no_password", **{'x-bind:disabled': "no_password"}) %}
@@ -32,7 +32,7 @@ get codeRequiresInstructions() { return {{ c.MIVS_CODES_REQUIRING_INSTRUCTIONS|t
 </div>
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block code_build %}
   <div class="col-sm">
     {% call form_macros.input(mivs_demo_info.code_type, **{'x-model.number': "code_type"}) %}
@@ -53,7 +53,7 @@ get codeRequiresInstructions() { return {{ c.MIVS_CODES_REQUIRING_INSTRUCTIONS|t
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block instructions %}
   <div class="col-sm">{{ form_macros.input(mivs_demo_info.how_to_play) }}</div>
   <div class="col-sm">{{ form_macros.input(mivs_demo_info.build_notes) }}</div>

@@ -16,14 +16,14 @@ get customPaperType() { return this.paper_type == {{ c.CUSTOM|tojson }} },
 get customSize() { return this.size == {{ c.CUSTOM|tojson }} },
 {% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block link_copies %}
 <div class="col-sm-8">{{ form_macros.input(bulk_printing_request_info.link) }}</div>
 <div class="col-sm">{{ form_macros.input(bulk_printing_request_info.copies) }}</div>
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block color_orientation %}
 <div class="col-sm">{{ form_macros.input(bulk_printing_request_info.color) }}</div>
 <div class="col-sm">{{ form_macros.input(bulk_printing_request_info.print_orientation) }}</div>
@@ -31,7 +31,7 @@ get customSize() { return this.size == {{ c.CUSTOM|tojson }} },
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block paper_type_size %}
 <div class="col-sm">
   {% call form_macros.input(bulk_printing_request_info.paper_type, alpine_model="paper_type") %}
@@ -46,23 +46,23 @@ get customSize() { return this.size == {{ c.CUSTOM|tojson }} },
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block double_sided_stapled %}
   <div class="col-sm">{{ form_macros.input(bulk_printing_request_info.notes) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
   <div class="col-sm">{{ form_macros.input(bulk_printing_request_info.double_sided) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
   <div class="col-sm">{{ form_macros.input(bulk_printing_request_info.stapled) }}</div>
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block checkboxes %}
   <div class="col-12">{{ form_macros.input(bulk_printing_request_info.required) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
   <div class="col-12">{{ form_macros.input(bulk_printing_request_info.link_is_shared) }}</div>
 {% endblock %}
 </div>

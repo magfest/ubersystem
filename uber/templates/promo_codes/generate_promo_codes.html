@@ -238,7 +238,7 @@ $(document).ready(function() {
   <form method="post" action="generate_promo_codes" class="form-horizontal">
     {{ csrf_token() }}
 
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         <label for="is_single_promo_code" class="form-text">How many?</label>
         <div class="mb-3">
@@ -286,7 +286,7 @@ $(document).ready(function() {
       </div>
     </div>
 
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         <div class="form-check">
         <label>
@@ -314,7 +314,7 @@ $(document).ready(function() {
       </div>
     </div>
 
-    <div id="discount-group" class="row g-sm-3">
+    <div id="discount-group" class="row g-3">
       <div class="col-12 col-sm-6">
         <label for="discount_type" class="form-text">Discount Type</label>
           <select class="form-select" name="discount_type" onchange="onDiscountTypeChanged()">
@@ -336,7 +336,7 @@ $(document).ready(function() {
       </div>
     </div>
 
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         <label for="uses_allowed" class="form-text">Number of uses</label>
         <div class="mb-3">
@@ -354,7 +354,7 @@ $(document).ready(function() {
       </div>
     </div>
 
-    <div class="row g-sm-3">
+    <div class="row g-3">
       <div class="col-12 col-sm-6">
         <button type="submit" class="btn btn-primary">Generate Promo Codes</button>
         <button type="submit" class="btn btn-primary" name="export" value="1">Generate and Export as CSV</button>

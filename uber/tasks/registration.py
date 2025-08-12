@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
+from itertools import chain
 from pockets import groupify
 
 import stripe
@@ -8,7 +9,7 @@ import pytz
 from celery.schedules import crontab
 from pockets.autolog import log
 from sqlalchemy import not_, or_, insert
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -18,7 +19,7 @@ from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePick
                          ReceiptInfo, ReceiptItem, ReceiptTransaction, Session, TerminalSettlement)
 from uber.tasks.email import send_email
 from uber.tasks import celery
-from uber.utils import localized_now, TaskUtils
+from uber.utils import localized_now, TaskUtils, normalize_email
 from uber.payments import ReceiptManager, TransactionRequest
 
 
@@ -613,6 +614,16 @@ def sunset_empty_accounts():
 def import_attendee_accounts(accounts, admin_id, admin_name, target_server, api_token):
     already_queued = 0
     with Session() as session:
+        accounts_by_email = groupify(accounts, lambda a: normalize_email(a['email']))
+
+        existing_accounts = session.query(AttendeeAccount).filter(
+            AttendeeAccount.email.in_(accounts_by_email.keys())) \
+            .options(subqueryload(AttendeeAccount.attendees)).all()
+        for account in existing_accounts:
+            existing_key = account.email
+            accounts_by_email.pop(existing_key, {})
+        accounts = list(chain(*accounts_by_email.values()))
+
         for account in accounts:
             id = account['id']
             existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_account_import",
