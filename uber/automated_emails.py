@@ -205,6 +205,15 @@ AutomatedEmailFixture(
     ident='group_payment_received')
 
 AutomatedEmailFixture(
+    Group,
+    '{EVENT_NAME} group registration successful',
+    'reg_workflow/group_confirmation.html',
+    lambda g: g.cost == 0 and g.leader_id and not g.leader.placeholder,
+    # query=and_(Group.amount_paid >= Group.cost, Group.cost > 0, Group.leader_id != None),
+    needs_approval=True,
+    ident='group_registration_confirmation')
+
+AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} group registration confirmed',
     'reg_workflow/attendee_confirmation.html',
@@ -283,18 +292,6 @@ AutomatedEmailFixture.queries.update({
 })
 
 
-AutomatedEmailFixture(
-    ArtShowBidder,
-    'Bidding Winner Notification for the {EVENT_NAME} Art Show',
-    'art_show/pieces_won.html',
-    lambda a: a.email_won_bids and len(
-        [piece for piece in a.art_show_pieces if piece.winning_bid and piece.status == c.SOLD]) > 0,
-    needs_approval=True,
-    allow_at_the_con=True,
-    sender=c.ART_SHOW_EMAIL,
-    ident='art_show_pieces_won')
-
-
 class ArtShowAppEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(self, ArtShowApplication, subject,
@@ -305,6 +302,17 @@ class ArtShowAppEmailFixture(AutomatedEmailFixture):
 
 
 if c.ART_SHOW_ENABLED:
+    AutomatedEmailFixture(
+        ArtShowBidder,
+        'Bidding Winner Notification for the {EVENT_NAME} Art Show',
+        'art_show/pieces_won.html',
+        lambda a: a.email_won_bids and len(
+            [piece for piece in a.art_show_pieces if piece.winning_bid and piece.status == c.SOLD]) > 0,
+        needs_approval=True,
+        allow_at_the_con=True,
+        sender=c.ART_SHOW_EMAIL,
+        ident='art_show_pieces_won')
+
     ArtShowAppEmailFixture(
         '{EVENT_NAME} Art Show Application Confirmation',
         'art_show/application.html',
@@ -1058,7 +1066,7 @@ if c.MIVS_START:
     MIVSEmailFixture(
         IndieJudge,
         'Welcome as a MIVS Judge!',
-        'mivs/judging/judge_welcome.txt',
+        'mivs/judging/judge_welcome.html',
         ident='mivs_judge_welcome')
 
     MIVSEmailFixture(
@@ -1361,6 +1369,19 @@ if c.PANELS_START:
 # guests
 # =============================
 
+class ArenaEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(
+            self,
+            GuestGroup,
+            subject,
+            template,
+            lambda b: b.group_type == c.ARENA and filter(b),
+            ident,
+            sender=c.ARENA_EMAIL,
+            **kwargs)
+
+
 class BandEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(
@@ -1510,6 +1531,26 @@ GuestEmailFixture(
     lambda g: not g.checklist_completed,
     when=days_after(7, c.GUEST_INFO_DEADLINE),
     ident='guest_reminder_2')
+
+ArenaEmailFixture(
+    'It\'s time to send us your info for {EVENT_NAME}!',
+    'guests/guest_checklist_announce.html',
+    lambda g: True,
+    ident='arena_checklist_inquiry')
+
+ArenaEmailFixture(
+    'Reminder: Please complete your Arena Checklist for {EVENT_NAME}!',
+    'guests/guest_checklist_reminder.html',
+    lambda g: not g.checklist_completed,
+    when=days_before(7, c.ARENA_INFO_DEADLINE),
+    ident='arena_reminder_1')
+
+ArenaEmailFixture(
+    'Have you forgotten anything? Your {EVENT_NAME} Arena Checklist needs you!',
+    'guests/guest_checklist_reminder.html',
+    lambda g: not g.checklist_completed,
+    when=days_after(7, c.ARENA_INFO_DEADLINE),
+    ident='arena_reminder_2')
 
 AutomatedEmailFixture(
     GuestGroup,
