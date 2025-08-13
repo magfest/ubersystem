@@ -123,7 +123,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
         forms = load_forms(params, application, form_list)
-        all_errors = validate_model(forms, application)
+        all_errors = validate_model(forms, application, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 

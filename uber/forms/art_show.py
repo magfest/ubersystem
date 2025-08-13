@@ -2,15 +2,17 @@ from markupsafe import Markup
 from wtforms import (BooleanField, IntegerField, EmailField, HiddenField, SelectField,
                      StringField, validators, TextAreaField)
 from wtforms.validators import ValidationError, StopValidation
+from wtforms.widgets import TextInput
 
 from uber.config import c
-from uber.forms import (MagForm, HiddenBoolField, IntSelect, AddressForm, NumberInputGroup, SelectDynamicChoices, SelectButtonGroup)
+from uber.forms import (BlankOrIntegerField, MagForm, HiddenBoolField, IntSelect, AddressForm, NumberInputGroup,
+                        SelectDynamicChoices, SelectButtonGroup)
 from uber.forms.attendee import PersonalInfo, AdminBadgeFlags
 from uber.custom_tags import email_only, email_to_link, format_currency
 
 
-__all__ = ['ArtShowInfo', 'AdminArtShowInfo', 'AttendeeInfo', 'MailingInfo', 'ArtShowPieceInfo',
-           'ArtistCheckOutInfo', 'ArtistCheckInInfo', 'PieceCheckInOut']
+__all__ = ['ArtShowInfo', 'AdminArtShowInfo', 'ArtistAttendeeInfo', 'AdminArtistAttendeeInfo',
+           'ArtistMailingInfo', 'ArtShowPieceInfo', 'ArtistCheckOutInfo', 'ArtistCheckInInfo', 'PieceCheckInOut']
 
 
 class ArtShowInfo(MagForm):
@@ -49,6 +51,7 @@ class ArtShowInfo(MagForm):
         if app.status != c.UNAPPROVED:
             return ['artist_name', 'panels', 'panels_ad', 'tables', 'tables_ad', 'description',
                     'website', 'special_needs', 'delivery_method']
+        return []
 
 
 class AdminArtShowInfo(ArtShowInfo):
@@ -57,7 +60,7 @@ class AdminArtShowInfo(ArtShowInfo):
     email = StringField("Attendee Email", render_kw={'readonly': "true"})
     status = SelectField(f"{c.ART_SHOW_APP_TERM.title()} Status", coerce=int, choices=c.ART_SHOW_STATUS_OPTS)
     decline_reason = StringField("Decline Reason")
-    locations = StringField("Locations")
+    locations = StringField("Locations", render_kw={'placeholder': "Space assignments for this artist."})
     artist_id = StringField("Artist ID")
     artist_id_ad = StringField("Mature Artist ID")
     overridden_price = StringField('Custom Fee', widget=NumberInputGroup())
@@ -68,43 +71,43 @@ class AdminArtShowInfo(ArtShowInfo):
         return "Attendee Badge Status"
 
 
-class AttendeeInfo(MagForm):
+class ArtistAttendeeInfo(MagForm):
     first_name = PersonalInfo.first_name
     last_name = PersonalInfo.last_name
+    legal_name = PersonalInfo.legal_name
     email = PersonalInfo.email
     not_attending = BooleanField(f"I don't plan on attending {c.EVENT_NAME}.")
 
 
-class MailingInfo(AddressForm):
+class AdminArtistAttendeeInfo(ArtistAttendeeInfo, AddressForm):
+    pass
+
+
+class ArtistMailingInfo(AddressForm):
     business_name = StringField('Mailing Business Name')
     copy_address = BooleanField('Use my personal address for my mailing address.', default=False)
 
 
 class ArtShowPieceInfo(MagForm):
-    app_id = HiddenField()
     name = StringField("Piece Name", render_kw={'placeholder': "The title of this piece."})
     for_sale = SelectField("Is This Piece For Sale?", coerce=int,
                            default='', choices=[(1, 'Yes'),(0, 'No')], widget=SelectButtonGroup())
-    opening_bid = StringField("Opening Bid", default='', widget=NumberInputGroup())
-    quick_sale_price = StringField(c.QS_PRICE_TERM.title(), default='', widget=NumberInputGroup())
+    opening_bid = BlankOrIntegerField("Opening Bid", default='', widget=NumberInputGroup())
+    quick_sale_price = BlankOrIntegerField(c.QS_PRICE_TERM.title(), default='', widget=NumberInputGroup())
     no_quick_sale = BooleanField("I don't want my piece to be for sale after bidding ends.")
-    gallery = SelectField("Gallery", coerce=int, default=0,
+    gallery = SelectField("Gallery", coerce=int, default='',
                           choices=c.ART_PIECE_GALLERY_OPTS, widget=SelectButtonGroup())
-    type = SelectField("Piece Type", coerce=int, default=0,
+    type = SelectField("Piece Type", coerce=int, default='',
                           choices=c.ART_PIECE_TYPE_OPTS, widget=SelectButtonGroup())
     media = StringField("Original Media")
-    print_run_num = StringField("Print Edition", default='', render_kw={'placeholder': "X"})
-    print_run_total = StringField("Print Run Total", default='', render_kw={'placeholder': "Y"})
+    print_run_num = BlankOrIntegerField("Print Edition", default='', render_kw={'placeholder': "X"})
+    print_run_total = BlankOrIntegerField("Print Run Total", default='', render_kw={'placeholder': "Y"})
 
 
 class ArtistCheckOutInfo(MagForm):
     artist_name = ArtShowInfo.artist_name
     artist_id = AdminArtShowInfo.artist_id
     artist_id_ad = AdminArtShowInfo.artist_id_ad
-    attendee_first_name = StringField('Attendee First Name')
-    attendee_last_name = StringField('Attendee Last Name')
-    attendee_legal_name = StringField('Attendee Name on Photo ID',
-                                      render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID.'})
     payout_method = ArtShowInfo.payout_method
     check_payable = ArtShowInfo.check_payable
 
@@ -114,7 +117,6 @@ class ArtistCheckInInfo(ArtistCheckOutInfo):
     banner_name = ArtShowInfo.banner_name
     banner_name_ad = ArtShowInfo.banner_name_ad
     delivery_method = ArtShowInfo.delivery_method
-    single_agent = SelectField("Agent", widget=SelectDynamicChoices(), validate_choice=False)
     check_in_notes = AdminArtShowInfo.check_in_notes
 
 
@@ -122,5 +124,25 @@ class PieceCheckInOut(MagForm):
     status = SelectField("Status", coerce=int, choices=c.ART_PIECE_STATUS_OPTS)
     gallery = ArtShowPieceInfo.gallery
     name = ArtShowPieceInfo.name
+    for_sale = HiddenField()
+    no_quick_sale = ArtShowPieceInfo.no_quick_sale
     opening_bid = StringField("Opening Bid", default='', render_kw={'placeholder': "N/A"})
     quick_sale_price = StringField(c.QS_PRICE_TERM.title(), default='', render_kw={'placeholder': "N/A"})
+
+
+class BidderAttendeeInfo(AddressForm):
+    badge_num = IntegerField('Badge Number', default='')
+    first_name = PersonalInfo.first_name
+    last_name = PersonalInfo.last_name
+    legal_name = PersonalInfo.legal_name
+    email = PersonalInfo.email
+    cellphone = PersonalInfo.cellphone
+
+
+class BidderSignup(MagForm):
+    email_won_bids = BooleanField('Yes, please email me about pieces I won in the art show.')
+
+
+class AdminBidderSignup(BidderSignup):
+    bidder_num = StringField('Bidder Number', default='')
+    admin_notes = TextAreaField('Notes')

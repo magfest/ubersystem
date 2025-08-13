@@ -64,15 +64,15 @@ class Root:
 
         for game in studio.mivs_games:
             demo_forms[game.id] = load_forms({}, game, ['MivsDemoInfo'])
-            image_forms['mivs_new'] = load_forms({}, IndieGameImage(), ['MivsScreenshot'])
+            image_forms['mivs_new'] = load_forms({}, IndieGameImage(), ['MivsScreenshot'], field_prefix='new')
             for image in game.screenshots:
                 image_forms[image.id] = load_forms({}, image, ['MivsScreenshot'], field_prefix=image.id)
             if game.code_type != c.NO_CODE:
-                code_forms['new'] = load_forms({}, IndieGameCode(), ['MivsCode'])
+                code_forms['new'] = load_forms({}, IndieGameCode(), ['MivsCode'], field_prefix='new')
                 for code in game.codes:
                     code_forms[code.id] = load_forms({}, code, ['MivsCode'], field_prefix=code.id)
         for game in studio.arcade_games:
-            image_forms['arcade_new'] = load_forms({}, IndieGameImage(), ['ArcadePhoto'])
+            image_forms['arcade_new'] = load_forms({}, IndieGameImage(), ['ArcadePhoto'], field_prefix='new')
             for image in game.submission_images:
                 image_forms[image.id] = load_forms({}, image, ['ArcadePhoto'], field_prefix=image.id)
 

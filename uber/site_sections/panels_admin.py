@@ -54,7 +54,7 @@ class Root:
                                                {form_name: panelist.id for form_name in panelist_form_list})
         
         panelist_forms['new'] = load_forms(params, PanelApplicant(), panelist_form_list,
-                                           {form_name: 'new' for form_name in panelist_form_list})
+                                           field_prefix='new')
         
         guest_groups = session.query(GuestGroup).filter(GuestGroup.group_type != c.MIVS).options(
             joinedload(GuestGroup.group))
@@ -87,7 +87,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, app, form_list)
-        all_errors = validate_model(forms, app)
+        all_errors = validate_model(forms, app, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -123,7 +123,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, panelist, form_list, {form_name: prefix for form_name in form_list})
-        all_errors = validate_model(forms, panelist)
+        all_errors = validate_model(forms, panelist, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}

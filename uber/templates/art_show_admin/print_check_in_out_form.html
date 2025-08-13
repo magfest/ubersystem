@@ -1,1 +1,60 @@
-{% extends "art_show_common/print_form.html" %}
+{% extends 'static_views/static_base.html' %}
+
+{% include 'art_show_common/print.html' with context %}
+
+{% block page %}
+{% set printable = True %}
+{% set artist_attendee_info = forms['artist_attendee_info'] %}
+{% set artist_mailing_info = forms['artist_mailing_info'] %}
+{% if checkout %}
+    {% set artist_check_in_out_info = forms['artist_check_out_info'] %}
+    {% include 'forms/art_show/artist_check_out_info.html' with context %}
+{% else %}
+    {% set artist_check_in_out_info = forms['artist_check_in_info'] %}
+    {% include 'forms/art_show/artist_check_in_info.html' with context %}
+    <span class="text-center pagebreak">
+    <strong>{% include "art_show_applications/checkin_agreement.html" %}</strong><br/>
+    </span>
+
+    <div class="row g-3 mb-3">
+    <div class="col-sm">
+        <label class="form-text">Artist Signature</label>
+        <div>
+            ____________________________________________________________
+        </div>
+    </div>
+
+    <div class="col-sm">
+        <label class="form-text">Date</label>
+        <div>
+            ______________________________
+        </div>
+    </div>
+    </div>
+
+    {% if app.delivery_method == c.AGENT and app.single_agent %}
+    <div class="row g-3 mb-3">
+    <div class="col-sm">
+        <label class="form-text">Agent Name</label>
+        <div>
+            {{ app.single_agent.legal_first_name }} {{ app.single_agent.legal_last_name }}
+        </div>
+    </div>
+
+    <div class="col-sm">
+        <label class="form-text">Agent Signature</label>
+        <div>
+            ____________________________________________________________
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="col-sm">
+        <label class="form-text">Date</label>
+        <div>
+            ______________________________
+        </div>
+    </div>
+    </div>
+{% endif %}
+{% endblock %}

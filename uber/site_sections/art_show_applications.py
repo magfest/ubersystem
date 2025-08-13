@@ -5,41 +5,44 @@ from uber.config import c
 from uber.custom_tags import email_only, readable_join
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
-from uber.models import ArtShowAgentCode, ArtShowApplication, Attendee, ArtShowBidder
+from uber.forms import load_forms
+from uber.models import ArtShowAgentCode, ArtShowApplication, Attendee, ArtShowBidder, ArtShowPiece
 from uber.payments import TransactionRequest
 from uber.tasks.email import send_email
-from uber.utils import check, RegistrationCode
+from uber.utils import check, validate_model
 
 
 @all_renderable(public=True)
 class Root:
     @requires_account()
     def index(self, session, message='', **params):
-        app = session.art_show_application(params, restricted=True,
-                                           ignore_csrf=True)
-        attendee = None
-
         if not c.ART_SHOW_OPEN and not c.DEV_BOX:
             return render('static_views/art_show_closed.html') if c.AFTER_ART_SHOW_DEADLINE \
                 else render('static_views/art_show_not_open.html')
+
+        app = ArtShowApplication()
+        attendee = Attendee()
 
         if cherrypy.request.method == 'GET' and params.get('attendee_id', ''):
             try:
                 attendee = session.attendee(id=params['attendee_id'])
             except Exception:
                 message = \
-                    'We could not find you by your confirmation number. ' \
-                    'Is the URL correct?'
+                    'We could not find you by your confirmation number. Is the URL correct?'
+
+        app_forms = load_forms(params, app, ["ArtShowInfo"])
+        attendee_forms = load_forms(params, attendee, ["ArtistAttendeeInfo"])
 
         if cherrypy.request.method == 'POST':
             attendee, message = session.attendee_from_art_show_app(**params)
 
-            if not c.INDEPENDENT_ART_SHOW and attendee and attendee.badge_status == c.NOT_ATTENDING \
-                    and app.delivery_method == c.BRINGING_IN:
-                message = 'You cannot bring your own art if you are not attending.'
-
-            message = message or check(attendee) or check(app, prereg=True)
             if not message:
+                for form in app_forms.values():
+                    form.populate_obj(app)
+                if attendee.is_new:
+                    for form in attendee_forms.values():
+                        form.populate_obj(attendee)
+
                 if c.ART_SHOW_WAITLIST and c.AFTER_ART_SHOW_WAITLIST:
                     app.status = c.WAITLISTED
                 session.add(attendee)
@@ -51,7 +54,7 @@ class Root:
                     c.ART_SHOW_NOTIFICATIONS_EMAIL,
                     'Art Show Application Received',
                     render('emails/art_show/reg_notification.txt',
-                           {'app': app}, encoding=None), model=app.to_dict('id'))
+                            {'app': app}, encoding=None), model=app.to_dict('id'))
                 session.commit()
                 raise HTTPRedirect('confirmation?id={}', app.id)
 
@@ -59,25 +62,74 @@ class Root:
             'message': message,
             'app': app,
             'attendee': attendee,
+            'app_forms': app_forms,
+            'attendee_forms': attendee_forms,
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
             'logged_in_account': session.current_attendee_account(),
             'not_attending': params.get('not_attending', ''),
             'new_badge': params.get('new_badge', '')
         }
+    
+    @ajax
+    def validate_app(self, session, form_list=[], **params):
+        all_errors = {}
+
+        if params.get('id') in [None, '', 'None']:
+            app = ArtShowApplication()
+            attendee, message = session.attendee_from_art_show_app(**params)
+            if message:
+                attendee = Attendee(placeholder=True)
+                all_errors[''] = [message]
+        else:
+            app = session.art_show_application(params.get('id'))
+            attendee = app.attendee
+
+        if not form_list:
+            form_list = ['ArtShowInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        if attendee.is_new and not c.INDEPENDENT_ART_SHOW and not params.get('attendee_id', '') and 'new_badge' not in params:
+            all_errors['attendee_id'] = [f"Please enter your confirmation number or confirm that you are not registered for {c.EVENT_NAME}"]
+        elif attendee.is_new or c.INDEPENDENT_ART_SHOW:
+            attendee_forms = load_forms(params, attendee, ['ArtistAttendeeInfo'])
+            attendee_errors = validate_model(attendee_forms, attendee)
+            if attendee_errors:
+                all_errors.update(attendee_errors)
+
+        forms = load_forms(params, app, form_list)
+        app_errors = validate_model(forms, app)
+
+        if app_errors:
+            all_errors.update(app_errors)
+        
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     @requires_account(ArtShowApplication)
     def edit(self, session, message='', **params):
         return_to = params.get('return_to', '/art_show_applications/edit')
 
         if not params.get('id'):
-            message = 'Invalid art show application ID. ' \
-                      'Please try going back in your browser.'
+            message = 'Invalid art show application ID. Please try going back in your browser.'
 
-        app = session.art_show_application(params, restricted='art_show_applications' in return_to,
-                                           ignore_csrf=True)
+        app = session.art_show_application(params.get('id'))
         if not app.valid_agent_codes and app.delivery_method == c.AGENT:
             session.add(app.generate_new_agent_code())
             session.commit()
+
+        forms = load_forms(params, app, ["ArtShowInfo"], read_only=not app.is_new and not app.editable)
+        forms.update(load_forms(params, app, ["ArtistMailingInfo"]))
+
+        piece_forms = {}
+        piece_forms['new'] = load_forms({}, ArtShowPiece(), ['ArtShowPieceInfo'],
+                                        field_prefix='new', read_only=app.checked_in)
+
+        for piece in app.art_show_pieces:
+            piece_forms[piece.id] = load_forms({}, piece, ['ArtShowPieceInfo'],
+                                               field_prefix=piece.id, read_only=app.checked_in)
 
         if cherrypy.request.method == 'POST':
             if c.INDEPENDENT_ART_SHOW:
@@ -95,6 +147,8 @@ class Root:
             if not message:
                 message = check(app, prereg='art_show_applications' in return_to)
             if not message:
+                for form in forms.values():
+                    form.populate_obj(app)
                 session.add(app)
                 session.commit()  # Make sure we update the DB or the email will be wrong!
                 send_email.delay(
@@ -117,11 +171,34 @@ class Root:
         return {
             'message': message,
             'app': app,
+            'forms': forms,
+            'piece_forms': piece_forms,
             'receipt': receipt,
             'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'homepage_account': session.get_attendee_account_by_attendee(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
+    
+    @ajax
+    def validate_art_show_piece(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            piece = ArtShowPiece()
+            piece.app_id = params.get('app_id')
+        else:
+            piece = session.art_show_piece(params.get('id'))
+
+        if not form_list:
+            form_list = ['ArtShowPieceInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, piece, form_list, field_prefix='new' if piece.is_new else piece.id)
+        all_errors = validate_model(forms, piece)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     @ajax
     @credit_card
@@ -137,8 +214,8 @@ class Root:
         if c.AUTHORIZENET_LOGIN_ID:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
-            new_txn_requent = TransactionRequest(txn.receipt, app.attendee.email, txn.desc, txn.amount)
-            stripe_intent = new_txn_requent.stripe_or_mock_intent()
+            new_txn_request = TransactionRequest(txn.receipt, app.attendee.email, txn.desc, txn.amount)
+            stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
             session.commit()
         else:
@@ -157,37 +234,26 @@ class Root:
                 'cancel_url': 'cancel_payment'}
 
     @ajax
-    def save_art_show_piece(self, session, app_id, message='', **params):
-        restricted = False if params['return_to'] == '/art_show_admin/pieces' else True
-        piece = session.art_show_piece(params, restricted=restricted, bools=['for_sale', 'no_quick_sale'])
+    def save_art_show_piece(self, session, app_id, **params):
+        if params.get('id') in [None, '', 'None']:
+            piece = ArtShowPiece()
+        else:
+            piece = session.art_show_piece(params.get('id'))
+
         app = session.art_show_application(app_id)
 
-        if restricted:
-            if not params.get('name'):
-                message += "ERROR: Please enter a name for this piece."
-            if not params.get('gallery'):
-                message += "<br>" if not params.get('name') else "ERROR: "
-                message += "Please select which gallery you will hang this piece in."
-            if not params.get('type'):
-                message += "<br>" if not params.get('gallery') or not params.get('name') else "ERROR: "
-                message += "Please choose whether this piece is a print or an original."
-            if message:
-                return {'error': message}
+        forms = load_forms(params, piece, ['ArtShowPieceInfo'], field_prefix='new' if piece.is_new else piece.id)
+        for form in forms.values():
+            form.populate_obj(piece)
 
-        piece.app_id = app.id
         piece.app = app
-        message = check(piece)
-        if message:
-            return {'error': message}
-
+        success_verb = "added" if piece.is_new else "updated"
         session.add(piece)
-        if not restricted and 'voice_auctioned' not in params:
-            piece.voice_auctioned = False
-        elif not restricted and 'voice_auctioned' in params and params['voice_auctioned']:
-            piece.voice_auctioned = True
+
         session.commit()
 
-        return {'success': 'Piece "{}" successfully saved'.format(piece.name)}
+        return {'success': f'Piece "{piece.name}" {success_verb}.',
+                'hash': 'piece-modal-new' if params.get('save_add_piece', '') else ''}
 
     @ajax
     def remove_art_show_piece(self, session, id, **params):
@@ -347,6 +413,7 @@ class Root:
                 'cancel_url': '../preregistration/cancel_payment'}
 
     def bidder_signup(self, session, message='', **params):
+        # TODO: Make this work with the new form system. Sorry, future-me
         if c.INDEPENDENT_ART_SHOW:
             attendee = Attendee(
                 placeholder=True,

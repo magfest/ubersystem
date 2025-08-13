@@ -2,23 +2,23 @@
 <div class="row g-3" id="art-show-agent">
   <div class="col-12 col-sm-6">
   <label for="art_show_agent" class="form-text">Art Show Agent</label>
-    <p>
-    {% if attendee.art_agent_apps %}
-      You are currently an agent for the following artists:
+    {% if attendee.art_agent_apps|length > 1 %}
+      <br/>You are currently an agent for the following artists:
       <ul>{% for app in attendee.art_agent_apps %}
         <li>{{ app.display_name }}</li>
       {% endfor %}</ul>
+    {% elif attendee.art_agent_apps|length == 1 %}
+      <p>You are an agent for <strong>{{ attendee.art_agent_apps[0].display_name }}</strong>.</p>
     {% else %}
-      You are not an agent for any artists in the {{ c.EVENT_NAME }} Art Show.
+      <p>You are not an agent for any artists in the {{ c.EVENT_NAME }} Art Show.</p>
     {% endif %}
-    </p>
   </div>
   <div class="col-12 col-sm-6">
       <input type="hidden" name="id" form="new_agent_app" value="{{ attendee.id }}" />
       <label for="agent_code" class="form-text invisible">Agent Code</label>
       <div class="input-group">
         <input type="text" class="form-control" name="agent_code" />
-        <button type="submit" form="new_agent_app" class="btn btn-primary">Submit Agent Code</button>
+        <button type="submit" form="new_agent_app" class="btn btn-primary">Submit{% if attendee.art_agent_apps %} Another{% endif %} Agent Code</button>
       </div>
   </div>
 </div>

@@ -1,0 +1,13 @@
+{% extends 'forms/art_show/art_show_info.html' %}
+
+{% block banner_names %}{% endblock %}
+
+{% block payout %}
+{% if c.ARTIST_PAYOUT_METHOD_OPTS|length > 2 %}
+<div class="col-sm">{{ form_macros.input(art_show_info.payout_method) }}</div>
+{% endif %}
+{% endblock %}
+
+{% block contact_needs %}
+<div class="col-sm">{{ form_macros.input(art_show_info.special_needs, label_kwargs={'null_text': "None"}) }}</div>
+{% endblock %}

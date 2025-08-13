@@ -15,9 +15,13 @@
 
 <div 
 x-data="{ {% block x_data %}
-   for_sale: {{ '\'\'' if piece.is_new else piece.valid_for_sale|boolean|tojson }},
+   for_sale: {{ art_show_piece_info.for_sale.data|tojson }},
    no_quick_sale: {{ art_show_piece_info.no_quick_sale.data|boolean|tojson }},
    type: {{ art_show_piece_info.type.data|tojson }},
+   opening_bid: {{ '\'\'' if piece.is_new or not piece.valid_for_sale else art_show_piece_info.opening_bid.data|tojson }},
+   quick_sale_price: {{ '\'\'' if piece.is_new or not piece.valid_for_sale or piece.no_quick_sale else art_show_piece_info.quick_sale_price.data|tojson }},
+   print_run_num: {{ '\'\'' if piece.is_new or piece.type != c.PRINT else art_show_piece_info.print_run_num.data|tojson }},
+   print_run_total: {{ '\'\'' if piece.is_new or piece.type != c.PRINT else art_show_piece_info.print_run_total.data|tojson }},
    get isOriginal() { return this.type == {{ c.ORIGINAL|tojson }} },
    get isPrint() { return this.type == {{ c.PRINT|tojson }} },
    get openingPlaceholder() { return !this.for_sale ? 'N/A' : '' },
@@ -33,9 +37,9 @@ x-data="{ {% block x_data %}
 
 <div class="row g-3 mb-3">
 {% block prices %}
-<div class="col-sm">{{ form_macros.input(art_show_piece_info.opening_bid, required_if="for_sale", **{':disabled': "!for_sale", ':placeholder': "openingPlaceholder"}) }}</div>
+<div class="col-sm">{{ form_macros.input(art_show_piece_info.opening_bid, alpine_model="opening_bid", required_if="for_sale", **{':disabled': "!for_sale", ':placeholder': "openingPlaceholder"}) }}</div>
 <div class="col-sm">
-    {% call form_macros.input(art_show_piece_info.quick_sale_price, required_if="for_sale && !no_quick_sale", **{':disabled': "!for_sale || no_quick_sale", ':placeholder': "qsPlaceholder"}) %}
+    {% call form_macros.input(art_show_piece_info.quick_sale_price, alpine_model="quick_sale_price", required_if="for_sale && !no_quick_sale", **{':disabled': "!for_sale || no_quick_sale", ':placeholder': "qsPlaceholder"}) %}
     {{ form_macros.input(art_show_piece_info.no_quick_sale, alpine_model="no_quick_sale", **{':disabled': "!for_sale"}) }}
     {% endcall %}
 </div>
@@ -45,16 +49,18 @@ x-data="{ {% block x_data %}
 <div class="row g-3 mb-3">
 {% block gallery_type %}
 <div class="col-sm">{{ form_macros.input(art_show_piece_info.gallery) }}</div>
-<div class="col-sm">
+<div class="col-sm" id="print-validation">
     {% call form_macros.input(art_show_piece_info.type, alpine_model="type") %}
     <div x-show="isOriginal">{{ form_macros.input(art_show_piece_info.media, required_if="isOriginal") }}</div>
     <div x-show="isPrint">
         <div class="form-text">Print Number<span class="required-indicator text-danger" x-show="isPrint"> *</span></div>
         <div class="input-group">
-        {{ form_macros.input(art_show_piece_info.print_run_num, show_label=False) }}
+        {{ form_macros.input(art_show_piece_info.print_run_num, alpine_model="print_run_num", field_only=True) }}
         <span class="input-group-text">OF</span>
-        {{ form_macros.input(art_show_piece_info.print_run_total, show_label=False) }}
+        {{ form_macros.input(art_show_piece_info.print_run_total, alpine_model="print_run_total", field_only=True) }}
         </div>
+        <div id="{{ art_show_piece_info.print_run_num.id }}-validation" class="invalid-feedback" role="alert"></div>
+        <div id="{{ art_show_piece_info.print_run_total.id }}-validation" class="invalid-feedback" role="alert"></div>
     </div>
     {% endcall %}
 </div>

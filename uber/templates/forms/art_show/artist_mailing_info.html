@@ -1,6 +1,6 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% set mailing_info = mailing_info or forms['mailing_info'] %}
+{% set artist_mailing_info = artist_mailing_info or forms['artist_mailing_info'] %}
 
 {# BLOCK NAMES in this form:
     x_data
@@ -18,7 +18,7 @@ copy_address: {{ (app.address1 != '' and app.attendee and app.attendee.address1 
 <div class="row g-3 mb-3">
 {% block business_name %}
 {% if app.delivery_method == c.BY_MAIL %}
-    <div class="col-sm">{{ form_macros.input(mailing_info.business_name) }}</div>
+    <div class="col-sm">{{ form_macros.input(artist_mailing_info.business_name) }}</div>
 {% endif %}
 {% endblock %}
 </div>
@@ -26,13 +26,13 @@ copy_address: {{ (app.address1 != '' and app.attendee and app.attendee.address1 
 <div class="row g-3 mb-3">
 {% block copy_address %}
 {% if app.attendee and app.attendee.address1 %}
-<div class="col-sm">{{ form_macros.input(mailing_info.copy_address, alpine_model="copy_address") }}</div>
+<div class="col-sm">{{ form_macros.input(artist_mailing_info.copy_address, alpine_model="copy_address") }}</div>
 {% endif %}
 {% endblock %}
 </div>
 
 {% block address %}
-  {{ form_macros.address_fields(mailing_info, label_prefix="Mailing ") }}
+  {{ form_macros.address_fields(artist_mailing_info, label_prefix="Mailing ") }}
 {% endblock %}
 
 </div>

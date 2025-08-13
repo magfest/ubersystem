@@ -12,7 +12,7 @@ from uber.utils import get_age_from_birthday
 def get_common_required_fields(check_func):
     return {
         'earliest_checkin_date': ("Please enter your preferred check-in date.", 'earliest_checkin_date', check_func),
-        'latest_checkout_date': ("Please enter your preferred check-out date.", 'earliest_checkin_date', check_func),
+        'latest_checkout_date': ("Please enter your preferred check-out date.", 'latest_checkout_date', check_func),
         'selection_priorities': ("Please rank your priorities for selecting a hotel room.", 'selection_priorities', check_func),
     }
 

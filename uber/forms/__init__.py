@@ -7,6 +7,7 @@ from collections import defaultdict, OrderedDict
 from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, validators, Label
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError, StopValidation
+from wtforms.utils import unset_value
 from pockets.autolog import log
 from functools import wraps
 
@@ -105,11 +106,9 @@ def load_forms(params, model, form_list, field_prefix='', truncate_prefix='admin
                 else:
                     alias_dict[aliased_field] = alias_val
 
-        loaded_form = form_cls(params, model, prefix=field_prefix)
+        loaded_form = form_cls(params, model, prefix=field_prefix, checkboxes_present=checkboxes_present,
+                               data=alias_dict, force_form_defaults=force_form_defaults, field_prefix=field_prefix)
         loaded_form.read_only = read_only
-
-        loaded_form.process(params, model, checkboxes_present=checkboxes_present,
-                            data=alias_dict, force_form_defaults=force_form_defaults)
 
         form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', form_name).lower()
         if truncate_prefix and form_label.startswith(truncate_prefix + '_'):
@@ -377,39 +376,51 @@ class MagForm(Form):
         # and convert DOBs into the format that our DateMaskInput expects
         # and process our UniqueList field data if it's been submitted as multiple fields
 
-        force_defaults = force_form_defaults and not formdata and (not obj or obj.is_new)
+        force_defaults = force_form_defaults and (not obj or obj.is_new)
 
         for name, field in self._fields.items():
+            if 'field_prefix' in kwargs:
+                prefixed_name = f"{kwargs['field_prefix']}-{name}"
+            else:
+                prefixed_name = name
+
             field_in_obj = hasattr(obj, name)
-            field_in_formdata = name in formdata
-            use_blank_formdata = cherrypy.request.method == 'POST' and checkboxes_present
+            field_in_formdata = prefixed_name in formdata
+            use_blank_formdata = cherrypy.request.method == 'POST' and checkboxes_present and formdata
             if isinstance(field, BooleanField):
                 if not field_in_formdata and field_in_obj:
-                    formdata[name] = False if use_blank_formdata else getattr(obj, name)
+                    formdata[prefixed_name] = False if use_blank_formdata else getattr(obj, name)
                 elif field_in_formdata and cherrypy.request.method == 'POST':
                     # We have to pre-process boolean fields because WTForms will print "False"
                     # for a BooleanField's hidden input value and then not process that as falsey
-                    formdata[name] = formdata[name].strip().lower() not in ('f', 'false', 'n', 'no', '0') \
-                        if isinstance(formdata[name], six.string_types) else formdata[name]
+                    formdata[prefixed_name] = formdata[prefixed_name].strip().lower() not in ('f', 'false', 'n', 'no', '0') \
+                        if isinstance(formdata[prefixed_name], six.string_types) else formdata[prefixed_name]
             elif (isinstance(field, SelectMultipleField)
                   or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
                   or isinstance(field.widget, SelectButtonGroup)
                   ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
-                    formdata[name] = []
+                    formdata[prefixed_name] = []
                 elif field_in_obj and isinstance(getattr(obj, name), str):
-                    formdata[name] = getattr(obj, name).split(',')
+                    formdata[prefixed_name] = getattr(obj, name).split(',')
                 else:
-                    formdata[name] = getattr(obj, name)
+                    formdata[prefixed_name] = getattr(obj, name)
             elif isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
-                formdata[name] = getattr(obj, name).strftime('%m/%d/%Y')
-            elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[name], list):
-                formdata[name] = ','.join(formdata[name])
+                formdata[prefixed_name] = getattr(obj, name).strftime('%m/%d/%Y')
+            elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[prefixed_name], list):
+                formdata[prefixed_name] = ','.join(formdata[prefixed_name])
 
-            if force_defaults and field.default is not None:
-                formdata[name] = field.default
+            if force_defaults and not field_in_formdata and not isinstance(field, BooleanField):
+                if field.default is not None:
+                    formdata[prefixed_name] = field.default
+                elif hasattr(obj, name):
+                    formdata[prefixed_name] = getattr(obj, name)
+                elif name in kwargs:
+                    formdata[prefixed_name] = kwargs[name]
+                else:
+                    formdata[prefixed_name] = unset_value
 
-        super().process(formdata, obj, data, extra_filters, **kwargs)
+        super().process(formdata, None if force_defaults else obj, data, extra_filters, **kwargs)
 
     @property
     def field_list(self):
@@ -515,6 +526,30 @@ class HiddenIntField(IntegerField):
 
 class HiddenBoolField(BooleanField):
     widget = wtforms_widgets.HiddenInput()
+
+
+class BlankOrIntegerField(IntegerField):
+    widget = wtforms_widgets.TextInput()
+    def process_data(self, value):
+        if value is None or value is unset_value or value == '':
+            self.data = None
+            return
+
+        try:
+            self.data = int(value)
+        except (ValueError, TypeError) as exc:
+            self.data = None
+            raise ValueError(self.gettext("Not a valid integer value.")) from exc
+
+    def process_formdata(self, valuelist):
+        if not valuelist or valuelist[0] == '':
+            return
+
+        try:
+            self.data = int(valuelist[0])
+        except ValueError as exc:
+            self.data = None
+            raise ValueError(self.gettext("Not a valid integer value.")) from exc
 
 
 class SelectAvailableField(SelectField):

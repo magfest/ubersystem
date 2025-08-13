@@ -523,6 +523,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     art_agent_apps = relationship(
         'ArtShowApplication',
         backref='agents',
+        secondaryjoin='and_(ArtShowAgentCode.app_id == ArtShowApplication.id, ArtShowAgentCode.cancelled == None)',
         secondary='art_show_agent_code',
         viewonly=True)
 

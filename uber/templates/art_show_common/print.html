@@ -1,0 +1,26 @@
+{% if not no_print %}
+  <script type="text/javascript">
+    window.self.onload = function() {
+      setTimeout(function () {
+        window.focus();
+        window.print();
+        window.close();
+      }, 250);
+    };
+  </script>
+{% endif %}
+{{ "js/alpine.3.14.8.min.js"|serve_static_content(defer=true) }}
+<style>
+  .card-body, .pull-left .pull-right { margin: 0 !important; padding: 0 !important; }
+  @page { margin: 1.6cm; }
+  .col-sm-3, .col-sm-6, .col-sm-9 { float: left; } .control-label { text-align: right; }
+  .col-sm-9 { width: 75%; } .col-sm-6 { width: 50%; } .col-sm-3 { width: 30%; }
+  .no-print, .no-print * { display: none !important; }
+  .pagebreak { page-break-before: always; }
+  ::-webkit-scrollbar { height: 0 !important }
+  * { -ms-overflow-style: none; overflow: -moz-scrollbars-none; }
+  tr td, th{
+    padding: 2px !important;
+    margin: 2px !important;
+  }
+</style>

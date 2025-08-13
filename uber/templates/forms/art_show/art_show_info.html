@@ -42,7 +42,9 @@ x-data="{ {% block x_data %}
 
 <div class="row g-3 mb-3">
 {% block name_delivery %}
+{% if not app.is_new %}
 {{ form_macros.input(art_show_info.not_attending, show_label=False, alpine_model="not_attending") }}
+{% endif %}
 <div class="col-sm">{{ form_macros.input(art_show_info.artist_name) }}</div>
 <div class="col-sm">
     {% call form_macros.input(art_show_info.delivery_method, alpine_model="delivery_method", disabled=readonly) %}
