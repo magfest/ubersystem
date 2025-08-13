@@ -33,8 +33,12 @@
             {% endif %}
             {% if c.HOTEL_LOTTERY_FORM_START %}
             <div class="text-center">
-                {% if not c.HOTEL_LOTTERY_OPEN and c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0 %}
+                {% if c.STAFF_HOTEL_LOTTERY_OPEN and account.hotel_eligible_staff|length > 0 %}
                 <span class="badge bg-info">Staff Hotel Lottery: OPEN</span><br/>Closes {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% if c.HOTEL_LOTTERY_OPEN %}
+                    </div><div class="text-center">
+                    <span class="badge bg-success">Hotel Lottery: OPEN</span><br/>Closes {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
                 {% elif c.BEFORE_HOTEL_LOTTERY_FORM_START %}
                 <span class="badge bg-secondary">Hotel Lottery: NOT OPEN</span><br/>Check back soon!
                 {% elif c.AFTER_HOTEL_LOTTERY_FORM_DEADLINE %}
