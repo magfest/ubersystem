@@ -1066,7 +1066,7 @@ if c.MIVS_START:
     MIVSEmailFixture(
         IndieJudge,
         'Welcome as a MIVS Judge!',
-        'mivs/judging/judge_welcome.txt',
+        'mivs/judging/judge_welcome.html',
         ident='mivs_judge_welcome')
 
     MIVSEmailFixture(
