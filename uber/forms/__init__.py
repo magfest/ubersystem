@@ -379,7 +379,7 @@ class MagForm(Form):
         force_defaults = force_form_defaults and (not obj or obj.is_new)
 
         for name, field in self._fields.items():
-            if 'field_prefix' in kwargs:
+            if kwargs.get('field_prefix', ''):
                 prefixed_name = f"{kwargs['field_prefix']}-{name}"
             else:
                 prefixed_name = name
