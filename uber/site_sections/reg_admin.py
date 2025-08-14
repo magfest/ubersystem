@@ -1011,11 +1011,54 @@ class Root:
         attendee.badge_status = c.NEW_STATUS
         raise HTTPRedirect('../registration/form?id={}&message={}', id, "Promo code removed.")
 
-    def attendee_accounts(self, session, message=''):
+    def attendee_accounts(self, session, message='', page='1', search_text='', order='email', empty='1'):
+        filter = [AttendeeAccount.attendees] if not empty else []
+        total_count = session.query(AttendeeAccount.id).filter(*filter).count()
+
+        count = 0
+        search_text = search_text.strip()
+        if search_text:
+            search_results = session.query(AttendeeAccount).outerjoin(AttendeeAccount.attendees).filter(*filter).filter(or_(
+                AttendeeAccount.email.ilike('%' + search_text + '%'),
+                Attendee.first_name.ilike('%' + search_text + '%'),
+                Attendee.last_name.ilike('%' + search_text + '%'),
+                Attendee.legal_name.ilike('%' + search_text + '%'),
+                Attendee.email.ilike('%' + search_text + '%'),
+            ))
+            if search_results and search_results.count():
+                accounts = search_results
+                count = accounts.count()
+                if count == total_count:
+                    message = 'Every attendee account matched this search.'
+            elif not message:
+                message = 'No matches found.'
+        if not count:
+            accounts = session.query(AttendeeAccount).outerjoin(AttendeeAccount.attendees).filter(*filter)
+            count = accounts.count()
+        
+        accounts = accounts.order(order)
+
+        page = int(page)
+        if search_text:
+            page = page or 1
+            if count == 1:
+                raise HTTPRedirect('attendee_account_form?id={}&message={}', accounts.one().id,
+                                   'This account was the only search result')
+            
+        pages = range(1, int(math.ceil(count / 100)) + 1)
+        accounts = accounts[-100 + 100*page: 100*page] if page else []
+
         return {
             'message': message,
-            'accounts': session.query(AttendeeAccount).options(joinedload(AttendeeAccount.attendees),
-                                                               raiseload('*')).all(),
+            'page':           page,
+            'pages':          pages,
+            'search_text':    search_text,
+            'search_results': bool(search_text),
+            'accounts':      accounts,
+            'order':          Order(order),
+            'empty': empty,
+            'search_count':   count,
+            'account_count': total_count,
         }
 
     def delete_attendee_account(self, session, id, message='', **params):

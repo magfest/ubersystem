@@ -1,51 +1,148 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Attendee Accounts{% endblock %}
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h3 class="card-title">Existing Accounts</h3>
-    </div>
-    <div class="card-body">
-        <table class="table table-striped datatable">
-        <thead>
-            <tr>
-            <th>Email</th>
-            <th>Attendees</th>
-            <th></th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for account in accounts %}
-            <tr id="{{ account.email|idize }}">
-            <td data-order="{{ account.email }}" data-search="{{ account.email }}">
-                {{ account|form_link }}
-            </td>
-            <td> {% for attendee in account.attendees %} 
-                <nobr>{%- if not loop.first -%}/ {% endif %}<a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></nobr>
-                {% endfor %} </td>
-            <td>
-                <form class="pull-left form reset-form form-inline" method="post" action="../preregistration/reset_password">
-                    <input type="hidden" name="account_email" value="{{ account.email }}" />
-                    <input type="hidden" name="admin_url" value="reg_admin/attendee_accounts?" />
-                    {{ csrf_token() }}
-                    <button type="submit" class="btn btn-sm btn-warning">
-                        <i class="fa fa-repeat"></i> Reset Password
-                    </button>
-                </form>
-                <form class="form delete-form form-inline" method="post" action="delete_attendee_account">
-                    <input type="hidden" name="id" value="{{ account.id }}" />
-                    {{ csrf_token() }}
-                    &nbsp;<button type="submit" class="btn btn-sm btn-danger">
-                        <i class="fa fa-remove"></i> Delete Account
-                    </button>
-                </form>
-            </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-        </table>
+<script type="text/javascript">
+    var invertShowAll = function() {
+      {% if empty %}
+      $('#search_empty').val('');
+      {% else %}
+      $('#search_empty').val('1');
+      {% endif %}
+      $('#search_form').submit();
+    }
+</script>
+<div class="row g-3 row-cols-auto mb-3">
+    <div class="col-12 col-sm-6 col-md-5">
+      <form role="form" method="get" action="attendee_accounts" id="search_form">
+        <div class="row g-sm-1 row-cols-auto">
+          <div class="col flex-grow-1">
+            <input type="hidden" name="order" value="{{ order }}" />
+            <input type="hidden" name="empty" id="search_empty" value="{{ empty }}" />
+            <div class="input-group">
+                <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="fa fa-search"></i>
+                </button>
+            </div>
+          </div>
+          <div class="col col-auto">
+            <button type="button" class="btn btn-info" onClick="invertShowAll()">
+              {% if empty %}
+                Hide Empty Accounts
+              {% else %}
+                Show All Accounts
+              {% endif %}
+            </button>
+        </div>
+        </div>
+        </form>
     </div>
 </div>
+
+{% if search_results %}
+    <div class="card card-info">
+      <div class="card-body">
+        <a href="attendee_accounts?order={{ order }}&page=1&empty={{ empty }}">Click here</a> to view the full account list instead of only search results.
+      </div>
+    </div>
+{% endif %}
+
+{% set page_count = pages[-1] %}
+{% if page_count <= 50 %}
+    {% set skip_pages = 1 %}
+{% else %}
+    {% set skip_pages = 5 if page_count <= 500 else 10 %}
+{% endif %}
+
+<ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+  <li class="page-item{% if page == 1 %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == 1 %}#{% else %}attendee_accounts?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&empty={{ empty }}{% endif %}">Previous</a>
+  </li>
+{% for pagenum in pages %}
+    {% if pagenum == page %}
+    <li class="page-item active">
+        <a class="page-link" href="#">{{ pagenum }}</a>
+    </li>
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
+    <li class="page-item">
+        <a class="page-link" href="attendee_accounts?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&empty={{ empty }}">{{ pagenum }}</a>
+    </li>
+    {% endif %}
+{% endfor %}
+  <li class="page-item{% if page == pages|length %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == pages|length %}#{% else %}attendee_accounts?order={{ order }}&page={{ pages|length }}&search_text={{ search_text|urlencode }}&empty={{ empty }}{% endif %}">Next</a>
+  </li>
+</ul>
+<div class="card">
+    <table class="table table-striped">
+    <thead>
+        <tr>
+        <th><a href="attendee_accounts?order={{ order.email }}&page={{ page }}&search_text={{ search_text|urlencode }}&empty={{ empty }}">Email</a></th>
+        <th><a href="attendee_accounts?order={{ order.imported }}&page={{ page }}&search_text={{ search_text|urlencode }}&empty={{ empty }}">Imported?</a></th>
+        <th><a href="attendee_accounts?order={{ order.unused_years }}&page={{ page }}&search_text={{ search_text|urlencode }}&empty={{ empty }}"># Years Unused</a></th>
+        <th>Attendees</th>
+        <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for account in accounts %}
+        <tr id="{{ account.email|idize }}">
+        <td>{{ account|form_link }}</td>
+        <td>{{ account.imported|yesno("Yes,No") }}</td>
+        <td>{{ account.unused_years }}</td>
+        <td> {% for attendee in account.attendees %} 
+            <nobr>{%- if not loop.first -%}/ {% endif %}<a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></nobr>
+            {% endfor %} </td>
+        <td>
+            <div class="d-flex gap-2 align-items-center text-nowrap">
+            <form method="post" action="../preregistration/reset_password">
+                <input type="hidden" name="account_email" value="{{ account.email }}" />
+                <input type="hidden" name="admin_url" value="reg_admin/attendee_accounts?" />
+                {{ csrf_token() }}
+                <button type="submit" class="btn btn-sm btn-warning">
+                    <i class="fa fa-repeat"></i> Reset Password
+                </button>
+            </form>
+            <form method="post" action="delete_account_account">
+                <input type="hidden" name="id" value="{{ account.id }}" />
+                {{ csrf_token() }}
+                <button type="submit" class="btn btn-sm btn-danger">
+                    <i class="fa fa-remove"></i> Delete Account
+                </button>
+            </form>
+            </div>
+        </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+</div>
+{% if accounts %}
+{% set start_account_num = (page * 100) - 100 + 1 %}
+<div class="mb-3">Showing {{ start_account_num }} to {{ start_account_num + accounts|length - 1 }} out of {{ search_count }} accounts</div>
+{% endif %}
+
+{% if accounts|length > 15 %}
+<ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+  <li class="page-item{% if page == 1 %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == 1 %}#{% else %}attendee_accounts?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&empty={{ empty }}{% endif %}">Previous</a>
+  </li>
+{% for pagenum in pages %}
+    {% if pagenum == page %}
+    <li class="page-item active">
+        <a class="page-link" href="#">{{ pagenum }}</a>
+    </li>
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
+    <li class="page-item">
+        <a class="page-link" href="attendee_accounts?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&empty={{ empty }}">{{ pagenum }}</a>
+    </li>
+    {% endif %}
+{% endfor %}
+  <li class="page-item{% if page == pages|length %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == pages|length %}#{% else %}attendee_accounts?order={{ order }}&page={{ pages|length }}&search_text={{ search_text|urlencode }}&empty={{ empty }}{% endif %}">Next</a>
+  </li>
+</ul>
+{% endif %}
 <script type="text/javascript">
     $(function() {
       $('.delete-form').on('submit', function(event) {

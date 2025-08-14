@@ -56,6 +56,13 @@
 {% endif %}
 
 {% block table %}
+{% set page_count = pages[-1] %}
+{% if page_count <= 50 %}
+    {% set skip_pages = 1 %}
+{% else %}
+    {% set skip_pages = 5 if page_count <= 500 else 10 %}
+{% endif %}
+
 <div class="card card-body">
 <ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
   <li class="page-item{% if page == 1 %} disabled{% endif %}">
@@ -66,7 +73,7 @@
     <li class="page-item active">
         <a class="page-link" href="#">{{ pagenum }}</a>
     </li>
-    {% else %}
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
     <li class="page-item">
         <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}">{{ pagenum }}</a>
     </li>
@@ -133,7 +140,7 @@
     <li class="page-item active">
         <a class="page-link" href="#">{{ pagenum }}</a>
     </li>
-    {% else %}
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
     <li class="page-item">
         <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}">{{ pagenum }}</a>
     </li>
