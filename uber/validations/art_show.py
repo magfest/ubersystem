@@ -25,6 +25,10 @@ ArtShowInfo.field_validation.required_fields = {
     'contact_at_con': "Please tell us the best way to get a hold of you at the event, e.g., your mobile number or your hotel and room number.",
 }
 
+
+ArtShowInfo.field_validation.validations['payout_method']['optional'] = validators.Optional()
+
+
 @ArtShowInfo.new_or_changed('delivery_method')
 def cant_ghost_art_show(form, field):
     if c.INDEPENDENT_ART_SHOW:
