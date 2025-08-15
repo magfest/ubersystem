@@ -170,10 +170,22 @@ def setup_panel_emails():
 
     for email, (id, name) in emails_to_add.items():
         sender = f'{c.EVENT_NAME} {name} <{email}>'
+
+        def filter_generator(id):
+            def filter_and_matches_id(app, fn):
+                if app.department != id:
+                    return False
+                if fn:
+                    return fn(app)
+                return True
+            return filter_and_matches_id
+
+        match_id_and_filter = filter_generator(id)
+
         PanelAppEmailFixture(
             'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
             'panels/application.html',
-            lambda app: app.department == id,
+            lambda app: match_id_and_filter(app, lambda x: True),
             sender=sender,
             shared_ident='panelapps_received',
             ident=f'panelapps_received_{sluggify(name)}')
@@ -181,7 +193,7 @@ def setup_panel_emails():
         PanelAppEmailFixture(
             'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
             'panels/panel_app_accepted.txt',
-            lambda app: app.status == c.ACCEPTED and app.department == id,
+            lambda app: match_id_and_filter(app, lambda app: app.status == c.ACCEPTED),
             sender=sender,
             shared_ident='panelapps_accepted',
             ident=f'panelapps_accepted_{sluggify(name)}')
@@ -189,7 +201,7 @@ def setup_panel_emails():
         PanelAppEmailFixture(
             'Your {EVENT_NAME} Panel Application Has Been Declined: {{ app.name }}',
             'panels/panel_app_declined.txt',
-            lambda app: app.status == c.DECLINED and app.department == id,
+            lambda app: match_id_and_filter(app, lambda app: app.status == c.DECLINED),
             sender=sender,
             shared_ident='panelapps_declined',
             ident=f'panelapps_declined_{sluggify(name)}')
@@ -197,7 +209,7 @@ def setup_panel_emails():
         PanelAppEmailFixture(
             'Your {EVENT_NAME} Panel Application Has Been Waitlisted: {{ app.name }}',
             'panels/panel_app_waitlisted.txt',
-            lambda app: app.status == c.WAITLISTED and app.department == id,
+            lambda app: match_id_and_filter(app, lambda app: app.status == c.WAITLISTED),
             sender=sender,
             shared_ident='panelapps_waitlisted',
             ident=f'panelapps_waitlisted_{sluggify(name)}')
@@ -205,11 +217,10 @@ def setup_panel_emails():
         PanelAppEmailFixture(
             'Last chance to confirm your panel',
             'panels/panel_accept_reminder.txt',
-            lambda app: (
-                c.PANELS_CONFIRM_DEADLINE
-                and app.confirm_deadline
-                and app.department == id
-                and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
+            lambda app: match_id_and_filter(app,
+                                            lambda app: c.PANELS_CONFIRM_DEADLINE
+                                            and app.confirm_deadline
+                                            and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
             sender=sender,
             shared_ident='panelapps_accept_reminder',
             ident=f'panelapps_accept_reminder_{sluggify(name)}')
@@ -217,7 +228,7 @@ def setup_panel_emails():
         PanelAppEmailFixture(
             'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
             'panels/panel_app_scheduled.txt',
-            lambda app: app.event_id and app.department == id,
+            lambda app: match_id_and_filter(app, lambda app: app.event_id),
             sender=sender,
             shared_ident='panelapps_scheduled',
             ident=f'panelapps_scheduled_{sluggify(name)}')
