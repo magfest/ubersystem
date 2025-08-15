@@ -163,7 +163,7 @@ def setup_panel_emails():
         for fixture in current_email_fixtures:
             if fixture.sender not in [current_depts]:
                 AutomatedEmail._fixtures.pop(fixture.ident, None)
-            else:
+            elif fixture.ident in AutomatedEmail._fixtures:
                 emails_to_add.pop(fixture.sender, None)
 
         emails_to_add.pop(c.PANELS_EMAIL, None)
@@ -174,7 +174,6 @@ def setup_panel_emails():
             'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
             'panels/application.html',
             lambda app: app.department == id,
-            needs_approval=False,
             sender=sender,
             shared_ident='panelapps_received',
             ident=f'panelapps_received_{sluggify(name)}')

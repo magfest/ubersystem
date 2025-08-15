@@ -1322,6 +1322,11 @@ class Config(_Overridable):
     @dynamic
     def PANELS_DEPT_OPTS(self):
         return [(key, name) for key, name, _ in self.PANELS_DEPT_OPTS_WITH_DESC]
+
+    @request_cached_property
+    @dynamic
+    def PANELS_DEPTS(self):
+        return {key: name for key, name, _ in self.PANELS_DEPT_OPTS_WITH_DESC}
     
     @request_cached_property
     @dynamic
