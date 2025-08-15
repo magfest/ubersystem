@@ -146,7 +146,7 @@ def panels_waitlist_unaccepted_panels():
                                  )
 
 
-@celery.schedule(timedelta(hours=6))
+@celery.schedule(timedelta(minutes=30))
 def setup_panel_emails():
     if not c.PRE_CON:
         return
