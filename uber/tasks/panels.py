@@ -171,9 +171,9 @@ def setup_panel_emails():
     for email, (id, name) in emails_to_add.items():
         sender = f'{c.EVENT_NAME} {name} <{email}>'
 
-        def filter_generator(id):
+        def filter_generator(dept_id):
             def filter_and_matches_id(app, fn):
-                if app.department != id:
+                if app.department != dept_id:
                     return False
                 if fn:
                     return fn(app)
