@@ -27,10 +27,10 @@
 
 <br/><br/>Note that if accepted, your day and time will be manually scheduled <strong>based on the availability you specified on your submission</strong>, which you can review below. If this availability has changed, please let us know as soon as possible, as we will not be reaching out again for availability before scheduling.
 
-<strong>Panel Information</strong>
+<br/><br/><strong>Panel Information</strong>
 <ul>
     <li><strong>Name</strong>: {{ app.name }}</li>
-    {% if c.PANELS_DEPT_OPTS|length > 1 %}<li><strong>Department</strong>: {{ app.department_label }}</li>{% endif %}
+    {% if c.PANELS_DEPT_OPTS|length > 1 %}<li><strong>Department</strong>: {{ app.department_name }}</li>{% endif %}
     <li><strong>Type</strong>: {{ app.presentation_label }}{% if app.presentation == c.OTHER %} ({{ app.other_presentation }}){% endif %}</li>
     <li><strong>Description</strong>: {{ app.description }}</li>
     {% if app.public_description %}<li><strong>Schedule Description</strong>: {{ app.public_description }}</li>{% endif %}
