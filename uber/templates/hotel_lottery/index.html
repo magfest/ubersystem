@@ -123,7 +123,7 @@
                 {% endif %}
             </p>
             {% if application.status == c.PROCESSED %}
-                {% include staff_attendee_lottery_info.html with context %}
+                {% include 'hotel_lottery/staff_attendee_lottery_info.html' with context %}
                 <p>
                     <form method="post" action="enter_attendee_lottery">
                         {{ csrf_token() }}
