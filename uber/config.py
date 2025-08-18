@@ -245,19 +245,38 @@ class _Overridable:
         c object for each enum.
         """
         opts, lookup, varnames = [], {}, []
+        other_val = self.create_enum_val('other')
+        other_var, other_opt = None, None
+
         for name, desc in section.items():
             if isinstance(desc, int):
                 val, desc = desc, name
             else:
-                varnames.append(name.upper())
                 val = self.create_enum_val(name)
+                if val == other_val:
+                    other_var = name.upper()
+                else:
+                    varnames.append(name.upper())
 
             if desc:
-                opts.append((val, desc))
-                if prices:
-                    lookup[desc] = val
+                if val == other_val:
+                    other_opt = (val, desc)
                 else:
-                    lookup[val] = desc
+                    opts.append((val, desc))
+                    if prices:
+                        lookup[desc] = val
+                    else:
+                        lookup[val] = desc
+
+        if other_var is not None:
+            varnames.append(other_var)
+
+        if other_opt is not None:
+            opts.append(other_opt)
+            if prices:
+                lookup[other_opt[1]] = other_opt[0]
+            else:
+                lookup[other_opt[0]] = other_opt[1]
 
         enum_name = enum_name.upper()
         setattr(self, enum_name + '_OPTS', opts)
@@ -424,10 +443,6 @@ class Config(_Overridable):
         return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
 
     @property
-    def SHOW_HOTEL_LOTTERY_DATE_OPTS(self):
-        return c.HOTEL_LOTTERY_CHECKIN_START != c.HOTEL_LOTTERY_CHECKIN_END
-
-    @property
     def HOTEL_LOTTERY_FORM_STEPS(self):
         """
         We have to run our form validations based on which 'step' in the form someone is, but
@@ -437,30 +452,15 @@ class Config(_Overridable):
 
         steps = {}
         step = 0
-        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+        for step_name in c.HOTEL_LOTTERY_ROOM_STEPS:
             step += 1
-            steps['room_dates'] = step
-        step += 1
-        steps['room_ada_info'] = step
-        step += 1
-        steps['room_hotel_type'] = step
-        if c.HOTEL_LOTTERY_PREF_RANKING:
-            step += 1
-            steps['room_selection_pref'] = step
+            steps[f'room_{step_name}'] = step
         steps['room_final_step'] = step
 
-        step = 1
-        steps['suite_agreement'] = step
-        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+        step = 0
+        for step_name in c.HOTEL_LOTTERY_SUITE_STEPS:
             step += 1
-            steps['suite_dates'] = step
-        step += 1
-        steps['suite_type'] = step
-        step += 1
-        steps['suite_hotel_type'] = step
-        if c.HOTEL_LOTTERY_PREF_RANKING:
-            step += 1
-            steps['suite_selection_pref'] = step
+            steps[f'suite_{step_name}'] = step
         steps['suite_final_step'] = step
 
         return steps
@@ -576,6 +576,73 @@ class Config(_Overridable):
             for badge_type, desc in self.AT_THE_DOOR_BADGE_OPTS
             if self.BADGES[badge_type] in c.DAYS_OF_WEEK
         }
+    
+    @request_cached_property
+    @dynamic
+    def FORMATTED_ATTENDANCE_TYPES(self):
+        attendance_types = [{
+            'name': c.ATTENDANCE_TYPES[c.WEEKEND],
+            'desc': "Allows access to the convention for its duration.",
+            'value': c.WEEKEND,
+        }]
+        if hasattr(self, 'SINGLE_DAY') and c.SINGLE_DAY in c.ATTENDANCE_TYPES:
+            attendance_types.append({
+            'name': c.ATTENDANCE_TYPES[c.SINGLE_DAY],
+            'desc': "Allows access to the convention for one day.",
+            'value': c.SINGLE_DAY,
+            })
+        return attendance_types
+    
+    @request_cached_property
+    @dynamic
+    def SOLD_OUT_BADGES_SINGLE(self):
+        opts = []
+
+        if not self.FRIDAY_AVAILABLE:
+            opts.append(self.FRIDAY)
+        if not self.SATURDAY_AVAILABLE:
+            opts.append(self.SATURDAY)
+        if not self.SUNDAY_AVAILABLE:
+            opts.append(self.SUNDAY)
+
+        return opts
+
+    def single_day_opt(self, day_name):
+        price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
+        badge = getattr(self, day_name.upper())
+        if getattr(self, day_name.upper() + '_AVAILABLE', None):
+            return {
+                        'name': day_name,
+                        'desc': "Can be upgraded to an Attendee badge later.",
+                        'value': badge,
+                        'price': price,
+                    }
+        
+    @request_cached_property
+    @dynamic
+    def FORMATTED_SINGLE_BADGES(self):
+        badge_types = []
+        if self.ONE_DAYS_ENABLED:
+            if self.PRESELL_ONE_DAYS and c.BEFORE_PREREG_TAKEDOWN:
+                for day_name in ["Friday", "Saturday", "Sunday"]:
+                    new_opt = self.single_day_opt(day_name)
+                    badge_types += [new_opt] if new_opt is not None else []
+            elif self.PRESELL_ONE_DAYS and localized_now().date() >= self.EPOCH.date():
+                after_today = False
+                today_name = localized_now().strftime('%A')
+                for day_name in ["Friday", "Saturday", "Sunday"]:
+                    if after_today or day_name == today_name:
+                        new_opt = self.single_day_opt(day_name)
+                        badge_types += [new_opt] if new_opt is not None else []
+                        after_today = True
+            elif self.ONE_DAY_BADGE_AVAILABLE:
+                badge_types.append({
+                    'name': 'Single Day',
+                    'desc': "Can be upgraded to an Attendee badge later.",
+                    'value': c.ONE_DAY_BADGE,
+                    'price': self.DEFAULT_SINGLE_DAY
+                })
+        return badge_types
 
     @property
     def FORMATTED_BADGE_TYPES(self):
@@ -593,7 +660,7 @@ class Config(_Overridable):
             'value': c.ATTENDEE_BADGE,
             'price': c.get_attendee_price()
             })
-        for badge_type in c.BADGE_TYPE_PRICES:
+        for badge_type in sorted(c.BADGE_TYPE_PRICES, key=c.BADGE_TYPE_PRICES.get):
             badge_types.append({
                 'name': c.BADGES[badge_type],
                 'desc': 'Donate extra to get an upgraded badge with perks.',
@@ -1574,6 +1641,24 @@ def create_hour_opts(start_hour, end_hour, step, prefix=''):
             return opt_list
 
 
+def build_hotel_inventory(inventory_type, room_types):
+    hotel_inventory = []
+    for key, item in c.HOTEL_LOTTERY_HOTELS.items():
+        hotel_enum, hotel = item
+        for room_type_key, quantity in hotel.get(inventory_type, {}).items():
+            room_type_enum, room_type = room_types.get(room_type_key)
+            if not room_type:
+                raise ValueError(f"Could not locate hotel room_type {room_type_key}")
+            capacity = room_type.get(f'{key}_capacity', room_type['capacity'])
+            hotel_inventory.append({
+                "id": str(hotel_enum),
+                "capacity": int(capacity),
+                "room_type": str(room_type_enum),
+                "quantity": int(quantity)
+            })
+    return hotel_inventory
+    
+
 c = Config()
 _config = parse_config("uber", pathlib.Path("/app/uber"))  # outside this module, we use the above c global instead of using this directly
 db_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -1713,6 +1798,7 @@ c.TERMINAL_ID_TABLE = {k.lower().replace('-', ''): v for k, v in _config['secret
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
+c.DEFAULT_COMPED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DEFAULT_COMPED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
 
 c.MIVS_CHECKLIST = _config['mivs_checklist']
@@ -1833,6 +1919,7 @@ c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
 for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
     opts = []
+    dictionary = {}
     for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
         if isinstance(item, dict):
             item.__hash__ = lambda x: hash(x.name + x.description)
@@ -1840,7 +1927,13 @@ for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
             dict_key = int(sha512(base_key.encode()).hexdigest()[:7], 16)
             setattr(c, base_key, dict_key)
             opts.append((dict_key, item))
+            dictionary[name] = (dict_key, item)
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
+    setattr(c, f"HOTEL_LOTTERY_{key.upper()}", dictionary)
+
+c.HOTEL_ROOM_INVENTORY = build_hotel_inventory('room_inventory', c.HOTEL_LOTTERY_ROOM_TYPES)
+c.HOTEL_SUITE_INVENTORY = build_hotel_inventory('suite_inventory', c.HOTEL_LOTTERY_SUITE_ROOM_TYPES)
+c.HOTEL_LOTTERY_AWARD_STATUSES = [c.PROCESSED, c.AWARDED, c.SECURED]
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
@@ -1966,7 +2059,8 @@ c.MIVS_PROBLEM_STATUSES = {getattr(c, status.upper()) for status in c.MIVS_PROBL
 c.FINAL_MIVS_GAME_STATUSES = [c.ACCEPTED, c.WAITLISTED, c.DECLINED, c.CANCELLED]
 
 # used for computing the difference between the "drop-dead deadline" and the "soft deadline"
-c.SOFT_MIVS_JUDGING_DEADLINE = c.MIVS_JUDGING_DEADLINE - timedelta(days=7)
+if c.MIVS_START:
+    c.SOFT_MIVS_JUDGING_DEADLINE = c.MIVS_JUDGING_DEADLINE - timedelta(days=7)
 
 
 # =============================

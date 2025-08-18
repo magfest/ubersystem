@@ -18,20 +18,20 @@
     held_before: {{ panel_other_info.held_before.data|jsonize }},
 {% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block checkboxes %}
 <div class="col-sm">{{ form_macros.input(panel_other_info.need_tables, alpine_model="need_tables") }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(panel_other_info.has_cost, alpine_model="has_cost") }}</div>
 </div>
-<div class="row g-sm-3 mb-3" x-show="need_tables || has_cost">
+<div class="row g-3 mb-3" x-show="need_tables || has_cost">
     <div class="col-sm" x-show="need_tables">{{ form_macros.input(panel_other_info.tables_desc, required_if="need_tables") }}</div>
     <div class="col-sm" x-show="has_cost">{{ form_macros.input(panel_other_info.cost_desc, required_if="has_cost") }}</div>
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block texareas %}
     <div class="col-sm">{{ form_macros.input(panel_other_info.other_tech_needs) }}</div>
     {% if not admin_area %}
@@ -47,7 +47,7 @@
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block affiliations_held_before %}
 <div class="col-sm">
     {% call form_macros.input(panel_other_info.has_affiliations, alpine_model="has_affiliations") %}
@@ -62,7 +62,7 @@
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block unavailable_extra_info %}
     <div class="col-sm">
         {% call form_macros.input(panel_other_info.unavailable) %}

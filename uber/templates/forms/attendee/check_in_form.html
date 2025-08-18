@@ -15,7 +15,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block basic_info %}
     <div class="col-sm">
         {% call form_macros.input(check_in_form.full_name) %}
@@ -40,7 +40,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block badge_info %}
     <div class="col-sm">
         {% call form_macros.input(check_in_form.badge_type) %}
@@ -64,7 +64,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block editable %}
     {% if c.NUMBERED_BADGES and not attendee.badge_num %}
         <div class="col-sm">
@@ -85,7 +85,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block merch %}
 {% if attendee.merch and c.MERCH_AT_CHECKIN %}
         <div class="col-sm">{{ form_macros.input(check_in_form.got_merch) }}</div>
@@ -99,7 +99,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block badge_printing %}
     <div class="col-sm">
         <div class="form-text">&nbsp;</div>
@@ -114,7 +114,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     </div>
 {% endif %}
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="escalate-ticket col-12 collapse bg-light card card-body">
         <p>
             This will add {{ attendee.full_name }} to the manager queue and they will not be able to check in before a manager

@@ -1143,7 +1143,12 @@ def mount_site_sections(module_root):
     site_sections = [path.split('/')[-1][:-3] for path in python_files if not path.endswith('__init__.py')]
     for site_section in site_sections:
         module = importlib.import_module(basename(module_root) + '.site_sections.' + site_section)
-        setattr(Root, site_section, module.Root())
+        if hasattr(Root, site_section) and hasattr(module, 'Root'):
+            replacements = [method for method in dir(module.Root) if method.startswith('__') is False]
+            for func_or_property in replacements:
+                setattr(getattr(Root, site_section), func_or_property, getattr(module.Root(), func_or_property))
+        else:
+            setattr(Root, site_section, module.Root())
 
 
 def get_static_file_path(filename):
@@ -1866,7 +1871,7 @@ class TaskUtils:
             try:
                 account_to_import = TaskUtils.get_attendee_account_by_id(import_job.query, service)
             except Exception as ex:
-                import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
                 session.commit()
                 return
 
@@ -2016,8 +2021,7 @@ class TaskUtils:
                     try:
                         account_to_import = TaskUtils.get_attendee_account_by_id(id, service)
                     except Exception as ex:
-                        import_job.errors += "; {}".format("; ".join(str(ex)))\
-                            if import_job.errors else "; ".join(str(ex))
+                        import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
 
                     account = session.query(AttendeeAccount).filter(
                         AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()

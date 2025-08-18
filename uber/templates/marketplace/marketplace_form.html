@@ -26,7 +26,7 @@ copy_email: {{ artist_marketplace_form.copy_email.data|tojson }},
 {% endblock %}
 
 {% block names %}
-<div class="row g-sm-3">
+<div class="row g-3">
     <div class="col-sm">
         {{ form_macros.input(artist_marketplace_form.name, readonly=read_only) }}
     </div>
@@ -37,7 +37,7 @@ copy_email: {{ artist_marketplace_form.copy_email.data|tojson }},
 {% endblock %}
 
 {% block email %}
-<div class="row g-sm-3">
+<div class="row g-3">
     <div class="col-12">
         {% call form_macros.input(artist_marketplace_form.email_address, readonly=read_only, required_if="!copy_email", **{':disabled':'copy_email'}) %}
         {% if app.is_new %}
@@ -49,7 +49,7 @@ copy_email: {{ artist_marketplace_form.copy_email.data|tojson }},
 {% endblock %}
 
 {% block website_tax %}
-<div class="row g-sm-3 row-cols-sm-2">
+<div class="row g-3 row-cols-sm-2">
     <div class="col">
         {{ form_macros.input(artist_marketplace_form.website, readonly=read_only) }}
     </div>
@@ -61,7 +61,7 @@ copy_email: {{ artist_marketplace_form.copy_email.data|tojson }},
 
 {% block seating_accessibility %}
 {% if app.status == c.ACCEPTED or admin_area %}
-<div class="row g-sm-3 row-cols-sm-2">
+<div class="row g-3 row-cols-sm-2">
     <div class="col">
         {{ form_macros.input(artist_marketplace_form.seating_requests, readonly=read_only) }}
     </div>
@@ -73,7 +73,7 @@ copy_email: {{ artist_marketplace_form.copy_email.data|tojson }},
 {% endblock %}
 
 {% block terms %}
-<div class="row g-sm-3">
+<div class="row g-3">
     <div class="col-12">
         {{ form_macros.input(artist_marketplace_form.terms_accepted, readonly=not app.is_new and not admin_area) }}
     </div>

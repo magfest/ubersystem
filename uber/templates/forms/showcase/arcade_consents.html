@@ -11,14 +11,14 @@
 
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block checkboxes %}
 <div class="col-sm">{{ form_macros.input(arcade_consents.agreed_showtimes) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(arcade_consents.agreed_equipment) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(arcade_consents.agreed_liability) }}</div>
 {% endblock %}
 </div>

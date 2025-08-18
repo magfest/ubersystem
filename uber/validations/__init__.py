@@ -7,9 +7,7 @@ from pockets.autolog import log
 
 
 def placeholder_unassigned_fields(form):
-    field_list = ['birthdate', 'age_group', 'ec_name', 'ec_phone', 'address1', 'city',
-                  'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact',
-                  'badge_printed_name', 'cellphone', 'confirm_email', 'legal_name']
+    field_list = Attendee.skip_placeholder_fields
 
     if form.is_admin and form.model.unassigned_group_reg:
         return ['first_name', 'last_name', 'email'] + field_list
