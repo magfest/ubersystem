@@ -20,18 +20,18 @@ get numPlayers() { return this.has_multiplayer },
 get warningDesc() { return this.content_warning },
 {% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block title_desc %}
 <div class="col-sm">{{ form_macros.input(mivs_game_info.title) }}</div>
 <div class="col-sm">{{ form_macros.input(mivs_game_info.brief_description) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(mivs_game_info.description) }}</div>
 {% endblock %}
 </div>
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block genres %}
   <div class="col-sm">
     {% call form_macros.input(mivs_game_info.genres) %}
@@ -43,7 +43,7 @@ get warningDesc() { return this.content_warning },
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block platforms %}
   <div class="col-sm">
     {% call form_macros.input(mivs_game_info.platforms) %}
@@ -55,7 +55,7 @@ get warningDesc() { return this.content_warning },
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block multiplayer_content %}
     <div class="col-sm">
         {% call form_macros.input(mivs_game_info.has_multiplayer, alpine_model="has_multiplayer") %}
@@ -64,7 +64,7 @@ get warningDesc() { return this.content_warning },
         </div>
         {% endcall %}
     </div>
-</div><div class="row g-sm-3 mb-3">
+</div><div class="row g-3 mb-3">
     <div class="col-sm">
         {% call form_macros.input(mivs_game_info.content_warning, alpine_model="content_warning") %}
         <div class="col-sm-6" x-show="warningDesc">
@@ -76,14 +76,14 @@ get warningDesc() { return this.content_warning },
 </div>
 
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block checkboxes %}
   <div class="col-sm">{{ form_macros.input(mivs_game_info.photosensitive_warning) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(mivs_game_info.is_alumni) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(mivs_game_info.requires_gamepad) }}</div>
 {% endblock %}
 </div>

@@ -70,7 +70,7 @@
 
     <br/>
 
-    {% if group.min_badges_addable %}
+    {% if group.min_badges_addable > 0 %}
       <div id="add" style="display:none">
         <p>
           Enter the number of extra codes to purchase for <strong>{{ c.GROUP_PRICE|format_currency }}</strong> per code.&nbsp;

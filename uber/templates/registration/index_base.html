@@ -70,7 +70,7 @@
         <div class="modal-body">
           <form id="update-printers" action="update_printers" method="post">
             <input type="hidden" name="reg_station_id" value="{{ reg_station_id }}" />
-            <div class="row g-sm-3">
+            <div class="row g-3">
               <div class="col-12 col-sm-6">
                 <label for="printer_id" class="form-text">Printer ID <span class="text-danger"> *</span></label>
                 <input type="text" name="printer_id" id="printer_id" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" placeholder="E.g., printer_01" class="form-control" required>
@@ -93,7 +93,7 @@
 
 {% endblock adminheader %}
 {% block admin_controls %}
-<div class="row g-sm-3 row-cols-auto">
+<div class="row g-3 row-cols-auto">
     <div class="col-12 col-sm-6 col-md-5">
       <form role="form" method="get" action="index" id="search_form">
         <div class="row g-sm-1 row-cols-auto">
@@ -209,6 +209,13 @@
 {% endif %}
 {% endblock admin_controls %}
 {% block table %}
+{% set page_count = pages[-1] %}
+{% if page_count <= 50 %}
+    {% set skip_pages = 1 %}
+{% else %}
+    {% set skip_pages = 5 if page_count <= 500 else 10 %}
+{% endif %}
+
 <ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
   <li class="page-item{% if page == 1 %} disabled{% endif %}">
     <a class="page-link" href="{% if page == 1 %}#{% else %}index?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}{% endif %}">Previous</a>
@@ -218,7 +225,7 @@
     <li class="page-item active">
         <a class="page-link" href="#">{{ pagenum }}</a>
     </li>
-    {% else %}
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
     <li class="page-item">
         <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
     </li>
@@ -344,7 +351,7 @@
     <li class="page-item active">
         <a class="page-link" href="#">{{ pagenum }}</a>
     </li>
-    {% else %}
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
     <li class="page-item">
         <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
     </li>

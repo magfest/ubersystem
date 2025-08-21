@@ -720,13 +720,14 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
     # where we are re-checking a model with no changes
 
     all_errors = defaultdict(list)
+    rollback_session = None
 
     if create_preview_model:
-        preview_model = model.__class__(**model.to_dict())
+        preview_model = model
+        if model.session:
+            rollback_session = model.session.begin_nested()
         for form in forms.values():
             form.populate_obj(preview_model)
-        if not model.is_new:
-            preview_model.is_actually_old = True
     else:
         preview_model = model
 
@@ -754,6 +755,9 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
                 all_errors[error[0]].append(error[1])
             elif error:
                 all_errors[''].append(error)
+    
+    if rollback_session:
+        model.session.rollback()
 
     if all_errors:
         return all_errors
@@ -1866,7 +1870,7 @@ class TaskUtils:
             try:
                 account_to_import = TaskUtils.get_attendee_account_by_id(import_job.query, service)
             except Exception as ex:
-                import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
                 session.commit()
                 return
 
@@ -2016,8 +2020,7 @@ class TaskUtils:
                     try:
                         account_to_import = TaskUtils.get_attendee_account_by_id(id, service)
                     except Exception as ex:
-                        import_job.errors += "; {}".format("; ".join(str(ex)))\
-                            if import_job.errors else "; ".join(str(ex))
+                        import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
 
                     account = session.query(AttendeeAccount).filter(
                         AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()

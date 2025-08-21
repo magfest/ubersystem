@@ -13,14 +13,14 @@
 
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block checkboxes %}
     <div class="col-sm">{{ form_macros.input(panel_consents.verify_waiting) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(panel_consents.coc_agreement) }}</div>
 </div>
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-sm">{{ form_macros.input(panel_consents.data_agreement) }}</div>
 {% endblock %}
 </div>

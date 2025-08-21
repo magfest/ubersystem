@@ -36,6 +36,7 @@ def _join_room_group(session, application, group_id):
         defaults = LotteryApplication().to_dict()
         for attr in defaults:
             if attr not in ['id', 'attendee_id', 'response_id',
+                            'legal_first_name', 'legal_last_name', 'cellphone',
                             'terms_accepted', 'data_policy_accepted',
                             'entry_started', 'entry_metadata']:
                 setattr(application, attr, defaults.get(attr))
@@ -98,7 +99,7 @@ def _reset_group_member(application):
         application.data_policy_accepted = False
     
     if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
-            application.is_staff_entry = True
+        application.is_staff_entry = True
     else:
         application.is_staff_entry = False
 

@@ -15,14 +15,14 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 get leaderInfoRequired() { return this.guest_group_type != '' || this.is_dealer },
 {% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block name %}
     <div class="col-12 col-sm-6">{{ form_macros.input(leader_info.leader_first_name, required_if="leaderInfoRequired") }}</div>
     <div class="col-12 col-sm-6">{{ form_macros.input(leader_info.leader_last_name, required_if="leaderInfoRequired") }}</div>
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block email %}
     <div class="col-12 col-sm-6">{{ form_macros.input(leader_info.leader_email, required_if="leaderInfoRequired") }}</div>
     <div class="col-12 col-sm-6">{{ form_macros.input(leader_info.leader_cellphone, required_if="is_dealer") }}</div>

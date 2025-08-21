@@ -47,6 +47,7 @@ def load_attendee(session, params):
 
     if id in [None, '', 'None']:
         attendee = Attendee()
+        session.add(attendee)
     else:
         attendee = session.attendee(id)
 
@@ -118,7 +119,11 @@ class Root:
             attendees = session.index_attendees().filter(*filter)
             count = attendees.count()
 
-        attendees = attendees.order(order)
+        if order in ['badge_num', '-badge_num']:
+            attendees = attendees.outerjoin(BadgeInfo).order_by(BadgeInfo.ident.desc()
+                                                                if order.startswith('-') else BadgeInfo.ident)
+        else:
+            attendees = attendees.order(order)
 
         page = int(page)
         if search_text:

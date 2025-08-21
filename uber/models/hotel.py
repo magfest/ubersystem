@@ -229,12 +229,17 @@ class LotteryApplication(MagModel):
     @property
     def group_leader_name(self):
         return f"{self.attendee.first_name[:1]}. {self.attendee.last_name[:1]}."
-    
+
     @property
     def email(self):
         if self.attendee:
             return self.attendee.email
-        
+
+    @property
+    def birthdate(self):
+        if self.attendee:
+            return self.attendee.birthdate
+
     @property
     def attendee_name(self):
         return self.attendee.full_name if self.attendee else "[DISASSOCIATED]"
@@ -263,12 +268,20 @@ class LotteryApplication(MagModel):
 
     @property
     def qualifies_for_staff_lottery(self):
-        return self.attendee.staff_hotel_lottery_eligible
-    
+        return self.attendee and self.attendee.staff_hotel_lottery_eligible
+
     @property
     def current_lottery_deadline(self):
         return c.HOTEL_LOTTERY_STAFF_DEADLINE if c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery \
             else c.HOTEL_LOTTERY_FORM_DEADLINE
+
+    @property
+    def current_lottery_closed(self):
+        if self.is_staff_entry:
+            return not c.STAFF_HOTEL_LOTTERY_OPEN
+        elif self.qualifies_for_staff_lottery:
+            return not c.STAFF_HOTEL_LOTTERY_OPEN and not c.HOTEL_LOTTERY_OPEN
+        return not c.HOTEL_LOTTERY_OPEN
 
     @property
     def entry_form_completed(self):
@@ -283,7 +296,7 @@ class LotteryApplication(MagModel):
     @property
     def homepage_link(self):
         entry_text = 'Suite Lottery Entry' if self.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry'
-        if self.status == c.COMPLETE:
+        if self.status in [c.COMPLETE, c.PROCESSED]:
             prepend = "View " if c.ATTENDEE_ACCOUNTS_ENABLED else ""
             return f'index?attendee_id={self.attendee.id}', f'{prepend}{entry_text}'
         elif self.entry_form_completed:

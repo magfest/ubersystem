@@ -1,5 +1,5 @@
 import base64
-import uuid
+import pycountry
 import cherrypy
 import math
 from datetime import datetime, date
@@ -123,7 +123,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
         forms = load_forms(params, application, form_list)
-        all_errors = validate_model(forms, application)
+        all_errors = validate_model(forms, application, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 
@@ -198,6 +198,11 @@ class Root:
         def print_bool(bool):
             return "TRUE" if bool else "FALSE"
 
+        country_codes = {}
+        for country in list(pycountry.countries):
+            value = country.name if "Taiwan" not in country.name else "Taiwan"
+            country_codes[value] = f"{country.alpha_2};{country.name}"
+
         header_row = []
         # Config data and IDs
         header_row.extend(["Lottery Close", "suite_cutoff", "year", "Response ID", "Confirmation Code",
@@ -250,7 +255,8 @@ class Root:
             dealer_id = ''
             if app.attendee.is_dealer and app.attendee.group and app.attendee.group.status in c.DEALER_ACCEPTED_STATUSES:
                 dealer_id = app.attendee.group.id
-            row.extend([datetime_local_filter(app.current_lottery_deadline), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
+            current_lottery_deadline = c.HOTEL_LOTTERY_STAFF_DEADLINE if app.is_staff_entry else c.HOTEL_LOTTERY_FORM_DEADLINE
+            row.extend([datetime_local_filter(current_lottery_deadline), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
                         c.EVENT_YEAR, app.response_id, app.confirmation_num, app.id, "RAMS_1", app.id, dealer_id])
 
             # Contact data
@@ -258,7 +264,8 @@ class Root:
             row.extend([print_bool(attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints),
                         attendee.email, app.legal_first_name or attendee.legal_first_name,
                         app.legal_last_name or attendee.legal_last_name, "", "", attendee.address1,
-                        attendee.address2, attendee.city, attendee.region, attendee.zip_code, attendee.country,
+                        attendee.address2, attendee.city, attendee.region, attendee.zip_code,
+                        country_codes.get(attendee.country, attendee.country),
                         ''.join(filter(str.isdigit, base_cellphone)) if base_cellphone else "", ""])
 
             # Entry metadata
