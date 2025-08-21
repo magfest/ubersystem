@@ -1,0 +1,15 @@
+{% extends 'forms/art_show/bidder_signup.html' %}
+
+{% block bidder_num %}
+<div class="col-sm">
+    <div class="form-text">Badge Name</div>
+    {{ attendee.badge_printed_name }}
+</div>
+<div class="col-sm">{{ form_macros.input(bidder_signup.bidder_num) }}</div>
+{% endblock %}
+
+{% block admin_notes %}
+{% if not printable %}
+<div class="col-sm">{{ form_macros.input(bidder_signup.admin_notes) }}</div>
+{% endif %}
+{% endblock %}

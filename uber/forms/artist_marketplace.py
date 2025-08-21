@@ -11,7 +11,6 @@ __all__ = ['ArtistMarketplaceForm', 'AdminArtistMarketplaceForm']
 
 
 class ArtistMarketplaceForm(MagForm):
-    attendee_id = HiddenField('Confirmation ID')
     name = StringField('Business Name')
     display_name = StringField('Display Name', description="The name to display for your table, if different from your business name.")
     email_address = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
@@ -26,7 +25,7 @@ class ArtistMarketplaceForm(MagForm):
     terms_accepted = BooleanField(
         f'I have read the Artist Marketplace rules and understand the requirements, including the ${c.ARTIST_MARKETPLACE_FEE} fee for the marketplace.',
         default=False)
-    
+
     copy_email = BooleanField('Use my registration email for my marketplace application email.', default=False)
 
 

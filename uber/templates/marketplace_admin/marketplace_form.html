@@ -1,53 +1,41 @@
 {% extends 'marketplace/marketplace_form.html' %}
 
 {% block attendee_app_info %}
-<div class="row g-3 row-cols-sm-auto">
-    {% if not new_app %}
-    <div class="col flex-fill">
-        <div class="form-text">Registered</div>
-        <div class="mb-3">{{ app.registered|full_datetime_local }}</div>
-    </div>
-    {% if app.accepted %}
-    <div class="col flex-fill">
-        <div class="form-text">Accepted</div>
-        <div class="mb-3">{{ app.accepted|full_datetime_local }}</div>
-    </div>
-    {% endif %}
-    {% endif %}
-    <div class="col flex-fill">
-        <label for="attendee" class="form-text">Attendee</label>
-        <div class="mb-3">
-            <select class="form-select" id="attendee_id" name="attendee_id" required="true">
-                <option value="" selected="selected">Select an attendee</option>
-                {{ options(all_attendees, attendee_id) }}
-            </select>
-        </div>
-    </div>
+{% if not new_app %}
+<div class="col-sm flex-fill">
+    <div class="form-text">Registered</div>
+    {{ app.registered|full_datetime_local }}
+</div>
+{% if app.accepted %}
+<div class="col-sm flex-fill mb-3">
+    <div class="form-text">Accepted</div>
+    {{ app.accepted|full_datetime_local }}
+</div>
+{% endif %}
+{% endif %}
+<div class="col-sm flex-fill mb-3">
+    <label for="attendee" class="form-text">Attendee</label>
+    <select class="form-select" id="attendee_id" name="attendee_id" required="true">
+        <option value="" selected="selected">Select an attendee</option>
+        {{ options(all_attendees, attendee_id) }}
+    </select>
 </div>
 {% endblock %}
 
 {% block status_cost %}
-<div class="row g-3 row-cols-sm-3">
-    <div class="col">
-        {{ form_macros.input(artist_marketplace_form.status) }}
-    </div>
-    <div class="col">
-        <div class="form-text">Paid?</div>
-        <div class="mb-3">
-            {% if app.status != c.ACCEPTED %}N/A (Application status {{ app.status_label }})
-            {% else %}{{ "Yes" if app.amount_unpaid == 0 else ((app.amount_unpaid / 100)|format_currency ~ " Owed") }}
-            {% endif %}
-        </div>
-    </div>
-    <div class="col">
-        {{ form_macros.input(artist_marketplace_form.overridden_price, admin_text="Set a custom fee above or leave blank to charge the default fee. The fee cannot be changed after accepting the application.") }}
-    </div>
+<div class="col-sm">{{ form_macros.input(artist_marketplace_form.status) }}</div>
+<div class="col-sm">
+    <div class="form-text">Paid?</div>
+    {% if app.status != c.ACCEPTED %}N/A (Application status {{ app.status_label }})
+    {% else %}{{ "Yes" if app.amount_unpaid == 0 else ((app.amount_unpaid / 100)|format_currency ~ " Owed") }}
+    {% endif %}
+</div>
+<div class="col-sm">
+    {{ form_macros.input(artist_marketplace_form.overridden_price, admin_text="Set a custom fee above or leave blank to charge the default fee. The fee cannot be changed after accepting the application.") }}
 </div>
 {% endblock %}
 
 {% block terms %}
 {{ super() }}
-<div class="row g-3">
-    <div class="col-12 col-sm-6">{{ form_macros.input(artist_marketplace_form.admin_notes) }}</div>
-</div>
+<div class="col-12 col-sm-6">{{ form_macros.input(artist_marketplace_form.admin_notes) }}</div>
 {% endblock %}

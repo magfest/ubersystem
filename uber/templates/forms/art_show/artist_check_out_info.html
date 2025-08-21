@@ -1,7 +1,11 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 
-{# IMPORTANT NOTICE: Due to the way the inheritence works, you'll need to set your own artist_check_in_out_info variable for this form #}
+{# NOTICE: You'll need to set the following form variables for each artist when including this form:
+    - artist_check_in_out_info
+    - artist_attendee_info
+    - artist_mailing_info
+#}
 
 {# BLOCK NAMES in this form:
     x_data
@@ -20,7 +24,7 @@
 
 <div class="row g-3 mb-3">
 {% block artist_ids %}
-<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_name, placeholder=app.artist_or_full_name) }}</div>
 <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id) }}</div>
 {% if artist_check_in_out_info.artist_id_ad.data %}
 <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id_ad) }}</div>
@@ -32,11 +36,13 @@
 
 <div class="row g-3 mb-3">
 {% block attendee_names %}
-<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.attendee_first_name) }}</div>
-<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.attendee_last_name) }}</div>
-<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.attendee_legal_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_attendee_info.first_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_attendee_info.last_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_attendee_info.legal_name) }}</div>
 {% endblock %}
 </div>
+
+{% block addresses %}{% endblock %}
 
 <div class="row g-3 mb-3">{% block delivery_method_agent %}{% endblock %}</div>
 
@@ -83,13 +89,22 @@
         <tbody>
         {% for piece in app.art_show_pieces|sort(attribute='piece_id')|sort(attribute='gallery_label') %}
         {% set piece_check_in_out = piece_forms[piece.id]['piece_check_in_out'] %}
-        <tr class="piece-row" data-piece_id="{{ piece.piece_id }}">
-        <td class="text-nowrap" data-order="{{ piece.piece_id }}"> {{ piece.artist_and_piece_id }} </td>
+        <tr class="piece-row" data-piece_id="{{ piece.piece_id }}" x-data="{
+            opening_bid: {{ piece_check_in_out.opening_bid.data|tojson }},
+            quick_sale_price: {{ piece_check_in_out.quick_sale_price.data|tojson }},
+            get forSale() { return Boolean(parseInt(this.opening_bid)); },
+            get forQS() { return Boolean(parseInt(this.quick_sale_price)); },
+        }">
+        <td class="text-nowrap" data-order="{{ piece.piece_id }}">
+            {{ piece.artist_and_piece_id }}
+            <input type="hidden" id="{{ piece_check_in_out.for_sale.id }}" name="{{ piece_check_in_out.for_sale.name }}" x-model="forSale" />
+            <input type="hidden" id="{{ piece_check_in_out.no_quick_sale.name }}" name="{{ piece_check_in_out.no_quick_sale.name }}" x-model="forQS" />
+        </td>
         <td data-order="{{ piece.status_label }}">{{ form_macros.input(piece_check_in_out.status, show_label=False) }}</td>
         <td data-order="{{ piece.gallery_label }}">{{ form_macros.input(piece_check_in_out.gallery, show_label=False) }}</td>
         <td data-order="{{ piece.name }}">{{ form_macros.input(piece_check_in_out.name, show_label=False) }}</td>
-        <td data-order="{{ piece.opening_bid }}">{{ form_macros.input(piece_check_in_out.opening_bid, show_label=False) }}</td>
-        <td data-order="{{ piece.quick_sale_price }}">{{ form_macros.input(piece_check_in_out.quick_sale_price, show_label=False) }}</td>
+        <td data-order="{{ piece.opening_bid }}">{{ form_macros.input(piece_check_in_out.opening_bid, show_label=False, alpine_model="opening_bid") }}</td>
+        <td data-order="{{ piece.quick_sale_price }}">{{ form_macros.input(piece_check_in_out.quick_sale_price, show_label=False, alpine_model="quick_sale_price") }}</td>
         </tr>
         {% endfor %}
         </tbody>

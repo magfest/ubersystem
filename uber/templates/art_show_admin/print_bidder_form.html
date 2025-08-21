@@ -1,1 +1,33 @@
-{% extends "art_show_common/print_form.html" %}
+{% extends 'static_views/static_base.html' %}
+
+{% include 'art_show_common/print.html' with context %}
+
+{% block page %}
+{% set printable = True %}
+{% include 'forms/art_show/admin_bidder_signup.html' with context %}
+
+<br/>
+<span class="text-center">
+<strong><p>I understand that a bid is a binding contract. I should not bid more than I can afford to pay. Failure to pickup and pay for art I have bid on could result in my not being able to attend Midwest FurFest in the future. I have read and understand the art show rules.</p>
+<p>I also understand that pick up is from 10 AM to 4 PM on Sunday.</p>
+</strong>
+</span>
+<br/>
+<div class="row g-3">
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Signature</label>
+    <div class="mb-3">
+        ____________________________________________________________
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Date</label>
+    <div class="mb-3">
+      ______________________________
+    </div>
+  </div>
+</div>
+{% endblock %}
