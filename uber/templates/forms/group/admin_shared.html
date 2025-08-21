@@ -17,7 +17,7 @@ badges: {{ group_or_table_info.badges.data|jsonize }},
 get showNewBadgeFields() { return this.badges > {{ group_or_table_info.badges.data|jsonize }} },
 {% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block badges_tables %}
     <div class="col-sm">
         {% call form_macros.input(group_or_table_info.tables, choices=c.ADMIN_TABLE_OPTS) %}
@@ -36,7 +36,7 @@ get showNewBadgeFields() { return this.badges > {{ group_or_table_info.badges.da
         {% endcall %}
     </div>
 </div>
-<div class="row g-sm-3 mb-3 bg-light p-2" x-show="showNewBadgeFields">
+<div class="row g-3 mb-3 bg-light p-2" x-show="showNewBadgeFields">
     <div class="col-12 form-text">New Badges Settings</div>
     <div class="col-sm">
         {{ form_macros.input(group_or_table_info.new_badge_type) }}
@@ -47,7 +47,7 @@ get showNewBadgeFields() { return this.badges > {{ group_or_table_info.badges.da
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block cost %}
 {% set cost_warning %}
 {% if group.cost and receipt and (receipt.item_total / 100) != group.cost %}

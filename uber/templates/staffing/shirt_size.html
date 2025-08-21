@@ -27,7 +27,7 @@
         Staff shirts help make the event a more safe and welcome place to be, and while we strongly prefer you to wear
         a staff shirt while on shift, you are not required to do so.
     </p>
-    <div class="row g-sm-3">
+    <div class="row g-3">
     {% if c.STAFF_EVENT_SHIRT_OPTS %}
     <p>
         As staff, you receive two complimentary shirts, and since you'll be potentially wearing the staff shirt a substantial
@@ -48,7 +48,7 @@
 {% endif %}
 <div class="col-12 col-sm-6">
 <form method="post" action="shirt_size" id="shirt_size" class="form-inline">
-    <div class="row g-sm-3 row-cols-auto">
+    <div class="row g-3 row-cols-auto">
     {{ csrf_token() }}
     <div class="col mb-3">
         <label class="form-text">

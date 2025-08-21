@@ -251,9 +251,10 @@ class Root:
                 group_leader_receipt = session.get_receipt_by_model(model.promo_code.group.buyer)
                 potential_refund_amount = model.promo_code.cost * 100
                 if group_leader_receipt:
-                    txn = sorted([txn for txn in group_leader_receipt.refundable_txns
-                                  if txn.amount_left >= potential_refund_amount], key=lambda x: x.added)[0]
-                    group_processing_fee = txn.calc_processing_fee(potential_refund_amount)
+                    refundable_txns = sorted([txn for txn in group_leader_receipt.refundable_txns
+                                              if txn.amount_left >= potential_refund_amount], key=lambda x: x.added)
+                    if refundable_txns:
+                        group_processing_fee = refundable_txns[0].calc_processing_fee(potential_refund_amount)
         except NoResultFound:
             try:
                 model = session.group(id)
@@ -1011,11 +1012,54 @@ class Root:
         attendee.badge_status = c.NEW_STATUS
         raise HTTPRedirect('../registration/form?id={}&message={}', id, "Promo code removed.")
 
-    def attendee_accounts(self, session, message=''):
+    def attendee_accounts(self, session, message='', page='1', search_text='', order='email', empty='1'):
+        filter = [AttendeeAccount.attendees] if not empty else []
+        total_count = session.query(AttendeeAccount.id).filter(*filter).count()
+
+        count = 0
+        search_text = search_text.strip()
+        if search_text:
+            search_results = session.query(AttendeeAccount).outerjoin(AttendeeAccount.attendees).filter(*filter).filter(or_(
+                AttendeeAccount.email.ilike('%' + search_text + '%'),
+                Attendee.first_name.ilike('%' + search_text + '%'),
+                Attendee.last_name.ilike('%' + search_text + '%'),
+                Attendee.legal_name.ilike('%' + search_text + '%'),
+                Attendee.email.ilike('%' + search_text + '%'),
+            ))
+            if search_results and search_results.count():
+                accounts = search_results
+                count = accounts.count()
+                if count == total_count:
+                    message = 'Every attendee account matched this search.'
+            elif not message:
+                message = 'No matches found.'
+        if not count:
+            accounts = session.query(AttendeeAccount).outerjoin(AttendeeAccount.attendees).filter(*filter)
+            count = accounts.count()
+        
+        accounts = accounts.order(order)
+
+        page = int(page)
+        if search_text:
+            page = page or 1
+            if count == 1:
+                raise HTTPRedirect('attendee_account_form?id={}&message={}', accounts.one().id,
+                                   'This account was the only search result')
+            
+        pages = range(1, int(math.ceil(count / 100)) + 1)
+        accounts = accounts[-100 + 100*page: 100*page] if page else []
+
         return {
             'message': message,
-            'accounts': session.query(AttendeeAccount).options(joinedload(AttendeeAccount.attendees),
-                                                               raiseload('*')).all(),
+            'page':           page,
+            'pages':          pages,
+            'search_text':    search_text,
+            'search_results': bool(search_text),
+            'accounts':      accounts,
+            'order':          Order(order),
+            'empty': empty,
+            'search_count':   count,
+            'account_count': total_count,
         }
 
     def delete_attendee_account(self, session, id, message='', **params):
@@ -1416,20 +1460,10 @@ class Root:
                 attendees = list(chain(*attendees_by_name_email.values()))
 
             if models and which_import == 'accounts':
-                accounts = models
-                accounts_by_email = groupify(accounts, lambda a: normalize_email(a['email']))
-
-                existing_accounts = session.query(AttendeeAccount).filter(
-                    AttendeeAccount.email.in_(accounts_by_email.keys())) \
-                    .options(subqueryload(AttendeeAccount.attendees)).all()
-                for account in existing_accounts:
-                    existing_key = account.email
-                    accounts_by_email.pop(existing_key, {})
-                accounts = list(chain(*accounts_by_email.values()))
                 admin_id = cherrypy.session.get('account_id')
                 admin_name = session.admin_attendee().full_name
-                import_attendee_accounts.delay(accounts, admin_id, admin_name, target_server, api_token)
-                message = f"{len(accounts)} attendee accounts queued for import." 
+                import_attendee_accounts.delay(models, admin_id, admin_name, target_server, api_token)
+                message = f"{len(models)} attendee accounts queued for import. Existing accounts and pending imports will be skipped."
 
             if models and which_import == 'groups':
                 groups = models

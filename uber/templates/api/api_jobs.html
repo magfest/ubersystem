@@ -16,6 +16,7 @@
             <th>Query</th>
             <th>Extra Data</th>
             <th>Admin Name</th>
+            <th>Created</th>
             <th>Queued</th>
             <th>Completed</th>
             <th>Errors</th>
@@ -36,6 +37,9 @@
             </td>
             <td>
                 {{ job.admin_name }}
+            </td>
+            <td>
+                {{ job.created|full_datetime_local }}
             </td>
             <td>
                 {{ job.queued|full_datetime_local }}

@@ -182,7 +182,7 @@ if c.ATTENDEE_ACCOUNTS_ENABLED:
         '{EVENT_NAME} account creation confirmed',
         'reg_workflow/account_confirmation.html',
         lambda a: not a.imported and a.hashed and not a.password_reset and not a.is_sso_account,
-        needs_approval=False,
+        needs_approval=True,
         allow_at_the_con=True,
         ident='attendee_account_confirmed')
 
@@ -1066,7 +1066,7 @@ if c.MIVS_START:
     MIVSEmailFixture(
         IndieJudge,
         'Welcome as a MIVS Judge!',
-        'mivs/judging/judge_welcome.txt',
+        'mivs/judging/judge_welcome.html',
         ident='mivs_judge_welcome')
 
     MIVSEmailFixture(

@@ -7,6 +7,8 @@
     var openDisclaimersModal = function() {
       var modal = bootstrap.Modal.getOrCreateInstance($('#disclaimers_modal'))
       modal.show();
+      $('#disclaimers_modal').scrollTop(0);
+
       $('#disclaimers_modal').on('hidden.bs.modal', function (event) {
         if(serverValidationPassed != undefined) { serverValidationPassed = false; }
       })

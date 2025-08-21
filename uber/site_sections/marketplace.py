@@ -219,7 +219,7 @@ class Root:
 
         if incomplete_txn and incomplete_txn.desc == "Artist Marketplace Application Payment":
             if c.AUTHORIZENET_LOGIN_ID:
-                stripe_intent = charge.stripe_or_mock_intent()
+                stripe_intent = charge.generate_payment_intent()
                 incomplete_txn.intent_id = stripe_intent.id
             else:
                 error = incomplete_txn.check_stripe_id()

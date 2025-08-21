@@ -6,20 +6,26 @@
       {{ csrf_token() }}
       <div class="mb-3">
           <label for="account-email" class="form-label">Email <span class="text-danger">*</span></label>
-          <input type="email" id="account-email" class="form-control account-form-input" name="account_email" value="{{ account_email or '' }}" placeholder="{{ c.EVENT_NAME|replace(' ','')|lower }}@example.com" required />
+          <input type="email" id="account-email" class="form-control" name="account_email" value="{{ account_email or '' }}" placeholder="{{ c.EVENT_NAME|replace(' ','')|lower }}@example.com" required />
       </div>
+      {% if c.PREREG_CONFIRM_EMAIL_ENABLED %}
+      <div class="mb-3 d-none">
+          <label for="confirm-email" class="form-label">Confirm Email <span class="text-danger">*</span></label>
+          <input type="email" id="confirm-email" class="form-control" name="confirm_email" value="{{ confirm_email or '' }}" placeholder="{{ c.EVENT_NAME|replace(' ','')|lower }}@example.com" />
+      </div>
+      {% endif %}
       <div class="mb-3 d-none">
         <label for="account-password" class="control-label">Password <span class="text-danger">*</span></label>
-        <input id="account-password" type="password" class="form-control account-form-input" name="account_password" value="{{ account_password or '' }}" placeholder="Password" />
+        <input id="account-password" type="password" class="form-control" name="account_password" value="{{ account_password or '' }}" placeholder="Password" />
       </div>
       <div class="mb-3 d-none">
           <label for="new-password" class="control-label">Password <span class="text-danger">*</span></label>
-          <input id="new-password" type="password" class="form-control account-form-input" name="new_password" value="{{ account_password or '' }}" placeholder="Password" />
+          <input id="new-password" type="password" class="form-control" name="new_password" value="{{ account_password or '' }}" placeholder="Password" />
           {{ account_fields.password_help }}
       </div>
       <div class="mb-3 d-none">
           <label for="confirm-password" class="control-label">Confirm Password <span class="text-danger">*</span></label>
-          <input id="confirm-password" type="password" class="form-control account-form-input" name="confirm_password" value="{{ confirm_password or '' }}" placeholder="Confirm Password" />
+          <input id="confirm-password" type="password" class="form-control" name="confirm_password" value="{{ confirm_password or '' }}" placeholder="Confirm Password" />
       </div>
       <div class="mb-1"><div class="text-end"><a href="../preregistration/reset_password">Forgot your password?</a></div></div>
       <div class="mb-1"><button id="login-submit" class="btn btn-primary w-100" type="submit" name="login">Login</button></div>
@@ -85,28 +91,32 @@
     }
 
     var showLoginPrompts = function() {
+      {% if c.PREREG_CONFIRM_EMAIL_ENABLED %}$("#confirm-email").prop('required', false).parents('.mb-3').addClass('d-none');{% endif %}
       $("#new-password").prop('required', false).parents('.mb-3').addClass('d-none');
       $("#confirm-password").prop('required', false).parents('.mb-3').addClass('d-none');
       $("#account-password").val($("#new-password").val()).prop('required', true).parents('.mb-3').removeClass('d-none');
       $("#account-password").focus();
 
-      $("#login-submit").removeClass('d-none');
       $("#create-submit").addClass('d-none');
       $("#login-return").addClass('d-none');
+      $("#login-submit").removeClass('d-none');
       $("#create-return").removeClass('d-none');
       currentAction = 'login';
     }
 
     var showCreatePrompts = function() {
       $("#new-password").val($("#account-password").val()).prop('required', true).parents('.mb-3').removeClass('d-none');
-      $("#new-password").focus();
+      {% if c.PREREG_CONFIRM_EMAIL_ENABLED %}
+      $("#confirm-email").prop('required', true).val('').parents('.mb-3').removeClass('d-none');
+      $("#confirm-email").focus();
+      {% endif %}
       $("#confirm-password").prop('required', true).val('').parents('.mb-3').removeClass('d-none');
       $("#account-password").prop('required', false).parents('.mb-3').addClass('d-none');
 
       $("#login-submit").addClass('d-none');
+      $("#create-return").addClass('d-none');
       $("#create-submit").removeClass('btn-outline-primary d-none').addClass('btn-primary');
       $("#login-return").removeClass('d-none');
-      $("#create-return").addClass('d-none');
       currentAction = 'create';
     }
 
@@ -116,7 +126,6 @@
           if (result.success) {
             successRedirect("../preregistration/homepage");
           } else {
-            console.log(result.message)
             showErrorMessage(result.message);
           }
         });

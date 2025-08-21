@@ -18,7 +18,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block promo_code %}
 {% if not badge_flags and not old and 'start_badge_transfer' not in c.PAGE and c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) and not is_prereg_dealer %}
     {% set promo_code_admin_text %}
@@ -56,9 +56,9 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">{% block staffing %}{% endblock %}</div>
+<div class="row g-3 mb-3">{% block staffing %}{% endblock %}</div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block interests %}
 {% if c.INTEREST_OPTS %}
     <div class="col-12">{{ form_macros.input(other_info.interests) }}</div>
@@ -66,7 +66,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block accessibility %}
 {% if c.ACCESSIBILITY_SERVICES_ENABLED and (not admin_area or c.HAS_OTHER_REPORTS_ACCESS) %}
     <div class="col-12">{{ form_macros.input(other_info.requested_accessibility_services) }}</div>

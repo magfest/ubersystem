@@ -25,6 +25,10 @@
   {% endif %}
 {% endfor %}
 
+{% if field.form.read_only and not 'readonly' in kwargs %}
+{% set _ = custom_kwargs.update({'readonly': true}) %}
+{% endif %}
+
 {% if locked_fields|default(None, true) and field.name in locked_fields and not upgrade_modal %}
 {% set _ = custom_kwargs.update({'readonly': true}) %}
 {% endif %}
@@ -108,9 +112,8 @@
 {% set field_id = target_field_id or target_field.id %}
 {% set show_desc = not admin_area and not is_preview and (help_text or target_field.description) %}
 
-{% if is_preview %}
-<strong>The following badges are currently available:</strong>
-{% else %}
+<div class="d-flex justify-content-center justify-content-sm-start">
+{% if not is_preview %}
 <fieldset id="{{ target_field.id }}-select">
   <legend class="mt-3 mb-0 form-text">
     {{ kwargs['label'] if 'label' in kwargs else target_field.label.text }}{% if label_required %}<span class="required-indicator text-danger"> *</span>{% endif %}
@@ -158,16 +161,21 @@
   </div>
 {% endfor %}
 </div>
-<div id="{{ target_field.id }}-validation" class="invalid-feedback" role="alert"></div>
-{% if show_desc %}<div class="form-text">{{ help_text or target_field.description }}</div>{% endif %}
 {% if not is_preview %}
 </fieldset>
 {% endif %}
+</div>
+<div class="d-flex flex-column align-items-center align-items-sm-start m-0">
+<div id="{{ target_field.id }}-validation" class="invalid-feedback text-center text-sm-start" role="alert"></div>
+{% if show_desc %}<div class="form-text">{{ help_text or target_field.description }}</div>{% endif %}
+</div>
 
 <script type="text/javascript">
     var setField_{{ target_field.name }} = function(value) {
         $("#{{ field_id }}").val(value).trigger('change');
-        document.getElementById('{{ field_id }}').dispatchEvent(new Event('input')); // make alpine happy
+        {% if not is_preview %}
+          document.getElementById('{{ field_id }}').dispatchEvent(new Event('input')); // make alpine happy
+        {% endif %}
         $(".{{ target_field.name }}_card").each(function(){
             var header = $(this).children('.card-header');
             var body = $(this).children('.card-body');
@@ -229,7 +237,7 @@
   get isGlobal() { return this.country != "United States" && this.country != "Canada"},
   get addressRequired() { return !this.copy_address & !this.unassignedOrPlaceholder },
 }'>
-  <div class="row g-sm-3 mb-3">
+  <div class="row g-3 mb-3">
     <div class="col-sm">
       {{ form_macros.input(form_obj.address1, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
@@ -237,7 +245,7 @@
       {{ form_macros.input(form_obj.address2, **{':disabled':'copyAddress'}) }}
     </div>
   </div>
-  <div class="row g-sm-3 mb-3">
+  <div class="row g-3 mb-3">
     <div class="col-sm">
       {{ form_macros.input(form_obj.country, required_if="addressRequired", **{'x-model': 'country', ':disabled': 'copyAddress'}) }}
     </div>
@@ -253,12 +261,12 @@
       </div>
     </div>
   </div>
-  <div class="row g-sm-3 mb-3">
+  <div class="row g-3 mb-3">
     <div class="col-sm">
       {{ form_macros.input(form_obj.city, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
     <div class="col-sm">
-      {{ form_macros.input(form_obj.zip_code, required_if="zipCodeRequired", **{':disabled':'copyAddress'}) }}
+      {{ form_macros.input(form_obj.zip_code, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
   </div>
 </div>
@@ -272,13 +280,13 @@
   
   var runServerValidations_{{ form_id|replace('-','_') }} = function($form, submit_button_name, submit_button_val) {
     var form_data = new FormData($('#{{ form_id }}')[0]);
-    var form_list = {{ form_list|safe }}.join(',')
-    if (form_list != '') {
-      form_data.set('form_list', form_list);
-    }
+    var form_list = {{ form_list|safe }};
+    form_list.forEach((item) => form_data.append("form_list", item))
     if (submit_button_name != '') {
       form_data.set(submit_button_name, submit_button_val);
     }
+    $('.invalid-feedback').hide();
+    $(':input').removeClass("is-invalid");
     $.ajax({
       method: 'POST',
       url: "{{ page_handler }}",

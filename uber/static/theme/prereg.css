@@ -86,11 +86,6 @@ body {
     color: #FFCC66;
 }
 
-#first_name { margin-bottom: 0; }
-@media (max-width: 768px) {
-    #first_name { margin-bottom: 10px; }
-}
-
 /* "Registration Type" Buttons */
 
 #reg-types, #badge-types {

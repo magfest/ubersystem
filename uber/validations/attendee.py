@@ -37,6 +37,9 @@ placeholder_check = lambda x: x.name not in placeholder_unassigned_fields(x.form
 PersonalInfo.field_validation.required_fields = {
     'first_name': ("Please provide your first name.", 'first_name', placeholder_check),
     'last_name': ("Please provide your last name.", 'last_name', placeholder_check),
+    'badge_printed_name': (
+        "Please enter a name for your custom-printed badge.", 'badge_printed_name',
+        lambda x: x.form.model.has_personalized_badge and 'badge_printed_name' not in placeholder_unassigned_fields(x.form)),
     'email': ("Please enter an email address.", 'copy_email', lambda x: not x.data and 'email' not in placeholder_unassigned_fields(x.form)),
     'ec_name': ("Please tell us the name of your emergency contact.", 'ec_name', placeholder_check),
     'ec_phone': ("Please give us an emergency contact phone number.", 'ec_phone', placeholder_check),
@@ -184,6 +187,9 @@ BadgeExtras.field_validation.validations['extra_donation']['minimum'] = validato
 
 @BadgeExtras.field_validation('shirt')
 def require_shirt(form, field):
+    if form.is_admin:
+        return
+
     if (form.amount_extra.data and form.amount_extra.data > 0
             or form.badge_type.data in c.BADGE_TYPE_PRICES) and (field.data == c.NO_SHIRT or not field.data):
         raise ValidationError("Please select a shirt size.")
@@ -207,6 +213,25 @@ def upgrade_sold_out(form, field):
         raise ValidationError("The upgrade you have selected is sold out.")
     elif field.data and getattr(c.kickin_availability_matrix, str(field.data), True) is False:
         raise ValidationError("The upgrade you have selected is no longer available.")
+
+
+@BadgeExtras.field_validation('badge_type_single')
+def must_select_day(form, field):
+    if form.is_admin or (form.model.attendance_type == form.attendance_type.data and not form.model.is_new):
+        return
+
+    if form.attendance_type.data and form.attendance_type.data == c.SINGLE_DAY and c.BADGES[field.data] not in c.DAYS_OF_WEEK:
+        raise ValidationError("Please select which day you would like to attend.")
+
+
+@BadgeExtras.field_validation('badge_type')
+def must_select_type(form, field):
+    if not c.BADGE_TYPE_PRICES or form.is_admin or (form.model.attendance_type == form.attendance_type.data and not form.model.is_new):
+        return
+
+    if form.attendance_type.data and form.attendance_type.data == c.WEEKEND and \
+            field.data not in [c.ATTENDEE_BADGE, c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] + list(c.BADGE_TYPE_PRICES.keys()):
+        raise ValidationError("Please select what type of badge you want.")
 
 
 @BadgeExtras.new_or_changed('badge_type')

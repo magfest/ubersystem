@@ -30,7 +30,7 @@ class Root:
                 message = f"No panel applications found for the {dept.name} department."
         return {
             'message': message,
-            'apps': session.panel_apps(),
+            'apps': apps,
             'department': dept,
         }
 

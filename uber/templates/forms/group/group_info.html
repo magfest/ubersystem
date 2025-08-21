@@ -23,7 +23,7 @@ get groupFields() { return !this.badge_type || this.badge_type == {{ c.PSEUDO_GR
     then rounds down to the nearest multiple of 5 so that people don't ask us why we're selling 86 badges #}
 {% set max_badges = ((9999 / c.GROUP_PRICE / 5)|int * 5)|int if is_prereg_attendee else c.MAX_GROUP_SIZE %}
 
-<div class="row g-sm-3 mb-3">
+<div class="row g-3 mb-3">
 {% block name_badges %}
     <div class="col-sm" x-show="groupFields">{{ form_macros.input(group_info.name, required_if="groupFields") }}</div>
     {% if is_prereg_attendee %}
@@ -38,8 +38,8 @@ get groupFields() { return !this.badge_type || this.badge_type == {{ c.PSEUDO_GR
 {% endblock %}
 </div>
 
-<div class="row g-sm-3 mb-3">{% block badges_tables %}{% endblock %}</div>
-<div class="row g-sm-3 mb-3">{% block cost %}{% endblock %}</div>
-<div class="row g-sm-3 mb-3">{% block admin_info %}{% endblock %}</div>
+<div class="row g-3 mb-3">{% block badges_tables %}{% endblock %}</div>
+<div class="row g-3 mb-3">{% block cost %}{% endblock %}</div>
+<div class="row g-3 mb-3">{% block admin_info %}{% endblock %}</div>
 
 </div>

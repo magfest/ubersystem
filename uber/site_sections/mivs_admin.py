@@ -4,7 +4,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import all_renderable, csrf_protected, render
+from uber.decorators import all_renderable, csrf_protected, render, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, IndieJudge, IndieGameReview, IndieStudio, IndieGame
 from uber.tasks.email import send_email
@@ -31,6 +31,7 @@ class Root:
             'studios': session.query(IndieStudio).all()
         }
     
+    @site_mappable
     def import_judges(self, session, target_server='', api_token='',
                       query='', message='', **params):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)
@@ -39,7 +40,7 @@ class Root:
 
         if service:
             try:
-                results = service.mivs.judges_export()
+                results = service.mivs.export_judges()
                 href_base = '{}/mivs_admin/edit_judge?id={}'
             except Exception as ex:
                 message = str(ex)
@@ -85,7 +86,7 @@ class Root:
 
         if not message:
             try:
-                results = service.mivs.judges_export()
+                results = service.mivs.export_judges()
             except Exception as ex:
                 message = str(ex)
 
@@ -94,7 +95,9 @@ class Root:
 
         # Rewrite this for Super 2026 to actually use the selection from the page (and rename export_judges)
         for old_judge, old_attendee in results:
-            old_judge.pop('id', '')
+            judge_id = old_judge.pop('id', '')
+            if judge_id not in judge_ids:
+                continue
             old_judge.pop('admin_id', '')
             password = ''
             new_judge = IndieJudge().apply(old_judge, restricted=False)
@@ -123,18 +126,17 @@ class Root:
             else:
                 attendee.admin_account, password = session.create_admin_account(attendee, judge=new_judge)
                 new_judge.admin_id = attendee.admin_account.id
-                if False:
-                    email_body = render('emails/accounts/new_account.txt', {
-                            'password': password,
-                            'account': attendee.admin_account,
-                            'creator': AdminAccount.admin_name()
-                        }, encoding=None)
-                    send_email.delay(
-                        c.MIVS_EMAIL,
-                        c.ADMIN_EMAIL,
-                        'New {} MIVS Judge Account'.format(c.EVENT_NAME),
-                        email_body,
-                        model=attendee.to_dict('id'))
+                email_body = render('emails/accounts/new_account.txt', {
+                        'password': password,
+                        'account': attendee.admin_account,
+                        'creator': AdminAccount.admin_name()
+                    }, encoding=None)
+                send_email.delay(
+                    c.MIVS_EMAIL,
+                    attendee.email,
+                    'New {} MIVS Judge Account'.format(c.EVENT_NAME),
+                    email_body,
+                    model=attendee.to_dict('id'))
 
             session.add(new_judge)
             session.add(attendee)
