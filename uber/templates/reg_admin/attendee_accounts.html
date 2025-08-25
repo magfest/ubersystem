@@ -103,7 +103,7 @@
                     <i class="fa fa-repeat"></i> Reset Password
                 </button>
             </form>
-            <form method="post" action="delete_account_account">
+            <form method="post" action="delete_attendee_account">
                 <input type="hidden" name="id" value="{{ account.id }}" />
                 {{ csrf_token() }}
                 <button type="submit" class="btn btn-sm btn-danger">

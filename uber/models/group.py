@@ -81,6 +81,12 @@ class Group(MagModel, TakesPaymentMixin):
         'ModelReceipt.owner_model == "Group",'
         'ModelReceipt.closed == None)',
         uselist=False)
+    terms_conditions_doc = relationship(
+        'SignedDocument',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_(SignedDocument.fk_id == foreign(Group.id),'
+        'SignedDocument.model == "Group")',
+        uselist=False)
 
     _repr_attr_names = ['name']
 
@@ -140,16 +146,8 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def signnow_document_signed(self):
-        from uber.models import Session, SignedDocument
+        return self.terms_conditions_doc and self.terms_conditions_doc.signed
 
-        signed = False
-        with Session() as session:
-            document = session.query(SignedDocument).filter_by(model="Group", fk_id=self.id).first()
-            if document and document.signed:
-                signed = True
-
-        return signed
-    
     def convert_to_shared(self, session):
         self.tables = 0
         if len(self.floating) < abs(1 - self.badges):
