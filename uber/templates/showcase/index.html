@@ -253,12 +253,102 @@
             </div>
         </div>
         {% endif %}
+        {% if studio.retro_games %}
+        <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">Indie Retro Games</div>
+            <div class="card-body">
+                {% if c.HAS_INDIE_RETRO_ADMIN_ACCESS or c.INDIE_RETRO_SUBMISSIONS_OPEN %}
+                    <p>
+                        The deadline for Indie Retro game submissions is <strong>{{ c.INDIE_RETRO_DEADLINE|datetime_local }}</strong>.
+                    </p>
+                    <p>
+                        You can edit game information and screenshots for all games, including submitted games, up until the deadline.
+                    </p>
+                    {% if c.HAS_INDIE_RETRO_ADMIN_ACCESS and not c.INDIE_RETRO_SUBMISSIONS_OPEN %}
+                    <p class="text-danger">The Indie Retro submission deadline has passed. Only logged-in admins can edit or submit Indie Retro games.</p>
+                    {% endif %}
+                {% else %}
+                    <p>
+                        The deadline for submitting games to Indie Retro has passed. Once judging is completed, you can review each game's status below.
+                    </p>
+                {% endif %}
+                {% for game in studio.retro_games %}
+                {% include 'indie_retro/game_modals.html' with context %}
+                {% endfor %}
+                <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                        <th>Title</th>
+                        <th>Photos</th>
+                        <th>Status</th>
+                        <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                {% for game in studio.retro_games %}
+                        <tr>
+                        <td>
+                            {{ game.title }}
+                        </td>
+                        <td>
+                            {{ game.submission_images|length }} screenshot{{ game.submission_images|length|pluralize }}
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-screenshot-{{ game.id }}"><i class="fa fa-plus"></i></button>
+                        </td>
+                        <td>
+                            {% if not game.submitted %}
+                            <span class="text-danger">Not Submitted</span>
+                            {% elif game.status == c.NEW %}<span class="text-success">Submitted</span>
+                            {% else %}{{ game.status_label }}{% endif %}
+                        </td>
+                        <td>
+                            {% if c.HAS_INDIE_RETRO_ADMIN_ACCESS or c.INDIE_RETRO_SUBMISSIONS_OPEN %}
+                            <a href="../indie_retro/game?id={{ game.id }}" class="btn btn-sm btn-primary"><i class="fa fa-pencil"></i></a>
+                            {% endif %}
+                        </td>
+                        </tr>
+                        <tr>
+                            <td colspan="6">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    {% if game.submission_images %}
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit-screenshots-{{ game.id }}">View Screenshot{{ game.submission_images|length|pluralize }}</button>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        {% if not game.submitted %}
+                                        {% if game.missing_steps %}
+                                        <span class="d-inline-block" tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-content="To submit this game for consideration, please {{ game.missing_steps|readable_join }}.">
+                                            <button type="button" class="btn btn-sm btn-warning" disabled>Not Ready to Submit</button>
+                                        </span>
+                                        {% else %}
+                                        <form method="post" action="submit_game">
+                                            {{ csrf_token() }}
+                                            <input type="hidden" name="id" value="{{ game.id }}" />
+                                            <button type="submit" class="btn btn-sm btn-success" type="submit">Submit Game for Consideration</button>
+                                        </form>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     <p>
         {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_MIVS_ADMIN_ACCESS %}
         <a href="../mivs/game?studio_id={{ studio.id }}" class="btn btn-primary">Add MIVS Game</a>
         {% endif %}
-        {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_INDIE_ARCADE_ACCESS %}
+        {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_INDIE_ARCADE_ADMIN_ACCESS %}
         <a href="../indie_arcade/game?studio_id={{ studio.id }}" class="btn btn-info">Add Indie Arcade Game</a>
+        {% endif %}
+        {% if c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_INDIE_RETRO_ADMIN_ACCESS %}
+        <a href="../indie_retro/game?studio_id={{ studio.id }}" class="btn btn-secondary">Add Indie Retro Game</a>
         {% endif %}
         {% include 'showcase/showcase_types.html' %}
         <a href="#" data-bs-toggle="modal" data-bs-target="#showcase-types"><i class="fa fa-question-circle" aria-hidden="true"></i> What type of game should I submit?</a>

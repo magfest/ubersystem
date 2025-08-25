@@ -37,8 +37,8 @@ class IndieJudge(MagModel, ReviewMixin):
     admin_id = Column(UUID, ForeignKey('admin_account.id'))
     status = Column(Choice(c.MIVS_JUDGE_STATUS_OPTS), default=c.UNCONFIRMED)
     no_game_submission = Column(Boolean, nullable=True)
-    genres = Column(MultiChoice(c.MIVS_INDIE_JUDGE_GENRE_OPTS))
-    platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
+    genres = Column(MultiChoice(c.MIVS_JUDGE_GENRE_OPTS))
+    platforms = Column(MultiChoice(c.MIVS_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
     vr_text = Column(UnicodeText)
     staff_notes = Column(UnicodeText)
@@ -122,6 +122,10 @@ class IndieStudio(MagModel):
     @property
     def arcade_games(self):
         return [g for g in self.games if g.showcase_type == c.INDIE_ARCADE]
+    
+    @property
+    def retro_games(self):
+        return [g for g in self.games if g.showcase_type == c.INDIE_RETRO]
 
     @property
     def confirm_deadline(self):
@@ -276,28 +280,38 @@ class IndieDeveloper(MagModel):
 
 class IndieGame(MagModel, ReviewMixin):
     studio_id = Column(UUID, ForeignKey('indie_studio.id'))
+    primary_contact_id = Column(UUID, ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True)
+    primary_contact = relationship(IndieDeveloper, backref='arcade_games',
+                                   foreign_keys=primary_contact_id, cascade='save-update,merge,refresh-expire,expunge')
+
     title = Column(UnicodeText)
     brief_description = Column(UnicodeText)
-    genres = Column(MultiChoice(c.MIVS_INDIE_GENRE_OPTS))
+    description = Column(UnicodeText)
+    genres = Column(MultiChoice(c.MIVS_GENRE_OPTS))
     genres_text = Column(UnicodeText)
-    has_multiplayer = Column(Boolean, default=False)
-    player_count = Column(UnicodeText)
-    platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
+    platforms = Column(MultiChoice(c.MIVS_PLATFORM_OPTS + c.INDIE_RETRO_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
+    player_count = Column(UnicodeText)
+    how_to_play = Column(UnicodeText)
+    link_to_video = Column(UnicodeText)
+    link_to_game = Column(UnicodeText)
+
     requires_gamepad = Column(Boolean, default=False)
     is_alumni = Column(Boolean, default=False)
     content_warning = Column(Boolean, default=False)
     warning_desc = Column(UnicodeText)
     photosensitive_warning = Column(Boolean, default=False)
-    description = Column(UnicodeText)
+    has_multiplayer = Column(Boolean, default=False)
+    password_to_game = Column(UnicodeText)
+    code_type = Column(Choice(c.MIVS_CODE_TYPE_OPTS), default=c.NO_CODE)
+    code_instructions = Column(UnicodeText)
+    build_status = Column(
+        Choice(c.MIVS_BUILD_STATUS_OPTS), default=c.PRE_ALPHA)
+    build_notes = Column(UnicodeText)
 
-    primary_contact_id = Column(UUID, ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True)
-    primary_contact = relationship(IndieDeveloper, backref='arcade_games',
-                                   foreign_keys=primary_contact_id, cascade='save-update,merge,refresh-expire,expunge')
     game_hours = Column(UnicodeText)
     game_hours_text = Column(UnicodeText)
     game_end_time = Column(Boolean, default=False)
-    player_count = Column(UnicodeText)
     floorspace = Column(Choice(c.INDIE_ARCADE_FLOORSPACE_OPTS), nullable=True)
     floorspace_text = Column(UnicodeText)
     cabinet_type = Column(Choice(c.INDIE_ARCADE_CABINET_OPTS), nullable=True)
@@ -308,15 +322,11 @@ class IndieGame(MagModel, ReviewMixin):
     read_faq = Column(UnicodeText)
     mailing_list = Column(Boolean, default=False)
 
-    how_to_play = Column(UnicodeText)
-    link_to_video = Column(UnicodeText)
-    link_to_game = Column(UnicodeText)
-    password_to_game = Column(UnicodeText)
-    code_type = Column(Choice(c.MIVS_CODE_TYPE_OPTS), default=c.NO_CODE)
-    code_instructions = Column(UnicodeText)
-    build_status = Column(
-        Choice(c.MIVS_BUILD_STATUS_OPTS), default=c.PRE_ALPHA)
-    build_notes = Column(UnicodeText)
+    publisher_name = Column(UnicodeText)
+    release_date = Column(UnicodeText)
+    other_assets = Column(UnicodeText)
+    in_person = Column(Boolean, default=False)
+    delivery_method = Column(Choice(c.INDIE_RETRO_DELIVERY_OPTS), nullable=True)
 
     agreed_liability = Column(Boolean, default=False)
     agreed_showtimes = Column(Boolean, default=False)
@@ -376,8 +386,39 @@ class IndieGame(MagModel, ReviewMixin):
         return make_url(self.link_to_game)
     
     @property
+    def game_logo_image(self):
+        candidates = [img for img in self.images if not img.is_header and not img.is_thumbnail and
+                      not img.is_screenshot and img.description == f'{self.id}_game_logo']
+        if candidates:
+            return candidates[0]
+
+    @property
+    def game_logo(self):
+        if not self.game_logo_image:
+            return ''
+        return self.game_logo_image.image
+
+    @game_logo.setter
+    def game_logo(self, value):
+        if not value or not getattr(value, 'filename', None):
+            return
+
+        import cherrypy
+
+        if not isinstance(value, cherrypy._cpreqbody.Part):
+            log.error(f"Tried to set game_logo for indie game {self.name} with invalid value type: {type(value)}")
+            return
+        
+        if self.game_logo_image:
+            self.session.delete(self.game_logo_image)
+
+        game_logo_image = IndieGameImage(game_id=self.id, description=f"{self.id}_game_logo", is_screenshot=False)
+        game_logo_image.image = value
+        self.session.add(game_logo_image)
+
+    @property
     def submission_images(self):
-        return [img for img in self.images if not img.is_header and not img.is_thumbnail]
+        return [img for img in self.images if not img.is_header and not img.is_thumbnail and img != self.game_logo_image]
 
     @property
     def screenshots(self):
@@ -447,6 +488,8 @@ class IndieGame(MagModel, ReviewMixin):
                     f'attach at least {c.MIVS_CODES_REQUIRED} codes for our judges')
         if self.showcase_type == c.MIVS and len(self.screenshots) < 2:
             steps.append('upload at least two screenshots')
+        elif self.showcase_type == c.INDIE_RETRO and len(self.screenshots) < 3:
+            steps.append('upload three to five screenshots')
         elif len(self.submission_images) < 2:
             steps.append('upload at least two photos')
 

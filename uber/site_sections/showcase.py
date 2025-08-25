@@ -75,6 +75,10 @@ class Root:
             image_forms['arcade_new'] = load_forms({}, IndieGameImage(), ['ArcadePhoto'], field_prefix='new')
             for image in game.submission_images:
                 image_forms[image.id] = load_forms({}, image, ['ArcadePhoto'], field_prefix=image.id)
+        for game in studio.retro_games:
+            image_forms['retro_new'] = load_forms({}, IndieGameImage(), ['RetroScreenshot'], field_prefix='new')
+            for image in game.submission_images:
+                image_forms[image.id] = load_forms({}, image, ['RetroScreenshot'], field_prefix=image.id)
 
         return {
             'message': message,

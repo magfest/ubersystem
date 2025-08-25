@@ -12,8 +12,15 @@ from pockets.autolog import log
 from functools import wraps
 
 from uber.config import c
-from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, SwitchInput, Ranking, UniqueList
+from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, SwitchInput, Ranking, UniqueList, SelectButtonGroup
 from uber.model_checks import invalid_phone_number
+
+
+def bool_from_text(value):
+    if isinstance(value, six.string_types):
+        return value.strip().lower() not in ('f', 'false', 'n', 'no', '0')
+    return bool(value)
+                        
 
 
 def valid_cellphone(form, field):
@@ -550,6 +557,33 @@ class BlankOrIntegerField(IntegerField):
         except ValueError as exc:
             self.data = None
             raise ValueError(self.gettext("Not a valid integer value.")) from exc
+        
+
+class SelectBooleanField(SelectField):
+    """
+    Allows a boolean column to be shown as a set of radio options, neither of which is selected initially.
+    This helps make sure users don't accidentally skip important true/false fields.
+    """
+
+    widget = SelectButtonGroup()
+    def __init__(self, label=None, validators=None, coerce=bool_from_text, choices=None, validate_choice=True,
+                 yes_label='Yes', no_label='No', **kwargs):
+        if not choices:
+            choices = [('yes', yes_label), ('no', no_label)]
+        super().__init__(label, validators, coerce, choices, validate_choice, **kwargs)
+    
+    def process_data(self, value):
+        if value is None or value is unset_value or value == '':
+            self.data = None
+            return
+
+        super().process_data(value)
+
+    def process_formdata(self, valuelist):
+        if not valuelist or valuelist[0] == '':
+            return
+
+        super().process_formdata(valuelist)
 
 
 class SelectAvailableField(SelectField):

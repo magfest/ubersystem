@@ -1,0 +1,33 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set retro_logistics = retro_logistics or forms['retro_logistics'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    title_desc
+    genres
+    platforms
+    multiplayer_content
+    checkboxes
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block link_found_how %}
+    <div class="col-sm">{{ form_macros.input(retro_logistics.link_to_webpage) }}</div>
+    <div class="col-sm">{{ form_macros.input(retro_logistics.found_how) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block logistics %}
+  <div class="col-sm">{{ form_macros.input(retro_logistics.in_person) }}</div>
+</div><div class="row g-3 mb-3">
+  <div class="col-sm">{{ form_macros.input(retro_logistics.delivery_method) }}</div>
+{% endblock %}
+</div>
+
+</div>

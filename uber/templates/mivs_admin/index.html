@@ -1,10 +1,8 @@
-{% extends "mivs_base.html" %}
-{% block body %}
-
-<style type="text/css">
-    #mainContainer { max-width: 1200px; }
-</style>
-
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title = "Showcase Admin" %}
+{% block content %}
+<div class="card card-body">
+    
 <h3>MIVS Judges</h3>
 
 <a href="create_judge">Add a judge</a>
@@ -87,5 +85,5 @@
 {% endfor %}
 </tbody>
 </table>
-
+</div>
 {% endblock %}
