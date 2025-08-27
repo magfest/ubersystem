@@ -1299,7 +1299,7 @@ class Config(_Overridable):
         from uber.custom_tags import email_only
 
         config_opt = email_only(sender).split('@')[0]
-        signature_key = getattr(self, config_opt, None)
+        signature_key = getattr(self, config_opt.upper(), None)
         if signature_key:
             return self.EMAIL_SIGNATURES[signature_key]
         return ""
