@@ -20,8 +20,6 @@ from uber.tasks import celery
 
 __all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email']
 
-celery.on_startup(AutomatedEmail.reconcile_fixtures)
-
 def _is_dev_email(email):
     """
     Returns True if `email` is a development email address.
