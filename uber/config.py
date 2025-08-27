@@ -646,9 +646,9 @@ class Config(_Overridable):
                 for day_name in ["Friday", "Saturday", "Sunday"]:
                     new_opt = self.single_day_opt(day_name)
                     badge_types += [new_opt] if new_opt is not None else []
-            elif self.PRESELL_ONE_DAYS and localized_now().date() >= self.EPOCH.date():
+            elif self.PRESELL_ONE_DAYS and uber.utils.localized_now().date() >= self.EPOCH.date():
                 after_today = False
-                today_name = localized_now().strftime('%A')
+                today_name = uber.utils.localized_now().strftime('%A')
                 for day_name in ["Friday", "Saturday", "Sunday"]:
                     if after_today or day_name == today_name:
                         new_opt = self.single_day_opt(day_name)
@@ -1299,7 +1299,7 @@ class Config(_Overridable):
         from uber.custom_tags import email_only
 
         config_opt = email_only(sender).split('@')[0]
-        signature_key = getattr(self, config_opt, None)
+        signature_key = getattr(self, config_opt.upper(), None)
         if signature_key:
             return self.EMAIL_SIGNATURES[signature_key]
         return ""
