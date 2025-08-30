@@ -1,0 +1,20 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set new_judge_info = new_judge_info or forms['new_judge_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    attendee_info
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block attendee_info %}
+<div class="col-sm">{{ form_macros.input(new_judge_info.first_name) }}</div>
+<div class="col-sm">{{ form_macros.input(new_judge_info.last_name) }}</div>
+<div class="col-sm">{{ form_macros.input(new_judge_info.email) }}</div>
+{% endblock %}
+</div>

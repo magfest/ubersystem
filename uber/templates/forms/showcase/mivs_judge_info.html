@@ -1,0 +1,42 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set mivs_judge_info = mivs_judge_info or forms['mivs_judge_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    genres_platforms
+    game_submission
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+platforms: {{ mivs_judge_info.platforms.data|map('string')|list }},
+get hasVR() { return this.platforms.includes('{{ c.VR }}') },
+{% if not admin_area %}
+get MIVSInfo() { return true; },
+{% endif %}
+{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block genres_platforms %}
+  <div class="col-sm">{{ form_macros.input(mivs_judge_info.genres, required_if="MIVSInfo") }}</div>
+  <div class="col-sm">
+    {% call form_macros.input(mivs_judge_info.platforms, required_if="MIVSInfo") %}
+    <div class="col-sm-6" x-show="hasVR">
+      {{ form_macros.input(mivs_judge_info.vr_text, required_if="hasVR", show_label=False) }}
+    </div>
+    {% endcall %}
+  </div>
+</div><div class="row g-3 mb-3">
+  <div class="col-sm">{{ form_macros.input(mivs_judge_info.platforms_text) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block game_submission %}
+<div class="col-sm">{{ form_macros.input(mivs_judge_info.no_game_submission) }}</div>
+{% endblock %}
+</div>
+
+</div>

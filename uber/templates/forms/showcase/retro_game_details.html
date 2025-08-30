@@ -4,11 +4,12 @@
 
 {# BLOCK NAMES in this form:
     x_data
-    title_desc
     genres
     platforms
-    multiplayer_content
-    checkboxes
+    release_date_desc
+    logo_assets
+    links
+    how_to_play
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
@@ -48,7 +49,7 @@
 
 <div class="row g-3 mb-3">
 {% block logo_assets %}
-  <div class="col-sm">{{ form_macros.input(retro_game_details.game_logo, show_preview=False) }}</div>
+  <div class="col-sm">{{ form_macros.input(retro_game_details.game_logo) }}</div>
   <div class="col-sm">{{ form_macros.input(retro_game_details.other_assets) }}</div>
 {% endblock %}
 </div>

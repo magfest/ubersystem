@@ -180,7 +180,7 @@ class AdminAccount(MagModel):
             with Session() as session:
                 id = id or cherrypy.session.get('account_id')
                 admin_account = session.admin_account(id)
-                return admin_account.judge or 'mivs_judging' in admin_account.read_or_write_access_set
+                return admin_account.judge or 'showcase_judging' in admin_account.read_or_write_access_set
         except Exception:
             return None
 

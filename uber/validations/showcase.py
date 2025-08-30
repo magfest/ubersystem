@@ -4,7 +4,7 @@ from wtforms.validators import ValidationError
 from uber.config import c
 from uber.forms.showcase import (StudioInfo, DeveloperInfo, MivsGameInfo, MivsDemoInfo, MivsConsents, MivsCode, MivsScreenshot,
                                  ArcadeGameInfo, ArcadeConsents, ArcadeLogistics, ArcadePhoto, RetroGameInfo, RetroGameDetails,
-                                 RetroLogistics, RetroScreenshot)
+                                 RetroLogistics, RetroScreenshot, MivsJudgeInfo, JudgeShowcaseInfo, NewJudgeInfo, GameReview)
 from uber.model_checks import validation
 from uber.utils import localized_now
 
@@ -243,3 +243,85 @@ def image_size(form, field):
         field.data.file.seek(0)
         if file_size > 5:
             raise ValidationError("Please make sure your screenshot is under 5MB.")
+
+def is_mivs_judge(form):
+    if form.is_admin and form.model.is_new:
+        return
+    return c.MIVS in form.model.showcases_ints
+
+
+MivsJudgeInfo.field_validation.required_fields = {
+    'platforms': ("Please select what platforms you own.", 'platforms', lambda x: is_mivs_judge(x.form)),
+    'genres': ("Please select what genres you are familiar with.", 'genres', lambda x: is_mivs_judge(x.form)),
+    'vr_text': ("Please tell us what VR/AR platforms you own.", 'platforms', lambda x: x.data and c.VR in x.data)
+}
+
+
+@MivsJudgeInfo.field_validation('platforms')
+def must_have_pc(form, field):
+    if not field.data:
+        return
+
+    if c.PC not in field.data and c.PCGAMEPAD not in field.data and is_mivs_judge(form):
+        raise ValidationError("You must have a PC to judge for MIVS.")
+
+
+JudgeShowcaseInfo.field_validation.required_fields = {
+    'assignable_showcases': (
+        "Please select at least one showcase for this judge, either for assigned games or all games.",
+        'all_games_showcases', lambda x: not x)
+}
+
+
+NewJudgeInfo.field_validation.required_fields = {
+    'first_name': "Please enter this judge's first name.",
+    'last_name': "Please enter this judge's last name.",
+    'email': "Please enter this judge's email address.",
+}
+
+
+def game_or_video_playable(form):
+    if form.model.game.showcase_type == c.INDIE_ARCADE:
+        return form.video_status.data == c.VIDEO_REVIEWED
+    return form.game_status.data == c.PLAYABLE
+
+
+GameReview.field_validation.required_fields = {
+    'read_how_to_play': ("Please confirm you've read the instructions for how to play.", 
+                         'game_status', lambda x: x.data == c.PLAYABLE and x.form.model.game.how_to_play),
+    'readiness_score': ("Please rate the game's show readiness from 1-10.", 'readiness_score',
+                        lambda x: game_or_video_playable(x.form)),
+    'design_score': ("Please rate the game's design from 1-10.", 'design_score',
+                        lambda x: game_or_video_playable(x.form)),
+    'enjoyment_score': ("Please rate the game's enjoyment from 1-10.", 'enjoyment_score',
+                        lambda x: game_or_video_playable(x.form)),
+}
+
+
+@GameReview.field_validation('video_status')
+def must_review_video_or_game(form, field):
+    if field.data == c.PENDING and (form.model.game.showcase_type == c.INDIE_ARCADE or form.game_status.data == c.PENDING):
+        raise ValidationError("Please tell us if you were able to view the video or download and play the game.")
+
+
+@GameReview.field_validation('video_status')
+def cant_review_broken_video(form, field):
+    if form.model.game.showcase_type != c.INDIE_ARCADE or field.data == c.PENDING:
+        return
+    has_scores = form.readiness_score.data or form.design_score.data or form.enjoyment_score.data
+
+    if field.data != c.VIDEO_REVIEWED and has_scores:
+        raise ValidationError("If the video is not playable, please leave the score fields blank.")
+
+
+@GameReview.field_validation('game_status')
+def cant_review_broken_or_pending_game(form, field):
+    if form.model.game.showcase_type == c.INDIE_ARCADE:
+        return
+    has_scores = form.readiness_score.data or form.design_score.data or form.enjoyment_score.data
+
+    if field.data != c.PLAYABLE and has_scores:
+        if field.data == c.PENDING:
+            raise ValidationError("Please leave the score fields blank until you have played the game.")
+        raise ValidationError("If the game is not playable, please leave the score fields blank.")
+

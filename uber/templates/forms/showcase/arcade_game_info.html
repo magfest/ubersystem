@@ -14,8 +14,10 @@
 
 <div class="row g-3 mb-3">
 {% block title_contact %}
+{% if not review %}
 <div class="col-sm">{{ form_macros.input(arcade_game_info.title) }}</div>
 <div class="col-sm">{{ form_macros.input(arcade_game_info.primary_contact_id, choices=studio.primary_contact_opts) }}</div>
+{% endif %}
 {% endblock %}
 </div>
 

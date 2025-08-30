@@ -1,5 +1,5 @@
-{{ review.judge.full_name }} has marked the game submission for {{ review.game.title }} as "{{ review.game_status_label }}."
+{{ review.judge.full_name }} has marked the game submission for {{ review.game.title }} as "{{ review.game_status_label }}{% if review.game_status == c.COULD_NOT_PLAY %} ({{ review.game_status_text }}){% endif %}."
 
-You can view the full review here: {{ c.URL_BASE }}/mivs_judging/game_review?id={{ review.id }}
+You can view the full review here: {{ c.URL_BASE }}/showcase_judging/game_review?id={{ review.id }}
 
-Or the game details here: {{ c.URL_BASE }}/mivs/game?id={{ review.game.id }}
+Or the game details here: {{ c.URL_BASE }}/showcase/edit_game?id={{ review.game.id }}#problems

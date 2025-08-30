@@ -4,11 +4,12 @@ import cherrypy
 
 from datetime import datetime, timedelta
 from functools import wraps
+from markupsafe import Markup
 from pockets import sluggify
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import func
+from sqlalchemy import func, case, or_
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -19,7 +20,7 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, utcnow, \
     Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin, UniqueList
-from uber.utils import localized_now, make_url
+from uber.utils import localized_now, make_url, remove_opt
 
 
 __all__ = [
@@ -36,6 +37,8 @@ class ReviewMixin:
 class IndieJudge(MagModel, ReviewMixin):
     admin_id = Column(UUID, ForeignKey('admin_account.id'))
     status = Column(Choice(c.MIVS_JUDGE_STATUS_OPTS), default=c.UNCONFIRMED)
+    assignable_showcases = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
+    all_games_showcases = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
     no_game_submission = Column(Boolean, nullable=True)
     genres = Column(MultiChoice(c.MIVS_JUDGE_GENRE_OPTS))
     platforms = Column(MultiChoice(c.MIVS_PLATFORM_OPTS))
@@ -48,9 +51,39 @@ class IndieJudge(MagModel, ReviewMixin):
 
     email_model_name = 'judge'
 
+    @presave_adjustment
+    def only_one_showcase(self):
+        for showcase in self.all_games_showcases_ints:
+            self.assignable_showcases = remove_opt(self.assignable_showcases_ints, showcase)
+    
+    def reviews_by_showcase(self, showcase_type):
+        showcase_type = int(showcase_type)
+        if showcase_type not in c.SHOWCASE_GAME_TYPES.keys():
+            return "Invalid showcase!"
+        return [review for review in self.reviews if review.game.showcase_type == showcase_type]
+
     @property
     def judging_complete(self):
         return len(self.reviews) == len(self.game_reviews)
+    
+    @property
+    def showcases_labels(self):
+        return [c.SHOWCASE_GAME_TYPES[int(showcase)] for showcase in self.showcases_ints]
+
+    @property
+    def showcases_ints(self):
+        return list(set(self.assignable_showcases_ints + self.all_games_showcases_ints))
+
+    @hybrid_property
+    def showcases(self):
+        return ','.join(map(str, self.showcases_ints))
+
+    @showcases.expression
+    def showcases(cls):
+        return case(
+            [(cls.assignable_showcases == '', cls.all_games_showcases),
+             (cls.all_games_showcases == '', cls.assignable_showcases)],
+            else_=cls.assignable_showcases + ',' + cls.all_games_showcases)
 
     @property
     def mivs_all_genres(self):
@@ -67,6 +100,11 @@ class IndieJudge(MagModel, ReviewMixin):
     @property
     def email(self):
         return self.attendee.email
+
+    @email.setter
+    def email(self, value):
+        if self.attendee:
+            self.attendee.email = value
 
     def get_code_for(self, game_id):
         codes_for_game = [code for code in self.codes if code.game_id == game_id]
@@ -372,6 +410,15 @@ class IndieGame(MagModel, ReviewMixin):
     @property
     def email(self):
         return self.studio.email
+    
+    @property
+    def admin_email(self):
+        if self.showcase_type == c.MIVS:
+            return c.MIVS_EMAIL
+        if self.showcase_type == c.INDIE_ARCADE:
+            return c.INDIE_ARCADE_EMAIL
+        if self.showcase_type == c.INDIE_RETRO:
+            return c.INDIE_RETRO_EMAIL
 
     @property
     def reviews_to_email(self):
@@ -522,6 +569,10 @@ class IndieGame(MagModel, ReviewMixin):
     @property
     def has_issues(self):
         return any(r.has_issues for r in self.reviews)
+    
+    @property
+    def issues(self):
+        return [r for r in self.reviews if r.has_issues]
 
     @property
     def confirmed(self):
@@ -622,7 +673,7 @@ class IndieGameCode(MagModel):
     judge_id = Column(UUID, ForeignKey('indie_judge.id'), nullable=True)
     code = Column(UnicodeText)
     unlimited_use = Column(Boolean, default=False)
-    judge_notes = Column(UnicodeText, admin_only=True)
+    judge_notes = Column(UnicodeText, admin_only=True) # TODO: Remove?
 
     @property
     def type_label(self):
@@ -636,6 +687,7 @@ class IndieGameReview(MagModel):
         Choice(c.MIVS_VIDEO_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_status = Column(
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
+    game_status_text = Column(UnicodeText)
     game_content_bad = Column(Boolean, default=False)
     read_how_to_play = Column(Boolean, default=False)
 
@@ -653,6 +705,16 @@ class IndieGameReview(MagModel):
     )
 
     @property
+    def link_to_video(self):
+        if self.game.link_to_video:
+            return Markup(f"""<a href="{self.game.link_to_video}" target="_blank">{self.game.link_to_video}</a>""")
+        
+    @property
+    def link_to_game(self):
+        if self.game.link_to_game:
+            return Markup(f"""<a href="{self.game.link_to_game}" target="_blank">{self.game.link_to_game}</a>""")
+
+    @property
     def game_score(self):
         if self.has_game_issues or not (self.readiness_score and self.design_score and self.enjoyment_score):
             return 0
@@ -664,8 +726,7 @@ class IndieGameReview(MagModel):
 
     @property
     def has_game_issues(self):
-        if self.game_status != c.COULD_NOT_PLAY:
-            return self.game_status in c.MIVS_PROBLEM_STATUSES
+        return self.game_status in c.MIVS_PROBLEM_STATUSES
 
     @property
     def has_issues(self):

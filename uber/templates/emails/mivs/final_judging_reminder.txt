@@ -2,7 +2,7 @@
 
 We just wanted to remind you that we can only continue to take new judging scores until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}.  If you don't feel that you have the time to complete your games before then, please let us know ASAP so that we can find replacement judges.
 
-As always, you can access your list of games at {{ c.URL_BASE }}/mivs_judging
+As always, you can access your list of games at {{ c.URL_BASE }}/showcase_judging
 
 So far, you have finished judging {{ judge.game_reviews|length }} out of {{ judge.reviews|length }} assigned games.
 

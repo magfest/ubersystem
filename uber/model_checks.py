@@ -354,24 +354,6 @@ def _is_invalid_url(url):
         return True
 
 
-IndieJudge.required = [
-    ('platforms', 'Platforms'),
-    ('genres', 'Genres'),
-]
-
-
-@validation.IndieJudge
-def must_have_pc(judge):
-    if c.PC not in judge.platforms_ints and c.PCGAMEPAD not in judge.platforms_ints:
-        return 'You must have a PC to judge for MIVS.'
-
-
-@validation.IndieJudge
-def vr_text(judge):
-    if c.VR in judge.platforms_ints and not judge.vr_text:
-        return 'Please tell us what VR/AR platforms you own.'
-
-
 @validation.IndieStudio
 def showcase_new_studio_deadline(studio):
     if studio.is_new and not c.INDIE_SHOWCASE_OPEN:

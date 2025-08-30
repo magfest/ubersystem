@@ -1,6 +1,6 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% extends "preregistration/preregbase.html" %}
-{% set title = c.EVENT_NAME ~ "Showcase Studio" %}
+{% set title_text = c.EVENT_NAME ~ "Showcase Studio" %}
 {% block backlink %}{% endblock %}
 {% block content %}
 <div class="card card-body">
@@ -10,7 +10,7 @@
         <input type="hidden" name="id" value="{{ studio.id }}" />
         {{ csrf_token() }}
     
-        {% include "forms/showcase/studio.html" %}
+        {% include "forms/showcase/studio_info.html" %}
 
         <div class="form-group">
         <div class="col-sm-6 col-sm-offset-3">

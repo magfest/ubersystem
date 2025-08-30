@@ -1,0 +1,116 @@
+{% extends "preregistration/preregbase.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% block content %}
+
+<div class="card card-body">
+{% if judge.status == c.UNCONFIRMED %}
+<h2>Confirm Showcase Judging</h2>
+  <form method="post" action="index" role="form">
+    <p>Would you like to be a judge for {{ judge.showcases_labels|readable_join }} this year?</p>
+    <div class="form-text">Select an option below</div>
+    <div class="card card-body mb-3">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ judge.id }}" />
+      <div class="radio">
+        <label>
+          <input type="radio" name="status" value="{{ c.CONFIRMED }}" required /> Yes!
+        </label>
+      </div>
+      <div class="radio">
+        <label>
+          <input type="radio" name="status" value="{{ c.NEXT_YEAR }}" required /> No, not this year. (We'll contact you again next year)
+        </label>
+      </div>
+      <div class="radio">
+        <label>
+          <input type="radio" name="status" value="{{ c.CANCELLED }}" required /> No, please remove me from the list.
+        </label>
+      </div>
+    </div>
+    {% if c.MIVS in judge.showcases_ints %}
+    {% set mivs_judge_info = mivs_judge_info or forms['mivs_judge_info'] %}
+    <div class="mb-3" x-data="{}">
+      {{ form_macros.input(mivs_judge_info.no_game_submission) }}
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+{% elif judge.status == c.NEXT_YEAR %}
+  Sorry you won't be able to judge this year. We'll be in touch next year and hope you can join us then.
+{% elif judge.status == c.CANCELLED %}
+  Thank you for updating your preference, we'll be removing you from the judging list going forward. Thanks for all the work you've put into judging for MIVS in the past. If you change your mind, email {{ c.MIVS_EMAIL|email_only|email_to_link }}.
+{% elif judge.status == c.DISQUALIFIED %}
+  Unfortunately, since you did not complete reviewing your assigned games before the deadline, you have been disqualified as a judge for this year. If this doesn't sound right, email {{ c.MIVS_EMAIL|email_only|email_to_link }}.
+{% else %}
+  <p>Welcome to {{ c.EVENT_NAME }} Indies! You are confirmed as a judge in the {{ judge.showcases_labels|readable_join }} showcase{{ judge.showcases_ints|length|pluralize }} for {{ c.EVENT_NAME_AND_YEAR }}.</p>
+  {% if c.MIVS in judge.showcases_ints %}
+  <h2>Your Preferences</h2>
+    <p>In order to help us match you with the right kinds of games, please tell us what genres you prefer to play and what platforms you own.</p>
+
+    {{ form_macros.form_validation('judge-form', 'validate_judge') }}
+    <form novalidate method="post" action="index" role="form" id="judge-form">
+      <input type="hidden" name="id" value="{{ judge.id }}" />
+      {{ csrf_token() }}
+      {% include "forms/showcase/mivs_judge_info.html" %}
+      
+      <button type="submit" class="btn btn-primary mb-3">Update Preferences</button>
+    </form>
+  {% endif %}
+
+<h2>Your Games For Review</h2>
+
+<p>You ({{ judge.full_name }}) have been assigned {{ judge.reviews|length }} games for review,
+of which you have reviewed {{ judge.game_reviews|length }}.</p>
+
+<table class="table datatable">
+<thead>
+    <tr>
+      {% if judge.showcases_ints|length > 1 %}<th>Showcase</th>{% endif %}
+      <th>Game</th>
+      <th>Game Review Status</th>
+      <th>Your Score</th>
+    </tr>
+</thead>
+<tbody>
+{% for review in judge.reviews %}
+    <tr>
+        {% if judge.showcases_ints|length > 1 %}<td>{{ review.game.showcase_type_label }}</td>{% endif %}
+        <td>
+          {{ review.game.title }}
+        </td>
+        <td>
+          {% if review.game.link_to_game %}
+            {% if review.game_status == c.PENDING %}
+              <a href="game_review?id={{ review.id }}">{{ review.game_status_label }}</a>
+            {% else %}
+              {% if review.game_status == c.PLAYABLE %}Reviewed{% else %}{{ review.game_status_label }}{% endif %}
+              [<a href="game_review?id={{ review.id }}">Edit</a>]
+            {% endif %}
+            <br/>(Video: {{ review.video_status_label }})
+          {% else %}
+            {% if review.video_status == c.PENDING %}
+              <a href="game_review?id={{ review.id }}">{{ review.video_status_label }}</a>
+            {% else %}{{ review.video_status_label }} [<a href="game_review?id={{ review.id }}">Edit</a>]
+            {% endif %}
+          {% endif %}
+        </td>
+        {% if not review.game_score %}
+        <td>N/A</td>
+        {% else %}
+        <td>
+          {% set score_breakdown %}
+          <em>Show Readiness</em>: {{ review.readiness_score }} <br/>
+          <em>Overall Design</em>: {{ review.design_score }} <br/>
+          <em>Overall Enjoyment</em>: {{ review.enjoyment_score }}
+          {% endset %}
+          {{ review.game_score|round(1) }}
+          <a href="#score-breakdown" data-bs-toggle="popover" data-bs-html="true" data-bs-content="{{ score_breakdown }}"><i class="fa fa-info-circle"></i></a>
+        </td>
+        {% endif %}
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+{% endif %}
+</div>
+{% endblock %}

@@ -383,7 +383,7 @@ class MagForm(Form):
         # and convert DOBs into the format that our DateMaskInput expects
         # and process our UniqueList field data if it's been submitted as multiple fields
 
-        force_defaults = force_form_defaults and (not obj or obj.is_new)
+        force_defaults = force_form_defaults and (not obj or obj.is_new) and cherrypy.request.method != 'POST'
 
         for name, field in self._fields.items():
             if kwargs.get('field_prefix', ''):
@@ -408,16 +408,18 @@ class MagForm(Form):
                   ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
                     formdata[prefixed_name] = []
-                elif field_in_obj and isinstance(getattr(obj, name), str):
-                    formdata[prefixed_name] = getattr(obj, name).split(',')
-                else:
-                    formdata[prefixed_name] = getattr(obj, name)
+                elif field_in_obj:
+                    obj_data = getattr(obj, name)
+                    if obj_data and isinstance(obj_data, str):
+                        formdata[prefixed_name] = getattr(obj, name).split(',')
+                    elif obj_data:
+                        formdata[prefixed_name] = getattr(obj, name)
             elif isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
                 formdata[prefixed_name] = getattr(obj, name).strftime('%m/%d/%Y')
             elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[prefixed_name], list):
                 formdata[prefixed_name] = ','.join(formdata[prefixed_name])
 
-            if force_defaults and not field_in_formdata and not isinstance(field, BooleanField):
+            if force_defaults and not field_in_formdata:
                 if field.default is not None:
                     formdata[prefixed_name] = field.default
                 elif hasattr(obj, name):
@@ -476,6 +478,7 @@ class MagForm(Form):
             This function implements all our custom logic to apply when initializing a field. Currently, we:
             - Add a reference to the field so we can traverse back up to its form
             - Refresh the field's choices if it's listed in the form's `dynamic_choices_fields`
+            - Convert the field's choices to a list of tuples so we can turn it into a dict() as needed
             - Get a label and description override from a function on the form class, if there is one
             - Add aria-describedby to the field for use in clientside validations
 
@@ -490,6 +493,10 @@ class MagForm(Form):
 
             if field_name in form.dynamic_choices_fields.keys():
                 bound_field.choices = form.dynamic_choices_fields[field_name]()
+
+            if hasattr(bound_field, 'choices') and bound_field.choices and not isinstance(bound_field.choices[0], tuple):
+                choices = bound_field.choices
+                bound_field.choices = list(zip(choices, choices))
 
             if hasattr(form, field_name + '_label'):
                 field_label = get_override_attr(form, field_name, '_label')
