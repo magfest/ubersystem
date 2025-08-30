@@ -15,7 +15,7 @@ from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
-from uber.custom_tags import readable_join
+from uber.custom_tags import readable_join, datetime_local_filter
 from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, utcnow, \
@@ -66,6 +66,22 @@ class IndieJudge(MagModel, ReviewMixin):
     def judging_complete(self):
         return len(self.reviews) == len(self.game_reviews)
     
+    @property
+    def single_showcase(self):
+        if not self.showcases_ints or len(self.showcases_ints) > 1:
+            return
+        return self.showcases_ints[0]
+    
+    @property
+    def showcase_deadlines(self):
+        deadline_list = []
+        for showcase in self.showcases_ints:
+            deadline_name = str(c.SHOWCASE_GAME_TYPES[showcase]).upper().replace(' ', '_') + "_JUDGING_DEADLINE"
+            deadline = getattr(c, deadline_name, None)
+            if deadline:
+                deadline_list.append(f"{datetime_local_filter(deadline)} ({c.SHOWCASE_GAME_TYPES[showcase]})")
+        return deadline_list
+
     @property
     def showcases_labels(self):
         return [c.SHOWCASE_GAME_TYPES[int(showcase)] for showcase in self.showcases_ints]
