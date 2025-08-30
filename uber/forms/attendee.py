@@ -9,7 +9,7 @@ from wtforms.widgets import TextInput
 
 from uber.config import c
 from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, CustomValidation, DateMaskInput)
+                        HiddenBoolField, HiddenIntField, BlankOrIntegerField, DateMaskInput)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
 from uber.models import Attendee, BadgeInfo, Session, PromoCodeGroup
@@ -247,7 +247,7 @@ class AdminBadgeFlags(BadgeFlags):
     can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
     badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)
     badge_type = SelectField('Badge Type', coerce=int, choices=c.BADGE_OPTS)
-    badge_num = IntegerField('Badge #', default='', widget=TextInput())
+    badge_num = BlankOrIntegerField('Badge #', default='')
     no_badge_num = BooleanField('Omit badge #')
     ribbon = SelectMultipleField('Ribbons', coerce=int, choices=c.RIBBON_OPTS, widget=MultiCheckbox())
     group_membership = SelectField('Group')

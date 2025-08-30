@@ -54,7 +54,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, game, form_list, field_prefix='new' if game.is_new else game.id)
+        forms = load_forms(params, game, form_list)
         all_errors = validate_model(forms, game)
 
         if all_errors:
@@ -66,7 +66,7 @@ class Root:
         game = session.indie_game(id)
 
         if cherrypy.request.method == 'POST':
-            forms = load_forms(params, game, ['MivsDemoInfo'], field_prefix=game.id)
+            forms = load_forms(params, game, ['MivsDemoInfo'])
             for form in forms.values():
                 form.populate_obj(game)
 

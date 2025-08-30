@@ -6,13 +6,13 @@ from uber.config import c
 from uber.forms.hotel_lottery import *
 from uber.forms.hotel_lottery import html_format_date
 from uber.model_checks import validation
-from uber.utils import localized_now
+from uber.utils import get_age_from_birthday
 
 
 def get_common_required_fields(check_func):
     return {
         'earliest_checkin_date': ("Please enter your preferred check-in date.", 'earliest_checkin_date', check_func),
-        'latest_checkout_date': ("Please enter your preferred check-out date.", 'earliest_checkin_date', check_func),
+        'latest_checkout_date': ("Please enter your preferred check-out date.", 'latest_checkout_date', check_func),
         'selection_priorities': ("Please rank your priorities for selecting a hotel room.", 'selection_priorities', check_func),
     }
 
@@ -82,6 +82,15 @@ RoomLottery.field_validation.required_fields.update({
 
 RoomLottery.field_validation.validations['latest_checkin_date']['optional'] = validators.Optional()
 RoomLottery.field_validation.validations['earliest_checkout_date']['optional'] = validators.Optional()
+
+
+@RoomLottery.field_validation('earliest_checkin_date')
+def old_enough_to_check_in(form, field):
+    if not field.data or not form.model.birthdate:
+        return
+    
+    if get_age_from_birthday(form.model.birthdate, field.data) < 21:
+        raise ValidationError("You must be at least 21 years old on your earliest check-in date.")
 
 
 @RoomLottery.field_validation('earliest_checkin_date')

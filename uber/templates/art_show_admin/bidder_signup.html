@@ -1,9 +1,45 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% import 'art_show_common/bidder_signup_macros.html' as bidder_signup_macros with context %}
-{% include "region_opts.html" %}
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Bidder Management{% endblock %}
-{% set new_attendee = Attendee() %}
 {% block content %}
+
+{%- macro bidder_signup_modal(attendee) -%}
+<div class="modal fade" id="bidder-modal-{{ attendee.id }}" role="dialog" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="bidder-title-{{ attendee.id }}">Bidder Sign-Up</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form novalidate method="post" action="../art_show_admin/sign_up_bidder" class="bidder-signup-form" id="bidder-signup-{{ attendee.id }}" role="form">
+        <div class="modal-body">
+          {{ form_macros.form_validation('bidder-signup-' ~ attendee.id, 'validate_bidder_signup') }}
+          <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+          {{ csrf_token() }}
+
+          {% set bidder_signup = forms[attendee.id]['bidder_signup'] %}
+          {% set bidder_attendee_info = forms[attendee.id]['bidder_attendee_info'] %}
+
+          {% include 'forms/art_show/admin_bidder_signup.html' with context %}
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" name="print" value="1">
+            Save & Print Form
+          </button>
+
+          {% if attendee.art_show_bidder.signed_up %}
+          <button type="submit" class="btn btn-success">Save</button>
+          {% else %}
+          <button type="submit" class="btn btn-success save-bidder-signup" name="complete" value="1">Complete Signup</button>
+          {% endif %}
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{%- endmacro -%}
 
 {% block adminheader %}
 <script>
@@ -21,9 +57,9 @@
     Search by bidder number, badge number, or badge name to add a new bidder.
   {% endif %}
 </p>
-<div class="row justify-content-start">
+<div class="row justify-content-start mb-3">
   <div class="col-sm-6 col-md-4">
-    <form role="form" method="get" action="bidder_signup" id="search_form">
+    <form role="form" method="get" action="bidder_signup">
       <div class="input-group">
         <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
         <button class="btn btn-outline-secondary" type="submit">
@@ -34,7 +70,7 @@
   </div>
   {% if c.INDEPENDENT_ART_SHOW %}
   <div class="col col-sm-auto">
-    <button class="btn btn-primary open_modal" data-attendee_id="{{ new_attendee.id }}">Add New Bidder</button>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bidder-modal-new">Add New Bidder</button>
   </div>
   {% endif %}
   {% if search_text %}
@@ -67,7 +103,7 @@
       <th> <a href="bidder_signup?order={{ order.legal_name }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Name on ID</a> </th>
       {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="bidder_signup?order={{ order.badge_printed_name }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Badge Name</a> </th>{% endif %}
       {% if c.NUMBERED_BADGES %}<th> <a href="bidder_signup?order={{ order.badge_num }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Badge #</a> </th> {% endif %}
-      <th> <a href="bidder_signup?order={{ order.art_show_app_id }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Art Show {{ c.ART_SHOW_APP_TERM|title }}</a> </th>
+      <th> <a href="bidder_signup?order={{ order.art_show_attendee_id }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}">Art Show {{ c.ART_SHOW_APP_TERM|title }}</a> </th>
       <th></th>
       {% endblock tableheadings %}
     </tr>
@@ -78,7 +114,7 @@
       {% block tablerows scoped %}
       <td id="group_{{ attendee.id }}">
         {% if attendee.art_show_bidder %}
-        <a href="#" class="open_modal" data-attendee_id="{{ attendee.id }}">{{ attendee.art_show_bidder.bidder_num }}</a>
+        {{ attendee.art_show_bidder.bidder_num }}
         {% endif %}
       </td>
       <td>
@@ -96,14 +132,18 @@
         N/A
         {% endfor %}
       </td>
-      {% if attendee.art_show_bidder and attendee.art_show_bidder.signed_up %}
-        <td><em>Signed-up {{ attendee.art_show_bidder.signed_up_local|datetime("%-I:%M%p")|lower }} {{ attendee.art_show_bidder.signed_up_local|datetime("%a") }}
-          (<a href="#" class="open_modal" data-attendee_id="{{ attendee.id }}">View/Edit Bidder Info</a>)</em></td>
-      {% else %}
-      <td id="cin_{{ attendee.id }}">
-        <button class="btn btn-primary open_modal" data-attendee_id="{{ attendee.id }}">{% if attendee.art_show_bidder %}Complete {% endif %}Sign Up</button>
+      <td>
+        {% set show_edit_btn = attendee.art_show_bidder and attendee.art_show_bidder.signed_up %}
+        <span id="bidder-signup-btn-{{ attendee.id }}"{% if show_edit_btn %} style="display:none;"{% endif %}>
+          <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bidder-modal-{{ attendee.id }}">{% if attendee.art_show_bidder %}Complete {% endif %}Sign Up</button>
+        </span>
+        <span id="edit-btn-{{ attendee.id }}"{% if not show_edit_btn %} style="display:none;"{% endif %}>
+            <span id="bidder-signup-text-{{ attendee.id }}">
+              <em>Signed up {{ attendee.art_show_bidder.signed_up_local|datetime("%-I:%M%p")|lower }} {{ attendee.art_show_bidder.signed_up_local|datetime("%a") }}
+            </span>
+            (<a href="#bidder-modal-{{ attendee.id }}" data-bs-toggle="modal">View/Edit Bidder Info</a>)</em>
+          </span>
       </td>
-      {% endif %}
       {% endblock tablerows %}
     </tr>
     {% endfor %}
@@ -131,80 +171,69 @@
 </ul>
 {% endif %}
 {% endblock table %}
-<iframe id="upload_frame" name="upload_frame" style="display:none"></iframe>
 <div id="bidder_modals">
   {% if c.INDEPENDENT_ART_SHOW %}
-    {{ bidder_signup_macros.bidder_signup_modal(new_attendee) }}
+    {{ bidder_signup_modal(Attendee()) }}
   {% endif %}
   {% for attendee in attendees -%}
-    {{ bidder_signup_macros.bidder_signup_modal(attendee) }}
+    {{ bidder_signup_modal(attendee) }}
   {%- endfor %}
 </div>
-<form role="form" method="post" id="print_form" action="print_bidder_form">
-  <input type="hidden" name="id" id="print_id" />
-  {{ csrf_token() }}
-</form>
 <script type="text/javascript">
-    var openModal = function(e) {
-        e.preventDefault();
-        var id = $(this).data('attendee_id');
-        $('#bidder_modals').find('.modal').removeClass('print_form');
-        hideMessageBox('bidder-message-alert-'+ id);
-        var modal = bootstrap.Modal.getOrCreateInstance($('#attendee_'+id));
-        modal.show();
-    };
-
     $(document).ready(function() {
-        var print = false;
-        $('.open_modal').on('click', openModal);
-        $('.save_bidder').on('click', function() {
-            print = $(this).hasClass('print');
-            if ($(this).hasClass('complete')) {
-                $('.complete').val('1');
-            } else {
-                $('.complete').val('');
-            }
-        });
+      $('.bidder-signup-form').on('submit', function(event) {
+        event.preventDefault();
 
-        $('#bidder_modals').find('form').submit(function(e) {
-            $(this).find('.save_bidder').prop('disabled', true);
-            return true;
-        });
+        if(!serverValidationPassed) {
+          return false;
+        }
+        
+        let form = $(this)
+        let data = form.serialize();
+        let attendee_id = form.find('[name=attendee_id]').val();
+        form.find('button[type=submit]').prop('disabled', true);
 
-        $('#upload_frame').load(function() {
-            try {
-                var responseText = $(this.contentDocument.body).text().trim();
-                this.contentDocument.body.innerHTML = '';
-                if (responseText) {
-                    try {
-                        var response = $.parseJSON(responseText);
-                        if (!response['error']) {
-                            var $modals = $('#bidder_modals').find('.modal');
+        if (event.originalEvent !== undefined && event.originalEvent.submitter.name) {
+          data = data + "&" + event.originalEvent.submitter.name + "=" + event.originalEvent.submitter.value;
+        }
 
-                            if (print) {
-                                window.open('', 'print_form_target', 'width=400,height=400,resizeable,scrollbars');
-                                $('#print_id').val(response['id']);
-                                $('#print_form').attr('target', 'print_form_target').submit();
-                                $('#attendee_'+response['attendee_id']).find('.bidder_num').text(response['bidder_num']);
-                                $('#attendee_'+response['attendee_id']).find('.bidder_id').val(response['bidder_id']);
-                            } else {
-                              var modal = bootstrap.Modal.getOrCreateInstance($modals);
-                              modal.hide();
-                              location.href = '?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode or "" }}&message='+response['success'];
-                            }
-                        } else {
-                            showErrorMessage(response['error'], 'bidder-message-alert-'+response['attendee_id']);
-                        }
-                    } catch(ex) {
-                      modal.hide();
-                      showErrorMessage('There was an error saving the bidder: ' + responseText.substring(0, 1024));
-                    }
+        $.ajax({
+            method: 'POST',
+            url: form.attr("action"),
+            dataType: 'json',
+            data: data,
+            success: function (json) {
+                hideMessageBox('form-validations-bidder-signup-' + attendee_id);
+                hideMessageBox();
+                if (json.success) {
+                  $("#message-alert").addClass("alert-success").show().children('span').html(json.success);
+                  $("#bidder-modal-" + attendee_id + " .btn-close").trigger('click');
+                  if (json.signed_up_str) {
+                    $('#bidder-signup-btn-' + attendee_id).hide();
+                    $('#edit-btn-' + attendee_id).show();
+                    console.log(json.signed_up_str)
+                    $('#bidder-signup-text-' + attendee_id).html('<em>' + json.signed_up_str + '</em>')
+                    form.find('.save-bidder-signup').hide();
+                  }
+
+                  if (json.print) {
+                    window.open('../art_show_admin/print_bidder_form?attendee_id=' + attendee_id,
+                                '_blank', 'width=400,height=400,resizeable,scrollbars');
+                  }
+                } else {
+                showErrorMessage(json.error, 'form-validations-bidder-signup-' + attendee_id);
                 }
-            } finally {
-                $('#bidder_modals').find('.save_bidder').prop('disabled', false);
+            },
+            error: function () {
+                showErrorMessage('Unable to connect to server, please try again.', 'form-validations-bidder-signup-' + attendee_id);
+                $('#bidder-modal-' + attendee_id).scrollTop(0);
+            },
+            complete: function () {
+              form.find('button[type=submit]').prop('disabled', false);
+              serverValidationPassed = false;
             }
         });
-
+      })
     });
 </script>
 {% endblock content %}

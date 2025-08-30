@@ -1,0 +1,38 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set bidder_signup = bidder_signup or forms['bidder_signup'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    bidder_num
+    attendee_info
+    checkboxes
+    admin_notes
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">{% block bidder_num %}{% endblock %}</div>
+
+{% block attendee_info %}
+{% include 'forms/art_show/bidder_attendee_info.html' with context %}
+{% endblock %}
+
+<div class="row g-3 mb-3">
+{% block checkboxes %}
+{% if admin_area and not printable %}
+    {% set email_won_bids_label %}
+    <strong>Yes</strong>, email this bidder at {{ attendee.email }} about pieces they won in the art show.
+    {% endset %}
+{% else %}
+    {% set email_won_bids_label = bidder_signup.email_won_bids.label.text %}
+{% endif %}
+<div class="col-sm">{{ form_macros.input(bidder_signup.email_won_bids, label_text=email_won_bids_label) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">{% block admin_notes %}{% endblock %}</div>
+
+</div>

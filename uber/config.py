@@ -1389,6 +1389,11 @@ class Config(_Overridable):
     @dynamic
     def PANELS_DEPT_OPTS(self):
         return [(key, name) for key, name, _ in self.PANELS_DEPT_OPTS_WITH_DESC]
+
+    @request_cached_property
+    @dynamic
+    def PANELS_DEPTS(self):
+        return {key: name for key, name, _ in self.PANELS_DEPT_OPTS_WITH_DESC}
     
     @request_cached_property
     @dynamic
@@ -2042,12 +2047,12 @@ c.TOURNAMENT_AVAILABILITY_OPTS.append([_val, 'Morning (8am-12pm) of ' + c.ESCHAT
 c.MIVS_CODES_REQUIRING_INSTRUCTIONS = [
     getattr(c, code_type.upper()) for code_type in c.MIVS_CODES_REQUIRING_INSTRUCTIONS]
 
-# c.MIVS_INDIE_JUDGE_GENRE* should be the same as c.MIVS_INDIE_GENRE* but with a c.MIVS_ALL_GENRES option
+# c.MIVS_JUDGE_GENRE* should be the same as c.MIVS_GENRE* but with a c.MIVS_ALL_GENRES option
 _mivs_all_genres_desc = 'All genres'
 c.create_enum_val('mivs_all_genres')
-c.make_enum('mivs_indie_judge_genre', _config['enums']['mivs_indie_genre'])
-c.MIVS_INDIE_JUDGE_GENRES[c.MIVS_ALL_GENRES] = _mivs_all_genres_desc
-c.MIVS_INDIE_JUDGE_GENRE_OPTS.insert(0, (c.MIVS_ALL_GENRES, _mivs_all_genres_desc))
+c.make_enum('mivs_judge_genre', _config['enums']['mivs_genre'])
+c.MIVS_JUDGE_GENRES[c.MIVS_ALL_GENRES] = _mivs_all_genres_desc
+c.MIVS_JUDGE_GENRE_OPTS.insert(0, (c.MIVS_ALL_GENRES, _mivs_all_genres_desc))
 
 c.MIVS_PROBLEM_STATUSES = {getattr(c, status.upper()) for status in c.MIVS_PROBLEM_STATUSES.split(',')}
 

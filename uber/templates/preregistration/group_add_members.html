@@ -84,11 +84,11 @@
     {% endif %}
   {% endif %}
 {% endif %}
-{% if group.is_valid and not add_badges_disabled and group.can_add_existing_badges %}
-{% if group.is_valid and c.REMAINING_BADGES > 50 and group.min_badges_addable and (group.dealer_badges_remaining > 0 or not group.is_dealer) %}
+{% if group.is_valid and group.can_add_existing_badges %}
+{% if group.is_valid and not add_badges_disabled and c.REMAINING_BADGES > 50 and group.min_badges_addable and (group.dealer_badges_remaining > 0 or not group.is_dealer) %}
 OR
 {% endif %}
-<button id="attach-btn"{% if add_badges_disabled %} disabled{% endif %} class="btn btn-primary mt-1">
+<button id="attach-btn" class="btn btn-primary mt-1">
     Add {{ member }} by confirmation number
 </button>
 
@@ -97,7 +97,7 @@ OR
     <form method="post" id="find-group-member-form" action="find_group_member">
         <input type="hidden" name="id" value="{{ group.id }}" />
         {{ csrf_token() }}
-        <div class="row g-3">
+        <div class="row g-3 mb-3">
             <div class="col-auto">
                 If one of your {{ member }}s has already bought a badge,
                 you can add them to your group by entering their registration confirmation number, first name, and last name below.

@@ -82,7 +82,7 @@
         </p>
     </div>
 
-    {{ macros.form_group(game, 'description', type="textarea", is_required=True) }}
+    {{ macros.form_group(game, 'description', label="Description for Internal Judging", type="textarea", is_required=True) }}
     <div class="form-group">
         <label class="col-sm-3 control-label">Age Group</label>
         <div class="col-sm-6">
@@ -101,10 +101,15 @@
 
     {% if game.team.status == c.ACCEPTED %}
     <div class="form-group">
-        <label class="col-sm-3 control-label">Promo Blurb</label>
+        <label class="col-sm-3 control-label">Description for Guidebook</label>
         <div class="col-sm-6">
-            <input class="form-control focus" type="text" name="promo_blurb" value="{{ game.promo_blurb }}" />
+            <textarea name="promo_blurb" class="form-control" rows="5">
+                {{ game.promo_blurb }}
+            </textarea>
         </div>
+        <p class="help-block col-sm-9 col-sm-offset-3">
+            If left empty, this game will not be not be added to Guidebook.
+        </p>
     </div>
 
     <div class="form-group">
@@ -129,6 +134,13 @@
             <select name="min_players" class="form-control">
                 {{ int_options(1, 20, game.min_players) }}
             </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Interested In Running A Tournament?</label>
+        <div class="col-sm-6">
+            {{ macros.checkbox(game, 'tournament', label="Yes, we're interested in running a tournament for this game.") }}
         </div>
     </div>
 

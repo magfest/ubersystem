@@ -1,0 +1,70 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set retro_game_details = retro_game_details or forms['retro_game_details'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    genres
+    platforms
+    release_date_desc
+    logo_assets
+    links
+    how_to_play
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block genres %}
+  <div class="col-sm">
+    {% call form_macros.input(retro_game_details.genres, required_if="true") %}
+    <div class="col-sm-6">
+    {{ form_macros.input(retro_game_details.genres_text, show_label=False) }}
+    </div>
+    {% endcall %}
+  </div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block platforms %}
+  <div class="col-sm">
+    {% call form_macros.input(retro_game_details.platforms, required_if="true") %}
+    <div class="col-sm-6">
+    {{ form_macros.input(retro_game_details.platforms_text, show_label=False) }}
+    </div>
+    {% endcall %}
+  </div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block release_date_desc %}
+    <div class="col-sm">{{ form_macros.input(retro_game_details.release_date) }}</div>
+    <div class="col-sm">{{ form_macros.input(retro_game_details.description) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block logo_assets %}
+  <div class="col-sm">{{ form_macros.input(retro_game_details.game_logo) }}</div>
+  <div class="col-sm">{{ form_macros.input(retro_game_details.other_assets) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block links %}
+  <div class="col-sm">{{ form_macros.input(retro_game_details.link_to_video) }}</div>
+  <div class="col-sm">{{ form_macros.input(retro_game_details.link_to_game) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block how_to_play %}
+  <div class="col-sm">{{ form_macros.input(retro_game_details.how_to_play) }}</div>
+{% endblock %}
+</div>
+
+</div>

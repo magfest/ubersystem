@@ -163,6 +163,20 @@ class Root:
                 'available' if val in available else ''
                 for val, desc in c.MITS_SCHEDULE_OPTS
             ])
+    
+    @csv_file
+    def tournament_interest(self, out, session):
+        out.writerow(['URL', 'Team', 'Primary Contact Names', 'Primary Contact Emails', 'Games'])
+        for team in session.mits_teams().filter_by(status=c.ACCEPTED):
+            tournament_games = [game for game in team.games if game.tournament]
+            if tournament_games:
+                out.writerow([
+                    c.URL_BASE + '/mits_admin/team?id=' + team.id,
+                    team.name,
+                    '\n'.join(a.full_name for a in team.primary_contacts),
+                    '\n'.join(a.email for a in team.primary_contacts),
+                    '\n'.join(g.name for g in tournament_games),
+                ])
 
     @multifile_zipfile
     def accepted_games_images_zip(self, zip_file, session):

@@ -238,12 +238,17 @@ class LotteryApplication(MagModel):
     @property
     def group_leader_name(self):
         return f"{self.attendee.first_name[:1]}. {self.attendee.last_name[:1]}."
-    
+
     @property
     def email(self):
         if self.attendee:
             return self.attendee.email
-        
+
+    @property
+    def birthdate(self):
+        if self.attendee:
+            return self.attendee.birthdate
+
     @property
     def attendee_name(self):
         return self.attendee.full_name if self.attendee else "[DISASSOCIATED]"

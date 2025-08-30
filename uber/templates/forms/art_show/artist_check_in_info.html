@@ -1,0 +1,71 @@
+{% extends 'forms/art_show/artist_check_out_info.html' %}
+
+{% block artist_ids %}
+{% if printable %}
+</div>
+<div class="d-flex justify-content-between mb-3">
+<div class="text-center ms-1">
+    <div class="form-text">Location</div>
+    <div style="outline: 1px solid black; width: 6em; height: 3em;" class="d-flex pt-0 justify-content-center align-items-center">
+        <span class="locations-text">{{ app.locations }}</span>
+    </div>
+</div>
+<div class="text-center">
+    <div class="form-text">Artist ID</div>
+    <span style="font-size: 2em;">{{ app.artist_id }}</span>
+</div>
+{% else %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.locations) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id) }}</div>
+{% if artist_check_in_out_info.artist_id_ad.data %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id_ad) }}</div>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block artist_names %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_name, placeholder=app.artist_or_full_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.banner_name, placeholder=app.display_name) }}</div>
+{% if artist_check_in_out_info.banner_name_ad.data %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.banner_name_ad, placeholder=app.mature_display_name) }}</div>
+{% endif %}
+{% endblock %}
+
+{% block attendee_names %}
+<div class="col-sm">{{ form_macros.input(artist_attendee_info.first_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_attendee_info.last_name) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_attendee_info.legal_name, label_text="Name on Photo ID") }}</div>
+{% endblock %}
+
+{% block addresses %}
+{% if app.attendee.badge_status != c.NOT_ATTENDING %}
+    {{ form_macros.address_fields(artist_attendee_info, label_prefix="Attendee ") }}
+{% endif %}
+{% if app.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW %}
+    <div class="row g-3 mb-3"><div class="col-sm">{{ form_macros.input(artist_mailing_info.business_name) }}</div></div>
+    {{ form_macros.address_fields(artist_mailing_info, label_prefix="Mailing " if app.delivery_method == c.BY_MAIL else "") }}
+{% endif %}
+{% endblock %}
+
+{% block delivery_method_agent %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.delivery_method) }}</div>
+{% if c.ONE_AGENT_PER_APP %}
+<div class="col-sm">
+    <div class="form-text">Agent</div>
+    {% if printable %}
+        {{ app.single_agent.full_name }}
+    {% else %}
+        <div class="form-control-plaintext">
+            {{ app.single_agent.full_name }}
+            {% if c.HAS_REGISTRATION_ACCESS %}
+            (<a href="../registration/form?id={{ app.single_agent.id }}" target="_blank">View Attendee</a>)
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block notes %}
+<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.check_in_notes) }}</div>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set arcade_game_info = arcade_game_info or game_forms['arcade_game_info'] %}
+{% set arcade_logistics = arcade_logistics or game_forms['arcade_logistics'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    basic_info
+    game_info
+    logistics
+    physical_setup
+    other_info
+    extra_needs
+    game_photos_modal
+    review_info
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block basic_info %}
+<div class="col-sm">{{ form_macros.input(arcade_game_info.title) }}</div>
+<div class="col-sm">
+    <div class="form-text">Studio</div>
+    {{ game.studio.name }}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block game_info %}
+<div class="col-sm">{{ form_macros.input(arcade_game_info.description) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block logistics %}
+<div class="col-sm">
+    {{ form_macros.input(arcade_logistics.game_hours) }}{% if game.game_hours_text %}:
+    {{ game.game_hours_text }}{% endif %}
+</div>
+<div class="col-sm">{{ form_macros.input(arcade_logistics.game_end_time) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block physical_setup %}
+<div class="col-sm">
+    {{ form_macros.input(arcade_logistics.floorspace) }}{% if game.floorspace_text %}:
+    {{ game.floorspace_text }}{% endif %}
+</div>
+<div class="col-sm">
+    {{ form_macros.input(arcade_logistics.cabinet_type) }}{% if game.cabinet_type_text %}:
+    {{ game.cabinet_type_text }}{% endif %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block other_info %}
+<div class="col-sm">{{ form_macros.input(arcade_logistics.player_count) }}</div>
+<div class="col-sm">{{ form_macros.input(arcade_logistics.read_faq) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block extra_needs %}
+<div class="col-sm">{{ form_macros.input(arcade_logistics.sanitation_requests) }}</div>
+<div class="col-sm">{{ form_macros.input(arcade_logistics.transit_needs) }}</div>
+{% endblock %}
+</div>
+
+<hr/>
+
+{% block game_photos_modal %}
+<div
+    id="photos-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="photos-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+        <div class="modal-body">
+            {% for image in game.screenshots %}
+            <img class="img-fluid" src="{{ image.url }}" />
+            {% endfor %}
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+    </div>
+</div>
+<div class="row g-3 mb-3">
+    <div class="col-sm">
+        <div class="form-text">{{ arcade_game_info.link_to_video.label.text }}</div>
+        {{ review.link_to_video }}
+    </div>
+    <div class="col-sm">
+    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#photos-{{ game.id }}">View Submission Photos</button>
+    </div>
+</div>
+{% endblock %}
+
+</div>

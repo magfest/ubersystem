@@ -1,0 +1,30 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set retro_game_info = retro_game_info or forms['retro_game_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    title_contact
+    publisher_desc
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block title_contact %}
+<div class="col-sm">{{ form_macros.input(retro_game_info.title) }}</div>
+<div class="col-sm">{{ form_macros.input(retro_game_info.primary_contact_id, choices=studio.primary_contact_opts) }}</div>
+{% endblock %}
+</div>
+
+
+<div class="row g-3 mb-3">
+{% block publisher_desc %}
+  <div class="col-sm">{{ form_macros.input(retro_game_info.publisher_name) }}</div>
+  <div class="col-sm">{{ form_macros.input(retro_game_info.brief_description) }}</div>
+{% endblock %}
+</div>
+
+</div>

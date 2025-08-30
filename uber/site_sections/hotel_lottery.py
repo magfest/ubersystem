@@ -36,6 +36,7 @@ def _join_room_group(session, application, group_id):
         defaults = LotteryApplication().to_dict()
         for attr in defaults:
             if attr not in ['id', 'attendee_id', 'response_id',
+                            'legal_first_name', 'legal_last_name', 'cellphone',
                             'terms_accepted', 'data_policy_accepted',
                             'entry_started', 'entry_metadata']:
                 setattr(application, attr, defaults.get(attr))
@@ -634,14 +635,15 @@ class Root:
             return {'error': f"Please enter {readable_join(errors)}."}
 
         #room_group = session.lookup_registration_code(invite_code, LotteryApplication)
-        room_group = session.query(LotteryApplication).filter_by(confirmation_num=invite_code).first()
+        room_group = session.query(LotteryApplication).filter(
+            LotteryApplication.confirmation_num == invite_code,
+            LotteryApplication.room_group_name != '').first()
 
-        if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email):
-            return {'error': "No room group found. Please check the confirmation number and leader email address."}
+        if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email) or \
+                room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
+            return {'error': "No room group found. Please check the confirmation number and leader email address, \
+                    and make sure the application you're trying to join is a valid room group."}
 
-        if room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
-            return {'error': "No valid room group found. Please check the confirmation number and leader email address."}
-        
         if room_group.finalized:
             return {'error': "No valid room group found."}
 
@@ -661,7 +663,7 @@ class Root:
         if cherrypy.request.method == "POST":
             if not params.get('room_group_id'):
                 message = "Group ID invalid!"
-            elif application.group_members:
+            elif application.group_members or application.room_group_name:
                 message = "Please disband your own group before joining another group."
             if not message:
                 message, got_new_conf_num = _join_room_group(session, application, params.get('room_group_id'))

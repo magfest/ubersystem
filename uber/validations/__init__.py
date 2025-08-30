@@ -12,7 +12,7 @@ def placeholder_unassigned_fields(form):
     if form.is_admin and form.model.unassigned_group_reg:
         return ['first_name', 'last_name', 'email'] + field_list
 
-    if form.model.placeholder:
+    if form.model.placeholder or form.model.badge_status == c.NOT_ATTENDING:
         return field_list
 
     return []
@@ -66,6 +66,7 @@ address_required_validators = {
 
 
 from uber.validations.artist_marketplace import *
+from uber.validations.art_show import *
 from uber.validations.attendee import *
 from uber.validations.department import *
 from uber.validations.group import *

@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set title_text = "Add a Judge" %}
+
+{% block content %}
+<div class="card card-body">
+<h2>Add a Judge</h2>
+
+Enter the name and email address of the person you'd like to register as a judge.
+<ul>
+    <li>If this person is not already in our registration database, they will be registered for a complimentary attendee badge.</li>
+    <li>If this person doesn't already have an admin account, one will be created for them ONLY with showcase judging access.</li>
+    <li>Otherwise showcase judging access will be added onto their existing registration/account.</li>
+</ul>
+
+{{ form_macros.form_validation('judge-form', 'validate_judge', form_list=['NewJudgeInfo', 'JudgeShowcaseInfo', 'MivsJudgeInfo']) }}
+<form novalidate method="post" action="create_judge" id="judge-form" role="form">
+    <input type="hidden" name="showcase_type" value="{{ showcase_type }}" />
+    {{ csrf_token() }}
+
+    {% include "forms/showcase/new_judge_info.html" %}
+    {% include "forms/showcase/judge_showcase_info.html" %}
+
+    <button type="submit" class="btn btn-primary">Add Judge</button>
+</form>
+</div>
+{% endblock %}

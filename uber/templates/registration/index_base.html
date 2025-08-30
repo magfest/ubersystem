@@ -209,6 +209,13 @@
 {% endif %}
 {% endblock admin_controls %}
 {% block table %}
+{% set page_count = pages[-1] %}
+{% if page_count <= 50 %}
+    {% set skip_pages = 1 %}
+{% else %}
+    {% set skip_pages = 5 if page_count <= 500 else 10 %}
+{% endif %}
+
 <ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
   <li class="page-item{% if page == 1 %} disabled{% endif %}">
     <a class="page-link" href="{% if page == 1 %}#{% else %}index?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}{% endif %}">Previous</a>
@@ -218,7 +225,7 @@
     <li class="page-item active">
         <a class="page-link" href="#">{{ pagenum }}</a>
     </li>
-    {% else %}
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
     <li class="page-item">
         <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
     </li>
@@ -287,7 +294,7 @@
                 {% if c.DONATION_TIER_OPTS|length > 1 %}<td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>{% endif %}
                 <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
                 <td> <nobr>{{ attendee.age_group_conf.desc }}</nobr> </td>
-                {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
+                {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED or c.AFTER_EPOCH %}
                     {% if attendee.checked_in %}
                             <td>
                                 {% if not attendee.active_badge and attendee.lost_badges %}
@@ -344,7 +351,7 @@
     <li class="page-item active">
         <a class="page-link" href="#">{{ pagenum }}</a>
     </li>
-    {% else %}
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
     <li class="page-item">
         <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
     </li>

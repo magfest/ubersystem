@@ -146,7 +146,7 @@ def panels_waitlist_unaccepted_panels():
                                  )
 
 
-@celery.schedule(timedelta(hours=6))
+@celery.schedule(timedelta(minutes=30))
 def setup_panel_emails():
     if not c.PRE_CON:
         return
@@ -163,62 +163,67 @@ def setup_panel_emails():
         for fixture in current_email_fixtures:
             if fixture.sender not in [current_depts]:
                 AutomatedEmail._fixtures.pop(fixture.ident, None)
-            else:
+            elif fixture.ident in AutomatedEmail._fixtures:
                 emails_to_add.pop(fixture.sender, None)
 
         emails_to_add.pop(c.PANELS_EMAIL, None)
 
     for email, (id, name) in emails_to_add.items():
         sender = f'{c.EVENT_NAME} {name} <{email}>'
-        PanelAppEmailFixture(
+
+        def custom_panel_app_email(subject, template, filter, ident, dept_id=id, **kwargs):
+            PanelAppEmailFixture(
+                subject,
+                template,
+                lambda app: filter(app) and app.department == dept_id,
+                ident,
+                **kwargs)
+
+        custom_panel_app_email(
             'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
             'panels/application.html',
-            lambda app: app.department == id,
-            needs_approval=False,
+            lambda app: True,
             sender=sender,
             shared_ident='panelapps_received',
             ident=f'panelapps_received_{sluggify(name)}')
 
-        PanelAppEmailFixture(
+        custom_panel_app_email(
             'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
             'panels/panel_app_accepted.txt',
-            lambda app: app.status == c.ACCEPTED and app.department == id,
+            lambda app: app.status == c.ACCEPTED,
             sender=sender,
             shared_ident='panelapps_accepted',
             ident=f'panelapps_accepted_{sluggify(name)}')
 
-        PanelAppEmailFixture(
+        custom_panel_app_email(
             'Your {EVENT_NAME} Panel Application Has Been Declined: {{ app.name }}',
             'panels/panel_app_declined.txt',
-            lambda app: app.status == c.DECLINED and app.department == id,
+            lambda app: app.status == c.DECLINED,
             sender=sender,
             shared_ident='panelapps_declined',
             ident=f'panelapps_declined_{sluggify(name)}')
 
-        PanelAppEmailFixture(
+        custom_panel_app_email(
             'Your {EVENT_NAME} Panel Application Has Been Waitlisted: {{ app.name }}',
             'panels/panel_app_waitlisted.txt',
-            lambda app: app.status == c.WAITLISTED and app.department == id,
+            lambda app: app.status == c.WAITLISTED,
             sender=sender,
             shared_ident='panelapps_waitlisted',
             ident=f'panelapps_waitlisted_{sluggify(name)}')
 
-        PanelAppEmailFixture(
+        custom_panel_app_email(
             'Last chance to confirm your panel',
             'panels/panel_accept_reminder.txt',
-            lambda app: (
-                c.PANELS_CONFIRM_DEADLINE
-                and app.confirm_deadline
-                and app.department == id
-                and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
+            lambda app: (c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline
+                         and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
             sender=sender,
             shared_ident='panelapps_accept_reminder',
             ident=f'panelapps_accept_reminder_{sluggify(name)}')
 
-        PanelAppEmailFixture(
+        custom_panel_app_email(
             'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
             'panels/panel_app_scheduled.txt',
-            lambda app: app.event_id and app.department == id,
+            lambda app: app.event_id,
             sender=sender,
             shared_ident='panelapps_scheduled',
             ident=f'panelapps_scheduled_{sluggify(name)}')

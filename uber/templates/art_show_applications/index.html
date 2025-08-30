@@ -1,20 +1,7 @@
 {% extends "preregistration/preregbase.html" %}
-{% block title %}Art Show Application{% endblock %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set title_text = "Art Show Application" %}
 {% block content %}
-{% if not c.INDEPENDENT_ART_SHOW %}
-<script type="text/javascript">
-    var showOrHideNewBadge = function() {
-        var noBadgeChecked = $.field("new_badge").prop('checked');
-        setVisible($('.new-badge'), noBadgeChecked);
-        $.field("attendee_id").prop('disabled', noBadgeChecked);
-        setVisible($.field('attendee_id').parents('.form-group'), !noBadgeChecked);
-    };
-    $(function() {
-        showOrHideNewBadge();
-        $.field('new_badge').on('click', showOrHideNewBadge);
-    });
-</script>
-{% endif %}
 <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
 <div class="card">
   <div class="card-body">
@@ -50,46 +37,57 @@
     <p></p>Please review the {{ c.EVENT_NAME }} Art Show rules
     <a href="{{ c.ART_SHOW_RULES_URL }}" target="_blank">here</a>. Space is limited and may be filled prior to the {{ c.ART_SHOW_APP_TERM }} window closing.</p>
 
-    <form method="post" action="index" role="form">
+    {{ form_macros.form_validation('new-app-form', 'validate_app') }}
+    <form novalidate method="post" action="index" role="form" id="new-app-form" x-data="{
+      not_attending: {{ not_attending|boolean|tojson }},
+      new_badge: {{ (new_badge or c.INDEPENDENT_ART_SHOW)|boolean|tojson }},
+      conf_readonly: {{ (attendee.id and not attendee.is_new)|boolean|tojson }}
+    }">
+    {{ csrf_token() }}
       <h3>Your Information</h3>
       {% if not c.INDEPENDENT_ART_SHOW %}
-      <div class="row g-3">
-        <div class="col-12 col-sm-6">
+      <div class="row g-3 mb-3">
+        <div class="col-sm">
           <label for="attendee_id" class="form-text">Confirmation Number</label>
           <input type="text" name="attendee_id" class="form-control" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  value="{{ attendee_id }}" {% if attendee.id and not attendee.is_new %}readonly {% endif %}/>
-          
-          <p class="form-text">The confirmation number you received when you registered.</p>
+                  value="{{ attendee_id }}" :readonly="conf_readonly" :disabled="new_badge" />
+          <div class="form-text">The confirmation number you received when you registered.</div>
+          <div id="attendee_id-validation" class="invalid-feedback" role="alert" style="display: block;"></div>
         </div>
       </div>
       {% if not attendee_id %}
-      <div class="row g-3">
+      <div class="row g-3 mb-3">
         <div class="col-12">
-          <input type="checkbox" class="form-check-input" name="new_badge" id="no_badge"
-                   {% if new_badge %}checked {% endif %}/>
-          <label for="no_badge" class="form-check-label">
+          <label class="form-check-label">
+          <input type="checkbox" class="form-check-input" name="new_badge" x-model="new_badge"  />
             I don't have a badge for {{ c.EVENT_NAME }} yet.
           </label>
         </div>
       </div>
 
-      <div class="row g-3 new-badge mt-2">
-        <p class="col-12 col-sm-9">
+      <div class="card card-body mt-2" x-show="new_badge">
+        <p>
           Enter your information below. A new badge will be created for you, and you'll have the
           opportunity to complete your registration after submitting your {{ c.ART_SHOW_APP_TERM }}.
         </p>
-      </div>
       {% endif %}
       {% endif %}
       {% if not attendee_id %}
-      {% include 'art_show_applications/new_attendee_fields.html' %}
+      {% set forms = attendee_forms %}
+        <div x-show="new_badge">
+        {% include 'forms/art_show/artist_attendee_info.html' with context %}
+        </div>
+        {% if not c.INDEPENDENT_ART_SHOW %}
+      </div>
+        {% endif %}
       {% endif %}
 
       <h3 class="mt-3">Art Information</h3>
-      {% include 'art_show_applications/art_show_form.html' %}
+      {% set forms = app_forms %}
+      {% include 'forms/art_show/art_show_info.html' with context %}
 
       <div class="row g-3">
-        <div class="col-12 col-sm-6">
+        <div class="col-sm">
           <button type="submit" class="btn btn-primary">Submit {{ c.ART_SHOW_APP_TERM|title }}</button>
         </div>
       </div>

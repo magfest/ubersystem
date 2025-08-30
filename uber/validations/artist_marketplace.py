@@ -9,7 +9,6 @@ from uber.utils import localized_now
 
 
 ArtistMarketplaceForm.field_validation.required_fields = {
-    'attendee_id': "There is an issue with the form.",
     'name': "Please enter your business or fandom name.",
     'email_address': ("Please enter an email address.", 'copy_email'),
     'tax_number': "Please enter your Illinois Business Tax number.",

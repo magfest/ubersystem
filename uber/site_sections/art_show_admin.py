@@ -17,9 +17,10 @@ from uber.config import c
 from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
+from uber.forms import load_forms
 from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
                         Attendee, BadgeInfo, Email, Tracking, PageViewTracking, ReceiptItem, ReceiptTransaction, WorkstationAssignment
-from uber.utils import check, get_static_file_path, localized_now, Order
+from uber.utils import check, get_static_file_path, localized_now, Order, validate_model
 from uber.payments import TransactionRequest, ReceiptManager
 
 
@@ -42,6 +43,13 @@ class Root:
             app = session.art_show_application(params, bools=['us_only'])
         attendee = None
         app_paid = 0 if new_app else app.amount_paid
+
+        forms = load_forms(params, app, ["AdminArtShowInfo"])
+        piece_forms = {}
+        piece_forms['new'] = load_forms({}, ArtShowPiece(), ['ArtShowPieceInfo'], field_prefix='new')
+        for piece in app.art_show_pieces:
+            piece_forms[piece.id] = load_forms({}, piece, ['ArtShowPieceInfo'],
+                                               field_prefix=piece.id)
 
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident) \
             .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '', Attendee.is_valid == True,  # noqa: E712
@@ -77,6 +85,8 @@ class Root:
         return {
             'message': message,
             'app': app,
+            'forms': forms,
+            'piece_forms': piece_forms,
             'attendee': attendee,
             'app_paid': app_paid,
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
@@ -84,12 +94,41 @@ class Root:
             'new_app': new_app,
         }
 
+    @ajax
+    def validate_app(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            app = ArtShowApplication()
+        else:
+            app = session.art_show_application(params.get('id'))
+
+        if not form_list:
+            form_list = ['AdminArtShowInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        
+        forms = load_forms(params, app, form_list)
+        errors = validate_model(forms, app, is_admin=True)
+
+        if errors:
+            return {"error": errors}
+
+        return {"success": True}
+
     def pieces(self, session, id, message=''):
         app = session.art_show_application(id)
         return {
             'app': app,
             'message': message,
         }
+    
+    def update_piece_status(self, session, id, **params):
+        piece = session.art_show_piece(id)
+        piece.status = params.get('status', c.EXPECTED)
+        if params.get('voice_auctioned', ''):
+            piece.voice_auctioned = True
+        session.add(piece)
+        raise HTTPRedirect('form?id={}&message={}#pieces', piece.app.id,
+                           f'Piece "{piece.name}" status updated.')
 
     def history(self, session, id):
         app = session.art_show_application(id)
@@ -241,6 +280,24 @@ class Root:
         pages = range(1, int(math.ceil(count / 100)) + 1)
         applications = applications[-100 + 100 * page: 100 * page]
 
+        forms = {}
+        piece_forms = {}
+        form_list = ['ArtistMailingInfo'] + (['ArtistCheckOutInfo'] if checkout else ['ArtistCheckInInfo'])
+        for app in applications:
+            attendee = app.attendee
+            forms[app.id] = load_forms({}, app, form_list, field_prefix=app.id)
+            forms[app.id].update(load_forms({}, attendee, ['AdminArtistAttendeeInfo'], field_prefix=attendee.id))
+            for piece in app.art_show_pieces:
+                piece_forms[piece.id] = load_forms({}, piece, ['PieceCheckInOut'], field_prefix=piece.id)
+
+        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident) \
+            .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '', Attendee.is_valid == True,  # noqa: E712
+                                                     Attendee.badge_status != c.WATCHED_STATUS)
+
+        attendees = [
+            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+            for id, name, badge_type, badge_num in attendee_attrs]
+
         return {
             'message': message,
             'page': page,
@@ -248,6 +305,9 @@ class Root:
             'search_text': search_text,
             'search_results': bool(search_text),
             'applications': applications,
+            'forms': forms,
+            'piece_forms': piece_forms,
+            'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
             'order': Order(order),
             'checkout': checkout,
             'hanging': hanging,
@@ -256,9 +316,27 @@ class Root:
     @public
     def print_check_in_out_form(self, session, id, checkout='', **params):
         app = session.art_show_application(id)
+        attendee = app.attendee
+
+        # We want to always use these properties for the printed forms as they have useful fallbacks
+        params = {
+            'artist_name': app.artist_or_full_name,
+            'banner_name': app.display_name,
+            'banner_name_ad': app.mature_display_name,
+        }
+
+        form_list = ['ArtistMailingInfo'] + (['ArtistCheckOutInfo'] if checkout else ['ArtistCheckInInfo'])
+        forms = load_forms(params, app, form_list, read_only=True)
+        forms.update(load_forms({}, attendee, ['AdminArtistAttendeeInfo'], read_only=True))
+        piece_forms = {}
+        for piece in app.art_show_pieces:
+            piece_forms[piece.id] = load_forms({}, piece, ['PieceCheckInOut'], read_only=True)
 
         return {
-            'model': app,
+            'app': app,
+            'all_attendees': [],
+            'forms': forms,
+            'piece_forms': piece_forms,
             'type': 'artist',
             'checkout': checkout,
         }
@@ -269,102 +347,114 @@ class Root:
         return {
             'app': app,
         }
+    
+    @ajax
+    def validate_check_in_out(self, session, form_list=[], **params):
+        app = session.art_show_application(params.get('id'))
+        attendee = app.attendee
+        all_errors = {}
+
+        if not form_list:
+            form_list = ['ArtistMailingInfo'] + (['ArtistCheckOutInfo'] if params.get('checkout', '') else ['ArtistCheckInInfo'])
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        
+        forms = load_forms(params, app, form_list, field_prefix=app.id)
+        app_errors = validate_model(forms, app, is_admin=True)
+        if app_errors:
+            all_errors.update(app_errors)
+
+        attendee_forms = load_forms(params, attendee, ['AdminArtistAttendeeInfo'], field_prefix=attendee.id)
+        attendee_errors = validate_model(attendee_forms, attendee, is_admin=True)
+        if attendee_errors:
+            all_errors.update(attendee_errors)
+
+        for piece in app.art_show_pieces:
+            piece_form = load_forms(params, piece, ['PieceCheckInOut'], field_prefix=piece.id)
+            piece_errors = validate_model(piece_form, piece, is_admin=True)
+            if piece_errors:
+                all_errors.update(piece_errors)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     @ajax
     def save_and_check_in_out(self, session, **params):
-        app = session.art_show_application(params['app_id'])
+        app = session.art_show_application(params['id'])
         attendee = app.attendee
-        success = 'Application updated'
+        success = 'Application updated.'
+        checked_in_out_str = ''
+        undo = False
+        close_modal = False
 
-        app.apply(params, restricted=False)
+        form_list = ['ArtistMailingInfo'] + (['ArtistCheckOutInfo'] if params.get('check_out', '') else ['ArtistCheckInInfo'])
+        forms = load_forms(params, app, form_list, field_prefix=app.id)
 
-        message = check(app)
-        if message:
-            session.rollback()
-            return {'error': message, 'app_id': app.id}
-        else:
-            if params.get('check_in', ''):
-                app.checked_in = localized_now()
-                success = 'Artist successfully checked-in'
-            if params.get('check_out', ''):
-                app.checked_out = localized_now()
-                success = 'Artist successfully checked-out'
-            if params.get('hanging', ''):
-                success = 'Art marked as Hanging'
-            session.commit()
+        for form in forms.values():
+            form.populate_obj(app)
+
+        if params.get('check_in', ''):
+            app.checked_in = localized_now()
+            success = 'Artist successfully checked in.'
+            checked_in_out_str = "Checked in " + app.checked_in_out_str(app.checked_in_local)
+            close_modal = True
+        if params.get('check_out', ''):
+            app.checked_out = localized_now()
+            success = 'Artist successfully checked out.'
+            checked_in_out_str = "Checked out " + app.checked_in_out_str(app.checked_out_local)
+            close_modal = True
+        if params.get('hanging', ''):
+            success = 'Art marked as Hanging.'
+            close_modal = True
+        if params.get('undo_checkout', ''):
+            app.checked_out = None
+            success = 'Artist successfully un-checked-out.'
+            undo = True
+        if params.get('undo_checkin', ''):
+            app.checked_in = None
+            success = 'Artist successfully un-checked-in.'
+            undo = True
+        session.commit()
 
         if 'check_in' in params:
-            attendee_params = dict(params)
-            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
-                attendee_params[field_name] = params.get('attendee_{}'.format(field_name), '')
-
-            attendee.apply(attendee_params, restricted=False)
+            attendee_forms = load_forms(params, attendee, ['AdminArtistAttendeeInfo'], field_prefix=app.id)
+            for form in attendee_forms.values():
+                form.populate_obj(attendee)
 
             if c.COLLECT_FULL_ADDRESS and attendee.country == 'United States':
                 attendee.international = False
             elif c.COLLECT_FULL_ADDRESS:
                 attendee.international = True
-
-            message = check(attendee)
-            if message:
-                session.rollback()
-                return {'error': message, 'app_id': app.id}
-            else:
-                session.commit()
-
-        piece_ids = params.get('piece_ids' + app.id)
-
-        if piece_ids:
-            try:
-                session.art_show_piece(piece_ids)
-            except Exception:
-                pieces = piece_ids
-            else:
-                pieces = [piece_ids]
-
-            for id in pieces:
-                piece = session.art_show_piece(id)
-                piece_params = dict()
-                for field_name in ['gallery', 'status', 'name', 'opening_bid', 'quick_sale_price']:
-                    piece_params[field_name] = params.get('{}{}'.format(field_name, id), '')
-
-                # Correctly handle admins entering '0' for a price
-                try:
-                    opening_bid = int(piece_params['opening_bid'])
-                except Exception:
-                    opening_bid = piece_params['opening_bid']
-                try:
-                    quick_sale_price = int(piece_params['quick_sale_price'])
-                except Exception:
-                    quick_sale_price = piece_params['quick_sale_price']
-
-                piece_params['for_sale'] = True if opening_bid else False
-                piece_params['no_quick_sale'] = False if quick_sale_price else True
-
-                piece.apply(piece_params, restricted=False)
-                message = check(piece)
-                if message:
-                    session.rollback()
-                    break
-        if not message:
-            for piece in app.art_show_pieces:
-                if params.get('hanging', None) and piece.status == c.EXPECTED:
-                    piece.status = c.HANGING
-                elif params.get('check_in', None) and piece.status in [c.EXPECTED, c.HANGING]:
-                    piece.status = c.HUNG
-                elif params.get('check_out', None) and piece.status == c.HUNG:
-                    if piece.orig_value_of('status') == c.PAID:
-                        # Accounts for the surprisingly-common situation where an
-                        # artist checks out WHILE their pieces are actively being paid for
-                        piece.status = c.PAID
-                    else:
-                        piece.status = c.RETURN
             session.commit()
+
+        for piece in app.art_show_pieces:
+            piece_forms = load_forms(params, piece, ['PieceCheckInOut'], field_prefix=piece.id)
+            for form in piece_forms.values():
+                form.populate_obj(piece)
+
+            if params.get('hanging', None) and piece.status == c.EXPECTED:
+                piece.status = c.HANGING
+            elif params.get('check_in', None) and piece.status in [c.EXPECTED, c.HANGING]:
+                piece.status = c.HUNG
+            elif params.get('check_out', None) and piece.status == c.HUNG:
+                # Account for the surprisingly-common situation where an
+                # artist checks out WHILE their pieces are actively being paid for
+                if piece.orig_value_of('status') == c.PAID:
+                    piece.status = c.PAID
+                else:
+                    piece.status = c.RETURN
+        session.commit()
 
         return {
             'id': app.id,
-            'error': message,
             'success': success,
+            'checked_in_out_str': checked_in_out_str,
+            'undo': undo,
+            'close_modal': close_modal,
+            'print_invoice': params.get('print_invoice', ''),
+            'print': params.get('print', ''),
         }
 
     @ajax
@@ -523,6 +613,15 @@ class Root:
         else:
             attendees = attendees.order(order)
 
+        forms = {}
+        attendee_info_readonly = not c.INDEPENDENT_ART_SHOW
+        form_list = ['AdminBidderSignup']
+        for attendee in attendees:
+            bidder = attendee.art_show_bidder or ArtShowBidder(attendee_id=attendee.id)
+            forms[attendee.id] = load_forms({}, bidder, form_list, field_prefix=attendee.id)
+            forms[attendee.id].update(load_forms({}, attendee, ['BidderAttendeeInfo'],
+                                                 field_prefix=attendee.id, read_only=attendee_info_readonly))
+
         count = attendees.count()
         page = int(page) or 1
 
@@ -539,8 +638,47 @@ class Root:
             'search_text':    search_text,
             'search_results': bool(search_text),
             'attendees':      attendees,
+            'forms': forms,
             'order':          Order(order),
         }
+    
+    @ajax
+    def validate_bidder_signup(self, session, form_list=[], **params):
+        try:
+            attendee = session.attendee(params['attendee_id'])
+        except NoResultFound:
+            if c.INDEPENDENT_ART_SHOW:
+                attendee = Attendee(
+                    id=params['attendee_id'],
+                    placeholder=True,
+                    badge_status=c.NOT_ATTENDING,
+                    )
+            else:
+                return {'error': "No attendee found!"}
+        
+        bidder = attendee.art_show_bidder or ArtShowBidder(attendee_id=attendee.id)
+
+        all_errors = {}
+
+        if not form_list:
+            form_list = ['AdminBidderSignup']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        
+        forms = load_forms(params, bidder, form_list, field_prefix=attendee.id)
+        bidder_errors = validate_model(forms, bidder, is_admin=True)
+        if bidder_errors:
+            all_errors.update(bidder_errors)
+
+        attendee_forms = load_forms(params, attendee, ['BidderAttendeeInfo'], field_prefix=attendee.id)
+        attendee_errors = validate_model(attendee_forms, attendee, is_admin=True)
+        if attendee_errors:
+            all_errors.update(attendee_errors)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     @ajax
     def sign_up_bidder(self, session, **params):
@@ -555,85 +693,50 @@ class Root:
                     )
                 session.add(attendee)
             else:
-                return {'error': "No attendee found for this bidder!", 'attendee_id': params['attendee_id']}
-
-        success = 'Bidder saved'
-        missing_fields = []
-
-        for field_name in params.copy().keys():
-            if params.get(field_name, None):
-                if hasattr(attendee, field_name) and (not hasattr(ArtShowBidder(), field_name) or field_name == 'email'):
-                    setattr(attendee, field_name, params.pop(field_name))
-            elif field_name in ArtShowBidder.required_fields.keys():
-                missing_fields.append(ArtShowBidder.required_fields[field_name])
-
-        if missing_fields:
-            return {'error': "Please fill out the following fields: " + readable_join(missing_fields) + ".",
-                    'attendee_id': attendee.id}
-
-        if 'phone_type' not in params:
-            return {'error': "You must select whether your phone number is a mobile number or a landline.",
-                    'attendee_id': attendee.id}
+                return {'success': False, 'error': "No attendee found for this bidder!"}
         
-        if 'pickup_time_acknowledged' not in params:
-            return {'error': "You must acknowledge that you understand our art pickup policies.",
-                    'attendee_id': attendee.id}
+        bidder = attendee.art_show_bidder or ArtShowBidder(attendee_id=attendee.id)
+        attendee.art_show_bidder = bidder
 
-        if not re.match("^[a-zA-Z]-[0-9]+", params['bidder_num']):
-            return {'error': "Bidder numbers must be in the format X-000 (e.g., A-100).",
-                    'attendee_id': attendee.id}
+        success = 'Bidder updated.'
+        signed_up_str = ''
 
-        if params['id']:
-            bidder = session.art_show_bidder(params, bools=['email_won_bids'])
-        else:
-            params.pop('id')
-            bidder = ArtShowBidder()
-            attendee.art_show_bidder = bidder
+        forms = load_forms(params, bidder, ['AdminBidderSignup'], field_prefix=attendee.id)
+        attendee_forms = load_forms(params, attendee, ['BidderAttendeeInfo'], field_prefix=attendee.id)
 
-        bidder.apply(params, restricted=False, bools=['email_won_bids'])
-        bidder_num_dupe = session.query(ArtShowBidder).filter(
-            ArtShowBidder.id != bidder.id,
-            ArtShowBidder.bidder_num_stripped == ArtShowBidder.strip_bidder_num(params.get('bidder_num'))).first()
-        if bidder_num_dupe:
-            session.rollback()
-            return {
-                'error': f"The bidder number {bidder_num_dupe.bidder_num[2:]} already belongs to bidder"
-                            f" {bidder_num_dupe.bidder_num}.",
-                'attendee_id': attendee.id
-            }
+        for form in forms.values():
+            form.populate_obj(bidder)
+        for attendee_form in attendee_forms.values():
+            attendee_form.populate_obj(attendee)
 
-        if params['complete']:
+        if params.get('complete', None):
             bidder.signed_up = localized_now()
-            success = 'Bidder signup complete'
+            success = 'Bidder signup completed!'
+            signed_up_str = "Signed up " + bidder.signed_up.strftime("%-I:%M%p ").lower() + \
+                bidder.signed_up.strftime("%a")
 
-        message = check(attendee)
-        if not message:
-            message = check(bidder)
-        if message:
-            session.rollback()
-            return {'error': message, 'attendee_id': attendee.id}
-        else:
-            session.commit()
+        session.commit()
 
         return {
-            'id': bidder.id,
-            'attendee_id': attendee.id,
-            'bidder_num': bidder.bidder_num,
-            'bidder_id': bidder.id,
-            'error': message,
-            'success': success
+            'success': success,
+            'signed_up_str': signed_up_str,
+            'print': params.get('print', ''),
         }
 
-    def print_bidder_form(self, session, id, **params):
-        bidder = session.art_show_bidder(id)
-        attendee = bidder.attendee
+    def print_bidder_form(self, session, attendee_id, **params):
+        attendee = session.attendee(attendee_id)
+        bidder = attendee.art_show_bidder
+
+        forms = load_forms(params, bidder, ['AdminBidderSignup'], field_prefix=attendee.id,
+                           read_only=True)
+        forms.update(load_forms(params, attendee, ['BidderAttendeeInfo'], field_prefix=attendee.id, read_only=True))
 
         return {
-            'model': attendee,
-            'type': 'bidder'
+            'forms': forms,
+            'attendee': attendee,
         }
 
-    def sales_search(self, session, message='', page=1, search_text='', order=''):
+    def sales_search(self, session, message='', page=1, search_text='', order='badge_num'):
         filters = []
         search_text = search_text.strip()
         if search_text:
@@ -654,11 +757,14 @@ class Root:
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_receipts)
 
-        if 'bidder_num' in str(order):
+        if order in ['bidder_num', '-bidder_num']:
             attendees = attendees.join(Attendee.art_show_bidder).order_by(
-                ArtShowBidder.bidder_num.desc() if '-' in str(order) else ArtShowBidder.bidder_num)
+                ArtShowBidder.bidder_num.desc() if order.startswith('-') else ArtShowBidder.bidder_num)
+        elif order in ['badge_num', '-badge_num']:
+            attendees = attendees.outerjoin(BadgeInfo).order_by(BadgeInfo.ident.desc()
+                                                                if order.startswith('-') else BadgeInfo.ident)
         else:
-            attendees = attendees.order(order or 'badge_num')
+            attendees = attendees.order(order)
 
         count = attendees.count()
         page = int(page) or 1
@@ -875,8 +981,6 @@ class Root:
                     credit_num += 1
                     credit_total += txn.amount
 
-            log.error(main_txn)
-
             admin_notes = []
             if cash_total:
                 admin_notes.append(f"Cash: {format_currency(cash_total / 100)}")
@@ -885,9 +989,6 @@ class Root:
                 if credit_num > 1:
                     credit_note += f" ({credit_num} payments)"
                 admin_notes.append(credit_note)
-            
-            log.error(admin_notes)
-            log.error(sales_item)
 
             sales_item.receipt_txn = main_txn
             sales_item.admin_notes = "; ".join(admin_notes)

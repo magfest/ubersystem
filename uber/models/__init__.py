@@ -1111,19 +1111,13 @@ class Session(SessionManager):
                     except Exception:
                         return \
                             None, \
-                            'The confirmation number you entered is not valid, ' \
-                            'or there is no matching badge.'
+                            'The confirmation number you entered is not valid, or there is no matching badge.'
 
                 if not attendee.is_valid:
                     return None, \
                            'This badge is invalid. Please contact registration.'
             else:
-                attendee_params = {}
-                for key, val in params.items():
-                    if key.startswith('attendee_'):
-                        attendee_params[key.replace('attendee_', '')] = val
-                attendee = self.attendee(attendee_params, restricted=True,
-                                         ignore_csrf=True)
+                attendee = Attendee()
                 attendee.placeholder = True
                 if c.ATTENDEE_ACCOUNTS_ENABLED and self.current_attendee_account():
                     self.add_attendee_to_account(attendee, self.current_attendee_account())
@@ -1298,8 +1292,7 @@ class Session(SessionManager):
                 return attendee, message
             elif attendee.marketplace_application:
                 return attendee, \
-                       'There is already a marketplace application ' \
-                       'for that badge!'
+                       'There is already a marketplace application for that badge!'
 
             return attendee, message
 
@@ -1309,8 +1302,7 @@ class Session(SessionManager):
                 return attendee, message
             elif attendee.art_show_applications:
                 return attendee, \
-                    'There is already an art show application ' \
-                    'for that badge!'
+                    'There is already an art show application for that badge!'
 
             if params.get('not_attending', ''):
                 attendee.badge_status = c.NOT_ATTENDING

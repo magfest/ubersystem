@@ -61,8 +61,8 @@ if c.COLLECT_FULL_ADDRESS:
             lambda x: (not x or not x.data) and field_name not in placeholder_unassigned_fields(x.form))
 
     for field_name in ['region', 'region_us', 'region_canada']:
-        PersonalInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(field_name,
-                                                                                                    check_placeholder=True)
+        PersonalInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(
+            field_name, check_placeholder=True)
 
 
 PersonalInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
@@ -294,7 +294,6 @@ Consents.field_validation.required_fields = {
 
 AdminBadgeFlags.field_validation.validations['overridden_price']['minimum'] = validators.NumberRange(
     min=0, message="Base badge price must be a number that is 0 or higher.")
-AdminBadgeFlags.field_validation.validations['badge_num']['optional'] = validators.Optional()
 
 
 @AdminBadgeFlags.new_or_changed('badge_num')
