@@ -30,7 +30,7 @@
     the panel and table space you've requested.{% if app.attendee.badge_status != c.NOT_ATTENDING and app.attendee.paid == c.NOT_PAID %}
     Your payment will also include your badge for the convention.{% endif %}{% endif %}</p>
 
-    <p>If you have any questions, please email us at <a href="mailto:{{c.ART_SHOW_EMAIL}}">{{ c.ART_SHOW_EMAIL }}</a>.</p>
+    <p>If you have any questions, please email us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}.</p>
   </div>
 </div>
 {% endblock %}

@@ -2,4 +2,4 @@
 
 A MIVS Admin has marked the game submission issues for {{ review.game.title }} as resolved.
 
-Since your review's status was "{{ review.game_status_label }}," your review has been reset to "{{ c.MIVS_GAME_REVIEW_STATUS[c.PENDING] }}." Please complete your review at {{ c.URL_BASE }}/mivs_judging/game_review?id={{ review.id }}.
+Since your review's status was "{{ review.game_status_label }}," your review has been reset to "{{ c.MIVS_GAME_REVIEW_STATUS[c.PENDING] }}." Please complete your review at {{ c.URL_BASE }}/showcase_judging/game_review?id={{ review.id }}.

@@ -1,0 +1,66 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title_text = "Showcase Studios" %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% block content %}
+<div class="card card-body">
+<h2>
+  {{ c.EVENT_NAME }} Indies Studios <small><a href="index">Back to Index</a></small>
+</h2>
+<p><a href="../mivs/studio" class="btn btn-primary">Add a Studio</a></p>
+<table class="table table-hover datatable" data-page-length="-1">
+<thead>
+  <tr>
+    <th>Studio Name</th>
+    <th>Primary Contact</th>
+    <th>Other Contacts</th>
+    <th>Website</th>
+    <th>Status</th>
+  </tr>
+</thead>
+<tbody>
+{% for studio in studios %}
+  <tr>
+    <td><a href="#studio-{{ studio.id }}" data-bs-toggle="modal" data-bs-target="#studio-{{ studio.id }}">{{ studio.name }}</a></td>
+    <td>
+        {%- if studio.primary_contacts and studio.primary_contacts[0].attendee -%}
+          <a href="#attendee_form?id={{ studio.primary_contacts[0].attendee.id }}">{{ studio.primary_contacts[0].full_name }}</a>
+        {%- elif studio.primary_contacts -%}
+          {{ studio.primary_contacts[0].full_name }}
+        {%- endif %}
+        <br/>
+        <a href="mailto:{{ studio.primary_contacts[0].email }}">{{ studio.primary_contacts[0].email }}</a>
+        {% if studio.primary_contacts[0].cellphone_num -%}
+          <br/>
+          {{ studio.primary_contacts[0].cellphone_num }}
+        {% else %}
+        No primary contacts???
+        {%- endif %}
+    </td>
+    <td>
+      {% if studio.primary_contacts|length < 2 %}
+      None
+      {% else %}
+        {% for contact in studio.primary_contacts %}
+          {% if not loop.first %}
+          {{ studio.primary_contacts[0].full_name }} | 
+          <a href="mailto:{{ studio.primary_contacts[0].email }}">{{ studio.primary_contacts[0].email }}</a>
+          {% if studio.primary_contacts[0].cellphone_num -%} | {{ studio.primary_contacts[0].cellphone_num }}{% endif %}
+          {% if not loop.last %}<br/>{% endif %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    </td>
+    <td>
+      {{ studio.website|url_to_link(is_relative=False) }}
+    </td>
+    <td>
+      {{ studio.status_label }}
+    </td>
+  </tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+{% include 'showcase_admin/studio_modals.html' with context %}
+{% endblock %}

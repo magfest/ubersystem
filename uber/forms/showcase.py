@@ -8,8 +8,8 @@ from wtforms import (BooleanField, URLField, EmailField,
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, SelectDynamicChoices, UniqueList, SelectButtonGroup)
+from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectBooleanField, SwitchInput, NumberInputGroup,
+                        HiddenBoolField, IntegerField, SelectDynamicChoices, UniqueList, SelectButtonGroup)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
 from uber.models import Attendee, BadgeInfo, Session, PromoCodeGroup
@@ -17,13 +17,26 @@ from uber.model_checks import invalid_phone_number
 from uber.utils import get_age_conf_from_birthday
 
 
-__all__ = ['StudioInfo', 'DeveloperInfo']
+__all__ = ['StudioInfo', 'DeveloperInfo', 'MivsGameInfo', 'MivsDemoInfo', 'MivsConsents', 'MivsCode', 'MivsScreenshot',
+           'ArcadeGameInfo', 'ArcadeConsents', 'ArcadeLogistics', 'ArcadePhoto', 'RetroGameInfo', 'RetroGameDetails',
+           'RetroLogistics', 'RetroScreenshot', 'MivsJudgeInfo', 'JudgeShowcaseInfo', 'NewJudgeInfo', 'GameReview']
+
+
+def int_or_empty(val):
+    if not val:
+        return ''
+    return int
 
 
 class StudioInfo(MagForm):
     name = StringField('Studio Name')
     website = StringField('Website')
     other_links = StringField('Other Links (Social media, Linktree, etc)', widget=UniqueList())
+
+
+class AdminStudioInfo(StudioInfo):
+    status = SelectField('Status', coerce=int, choices=c.MIVS_STUDIO_STATUS_OPTS)
+    staff_notes = TextAreaField('Notes')
 
 
 class DeveloperInfo(MagForm):
@@ -50,13 +63,13 @@ class MivsGameInfo(MagForm):
     title = StringField('Game Title')
     brief_description = StringField('Brief Description')
     description = TextAreaField('Full Description')
-    genres = SelectMultipleField('Genres', coerce=int, choices=c.MIVS_INDIE_GENRE_OPTS,
+    genres = SelectMultipleField('Genres', coerce=int, choices=c.MIVS_GENRE_OPTS,
                                  widget=MultiCheckbox(), description="Please select all that apply.")
     genres_text = StringField('', render_kw={'placeholder': "Other genre(s)"})
     has_multiplayer = BooleanField('This is a multiplayer game.')
     player_count = StringField('Number of Players', render_kw={'placeholder': "E.g., 1-4"})
     platforms = SelectMultipleField('Platforms Used for Demo', coerce=int,
-                                    choices=c.MIVS_INDIE_PLATFORM_OPTS, widget=MultiCheckbox())
+                                    choices=c.MIVS_PLATFORM_OPTS, widget=MultiCheckbox())
     platforms_text = StringField('', render_kw={'placeholder': "Other platform(s)"})
     content_warning = BooleanField('I would like to add a content or trigger warning for this game.')
     warning_desc = TextAreaField('Content/Trigger Warning Description')
@@ -70,10 +83,12 @@ class MivsDemoInfo(MagForm):
                              description="Please include a link to a YouTube video, 720p or better, no longer than 2 minutes.")
     link_to_game = URLField('Link to Game')
     no_password = BooleanField('The download link for this game does not require a password.')
-    password_to_game = StringField('Game Download Password')
-    code_type = SelectField('Game Activation Code', coerce=int, choices=c.MIVS_CODE_TYPE_OPTS)
+    password_to_game = StringField('Game Download Password', render_kw={'autocomplete': "off"})
+    code_type = SelectField('Game Activation Code', coerce=int, default=0,
+                            choices=[(0, 'Please select an option')] + c.MIVS_CODE_TYPE_OPTS)
     code_instructions = StringField('Instructions for Game Code(s)')
-    build_status = SelectField('Game Build Status', coerce=int, choices=c.MIVS_BUILD_STATUS_OPTS)
+    build_status = SelectField('Game Build Status', coerce=int, default=0,
+                               choices=[(0, 'Please select an option')] + c.MIVS_BUILD_STATUS_OPTS)
     how_to_play = TextAreaField(
         'How to Play',
         description="Please include any instructions necessary to play, especially for things which might not be obvious.")
@@ -106,13 +121,46 @@ class MivsConsents(MagForm):
 class MivsCode(MagForm):
     code = StringField("Code")
     unlimited_use = BooleanField("This code can be shared among all judges instead of being assigned to a single judge.")
-    judge_notes = TextAreaField("Judge Notes")
 
 
 class MivsScreenshot(MagForm):
     description = TextAreaField("Screenshot Description")
     image = FileField("Image File (max 5MB)", render_kw={'accept': "image/*"})
     is_screenshot = HiddenBoolField('', default=True)
+
+
+class MivsJudgeInfo(MagForm):
+    genres = SelectMultipleField('Genres', coerce=int, widget=MultiCheckbox(), choices=c.MIVS_JUDGE_GENRE_OPTS)
+    platforms = SelectMultipleField('Platforms Owned', coerce=int, widget=MultiCheckbox(), choices=c.MIVS_PLATFORM_OPTS)
+    platforms_text = TextAreaField('PC Specs and Other Platforms',
+                                   render_kw={'placeholder': 'List your PC specs and any other platforms you own.'})
+    vr_text = StringField('', render_kw={'placeholder': 'VR/AR platform(s)'})
+    no_game_submission = BooleanField('I have not submitted a game to MIVS this year.', default=False)
+
+    def get_non_admin_locked_fields(self, model):
+        return ['showcases']
+
+
+class NewJudgeInfo(MagForm):
+    admin_desc = True
+
+    first_name = StringField('First Name', default='')
+    last_name = StringField('Last Name', default='')
+    email = EmailField('Email Address', default='')
+
+
+class JudgeShowcaseInfo(MagForm):
+    admin_desc = True
+
+    status = SelectField('Judge Status', coerce=int, choices=c.MIVS_JUDGE_STATUS_OPTS)
+    email = StringField('Email Address',
+                        description="Please note that changing this judge's email address will change the email they must log in with.")
+    assignable_showcases = SelectMultipleField('Assignable Showcase(s)', choices=c.SHOWCASE_GAME_TYPE_OPTS, widget=MultiCheckbox(),
+        description="This judge will be available to assign games to in the showcase(s) selected above.")
+    all_games_showcases = SelectMultipleField(
+        'Showcase(s) Reviewing All Games', choices=c.SHOWCASE_GAME_TYPE_OPTS, widget=MultiCheckbox(),
+        description="This judge will be assigned to review ALL games submitted to the showcase(s) selected above.")
+    staff_notes = TextAreaField('Staff Notes')
 
 
 class ArcadeGameInfo(MagForm):
@@ -150,18 +198,17 @@ class ArcadeLogistics(MagForm):
         "Can Run 72 Hours",
         choices=['Yes','Other'], widget=SelectButtonGroup())
     game_hours_text = StringField('Let us know what your plans are for keeping your game up running for our prime hours.')
-    game_end_time = SelectField(
-        'Online Until 2pm Sunday',
-        description="We're committed to keeping our space active and safe for attendees until 2pm, but if you need to pack up your submission early on Sunday for travel, that is an option that we can discuss on a team-by-team basis.",
-        choices=['Yes','No'], widget=SelectButtonGroup())
+    game_end_time = SelectBooleanField(
+        'Online Until 2pm Sunday', default='',
+        description="We're committed to keeping our space active and safe for attendees until 2pm, but if you need to pack up your submission early on Sunday for travel, that is an option that we can discuss on a team-by-team basis.")
     player_count = SelectField('How many players is your submission designed for?',
                                choices=['1', '2', '3 or more'], widget=SelectButtonGroup())
-    floorspace = SelectField('Required Floorspace',
+    floorspace = SelectField('Required Floorspace', default=0,
                              description="If possible, provide approximate width/depth measurements for the space your players will need.",
                              coerce=int, choices=[(0, 'Please select an option')] + c.INDIE_ARCADE_FLOORSPACE_OPTS)
     floorspace_text = StringField('Width/Depth Measurements')
     cabinet_type = SelectField(
-        'Cabinet/Installation Type',
+        'Cabinet/Installation Type', default=0,
         description='We provide floorspace and optional standard height folding tables.',
         coerce=int, choices=[(0, 'Please select an option')] + c.INDIE_ARCADE_CABINET_OPTS)
     cabinet_type_text = TextAreaField('Installation Description', description="Please be extremely descriptive and provide exact measurements.")
@@ -182,3 +229,90 @@ class ArcadeLogistics(MagForm):
 
 class ArcadePhoto(MagForm):
     image = FileField("Image File (max 5MB)", render_kw={'accept': "image/*"})
+
+
+class RetroGameInfo(MagForm):
+    title = StringField('Game Name')
+    primary_contact_id = SelectField('Primary Contact',
+                                     description="This is who we will reach out to with information about this submission.",
+                                     widget=SelectDynamicChoices(),
+                                     validate_choice=False)
+    publisher_name = StringField('Publisher Name', description="If there is none, please write N/A.")
+    brief_description = TextAreaField(
+        'Short Description of Game',
+        description="There are no specific restrictions on what this must include, but please keep it to no more than 300 characters.")
+
+
+class RetroGameDetails(MagForm):
+    genres = SelectMultipleField('Game Genre(s)', coerce=int, choices=c.MIVS_GENRE_OPTS,
+                                 widget=MultiCheckbox(), description="Please select all that apply.")
+    genres_text = StringField('Other Genre(s)', render_kw={'placeholder': "Other genre(s)"})
+    platforms = SelectMultipleField('Release Platform(s)', coerce=int,
+                                    choices=c.INDIE_RETRO_PLATFORM_OPTS, widget=MultiCheckbox())
+    platforms_text = StringField('Other Platform(s)', render_kw={'placeholder': "Other platform(s)"})
+    release_date = StringField('Availability or Expected Release Date',
+                               description="Let us know if your game is already available or when it will be releasing.")
+    description = TextAreaField('Full Description',
+                                description="There are no specific restrictions on what this must include, but please keep it to no more than 4000 characters.")
+    game_logo = FileField("Game Logo (max 5MB)",
+                          description="Please ensure your game logo is a PNG with a transparent background.",
+                          render_kw={'accept': "image/png"})
+    other_assets = TextAreaField(
+        'Link to Additional Promotional Assets',
+        description="Feel free to share any additional screenshots, GIFs, or other promotional assets that you'd like us to take into consideration.")
+    link_to_video = TextAreaField(
+        'Link to Gameplay Video and/or Trailer',
+        description="It must be a combined 2-5 minutes of footage and can be raw captured gameplay or trailers.")
+    link_to_game = TextAreaField('Link to Rom File for Review')
+    how_to_play = TextAreaField(
+        'Instructions to Play',
+        description="Please describe the process of setting up your game into a playable state, as well as listing the basic controls for the game so it can be reviewed. ")
+
+    def link_to_game_desc(self):
+        return "Review of the Rom is a mandatory step in the showcase process so we can guarantee a certain level of quality control \
+            for the games that are accepted into the showcase. These files will remain secure and will not be shared outside of the review team."
+
+
+class RetroLogistics(MagForm):
+    link_to_webpage = TextAreaField('Link to Available Game Pages', description="e.g., a website, itch.io, Steam")
+    in_person = SelectBooleanField(
+        f'Are you able to attend {c.EVENT_NAME_AND_YEAR} in person to represent your game?', default='',
+        description="Two tickets are included for the show, as well as space within the Indie Retro area. Hotels and travel are not included.",
+        yes_label='In Person / Physical Participant', no_label='Remote /  Digital Participant')
+    delivery_method = SelectField(
+        'How do you plan to have your game physically available at the event?', default=0,
+        description="Games that require Cartridge Assistance will be evaluated on a case-by case basis and the service is not guaranteed.",
+        coerce=int, choices=[(0, 'Please select an option')] + c.INDIE_RETRO_DELIVERY_OPTS)
+    found_how = TextAreaField('How did you learn about the Indie Arcade?')
+
+
+class RetroScreenshot(MagForm):
+    image = FileField("Image File (max 5MB)", render_kw={'accept': "image/*"})
+    is_screenshot = HiddenBoolField('', default=True)
+
+
+def generate_score_list():
+    choices_list = []
+    for num in range(0,11):
+        if num == 0:
+            choices_list.append((num, 'Unscored'))
+        else:
+            choices_list.append((num, str(num)))
+    return choices_list
+
+
+class GameReview(MagForm):
+    read_how_to_play = BooleanField('I have reviewed the instructions on how to play.')
+    video_status = SelectField('Video Reviewed?', coerce=int, choices=c.MIVS_VIDEO_REVIEW_STATUS_OPTS)
+    game_status = SelectField('Game Reviewed?', coerce=int, choices=c.MIVS_GAME_REVIEW_STATUS_OPTS)
+    game_status_text = StringField('Why could you not play the game?')
+    readiness_score = SelectField('Show Readiness', coerce=int, choices=generate_score_list(), widget=SelectButtonGroup())
+    design_score = SelectField('Overall Design', coerce=int, choices=generate_score_list(), widget=SelectButtonGroup())
+    enjoyment_score = SelectField('Overall Enjoyment', coerce=int, choices=generate_score_list(), widget=SelectButtonGroup())
+    game_content_bad = BooleanField('This game contains inappropriate content.')
+    game_review = TextAreaField('Comments for the Devs (Optional)')
+
+    def game_review_desc(self):
+        return "Here is where you can leave notes and feedback about the game for the developers - what impressed you, what didn't, etc. \
+            Please be mindful that your comments will be shared directly with the developers. Do not include judging categories \
+                or scores and be respectful in your feedback."

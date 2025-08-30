@@ -1,0 +1,264 @@
+{% set readonly = app.checked_in and not admin_area %}
+{% import 'forms/macros.html' as form_macros with context %}
+<style>
+  table form {
+    display: inline;
+  }
+</style>
+
+{%- macro piece_modal(piece=None) -%}
+{% if not piece %}
+  {% set modal_id = "new" %}
+  {% set piece = ArtShowPiece() %}
+{% else %}
+  {% set modal_id = piece.id %}
+{% endif %}
+
+<div class="modal fade piece-dialog" id="piece-modal-{{ modal_id }}" role="dialog" tabindex="-1">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="piece-title-{{ modal_id }}">{{ "Add" if modal_id == "new" else "Edit" }} Art Show Piece</h4>
+      </div>
+      {% set form_id = 'piece-' ~ modal_id ~ '-form' %}
+      <form novalidate method="post" action="../art_show_applications/save_art_show_piece" id="{{ form_id }}" role="form">
+        <div class="modal-body">
+          {{ form_macros.form_validation(form_id, '../art_show_applications/validate_art_show_piece', callback="saveArtShowPiece('" ~ form_id ~ "', submit_button_name)") }}
+          {% if modal_id != 'new' %}<input type="hidden" name="id" value="{{ modal_id }}" />{% endif %}
+          <input type="hidden" name="app_id" value="{{ app.id }}" />
+          <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
+          {{ csrf_token() }}
+          {% set art_show_piece_info = piece_forms[modal_id]['art_show_piece_info'] %}
+          {% include 'forms/art_show/art_show_piece_info.html' with context %}
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary save_piece"{% if readonly %} disabled{% endif %}>Save</button>
+          {% if modal_id == "new" %}
+          <button type="submit" class="btn btn-success" name="save_add_piece" value="1" {% if readonly %} disabled{% endif %}>Save and Add Another</button>
+          {% endif %}
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{%- endmacro -%}
+
+<div id="piece-modals">
+  {{ piece_modal() }}
+  {% if app.art_show_pieces -%}
+  {% for piece in app.art_show_pieces -%}
+  {{ piece_modal(piece) }}
+  {%- endfor %}
+  {%- endif %}
+</div>
+  {% if admin_area %}
+    <div class="d-flex gap-1 mb-3 justify-content-end align-items-start">
+    <form method="post" target="_blank" action="../art_show_admin/bid_sheet_pdf">
+    <div class="d-flex gap-1">
+        <div class="col-form-label">Piece IDs: &nbsp;</div>
+        <div>
+            <input type="hidden" name="id" value="{{ app.id }}" />
+            {{ csrf_token() }}
+            <input type="text" class="form-control" name="piece_ids" placeholder="1-2, 5, 7" />
+            <div class="form-text">
+            Leave piece IDs blank to print all bid sheets for this artist.
+            </div>
+        </div>
+        <div>
+            
+        <button type="submit" class="btn btn-secondary">Print Bid Sheets</button>
+        </div>
+    </div>
+    </form>
+    </div>
+  {% endif %}
+  <div class="table-responsive mb-3">
+    <table class="table table-striped datatable" id="art-show-piece-table">
+      <thead>
+      <tr>
+        <th>ID</th>
+        <th>Status</th>
+        <th>Name</th>
+        <th>Media</th>
+        <th>Gallery</th>
+        <th>Type</th>
+        <th>Price</th>
+        {% if not app.checked_in or admin_area %}<th></th>{% endif %}
+      </tr>
+      </thead>
+      <tbody>
+      {% for piece in app.art_show_pieces %}
+      <tr class="piece-row" data-piece_id="{{ piece.id }}">
+        <td data-sort="{{ piece.piece_id }}"> {{ piece.artist_and_piece_id }} </td>
+        <td>
+          {% if admin_area %}
+          <form method="post" action="../art_show_admin/update_piece_status" role="form">
+            <input type="hidden" name="id" value="{{ piece.id }}" />
+            <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
+            {{ csrf_token() }}
+            <div class="input-group">
+              <select name="status" class="form-select form-select-sm">
+                {{ options(c.ART_PIECE_STATUS_OPTS, piece.status) }}
+              </select>
+              <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check"></i></button>
+            </div>
+            <label class="checkbox-label">
+              <input type="checkbox" name="voice_auctioned" value="1"{% if piece.voice_auctioned %} checked{% endif %} />
+              This piece went to voice auction.
+            </label>
+          </form>
+          {% else %}{{ piece.status_label }}{% endif %}</td>
+        <td> {{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }} </td>
+        <td> {{ piece.media }} </td>
+        <td> {{ piece.gallery_label }} </td>
+        <td> {{ piece.type_label }}
+          {% if piece.print_run_num and piece.type == c.PRINT %}({{ piece.print_run_num }} of {{ piece.print_run_total }}){% endif %}
+        </td>
+        <td> {% if piece.valid_for_sale %}
+          Opening Bid: {{ piece.opening_bid }}
+          <br/>{{ c.QS_PRICE_TERM|title }}: {% if not piece.valid_quick_sale %}N/A{% else %}{{ piece.quick_sale_price }}{% endif %}
+          {% else %}N/A{% endif %}
+        </td>
+        {% if not app.checked_in or admin_area %}
+        <td>
+          {% if piece.status == c.EXPECTED or admin_area %}
+          <div class="d-flex gap-1">
+          <form method="post" action="../art_show_applications/remove_art_show_piece">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ piece.id }}" />
+            <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
+            <button type="button" class="btn btn-sm btn-danger remove_piece" data-name="{{ piece.name }}">
+              <i class="fa fa-remove"></i>
+            </button>
+          </form>
+          {% endif %}
+          {% if piece.status in [c.EXPECTED, c.RECEIVED, c.NOT_RECEIVED] or admin_area %}
+          <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#piece-modal-{{ piece.id }}">
+            <i class="fa fa-pencil"></i>
+          </button>
+          {% endif %}
+          {% if admin_area %}
+          <form method="post" target="_blank" action="../art_show_admin/bid_sheet_pdf" class="form-inline">
+            <input type="hidden" name="id" value="{{ app.id }}" />
+            <input type="hidden" name="piece_id" value="{{ piece.id }}" />
+            {{ csrf_token() }}
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Print Bid Sheet</button>
+          </form>
+          {% endif %}
+          </div>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if not readonly %}
+    <div class="d-flex gap-1 mb-3 justify-content-{% if admin_area %}end{% else %}between{% endif %}">
+    <form role="form" target="_blank" method="post" id="print_form" action="../art_show_admin/print_check_in_out_form">
+      <input type="hidden" name="id" value="{{ app.id }}" />
+      {{ csrf_token() }}
+      <button class="btn btn-info">Print Check-In Form</button>
+    </form>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#piece-modal-new">Add {% if app.art_show_pieces %}Another {% endif %}Piece</button>
+    <form method="post" action="../art_show_applications/confirm_pieces" class="form-inline">
+        <input type="hidden" name="id" value="{{ app.id }}" />
+        <input type="hidden" name="return_to" value="{{ c.PAGE_PATH }}" />
+        {{ csrf_token() }}
+        {% if not admin_area %}<button type="submit" class="btn btn-success" id="confirm_pieces">Confirm Current Pieces</button>{% endif %}
+    </form>
+    </div>
+  {% endif %}
+
+<script type="text/javascript">
+    var saveArtShowPiece = function(form_id, submit_button_name) {
+      var $form = $('#' + form_id);
+      let serializedData = $form.serialize();
+      if (submit_button_name != '') {
+        serializedData += '&' + submit_button_name + '=1';
+      }
+      var alertId = $(this).find('.alert-dismissible').first().prop('id');
+      $.post($form.prop('action'), serializedData, function(result) {
+        history.replaceState({}, document.title, window.location.pathname + '?id={{ app.id }}');
+        hideMessageBox(alertId);
+        if (result.error) {
+          showErrorMessage(result.error.substring(7), alertId, false);
+        } else if (result.success) {
+          {% if admin_area %}
+          let hash = "#pieces";
+          {% else %}
+          let hash = "";
+          {% endif %}
+
+          if (result.hash) {
+            hash = "#" + encodeURIComponent(result.hash);
+          }
+          window.location = '?id={{ app.id }}&message=' + encodeURIComponent(result.success) + hash;
+        }
+        $('#piece_modals').find('.save_piece').prop('disabled', false);
+      });
+      return false;
+    };
+
+    $(document).ready(function() {
+      if(window.location.hash == '#piece-modal-new') {
+            new bootstrap.Modal($('#piece-modal-new')).show();
+            window.location.hash = {% if admin_area %}"#pieces"{% else %}""{% endif %};
+      }
+      {% if admin_area %}
+        $('#art-show-piece-table form[action*=save_art_show_piece]').each(function() {
+            $(this).on('submit', function(e) { saveArtShowPiece(e, $(this), alertId) });
+        });
+      {% endif %}
+
+        $('#piece_modals').find('form').submit(function(e) {
+            $(this).find('.save_piece').prop('disabled', true);
+            return true;
+        });
+
+        $('#art-show-piece-table').on('click', '.remove_piece', function (event) {
+            event.preventDefault();
+            var pieceRow = $(this).closest('.piece-row'),
+                dataTable = pieceRow.closest('table').DataTable(),
+                pieceId = pieceRow.data('piece_id');
+                pieceName = $(this).data('name');
+            bootbox.confirm({
+                backdrop: true,
+                title: 'Delete "'+pieceName+'"?',
+                message: 'Are you sure you want to delete this piece? This cannot be undone.',
+                buttons: {
+                    confirm: { label: 'Delete Piece', className: 'btn-danger' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                        $.ajax({
+                            method: 'POST',
+                            url: '../art_show_applications/remove_art_show_piece',
+                            data: {
+                                id: pieceId,
+                                csrf_token: csrf_token
+                            },
+                            success: function(response, status) {
+                                if (response['error']) {
+                                    showErrorMessage('There was an error removing the piece: ' + response['error']);
+                                } else {
+                                    dataTable.row(pieceRow).remove();
+                                    dataTable.draw();
+                                    $("#message-alert").addClass("alert-success").show().children('span').html(pieceName + ' successfully removed!');
+                                }
+                            },
+                            error: function(response, status) {
+                                showErrorMessage('There was an error removing the item: ' + response);
+                            }
+                        });
+                    }
+                }
+            });
+        });
+
+    });
+</script>

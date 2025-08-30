@@ -912,6 +912,38 @@ if c.ENABLED_INDIES_STR:
         sender=c.INDIE_SHOWCASE_EMAIL,
     )
 
+    AutomatedEmailFixture(
+        IndieJudge,
+        f'Welcome as a {c.EVENT_NAME} Indies Judge!',
+        'judge_welcome.html',
+        filter=lambda judge: judge.showcases and len(judge.showcases_ints) > 1,
+        ident='multi_judge_welcome',
+        sender=c.INDIE_SHOWCASE_EMAIL,
+    )
+
+
+class RetroEmailFixture(AutomatedEmailFixture):
+    def __init__(self, *args, **kwargs):
+        if len(args) < 4 and 'filter' not in kwargs:
+            kwargs['filter'] = lambda x: True
+        AutomatedEmailFixture.__init__(self, *args, sender=c.INDIE_RETRO_EMAIL, **kwargs)
+
+
+if c.INDIE_RETRO_START:
+    RetroEmailFixture(
+        IndieGame,
+        'Your Indie Retro Game Has Been Submitted',
+        'indie_retro/game_submitted.txt',
+        lambda game: game.submitted and game.showcase_type == c.INDIE_RETRO,
+        ident='retro_game_submitted')
+
+    RetroEmailFixture(
+        IndieJudge,
+        'Welcome as an Indie Retro Judge!',
+        'indie_retro/judge_welcome.html',
+        lambda judge: judge.single_showcase == c.INDIE_RETRO,
+        ident='retro_judge_welcome')
+
 
 class IAEmailFixture(AutomatedEmailFixture):
     def __init__(self, *args, **kwargs):
@@ -940,6 +972,13 @@ if c.INDIE_ARCADE_START:
         'indie_arcade/game_submitted.txt',
         lambda game: game.submitted and game.showcase_type == c.INDIE_ARCADE,
         ident='ia_game_submitted')
+    
+    IAEmailFixture(
+        IndieJudge,
+        'Welcome as an Indie Arcade Judge!',
+        'indie_arcade/judge_welcome.html',
+        lambda judge: judge.single_showcase == c.INDIE_ARCADE,
+        ident='ia_judge_welcome')
 
 
 class MIVSEmailFixture(AutomatedEmailFixture):

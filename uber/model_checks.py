@@ -27,7 +27,7 @@ from uber.config import c
 from uber.custom_tags import format_currency, full_date_local
 from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
-                         AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event,
+                         AttendeeTournament, Attraction, AttractionFeature, ArtShowBidder, DeptRole, Event,
                          GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
                          Job, ArtistMarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
                          PromoCode, PromoCodeGroup, Sale, Session, WatchList)
@@ -354,24 +354,6 @@ def _is_invalid_url(url):
         return True
 
 
-IndieJudge.required = [
-    ('platforms', 'Platforms'),
-    ('genres', 'Genres'),
-]
-
-
-@validation.IndieJudge
-def must_have_pc(judge):
-    if c.PC not in judge.platforms_ints and c.PCGAMEPAD not in judge.platforms_ints:
-        return 'You must have a PC to judge for MIVS.'
-
-
-@validation.IndieJudge
-def vr_text(judge):
-    if c.VR in judge.platforms_ints and not judge.vr_text:
-        return 'Please tell us what VR/AR platforms you own.'
-
-
 @validation.IndieStudio
 def showcase_new_studio_deadline(studio):
     if studio.is_new and not c.INDIE_SHOWCASE_OPEN:
@@ -696,206 +678,75 @@ def validate_phone(travel_plan):
 # =============================
 # art show
 # =============================
-ArtShowApplication.required = [('description', 'Description'), ('website', 'Website URL')]
-
-
-@prereg_validation.ArtShowApplication
-def max_panels(app):
-    if app.panels > c.MAX_ART_PANELS and app.panels != app.orig_value_of('panels') or \
-        app.panels_ad > c.MAX_ART_PANELS and app.panels_ad != app.orig_value_of('panels_ad'):
-        return 'You cannot have more than {} panels.'.format(c.MAX_ART_PANELS)
-
-
-@prereg_validation.ArtShowApplication
-def min_panels(app):
-    if app.panels < 0 or app.panels_ad < 0:
-        return 'You cannot have fewer than 0 panels.'
-
-
-@prereg_validation.ArtShowApplication
-def max_tables(app):
-    if app.tables > c.MAX_ART_TABLES and app.tables != app.orig_value_of('tables') or \
-        app.tables_ad > c.MAX_ART_TABLES and app.tables_ad != app.orig_value_of('tables_ad'):
-        return 'You cannot have more than {} tables.'.format(c.MAX_ART_TABLES)
-
-
-@prereg_validation.ArtShowApplication
-def min_tables(app):
-    if app.tables < 0 or app.tables_ad < 0:
-        return 'You cannot have fewer than 0 tables.'
-
 
 @prereg_validation.ArtShowApplication
 def invalid_mature_banner(app):
     if app.banner_name_ad and not app.has_mature_space:
-        return "You cannot enter a banner name for the mature gallery without any space in the mature gallery."
-
-
-@prereg_validation.ArtShowApplication
-def contact_at_con(app):
-    if not app.contact_at_con:
-        return "Please tell us the best way to get a hold of you at the event, e.g., your mobile number or your hotel and room number."
+        return ('banner_name_ad',
+                "You cannot enter a banner name for the mature gallery without any space in the mature gallery.")
 
 
 @validation.ArtShowApplication
 def artist_id_dupe(app):
     if app.artist_id and (app.is_new or app.artist_id != app.orig_value_of('artist_id')):
         with Session() as session:
-            dupe = session.query(ArtShowApplication).filter(or_(ArtShowApplication.artist_id == app.artist_id,
-                                                                ArtShowApplication.artist_id_ad == app.artist_id),
-                                                            ArtShowApplication.id != app.id).first()
+            dupe = session.query(ArtShowApplication).filter(or_(
+                ArtShowApplication.artist_id == app.artist_id,
+                ArtShowApplication.artist_id_ad == app.artist_id),
+                ArtShowApplication.id != app.id).first()
             if dupe:
-                return f"{dupe.display_name}'s {c.ART_SHOW_APP_TERM} already has the code {app.artist_id}!"
+                return ('artist_id',
+                        f"{dupe.display_name}'s {c.ART_SHOW_APP_TERM} already has the code {app.artist_id}!")
 
 
 @validation.ArtShowApplication
 def artist_id_ad_dupe(app):
     if app.artist_id_ad and (app.is_new or app.artist_id_ad != app.orig_value_of('artist_id_ad')):
         with Session() as session:
-            dupe = session.query(ArtShowApplication).filter(or_(ArtShowApplication.artist_id == app.artist_id_ad,
-                                                                ArtShowApplication.artist_id_ad == app.artist_id_ad),
-                                                            ArtShowApplication.id != app.id).first()
+            dupe = session.query(ArtShowApplication).filter(or_(
+                ArtShowApplication.artist_id == app.artist_id_ad,
+                ArtShowApplication.artist_id_ad == app.artist_id_ad),
+                ArtShowApplication.id != app.id).first()
             if dupe:
-                return f"{dupe.display_name}'s {c.ART_SHOW_APP_TERM} already has the mature code {app.artist_id_ad}!"
-
-
-@validation.ArtShowApplication
-def us_only(app):
-    if app.delivery_method == c.BY_MAIL and not app.us_only:
-        return 'Please confirm your address is within the continental US if you are mailing your art in.'
-
-
-@validation.ArtShowApplication
-def cant_ghost_art_show(app):
-    if not c.INDEPENDENT_ART_SHOW and app.attendee and app.delivery_method == c.BRINGING_IN \
-            and app.attendee.badge_status == c.NOT_ATTENDING:
-        return 'You cannot bring your own art if you are not attending.'
+                return ('artist_id_ad',
+                        f"{dupe.display_name}'s {c.ART_SHOW_APP_TERM} already has the mature code {app.artist_id_ad}!")
 
 
 @validation.ArtShowApplication
 def need_some_space(app):
     if not app.panels and not app.tables \
             and not app.panels_ad and not app.tables_ad:
-        return 'Please select how many panels and/or tables to include' \
-               ' on this application.'
-
-
-@prereg_validation.ArtShowApplication
-def too_late_now(app):
-    if app.status != c.UNAPPROVED:
-        for field in ['artist_name',
-                      'panels',
-                      'panels_ad',
-                      'tables',
-                      'tables_ad',
-                      'description',
-                      'website',
-                      'special_needs',
-                      'status',
-                      'delivery_method',
-                      'admin_notes']:
-            if app.orig_value_of(field) != getattr(app, field):
-                return 'Your application has been {} and may no longer be updated'\
-                    .format(app.status_label)
-
-
-@validation.ArtShowApplication
-def discounted_price(app):
-    try:
-        cost = int(float(app.overridden_price if app.overridden_price else 0))
-        if cost < 0:
-            return 'Overridden Price must be a number that is 0 or higher.'
-    except Exception:
-        return "What you entered for Overridden Price ({}) " \
-               "isn't even a number".format(app.overridden_price)
-
-
-ArtShowPiece.required = [('name', 'Name'),
-                         ('gallery', 'Gallery'),
-                         ('type', 'Type')]
+        return ('', 'Please select how many panels and/or tables to include on this application.')
 
 
 @validation.ArtShowPiece
 def no_duplicate_piece_names(piece):
     with Session() as session:
-        if session.query(ArtShowPiece).iexact(name=piece.name).filter(ArtShowPiece.id != piece.id,
-                                                                      ArtShowPiece.app_id == piece.app_id).all():
-            return "You already have a piece with that name."
-
-
-@validation.ArtShowPiece
-def print_run_if_print(piece):
-    if piece.type == c.PRINT:
-        if not piece.print_run_num:
-            return "Please enter the piece's edition number"
-        if not piece.print_run_total:
-            return "Please enter the total number of prints for this piece's print run"
-
-        try:
-            num = int(piece.print_run_num)
-            total = int(piece.print_run_total)
-            if total > 1000:
-                return "Print runs can only be 1000 prints or fewer"
-            if total <= 0:
-                return "Print runs must have at least 1 print"
-            if num <= 0:
-                return "A piece must be at least edition 1 of {}".format(total)
-            if total < num:
-                return "A piece's edition number cannot be higher than the total print run"
-        except Exception:
-            return ("What you entered for the print edition or run total "
-                    f"({piece.print_run_num}/{piece.print_run_total}) isn't even a number")
-
-
-@validation.ArtShowPiece
-def media_if_original(piece):
-    if piece.type == c.ORIGINAL and not piece.media:
-        return "Please describe what medium your original art is on."
-
-
-@validation.ArtShowPiece
-def price_checks_if_for_sale(piece):
-    if piece.for_sale:
-        if not piece.opening_bid:
-            return "Please enter an opening bid for this piece"
-
-        try:
-            price = int(piece.opening_bid)
-            if price <= 0:
-                return "A piece must cost more than $0"
-        except Exception:
-            return f"What you entered for the opening bid ({piece.opening_bid}) isn't even a number"
-
-        if not piece.no_quick_sale:
-            if not piece.quick_sale_price:
-                "Please enter a " + c.QS_PRICE_TERM
-
-            try:
-                price = int(piece.quick_sale_price)
-                if price <= 0:
-                    return "A piece must cost more than $0, even after bidding ends"
-            except Exception:
-                return f"What you entered for the {c.QS_PRICE_TERM} ({piece.quick_sale_price}) isn't even a number"
-
-
-@validation.ArtShowPiece
-def name_max_length(piece):
-    if len(piece.name) > c.PIECE_NAME_LENGTH:
-        return "Piece names must be {} characters or fewer.".format(c.PIECE_NAME_LENGTH)
+        if session.query(ArtShowPiece).iexact(name=piece.name).filter(
+            ArtShowPiece.id != piece.id, ArtShowPiece.app_id == piece.app_id).all():
+            return ('name', "You already have a piece with that name.")
 
 
 @validation.ArtShowPiece
 def check_in_gallery(piece):
-    if piece.gallery == c.GENERAL and not piece.app.has_general_space:
-        return "You cannot put a piece in the General gallery because you do not have any space there."
-    if piece.gallery == c.MATURE and not piece.app.has_mature_space:
-        return "You cannot put a piece in the Mature gallery because you do not have any space there."
+    with Session() as session:
+        app = session.art_show_application(piece.app_id, ignore_csrf=True)
+        if piece.gallery == c.GENERAL and not app.has_general_space:
+            return ('gallery', "You cannot put a piece in the General gallery because you do not have any space there.")
+        if piece.gallery == c.MATURE and not app.has_mature_space:
+            return ('mature', "You cannot put a piece in the Mature gallery because you do not have any space there.")
 
 
-@validation.ArtShowPiece
-def media_max_length(piece):
-    if len(piece.media) > 15:
-        return "The description of the piece's media must be 15 characters or fewer."
+@validation.ArtShowBidder
+def bidder_num_dupe(bidder):
+    if bidder.bidder_num and (bidder.is_new or bidder.bidder_num != bidder.orig_value_of('bidder_num')):
+        with Session() as session:
+            bidder_num_dupe = session.query(ArtShowBidder).filter(
+                ArtShowBidder.id != bidder.id,
+                ArtShowBidder.bidder_num_stripped == ArtShowBidder.strip_bidder_num(bidder.bidder_num)).first()
+            if bidder_num_dupe:
+                return ('bidder_num',
+                        f"The bidder number {bidder_num_dupe.bidder_num[2:]} already belongs to bidder {bidder_num_dupe.bidder_num}.")
 
 
 # This is still required for creating an attendee from an art show app, will need to refactor later
@@ -903,7 +754,7 @@ Attendee.required = [('first_name', 'First Name'),
                      ('last_name', 'Last Name'),
                      ('email', 'Email')]
 
-# New validations, which return a tuple with the field name (or an empty string) and the message
+
 @prereg_validation.Attendee
 def reasonable_total_cost(attendee):
     if attendee.total_cost >= 999999:

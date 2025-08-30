@@ -1,0 +1,37 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set bidder_attendee_info = bidder_attendee_info or forms['bidder_attendee_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    names
+    address
+    email_phone
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block names %}
+<div class="col-sm">{{ form_macros.input(bidder_attendee_info.first_name) }}</div>
+<div class="col-sm">{{ form_macros.input(bidder_attendee_info.last_name) }}</div>
+<div class="col-sm">{{ form_macros.input(bidder_attendee_info.legal_name, label_text="Name on Photo ID") }}</div>
+{% endblock %}
+</div>
+
+{% block address %}
+{% if not c.INDEPENDENT_ART_SHOW %}
+{{ form_macros.address_fields(bidder_attendee_info) }}
+{% endif %}
+{% endblock %}
+
+<div class="row g-3 mb-3">
+{% block email_phone %}
+<div class="col-sm">{{ form_macros.input(bidder_attendee_info.email) }}</div>
+<div class="col-sm">{{ form_macros.input(bidder_attendee_info.cellphone, readonly=printable|boolean) }}</div>
+{% endblock %}
+</div>
+
+</div>

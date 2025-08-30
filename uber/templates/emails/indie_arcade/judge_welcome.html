@@ -1,0 +1,26 @@
+Howdy {{ judge.attendee.first_name }}!
+
+<p>Congratulations, you have been selected to be a judge for the {{ c.EVENT_YEAR }} MAGFest Indie Arcade Showcase! If this is your first time judging for Indie Arcade, welcome aboard! If you're a returning judging veteran, welcome back to another year!</p>
+
+<p>You should have already received an email with login information for your judging account. If you haven't already done so, please log in at {{ c.URL_BASE }}/showcase_judging and fill out your judging profile.</p>
+
+<p>Judging will begin soon and go until {{ c.INDIE_ARCADE_JUDGING_DEADLINE|datetime_local }}.</p>
+
+<p>As a judge, you'll be responsible for judging around a dozen games. Expect to spend at least 15 minutes per game to get a good idea of how the game feels.</p>
+
+You'll be giving the games a score from 1-10 based on three categories:
+<ul>
+<li><strong>Show Readiness</strong> - how ready the game appears to be shown to the public. The quality of visual and audio assets and the lack of significant game play bugs.</li>
+<li><strong>Overall Design</strong> - how well the game addresses its central concept. (i.e. If it is a puzzle game, are the puzzles good? If it is a narrative-driven game, is the story compelling?)</li>
+<li><strong>Overall Enjoyment</strong> - how enjoyable was the game? Did it keep you on your toes, make you laugh, push your reflexes to the limit?</li>
+</ul>
+
+<p>There will also be a space for you to leave constructive feedback that will be sent to the developers after judging completes.</p>
+
+<p>You will have until {{ c.INDIE_ARCADE_JUDGING_DEADLINE|datetime_local }} to complete judging for your entries.</p>
+
+<p>At the close of judging, those who have successfully completed their assigned games will receive a complimentary non-transferable {{ c.EVENT_NAME }} badge.</p>
+
+<p>From all of us here on the MIVS team and all the independent developers, we thank you for your continued help in making MIVS incredible, year after year!</p>
+
+<p>{{ email_signature|linebreaksbr }}</p>

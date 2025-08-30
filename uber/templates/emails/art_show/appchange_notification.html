@@ -12,8 +12,6 @@ the changes.
     {% if not app.incomplete_reason and not app.is_unpaid %}
     <li><strong>Banner Name</strong>: {{ app.display_name }}</li>
     <li><strong>Name on Check</strong>: {{ app.check_payable or app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name }}</li>
-    {% if app.hotel_name %}<li><strong>Hotel Staying At</strong>: {{ app.hotel_name }}</li>{% endif %}
-    {% if app.hotel_name %}<li><strong>Room Number</strong>: {{ app.hotel_room_num }}</li>{% endif %}
     {% endif %}
     {% if app.artist_name %}<li><strong>Artist Name</strong>: {{ app.artist_name }}</li>{% endif %}
     <li><strong>General Panels</strong>: {{ app.panels }} panels ({{ app.default_panel_cost|format_currency }}) </li>

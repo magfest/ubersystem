@@ -523,6 +523,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     art_agent_apps = relationship(
         'ArtShowApplication',
         backref='agents',
+        secondaryjoin='and_(ArtShowAgentCode.app_id == ArtShowApplication.id, ArtShowAgentCode.cancelled == None)',
         secondary='art_show_agent_code',
         viewonly=True)
 
@@ -1709,7 +1710,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         Here is the business logic surrounding shirts:
         - People who kick in enough to get a shirt get an event shirt.
         - People with staff badges get a configurable number of staff shirts.
-        - Volunteers who meet the requirements get a complementary event shirt
+        - Volunteers who meet the requirements get a complimentary event shirt
             (NOT a staff shirt).
 
         If the c.SEPARATE_STAFF_SWAG setting is true, then this excludes staff

@@ -207,7 +207,7 @@ class Root:
         # Config data and IDs
         header_row.extend(["Lottery Close", "suite_cutoff", "year", "Response ID", "Confirmation Code",
                            "SessionID", "Survey ID", "entry_id", "dealer_group_id"])
-        
+
         # Contact data
         header_row.extend(["is_staff", "email", "first_name:contact", "last_name:contact", "Title:contact",
                            "Company Name:contact", "street_address:contact", "apt_suite_office:contact",

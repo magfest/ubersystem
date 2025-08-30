@@ -1,9 +1,11 @@
-{% extends "art_show_common/print_form.html" %}{% set admin_area=True %}{% set no_print = True %}
+{% extends 'static_views/static_base.html' %}
 {% import 'art_show_common/print_macros.html' as print_macros with context %}
 
-{% block printform %}
+{% include 'art_show_common/print.html' with context %}
+
+<div class="card-body p-0 m-0">
 {% for app in apps %}
 {{ print_macros.print_artist_invoice(app) }}
 <div class="pagebreak"></div>
 {% endfor %}
-{% endblock %}
+</div>

@@ -1,0 +1,49 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set judge_showcase_info = judge_showcase_info or forms['judge_showcase_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    status
+    showcases
+    mivs_info
+    admin_notes
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+assignable_showcases: {{ judge_showcase_info.assignable_showcases.data|map('string')|list }},
+all_games_showcases: {{ judge_showcase_info.all_games_showcases.data|map('string')|list }},
+get MIVSInfo() { return this.assignable_showcases.includes('{{ c.MIVS }}') || this.all_games_showcases.includes('{{ c.MIVS }}') },
+{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block status %}
+{% if not judge.is_new %}
+<div class="col-sm">{{ form_macros.input(judge_showcase_info.status) }}</div>
+<div class="col-sm">{{ form_macros.input(judge_showcase_info.email) }}</div>
+{% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block showcases %}
+    <div class="col-sm">{{ form_macros.input(judge_showcase_info.assignable_showcases, alpine_model="assignable_showcases") }}</div>
+    <div class="col-sm">{{ form_macros.input(judge_showcase_info.all_games_showcases, alpine_model="all_games_showcases") }}</div>
+{% endblock %}
+</div>
+
+{% block mivs_info %}
+<div x-show="MIVSInfo">
+    {% include 'forms/showcase/mivs_judge_info.html' with context %}
+</div>
+{% endblock %}
+
+<div class="row g-3 mb-3">
+{% block admin_notes %}
+<div class="col-sm">{{ form_macros.input(judge_showcase_info.staff_notes) }}</div>
+{% endblock %}
+</div>
+
+</div>

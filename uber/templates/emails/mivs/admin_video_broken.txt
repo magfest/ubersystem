@@ -1,5 +1,5 @@
 {{ review.judge.full_name }} has marked the video submission for {{ review.game.title }} as "{{ review.video_status_label }}."
 
-You can view the full review here: {{ c.URL_BASE }}/mivs_judging/game_review?id={{ review.id }}
+You can view the full review here: {{ c.URL_BASE }}/showcase_judging/game_review?id={{ review.id }}
 
-Or the game details here: {{ c.URL_BASE }}/mivs/game?id={{ review.game.id }}
+Or the game details here: {{ c.URL_BASE }}/showcase/edit_game?id={{ review.game.id }}#problems

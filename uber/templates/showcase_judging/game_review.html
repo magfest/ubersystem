@@ -1,0 +1,119 @@
+{% extends "preregistration/preregbase.html" %}
+{% block title %}{{ game.title }} Game Review{% endblock %}
+{% import 'forms/macros.html' as form_macros with context %}
+
+{% block content %}
+<div class="card card-body">
+<h2>Your Review of {{ game.title }}</h2>
+
+<p>You ({{ review.judge.full_name }}) have been assigned to review the game "{{ game.title }}". Here is the relevant information
+for reviewing the game:</p>
+
+<form novalidate method="post" id="review-form" action="game_review" role="form">
+    <input type="hidden" name="id" value="{{ review.id }}" />
+    {{ csrf_token() }}
+
+    {% if game.showcase_type == c.MIVS %}
+        {% include 'forms/showcase/mivs_review_info.html' with context %}
+    {% elif game.showcase_type == c.INDIE_ARCADE %}
+        {% include 'forms/showcase/arcade_review_info.html' with context %}
+    {% elif game.showcase_type == c.INDIE_RETRO %}
+        {% include 'forms/showcase/retro_review_info.html' with context %}
+    {% endif %}
+
+    {{ form_macros.form_validation('review-form', 'validate_review') }}
+
+    <h3>Scoring</h3>
+    <p>
+        See the <a href="#showcase-scoring" data-bs-toggle="modal" data-bs-target="#showcase-scoring">scoring explanation</a> for a breakdown of each category.
+        {% if game.link_to_game %}If game was unplayable due to a problem, leave each category unscored.{% endif %}
+    </p>
+
+    {% include 'forms/showcase/game_review.html' with context %}
+    
+    <button type="submit" class="btn btn-primary">Review Game</button>
+</form>
+</div>
+
+<div
+    id="showcase-scoring"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="showcase-scoring-title"
+    style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <h4 class="modal-title" id="showcase-scoring-title">
+            {{ c.EVENT_NAME }} Indies Scoring Explanation
+        </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <p>All games in {{ c.EVENT_NAME }} Indies will receive a score in each of the following categories:</p>
+            <dl>
+                <dt>Show Readiness</dt>
+                <dd>
+                    This category focuses on how ready the game appears to be when shown to the public. This means the degree of visual and audible asset completion as well any programming bugs.
+                    <dt class="ms-3">Example Scores</dt>
+                    <dd class="ms-3">
+                        <em>Scores of 1-3</em>
+                        <ul>
+                            <li>Placeholder/missing visual and/or sound assets that are damaging to gameplay</li>
+                            <li>Major/Game-breaking bugs</li>
+                        </ul>
+                        <em>Scores 4-6</em>
+                        <ul>
+                            <li>Could use some serious polish on visual or audible elements</li>
+                            <li>Minor bugs (non-game breaking)</li>
+                        </ul>
+                        <em>Scores 7-10</em>
+                        <ul>
+                            <li>Game is visually and audibly good/excellent</li>
+                            <li>Free of noticeable bugs</li>
+                        </ul>
+                    </dd>
+                </dd>
+                <dt>Overall Design</dt>
+                <dd>
+                    No two games are alike; some have a strong narrative or visuals while others may be more focused on mechanics or puzzle design. This category is for how well the judge feels that the game addresses its own central concept.
+                    For example, if it is a puzzle game, are the puzzles good? If it is a narrative-driven game, is the story compelling?
+                    <dt class="ms-3">Example Scores</dt>
+                    <dd class="ms-3">
+                        <em>Scores of 1-3</em>
+                        <ul>
+                            <li>Game is a very poor/weak example of its category</li>
+                        </ul>
+                        <em>Scores 4-6</em>
+                        <ul>
+                            <li>Game could use improvement in central structure around being a better example of its genre, however the core concept is there</li>
+                        </ul>
+                        <em>Scores 7-10</em>
+                        <ul>
+                            <li>Game is a good, excellent, or very interesting example of its respective genre or structure</li>
+                        </ul>
+                    </dd>
+                </dd>
+                <dt>Overall Enjoyment</dt>
+                <dd>
+                    Games can be enjoyed for any number of reasons such as:
+                    <ul>
+                        <li>Challenging your reflexes and skill</li>
+                        <li>Making you think</li>
+                        <li>Taking you on a journey</li>
+                        <li>Making you laugh</li>
+                    </ul>
+                    So this category is wide open. In terms of what the game sought out to do, how enjoyable was it?
+                    <br/><br/>
+                    There is no point breakdown here, just score it 1-10! Include additional information in the "Comments for the Devs" section about what you thought about the game.
+                </dd>
+            </dl>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+    </div>
+</div>
+{% endblock %}

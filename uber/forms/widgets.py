@@ -108,7 +108,7 @@ class SelectDynamicChoices(Select):
         return super().__call__(field, **kwargs)
 
 
-class NumberInputGroup(NumberInput):
+class NumberInputGroup(TextInput):
     def __init__(self, prefix='$', suffix='.00', **kwargs):
         self.prefix = prefix
         self.suffix = suffix

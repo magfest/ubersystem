@@ -48,7 +48,7 @@ class Root:
         entry.attendee_guesses = session.guess_watchentry_attendees(entry)
 
         if cherrypy.request.method == 'POST':
-            all_errors = validate_model(forms, entry)
+            all_errors = validate_model(forms, entry, is_admin=True)
             if all_errors:
                 message = ' '.join([item for sublist in all_errors.values() for item in sublist])
 

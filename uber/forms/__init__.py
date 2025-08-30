@@ -7,12 +7,20 @@ from collections import defaultdict, OrderedDict
 from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, validators, Label
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError, StopValidation
+from wtforms.utils import unset_value
 from pockets.autolog import log
 from functools import wraps
 
 from uber.config import c
-from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, SwitchInput, Ranking, UniqueList
+from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, SwitchInput, Ranking, UniqueList, SelectButtonGroup
 from uber.model_checks import invalid_phone_number
+
+
+def bool_from_text(value):
+    if isinstance(value, six.string_types):
+        return value.strip().lower() not in ('f', 'false', 'n', 'no', '0')
+    return bool(value)
+                        
 
 
 def valid_cellphone(form, field):
@@ -105,11 +113,9 @@ def load_forms(params, model, form_list, field_prefix='', truncate_prefix='admin
                 else:
                     alias_dict[aliased_field] = alias_val
 
-        loaded_form = form_cls(params, model, prefix=field_prefix)
+        loaded_form = form_cls(params, model, prefix=field_prefix, checkboxes_present=checkboxes_present,
+                               data=alias_dict, force_form_defaults=force_form_defaults, field_prefix=field_prefix)
         loaded_form.read_only = read_only
-
-        loaded_form.process(params, model, checkboxes_present=checkboxes_present,
-                            data=alias_dict, force_form_defaults=force_form_defaults)
 
         form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', form_name).lower()
         if truncate_prefix and form_label.startswith(truncate_prefix + '_'):
@@ -377,39 +383,53 @@ class MagForm(Form):
         # and convert DOBs into the format that our DateMaskInput expects
         # and process our UniqueList field data if it's been submitted as multiple fields
 
-        force_defaults = force_form_defaults and not formdata and (not obj or obj.is_new)
+        force_defaults = force_form_defaults and (not obj or obj.is_new) and cherrypy.request.method != 'POST'
 
         for name, field in self._fields.items():
+            if kwargs.get('field_prefix', ''):
+                prefixed_name = f"{kwargs['field_prefix']}-{name}"
+            else:
+                prefixed_name = name
+
             field_in_obj = hasattr(obj, name)
-            field_in_formdata = name in formdata
-            use_blank_formdata = cherrypy.request.method == 'POST' and checkboxes_present
+            field_in_formdata = prefixed_name in formdata
+            use_blank_formdata = cherrypy.request.method == 'POST' and checkboxes_present and formdata
             if isinstance(field, BooleanField):
                 if not field_in_formdata and field_in_obj:
-                    formdata[name] = False if use_blank_formdata else getattr(obj, name)
+                    formdata[prefixed_name] = False if use_blank_formdata else getattr(obj, name)
                 elif field_in_formdata and cherrypy.request.method == 'POST':
                     # We have to pre-process boolean fields because WTForms will print "False"
                     # for a BooleanField's hidden input value and then not process that as falsey
-                    formdata[name] = formdata[name].strip().lower() not in ('f', 'false', 'n', 'no', '0') \
-                        if isinstance(formdata[name], six.string_types) else formdata[name]
+                    formdata[prefixed_name] = formdata[prefixed_name].strip().lower() not in ('f', 'false', 'n', 'no', '0') \
+                        if isinstance(formdata[prefixed_name], six.string_types) else formdata[prefixed_name]
             elif (isinstance(field, SelectMultipleField)
                   or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
                   or isinstance(field.widget, SelectButtonGroup)
                   ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
-                    formdata[name] = []
-                elif field_in_obj and isinstance(getattr(obj, name), str):
-                    formdata[name] = getattr(obj, name).split(',')
-                else:
-                    formdata[name] = getattr(obj, name)
+                    formdata[prefixed_name] = []
+                elif field_in_obj:
+                    obj_data = getattr(obj, name)
+                    if obj_data and isinstance(obj_data, str):
+                        formdata[prefixed_name] = getattr(obj, name).split(',')
+                    elif obj_data:
+                        formdata[prefixed_name] = getattr(obj, name)
             elif isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
-                formdata[name] = getattr(obj, name).strftime('%m/%d/%Y')
-            elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[name], list):
-                formdata[name] = ','.join(formdata[name])
+                formdata[prefixed_name] = getattr(obj, name).strftime('%m/%d/%Y')
+            elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[prefixed_name], list):
+                formdata[prefixed_name] = ','.join(formdata[prefixed_name])
 
-            if force_defaults and field.default is not None:
-                formdata[name] = field.default
+            if force_defaults and not field_in_formdata:
+                if field.default is not None:
+                    formdata[prefixed_name] = field.default
+                elif hasattr(obj, name):
+                    formdata[prefixed_name] = getattr(obj, name)
+                elif name in kwargs:
+                    formdata[prefixed_name] = kwargs[name]
+                else:
+                    formdata[prefixed_name] = unset_value
 
-        super().process(formdata, obj, data, extra_filters, **kwargs)
+        super().process(formdata, None if force_defaults else obj, data, extra_filters, **kwargs)
 
     @property
     def field_list(self):
@@ -458,6 +478,7 @@ class MagForm(Form):
             This function implements all our custom logic to apply when initializing a field. Currently, we:
             - Add a reference to the field so we can traverse back up to its form
             - Refresh the field's choices if it's listed in the form's `dynamic_choices_fields`
+            - Convert the field's choices to a list of tuples so we can turn it into a dict() as needed
             - Get a label and description override from a function on the form class, if there is one
             - Add aria-describedby to the field for use in clientside validations
 
@@ -472,6 +493,10 @@ class MagForm(Form):
 
             if field_name in form.dynamic_choices_fields.keys():
                 bound_field.choices = form.dynamic_choices_fields[field_name]()
+
+            if hasattr(bound_field, 'choices') and bound_field.choices and not isinstance(bound_field.choices[0], tuple):
+                choices = bound_field.choices
+                bound_field.choices = list(zip(choices, choices))
 
             if hasattr(form, field_name + '_label'):
                 field_label = get_override_attr(form, field_name, '_label')
@@ -515,6 +540,57 @@ class HiddenIntField(IntegerField):
 
 class HiddenBoolField(BooleanField):
     widget = wtforms_widgets.HiddenInput()
+
+
+class BlankOrIntegerField(IntegerField):
+    widget = wtforms_widgets.TextInput()
+    def process_data(self, value):
+        if value is None or value is unset_value or value == '':
+            self.data = None
+            return
+
+        try:
+            self.data = int(value)
+        except (ValueError, TypeError) as exc:
+            self.data = None
+            raise ValueError(self.gettext("Not a valid integer value.")) from exc
+
+    def process_formdata(self, valuelist):
+        if not valuelist or valuelist[0] == '':
+            return
+
+        try:
+            self.data = int(valuelist[0])
+        except ValueError as exc:
+            self.data = None
+            raise ValueError(self.gettext("Not a valid integer value.")) from exc
+        
+
+class SelectBooleanField(SelectField):
+    """
+    Allows a boolean column to be shown as a set of radio options, neither of which is selected initially.
+    This helps make sure users don't accidentally skip important true/false fields.
+    """
+
+    widget = SelectButtonGroup()
+    def __init__(self, label=None, validators=None, coerce=bool_from_text, choices=None, validate_choice=True,
+                 yes_label='Yes', no_label='No', **kwargs):
+        if not choices:
+            choices = [('yes', yes_label), ('no', no_label)]
+        super().__init__(label, validators, coerce, choices, validate_choice, **kwargs)
+    
+    def process_data(self, value):
+        if value is None or value is unset_value or value == '':
+            self.data = None
+            return
+
+        super().process_data(value)
+
+    def process_formdata(self, valuelist):
+        if not valuelist or valuelist[0] == '':
+            return
+
+        super().process_formdata(valuelist)
 
 
 class SelectAvailableField(SelectField):
