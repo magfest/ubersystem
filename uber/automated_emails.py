@@ -913,6 +913,24 @@ if c.ENABLED_INDIES_STR:
     )
 
     AutomatedEmailFixture(
+        IndieStudio,
+        'Reminder to submit your game to MAGFest',
+        'mivs/game_reminder.txt',
+        lambda studio: not studio.games,
+        ident='mivs_studio_submission_reminder',
+        sender=c.INDIE_SHOWCASE_EMAIL,
+        when=days_before(7, c.MIVS_DEADLINE)
+    )
+    AutomatedEmailFixture(
+        IndieStudio,
+        'Final Reminder to submit your game to MAGFest',
+        'mivs/game_reminder.txt',
+        lambda studio: not studio.games,
+        ident='mivs_game_submission_final_reminder',
+        sender=c.INDIE_SHOWCASE_EMAIL,
+        when=days_before(2, c.MIVS_DEADLINE))
+
+    AutomatedEmailFixture(
         IndieJudge,
         f'Welcome as a {c.EVENT_NAME} Indies Judge!',
         'judge_welcome.html',
@@ -1015,31 +1033,6 @@ if c.MIVS_START:
         'mivs/video_broken.txt',
         lambda game: game.video_broken,
         ident='mivs_video_broken')
-
-    MIVSEmailFixture(
-        IndieStudio,
-        'Reminder to submit your game to MIVS',
-        'mivs/game_reminder.txt',
-        lambda studio: not studio.games,
-        ident='mivs_studio_submission_reminder',
-        when=days_before(7, c.MIVS_DEADLINE)
-    )
-
-    MIVSEmailFixture(
-        IndieGame,
-        'Reminder to submit your game to MIVS',
-        'mivs/submission_reminder.txt',
-        lambda game: not game.submitted,
-        ident='mivs_game_submission_reminder',
-        when=days_before(7, c.MIVS_DEADLINE))
-
-    MIVSEmailFixture(
-        IndieGame,
-        'Final Reminder to submit your game to MIVS',
-        'mivs/submission_reminder.txt',
-        lambda game: not game.submitted,
-        ident='mivs_game_submission_final_reminder',
-        when=days_before(2, c.MIVS_DEADLINE))
 
     MIVSEmailFixture(
         IndieGame,
