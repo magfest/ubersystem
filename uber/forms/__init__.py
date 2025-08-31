@@ -622,9 +622,8 @@ class SelectAvailableField(SelectField):
             coerced_val = self.coerce(value)
             if coerced_val in sold_out_list:
                 label = f"{label} {self.sold_out_text}"
-            selected = coerced_val == self.data
             render_kw = other_args[0] if len(other_args) else {}
-            yield (value, label, selected, render_kw)
+            yield (value, label, coerced_val == self.data, render_kw)
 
 
 class DictWrapper(dict):

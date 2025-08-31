@@ -1147,7 +1147,12 @@ def mount_site_sections(module_root):
     site_sections = [path.split('/')[-1][:-3] for path in python_files if not path.endswith('__init__.py')]
     for site_section in site_sections:
         module = importlib.import_module(basename(module_root) + '.site_sections.' + site_section)
-        setattr(Root, site_section, module.Root())
+        if hasattr(Root, site_section) and hasattr(module, 'Root'):
+            replacements = [method for method in dir(module.Root) if method.startswith('__') is False]
+            for func_or_property in replacements:
+                setattr(getattr(Root, site_section), func_or_property, getattr(module.Root(), func_or_property))
+        else:
+            setattr(Root, site_section, module.Root())
 
 
 def get_static_file_path(filename):

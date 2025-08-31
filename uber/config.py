@@ -443,10 +443,6 @@ class Config(_Overridable):
         return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
 
     @property
-    def SHOW_HOTEL_LOTTERY_DATE_OPTS(self):
-        return c.HOTEL_LOTTERY_CHECKIN_START != c.HOTEL_LOTTERY_CHECKIN_END
-
-    @property
     def HOTEL_LOTTERY_FORM_STEPS(self):
         """
         We have to run our form validations based on which 'step' in the form someone is, but
@@ -456,30 +452,15 @@ class Config(_Overridable):
 
         steps = {}
         step = 0
-        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+        for step_name in c.HOTEL_LOTTERY_ROOM_STEPS:
             step += 1
-            steps['room_dates'] = step
-        step += 1
-        steps['room_ada_info'] = step
-        step += 1
-        steps['room_hotel_type'] = step
-        if c.HOTEL_LOTTERY_PREF_RANKING:
-            step += 1
-            steps['room_selection_pref'] = step
+            steps[f'room_{step_name}'] = step
         steps['room_final_step'] = step
 
-        step = 1
-        steps['suite_agreement'] = step
-        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+        step = 0
+        for step_name in c.HOTEL_LOTTERY_SUITE_STEPS:
             step += 1
-            steps['suite_dates'] = step
-        step += 1
-        steps['suite_type'] = step
-        step += 1
-        steps['suite_hotel_type'] = step
-        if c.HOTEL_LOTTERY_PREF_RANKING:
-            step += 1
-            steps['suite_selection_pref'] = step
+            steps[f'suite_{step_name}'] = step
         steps['suite_final_step'] = step
 
         return steps
@@ -1660,6 +1641,24 @@ def create_hour_opts(start_hour, end_hour, step, prefix=''):
             return opt_list
 
 
+def build_hotel_inventory(inventory_type, room_types):
+    hotel_inventory = []
+    for key, item in c.HOTEL_LOTTERY_HOTELS.items():
+        hotel_enum, hotel = item
+        for room_type_key, quantity in hotel.get(inventory_type, {}).items():
+            room_type_enum, room_type = room_types.get(room_type_key)
+            if not room_type:
+                raise ValueError(f"Could not locate hotel room_type {room_type_key}")
+            capacity = room_type.get(f'{key}_capacity', room_type['capacity'])
+            hotel_inventory.append({
+                "id": str(hotel_enum),
+                "capacity": int(capacity),
+                "room_type": str(room_type_enum),
+                "quantity": int(quantity)
+            })
+    return hotel_inventory
+    
+
 c = Config()
 _config = parse_config("uber", pathlib.Path("/app/uber"))  # outside this module, we use the above c global instead of using this directly
 db_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -1920,6 +1919,7 @@ c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
 for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
     opts = []
+    dictionary = {}
     for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
         if isinstance(item, dict):
             item.__hash__ = lambda x: hash(x.name + x.description)
@@ -1927,7 +1927,13 @@ for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
             dict_key = int(sha512(base_key.encode()).hexdigest()[:7], 16)
             setattr(c, base_key, dict_key)
             opts.append((dict_key, item))
+            dictionary[name] = (dict_key, item)
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
+    setattr(c, f"HOTEL_LOTTERY_{key.upper()}", dictionary)
+
+c.HOTEL_ROOM_INVENTORY = build_hotel_inventory('room_inventory', c.HOTEL_LOTTERY_ROOM_TYPES)
+c.HOTEL_SUITE_INVENTORY = build_hotel_inventory('suite_inventory', c.HOTEL_LOTTERY_SUITE_ROOM_TYPES)
+c.HOTEL_LOTTERY_AWARD_STATUSES = [c.PROCESSED, c.AWARDED, c.SECURED]
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
