@@ -42,6 +42,10 @@ class Root:
             email.sent_email_count = email_count
             emails.append(email)
 
+        for fixture in AutomatedEmail._fixtures.values():
+            if not fixture.template_plugin_name or not fixture.template_url:
+                fixture.update_template_plugin_info()
+
         emails_by_sender = groupify(emails, 'sender')
 
         return {
