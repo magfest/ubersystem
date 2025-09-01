@@ -54,6 +54,8 @@ MivsGameInfo.field_validation.validations['description']['length'] = validators.
 MivsDemoInfo.field_validation.required_fields = {
     'link_to_video': "Please provide a link to a video showing this game's gameplay.",
     'link_to_game': "Please provide a download link for this game.",
+    'code_type': "Please select the type of activation code this demo requires, or none.",
+    'build_status': "Please select what build stage this demo is.",
     'password_to_game': ("Please provide a password for downloading this game.", 'no_password', lambda x: not x),
     'code_instructions': ("Please include instructions for how the judges are to use the code(s) you provide.",
                           'code_type', lambda x: x in c.MIVS_CODES_REQUIRING_INSTRUCTIONS),

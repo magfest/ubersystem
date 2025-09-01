@@ -382,14 +382,32 @@ def showcase_studio_contact_phone(studio):
 
 @validation.IndieGame
 def mivs_new_game_deadline(game):
+    with Session() as session:
+        if session.current_admin_account():
+            return
+
     if game.is_new and game.showcase_type == c.MIVS and not c.MIVS_SUBMISSIONS_OPEN:
         return 'Sorry, but the deadline has already passed, so no new MIVS games may be registered.'
 
 
 @validation.IndieGame
 def arcade_new_game_deadline(game):
+    with Session() as session:
+        if session.current_admin_account():
+            return
+
     if game.is_new and game.showcase_type == c.INDIE_ARCADE and not c.INDIE_ARCADE_SUBMISSIONS_OPEN:
         return 'Sorry, but the deadline has already passed, so no new Indie Arcade games may be registered.'
+
+
+@validation.IndieGame
+def retro_new_game_deadline(game):
+    with Session() as session:
+        if session.current_admin_account():
+            return
+
+    if game.is_new and game.showcase_type == c.INDIE_RETRO and not c.INDIE_RETRO_SUBMISSIONS_OPEN:
+        return 'Sorry, but the deadline has already passed, so no new Indie Retro games may be registered.'
 
 
 @validation.IndieGame
