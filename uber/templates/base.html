@@ -126,42 +126,6 @@
         }
     </style>
 
-    {% block feedback_javascript %}
-      {% if admin_area and c.JIRA_ENABLED %}
-      {% for url in c.JIRA_COLLECTOR_URLS %}
-      <script type="text/javascript" async="async" src="{{ url }}"></script>
-      {% endfor %}
-      <script type="text/javascript">
-        $(window).on("runJavaScript", function() {
-          window.ATL_JQ_PAGE_PROPS = $.extend(window.ATL_JQ_PAGE_PROPS || {}, {
-            "a192a515": {
-              triggerFunction: function(showCollectorDialog) {
-                $('#report-a-bug').click(function(e) {
-                  e.preventDefault();
-                  showCollectorDialog();
-                });
-              },
-              fieldValues: {
-                priority: '2'
-              }
-            },
-            "a9568879": {
-              triggerFunction: function(showCollectorDialog) {
-                $('#request-an-improvement').click(function(e) {
-                  e.preventDefault();
-                  showCollectorDialog();
-                });
-              },
-              fieldValues: {
-                priority: '2'
-              }
-            }
-          });
-        });
-      </script>
-      {% endif %}
-    {% endblock %}
-
     <script>
         var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
 
@@ -491,19 +455,6 @@
                 {% endblock mainmenu %}
                 <ul class="navbar-nav d-flex">
                     {% if c.CURRENT_ADMIN %}
-                    {% block feedback_menu %}
-                    {% if c.JIRA_ENABLED %}
-                    <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" title="Submit feedback" id="feedback-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fa fa-send"></i>
-                    </a>
-                    <ul class="dropdown-menu" role="menu" aria-labelledby="feedback-dropdown">
-                        <li><a class="dropdown-item" id="report-a-bug" href="#" title="Report a Bug">Report a Bug</a></li>
-                        <li><a class="dropdown-item" id="request-an-improvement" href="#" title="Request an Improvement">Request an Improvement</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-                    {% endblock %}
                     {% if c.ADMIN_GUIDE_URL %}
                     <li class="nav-item"><a href="{{ c.ADMIN_GUIDE_URL }}" target="admin_guide" class="nav-link"><i title="Admin Guide" class="fa fa-question-circle"></i></a></li>
                     {% endif %}
