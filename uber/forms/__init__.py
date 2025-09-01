@@ -431,8 +431,6 @@ class MagForm(Form):
                 else:
                     formdata[prefixed_name] = unset_value
 
-        log.error(formdata)
-
         super().process(formdata, None if force_defaults else obj, data, extra_filters, **kwargs)
 
     @property
