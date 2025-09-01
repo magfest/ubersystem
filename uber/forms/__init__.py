@@ -426,8 +426,12 @@ class MagForm(Form):
                     formdata[prefixed_name] = getattr(obj, name)
                 elif name in kwargs:
                     formdata[prefixed_name] = kwargs[name]
+                elif isinstance(field, BooleanField):
+                    formdata[prefixed_name] = False
                 else:
                     formdata[prefixed_name] = unset_value
+
+        log.error(formdata)
 
         super().process(formdata, None if force_defaults else obj, data, extra_filters, **kwargs)
 
