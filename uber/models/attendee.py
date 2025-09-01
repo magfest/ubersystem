@@ -759,7 +759,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def badge_num(self):
         if self.active_badge:
             return self.active_badge.ident
-    
+
     @badge_num.setter
     def badge_num(self, value):
         if self.badge_num and self.badge_num == value:

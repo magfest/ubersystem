@@ -120,8 +120,8 @@ class Root:
             count = attendees.count()
 
         if order in ['badge_num', '-badge_num']:
-            attendees = attendees.outerjoin(BadgeInfo).order_by(BadgeInfo.ident.desc()
-                                                                if order.startswith('-') else BadgeInfo.ident)
+            attendees = attendees.order_by(BadgeInfo.ident.desc()
+                                           if order.startswith('-') else BadgeInfo.ident)
         else:
             attendees = attendees.order(order)
 

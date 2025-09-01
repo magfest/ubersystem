@@ -1712,21 +1712,18 @@ class Session(SessionManager):
         def index_attendees(self):
             # Returns a base attendee query with extra joins for the index page
             attendees = self.query(Attendee).outerjoin(Group,
-                                                       Attendee.group_id == Group.id
-                                                       ).outerjoin(BadgePickupGroup
-                                                       ).outerjoin(PromoCode).outerjoin(PromoCodeGroup)
+                                                       Attendee.group_id == Group.id, aliased=True
+                                                       ).outerjoin(BadgePickupGroup, aliased=True
+                                                       ).outerjoin(PromoCode, aliased=True
+                                                                   ).outerjoin(PromoCodeGroup, aliased=True)
             if c.ATTENDEE_ACCOUNTS_ENABLED:
-                attendees = attendees.outerjoin(AttendeeAccount, Attendee.managers)
+                attendees = attendees.outerjoin(AttendeeAccount, Attendee.managers, aliased=True)
+            if c.NUMBERED_BADGES:
+                attendees = attendees.outerjoin(BadgeInfo, Attendee.active_badge, aliased=True)
             return attendees
 
         def search(self, text, *filters):
-            attendees = self.query(Attendee).outerjoin(Group,
-                                                       Attendee.group_id == Group.id
-                                                       ).outerjoin(BadgePickupGroup
-                                                       ).outerjoin(PromoCode).outerjoin(PromoCodeGroup)
-            if c.ATTENDEE_ACCOUNTS_ENABLED:
-                attendees = attendees.outerjoin(AttendeeAccount, Attendee.managers)
-
+            attendees = self.index_attendees()
             attendees = attendees.filter(*filters)
 
             id_list = [

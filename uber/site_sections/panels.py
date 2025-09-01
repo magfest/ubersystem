@@ -34,7 +34,7 @@ class Root:
         must POST to a different URL in order to bypass the cache and get a
         valid session cookie. Thus, this page is also exposed as "post_index".
         """
-        app = PanelApplication(length=0, record=0)
+        app = PanelApplication()
         is_guest = False
         readonly_fields = {}
 
