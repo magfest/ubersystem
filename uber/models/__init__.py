@@ -1068,8 +1068,11 @@ class Session(SessionManager):
 
         def get_admin_account_by_email(self, email):
             from uber.utils import normalize_email_legacy
-            return self.query(AdminAccount
-                              ).join(Attendee).filter(Attendee.normalized_email == normalize_email_legacy(email)).one()
+            admin_attendees = self.query(AdminAccount
+                                         ).join(Attendee).filter(Attendee.normalized_email == normalize_email_legacy(email))
+            if admin_attendees.count() > 1:
+                return admin_attendees.filter(Attendee.is_valid == True).one()
+            return admin_attendees.one()
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
