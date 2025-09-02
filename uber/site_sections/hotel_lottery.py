@@ -54,6 +54,7 @@ def _join_room_group(session, application, group_id):
     application.status = c.COMPLETE
     application.entry_type = c.GROUP_ENTRY
     application.last_submitted = datetime.now()
+    application.attendee.hotel_eligible = False
     application.parent_application = room_group
     if application.is_staff_entry and not application.parent_application.is_staff_entry:
         application.is_staff_entry = False
@@ -230,6 +231,7 @@ class Root:
         application.last_submitted = datetime.now()
         application.status = c.COMPLETE
         application.confirmation_num = ''
+        application.attendee.hotel_eligible = False
         session.add(application)
         raise HTTPRedirect('index?id={}&message={}',
                            application.id,
@@ -269,6 +271,7 @@ class Root:
 
         application.confirmation_num = ''
         application.status = c.WITHDRAWN
+        application.attendee.hotel_eligible = True
 
         if old_room_group:
             body = render('emails/hotel/group_member_left.html', {
@@ -484,6 +487,7 @@ class Root:
             maybe_swapped = application.last_submitted != None
             application.last_submitted = datetime.now()
             application.status = c.COMPLETE
+            application.attendee.hotel_eligible = False
 
             if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
                 application.is_staff_entry = True
