@@ -51,7 +51,7 @@ class Root:
         
         for panelist in app.other_panelists:
             panelist_forms[panelist.id] = load_forms(params, panelist, panelist_form_list,
-                                               {form_name: panelist.id for form_name in panelist_form_list})
+                                                     field_prefix=panelist.id)
         
         panelist_forms['new'] = load_forms(params, PanelApplicant(), panelist_form_list,
                                            field_prefix='new')
