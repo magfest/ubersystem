@@ -151,7 +151,7 @@
                         {% if show_genres %}
                         <td>{% if game.genres %}{{ game.genres_labels|join(' / ') }}{% else %}N/A{% endif %}</td>
                         {% endif %}
-                        {% if show_matching_genres %}<td>{{ matching_genre|yesno('Yes,No') }}</td>{% endif %}
+                        {% if show_matching_genres %}<td>{{ (game in matching_genre)|yesno('Yes,No') }}</td>{% endif %}
                         <td><input type="checkbox" class="form-check-input" name="game_id" value="{{ game.id }}" x-bind:checked="selectall" @click="selectall = false" /></td>
                     </tr>
                 {% endfor %}

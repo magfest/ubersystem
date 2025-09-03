@@ -373,7 +373,7 @@
                         </td>
                         {% endif %}
                         {% if show_genres %}<td>{{ judge.genres_labels|join(' / ') }}</td>{% endif %}
-                        {% if show_matching_genres %}<td>{{ matching_genre|yesno("Yes,No") }}</td>{% endif %}
+                        {% if show_matching_genres %}<td>{{ (judge in matching_genre)|yesno("Yes,No") }}</td>{% endif %}
                         <td><input type="checkbox" class="form-check-input" name="judge_id" value="{{ judge.id }}" x-bind:checked="selectall" @click="selectall = false" /></td>
                     </tr>
                 {% endfor %}
