@@ -4,7 +4,7 @@ import six
 import cherrypy
 
 from collections import defaultdict, OrderedDict
-from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, validators, Label
+from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, DateField, validators, Label
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError, StopValidation
 from wtforms.utils import unset_value
@@ -424,6 +424,8 @@ class MagForm(Form):
                     formdata[prefixed_name] = field.default
                 elif hasattr(obj, name):
                     formdata[prefixed_name] = getattr(obj, name)
+                    if formdata[prefixed_name] is None and isinstance(field, DateField):
+                        formdata[prefixed_name] = ""
                 elif name in kwargs:
                     formdata[prefixed_name] = kwargs[name]
                 elif isinstance(field, BooleanField):

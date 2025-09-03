@@ -17,5 +17,5 @@ class WatchListEntry(MagForm):
     birthdate = StringField('Date of Birth', widget=DateMaskInput())
     reason = TextAreaField('Reason')
     action = TextAreaField('Action')
-    expiration = DateField('Expiration Date')
+    expiration = StringField('Expiration Date', widget=DateMaskInput())
     active = BooleanField('Automatically place matching attendees in the On Hold status.')
