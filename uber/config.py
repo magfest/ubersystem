@@ -1309,11 +1309,6 @@ class Config(_Overridable):
         return self.MIVS_SUBMISSIONS_OPEN or self.INDIE_ARCADE_SUBMISSIONS_OPEN or self.INDIE_RETRO_SUBMISSIONS_OPEN
 
     @property
-    def HAS_ANY_SHOWCASE_ADMIN_ACCESS(self):
-        return self.HAS_MIVS_ADMIN_ACCESS or self.HAS_INDIE_ARCADE_ACCESS \
-            or self.HAS_SHOWCASE_ADMIN_ACCESS or self.HAS_INDIE_RETRO_ADMIN_ACCESS
-
-    @property
     @dynamic
     def MIVS_SUBMISSIONS_OPEN(self):
         return self.MIVS_START and not really_past_mivs_deadline(c.MIVS_DEADLINE) and self.AFTER_MIVS_START

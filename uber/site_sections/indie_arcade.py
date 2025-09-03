@@ -27,6 +27,9 @@ class Root:
         forms = load_forms(params, game, ['ArcadeGameInfo', 'ArcadeConsents', 'ArcadeLogistics'])
 
         if cherrypy.request.method == 'POST':
+            if not c.INDIE_ARCADE_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS:
+                raise HTTPRedirect('../showcase/index?id={}&message={}', studio_id,
+                                   'Sorry, submissions for Indie Arcade are now closed.')
             for form in forms.values():
                 form.populate_obj(game)
 
@@ -122,7 +125,7 @@ class Root:
             raise HTTPRedirect('index?message={}', 'You did not have any games accepted')
         elif studio.group:
             raise HTTPRedirect('index?message={}', 'Your group has already been created')
-        elif studio.after_confirm_deadline and not c.HAS_MIVS_ADMIN_ACCESS:
+        elif studio.after_confirm_deadline and not c.HAS_SHOWCASE_ADMIN_ACCESS:
             raise HTTPRedirect('index?message={}', 'The deadline for confirming your acceptance has passed.')
 
         has_leader = False

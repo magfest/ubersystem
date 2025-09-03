@@ -22,9 +22,10 @@
   <tr>
     <td><a href="#studio-{{ studio.id }}" data-bs-toggle="modal" data-bs-target="#studio-{{ studio.id }}">{{ studio.name }}</a></td>
     <td>
-        {%- if studio.primary_contacts and studio.primary_contacts[0].attendee -%}
+      {% if studio.primary_contacts %}
+        {%- if studio.primary_contacts[0].attendee -%}
           <a href="#attendee_form?id={{ studio.primary_contacts[0].attendee.id }}">{{ studio.primary_contacts[0].full_name }}</a>
-        {%- elif studio.primary_contacts -%}
+        {%- else -%}
           {{ studio.primary_contacts[0].full_name }}
         {%- endif %}
         <br/>
@@ -32,9 +33,10 @@
         {% if studio.primary_contacts[0].cellphone_num -%}
           <br/>
           {{ studio.primary_contacts[0].cellphone_num }}
-        {% else %}
-        No primary contacts???
         {%- endif %}
+      {% else %}
+      No primary contacts listed for this studio.
+      {%- endif %}
     </td>
     <td>
       {% if studio.primary_contacts|length < 2 %}

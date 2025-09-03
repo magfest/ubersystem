@@ -69,14 +69,14 @@
         <div class="card mb-3">
             <div class="card-header text-white bg-primary">MIVS Showcase Games</div>
             <div class="card-body">
-                {% if c.HAS_MIVS_ADMIN_ACCESS or c.MIVS_SUBMISSIONS_OPEN %}
+                {% if c.HAS_SHOWCASE_ADMIN_ACCESS or c.MIVS_SUBMISSIONS_OPEN %}
                     <p>
                         The deadline for MIVS game submissions is <strong>{{ c.MIVS_DEADLINE|datetime_local }}</strong>.
                     </p>
                     <p>
                         You can edit game and demo information, codes, and screenshots for all games, including submitted games, up until the deadline. 
                     </p>
-                    {% if c.HAS_MIVS_ADMIN_ACCESS and not c.MIVS_SUBMISSIONS_OPEN %}
+                    {% if c.HAS_SHOWCASE_ADMIN_ACCESS and not c.MIVS_SUBMISSIONS_OPEN %}
                     <p class="text-danger">The MIVS submission deadline has passed. Only logged-in admins can edit or submit MIVS games.</p>
                     {% endif %}
                 {% else %}
@@ -105,18 +105,22 @@
                         <td>
                             {{ game.title }}
                         </td>
-                        <td><button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#demo-{{ game.id }}">View/Edit</button></td>
+                        <td><button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#demo-{{ game.id }}">View{% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}/Edit{% endif %}</button></td>
                         <td>
                             {% if game.code_type == c.NO_CODE %}
                                 No codes required
                             {% else %}
                                 {{ game.codes|length }} code{{ game.codes|length|pluralize }}
+                                {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                                 <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-code-{{ game.id }}"><i class="fa fa-plus"></i></button>
+                                {% endif %}
                             {% endif %}
                         </td>
                         <td>
                             {{ game.screenshots|length }} screenshot{{ game.screenshots|length|pluralize }}
+                            {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-screenshot-{{ game.id }}"><i class="fa fa-plus"></i></button>
+                            {% endif %}
                         </td>
                         <td>
                             {% if not game.submitted %}
@@ -125,7 +129,7 @@
                             {% else %}{{ game.status_label }}{% endif %}
                         </td>
                         <td>
-                            {% if c.HAS_MIVS_ADMIN_ACCESS or c.MIVS_SUBMISSIONS_OPEN %}
+                            {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <a href="../mivs/game?id={{ game.id }}" class="btn btn-sm btn-primary"><i class="fa fa-pencil"></i></a>
                             {% endif %}
                         </td>
@@ -142,7 +146,7 @@
                                     </div>
                                     {% endif %}
                                     <div>
-                                        {% if not game.submitted %}
+                                        {% if not game.submitted and (c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS) %}
                                         {% if game.missing_steps %}
                                         <span class="d-inline-block" tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-content="To submit this game for consideration, please {{ game.missing_steps|readable_join }}.">
                                             <button type="button" class="btn btn-sm btn-warning" disabled>Not Ready to Submit</button>
@@ -170,14 +174,14 @@
         <div class="card mb-3">
             <div class="card-header bg-info">Indie Arcade Games</div>
             <div class="card-body">
-                {% if c.HAS_INDIE_ARCADE_ADMIN_ACCESS or c.INDIE_ARCADE_SUBMISSIONS_OPEN %}
+                {% if c.HAS_SHOWCASE_ADMIN_ACCESS or c.INDIE_ARCADE_SUBMISSIONS_OPEN %}
                     <p>
                         The deadline for Indie Arcade game submissions is <strong>{{ c.INDIE_ARCADE_DEADLINE|datetime_local }}</strong>.
                     </p>
                     <p>
                         You can edit game information and photos for all games, including submitted games, up until the deadline.
                     </p>
-                    {% if c.HAS_INDIE_ARCADE_ADMIN_ACCESS and not c.INDIE_ARCADE_SUBMISSIONS_OPEN %}
+                    {% if c.HAS_SHOWCASE_ADMIN_ACCESS and not c.INDIE_ARCADE_SUBMISSIONS_OPEN %}
                     <p class="text-danger">The Indie Arcade submission deadline has passed. Only logged-in admins can edit or submit Indie Arcade games.</p>
                     {% endif %}
                 {% else %}
@@ -206,7 +210,9 @@
                         </td>
                         <td>
                             {{ game.submission_images|length }} photo{{ game.submission_images|length|pluralize }}
+                            {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-photo-{{ game.id }}"><i class="fa fa-plus"></i></button>
+                            {% endif %}
                         </td>
                         <td>
                             {% if not game.submitted %}
@@ -215,7 +221,7 @@
                             {% else %}{{ game.status_label }}{% endif %}
                         </td>
                         <td>
-                            {% if c.HAS_INDIE_ARCADE_ADMIN_ACCESS or c.INDIE_ARCADE_SUBMISSIONS_OPEN %}
+                            {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <a href="../indie_arcade/game?id={{ game.id }}" class="btn btn-sm btn-primary"><i class="fa fa-pencil"></i></a>
                             {% endif %}
                         </td>
@@ -229,7 +235,7 @@
                                     </div>
                                     {% endif %}
                                     <div>
-                                        {% if not game.submitted %}
+                                        {% if not game.submitted and (c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS) %}
                                         {% if game.missing_steps %}
                                         <span class="d-inline-block" tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-content="To submit this game for consideration, please {{ game.missing_steps|readable_join }}.">
                                             <button type="button" class="btn btn-sm btn-warning" disabled>Not Ready to Submit</button>
@@ -257,14 +263,14 @@
         <div class="card mb-3">
             <div class="card-header bg-secondary text-white">Indie Retro Games</div>
             <div class="card-body">
-                {% if c.HAS_INDIE_RETRO_ADMIN_ACCESS or c.INDIE_RETRO_SUBMISSIONS_OPEN %}
+                {% if c.HAS_SHOWCASE_ADMIN_ACCESS or c.INDIE_RETRO_SUBMISSIONS_OPEN %}
                     <p>
                         The deadline for Indie Retro game submissions is <strong>{{ c.INDIE_RETRO_DEADLINE|datetime_local }}</strong>.
                     </p>
                     <p>
                         You can edit game information and screenshots for all games, including submitted games, up until the deadline.
                     </p>
-                    {% if c.HAS_INDIE_RETRO_ADMIN_ACCESS and not c.INDIE_RETRO_SUBMISSIONS_OPEN %}
+                    {% if c.HAS_SHOWCASE_ADMIN_ACCESS and not c.INDIE_RETRO_SUBMISSIONS_OPEN %}
                     <p class="text-danger">The Indie Retro submission deadline has passed. Only logged-in admins can edit or submit Indie Retro games.</p>
                     {% endif %}
                 {% else %}
@@ -293,7 +299,9 @@
                         </td>
                         <td>
                             {{ game.submission_images|length }} screenshot{{ game.submission_images|length|pluralize }}
+                            {% if c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-screenshot-{{ game.id }}"><i class="fa fa-plus"></i></button>
+                            {% endif %}
                         </td>
                         <td>
                             {% if not game.submitted %}
@@ -302,7 +310,7 @@
                             {% else %}{{ game.status_label }}{% endif %}
                         </td>
                         <td>
-                            {% if c.HAS_INDIE_RETRO_ADMIN_ACCESS or c.INDIE_RETRO_SUBMISSIONS_OPEN %}
+                            {% if c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <a href="../indie_retro/game?id={{ game.id }}" class="btn btn-sm btn-primary"><i class="fa fa-pencil"></i></a>
                             {% endif %}
                         </td>
@@ -316,7 +324,7 @@
                                     </div>
                                     {% endif %}
                                     <div>
-                                        {% if not game.submitted %}
+                                        {% if not game.submitted and (c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS ) %}
                                         {% if game.missing_steps %}
                                         <span class="d-inline-block" tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-content="To submit this game for consideration, please {{ game.missing_steps|readable_join }}.">
                                             <button type="button" class="btn btn-sm btn-warning" disabled>Not Ready to Submit</button>
@@ -341,13 +349,13 @@
         </div>
         {% endif %}
     <p>
-        {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_MIVS_ADMIN_ACCESS %}
+        {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
         <a href="../mivs/game?studio_id={{ studio.id }}" class="btn btn-primary">Add MIVS Game</a>
         {% endif %}
-        {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_INDIE_ARCADE_ADMIN_ACCESS %}
+        {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
         <a href="../indie_arcade/game?studio_id={{ studio.id }}" class="btn btn-info">Add Indie Arcade Game</a>
         {% endif %}
-        {% if c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_INDIE_RETRO_ADMIN_ACCESS %}
+        {% if c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
         <a href="../indie_retro/game?studio_id={{ studio.id }}" class="btn btn-secondary">Add Indie Retro Game</a>
         {% endif %}
         {% include 'showcase/showcase_types.html' %}
