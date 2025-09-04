@@ -51,6 +51,7 @@ class Root:
     def validate_game(self, session, form_list=[], **params):
         if params.get('id') in [None, '', 'None']:
             game = IndieGame()
+            game.showcase_type = c.INDIE_RETRO
         else:
             game = session.indie_game(params.get('id'))
 
