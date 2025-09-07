@@ -42,8 +42,8 @@
 
 {% if not application.is_new and application.attendee %}
 {% set edit_link = "suite_lottery" if application.entry_type == c.SUITE_ENTRY else "room_lottery" %}
-<div class="row mb-3">
-    <div class="col">
+<div class="row g-3 mb-3">
+    <div class="col-sm">
         {% if application.parent_application %}
         <a class="btn btn-primary" href="../hotel_lottery/index?id={{ application.id }}" target="_blank">View as Attendee</a>
         {% else %}
@@ -63,59 +63,82 @@
 <input type="hidden" name="id" value="{{ application.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 
-<div class="row mb-3 align-items-end">
-    <div class="col flex-grow-1">
+<div class="d-flex gap-3 mb-3 align-items-end justify-content-between">
+    <div>
         {% if application.attendee %}
         This lottery application is for <strong>{{ application.attendee|form_link }}</strong>.
         {% else %}
         This lottery application is not associated with any attendee.
         {% endif %}
     </div>
-    <div class="col col-auto">
+    <div>
         <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
         <button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
     </div>
 </div>
 
 {% if not application.is_new %}
-<div class="row g-3 row-cols-auto">
-    <div class="col flex-fill">
+<div class="row g-3 mb-3">
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.response_id) }}
     </div>
-    <div class="col flex-fill">
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.confirmation_num) }}
     </div>
     {% if application.entry_started %}
-    <div class="col flex-fill">
+    <div class="col-sm">
         <div class="form-text">Entry Started</div>
-        <div class="mb-4">{{ application.entry_started|full_datetime_local }}</div>
+        {{ application.entry_started|full_datetime_local }}
     </div>
     {% endif %}
     {% if application.last_submitted %}
-    <div class="col flex-fill">
+    <div class="col-sm">
         <div class="form-text">Last Submitted</div>
-        <div class="mb-4">{{ application.last_submitted|full_datetime_local }}</div>
+        {{ application.last_submitted|full_datetime_local }}
     </div>
     {% endif %}
 </div>
 {% endif %}
 
-<div class="row g-3 row-cols-sm-3">
-    <div class="col">
+<div class="row g-3 mb-3">
+    <div class="col-sm align-self-center">{{ form_macros.input(lottery_admin_info.can_edit) }}</div>
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.current_step, admin_text="Controls what fields are required and which step is shown to the attendee.") }}
     </div>
-    <div class="col">
-        {{ form_macros.input(lottery_admin_info.status) }}
-    </div>
-    <div class="col">
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.status) }}</div>
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.entry_type, disabled=application.parent_application|default(False, true)) }}
     </div>
 </div>
 
-<div class="row g-3">
-<div class="col-12 col-sm-6">
-    {{ form_macros.input(lottery_admin_info.admin_notes) }}
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.assigned_hotel, disabled=application.parent_application|default(False, true)) }}
+    </div>
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.assigned_room_type, disabled=application.parent_application|default(False, true)) }}
+    </div>
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.assigned_suite_type, disabled=application.parent_application|default(False, true)) }}
+    </div>
 </div>
+
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.admin_notes) }}
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.legal_first_name) }}
+    </div>
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.legal_last_name) }}
+    </div>
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.cellphone) }}
+    </div>
 </div>
 
 {% if application.parent_application %}
@@ -124,69 +147,72 @@
     The details below are INACTIVE and will not be included in the lottery export. They will become active again if this attendee leaves the group, at which point a new confirmation number will be generated.
 </div>
 {% else %}
-<div class="row g-3">
-    <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.room_group_name, admin_text="Setting a room group name allows attendees to join this application as a room group.", readonly=application.parent_application or application.status != c.COMPLETE) }}</div>
-    <div class="col-12 col-sm-6">
+<div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.room_group_name, admin_text="Setting a room group name allows attendees to join this application as a room group.", readonly=application.parent_application or application.status != c.COMPLETE) }}</div>
+    <div class="col-sm">
         <div class="form-text">Group Members</div>
-        <div class="mb-3">
-            {% if not application.room_group_name %}N/A{% elif not application.group_members %}None{% else %}
-            {% for member in application.group_members %}{% if not loop.first %} / {% endif %}{{ member.attendee|form_link }} ({{ member|form_link }}){% endfor %}
-            {% endif %}
-        </div>
+        {% if not application.room_group_name %}N/A{% elif not application.group_members %}None{% else %}
+        {% for member in application.group_members %}{% if not loop.first %} / {% endif %}{{ member.attendee|form_link }} ({{ member|form_link }}){% endfor %}
+        {% endif %}
     </div>
-    <!-- <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.invite_code) }}</div> -->
+    <!-- <div class="col-sm">{{ form_macros.input(lottery_admin_info.invite_code) }}</div> -->
 </div>
 {% endif %}
 
-<div class="row g-3 row-cols-sm-3">
-    <div class="col">
+<div class="row g-3 mb-3">
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.legal_first_name) }}
     </div>
-    <div class="col">
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.legal_last_name) }}
     </div>
-    <div class="col">
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.cellphone) }}
     </div>
 </div>
 
-{% if c.SHOW_HOTEL_LOTTERY_DATE_OPTS %}
-<div class="row g-3">
-    <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.earliest_checkin_date) }}</div>
-    <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.latest_checkout_date) }}</div>
+{% if 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
+<div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.earliest_checkin_date) }}</div>
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.latest_checkout_date) }}</div>
 </div>
-<div class="row g-3">
-    <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.latest_checkin_date) }}</div>
-    <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.earliest_checkout_date) }}</div>
+<div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.latest_checkin_date) }}</div>
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.earliest_checkout_date) }}</div>
 </div>
 {% endif %}
 
-<div class="row g-3">
-    <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.wants_ada) }}</div>
-    <div class="col-12 col-sm-6">{{ form_macros.input(lottery_admin_info.ada_requests) }}</div>
+<div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.wants_ada) }}</div>
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.ada_requests) }}</div>
 </div>
 
 {{ form_macros.input(lottery_admin_info.suite_type_preference) }}
+
+<div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.room_opt_out) }}</div>
+</div>
+
 {{ form_macros.input(lottery_admin_info.hotel_preference) }}
 {{ form_macros.input(lottery_admin_info.room_type_preference) }}
-{% if c.HOTEL_LOTTERY_PREF_RANKING %}
+{% if 'room_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
 {{ form_macros.input(lottery_admin_info.selection_priorities) }}
 {% endif %}
 
-<div class="row g-3">
-    <div class="col-12 col-sm-6">
+<div class="row g-3 mb-3">
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.terms_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.terms_accepted.data else "No") }}
     </div>
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.data_policy_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.data_policy_accepted.data else "No") }}
     </div>
 </div>
 
-<div class="row g-3">
-    <div class="col-12 col-sm-6">
+<div class="row g-3 mb-3">
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.suite_terms_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.suite_terms_accepted.data else "No") }}
     </div>
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.guarantee_policy_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.guarantee_policy_accepted.data else "No") }}
     </div>
 </div>

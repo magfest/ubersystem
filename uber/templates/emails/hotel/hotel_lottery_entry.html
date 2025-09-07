@@ -17,7 +17,7 @@
     <strong>IMPORTANT</strong>: Your previous lottery entry has been <strong>withdrawn</strong> and your old confirmation number is invalid. Your new confirmation number is below.
 </p>
 {% endif %}
-{% if not application.room_group_name and not application.parent_application %}
+{% if not application.room_group_name and not application.parent_application and c.SHOW_HOTEL_LOTTERY_GROUPS %}
 <p>
     If you know who you are rooming with, you can 
     <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ application.id }}&create=True" target="_blank">create a room group</a> for up to four people total.

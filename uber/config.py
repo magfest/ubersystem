@@ -443,10 +443,6 @@ class Config(_Overridable):
         return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
 
     @property
-    def SHOW_HOTEL_LOTTERY_DATE_OPTS(self):
-        return c.HOTEL_LOTTERY_CHECKIN_START != c.HOTEL_LOTTERY_CHECKIN_END
-
-    @property
     def HOTEL_LOTTERY_FORM_STEPS(self):
         """
         We have to run our form validations based on which 'step' in the form someone is, but
@@ -456,30 +452,15 @@ class Config(_Overridable):
 
         steps = {}
         step = 0
-        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+        for step_name in c.HOTEL_LOTTERY_ROOM_STEPS:
             step += 1
-            steps['room_dates'] = step
-        step += 1
-        steps['room_ada_info'] = step
-        step += 1
-        steps['room_hotel_type'] = step
-        if c.HOTEL_LOTTERY_PREF_RANKING:
-            step += 1
-            steps['room_selection_pref'] = step
+            steps[f'room_{step_name}'] = step
         steps['room_final_step'] = step
 
-        step = 1
-        steps['suite_agreement'] = step
-        if c.SHOW_HOTEL_LOTTERY_DATE_OPTS:
+        step = 0
+        for step_name in c.HOTEL_LOTTERY_SUITE_STEPS:
             step += 1
-            steps['suite_dates'] = step
-        step += 1
-        steps['suite_type'] = step
-        step += 1
-        steps['suite_hotel_type'] = step
-        if c.HOTEL_LOTTERY_PREF_RANKING:
-            step += 1
-            steps['suite_selection_pref'] = step
+            steps[f'suite_{step_name}'] = step
         steps['suite_final_step'] = step
 
         return steps
@@ -1328,11 +1309,6 @@ class Config(_Overridable):
         return self.MIVS_SUBMISSIONS_OPEN or self.INDIE_ARCADE_SUBMISSIONS_OPEN or self.INDIE_RETRO_SUBMISSIONS_OPEN
 
     @property
-    def HAS_ANY_SHOWCASE_ADMIN_ACCESS(self):
-        return self.HAS_MIVS_ADMIN_ACCESS or self.HAS_INDIE_ARCADE_ACCESS \
-            or self.HAS_SHOWCASE_ADMIN_ACCESS or self.HAS_INDIE_RETRO_ADMIN_ACCESS
-
-    @property
     @dynamic
     def MIVS_SUBMISSIONS_OPEN(self):
         return self.MIVS_START and not really_past_mivs_deadline(c.MIVS_DEADLINE) and self.AFTER_MIVS_START
@@ -1408,6 +1384,11 @@ class Config(_Overridable):
     @dynamic
     def PANELS_DEPT_OPTS(self):
         return [(key, name) for key, name, _ in self.PANELS_DEPT_OPTS_WITH_DESC]
+
+    @request_cached_property
+    @dynamic
+    def PANELS_DEPTS(self):
+        return {key: name for key, name, _ in self.PANELS_DEPT_OPTS_WITH_DESC}
     
     @request_cached_property
     @dynamic
@@ -1654,6 +1635,24 @@ def create_hour_opts(start_hour, end_hour, step, prefix=''):
         if end_time == end_hour:
             return opt_list
 
+
+def build_hotel_inventory(inventory_type, room_types):
+    hotel_inventory = []
+    for key, item in c.HOTEL_LOTTERY_HOTELS.items():
+        hotel_enum, hotel = item
+        for room_type_key, quantity in hotel.get(inventory_type, {}).items():
+            room_type_enum, room_type = room_types.get(room_type_key)
+            if not room_type:
+                raise ValueError(f"Could not locate hotel room_type {room_type_key}")
+            capacity = room_type.get(f'{key}_capacity', room_type['capacity'])
+            hotel_inventory.append({
+                "id": str(hotel_enum),
+                "capacity": int(capacity),
+                "room_type": str(room_type_enum),
+                "quantity": int(quantity)
+            })
+    return hotel_inventory
+    
 
 c = Config()
 _config = parse_config("uber", pathlib.Path("/app/uber"))  # outside this module, we use the above c global instead of using this directly
@@ -1915,6 +1914,7 @@ c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
 for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
     opts = []
+    dictionary = {}
     for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
         if isinstance(item, dict):
             item.__hash__ = lambda x: hash(x.name + x.description)
@@ -1922,7 +1922,13 @@ for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
             dict_key = int(sha512(base_key.encode()).hexdigest()[:7], 16)
             setattr(c, base_key, dict_key)
             opts.append((dict_key, item))
+            dictionary[name] = (dict_key, item)
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
+    setattr(c, f"HOTEL_LOTTERY_{key.upper()}", dictionary)
+
+c.HOTEL_ROOM_INVENTORY = build_hotel_inventory('room_inventory', c.HOTEL_LOTTERY_ROOM_TYPES)
+c.HOTEL_SUITE_INVENTORY = build_hotel_inventory('suite_inventory', c.HOTEL_LOTTERY_SUITE_ROOM_TYPES)
+c.HOTEL_LOTTERY_AWARD_STATUSES = [c.PROCESSED, c.AWARDED, c.SECURED]
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
@@ -2036,12 +2042,12 @@ c.TOURNAMENT_AVAILABILITY_OPTS.append([_val, 'Morning (8am-12pm) of ' + c.ESCHAT
 c.MIVS_CODES_REQUIRING_INSTRUCTIONS = [
     getattr(c, code_type.upper()) for code_type in c.MIVS_CODES_REQUIRING_INSTRUCTIONS]
 
-# c.MIVS_INDIE_JUDGE_GENRE* should be the same as c.MIVS_INDIE_GENRE* but with a c.MIVS_ALL_GENRES option
+# c.MIVS_JUDGE_GENRE* should be the same as c.MIVS_GENRE* but with a c.MIVS_ALL_GENRES option
 _mivs_all_genres_desc = 'All genres'
 c.create_enum_val('mivs_all_genres')
-c.make_enum('mivs_indie_judge_genre', _config['enums']['mivs_indie_genre'])
-c.MIVS_INDIE_JUDGE_GENRES[c.MIVS_ALL_GENRES] = _mivs_all_genres_desc
-c.MIVS_INDIE_JUDGE_GENRE_OPTS.insert(0, (c.MIVS_ALL_GENRES, _mivs_all_genres_desc))
+c.make_enum('mivs_judge_genre', _config['enums']['mivs_genre'])
+c.MIVS_JUDGE_GENRES[c.MIVS_ALL_GENRES] = _mivs_all_genres_desc
+c.MIVS_JUDGE_GENRE_OPTS.insert(0, (c.MIVS_ALL_GENRES, _mivs_all_genres_desc))
 
 c.MIVS_PROBLEM_STATUSES = {getattr(c, status.upper()) for status in c.MIVS_PROBLEM_STATUSES.split(',')}
 

@@ -23,8 +23,8 @@
 <h3>Personal Information</h3>
 <div class="row g-3 mb-3">
 {% block name %}
-<div class="col-sm">{{ form_macros.input(panelist_info.first_name, readonly=(pi_readonly or readonly_fields.first_name|boolean)) }}</div>
-<div class="col-sm">{{ form_macros.input(panelist_info.last_name, readonly=pi_readonly or readonly_fields.last_name|boolean) }}</div>
+<div class="col-sm">{{ form_macros.input(panelist_info.first_name, readonly=(pi_readonly or readonly_fields.first_name|boolean and not panelist_info._prefix)) }}</div>
+<div class="col-sm">{{ form_macros.input(panelist_info.last_name, readonly=(pi_readonly or readonly_fields.last_name|boolean and not panelist_info._prefix)) }}</div>
 {% endblock %}
 </div>
 
@@ -32,11 +32,11 @@
 <div class="row g-3 mb-3">
 {% block contact_info %}
   <div class="col-sm">
-    {{ form_macros.input(panelist_info.email, readonly=pi_readonly or readonly_fields.email|boolean) }}
+    {{ form_macros.input(panelist_info.email, readonly=(pi_readonly or readonly_fields.email|boolean and not panelist_info._prefix)) }}
   </div>
   <div class="col-sm">
     {% set cellphone_from_attendee = panelist and panelist.attendee|yesno and panelist_info.cellphone.data != '' and panelist_info.cellphone.data == panelist.attendee.cellphone %}
-    {{ form_macros.input(panelist_info.cellphone, readonly=(pi_readonly and cellphone_from_attendee) or readonly_fields.cellphone|boolean) }}
+    {{ form_macros.input(panelist_info.cellphone, readonly=(pi_readonly and cellphone_from_attendee or readonly_fields.cellphone|boolean and not panelist_info._prefix)) }}
   </div>
 </div>
 <div class="row g-3 mb-3">

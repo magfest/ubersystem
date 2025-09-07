@@ -159,6 +159,7 @@ class LotteryApplication(MagModel):
     data_policy_accepted = Column(Boolean, default=False)
     suite_terms_accepted = Column(Boolean, default=False)
     guarantee_policy_accepted = Column(Boolean, default=False)
+    can_edit = Column(Boolean, default=False)
 
     # If this is set then the above values are ignored
     parent_application_id = Column(UUID, ForeignKey('lottery_application.id'), nullable=True)
@@ -172,6 +173,15 @@ class LotteryApplication(MagModel):
 
     room_group_name = Column(UnicodeText)
     email_model_name = 'app'
+
+    assigned_hotel = Column(Choice(c.HOTEL_LOTTERY_HOTELS_OPTS), nullable=True)
+    assigned_room_type = Column(Choice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS), nullable=True)
+    assigned_suite_type = Column(Choice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS), nullable=True)
+    assigned_check_in_date = Column(Date, nullable=True)
+    assigned_check_out_date = Column(Date, nullable=True)
+    deposit_cutoff_date = Column(Date, nullable=True)
+    lottery_name = Column(UnicodeText)
+    booking_url = Column(UnicodeText)
 
     @presave_adjustment
     def unset_entry_type(self):
@@ -245,7 +255,7 @@ class LotteryApplication(MagModel):
         return self.attendee.full_name if self.attendee else "[DISASSOCIATED]"
 
     @property
-    def current_status_str(self):
+    def application_status_str(self):
         app_or_parent = self.parent_application or self
         if not app_or_parent.entry_type:
             return "do NOT have an entry in the hotel room or suite lottery"
@@ -254,6 +264,40 @@ class LotteryApplication(MagModel):
             return f"are entered into the suite lottery{'' if app_or_parent.room_opt_out else ' and room lottery'}"
         else:
             return "are entered into the room lottery"
+        
+    @property
+    def staff_award_status_str(self):
+        # Allows special text to be shown for the staff lottery, in case
+        # it works differently from the attendee lottery
+        return ''
+
+    @property
+    def award_status_str(self):
+        app_or_parent = self.parent_application or self
+        if not c.HOTEL_ROOM_INVENTORY or not app_or_parent.finalized:
+            return ''
+        if self.staff_award_status_str:
+            return self.staff_award_status_str
+        if self.status == c.REMOVED:
+            return f"Unfortunately, your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s awarded room does not have enough \
+                capacity for all roommates, and you were removed from the group."
+        if self.parent_application:
+            you_str = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s"
+        else:
+            you_str = "Your"
+        
+        room_type = 'suite' if app_or_parent.assigned_suite_type else 'room'
+
+        if app_or_parent.status == c.REJECTED and app_or_parent.assigned_hotel:
+            return f"Unfortunately, {you_str.lower()} {room_type} has been canceled."
+        elif app_or_parent.assigned_hotel:
+            return f"Congratulations! {you_str} entry for the {c.EVENT_NAME_AND_YEAR} {room_type} lottery was chosen."
+        else:
+            return f"Unfortunately, {you_str.lower()} entry for the {c.EVENT_NAME_AND_YEAR} hotel lottery was not chosen."
+    
+    @property
+    def finalized(self):
+        return self.status in [c.AWARDED, c.SECURED, c.REJECTED]
 
     @property
     def group_status_str(self):
@@ -272,11 +316,16 @@ class LotteryApplication(MagModel):
 
     @property
     def current_lottery_deadline(self):
-        return c.HOTEL_LOTTERY_STAFF_DEADLINE if c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery \
-            else c.HOTEL_LOTTERY_FORM_DEADLINE
+        if c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery:
+            return c.HOTEL_LOTTERY_STAFF_DEADLINE
+        elif c.HOTEL_LOTTERY_OPEN:
+            return c.HOTEL_LOTTERY_FORM_DEADLINE
 
     @property
     def current_lottery_closed(self):
+        if self.can_edit:
+            return False
+
         if self.is_staff_entry:
             return not c.STAFF_HOTEL_LOTTERY_OPEN
         elif self.qualifies_for_staff_lottery:
@@ -286,7 +335,7 @@ class LotteryApplication(MagModel):
     @property
     def entry_form_completed(self):
         return self.current_step >= self.last_step
-    
+
     @property
     def last_step(self):
         if self.entry_type == c.SUITE_ENTRY:
@@ -299,6 +348,8 @@ class LotteryApplication(MagModel):
         if self.status in [c.COMPLETE, c.PROCESSED]:
             prepend = "View " if c.ATTENDEE_ACCOUNTS_ENABLED else ""
             return f'index?attendee_id={self.attendee.id}', f'{prepend}{entry_text}'
+        elif self.finalized:
+            return f'index?attendee_id={self.attendee.id}', 'Hotel Lottery Results'
         elif self.entry_form_completed:
             return f'guarantee_confirm?id={self.id}', f"Finish {entry_text}"
         elif self.entry_type == c.SUITE_ENTRY:

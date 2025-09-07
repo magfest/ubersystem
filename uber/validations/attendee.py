@@ -220,7 +220,8 @@ def must_select_day(form, field):
     if form.is_admin or (form.model.attendance_type == form.attendance_type.data and not form.model.is_new):
         return
 
-    if form.attendance_type.data and form.attendance_type.data == c.SINGLE_DAY and c.BADGES[field.data] not in c.DAYS_OF_WEEK:
+    if hasattr(c, 'SINGLE_DAY') and form.attendance_type.data and \
+            form.attendance_type.data == c.SINGLE_DAY and c.BADGES[field.data] not in c.DAYS_OF_WEEK:
         raise ValidationError("Please select which day you would like to attend.")
 
 

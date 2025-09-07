@@ -8,7 +8,7 @@ First, please fill out this short survey about your experience being a judge: ht
 
 *** Badge Information ***
 
-{% if judge.attendee.paid == c.NEED_NOT_PAY %}Your complementary badge will be waiting for you at our registration desk under your name ({{ judge.attendee.full_name }}). Simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to pick it up. Due to limitations in our system, we can not transfer complementary judge badges to other people right now.{% else %}We provide complementary badges to our judges that completed their assigned games, but if you already paid for a badge, please reply to this email to let us know to issue you a refund.{% endif %}
+{% if judge.attendee.paid == c.NEED_NOT_PAY %}Your complimentary badge will be waiting for you at our registration desk under your name ({{ judge.attendee.full_name }}). Simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to pick it up. Due to limitations in our system, we can not transfer complimentary judge badges to other people right now.{% else %}We provide complimentary badges to our judges that completed their assigned games, but if you already paid for a badge, please reply to this email to let us know to issue you a refund.{% endif %}
 
 If you're not attending {{ c.EVENT_NAME }} this year, everything is taken care of and you don't need to do anything. If you are attending, we hope you stop by and say hello!
 

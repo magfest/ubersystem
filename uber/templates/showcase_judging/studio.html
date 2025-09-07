@@ -10,7 +10,7 @@
     <div class="form-group">
         <label class="col-sm-2 control-label">Studio Name</label>
         <div class="col-sm-6 game-display">
-            {% if c.HAS_MIVS_ADMIN_ACCESS %}
+            {% if c.HAS_SHOWCASE_ADMIN_ACCESS %}
                 <a href="../showcase/index?id={{ studio.id }}">{{ studio.name }}</a>
                 <br/> (click the link to become logged in as that studio)
             {% else %}

@@ -1,3 +1,4 @@
+{% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
 <div
     id="new-photo-{{ game.id }}"
     class="modal fade"
@@ -33,6 +34,7 @@
     </div>
     </div>
 </div>
+{% endif %}
 
 {% if game.submission_images %}
 <div
@@ -59,7 +61,7 @@
                 <thead>
                     <tr>
                         <th>Image</th>
-                        <th></th>
+                        {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}<th></th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -70,6 +72,7 @@
                             <td>
                                 {{ form_macros.input(arcade_photo.image, show_label=False, form=image.id ~ "-form") }}
                             </td>
+                            {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <td>
                                 <div class="d-flex gap-1">
                                 <form novalidate method="post" action="../indie_arcade/photo" id="{{ image.id }}-form" role="form" enctype="multipart/form-data">
@@ -87,6 +90,7 @@
                                 {% endif %}
                                 </div>
                             </td>
+                            {% endif %}
                         </tr>
                     </form>
                     {% endfor %}

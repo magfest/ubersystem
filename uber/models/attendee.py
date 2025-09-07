@@ -12,7 +12,7 @@ from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, subqueryload
+from sqlalchemy.orm import backref, subqueryload, aliased
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
@@ -759,7 +759,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def badge_num(self):
         if self.active_badge:
             return self.active_badge.ident
-    
+
     @badge_num.setter
     def badge_num(self, value):
         if self.badge_num and self.badge_num == value:
@@ -1477,8 +1477,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @primary_account_email.expression
     def primary_account_email(cls):
-        return select([AttendeeAccount.email]
-                      ).where(AttendeeAccount.id == attendee_attendee_account.c.attendee_account_id
+        aliased_account = aliased(AttendeeAccount)
+        return select([aliased_account.email]
+                      ).where(aliased_account.id == attendee_attendee_account.c.attendee_account_id
                               ).where(attendee_attendee_account.c.attendee_id == cls.id).label('primary_account_email')
 
     @hybrid_property
@@ -1489,7 +1490,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @group_name.expression
     def group_name(cls):
-        return select([Group.name]).where(Group.id == cls.group_id).label('group_name')
+        aliased_group = aliased(Group)
+        return select([aliased_group.name]).where(aliased_group.id == cls.group_id).label('group_name')
 
     @group_name.setter
     def group_name(self, value):
@@ -1512,12 +1514,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @promo_code_group_name.expression
     def promo_code_group_name(cls):
         from uber.models.promo_code import PromoCode, PromoCodeGroup
+        aliased_pc = aliased(PromoCode)
+        aliased_pcgroup = aliased(PromoCodeGroup)
         return case([
             (cls.promo_code != None,  # noqa: E711
-             select([PromoCodeGroup.name]).where(PromoCodeGroup.id == PromoCode.group_id)
-             .where(PromoCode.id == cls.promo_code_id).label('promo_code_group_name')),
+             select([aliased_pcgroup.name]).where(aliased_pcgroup.id == aliased_pc.group_id)
+             .where(aliased_pc.id == cls.promo_code_id).label('promo_code_group_name')),
             (cls.promo_code_groups != None,  # noqa: E711
-             select([PromoCodeGroup.name]).where(PromoCodeGroup.buyer_id == cls.id)
+             select([aliased_pcgroup.name]).where(aliased_pcgroup.buyer_id == cls.id)
              .label('promo_code_group_name'))
         ])
 
@@ -1710,7 +1714,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         Here is the business logic surrounding shirts:
         - People who kick in enough to get a shirt get an event shirt.
         - People with staff badges get a configurable number of staff shirts.
-        - Volunteers who meet the requirements get a complementary event shirt
+        - Volunteers who meet the requirements get a complimentary event shirt
             (NOT a staff shirt).
 
         If the c.SEPARATE_STAFF_SWAG setting is true, then this excludes staff

@@ -14,28 +14,58 @@
   show_label (bool): Set to False to avoid rendering the label for the field.
   field_only (bool): Set to True to suppress all other text associated with this field,
                      including the validation and label.
+  null_text (str): Only used when an entire form is set to read-only. This controls what
+                   is displayed if the field is empty.
+  label_kwargs (dict): Passed to the label macro.
 #}
 
 {% set label_text = label_text or field.label.text %}
 {% set widget = field.widget|string %}
 
 {% if field.form.read_only and ('readonly' not in kwargs or kwargs['readonly'] == True) and 'Hidden' not in widget %}
-  {% if show_label and not field_only and 'Checkbox' not in widget and 'SwitchInput' not in widget %}
+  {% if show_label and not field_only and 'CheckboxInput' not in widget and 'SwitchInput' not in widget %}
   <div class="form-text">{{ label_text }}</div>
   {% endif %}
 
   {% set choices = kwargs['choices'] if 'choices' in kwargs else field.choices %}
-  {% set null_text = label_kwargs['null_text'] if 'null_text' in label_kwargs else "N/A" %}
+  {% set null_text = null_text or "N/A" %}
 
-  {% if choices %}
-    {{ dict(choices)[field.data] }}
-  {% elif 'Checkbox' in widget or 'SwitchInput' in widget %}
-    {% if field.data %}
-    &#10003; {{ label_text }}
-    {% endif %}
-  {% else %}
-    {{ field.data|default(null_text, true) }}
-  {% endif %}
+  {% set field_display %}
+    {% if 'Ranking' in widget %}
+    <ul class="list-group col-sm-6 mb-3">
+      {% for choice in field.data %}
+      {% set choice_item = dict(choices)[choice] %}
+      {% set extra_info = field.widget.extra_info_list(choice_item, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) %}
+      <li class="list-group-item p-2 p-sm-3">
+        <h4 class="{{ 'mb-0' if not extra_info else 'mb-1 mb-sm-2' }}">{{ loop.index }}) {{ choice_item['name'] }}</h4>
+        {% for html in extra_info %}{{ html|safe }}{% endfor %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% elif choices %}
+      {% if 'MultiCheckbox' in widget %}
+        {% if not field.data %}
+          {{ null_text }}
+        {% else %}
+          {% for item in field.data %}
+          {{ dict(choices)[item] }}{% if not loop.last %} / {% endif %}
+          {%- endfor %}
+        {% endif %}
+      {% elif field.data in [True, False] %}
+        {{ dict(choices)['yes' if field.data == True else 'no'] }}
+      {%- else %}
+        {{ dict(choices)[field.data] }}
+      {%- endif %}
+    {%- elif 'Checkbox' in widget or 'SwitchInput' in widget %}
+      {% if field.data %}
+      &#10003; {{ label_text }}
+      {%- endif %}
+    {%- else %}
+      {{ field.data|default(null_text, true) }}
+    {%- endif %}
+  {%- endset %}
+  {{ field_display }}{% if caller %}{% if field.data %}: {% endif %}{{ caller() }}{% endif %}
+
 {% else %}
 
 {% set custom_kwargs = {} %}

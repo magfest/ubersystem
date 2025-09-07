@@ -57,13 +57,13 @@ def check_required_room_steps(form):
 
     room_step = int(form.model.current_step) if form.model.current_step else 0
 
-    if not c.HOTEL_LOTTERY_PREF_RANKING or room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_selection_pref']:
+    if room_step < c.HOTEL_LOTTERY_FORM_STEPS.get('room_selection_pref', 9999):
         optional_list.append('selection_priorities')
-    if room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_hotel_type']:
+    if room_step < c.HOTEL_LOTTERY_FORM_STEPS.get('room_hotel_type', 9999):
         optional_list.extend(['room_type_preference', 'hotel_preference'])
     elif not c.HOTEL_LOTTERY_HOTELS_OPTS:
         optional_list.append('hotel_preference')
-    if not c.SHOW_HOTEL_LOTTERY_DATE_OPTS or room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_dates']:
+    if room_step < c.HOTEL_LOTTERY_FORM_STEPS.get('room_dates', 9999):
         optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
     return optional_list
 
@@ -164,13 +164,13 @@ def check_required_suite_steps(form):
 
     suite_step = int(form.model.current_step) if form.model.current_step else 0
 
-    if not c.HOTEL_LOTTERY_PREF_RANKING or suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_selection_pref']:
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_selection_pref', 9999):
         optional_list.append('selection_priorities')
-    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_hotel_type'] or form.room_opt_out.data:
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_hotel_type', 9999) or form.room_opt_out.data:
         optional_list.extend(['room_type_preference', 'hotel_preference'])
-    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_type']:
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_type', 9999):
         optional_list.append('suite_type_preference')
-    if not c.SHOW_HOTEL_LOTTERY_DATE_OPTS or suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_dates']:
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_dates', 9999):
         optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
 
     return optional_list

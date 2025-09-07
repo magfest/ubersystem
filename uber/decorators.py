@@ -777,7 +777,7 @@ def restricted(func):
             else:
                 ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
-        elif '/mivs_judging/' in c.PAGE_PATH:
+        elif '/showcase_judging/' in c.PAGE_PATH:
             if not uber.models.AdminAccount.is_mivs_judge_or_admin:
                 return f'You need to be a MIVS Judge or have access to {c.PAGE_PATH}'
 

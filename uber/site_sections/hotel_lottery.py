@@ -54,6 +54,7 @@ def _join_room_group(session, application, group_id):
     application.status = c.COMPLETE
     application.entry_type = c.GROUP_ENTRY
     application.last_submitted = datetime.now()
+    application.attendee.hotel_eligible = False
     application.parent_application = room_group
     if application.is_staff_entry and not application.parent_application.is_staff_entry:
         application.is_staff_entry = False
@@ -77,7 +78,7 @@ def _disband_room_group(session, application):
         send_email.delay(
             c.HOTEL_LOTTERY_EMAIL,
             member.attendee.email_to_address,
-            f'{c.EVENT_NAME} Lottery Room Group "{old_room_group_name}" Disbanded',
+            f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{old_room_group_name}" Disbanded',
             body,
             format='html',
             model=member.to_dict('id'))
@@ -135,7 +136,7 @@ class Root:
             application = LotteryApplication(attendee_id=attendee_id)
 
         forms_list = ["LotteryInfo"]
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -155,7 +156,7 @@ class Root:
                 if application.status not in [c.PARTIAL, c.WITHDRAWN]:
                     message = "Application status has changed, please view your new options below."
                 elif not group_id:
-                    message = 'Group lookup failed. Please use the "Join Room Group" button to try again.'
+                    message = f'Group lookup failed. Please use the "Join {c.HOTEL_LOTTERY_GROUP_TERM}" button to try again.'
                 else:
                     message, _ = _join_room_group(session, application, group_id)
 
@@ -177,6 +178,7 @@ class Root:
     def index(self, session, attendee_id=None, message="", **params):
         if 'id' in params:
             application = session.lottery_application(params['id'])
+            attendee_id = application.attendee.id
         elif attendee_id:
             attendee = session.attendee(attendee_id)
             application = attendee.lottery_application
@@ -194,11 +196,12 @@ class Root:
 
         forms_list = ["RoomLottery", "SuiteLottery"]
         if application.parent_application:
-            forms = load_forms(params, application.parent_application, forms_list)
+            forms = load_forms(params, application.parent_application, forms_list, read_only=True)
         else:
-            forms = load_forms(params, application, forms_list)
+            forms = load_forms(params, application, forms_list, read_only=True)
 
-        contact_form_dict = load_forms(params, application, ["LotteryInfo"])
+        contact_form_dict = load_forms(params, application, ["LotteryInfo"],
+                                       read_only=application.current_lottery_closed)
 
         return {
             'id': application.id,
@@ -229,11 +232,28 @@ class Root:
         application.last_submitted = datetime.now()
         application.status = c.COMPLETE
         application.confirmation_num = ''
+        application.attendee.hotel_eligible = False
         session.add(application)
         raise HTTPRedirect('index?id={}&message={}',
                            application.id,
                            "Your staff lottery entry has been entered into the attendee lottery.")
-    
+
+    @requires_account(LotteryApplication)
+    def reenter_lottery(self, session, id=None, **params):
+        application = session.lottery_application(id)
+        _reset_group_member(application)
+        session.add(application)
+        if application.status == c.COMPLETE:
+            raise HTTPRedirect('index?id={}&message={}&confirm={}&action={}',
+                               application.id,
+                               f'Your lottery entry has been re-entered.',
+                               "suite" if application.entry_type == c.SUITE_ENTRY else "room",
+                               're-entered')
+        else:
+            raise HTTPRedirect('start?attendee_id={}&message={}',
+                               application.attendee.id,
+                               "Your lottery entry has been reset and you may now re-enter.")
+
     @requires_account(LotteryApplication)
     def withdraw_entry(self, session, id=None, **params):
         application = session.lottery_application(id)
@@ -252,6 +272,7 @@ class Root:
 
         application.confirmation_num = ''
         application.status = c.WITHDRAWN
+        application.attendee.hotel_eligible = True
 
         if old_room_group:
             body = render('emails/hotel/group_member_left.html', {
@@ -259,7 +280,7 @@ class Root:
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,
                 old_room_group.attendee.email_to_address,
-                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery Room Group',
+                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
                 body,
                 format='html',
                 model=old_room_group.to_dict('id'))
@@ -284,13 +305,13 @@ class Root:
     @requires_account(LotteryApplication)
     def room_lottery(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
-        forms_list = ["RoomLottery"]
+        forms_list = ["RoomLottery"] + (["SuiteLottery"] if application.current_lottery_closed else [])
 
         if application.parent_application:
             message = "You cannot edit your room group's application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
         
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -354,7 +375,7 @@ class Root:
             message = "You cannot edit your room group's application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
 
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -458,7 +479,7 @@ class Root:
     def guarantee_confirm(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
         forms_list = ["LotteryConfirm"]
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -467,6 +488,7 @@ class Root:
             maybe_swapped = application.last_submitted != None
             application.last_submitted = datetime.now()
             application.status = c.COMPLETE
+            application.attendee.hotel_eligible = False
 
             if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
                 application.is_staff_entry = True
@@ -513,8 +535,9 @@ class Root:
 
         if application.entry_type == c.ROOM_ENTRY:
             application.entry_type = c.SUITE_ENTRY
-            application.wants_ada = False
-            application.ada_requests = ''
+            if 'suite_ada_info' not in c.HOTEL_LOTTERY_FORM_STEPS:
+                application.wants_ada = False
+                application.ada_requests = ''
         elif application.entry_type == c.SUITE_ENTRY:
             application.entry_type = c.ROOM_ENTRY
             application.suite_terms_accepted = False
@@ -530,7 +553,7 @@ class Root:
         application = session.lottery_application(id)
 
         forms_list = ["LotteryRoomGroup"]
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             pass
@@ -585,7 +608,7 @@ class Root:
         send_email.delay(
             c.HOTEL_LOTTERY_EMAIL,
             member.attendee.email_to_address,
-            f'Removed From {c.EVENT_NAME} Lottery Room Group "{application.room_group_name}"',
+            f'Removed From {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{application.room_group_name}"',
             body,
             format='html',
             model=member.to_dict('id'))
@@ -617,13 +640,17 @@ class Root:
             return {'error': f"Please enter {readable_join(errors)}."}
 
         #room_group = session.lookup_registration_code(invite_code, LotteryApplication)
-        room_group = session.query(LotteryApplication).filter_by(confirmation_num=invite_code).first()
+        room_group = session.query(LotteryApplication).filter(
+            LotteryApplication.confirmation_num == invite_code,
+            LotteryApplication.room_group_name != '').first()
 
-        if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email):
-            return {'error': "No room group found. Please check the confirmation number and leader email address."}
+        if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email) or \
+                room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
+            return {'error': "No room group found. Please check the confirmation number and leader email address, \
+                    and make sure the application you're trying to join is a valid room group."}
 
-        if room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
-            return {'error': "No valid room group found. Please check the confirmation number and leader email address."}
+        if room_group.finalized:
+            return {'error': "No valid room group found."}
 
         return {
             'success': True,
@@ -641,7 +668,7 @@ class Root:
         if cherrypy.request.method == "POST":
             if not params.get('room_group_id'):
                 message = "Group ID invalid!"
-            elif application.group_members:
+            elif application.group_members or application.room_group_name:
                 message = "Please disband your own group before joining another group."
             if not message:
                 message, got_new_conf_num = _join_room_group(session, application, params.get('room_group_id'))
@@ -659,7 +686,7 @@ class Root:
                 send_email.delay(
                     c.HOTEL_LOTTERY_EMAIL,
                     room_group.attendee.email_to_address,
-                    f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery Room Group',
+                    f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
                     body,
                     format='html',
                     model=room_group.to_dict('id'))
@@ -690,7 +717,7 @@ class Root:
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,
                 room_group.attendee.email_to_address,
-                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery Room Group',
+                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
                 body,
                 format='html',
                 model=room_group.to_dict('id'))

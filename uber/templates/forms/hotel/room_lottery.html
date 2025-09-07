@@ -127,8 +127,8 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
 
 {% block terms %}{% endblock %}
 
-{% if c.SHOW_HOTEL_LOTTERY_DATE_OPTS %}
 {% block check_in_out_dates %}
+{% if 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
 {% set room_requirements = app_or_parent.suite_requirements_str if 'suite_lottery' in forms else app_or_parent.room_requirements_str %}
 <div class="accordion-item">
     <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
@@ -155,19 +155,19 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
 
             {% block check_in_out_dates_form %}
             <div class="row g-3 mb-3">
-                <div class="col-sm">{{ form_macros.input(room_or_suite_lottery.earliest_checkin_date, readonly=read_only) }}</div>
-                <div class="col-sm">{{ form_macros.input(room_or_suite_lottery.latest_checkout_date, readonly=read_only) }}</div>
+                <div class="col-sm">{{ form_macros.input(room_or_suite_lottery.earliest_checkin_date) }}</div>
+                <div class="col-sm">{{ form_macros.input(room_or_suite_lottery.latest_checkout_date) }}</div>
             </div>
             {% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date or not read_only %}
             <div class="row g-3 mb-3">
                 <div class="col-sm">
                     {% if app_or_parent.latest_checkin_date or not read_only %}
-                    {{ form_macros.input(room_or_suite_lottery.latest_checkin_date, readonly=read_only) }}
+                    {{ form_macros.input(room_or_suite_lottery.latest_checkin_date) }}
                     {% endif %}
                 </div>
                 <div class="col-sm">
                     {% if app_or_parent.earliest_checkout_date or not read_only %}
-                    {{ form_macros.input(room_or_suite_lottery.earliest_checkout_date, readonly=read_only) }}
+                    {{ form_macros.input(room_or_suite_lottery.earliest_checkout_date) }}
                     {% endif %}
                 </div>
             </div>
@@ -190,8 +190,8 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
     </div>
 </div>
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
-{% endblock %}
 {% endif %}
+{% endblock %}
 
 {% block ada_info %}
 <div class="accordion-item">
@@ -218,10 +218,11 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
         {% endblock %}
         {% block ada_info_form %}
         <div class="row g-3 mb-3">
-            <div class="col-12"><strong>{{ form_macros.input(room_or_suite_lottery.wants_ada, alpine_model="wants_ada") }}</strong></div>
+            <div class="col-12"><strong>{{ form_macros.input(room_or_suite_lottery.wants_ada, alpine_model="wants_ada", disabled=read_only) }}</strong></div>
         </div>
         <div class="row g-3 mb-3" x-show="wants_ada">
             <div class="col-sm">{{ form_macros.input(room_or_suite_lottery.ada_requests, readonly=read_only, required_if="wants_ada", **{':readonly':'!wants_ada'}) }}</div>
+            {% if not read_only %}
             <div class="col-sm alert alert-info">
                 {% block ada_requests_desc %}
                 Please describe what accommodations may best suit your needs, e.g., "wide doorways" or "roll in shower."
@@ -229,6 +230,7 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
                 <strong>Do not include any health or medical condition information.</strong>
                 {% endblock %}
             </div>
+            {% endif %}
         </div>
 
         {% if not read_only and application.current_step <= steps.counter %}
@@ -274,9 +276,9 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
             {% block hotel_and_room_type_ranking_form %}
             <div class="hotel_and_room_type_ranking">
             {% if c.HOTEL_LOTTERY_HOTELS_OPTS %}
-            {{ form_macros.input(room_or_suite_lottery.hotel_preference, readonly=read_only) }}
+            {{ form_macros.input(room_or_suite_lottery.hotel_preference, readonly=read_only, show_label=not read_only) }}
             {% endif %}
-            {{ form_macros.input(room_or_suite_lottery.room_type_preference, readonly=read_only) }}
+            {{ form_macros.input(room_or_suite_lottery.room_type_preference, readonly=read_only, show_label=not read_only) }}
             </div>
             {% if not read_only and application.current_step <= steps.counter %}
             <div class="row justify-content-end">
@@ -297,8 +299,8 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
 {% endblock %}
 
-{% if c.HOTEL_LOTTERY_PREF_RANKING %}
 {% block priorities %}
+{% if 'room_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
 <div class="accordion-item">
     <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
         <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
@@ -316,7 +318,7 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
             {% include 'hotel_lottery/priorities_example.html' with context %}
             {% endblock %}
             {% block priorities_form %}
-            {{ form_macros.input(room_or_suite_lottery.selection_priorities, readonly=read_only) }}
+            {{ form_macros.input(room_or_suite_lottery.selection_priorities, readonly=read_only, show_label=not read_only) }}
 
             {% if not read_only and application.current_step <= steps.counter %}
             <div class="row justify-content-end">
@@ -335,7 +337,7 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
     </div>
 </div>
 {% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
-{% endblock %}
 {% endif %}
+{% endblock %}
 
 </div>

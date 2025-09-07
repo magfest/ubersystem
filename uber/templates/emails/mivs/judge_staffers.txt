@@ -1,6 +1,6 @@
 {{ judge.attendee.first_name }},
 
-Thanks again for offering to help judge for the MAGFest Indie Videogame Showcase.  All judges are automatically eligible for a complementary badge.  By default we give you a Staff badge, and you're welcome to volunteer during the event.  If you plan on coming to {{ c.EVENT_NAME }} but would prefer not to volunteer, you can uncheck the box which indicates that you'd like to volunteer and you will instead receive a complementary Attendee badge.  If you can't make it at all, then thanks for judging anyway, and we hope to see you next time around.
+Thanks again for offering to help judge for the MAGFest Indie Videogame Showcase.  All judges are automatically eligible for a complimentary badge.  By default we give you a Staff badge, and you're welcome to volunteer during the event.  If you plan on coming to {{ c.EVENT_NAME }} but would prefer not to volunteer, you can uncheck the box which indicates that you'd like to volunteer and you will instead receive a complimentary Attendee badge.  If you can't make it at all, then thanks for judging anyway, and we hope to see you next time around.
 
 {% if judge.attendee.placeholder %}If you intend to accept your badge, please {{ c.URL_BASE }}/preregistration/confirm?id={{ judge.attendee.id }} to fill out the rest of your information and indicate whether or not you'd like to volunteer.
 

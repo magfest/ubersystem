@@ -92,7 +92,7 @@
             {% set label = "Agent" if agent_code.attendee else "Agent Code" %}
             <div class="d-flex gap-3 align-items-start">
               <div>
-                <div class="form-text">{{ label }}{% if app.valid_agent_codes|length > 1 %}{{ loop.count }}{% endif %}</div>
+                <div class="form-text">{{ label }}{% if app.valid_agent_codes|length > 1 %}{{ loop.index }}{% endif %}</div>
                 <p>{{ agent_code.attendee.full_name if agent_code.attendee else agent_code.code }}</p>
               </div>
               {% if not readonly %}

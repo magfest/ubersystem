@@ -294,7 +294,7 @@
                 {% if c.DONATION_TIER_OPTS|length > 1 %}<td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>{% endif %}
                 <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
                 <td> <nobr>{{ attendee.age_group_conf.desc }}</nobr> </td>
-                {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
+                {% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED or c.AFTER_EPOCH %}
                     {% if attendee.checked_in %}
                             <td>
                                 {% if not attendee.active_badge and attendee.lost_badges %}

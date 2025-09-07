@@ -377,7 +377,12 @@
     </div>
 </div>
 <div class="card card-body mb-3">
-  <h3>Members</h3>
+  <div class="d-flex gap-3 align-items-center">
+    <h3>Members</h3>
+    <div>{{ department.member_count }} Total Members</div>
+    <div>{{ department.members_with_roles|length }} Members with Roles</div>
+    <div>{{ department.members_with_shifts|length }} Members with Shifts</div>
+  </div>
   <div class="d-flex gap-3">
       <p>
         <a href="requests?department_id={{ department.id }}">

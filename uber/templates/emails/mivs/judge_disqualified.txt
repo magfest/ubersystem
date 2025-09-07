@@ -2,7 +2,7 @@ Hello {{ judge.attendee.first_name }}!
 
 Our records indicate that you completed judging on {{ judge.game_reviews|length }} of the {{ judge.reviews|length }} assigned games before the {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}.
 
-Unfortunately, since you did not complete reviewing your assigned games before the deadline, we are unable to provide a complementary MAGFest badge for this year.
+Unfortunately, since you did not complete reviewing your assigned games before the deadline, we are unable to provide a complimentary MAGFest badge for this year.
 
 {% if prior_payment_status == c.NEED_NOT_PAY and judge.attendee.paid == c.NOT_PAID %}However, if you are still interested in attending MAGFest, you may complete your badge purchase{% else %}You can still view your existing badge{% endif %} here: {{ c.URL_BASE }}/preregistration/confirm?id={{ judge.attendee.id }}
 

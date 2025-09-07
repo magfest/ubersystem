@@ -50,8 +50,13 @@ $(function () {
 
   <h2>{% if not attendee.watchlist_id %}Possible Watchlist Entries{% else %}Watchlist Entry{% endif %}
     for {{ attendee.full_name }} ({{ attendee.badge }})</h2>
-  <div class="card card-body mb-3">
   {% if attendee.badge_status == c.WATCHED_STATUS %}
+    <div class="card card-body mb-3">
+      <p>
+        {{ attendee.full_name }} is currently {{ attendee.badge_status_label }}, which means they will not be able to check in.
+        You can deactivate or confirm matching watchlist entries under the "Active Entries" table below, OR click "Clear for Check-In"
+        to allow this person to check in without altering any watchlist entries.
+      </p>
       <form role="form" method="post" action="../security_admin/update_watchlist_entry">
         {{ csrf_token() }}
         <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
@@ -59,44 +64,46 @@ $(function () {
         <button class="btn btn-success" type="submit">
           Clear for Check-In
         </button>
-        <div class="form-text">Sets attendee to "Completed" status, allowing them to check in without altering any watchlist entries.</div>
       </form>
-  {% else %}
-  <p>{{ attendee.full_name }} currently has a badge status of {{ attendee.badge_status_label }} and is{% if attendee.cannot_check_in_reason %} NOT{% endif %} ready to check in.</p>
-  {% endif %}
 
-  {% if attendee.watchlist_id %}
-    <br/><p>Below is the confirmed watchlist entry for this attendee. All other possible watchlist entries are ignored.
-    <br/><strong>Reason</strong>: {{ attendee.watch_list.reason }}
-    <br/><strong>Action</strong>: {{ attendee.watch_list.action }}
-    </p>
-    <form class="form-inline" role="form" method="post" onSubmit="updateWatchlist()" action="../security_admin/update_watchlist_entry">
-      {{ csrf_token() }}
-      <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
-      <input type="hidden" name="watchlist_id" value="{{ attendee.watch_list.id }}"/>
-      <input type="hidden" name="active" value="1" />
-      <button class="btn btn-success" type="submit">
-        {% if attendee.watch_list.active %} Deactivate {% else %} Activate {% endif %}
-        Watchlist Entry
-      </button>
-    </form>
-  </div>
-  {% else %}
-  </div>
+    {% if attendee.watchlist_id %}
+      <br/><p>Below is the confirmed watchlist entry for this attendee. All other possible watchlist entries are ignored.
+      <br/><strong>Reason</strong>: {{ attendee.watch_list.reason }}
+      <br/><strong>Action</strong>: {{ attendee.watch_list.action }}
+      </p>
+      <form class="form-inline" role="form" method="post" onSubmit="updateWatchlist()" action="../security_admin/update_watchlist_entry">
+        {{ csrf_token() }}
+        <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
+        <input type="hidden" name="watchlist_id" value="{{ attendee.watch_list.id }}"/>
+        <input type="hidden" name="active" value="1" />
+        <button class="btn btn-success" type="submit">
+          {% if attendee.watch_list.active %} Deactivate {% else %} Activate {% endif %}
+          Watchlist Entry
+        </button>
+      </form>
+    {% endif %}
+    </div>
+    {% endif %}
     {% for list in active_entries, inactive_entries %}
       {% set active = loop.cycle(True, False) %}
       {% if list %}
       <div class="card mb-3">
       <div class="card-header"><h3 class="card-title">{{ loop.cycle('Active', 'Inactive') }} Entries</h3></div>
       <div class="card-body">
+        
         {% if active %}
-          Active watchlist entries attempt to match themselves to new attendees,
+        <p>
+          "Active" watchlist entries attempt to match themselves to new attendees,
           even if another attendee is already confirmed as matching. If an attendee
           registers and has matching attributes to an active watchlist entry, that attendee
           is put 'on hold' and prevented from checking in until an admin intervenes.
-        {% else %}Inactive watchlist entries do not attempt to match any new attendees.
+        </p>
+        {% else %}
+        <p>
+          Inactive watchlist entries do not attempt to match any new attendees.
           Generally, entries should only be inactive if they have expired or are otherwise
           no longer meant to affect check-in.{% endif %}
+        </p>
         <table class="table">
           <tr>
             <th>Watchlist First Names</th>
@@ -144,5 +151,4 @@ $(function () {
       </div>
       {% endif %}
     {% endfor %}
-  {% endif %}
   

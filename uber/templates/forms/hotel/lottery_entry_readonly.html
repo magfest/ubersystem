@@ -1,16 +1,20 @@
 {% extends 'forms/hotel/suite_lottery.html' %}
 
+{% block terms %}{% endblock %}
+
 {% block legal_name %}
 {% if not application.parent_application %}
     {% block legal_name_form %}
-    {{ super () }}
+    {{ super() }}
     {% endblock %}
 {% endif %}
 {% endblock %}
 
 {% block check_in_out_dates %}
 {% block check_in_out_dates_form %}
+{% if app_or_parent.earliest_checkin_date %}
 {{ super () }}
+{% endif %}
 {% endblock %}
 {% endblock %}
 
@@ -19,7 +23,7 @@
     {% block ada_info_form %}
     <div class="form-text">ADA Room Information</div>
     {% if room_or_suite_lottery.wants_ada.data %}
-    {{ super () }}
+    {{ super() }}
     {% else %}
     <p>
         You have NOT requested an ADA room.
@@ -36,7 +40,7 @@
     {% else %}
         <div class="row">
             {% block hotel_and_room_type_ranking_form %}
-            {{ super () }}
+            {{ super() }}
             {% endblock %}
         </div>
     {% endif %}
@@ -44,12 +48,14 @@
 
 {% block suite_type_ranking %}
 {% if app_or_parent.entry_type == c.SUITE_ENTRY %}
-{% block suite_ranking_form %}{{ super () }}{% endblock %}
+{% block suite_ranking_form %}{{ super() }}{% endblock %}
 {% endif %}
 {% endblock %}
 
 {% block priorities %}
 {% block priorities_form %}
+{% if app_or_parent.selection_priorities %}
 {{ super () }}
+{% endif %}
 {% endblock %}
 {% endblock %}

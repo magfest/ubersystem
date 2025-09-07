@@ -1,0 +1,25 @@
+
+
+{% extends 'forms/showcase/studio_info.html' %}
+
+{% block status_registered %}
+<div class="col-sm">{{ form_macros.input(studio_info.status) }}</div>
+<div class="col-sm">
+  <div class="form-text">Registered</div>
+  {{ studio.registered|full_datetime_local }}
+</div>
+{% endblock %}
+
+{% block other_links %}
+<div class="col-sm">
+  {{ form_macros.input(studio_info.other_links, num_fields=3, placeholder="Link") }}
+</div>
+<div class="col-sm">
+    <div class="form-text">Registered Games</div>
+    {% for game in studio.games %}{{ game.title }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
+</div>
+{% endblock %}
+
+{% block notes %}
+<div class="col-sm">{{ form_macros.input(studio_info.staff_notes, readonly=False) }}</div>
+{% endblock %}

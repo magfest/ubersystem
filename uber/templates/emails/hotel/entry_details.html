@@ -14,7 +14,7 @@
 <li><strong>Check-in Name</strong>: {{ application.legal_first_name }} {{ application.legal_last_name }}</li>
 <li><strong>Contact Phone #</strong>: {{ application.cellphone }}</li>
 {% endif %}
-{% if c.SHOW_HOTEL_LOTTERY_DATE_OPTS %}
+{% if app_or_parent.entry_type == c.SUITE_ENTRY and 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
 <li><strong>Preferred Check-In/Out Dates</strong>: {{ app_or_parent.earliest_checkin_date.strftime('%m/%d/%Y') }} to {{ app_or_parent.latest_checkout_date.strftime('%m/%d/%Y') }}</li>
 {% if app_or_parent.latest_checkin_date or app_or_parent.earliest_checkout_date %}
 {% set acceptable_check_in_date, acceptable_check_out_date = app_or_parent.shortest_check_in_out_dates %}
@@ -28,7 +28,7 @@
 <ul>
     {{ basic_entry_details(application, app_or_parent, confirmation=confirmation) }}
     <li><strong>Suite Type Preference</strong>: {{ app_or_parent.suite_type_preference_labels|readable_join }}</li>
-    {% if c.HOTEL_LOTTERY_PREF_RANKING %}
+    {% if 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
     <li><strong>Preference Priorities</strong>: {{ app_or_parent.selection_priorities_labels|readable_join }}</li>
     {% endif %}
 </ul>
@@ -45,7 +45,7 @@
     {% if application.wants_ada and not application.parent_application %}
     <li><strong>ADA Room Accommodations Requested</strong>: {{ app_or_parent.ada_requests }}</li>
     {% endif %}
-    {% if app_or_parent.entry_type == c.ROOM_ENTRY and c.HOTEL_LOTTERY_PREF_RANKING %}
+    {% if app_or_parent.entry_type == c.ROOM_ENTRY and 'room_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
     <li><strong>Preference Priorities</strong>: {{ app_or_parent.selection_priorities_labels|readable_join }}</li>
     {% endif %}
 </ul>

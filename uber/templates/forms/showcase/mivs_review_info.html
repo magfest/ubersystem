@@ -1,0 +1,117 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set mivs_game_info = mivs_game_info or game_forms['mivs_game_info'] %}
+{% set mivs_demo_info = mivs_demo_info or game_forms['mivs_demo_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    basic_info
+    genres
+    desc
+    links
+    game_code
+    how_to_play
+    game_screenshots_modal
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block basic_info %}
+<div class="col-sm">{{ form_macros.input(mivs_game_info.title) }}</div>
+<div class="col-sm">
+    <div class="form-text">Studio</div>
+    {{ review.game.studio.name }}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block genres %}
+<div class="col-sm">{{ form_macros.input(mivs_game_info.genres) }}</div>
+<div class="col-sm">
+    {{ form_macros.input(mivs_game_info.warning_desc, null_text="None") }}
+    {% if review.game.screenshotsensitive_warning %}
+    <br/>{{ form_macros.input(mivs_game_info.screenshotsensitive_warning) }}
+    {% endif %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block desc %}
+<div class="col-sm">{{ form_macros.input(mivs_game_info.brief_description) }}</div>
+<div class="col-sm">{{ form_macros.input(mivs_game_info.description) }}</div>
+{% endblock %}
+</div>
+
+<hr/>
+
+<div class="row g-3 mb-3">
+{% block links %}
+<div class="col-sm">
+    <div class="form-text">{{ mivs_demo_info.link_to_video.label.text }}</div>
+    {{ review.link_to_video }}
+</div>
+<div class="col-sm">
+    <div class="form-text">{{ mivs_demo_info.link_to_game.label.text }}</div>
+    {{ review.link_to_game }}
+</div>
+<div class="col-sm">{{ form_macros.input(mivs_demo_info.password_to_game, null_text="No Password Required") }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block game_code %}
+<div class="col-sm">
+    {% call form_macros.input(mivs_demo_info.code_type) %}
+        {% if review.game.code_type != c.NO_CODE %}
+            {{ game_code.code|default("No code available due to an error.") }}
+        {% endif %}
+    {% endcall %}
+</div>
+{% if review.game.code_instructions %}
+<div class="col-sm">{{ form_macros.input(mivs_demo_info.code_instructions, null_text="None") }}</div>
+{% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block how_to_play %}
+{% if review.game.how_to_play %}
+<div class="col-sm">
+    {{ form_macros.input(mivs_demo_info.how_to_play) }}
+</div>
+{% endif %}
+<div class="col-sm">{{ form_macros.input(mivs_demo_info.build_notes, null_text="None") }}</div>
+{% endblock %}
+</div>
+
+{% block game_screenshots_modal %}
+<div
+    id="screenshots-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="screenshots-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+        <div class="modal-body">
+            {% for image in game.screenshots %}
+            <img class="img-fluid" src="{{ image.url }}" />
+            {% endfor %}
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+    </div>
+</div>
+<button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#screenshots-{{ game.id }}">View Screenshots</button>
+{% endblock %}
+
+
+</div>

@@ -1,15 +1,37 @@
 from datetime import timedelta
 
 from pockets.autolog import log
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import render
-from uber.models import Email, Session, GuestGroup, Group, IndieStudio
+from uber.models import Email, Session, GuestGroup, Group, IndieStudio, IndieJudge, IndieGame, IndieGameReview
 from uber.tasks import celery
 from uber.tasks.email import send_email
 
 
-__all__ = ['mivs_assign_game_codes_to_judges']
+__all__ = ['assign_all_games_showcases', 'mivs_assign_game_codes_to_judges', 'send_mivs_checklist_reminders']
+
+
+@celery.schedule(timedelta(hours=1))
+def assign_all_games_showcases():
+    if not c.PRE_CON:
+        return
+    
+    with Session() as session:
+        games_by_showcase = {}
+        for showcase in c.SHOWCASE_GAME_TYPES.keys():
+            games_by_showcase[showcase] = session.query(IndieGame).filter(IndieGame.showcase_type == showcase).all()
+
+        for judge in session.query(IndieJudge).filter(IndieJudge.all_games_showcases != None,
+                                                      IndieJudge.status == c.CONFIRMED).options(
+                                                          joinedload(IndieJudge.reviews)):
+            existing_reviews = [review.game_id for review in judge.reviews]
+            for showcase in judge.all_games_showcases_ints:
+                for game in games_by_showcase[showcase]:
+                    if game.id not in existing_reviews:
+                        session.add(IndieGameReview(game_id=game.id, judge_id=judge.id))
+        session.commit()
 
 
 @celery.schedule(timedelta(minutes=5))

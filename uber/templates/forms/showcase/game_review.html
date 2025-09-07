@@ -1,0 +1,61 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set game_review = game_review or forms['game_review'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    review_status
+    review_scores
+    checkboxes
+    notes
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+game_status: {{ game_review.game_status.data|tojson }},
+get otherGameProblem() { return this.game_status == {{ c.COULD_NOT_PLAY|tojson }} },
+{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block review_status %}
+<div class="col-sm">{{ form_macros.input(game_review.video_status) }}</div>
+{% if review.game.link_to_game %}
+<div class="col-sm">
+  {% call form_macros.input(game_review.game_status, alpine_model="game_status") %}
+  <div x-show="otherGameProblem">
+    {{ form_macros.input(game_review.game_status_text, required_if="otherGameProblem") }}
+  </div>
+  {% endcall %}
+</div>
+{% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block review_scores %}
+  <div class="col-sm">{{ form_macros.input(game_review.readiness_score) }}</div>
+</div><div class="row g-3 mb-3">
+  <div class="col-sm">{{ form_macros.input(game_review.design_score) }}</div>
+</div><div class="row g-3 mb-3">
+  <div class="col-sm">{{ form_macros.input(game_review.enjoyment_score) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block checkboxes %}
+{% if review.game.how_to_play %}
+  <div class="col-sm">{{ form_macros.input(game_review.read_how_to_play) }}</div>
+</div><div class="row g-3 mb-3">
+{% endif %}
+  <div class="col-sm">{{ form_macros.input(game_review.game_content_bad) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block notes %}
+  <div class="col-sm">{{ form_macros.input(game_review.game_review) }}</div>
+{% endblock %}
+</div>
+
+</div>
