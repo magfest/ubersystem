@@ -47,7 +47,8 @@
     <div>
     <h3>Watchlist Entry Info</h3>
   {% endif %}
-  <form method="post" action="watchlist_form" x-data="{}">
+  {{ form_macros.form_validation('watchlist-form', 'validate_watchlist_entry') }}
+  <form novalidate method="post" id="watchlist-form" action="watchlist_form" x-data="{}">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ entry.db_id }}" />
 
