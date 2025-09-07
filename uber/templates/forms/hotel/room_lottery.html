@@ -218,7 +218,7 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
         {% endblock %}
         {% block ada_info_form %}
         <div class="row g-3 mb-3">
-            <div class="col-12"><strong>{{ form_macros.input(room_or_suite_lottery.wants_ada, alpine_model="wants_ada", disabled=read_only) }}</strong></div>
+            <div class="col-12"><strong>{{ form_macros.input(room_or_suite_lottery.wants_ada, alpine_model="wants_ada") }}</strong></div>
         </div>
         <div class="row g-3 mb-3" x-show="wants_ada">
             <div class="col-sm">{{ form_macros.input(room_or_suite_lottery.ada_requests, required_if="wants_ada", **{':readonly':'!wants_ada'}) }}</div>

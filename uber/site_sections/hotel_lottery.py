@@ -133,7 +133,8 @@ class Root:
         if attendee.lottery_application:
             application = attendee.lottery_application
         else:
-            application = LotteryApplication(attendee_id=attendee_id)
+            application = LotteryApplication()
+            application.attendee = attendee
 
         forms_list = ["LotteryInfo"]
         forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
@@ -234,6 +235,20 @@ class Root:
         application.confirmation_num = ''
         application.attendee.hotel_eligible = False
         session.add(application)
+        
+        body = render('emails/hotel/hotel_lottery_entry.html', {
+            'application': application,
+            'maybe_swapped': False,
+            'new_conf': False,
+            'action_str': f"entering the {application.entry_type_label.lower()} attendee lottery"}, encoding=None)
+        send_email.delay(
+            c.HOTEL_LOTTERY_EMAIL,
+            application.attendee.email_to_address,
+            c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
+            body,
+            format='html',
+            model=application.to_dict('id'))
+
         raise HTTPRedirect('index?id={}&message={}',
                            application.id,
                            "Your staff lottery entry has been entered into the attendee lottery.")
@@ -244,11 +259,18 @@ class Root:
         _reset_group_member(application)
         session.add(application)
         if application.status == c.COMPLETE:
-            raise HTTPRedirect('index?id={}&message={}&confirm={}&action={}',
-                               application.id,
-                               f'Your lottery entry has been re-entered.',
-                               "suite" if application.entry_type == c.SUITE_ENTRY else "room",
-                               're-entered')
+            body = render('emails/hotel/hotel_lottery_entry.html', {
+                'application': application,
+                'maybe_swapped': False,
+                'new_conf': False,
+                'action_str': f"re-entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                application.attendee.email_to_address,
+                c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
+                body,
+                format='html',
+                model=application.to_dict('id'))
         else:
             raise HTTPRedirect('start?attendee_id={}&message={}',
                                application.attendee.id,
@@ -310,7 +332,7 @@ class Root:
         if application.parent_application:
             message = "You cannot edit your room group's application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
-        
+
         forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
