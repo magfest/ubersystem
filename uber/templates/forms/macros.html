@@ -31,7 +31,18 @@
   {% set null_text = null_text or "N/A" %}
 
   {% set field_display %}
-    {% if choices %}
+    {% if 'Ranking' in widget %}
+    <ul class="list-group col-sm-6 mb-3">
+      {% for choice in field.data %}
+      {% set choice_item = dict(choices)[choice] %}
+      {% set extra_info = field.widget.extra_info_list(choice_item, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) %}
+      <li class="list-group-item p-2 p-sm-3">
+        <h4 class="{{ 'mb-0' if not extra_info else 'mb-1 mb-sm-2' }}">{{ loop.index }}) {{ choice_item['name'] }}</h4>
+        {% for html in extra_info %}{{ html|safe }}{% endfor %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% elif choices %}
       {% if 'MultiCheckbox' in widget %}
         {% if not field.data %}
           {{ null_text }}
@@ -54,6 +65,7 @@
     {%- endif %}
   {%- endset %}
   {{ field_display }}{% if caller %}{% if field.data %}: {% endif %}{{ caller() }}{% endif %}
+
 {% else %}
 
 {% set custom_kwargs = {} %}

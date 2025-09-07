@@ -106,6 +106,7 @@ class LotteryAdminInfo(SuiteLottery):
     response_id = IntegerField('Response ID', render_kw={'readonly': "true"})
     current_step = IntegerField('Current Step')
     confirmation_num = StringField('Confirmation Number', render_kw={'readonly': "true"})
+    can_edit = BooleanField(f'Make this application editable even after its lottery is closed.')
     legal_first_name = LotteryInfo.legal_first_name
     legal_last_name = LotteryInfo.legal_last_name
     cellphone = LotteryInfo.cellphone

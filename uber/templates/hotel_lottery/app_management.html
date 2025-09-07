@@ -1,8 +1,7 @@
 <div id="select-action" class="collapse">
-    {% block lottery_info %}
     <p>
         Welcome {% if application.status == c.COMPLETE %}back {% endif %} to the {{ c.EVENT_NAME }} hotel lottery!
-        {% if app_editable %}
+        {% if app_editable and application.current_lottery_deadline %}
         The hotel lottery form will close at <strong>{{ application.current_lottery_deadline|datetime_local }}</strong>.
         {% endif %}
     </p>
@@ -37,7 +36,7 @@
     <p>
         <strong><span class="text-danger">The hotel lottery is now closed.</span></strong>
         {% if application.status in [c.COMPLETE, c.PROCESSED] %}
-        You can view your entry details below. Your entry is already being processed; any changes you make will NOT affect your potential room award.
+        You can view your entry details below.
         {% endif %}
     </p>
     {% endif %}
@@ -49,10 +48,10 @@
         <div class="col col-auto">
             <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
         </div>
-        {% if c.SHOW_HOTEL_LOTTERY_GROUPS and not application.parent_application and app_editable and not application.room_group_name %}
+        {% if not application.parent_application and app_editable and not application.room_group_name %}
             <div class="col col-auto">
             <a class="btn btn-primary" href="room_group?id={{ application.id }}">
-                Join {% if application.status == c.COMPLETE %}or Create {% endif %}{{ c.HOTEL_LOTTERY_GROUP_TERM }}
+                Join {% if application.status == c.COMPLETE %}or Create {% endif %}Room Group
             </a>
             </div>
             {% if not application.entry_type %}
@@ -95,10 +94,11 @@
         <input type="hidden" name="data_policy_accepted" value="{{ application.data_policy_accepted }}" />
         {{ csrf_token() }}
         {% include 'forms/hotel/contact_info.html' with context %}
-        <button type="submit" class="btn btn-primary mb-3">Update Contact Info</button>
+        {% if app_editable %}<button type="submit" class="btn btn-primary mb-3">Update Contact Info</button>{% endif %}
     </form>
     {% endif %}
 
+    {% set read_only = True %}
     {% if application.parent_application or application.room_group_name %}
     <h2>Your {{ c.HOTEL_LOTTERY_GROUP_TERM }}</h2>
     <p>You {{ application.group_status_str }}.</p>

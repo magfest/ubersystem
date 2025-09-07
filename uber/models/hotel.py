@@ -159,6 +159,7 @@ class LotteryApplication(MagModel):
     data_policy_accepted = Column(Boolean, default=False)
     suite_terms_accepted = Column(Boolean, default=False)
     guarantee_policy_accepted = Column(Boolean, default=False)
+    can_edit = Column(Boolean, default=False)
 
     # If this is set then the above values are ignored
     parent_application_id = Column(UUID, ForeignKey('lottery_application.id'), nullable=True)
@@ -315,11 +316,16 @@ class LotteryApplication(MagModel):
 
     @property
     def current_lottery_deadline(self):
-        return c.HOTEL_LOTTERY_STAFF_DEADLINE if c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery \
-            else c.HOTEL_LOTTERY_FORM_DEADLINE
+        if c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery:
+            return c.HOTEL_LOTTERY_STAFF_DEADLINE
+        elif c.HOTEL_LOTTERY_OPEN:
+            return c.HOTEL_LOTTERY_FORM_DEADLINE
 
     @property
     def current_lottery_closed(self):
+        if self.can_edit:
+            return False
+
         if self.is_staff_entry:
             return not c.STAFF_HOTEL_LOTTERY_OPEN
         elif self.qualifies_for_staff_lottery:

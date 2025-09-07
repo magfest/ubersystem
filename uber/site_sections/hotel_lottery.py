@@ -136,7 +136,7 @@ class Root:
             application = LotteryApplication(attendee_id=attendee_id)
 
         forms_list = ["LotteryInfo"]
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -196,11 +196,12 @@ class Root:
 
         forms_list = ["RoomLottery", "SuiteLottery"]
         if application.parent_application:
-            forms = load_forms(params, application.parent_application, forms_list)
+            forms = load_forms(params, application.parent_application, forms_list, read_only=True)
         else:
-            forms = load_forms(params, application, forms_list)
+            forms = load_forms(params, application, forms_list, read_only=True)
 
-        contact_form_dict = load_forms(params, application, ["LotteryInfo"])
+        contact_form_dict = load_forms(params, application, ["LotteryInfo"],
+                                       read_only=application.current_lottery_closed)
 
         return {
             'id': application.id,
@@ -304,13 +305,13 @@ class Root:
     @requires_account(LotteryApplication)
     def room_lottery(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
-        forms_list = ["RoomLottery"]
+        forms_list = ["RoomLottery"] + (["SuiteLottery"] if application.current_lottery_closed else [])
 
         if application.parent_application:
             message = "You cannot edit your room group's application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
         
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -374,7 +375,7 @@ class Root:
             message = "You cannot edit your room group's application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
 
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -478,7 +479,7 @@ class Root:
     def guarantee_confirm(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
         forms_list = ["LotteryConfirm"]
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -552,7 +553,7 @@ class Root:
         application = session.lottery_application(id)
 
         forms_list = ["LotteryRoomGroup"]
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             pass

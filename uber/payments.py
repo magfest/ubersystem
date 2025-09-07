@@ -439,7 +439,7 @@ class AuthNetRequestMixin:
                                                 zip=zip, txn_id=charge_id)
         if error:
             return 'An unexpected problem occurred: ' + str(error)
-    
+
     def get_or_create_customer(self, customer_id=''):
         if not self.receipt_email:
             return
