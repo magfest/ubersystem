@@ -128,7 +128,7 @@ ArcadeLogistics.field_validation.required_fields = {
     'game_hours_text': ("Please explain your plan for keeping this game online during prime hours.",
                         'game_hours', lambda x: x == 'Other'),
     'game_end_time': ("Please let us know if you can keep this game running until our standard end time.",
-                      'game_end_time', lambda x: x.data is None),
+                      'game_end_time', lambda x: x.raw_data == []),
     'player_count': "Please select how many players this game is designed for.",
     'floorspace': "Please select your estimated required floorspace.",
     'floorspace_text': ("Please provide approximate width/depth measurements for your required floorspace.",
@@ -217,7 +217,7 @@ def game_logo_size(form, field):
 
 RetroLogistics.field_validation.required_fields = {
     'in_person': (f"Please select whether you will be able to come to {c.EVENT_NAME_AND_YEAR} in person.",
-                  'in_person', lambda x: x.data is None),
+                  'in_person', lambda x: x.raw_data == []),
     'delivery_method': "Please tell us how you will get your game to the event.",
     'found_how': "Please let us know how you found out about the Indie Retro.",
 }

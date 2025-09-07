@@ -22,7 +22,6 @@ def bool_from_text(value):
     return bool(value)
                         
 
-
 def valid_cellphone(form, field):
     if field.data and invalid_phone_number(field.data):
         raise ValidationError('Please provide a valid 10-digit US phone number or '
@@ -396,7 +395,7 @@ class MagForm(Form):
             use_blank_formdata = cherrypy.request.method == 'POST' and checkboxes_present and formdata
             if isinstance(field, BooleanField):
                 if not field_in_formdata and field_in_obj:
-                    formdata[prefixed_name] = False if use_blank_formdata else getattr(obj, name)
+                    formdata[prefixed_name] = False if use_blank_formdata or getattr(obj, name) is None else getattr(obj, name)
                 elif field_in_formdata and cherrypy.request.method == 'POST':
                     # We have to pre-process boolean fields because WTForms will print "False"
                     # for a BooleanField's hidden input value and then not process that as falsey
@@ -420,18 +419,8 @@ class MagForm(Form):
                 formdata[prefixed_name] = ','.join(formdata[prefixed_name])
 
             if force_defaults and not field_in_formdata:
-                if field.default is not None:
-                    formdata[prefixed_name] = field.default
-                elif hasattr(obj, name):
+                if field.default is None and getattr(obj, name, None):
                     formdata[prefixed_name] = getattr(obj, name)
-                    if formdata[prefixed_name] is None and isinstance(field, DateField):
-                        formdata[prefixed_name] = ""
-                elif name in kwargs:
-                    formdata[prefixed_name] = kwargs[name]
-                elif isinstance(field, BooleanField):
-                    formdata[prefixed_name] = False
-                else:
-                    formdata[prefixed_name] = unset_value
 
         super().process(formdata, None if force_defaults else obj, data, extra_filters, **kwargs)
 
@@ -582,7 +571,7 @@ class SelectBooleanField(SelectField):
         if not choices:
             choices = [('yes', yes_label), ('no', no_label)]
         super().__init__(label, validators, coerce, choices, validate_choice, **kwargs)
-    
+
     def process_data(self, value):
         if value is None or value is unset_value or value == '':
             self.data = None
