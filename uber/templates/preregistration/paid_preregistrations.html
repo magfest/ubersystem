@@ -29,14 +29,23 @@
       <thead>
         <tr>
           <th scope="col">Name</th>
-          <th scope="col">Confirmation Link</th>
+          <th scope="col"></th>
         </tr>
       </thead>
       {% for prereg in preregs %}
         {% if prereg.first_name %}
           <tr>
             <td>{{ prereg.full_name }}</td>
-            <td><a href="../preregistration/confirm?id={{ prereg.id }}" target="_blank">Click Here</a></td>
+            <td class="d-flex gap-2">
+              <a href="../preregistration/confirm?id={{ prereg.id }}" class="btn btn-outline-secondary" target="_blank">
+                <i class="fa fa-user"></i> View Registration
+              </a>
+              {% if c.HOTEL_LOTTERY_OPEN %}
+                <a href="../hotel_lottery/start?attendee_id={{ prereg.id }}" class="btn btn-outline-primary" target="_blank">
+                  <i class="fa fa-hotel"></i> Enter Hotel Lottery
+                </a>
+              {% endif %}
+            </td>
           </tr>
         {% else %}
           <tr>
