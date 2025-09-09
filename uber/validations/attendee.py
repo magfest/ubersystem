@@ -315,6 +315,18 @@ def dupe_badge_num(form, field):
                 existing_name = existing.first().attendee.full_name
         raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))
 
+
+@AdminBadgeFlags.field_validation('badge_num')
+def not_in_range(form, field):
+    if not field.data or form.no_badge_num and form.no_badge_num.data:
+        return
+
+    badge_type = get_real_badge_type(form.model.badge_type)
+    lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
+    if not (lower_bound <= int(field.data) <= upper_bound):
+        raise ValidationError(f'Badge number {field.data} is out of range for badge type \
+                              {c.BADGES[form.model.badge_type]} ({lower_bound} - {upper_bound})')
+
 # =============================
 # CheckInForm
 # =============================

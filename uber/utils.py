@@ -727,7 +727,7 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
         if model.session:
             rollback_session = model.session.begin_nested()
         for form in forms.values():
-            form.populate_obj(preview_model)
+            form.populate_obj(preview_model, is_admin=is_admin)
     else:
         preview_model = model
 
