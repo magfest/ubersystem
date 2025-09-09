@@ -1,8 +1,9 @@
 import cherrypy
 from functools import wraps
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from markupsafe import Markup
+from dateutil.relativedelta import relativedelta
 from wtforms import (BooleanField, DateField, EmailField,
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
                      StringField, TelField, validators, TextAreaField)
@@ -157,8 +158,12 @@ def birthdate_format(form, field):
             raise StopValidation('Please use the format MM/DD/YYYY for your date of birth.')
     else:
         value = field.data
+
     if value > date.today():
-        raise ValidationError('You cannot be born in the future.')
+        raise StopValidation('You cannot be born in the future.')
+    
+    if value < (date.today() - relativedelta(years=120)):
+        raise StopValidation('You cannot be more than 120 years old.')
 
 
 @PersonalInfo.field_validation('birthdate')

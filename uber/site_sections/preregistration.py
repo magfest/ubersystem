@@ -2266,6 +2266,9 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
+        if is_prereg and 'GroupInfo' in form_list and int(params.get('badge_type', 0)) != c.PSEUDO_GROUP_BADGE:
+            form_list.remove('GroupInfo')
+
         forms = load_forms(params, attendee, form_list)
 
         all_errors = validate_model(forms, attendee)
