@@ -6,6 +6,7 @@ import math
 from copy import deepcopy
 from collections import defaultdict
 from datetime import datetime, date
+from dateutil import parser as dateparser
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import and_, func, or_
@@ -363,6 +364,10 @@ class Root:
         applications = session.query(LotteryApplication).join(LotteryApplication.attendee
                                                               ).filter(LotteryApplication.status == c.COMPLETE,
                                                                        Attendee.hotel_lottery_eligible == True)
+
+        if 'cutoff' in params:
+            last_time = dateparser.parse(params['cutoff']).replace(tzinfo=c.EVENT_TIMEZONE)
+            applications = applications.filter(LotteryApplication.entry_started < last_time)
 
         # We always grab all roommate entries, but the solver only looks at those that have a matching parent
         # in the lottery batch.
