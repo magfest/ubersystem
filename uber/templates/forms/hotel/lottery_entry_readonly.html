@@ -19,7 +19,7 @@
 {% endblock %}
 
 {% block ada_info %}
-{% if app_or_parent.entry_type == c.ROOM_ENTRY and not application.parent_application %}
+{% if (app_or_parent.entry_type == c.ROOM_ENTRY or 'suite_ada_info' in c.HOTEL_LOTTERY_FORM_STEPS) and not application.parent_application %}
     {% block ada_info_form %}
     <div class="form-text">ADA Room Information</div>
     {% if room_or_suite_lottery.wants_ada.data %}
