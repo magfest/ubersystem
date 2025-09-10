@@ -25,7 +25,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
        However we want to allow a dealer to fill out badges for someone else they don't have all the information for.
        That only works if attendee accounts are off.
     #}
-{% if not admin_area and (attendee.placeholder or 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED) %}
+{% if not admin_area and attendee.placeholder %}
     {% if attendee.placeholder %}
         <input type="hidden" name="placeholder" id="placeholder" value="False" />
     {% else %}
