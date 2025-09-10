@@ -17,11 +17,11 @@
         <h2>How the Room Lottery Works</h2>
         {% include 'hotel_lottery/lottery_tos.html' with context %}
 
-        {{ form_macros.input(lottery_info.terms_accepted) }}
+        <p>{{ form_macros.input(lottery_info.terms_accepted) }}</p>
 
         {% include 'hotel_lottery/data_policy.html' with context %}
 
-        {{ form_macros.input(lottery_info.data_policy_accepted) }}
+        <p>{{ form_macros.input(lottery_info.data_policy_accepted) }}</p>
         <hr/>
         {% include 'forms/hotel/contact_info.html' with context %}
 

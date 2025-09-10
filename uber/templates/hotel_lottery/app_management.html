@@ -1,6 +1,12 @@
 <div id="select-action" class="collapse">
+    {% block lottery_info %}
     <p>
         Welcome {% if application.status == c.COMPLETE %}back {% endif %} to the {{ c.EVENT_NAME }} hotel lottery!
+        {% if c.HOTEL_LOTTERY_FORM_WAITLIST and not (c.STAFF_HOTEL_LOTTERY_OPEN and app_or_parent.qualifies_for_staff_lottery) %}
+            The initial deadline for the first round of the lottery {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}was {{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}{% else %}is <strong>{{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}</strong>{% endif %}.
+            {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}Your lottery entry will still be considered when allocating cancelled rooms.{% endif %}
+        </p><p>
+        {% endif %}
         {% if app_editable and application.current_lottery_deadline %}
         The hotel lottery form will close at <strong>{{ application.current_lottery_deadline|datetime_local }}</strong>.
         {% endif %}
@@ -40,6 +46,7 @@
         {% endif %}
     </p>
     {% endif %}
+    {% endblock %}
 
     {% block additional_lottery_info %}{% endblock %}
 

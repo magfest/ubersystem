@@ -14,8 +14,11 @@
         If you get stuck, don't hesitate to reach out to {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} with any questions.
     </p>
 
-    {% if c.HOTEL_LOTTERY_FORM_WAITLIST %}
-    <p>The initial deadline for the first round of the lottery is {{ c.HOTEL_LOTTERY_FORM_WAITLIST|full_datetime_local }}.</p>
+    {% if c.HOTEL_LOTTERY_FORM_WAITLIST and not (c.STAFF_HOTEL_LOTTERY_OPEN and attendee.staff_hotel_lottery_eligible) %}
+    <p>
+        The initial deadline for the first round of the lottery {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}was {{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}{% else %}is <strong>{{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}</strong>{% endif %}.
+        {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}Your lottery entry will still be considered when allocating cancelled rooms.{% endif %}
+    </p>
     {% endif %}
 
     <p class="text-danger">
