@@ -3,11 +3,11 @@
 <body>
 <p>
     {{ application.attendee.full_name }},<br/>
-    This is to notify you that {% if old_room_group_name %}the room group you were in, "{{ old_room_group_name }}", has been disbanded{% else %}you have been removed from the room group "{{ parent.room_group_name }}".{% endif %}
+    This is to notify you that {% if old_room_group_name %}the {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} you were in, "{{ old_room_group_name }}", has been disbanded{% else %}you have been removed from the {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} "{{ parent.room_group_name }}".{% endif %}
 </p>
 <p>
     {% if application.status == c.COMPLETE %}
-    Since you completed a {{ application.entry_type_label|lower }} lottery entry before joining the room group, we have reverted you back to your status before joining.
+    Since you completed a {{ application.entry_type_label|lower }} lottery entry before joining the {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}, we have reverted you back to your status before joining.
     You {{ application.application_status_str }}.
 </p>
 <p><strong>Your new confirmation number is {{ application.confirmation_num }}.</strong> Your previous confirmation number is now invalid.</p>

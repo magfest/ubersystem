@@ -148,7 +148,7 @@
 </div>
 {% else %}
 <div class="row g-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.room_group_name, admin_text="Setting a room group name allows attendees to join this application as a room group.", readonly=application.parent_application or application.status != c.COMPLETE) }}</div>
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.room_group_name, admin_text="Setting a " ~ c.HOTEL_LOTTERY_GROUP_TERM|lower ~ " name allows attendees to join this application as a " ~ c.HOTEL_LOTTERY_GROUP_TERM|lower ~ ".", readonly=application.parent_application or application.status != c.COMPLETE) }}</div>
     <div class="col-sm">
         <div class="form-text">Group Members</div>
         {% if not application.room_group_name %}N/A{% elif not application.group_members %}None{% else %}

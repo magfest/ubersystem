@@ -10,12 +10,16 @@
     <p>
         Hello and welcome to the {{ c.EVENT_YEAR }} {{ c.EVENT_NAME }} room lottery!
         Before you get started, please note that there's no need to rush, as your time of entry has absolutely no bearing on the lottery results.
-        Take your time and read the instructions carefully, as the rules outlined in the steps ahead are binding on all entries.
+        Take your time and read the instructions carefully, as the rules outlined in the steps ahead are binding on all participants and their entries.
         If you get stuck, don't hesitate to reach out to {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} with any questions.
     </p>
 
+    {% if c.HOTEL_LOTTERY_FORM_WAITLIST %}
+    <p>The initial deadline for the first round of the lottery is {{ c.HOTEL_LOTTERY_FORM_WAITLIST|full_datetime_local }}.</p>
+    {% endif %}
+
     <p class="text-danger">
-        <strong>Note: Your entry is <u>not</u> complete until you reach the last ("confirmation") page.</strong>
+        <strong>Your entry is <u>not</u> complete until you reach the last ("confirmation") page.</strong>
     </p>
 
     <p>
@@ -23,7 +27,7 @@
     </p>
 
     <p>
-        Once your entry is complete, you'll receive an email with the entry details. You can return to this page at any time to edit your entry, manage a room group, or join or leave a room group.
+        Once your entry is complete, you'll receive an email with the entry details. You can return to this page at any time to edit your entry, manage a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}, or join or leave a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.
     </p>
 
     <p><a class="btn btn-primary" href="terms?attendee_id={{ attendee.id }}">Continue</a></p>
