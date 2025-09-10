@@ -13,23 +13,19 @@
 
     <h2>Reservations and Payment Guarantees</h2>
     {% include 'hotel_lottery/guarantee_info.html' %}
-
-    <div class="row g-sm-1">
-        <div class="col col-auto">
-            <form novalidate method="post" id="lottery-confirm" action="guarantee_confirm">
-                <input type="hidden" name="id" value="{{ application.id }}" />
-                {{ csrf_token() }}
-                {{ form_macros.input(lottery_confirm.guarantee_policy_accepted) }}
-                <button type="submit" class="btn btn-success">Confirm and Enter {{ application.entry_type_label }} Lottery</button>
-            </form>
-        </div>
-        <div class="col col-auto">
-            <form novalidate method="post" id="withdraw-lottery" action="withdraw_entry">
-                <input type="hidden" name="id" value="{{ application.id }}" />
-                {{ csrf_token() }}
-                <button type="submit" class="btn btn-danger">Cancel and Delete {{ application.entry_type_label }} Lottery Entry</button>
-            </form>
-        </div>
+    
+    <form novalidate method="post" id="lottery-confirm" action="guarantee_confirm">
+        <input type="hidden" name="id" value="{{ application.id }}" />
+        {{ csrf_token() }}
+        <div class="mb-3">{{ form_macros.input(lottery_confirm.guarantee_policy_accepted) }}</div>
+    </form>
+    <form novalidate method="post" id="withdraw-lottery" action="withdraw_entry">
+        <input type="hidden" name="id" value="{{ application.id }}" />
+        {{ csrf_token() }}
+    </form>
+    <div class="d-flex gap-2">
+        <button type="submit" form="lottery-confirm" class="btn btn-success">Confirm and Enter {{ application.entry_type_label }} Lottery</button>
+        <button type="submit" form="withdraw-lottery" class="btn btn-danger">Cancel and Delete {{ application.entry_type_label }} Lottery Entry</button>
     </div>
 </div>
 {% endblock %}

@@ -45,6 +45,12 @@
 {% if c.HOTEL_ROOM_INVENTORY %}
 <form method="post" action="run_lottery" class="d-flex gap-3 mb-3 justify-content-end">
   <div>
+    <div class="form-text">
+      <label for="lottery_group">Lottery Cutoff</label>
+      <input type="datetime-local" class="form-control" name="cutoff" id="cutoff" placeholder="N/A" />
+    </div>
+  </div>
+  <div>
     {{ csrf_token() }}
     <div class="form-text">
       <label for="lottery_group">Lottery Group</label>

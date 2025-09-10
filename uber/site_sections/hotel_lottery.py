@@ -21,12 +21,12 @@ def _join_room_group(session, application, group_id):
     try:
         room_group = session.lottery_application(group_id)
     except NoResultFound:
-        message = "No room group found!"
+        message = f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found!"
     else:
         if len(room_group.group_members) == 3:
-            message = "This room group is full."
+            message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is full."
         elif room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
-            message = "This room group is locked."
+            message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is locked."
     if message:
         return message, got_new_conf_num
     
@@ -163,7 +163,7 @@ class Root:
 
                 if not message:
                     room_group = session.lottery_application(group_id)
-                    message = f'Successfully joined room group "{room_group.room_group_name}"!'
+                    message = f'Successfully joined {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "{room_group.room_group_name}"!'
                 raise HTTPRedirect(f'index?id={application.id}&message={message}')
 
         return {
@@ -330,7 +330,7 @@ class Root:
         forms_list = ["RoomLottery"] + (["SuiteLottery"] if application.current_lottery_closed else [])
 
         if application.parent_application:
-            message = "You cannot edit your room group's application."
+            message = f"You cannot edit your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
 
         forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
@@ -394,7 +394,7 @@ class Root:
         forms_list = ["SuiteLottery"]
 
         if application.parent_application:
-            message = "You cannot edit your room group's application."
+            message = f"You cannot edit your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
 
         forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
@@ -635,7 +635,7 @@ class Root:
             format='html',
             model=member.to_dict('id'))
         raise HTTPRedirect('room_group?id={}&message={}', application.id,
-                           f"{member.attendee.full_name} has been removed from your room group.")
+                           f"{member.attendee.full_name} has been removed from your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.")
     
     @requires_account(LotteryApplication)
     def delete_group(self, session, id=None, message="", **params):
@@ -657,7 +657,7 @@ class Root:
         if not invite_code:
             errors.append("a group confirmation number")
         if not leader_email:
-            errors.append("the room group leader's email address")
+            errors.append(f"the {c.HOTEL_LOTTERY_GROUP_TERM.lower()} leader's email address")
         if errors:
             return {'error': f"Please enter {readable_join(errors)}."}
 
@@ -668,11 +668,11 @@ class Root:
 
         if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email) or \
                 room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
-            return {'error': "No room group found. Please check the confirmation number and leader email address, \
-                    and make sure the application you're trying to join is a valid room group."}
+            return {'error': f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found. Please check the confirmation number and leader email address, \
+                    and make sure the application you're trying to join is a valid {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."}
 
         if room_group.finalized:
-            return {'error': "No valid room group found."}
+            return {'error': f"No valid {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found."}
 
         return {
             'success': True,
@@ -748,9 +748,10 @@ class Root:
 
             if application.status == c.WITHDRAWN:
                 raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),
-                                   f'You have left the room group "{room_group.room_group_name}" and been removed from the hotel lottery.'))
+                                   f'You have left the {c.HOTEL_LOTTERY_GROUP_TERM.lower()} \
+                                    "{room_group.room_group_name}" and been removed from the hotel lottery.'))
             raise HTTPRedirect('index?id={}&message={}&confirm={}&action={}',
                                application.id,
-                               f'Successfully left the room group "{room_group.room_group_name}".',
+                               f'Successfully left the {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "{room_group.room_group_name}".',
                                "suite" if application.entry_type == c.SUITE_ENTRY else "room",
                                're-entered')

@@ -11,7 +11,7 @@ withdrawConfirmSuite = function() {
         {% if application.group_members %}
         'Unless you re-enter the lottery, you and your group members ' +
         {% else %}
-        'Unless you join a room group or re-enter the lottery, you ' +
+        'Unless you join a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} or re-enter the lottery, you ' +
         {% endif %}
         'will not be eligible for a suite booking.</p>'
         {% if application.group_members %} + '<p>Your group members will be notified of the cancellation.</p>'{% endif %},

@@ -41,15 +41,15 @@ LotteryInfo.field_validation.required_fields = {
 LotteryConfirm.field_validation.required_fields['guarantee_policy_accepted'] = "You must agree to the payment guarantee policy to continue."
 
 
-LotteryRoomGroup.field_validation.required_fields['room_group_name'] = "Please enter a name for your room group."
+LotteryRoomGroup.field_validation.required_fields['room_group_name'] = f"Please enter a name for your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
 LotteryRoomGroup.field_validation.validations['room_group_name']['length'] = validators.Length(
-    max=40, message="Room group names cannot be longer than 40 characters.")
+    max=40, message=f"{c.HOTEL_LOTTERY_GROUP_TERM.capitalize()} names cannot be longer than 40 characters.")
 
 
 @LotteryRoomGroup.field_validation('room_group_name')
 def no_dashes(form, field):
     if '-' in field.data:
-        raise ValidationError("Please do not use dashes ('-') in your room group name.")
+        raise ValidationError(f"Please do not use dashes ('-') in your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} name.")
 
 
 def check_required_room_steps(form):

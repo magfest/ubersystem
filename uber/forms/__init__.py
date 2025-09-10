@@ -393,6 +393,11 @@ class MagForm(Form):
             field_in_obj = hasattr(obj, name)
             field_in_formdata = prefixed_name in formdata
             use_blank_formdata = cherrypy.request.method == 'POST' and checkboxes_present and formdata
+
+            if force_defaults and not field_in_formdata:
+                if field.default is None and getattr(obj, name, None) is not None:
+                    formdata[prefixed_name] = getattr(obj, name)
+
             if isinstance(field, BooleanField):
                 if not field_in_formdata and field_in_obj:
                     formdata[prefixed_name] = False if use_blank_formdata or getattr(obj, name) is None else getattr(obj, name)
@@ -417,10 +422,6 @@ class MagForm(Form):
                 formdata[prefixed_name] = getattr(obj, name).strftime('%m/%d/%Y')
             elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[prefixed_name], list):
                 formdata[prefixed_name] = ','.join(formdata[prefixed_name])
-
-            if force_defaults and not field_in_formdata:
-                if field.default is None and getattr(obj, name, None):
-                    formdata[prefixed_name] = getattr(obj, name)
 
         super().process(formdata, None if force_defaults else obj, data, extra_filters, **kwargs)
 
