@@ -28,6 +28,8 @@ class LotteryInfo(MagForm):
     def get_non_admin_locked_fields(self, app):
         locked_fields = super().get_non_admin_locked_fields(app)
         locked_fields.extend(['terms_accepted', 'data_policy_accepted'])
+        if not app.is_new:
+            locked_fields.extend(['legal_first_name', 'legal_last_name'])
         return locked_fields
 
 class LotteryConfirm(MagForm):

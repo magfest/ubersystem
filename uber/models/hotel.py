@@ -257,9 +257,9 @@ class LotteryApplication(MagModel):
     @property
     def application_status_str(self):
         app_or_parent = self.parent_application or self
-        if not app_or_parent.entry_type:
+        if app_or_parent.status not in [c.COMPLETE, c.PROCESSED]:
             return "do NOT have an entry in the hotel room or suite lottery"
-        
+
         if app_or_parent.entry_type == c.SUITE_ENTRY:
             return f"are entered into the suite lottery{'' if app_or_parent.room_opt_out else ' and room lottery'}"
         else:
