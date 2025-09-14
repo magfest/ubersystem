@@ -9,6 +9,6 @@
 </p>
 {% set confirmation = False %}
 {% include 'emails/hotel/entry_details.html' with context %}
-<p>You can review your group's lottery entry by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
+<p>You can review your group's lottery entry by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging into{% else %}visiting{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
 </body>
 </html>

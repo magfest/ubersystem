@@ -833,11 +833,74 @@ for _conf in DeptChecklistConf.instances.values():
 
 
 # =============================
-# hotel
+# hotel/hotel lottery
 # =============================
 
-if c.HOTELS_ENABLED:
 
+
+
+
+class HotelLotteryEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(
+            self,
+            LotteryApplication,
+            subject,
+            template,
+            lambda a: a.attendee and filter(a),
+            ident,
+            sender=c.HOTEL_LOTTERY_EMAIL,
+            **kwargs)
+
+
+if c.HOTEL_LOTTERY_STAFF_START:
+    HotelLotteryEmailFixture(
+        'Last chance to complete your staff hotel lottery entry',
+        'hotel/lottery_reminder.html',
+        lambda a: a.status == c.PARTIAL and a.qualifies_for_staff_lottery,
+        when=days_before(3, c.HOTEL_LOTTERY_STAFF_DEADLINE),
+        ident='staff_hotel_lottery_reminder',
+    )
+
+
+if c.HOTEL_LOTTERY_FORM_START:
+    earliest_hotel_deadline = c.HOTEL_LOTTERY_FORM_WAITLIST if c.HOTEL_LOTTERY_FORM_WAITLIST else c.HOTEL_LOTTERY_FORM_DEADLINE
+
+    HotelLotteryEmailFixture(
+        'Last chance to complete your hotel lottery entry',
+        'hotel/lottery_reminder.html',
+        lambda a: a.status == c.PARTIAL,
+        when=days_before(3, earliest_hotel_deadline),
+        ident='hotel_lottery_reminder',
+    )
+
+
+if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
+        'hotel/award_notification.html',
+        lambda a: a.status == c.AWARDED,
+        ident='hotel_lottery_awarded'
+    )
+
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
+        'hotel/reject_notification.html',
+        lambda a: a.status == c.REJECTED,
+        ident='hotel_lottery_rejected'
+    )
+
+    if c.HOTEL_LOTTERY_FORM_WAITLIST:
+        HotelLotteryEmailFixture(
+            f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
+            'hotel/reject_notification.html',
+            lambda a: a.status != c.PROCESSED and not a.finalized,
+            when=after(c.HOTEL_LOTTERY_FORM_WAITLIST),
+            ident='hotel_lottery_first_round_rejected'
+        )
+
+
+if c.HOTELS_ENABLED:
     AutomatedEmailFixture(
         Attendee,
         'Want volunteer hotel room space at {EVENT_NAME}?',
@@ -1092,7 +1155,8 @@ if c.MIVS_START:
         IndieGame,
         'MIVS judging is wrapping up',
         'mivs/results_almost_ready.txt',
-        lambda game: game.submitted, when=days_before(14, c.MIVS_JUDGING_DEADLINE),
+        lambda game: game.submitted,
+        when=days_before(14, c.MIVS_JUDGING_DEADLINE),
         ident='mivs_results_almost_ready')
 
     MIVSEmailFixture(

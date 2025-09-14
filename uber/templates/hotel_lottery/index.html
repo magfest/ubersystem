@@ -101,10 +101,10 @@
     <h1>{{ c.EVENT_NAME }}{% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
     <hr/>
     {% if c.HOTEL_ROOM_INVENTORY and app_or_parent.finalized %}
-        {% if app_or_parent.status == c.REJECTED or application.status == c.REMOVED %}
+        {% if app_or_parent.status in c.REJECTED or application.status == [c.REMOVED, c.CANCELLED] %}
         <p>
             <strong><span class="text-danger">{{ application.award_status_str }}</span></strong>
-            {% if app_or_parent.status == c.REJECTED and app_or_parent.assigned_hotel %}
+            {% if app_or_parent.status == c.CANCELLED and app_or_parent.assigned_hotel %}
                 This may be because you{% if application.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} did not confirm the booking in time.
                 {% if not application.parent_application %}Please email us at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} if you have any questions.{% endif %}
             {% endif %}
@@ -134,45 +134,7 @@
                 being processed. You{% if application.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} should expect an acknowledgment email with a link to confirm your booking in the coming weeks.
             {% endif %}
         </p>
-            <h3>{{ 'Suite' if app_or_parent.assigned_suite_type else 'Room' }} Award Information</h3>
-            <ul class="list-group list-group-flush">
-                <li class="list-group-item"><strong>{{ app_or_parent.assigned_hotel_label['name'] }}</strong></li>
-                <li class="list-group-item">{{ app_or_parent.assigned_suite_type_label['name'] if app_or_parent.assigned_suite_type else app_or_parent.assigned_room_type_label['name'] }}</li>
-                <li class="list-group-item">{{ app_or_parent.assigned_check_in_date.strftime("%B %-d") }} to {{ app_or_parent.assigned_check_out_date.strftime("%B %-d") }}</li>
-                {% if not application.parent_application and application.wants_ada %}<li class="list-group-item"><em>Requested Accommodations</em>: {{ application.ada_requests }}</li>{% endif %}
-            </ul>
-            <br/>
-            {% if application.group_members %}
-            <h3>Guests</h3>
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Phone #</th>
-                        <th>Email</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>{{ application.legal_first_name }} {{ application.legal_last_name }}</td>
-                        <td>{{ application.cellphone }}</td>
-                        <td>{{ application.email }}</td>
-                        <td><em>Primary Guest</em></td>
-                    </tr>
-                    {% for member in application.group_members %}
-                    <tr>
-                        <td>{{ member.legal_first_name }} {{ member.legal_last_name }}</td>
-                        <td>{{ member.cellphone }}</td>
-                        <td>{{ member.email }}</td>
-                        <td></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endif %}
-            {% block award_information %}
-            {% endblock %}
+            {% include 'hotel_lottery/award_info.html' with context %}
         {% endif %}
     {% else %}
         {% include 'hotel_lottery/app_management.html' with context %}

@@ -24,7 +24,7 @@
     {{ c.HOTEL_LOTTERY_GROUP_TERM|capitalize }}s are given additional weighting in the lottery. Note that in order to join a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} you must have a valid registration for {{ c.EVENT_NAME }}.
 </p>
 {% endif %}
-<p>You can review{% if application.entry_type != c.GROUP_ENTRY %} and update{% endif %} your{% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} lottery entry by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
+<p>You can review{% if application.entry_type != c.GROUP_ENTRY %} and update{% endif %} your{% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} lottery entry by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging into{% else %}visiting{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
 {% set confirmation = True %}
 {% include 'emails/hotel/entry_details.html' with context %}
 </body>
