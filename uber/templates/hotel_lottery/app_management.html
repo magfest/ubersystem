@@ -82,7 +82,7 @@
         </div>
         {% endif %}
     </div>
-    {% if application.status != c.COMPLETE and not application.parent_application and app_editable %}
+    {% if c.SHOW_HOTEL_LOTTERY_GROUPS and application.status != c.COMPLETE and not application.parent_application and app_editable %}
     <p>
         You are currently not eligible to create a group.
         {% if application.entry_type in [c.ROOM_ENTRY, c.SUITE_ENTRY] %}Complete your lottery application below first.
