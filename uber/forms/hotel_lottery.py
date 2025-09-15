@@ -28,6 +28,8 @@ class LotteryInfo(MagForm):
     def get_non_admin_locked_fields(self, app):
         locked_fields = super().get_non_admin_locked_fields(app)
         locked_fields.extend(['terms_accepted', 'data_policy_accepted'])
+        if not app.is_new:
+            locked_fields.extend(['legal_first_name', 'legal_last_name'])
         return locked_fields
 
 class LotteryConfirm(MagForm):
@@ -107,6 +109,7 @@ class LotteryAdminInfo(SuiteLottery):
     current_step = IntegerField('Current Step')
     confirmation_num = StringField('Confirmation Number', render_kw={'readonly': "true"})
     can_edit = BooleanField(f'Make this application editable even after its lottery is closed.')
+    is_staff_entry = BooleanField(f'This application is entered into the staff lottery.')
     legal_first_name = LotteryInfo.legal_first_name
     legal_last_name = LotteryInfo.legal_last_name
     cellphone = LotteryInfo.cellphone

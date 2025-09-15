@@ -1,0 +1,37 @@
+<h3>{{ 'Suite' if app_or_parent.assigned_suite_type else 'Room' }} Award Information</h3>
+<ul class="list-group list-group-flush">
+    <li class="list-group-item"><strong>{{ app_or_parent.assigned_hotel_label['name'] }}</strong></li>
+    <li class="list-group-item">{{ app_or_parent.assigned_suite_type_label['name'] if app_or_parent.assigned_suite_type else app_or_parent.assigned_room_type_label['name'] }}</li>
+    <li class="list-group-item">{{ app_or_parent.assigned_check_in_date.strftime("%B %-d") }} to {{ app_or_parent.assigned_check_out_date.strftime("%B %-d") }}</li>
+    {% if not application.parent_application and application.wants_ada %}<li class="list-group-item"><em>Requested Accommodations</em>: {{ application.ada_requests }}</li>{% endif %}
+</ul>
+<br/>
+{% if not application.parent_application %}
+<h3>Guests</h3>
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Phone #</th>
+            <th>Email</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>{{ application.legal_first_name }} {{ application.legal_last_name }}</td>
+            <td>{{ application.cellphone }}</td>
+            <td>{{ application.email }}</td>
+            <td><em>Primary Guest</em></td>
+        </tr>
+        {% for member in application.group_members %}
+        <tr>
+            <td>{{ member.legal_first_name }} {{ member.legal_last_name }}</td>
+            <td>{{ member.cellphone }}</td>
+            <td>{{ member.email }}</td>
+            <td></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}

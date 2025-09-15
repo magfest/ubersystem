@@ -172,6 +172,8 @@ def check_required_suite_steps(form):
         optional_list.append('suite_type_preference')
     if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_dates', 9999):
         optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_agreement', 9999):
+        optional_list.append('suite_terms_accepted')
 
     return optional_list
 
@@ -186,7 +188,7 @@ SuiteLottery.field_validation.required_fields.update({
     'room_type_preference': ("Please select at least one preferred standard room type, or opt out of the room lottery.",
                              'room_type_preference', suite_steps_check),
     'suite_terms_accepted': ("You must agree to the suite lottery policies to enter the suite lottery.",
-                             'suite_terms_accepted', lambda x: True),  # Allow LotteryAdminInfo to override
+                             'suite_terms_accepted', suite_steps_check),
     'suite_type_preference': ("Please select at least one preferred suite type.",
                               'suite_type_preference', suite_steps_check),
 })

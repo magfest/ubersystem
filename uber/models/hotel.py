@@ -170,6 +170,7 @@ class LotteryApplication(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='LotteryApplication.id',
         single_parent=True)
+    former_parent_id = Column(UUID, nullable=True)
 
     room_group_name = Column(UnicodeText)
     email_model_name = 'app'
@@ -257,9 +258,9 @@ class LotteryApplication(MagModel):
     @property
     def application_status_str(self):
         app_or_parent = self.parent_application or self
-        if not app_or_parent.entry_type:
+        if app_or_parent.status not in [c.COMPLETE, c.PROCESSED]:
             return "do NOT have an entry in the hotel room or suite lottery"
-        
+
         if app_or_parent.entry_type == c.SUITE_ENTRY:
             return f"are entered into the suite lottery{'' if app_or_parent.room_opt_out else ' and room lottery'}"
         else:
@@ -274,7 +275,10 @@ class LotteryApplication(MagModel):
     @property
     def award_status_str(self):
         app_or_parent = self.parent_application or self
-        if not c.HOTEL_ROOM_INVENTORY or not app_or_parent.finalized:
+        if not c.HOTEL_ROOM_INVENTORY:
+            return ''
+        if not app_or_parent.finalized and (
+                not c.HOTEL_LOTTERY_FORM_WAITLIST or c.BEFORE_HOTEL_LOTTERY_FORM_WAITLIST):
             return ''
         if self.staff_award_status_str:
             return self.staff_award_status_str
@@ -288,12 +292,15 @@ class LotteryApplication(MagModel):
         
         room_type = 'suite' if app_or_parent.assigned_suite_type else 'room'
 
-        if app_or_parent.status == c.REJECTED and app_or_parent.assigned_hotel:
-            return f"Unfortunately, {you_str.lower()} {room_type} has been canceled."
+        if app_or_parent.status == c.CANCELLED:
+            return f"Unfortunately, {you_str.lower()} {room_type} has been cancelled."
         elif app_or_parent.assigned_hotel:
             return f"Congratulations! {you_str} entry for the {c.EVENT_NAME_AND_YEAR} {room_type} lottery was chosen."
         else:
-            return f"Unfortunately, {you_str.lower()} entry for the {c.EVENT_NAME_AND_YEAR} hotel lottery was not chosen."
+            base_str = f"Unfortunately, {you_str.lower()} entry for the {c.EVENT_NAME_AND_YEAR} hotel lottery was not chosen"
+            if c.HOTEL_LOTTERY_FORM_WAITLIST and not app_or_parent.finalized and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST:
+                return base_str + " in the first round of the lottery."
+            return base_str + "."
     
     @property
     def finalized(self):
@@ -309,6 +316,10 @@ class LotteryApplication(MagModel):
             return f'{text}. Your confirmation number is {self.confirmation_num}'
         elif self.room_group_name:
             return f'are the group leader for "{self.room_group_name}". Your group has {len(self.group_members) + 1} group members, including yourself'
+
+    @property
+    def group_member_names(self):
+        return [f"{app.legal_first_name} {app.legal_last_name}" for app in self.group_members]
 
     @property
     def qualifies_for_staff_lottery(self):
@@ -331,6 +342,16 @@ class LotteryApplication(MagModel):
         elif self.qualifies_for_staff_lottery:
             return not c.STAFF_HOTEL_LOTTERY_OPEN and not c.HOTEL_LOTTERY_OPEN
         return not c.HOTEL_LOTTERY_OPEN
+
+    @property
+    def guarantee_deadline(self):
+        if self.deposit_cutoff_date:
+            return self.deposit_cutoff_date
+
+        if c.HOTEL_LOTTERY_STAFF_GUARANTEE_DUE and (
+                self.is_staff_entry or c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery):
+            return c.HOTEL_LOTTERY_STAFF_GUARANTEE_DUE
+        return c.HOTEL_LOTTERY_GUARANTEE_DUE
 
     @property
     def entry_form_completed(self):

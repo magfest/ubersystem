@@ -833,11 +833,93 @@ for _conf in DeptChecklistConf.instances.values():
 
 
 # =============================
-# hotel
+# hotel/hotel lottery
 # =============================
 
-if c.HOTELS_ENABLED:
+class HotelLotteryEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(
+            self,
+            LotteryApplication,
+            subject,
+            template,
+            lambda a: a.attendee and filter(a),
+            ident,
+            sender=c.HOTEL_LOTTERY_EMAIL,
+            **kwargs)
 
+
+if c.HOTEL_LOTTERY_STAFF_START:
+    HotelLotteryEmailFixture(
+        'Last chance to complete your staff hotel lottery entry',
+        'hotel/lottery_reminder.html',
+        lambda a: a.status == c.PARTIAL and a.qualifies_for_staff_lottery,
+        when=days_before(3, c.HOTEL_LOTTERY_STAFF_DEADLINE),
+        ident='staff_hotel_lottery_reminder',
+    )
+
+
+if c.HOTEL_LOTTERY_FORM_START:
+    earliest_hotel_deadline = c.HOTEL_LOTTERY_FORM_WAITLIST if c.HOTEL_LOTTERY_FORM_WAITLIST else c.HOTEL_LOTTERY_FORM_DEADLINE
+
+    HotelLotteryEmailFixture(
+        'Last chance to complete your hotel lottery entry',
+        'hotel/lottery_reminder.html',
+        lambda a: a.status == c.PARTIAL,
+        when=days_before(3, earliest_hotel_deadline),
+        ident='hotel_lottery_reminder',
+    )
+
+
+if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
+        'hotel/award_notification.html',
+        lambda a: a.status == c.AWARDED and (
+            a.booking_url or a.parent_application and a.parent_application.booking_url),
+        ident='hotel_lottery_awarded'
+    )
+
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
+        'hotel/reject_notification.html',
+        lambda a: a.status == c.REJECTED,
+        ident='hotel_lottery_rejected'
+    )
+
+    if c.HOTEL_LOTTERY_FORM_WAITLIST:
+        HotelLotteryEmailFixture(
+            f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
+            'hotel/reject_notification.html',
+            lambda a: a.status != c.PROCESSED and not a.finalized,
+            when=after(c.HOTEL_LOTTERY_FORM_WAITLIST),
+            ident='hotel_lottery_first_round_rejected'
+        )
+
+    HotelLotteryEmailFixture(
+        f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',
+        'hotel/guarantee_reminder.html',
+        lambda a: a.status == c.AWARDED and a.booking_url and days_before(
+            7, a.guarantee_deadline)() and not a.parent_application,
+        ident='hotel_lottery_guarantee_reminder'
+    )
+    
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Cancelled',
+        'hotel/cancel_notification.html',
+        lambda a: a.status == c.CANCELLED,
+        ident='hotel_lottery_cancelled'
+    )
+
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Confirmed!',
+        'hotel/secure_notification.html',
+        lambda a: a.status == c.SECURED,
+        ident='hotel_lottery_secured'
+    )
+
+
+if c.HOTELS_ENABLED:
     AutomatedEmailFixture(
         Attendee,
         'Want volunteer hotel room space at {EVENT_NAME}?',

@@ -5,7 +5,7 @@ import random
 import math
 from copy import deepcopy
 from collections import defaultdict
-from datetime import datetime, date
+from datetime import datetime, timedelta
 from dateutil import parser as dateparser
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText
@@ -351,6 +351,9 @@ class Root:
         
         for app in applications:
             app.status = c.AWARDED
+            if c.HOTEL_LOTTERY_GUARANTEE_HOURS:
+                dt = datetime.now() + timedelta(hours=c.HOTEL_LOTTERY_GUARANTEE_HOURS).date()
+                app.deposit_cutoff_date = c.EVENT_TIMEZONE.localize(datetime.strptime(dt + ' 23:59', '%Y-%m-%d %H:%M'))
             session.add(app)
         session.commit()
         raise HTTPRedirect('index?message={}',
