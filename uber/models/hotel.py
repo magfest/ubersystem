@@ -170,6 +170,7 @@ class LotteryApplication(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='LotteryApplication.id',
         single_parent=True)
+    former_parent_id = Column(UUID, nullable=True)
 
     room_group_name = Column(UnicodeText)
     email_model_name = 'app'

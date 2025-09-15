@@ -1,3 +1,4 @@
+{% set room_type = 'suite' if app.assigned_suite_type else 'room' %}
 {% set app_or_parent = app.parent_application if app.entry_type == c.GROUP_ENTRY else app %}
 <html>
 <head></head>
@@ -5,10 +6,10 @@
 <p>
     {{ app.attendee.full_name }},<br/>
     <strong><span class="text-success">{{ app.award_status_str }}</span></strong>
-    You can view your awarded room details below.
+    You can view your awarded {{ room_type }} details below.
 </p>
 <p>
-    Your room is <strong>not</strong> confirmed until you{% if app.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader provides {% else %} provide {% endif %}a credit card guarantee.
+    Your {{ room_type }} is <strong>not</strong> confirmed until you{% if app.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader provides {% else %} provide {% endif %}a credit card guarantee.
 {% if not app.parent_application %}
     <strong><span class="text-danger">Failure to provide a credit card by {{ app_or_parent.guarantee_deadline|datetime_local }} will result in your reservation being cancelled.</span></strong>
 </p>

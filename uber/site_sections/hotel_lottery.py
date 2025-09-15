@@ -112,11 +112,12 @@ def _reset_group_member(application):
 def _clear_application(application, status=c.WITHDRAWN):
     application.status = status
     application.attendee.hotel_eligible = True
+    keep_attrs = [
+        'id', 'attendee_id', 'response_id', 'legal_first_name', 'legal_last_name', 'cellphone']
 
     defaults = LotteryApplication().to_dict()
     for attr in defaults:
-        if attr not in ['id', 'attendee_id', 'response_id',
-                        'legal_first_name', 'legal_last_name', 'cellphone']:
+        if attr not in keep_attrs:
             setattr(application, attr, defaults.get(attr))
     return application
 
@@ -739,15 +740,16 @@ class Root:
         if cherrypy.request.method == "POST":
             room_group = application.parent_application
 
-            body = render('emails/hotel/group_member_left.html', {
-                'application': room_group, 'member': application}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                room_group.attendee.email_to_address,
-                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
-                body,
-                format='html',
-                model=room_group.to_dict('id'))
+            if room_group.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+                body = render('emails/hotel/group_member_left.html', {
+                    'application': room_group, 'member': application}, encoding=None)
+                send_email.delay(
+                    c.HOTEL_LOTTERY_EMAIL,
+                    room_group.attendee.email_to_address,
+                    f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
+                    body,
+                    format='html',
+                    model=room_group.to_dict('id'))
             
             application = _reset_group_member(application)
 
@@ -770,7 +772,7 @@ class Root:
 
         if not application.status in [c.AWARDED, c.SECURED]:
             message = f"{you_str} entry does not have a room or suite award."
-        if not application.booking_link:
+        if not application.booking_url:
             message = f"{you_str} entry is still being processed and the booking link is not available yet."
 
         if application.parent_application:
@@ -778,7 +780,7 @@ class Root:
         
         if message:
             raise HTTPRedirect('index?id={}&message={}', id, message)
-        raise HTTPRedirect(application.booking_link)
+        raise HTTPRedirect(application.booking_url)
         
     def decline(self, session, id, message='', **params):
         application = session.lottery_application(id)
@@ -809,6 +811,7 @@ class Root:
                 if application.group_members:
                     for group_member in application.group_members:
                         _clear_application(group_member, status=c.CANCELLED)
+                        group_member.former_parent_id = application.id
 
                     message = f"You have declined your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s {room_type} award. \
                         Your lottery entry has been cancelled and your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} has been disbanded."
