@@ -54,10 +54,10 @@
         <div class="col col-auto">
             <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
         </div>
-        {% if not application.parent_application and app_editable and not application.room_group_name %}
+        {% if c.SHOW_HOTEL_LOTTERY_GROUPS and not application.parent_application and app_editable and not application.room_group_name %}
             <div class="col col-auto">
             <a class="btn btn-primary" href="room_group?id={{ application.id }}">
-                Join {% if application.status == c.COMPLETE %}or Create {% endif %}Room Group
+                Join {% if application.status == c.COMPLETE %}or Create {% endif %}{{ c.HOTEL_LOTTERY_GROUP_TERM }}
             </a>
             </div>
             {% if not application.entry_type %}
@@ -192,7 +192,7 @@
     {% if action == 'confirmation' %}
         <p>Thank you for entering the {{ confirm }} lottery for {{ c.EVENT_NAME_AND_YEAR }}!</p>
     {% elif action == 're-entered' %}
-        <p>You have successfully left your room group and your previous lottery entry is now active.</p>
+        <p>You have successfully left your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} and your previous lottery entry is now active.</p>
         <p>Your previous confirmation number is invalid. Your new confirmation number is below.</p>
     {% else %}
         <p>Thank you for updating your {{ confirm }} lottery entry!</p>

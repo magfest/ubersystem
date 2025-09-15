@@ -1113,42 +1113,42 @@ if c.MIVS_START:
         IndieGame,
         'MIVS: Your Submitted Video Is Broken',
         'mivs/video_broken.txt',
-        lambda game: game.video_broken,
+        lambda game: game.video_broken and game.showcase_type == c.MIVS,
         ident='mivs_video_broken')
 
     MIVSEmailFixture(
         IndieGame,
         'Your game has been accepted into MIVS',
         'mivs/game_accepted.txt',
-        lambda game: game.status == c.ACCEPTED and not game.waitlisted,
+        lambda game: game.status == c.ACCEPTED and not game.waitlisted and game.showcase_type == c.MIVS,
         ident='mivs_game_accepted')
 
     MIVSEmailFixture(
         IndieGame,
         'Your game has been accepted into MIVS from our waitlist',
         'mivs/game_accepted_from_waitlist.txt',
-        lambda game: game.status == c.ACCEPTED and game.waitlisted,
+        lambda game: game.status == c.ACCEPTED and game.waitlisted and game.showcase_type == c.MIVS,
         ident='mivs_game_accepted_from_waitlist')
 
     MIVSEmailFixture(
         IndieGame,
         'Your game application has been declined from MIVS',
         'mivs/game_declined.txt',
-        lambda game: game.status == c.DECLINED,
+        lambda game: game.status == c.DECLINED and game.showcase_type == c.MIVS,
         ident='mivs_game_declined')
 
     MIVSEmailFixture(
         IndieGame,
         'Your MIVS application has been waitlisted',
         'mivs/game_waitlisted.txt',
-        lambda game: game.status == c.WAITLISTED,
+        lambda game: game.status == c.WAITLISTED and game.showcase_type == c.MIVS,
         ident='mivs_game_waitlisted')
 
     MIVSEmailFixture(
         IndieGame,
         'MIVS {EVENT_YEAR} Waitlist: Additional Information Required',
         'mivs/waitlist_info.txt',
-        lambda game: game.status == c.WAITLISTED,
+        lambda game: game.status == c.WAITLISTED and game.showcase_type == c.MIVS,
         ident='mivs_waitlist_info'
     )
 
@@ -1157,7 +1157,7 @@ if c.MIVS_START:
         'Last chance to accept your MIVS booth',
         'mivs/game_accept_reminder.txt',
         lambda game: (
-            game.status == c.ACCEPTED
+            game.status == c.ACCEPTED and game.showcase_type == c.MIVS
             and not game.confirmed
             and (localized_now() + timedelta(days=2)) > game.studio.confirm_deadline),
         ident='mivs_accept_booth_reminder')
@@ -1166,7 +1166,7 @@ if c.MIVS_START:
         IndieGame,
         'Summary of judging feedback for your game',
         'mivs/reviews_summary.html',
-        lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email,
+        lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email and game.showcase_type == c.MIVS,
         ident='mivs_reviews_summary',
         allow_post_con=True)
 
@@ -1174,7 +1174,7 @@ if c.MIVS_START:
         IndieGame,
         'MIVS judging is wrapping up',
         'mivs/results_almost_ready.txt',
-        lambda game: game.submitted,
+        lambda game: game.submitted and game.showcase_type == c.MIVS,
         when=days_before(14, c.MIVS_JUDGING_DEADLINE),
         ident='mivs_results_almost_ready')
 
@@ -1182,34 +1182,35 @@ if c.MIVS_START:
         IndieJudge,
         'Welcome as a MIVS Judge!',
         'mivs/judging/judge_welcome.html',
+        lambda judge: judge.single_showcase == c.MIVS,
         ident='mivs_judge_welcome')
 
     MIVSEmailFixture(
         IndieJudge,
         'Reminder to update your MIVS Judge status',
         'mivs/judging/judge_welcome_reminder.txt',
-        lambda judge: judge.status == c.UNCONFIRMED,
+        lambda judge: judge.status == c.UNCONFIRMED and judge.single_showcase == c.MIVS,
         ident='mivs_judge_welcome_reminder')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging is about to begin!',
         'mivs/judge_intro.txt',
-        lambda judge: judge.status == c.CONFIRMED,
+        lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
         ident='mivs_judge_intro')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging has begun!',
         'mivs/judging_begun.txt',
-        lambda judge: judge.status == c.CONFIRMED,
+        lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
         ident='mivs_judging_has_begun')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging is almost over!',
         'mivs/judging_reminder.txt',
-        lambda judge: judge.status == c.CONFIRMED,
+        lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
         when=days_before(7, c.SOFT_MIVS_JUDGING_DEADLINE),
         ident='mivs_judging_due_reminder')
 
@@ -1217,7 +1218,7 @@ if c.MIVS_START:
         IndieJudge,
         'Reminder: MIVS Judging due by {}'.format(c.MIVS_JUDGING_DEADLINE.strftime('%B %-d')),
         'mivs/judging_reminder.txt',
-        lambda judge: not judge.judging_complete and judge.status == c.CONFIRMED,
+        lambda judge: not judge.judging_complete and judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
         when=days_before(5, c.MIVS_JUDGING_DEADLINE),
         ident='mivs_judging_due_reminder_last_chance')
 
@@ -1225,14 +1226,14 @@ if c.MIVS_START:
         IndieJudge,
         'MIVS Judging survey and {EVENT_NAME} badge information',
         'mivs/judge_badge_info.txt',
-        lambda judge: judge.status == c.CONFIRMED,
+        lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
         ident='mivs_judge_badge_info')
 
     MIVSEmailFixture(
         IndieGame,
         'MIVS: Tournaments and Leaderboard Challenges',
         'mivs/confirmed/tournaments.txt',
-        lambda game: game.confirmed,
+        lambda game: game.confirmed and game.showcase_type == c.MIVS,
         ident='mivs_tournaments'
     )
 
@@ -1283,7 +1284,7 @@ if c.MIVS_START:
         IndieGame,
         '{EVENT_NAME} MIVS {EVENT_YEAR}: Wednesday Setup',
         'mivs/At-Con/LoadIn.txt',
-        lambda game: game.confirmed,
+        lambda game: game.confirmed and game.showcase_type == c.MIVS,
         ident='mivs_LoadIn.txt'
     )
 
@@ -1291,7 +1292,7 @@ if c.MIVS_START:
         IndieGame,
         '{EVENT_NAME} MIVS {EVENT_YEAR}: Thursday, Day 1',
         'mivs/At-Con/Day1.txt',
-        lambda game: game.confirmed,
+        lambda game: game.confirmed and game.showcase_type == c.MIVS,
         ident='mivs_Day1.txt'
     )
 
@@ -1300,7 +1301,7 @@ if c.MIVS_START:
         IndieGame,
         'MIVS December Update',
         'mivs/2022/december_update.txt',
-        lambda game: game.confirmed,
+        lambda game: game.confirmed and game.showcase_type == c.MIVS,
         ident='mivs_december_update.txt'
     )
 
@@ -1309,7 +1310,7 @@ if c.MIVS_START:
         IndieGame,
         '{EVENT_NAME} MIVS {EVENT_YEAR}: Request for Feedback',
         'mivs/feedback/indie_survey.txt',
-        lambda game: game.confirmed,
+        lambda game: game.confirmed and game.showcase_type == c.MIVS,
         ident='mivs_feedback_survey',
         allow_post_con=True,
     )
