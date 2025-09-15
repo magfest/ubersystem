@@ -114,7 +114,7 @@
         </div>
     {% if application.room_group_name and app_editable %}
         <div class="col col-auto"><a class="btn btn-primary" href="room_group?id={{ application.id }}">Manage {{ c.HOTEL_LOTTERY_GROUP_TERM }}</a></div>
-    {% elif app_editable or app.finalized %}
+    {% elif app_editable or application.finalized %}
         <div class="col col-auto">
         <form method="post" action="leave_group" id="leave-group">
             <input type="hidden" name="id" value="{{ application.id }}">

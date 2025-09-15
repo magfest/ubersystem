@@ -30,7 +30,7 @@
     </p>
 
     <p>
-        Once your entry is complete, you'll receive an email with the entry details. You can return to this page at any time to edit your entry, manage a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}, or join or leave a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.
+        Once your entry is complete, you'll receive an email with the entry details. You can return to this page at any time to edit your entry{% if c.SHOW_HOTEL_LOTTERY_GROUPS %}, manage a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}, or join or leave a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}{% endif %}.
     </p>
 
     <p><a class="btn btn-primary" href="terms?attendee_id={{ attendee.id }}">Continue</a></p>
