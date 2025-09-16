@@ -108,6 +108,9 @@
     {% if application.parent_application or application.room_group_name %}
     <h2>Your {{ c.HOTEL_LOTTERY_GROUP_TERM }}</h2>
     <p>You {{ application.group_status_str }}.</p>
+    {% if not application.parent_application %}
+    {% include 'hotel_lottery/room_group_members.html' with context %}
+    {% endif %}
     <div class="row g-1 row-cols-auto">
         <div class="col col-auto mb-4">
             <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View {{ c.HOTEL_LOTTERY_GROUP_TERM }} Policies</button>

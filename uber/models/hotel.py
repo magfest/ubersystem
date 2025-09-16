@@ -315,7 +315,7 @@ class LotteryApplication(MagModel):
                 text = f'{text}. Your group leader must re-enter the attendee lottery before your entry becomes valid'
             return f'{text}. Your confirmation number is {self.confirmation_num}'
         elif self.room_group_name:
-            return f'are the group leader for "{self.room_group_name}". Your group has {len(self.group_members) + 1} group members, including yourself'
+            return f'are the group leader for "{self.room_group_name}"'
 
     @property
     def group_member_names(self):

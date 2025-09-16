@@ -1,0 +1,106 @@
+{% if application.group_members %}
+    Here are the members of your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}:
+    <table class="table table-sm table-borderless">
+        <tbody>
+        {% for member in application.group_members %}
+        <tr>
+            <td class="text-nowrap w-25">{{ member.attendee.full_name }}</td>
+            <td>
+                <div class="d-flex gap-2">
+                <form method="post" action="remove_group_member" id="remove-member">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="member_id" value="{{ member.id }}">
+                    <input type="hidden" name="member_name" value="{{ member.attendee.full_name }}">
+                    {% if c.HOTEL_LOTTERY_OPEN %}
+                    <button type="submit" class="btn btn-sm btn-danger">
+                        Remove
+                    </button>
+                    {% endif %}
+                </form>
+                {% if False %}
+                <form method="post" action="transfer_leadership" id="make-leader">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="member_id" value="{{ member.id }}">
+                    <input type="hidden" name="member_name" value="{{ member.attendee.full_name }}">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        Make {{ c.HOTEL_LOTTERY_GROUP_TERM }} Leader
+                    </button>
+                </form>
+                {% endif %}
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+<script type="text/javascript">
+    removeConfirm = function(event){
+        var formToSubmit = this;
+        event.preventDefault();
+        name = $(this).find('[name=member_name]').first().val();
+        bootbox.confirm({
+            title: "Remove Group Member?",
+            message: "<p>This will remove " + name + " from your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.</p>" + 
+                     "<p>They will be notified via email. They may be able to join again unless you disband the group.</p>" +
+                     "<p>Are you sure?</p>",
+            buttons: {
+                confirm: {
+                    label: 'Yes, Remove ' + name,
+                    className: 'btn-danger'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    formToSubmit.submit();
+                }
+            }
+        });
+    }
+
+    leaderConfirm = function(event){
+        var formToSubmit = this;
+        event.preventDefault();
+        name = $(this).find('[name=member_name]').first().val();
+        bootbox.confirm({
+            title: "Transfer Group Leadership?",
+            message: "<p>This will make " + name + " the new leader for your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.</p>" + 
+                     "<p>All group members will be notified via email." +
+                     {% if application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] %}
+                        {% if not application.finalized %}
+                        " You will then be able to withdraw from the lottery without disbanding the group." +
+                        {% else %}
+                        " You will no longer be able to view your group's reservation, but you'll be able to withdraw from the lottery without affecting your group's {{ 'suite' if application.assigned_suite_type else 'room' }} award." +
+                        {% endif %}
+                     {% endif %}
+                     "</p><p>Are you sure?</p>",
+            buttons: {
+                confirm: {
+                    label: 'Yes, Transfer Leadership to ' + name,
+                    className: 'btn-warning'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    formToSubmit.submit();
+                }
+            }
+        });
+    }
+
+    $().ready(function () {
+        $("#remove-member").submit(removeConfirm);
+        $("#make-leader").submit(leaderConfirm);
+    })
+</script>

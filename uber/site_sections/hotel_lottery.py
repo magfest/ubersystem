@@ -74,7 +74,7 @@ def _disband_room_group(session, application):
         session.add(member)
         session.commit()
         body = render('emails/hotel/removed_from_group.html', {
-            'application': member, 'parent': application, 'old_room_group_name': old_room_group_name}, encoding=None)
+            'app': member, 'parent': application, 'old_room_group_name': old_room_group_name}, encoding=None)
         send_email.delay(
             c.HOTEL_LOTTERY_EMAIL,
             member.attendee.email_to_address,
@@ -250,7 +250,7 @@ class Root:
         session.add(application)
         
         body = render('emails/hotel/hotel_lottery_entry.html', {
-            'application': application,
+            'app': application,
             'maybe_swapped': False,
             'new_conf': False,
             'action_str': f"entering the {application.entry_type_label.lower()} attendee lottery"}, encoding=None)
@@ -273,7 +273,7 @@ class Root:
         session.add(application)
         if application.status == c.COMPLETE:
             body = render('emails/hotel/hotel_lottery_entry.html', {
-                'application': application,
+                'app': application,
                 'maybe_swapped': False,
                 'new_conf': False,
                 'action_str': f"re-entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
@@ -304,7 +304,7 @@ class Root:
 
         if old_room_group:
             body = render('emails/hotel/group_member_left.html', {
-                'application': old_room_group, 'member': application}, encoding=None)
+                'app': old_room_group, 'member': application}, encoding=None)
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,
                 old_room_group.attendee.email_to_address,
@@ -315,7 +315,7 @@ class Root:
 
         if has_actually_entered:
             body = render('emails/hotel/lottery_entry_cancelled.html', {
-                'application': application},
+                'app': application},
                 encoding=None)
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,
@@ -362,7 +362,7 @@ class Root:
                 application.last_submitted = datetime.now()
 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
-                    'application': application,
+                    'app': application,
                     'action_str': "updating your room lottery entry"}, encoding=None)
                 send_email.delay(
                     c.HOTEL_LOTTERY_EMAIL,
@@ -374,7 +374,7 @@ class Root:
                 if update_group_members:
                     for member in application.group_members:
                         body = render('emails/hotel/group_entry_updated.html', {
-                            'application': member}, encoding=None)
+                            'app': member}, encoding=None)
                         send_email.delay(
                             c.HOTEL_LOTTERY_EMAIL,
                             member.attendee.email_to_address,
@@ -426,7 +426,7 @@ class Root:
                 application.last_submitted = datetime.now()
 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
-                    'application': application,
+                    'app': application,
                     'action_str': "updating your suite lottery entry"}, encoding=None)
                 send_email.delay(
                     c.HOTEL_LOTTERY_EMAIL,
@@ -439,7 +439,7 @@ class Root:
                 if update_group_members:
                     for member in application.group_members:
                         body = render('emails/hotel/group_entry_updated.html', {
-                            'application': member}, encoding=None)
+                            'app': member}, encoding=None)
                         send_email.delay(
                             c.HOTEL_LOTTERY_EMAIL,
                             member.attendee.email_to_address,
@@ -526,7 +526,7 @@ class Root:
 
             room_or_suite = "suite" if application.entry_type == c.SUITE_ENTRY else "room"
             body = render('emails/hotel/hotel_lottery_entry.html', {
-                'application': application,
+                'app': application,
                 'maybe_swapped': maybe_swapped,
                 'new_conf': False,
                 'action_str': f"entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
@@ -632,7 +632,7 @@ class Root:
         session.commit()
         session.refresh(member)
         body = render('emails/hotel/removed_from_group.html', {
-            'application': member, 'parent': application, 'group_disbanded': False}, encoding=None)
+            'app': member, 'parent': application, 'group_disbanded': False}, encoding=None)
         send_email.delay(
             c.HOTEL_LOTTERY_EMAIL,
             member.attendee.email_to_address,
@@ -642,7 +642,49 @@ class Root:
             model=member.to_dict('id'))
         raise HTTPRedirect('room_group?id={}&message={}', application.id,
                            f"{member.attendee.full_name} has been removed from your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.")
-    
+
+    @requires_account(LotteryApplication)
+    def transfer_leadership(self, session, id=None, member_id=None, message="", **params):
+        application = session.lottery_application(id)
+        new_leader = session.lottery_application(member_id)
+
+        leader_entry = application.to_dict()
+        defaults = LotteryApplication().to_dict()
+
+        for attr in ['earliest_checkin_date', 'latest_checkin_date', 'earliest_checkout_date', 'latest_checkout_date',
+                     'selection_priorities', 'hotel_preference', 'room_type_preference', 'wants_ada', 'ada_requests',
+                     'room_opt_out', 'suite_type_preference', 'suite_terms_accepted', 'guarantee_policy_accepted',
+                     'assigned_hotel', 'assigned_room_type', 'assigned_suite_type', 'assigned_check_in_date',
+                     'assigned_check_out_date', 'deposit_cutoff_date', 'lottery_name', 'booking_url', 'room_group_name',
+                     'status']:
+            setattr(new_leader, attr, leader_entry.get(attr))
+            setattr(application, attr, defaults.get(attr))
+
+        for member in application.group_members:
+            if member != new_leader:
+                member.parent_application_id = new_leader.id
+                session.add(member)
+
+        application.status = new_leader.status
+        application.entry_type = c.GROUP_ENTRY
+        new_leader.parent_application_id = None
+        session.commit()
+
+        for member in application.group_members + [application]:
+            body = render('emails/hotel/group_new_leader.html', {
+                    'app': member, 'old_leader': application, 'new_leader': new_leader}, encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                member.email_to_address,
+                f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Leader Changed',
+                body,
+                format='html',
+                model=member.to_dict('id'))
+        
+        raise HTTPRedirect('index?id={}&message={}', application.id,
+                           f"Group leadership successfully transferred to {new_leader.full_name}.")
+
+
     @requires_account(LotteryApplication)
     def delete_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
@@ -710,7 +752,7 @@ class Root:
                 session.refresh(application)
 
                 body = render('emails/hotel/group_member_joined.html', {
-                    'application': room_group, 'member': application}, encoding=None)
+                    'app': room_group, 'member': application}, encoding=None)
                 send_email.delay(
                     c.HOTEL_LOTTERY_EMAIL,
                     room_group.attendee.email_to_address,
@@ -720,7 +762,7 @@ class Root:
                     model=room_group.to_dict('id'))
                 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
-                    'application': application,
+                    'app': application,
                     'new_conf': got_new_conf_num,
                     'action_str': f"entering the lottery as a roommate"}, encoding=None)
                 send_email.delay(
@@ -742,7 +784,7 @@ class Root:
 
             if room_group.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
                 body = render('emails/hotel/group_member_left.html', {
-                    'application': room_group, 'member': application}, encoding=None)
+                    'app': room_group, 'member': application}, encoding=None)
                 send_email.delay(
                     c.HOTEL_LOTTERY_EMAIL,
                     room_group.attendee.email_to_address,
