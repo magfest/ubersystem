@@ -184,7 +184,8 @@ class Root:
 
     def check_if_preregistered(self, session, message='', **params):
         if 'email' in params:
-            attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email'])).first()
+            attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email']),
+                                                      Attendee.is_valid == True).first()
             message = 'Thank you! You will receive a confirmation email if ' \
                 'you are registered for {}.'.format(c.EVENT_NAME_AND_YEAR)
 
