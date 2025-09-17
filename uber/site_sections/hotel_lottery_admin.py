@@ -368,13 +368,17 @@ class Root:
                                                               ).filter(LotteryApplication.status == c.COMPLETE,
                                                                        Attendee.hotel_lottery_eligible == True)
 
-        if 'cutoff' in params:
+        if params.get('cutoff', ''):
             last_time = dateparser.parse(params['cutoff']).replace(tzinfo=c.EVENT_TIMEZONE)
             applications = applications.filter(LotteryApplication.entry_started < last_time)
 
         # We always grab all roommate entries, but the solver only looks at those that have a matching parent
         # in the lottery batch.
-        applications = applications.filter(LotteryApplication.entry_type.in_([lottery_type, c.GROUP_ENTRY]))
+        if lottery_type == c.SUITE_ENTRY:
+            applications = applications.filter(LotteryApplication.entry_type.in_([lottery_type, c.GROUP_ENTRY]))
+        else:
+            applications = applications.filter(or_(LotteryApplication.entry_type.in_([lottery_type, c.GROUP_ENTRY])),
+                                               LotteryApplication.room_opt_out == False)
 
         # If lottery_group is "both" don't filter either way
         if lottery_group == "staff":
