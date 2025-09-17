@@ -203,7 +203,7 @@ class Root:
             'total_count':    total_count,
             'complete_count': complete_valid_entries.count(),
             'suite_count': room_count_base.filter(LotteryApplication.entry_type == c.SUITE_ENTRY).count(),
-            'room_count': complete_valid_entries.filter(or_(LotteryApplication.entry_type == c.ROOM_ENTRY,
+            'room_count': room_count_base.filter(or_(LotteryApplication.entry_type == c.ROOM_ENTRY,
                                                             LotteryApplication.room_opt_out == False)).count(),
         }  # noqa: E711
 
