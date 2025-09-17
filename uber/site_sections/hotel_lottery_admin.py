@@ -164,7 +164,8 @@ class Root:
             page = 1
 
         total_count = session.query(LotteryApplication.id).count()
-        complete_count = session.query(LotteryApplication.id).filter(LotteryApplication.status == c.COMPLETE).count()
+        complete_valid_entries = session.query(LotteryApplication.id).filter(LotteryApplication.status == c.COMPLETE).join(
+            LotteryApplication.attendee).filter(Attendee.hotel_lottery_eligible == True)
         count = 0
         search_text = search_text.strip()
         if search_text:
@@ -199,7 +200,10 @@ class Root:
             'order':          Order(order),
             'search_count':   count,
             'total_count':    total_count,
-            'complete_count': complete_count,
+            'complete_count': complete_valid_entries.count(),
+            'suite_count': complete_valid_entries.filter(LotteryApplication.entry_type == c.SUITE_ENTRY).count(),
+            'room_count': complete_valid_entries.filter(or_(LotteryApplication.entry_type == c.ROOM_ENTRY,
+                                                            LotteryApplication.room_opt_out == False)).count(),
         }  # noqa: E711
 
     def feed(self, session, message='', page='1', who='', what='', action=''):
