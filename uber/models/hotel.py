@@ -275,7 +275,7 @@ class LotteryApplication(MagModel):
     @property
     def award_status_str(self):
         app_or_parent = self.parent_application or self
-        if not c.HOTEL_ROOM_INVENTORY:
+        if not c.HOTEL_LOTTERY_ROOM_INVENTORY:
             return ''
         if not app_or_parent.finalized and (
                 not c.HOTEL_LOTTERY_FORM_WAITLIST or c.BEFORE_HOTEL_LOTTERY_FORM_WAITLIST):

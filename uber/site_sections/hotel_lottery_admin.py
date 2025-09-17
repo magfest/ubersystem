@@ -394,10 +394,10 @@ class Root:
 
         if lottery_type == c.SUITE_ENTRY:
             room_or_suite_lookup = dict(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS)
-            inventory_table = c.HOTEL_SUITE_INVENTORY
+            inventory_table = c.HOTEL_LOTTERY_SUITE_INVENTORY
         else:
             room_or_suite_lookup = dict(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS)
-            inventory_table = c.HOTEL_ROOM_INVENTORY
+            inventory_table = c.HOTEL_LOTTERY_ROOM_INVENTORY
 
         available_rooms = deepcopy(inventory_table)
         for hotel_and_room in available_rooms:
@@ -448,7 +448,7 @@ class Root:
             assigned_applications_dict[(hotel, room_type)].append((status, count))
 
         room_inventory = defaultdict(list)
-        for inventory_info in c.HOTEL_ROOM_INVENTORY:
+        for inventory_info in c.HOTEL_LOTTERY_ROOM_INVENTORY:
             hotel, room_type = int(inventory_info['id']), int(inventory_info['room_type'])
             info_for_room = {'room_type': room_type, 'quantity': inventory_info['quantity']}
             if assigned_applications_dict.get((hotel, room_type)):
@@ -457,7 +457,7 @@ class Root:
             room_inventory[hotel].append(info_for_room)
 
         suite_inventory = defaultdict(list)
-        for inventory_info in c.HOTEL_SUITE_INVENTORY:
+        for inventory_info in c.HOTEL_LOTTERY_SUITE_INVENTORY:
             hotel, room_type = int(inventory_info['id']), int(inventory_info['room_type'])
             info_for_room = {'room_type': room_type, 'quantity': inventory_info['quantity']}
             if assigned_applications_dict.get((hotel, room_type)):

@@ -100,7 +100,7 @@
     
     <h1>{{ c.EVENT_NAME }}{% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
     <hr/>
-    {% if c.HOTEL_ROOM_INVENTORY and app_or_parent.finalized %}
+    {% if c.HOTEL_LOTTERY_ROOM_INVENTORY and app_or_parent.finalized %}
         {% if app_or_parent.status in c.REJECTED or application.status == [c.REMOVED, c.CANCELLED] %}
         <p>
             <strong><span class="text-danger">{{ application.award_status_str }}</span></strong>

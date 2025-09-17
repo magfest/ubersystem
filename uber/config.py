@@ -1638,9 +1638,10 @@ def create_hour_opts(start_hour, end_hour, step, prefix=''):
 
 def build_hotel_inventory(inventory_type, room_types):
     hotel_inventory = []
+    hotel_inventory_config = _config['secret'].get(inventory_type, {})
     for key, item in c.HOTEL_LOTTERY_HOTELS.items():
-        hotel_enum, hotel = item
-        for room_type_key, quantity in hotel.get(inventory_type, {}).items():
+        hotel_enum, _ = item
+        for room_type_key, quantity in hotel_inventory_config.get(key, {}).items():
             room_type_enum, room_type = room_types.get(room_type_key)
             if not room_type:
                 raise ValueError(f"Could not locate hotel room_type {room_type_key}")
@@ -1926,8 +1927,8 @@ for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
     setattr(c, f"HOTEL_LOTTERY_{key.upper()}", dictionary)
 
-c.HOTEL_ROOM_INVENTORY = build_hotel_inventory('room_inventory', c.HOTEL_LOTTERY_ROOM_TYPES)
-c.HOTEL_SUITE_INVENTORY = build_hotel_inventory('suite_inventory', c.HOTEL_LOTTERY_SUITE_ROOM_TYPES)
+c.HOTEL_LOTTERY_ROOM_INVENTORY = build_hotel_inventory('hotel_room_inventory', c.HOTEL_LOTTERY_ROOM_TYPES)
+c.HOTEL_LOTTERY_SUITE_INVENTORY = build_hotel_inventory('hotel_suite_inventory', c.HOTEL_LOTTERY_SUITE_ROOM_TYPES)
 c.HOTEL_LOTTERY_AWARD_STATUSES = [c.PROCESSED, c.AWARDED, c.SECURED]
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
