@@ -84,7 +84,9 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
         hotel_room["constraints"] = []
     entries = {}
     for app in applications:
-        if app.entry_type == lottery_type:
+        if app.entry_type == lottery_type or (lottery_type == c.ROOM_ENTRY and
+                                              app.entry_type == c.SUITE_ENTRY and
+                                              app.room_opt_out is False):
             if lottery_type == c.ROOM_ENTRY:
                 entry = {
                     "members": [app],
@@ -377,8 +379,8 @@ class Root:
         if lottery_type == c.SUITE_ENTRY:
             applications = applications.filter(LotteryApplication.entry_type.in_([lottery_type, c.GROUP_ENTRY]))
         else:
-            applications = applications.filter(or_(LotteryApplication.entry_type.in_([lottery_type, c.GROUP_ENTRY])),
-                                               LotteryApplication.room_opt_out == False)
+            applications = applications.filter(or_(LotteryApplication.entry_type.in_([lottery_type, c.GROUP_ENTRY]),
+                                                   LotteryApplication.room_opt_out == False))
 
         # If lottery_group is "both" don't filter either way
         if lottery_group == "staff":
