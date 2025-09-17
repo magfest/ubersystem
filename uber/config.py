@@ -1638,7 +1638,7 @@ def create_hour_opts(start_hour, end_hour, step, prefix=''):
 
 def build_hotel_inventory(inventory_type, room_types):
     hotel_inventory = []
-    hotel_inventory_config = _config['secret'].get(inventory_type, {})
+    hotel_inventory_config = _config['hotel_lottery'].get(inventory_type, {})
     for key, item in c.HOTEL_LOTTERY_HOTELS.items():
         hotel_enum, _ = item
         for room_type_key, quantity in hotel_inventory_config.get(key, {}).items():
