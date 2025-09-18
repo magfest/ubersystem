@@ -311,7 +311,7 @@ class Root:
         if lottery_type_val == "room":
             lottery_type = c.ROOM_ENTRY
         elif lottery_type_val == "suite":
-            lottery_type_val = c.SUITE_ENTRY
+            lottery_type = c.SUITE_ENTRY
         else:
             raise ValueError(f"Unknown lottery_type {lottery_type_val}")
         
