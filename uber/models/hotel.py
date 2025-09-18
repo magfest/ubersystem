@@ -301,6 +301,10 @@ class LotteryApplication(MagModel):
             if c.HOTEL_LOTTERY_FORM_WAITLIST and not app_or_parent.finalized and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST:
                 return base_str + " in the first round of the lottery."
             return base_str + "."
+        
+    @property
+    def can_reenter(self):
+        return self.status in [c.PARTIAL, c.WITHDRAWN, c.CANCELLED]
     
     @property
     def finalized(self):

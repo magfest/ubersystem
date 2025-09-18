@@ -134,6 +134,9 @@ class Root:
     @requires_account(Attendee)
     def start(self, session, attendee_id, message="", **params):
         attendee = session.attendee(attendee_id)
+        if attendee.lottery_application and not attendee.lottery_application.can_reenter:
+            raise HTTPRedirect('index?attendee_id={}', attendee.id)
+
         return {
             'attendee': attendee,
             'message': message,
@@ -145,6 +148,8 @@ class Root:
         attendee = session.attendee(attendee_id)
         if attendee.lottery_application:
             application = attendee.lottery_application
+            if not attendee.lottery_application.can_reenter:
+                raise HTTPRedirect('index?attendee_id={}', attendee.id)
         else:
             application = LotteryApplication()
             application.attendee = attendee
@@ -156,7 +161,6 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
             session.add(application)
-            application.status = c.PARTIAL
             session.commit()
 
             if params.get('group'):
@@ -359,6 +363,8 @@ class Root:
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
+                if application.status == c.PARTIAL:
+                    application.status = c.COMPLETE
                 application.last_submitted = datetime.now()
 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
@@ -423,6 +429,8 @@ class Root:
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
+                if application.status == c.PARTIAL:
+                    application.status = c.COMPLETE
                 application.last_submitted = datetime.now()
 
                 body = render('emails/hotel/hotel_lottery_entry.html', {

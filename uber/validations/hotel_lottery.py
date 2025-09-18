@@ -230,6 +230,8 @@ LotteryAdminInfo.field_validation.required_fields.update({
 })
 
 
+LotteryAdminInfo.field_validation.validations['assigned_check_in_date']['optional'] = validators.Optional()
+LotteryAdminInfo.field_validation.validations['assigned_check_out_date']['optional'] = validators.Optional()
 LotteryAdminInfo.field_validation.validations['current_step']['optional'] = validators.Optional()
 LotteryAdminInfo.field_validation.validations['current_step']['minimum'] = validators.NumberRange(
     min=0, message="A lottery entry cannot be on a step below 0.")
