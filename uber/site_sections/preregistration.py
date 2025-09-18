@@ -77,7 +77,7 @@ def update_prereg_cart(session):
             existing_model = session.query(Group).filter_by(id=id).first()
         if existing_model:
             receipt = session.refresh_receipt_and_model(existing_model, is_prereg=True)
-            if receipt and receipt.current_amount_owed:
+            if receipt and receipt.current_amount_owed or not receipt.payment_total:
                 PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
             elif receipt:
                 PreregCart.paid_preregs.append(PreregCart.pending_preregs[id])
@@ -879,9 +879,9 @@ class Root:
             receipts = []
             for model in cart.models:
                 charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model,
-                                                                                            who='non-admin',
-                                                                                            create_model=True,
-                                                                                            purchaser_id=cart.purchaser.id)
+                                                                                         who='non-admin',
+                                                                                         create_model=True,
+                                                                                         purchaser_id=cart.purchaser.id)
                 existing_receipt = session.refresh_receipt_and_model(model, is_prereg=True)
                 if existing_receipt:
                     # Multiple attendees can have the same transaction during pre-reg,

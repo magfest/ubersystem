@@ -212,6 +212,10 @@ class PreregCart:
             for purchaser in maybe_purchasers:
                 if purchaser.email == target_email:
                     return purchaser
+                
+        paid_purchasers = [p for p in maybe_purchasers if p.total_cost > 0]
+        if paid_purchasers:
+            return paid_purchasers[0]
 
         return maybe_purchasers[0]
 
