@@ -315,8 +315,7 @@ class Root:
         else:
             raise ValueError(f"Unknown lottery_type {lottery_type_val}")
         
-        applications = session.query(LotteryApplication).filter(LotteryApplication.status == c.PROCESSED,
-                                                            Attendee.hotel_lottery_eligible == True)
+        applications = session.query(LotteryApplication).filter(LotteryApplication.status == c.PROCESSED)
         applications = applications.filter(LotteryApplication.entry_type == lottery_type)
         lottery_group_val = params.get("lottery_group", "attendee")
         if lottery_group_val == "attendee":
@@ -345,8 +344,8 @@ class Root:
         else:
             raise ValueError(f"Unknown lottery_type {lottery_type_val}")
         
-        applications = session.query(LotteryApplication).filter(LotteryApplication.status == c.PROCESSED,
-                                                            Attendee.hotel_lottery_eligible == True)
+        applications = session.query(LotteryApplication).join(LotteryApplication.attendee).filter(
+            LotteryApplication.status == c.PROCESSED, Attendee.hotel_lottery_eligible == True)
         applications = applications.filter(LotteryApplication.entry_type == lottery_type)
         lottery_group_val = params.get("lottery_group", "attendee")
         if lottery_group_val == "attendee":
