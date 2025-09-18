@@ -125,3 +125,5 @@ class LotteryAdminInfo(SuiteLottery):
     assigned_hotel = SelectField('Assigned Hotel', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_HOTELS_OPTS])
     assigned_room_type = SelectField('Assigned Hotel Room Type', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_ROOM_TYPES_OPTS])
     assigned_suite_type = SelectField('Assigned Suite Room Type', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS])
+    assigned_check_in_date = DateField('Assigned Check-In Date')
+    assigned_check_out_date = DateField('Assigned Check-Out Date')

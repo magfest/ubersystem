@@ -117,13 +117,22 @@
 
 <div class="row g-sm-3 mb-3">
     <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_hotel, disabled=application.parent_application|default(False, true)) }}
+        {{ form_macros.input(lottery_admin_info.assigned_hotel) }}
     </div>
     <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_room_type, disabled=application.parent_application|default(False, true)) }}
+        {{ form_macros.input(lottery_admin_info.assigned_check_in_date) }}
     </div>
     <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_suite_type, disabled=application.parent_application|default(False, true)) }}
+        {{ form_macros.input(lottery_admin_info.assigned_check_out_date) }}
+    </div>
+</div>
+
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.assigned_room_type) }}
+    </div>
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.assigned_suite_type) }}
     </div>
 </div>
 

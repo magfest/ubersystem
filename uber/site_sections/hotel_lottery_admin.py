@@ -14,7 +14,7 @@ from ortools.linear_solver import pywraplp
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
-from uber.decorators import all_renderable, log_pageview, ajax, ajax_gettable, csv_file, requires_account, render
+from uber.decorators import all_renderable, log_pageview, ajax, xlsx_file, csv_file, multifile_zipfile, render
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, PageViewTracking
@@ -450,7 +450,8 @@ class Root:
         assigned_applications = session.query(
             LotteryApplication.assigned_hotel, LotteryApplication.assigned_room_type, LotteryApplication.status,
             func.count(LotteryApplication.id)).join(LotteryApplication.attendee).filter(
-                LotteryApplication.status.in_(c.HOTEL_LOTTERY_AWARD_STATUSES)
+                LotteryApplication.status.in_(c.HOTEL_LOTTERY_AWARD_STATUSES),
+                LotteryApplication.entry_type != c.GROUP_ENTRY,
                 ).group_by(LotteryApplication.assigned_hotel).group_by(
                     LotteryApplication.assigned_room_type).group_by(LotteryApplication.status).all()
         
@@ -484,6 +485,56 @@ class Root:
             'suite_lookup': dict(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS),
             'now': localized_now(),
         }
+    
+    @xlsx_file
+    def hotel_inventory_xlsx(self, out, session, hotel_enum):
+        rows = []
+        
+        assigned_entries = session.query(LotteryApplication).filter(
+            LotteryApplication.status.in_(c.HOTEL_LOTTERY_AWARD_STATUSES),
+            LotteryApplication.entry_type != c.GROUP_ENTRY,
+            LotteryApplication.assigned_hotel == int(hotel_enum)
+            )
+        
+        earliest_check_in = assigned_entries.order_by(LotteryApplication.assigned_check_in_date).first().assigned_check_in_date
+        latest_check_out = assigned_entries.order_by(LotteryApplication.assigned_check_out_date.desc()).first().assigned_check_out_date
+        date_range = [earliest_check_in + timedelta(days=x) for x in range(0, (latest_check_out - earliest_check_in).days)] + [latest_check_out]
+
+        header_row = [''] + [date.strftime("%A %-m/%-d") for date in date_range]
+        for _, room_item in c.HOTEL_LOTTERY_ROOM_TYPES.items():
+            room_enum, room_info = room_item
+            row = [room_info['name']]
+            for date in date_range:
+                row.append(assigned_entries.filter(LotteryApplication.assigned_room_type == room_enum,
+                                                   LotteryApplication.assigned_check_in_date <= date,
+                                                   LotteryApplication.assigned_check_out_date >= date).count())
+            rows.append(row)
+        
+        if assigned_entries.filter(LotteryApplication.assigned_suite_type != None).count():
+            for _, suite_item in c.HOTEL_LOTTERY_SUITE_TYPES.items():
+                suite_enum, suite_info = suite_item
+                row = [suite_info['name']]
+                for date in date_range:
+                    row.append(assigned_entries.filter(LotteryApplication.assigned_suite_type == suite_enum,
+                                                    LotteryApplication.assigned_check_in_date <= date,
+                                                    LotteryApplication.assigned_check_out_date >= date).count())
+                rows.append(row)
+        
+        out.writerows(header_row, rows)
+
+    @multifile_zipfile
+    def hotel_inventory_zip(self, zip_file, session):
+        for key, hotel_item in c.HOTEL_LOTTERY_HOTELS.items():
+            hotel_enum, _ = hotel_item
+            assigned_entries = session.query(LotteryApplication).filter(
+                LotteryApplication.status.in_(c.HOTEL_LOTTERY_AWARD_STATUSES),
+                LotteryApplication.entry_type != c.GROUP_ENTRY,
+                LotteryApplication.assigned_hotel == int(hotel_enum)
+                )
+
+            if assigned_entries.count():
+                output = self.hotel_inventory_xlsx(hotel_enum=hotel_enum, set_headers=False)
+                zip_file.writestr(f'hotel_inventory_{key}.xlsx', output)
 
     @csv_file
     def accepted_dealers(self, out, session):
