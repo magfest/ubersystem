@@ -1,0 +1,29 @@
+{% set room_type = 'suite' if app.assigned_suite_type else 'room' %}
+{% set app_or_parent = app.parent_application if app.entry_type == c.GROUP_ENTRY else app %}
+<html>
+<head></head>
+<body>
+<p>
+    {{ app.attendee.full_name }},<br/>
+    <strong><span class="text-success">Congratulations! You{% if app.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} have successfully confirmed your reservation in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery!</span></strong>
+</p>
+{% if not app.parent_application %}
+<p>
+    You can <a href="{{ c.URL_BASE }}/hotel_lottery/confirm?id={{ app.id }}" target="_blank">view and update your reservation here</a>.
+    If you have any questions about your {{ room_type }} amenities or hotel services, please contact your hotel.
+</p>
+{% endif %}
+
+<strong>Reservation Details</strong>
+<ul>
+    <li><strong>Hotel</strong>: {{ app_or_parent.assigned_hotel_label['name'] }}</li>
+    <li><strong>Room Type</strong>: {{ app_or_parent.assigned_suite_type_label['name'] if app_or_parent.assigned_suite_type else app_or_parent.assigned_room_type_label['name'] }}</li>
+    <li><strong>Check-In/Out</strong>: {{ app_or_parent.assigned_check_in_date.strftime("%B %-d") }} to {{ app_or_parent.assigned_check_out_date.strftime("%B %-d") }}</li>
+    {% if not app.parent_application and app.wants_ada %}<li><strong>Requested Accommodations</strong>: {{ app.ada_requests }}</li>{% endif %}
+    {% if not app.parent_application %}
+        <li><em>Primary Guest</em>: {{ app.legal_first_name }} {{ app.legal_last_name }}</li>
+        {% if app.group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
+    {% endif %}
+</ul>
+</body>
+</html>

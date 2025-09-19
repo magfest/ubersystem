@@ -567,7 +567,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
-            if (value.isupper() or value.islower()) and value.lower() != self.orig_value_of(attr).lower():
+            if (value.isupper() or value.islower()):
                 setattr(self, attr, value.title())
 
         if self.legal_name and self.full_name == self.legal_name:
@@ -1360,7 +1360,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.art_show_applications and self.art_show_applications[0].is_valid:
             return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
         if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
-            return "Please ask the artist you're agenting for {} first.".format(
+            return "Please ask the artist you're agenting for to {} first.".format(
                 "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
             )
 
@@ -1586,7 +1586,27 @@ class Attendee(MagModel, TakesPaymentMixin):
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
             and not self.overridden_price \
             and not self.admin_account \
-            and not self.dept_memberships_with_inherent_role
+            and not self.dept_memberships_with_inherent_role \
+            and (not self.art_show_applications or not self.art_show_applications[0].is_valid) \
+            and (not self.art_agent_apps or not any(app.is_valid for app in self.art_agent_apps)) \
+            and (not self.lottery_application or self.lottery_application.status not in [
+                c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED])
+
+    @property
+    def transferable_actions(self):
+        from uber.custom_tags import email_only
+        can_do = []
+
+        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+            can_do.append("withdraw your hotel lottery entry")
+        if self.art_show_applications and self.art_show_applications[0].is_valid:
+            can_do.append(f"contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application")
+        if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
+            can_do.append("ask the artist you're agenting for to {} first.".format(
+                "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
+            ))
+
+        return can_do
 
     @property
     def is_transferable(self):
@@ -1605,6 +1625,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             reasons.append("they are a department head, checklist admin, \
                            or point of contact for the following departments: {}".format(
                                readable_join(self.get_labels_for_memberships('dept_memberships_with_role'))))
+        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+            reasons.append(f"they have a {self.lottery_application.status_label.lower()} hotel lottery application")
         return reasons
 
     @presave_adjustment

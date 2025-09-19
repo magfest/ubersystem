@@ -22,7 +22,7 @@ from uber.forms import load_forms
 from uber.models import Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
                         ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
 from uber.tasks.email import send_email
-from uber.utils import add_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
+from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
 
@@ -184,7 +184,8 @@ class Root:
 
     def check_if_preregistered(self, session, message='', **params):
         if 'email' in params:
-            attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email'])).first()
+            attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email']),
+                                                      Attendee.is_valid == True).first()
             message = 'Thank you! You will receive a confirmation email if ' \
                 'you are registered for {}.'.format(c.EVENT_NAME_AND_YEAR)
 
@@ -1697,6 +1698,8 @@ class Root:
         old.append_admin_note(f"Automatic transfer to attendee {transfer_badge.id}.")
         transfer_badge.badge_status = c.NEW_STATUS
         transfer_badge.append_admin_note(f"Automatic transfer from attendee {old.id}.")
+        if old.lottery_application:
+            session.delete(old.lottery_application)
 
         subject = c.EVENT_NAME + ' Registration Transferred'
         new_body = render('emails/reg_workflow/badge_transferee.txt',
@@ -1735,11 +1738,10 @@ class Root:
         else:
             raise HTTPRedirect('../landing/index?message={}', "Badge transferred.")
 
-    @id_required(Attendee)
     @requires_account(Attendee)
     @log_pageview
     def transfer_badge(self, session, message='', **params):
-        old = session.attendee(params['id'])
+        old = session.attendee(params.get('id', params.get('old_id')))
 
         if not old.is_transferable:
             raise HTTPRedirect('../landing/index?message={}', 'This badge is not transferable.')
@@ -1803,6 +1805,9 @@ class Root:
                 old.append_admin_note(f"Automatic transfer to attendee {attendee.id}")
                 attendee.badge_status = c.NEW_STATUS
                 attendee.admin_notes = f"Automatic transfer from attendee {old.id}"
+
+                if old.lottery_application:
+                    session.delete(old.lottery_application)
 
                 subject = c.EVENT_NAME + ' Registration Transferred'
                 new_body = render('emails/reg_workflow/badge_transfer.txt',

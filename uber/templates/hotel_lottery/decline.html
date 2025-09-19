@@ -1,0 +1,29 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Decline Award for " ~ application.attendee.full_name %}
+{% set room_type = 'suite' if application.assigned_suite_type else 'room' %}
+
+{% block content %}
+<div class="card card-body">
+    <h1>{{ c.EVENT_NAME }}{% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
+    <hr/>
+    <h2>Decline {{ room_type|title }} Award?</h2>
+    <p>
+        This will <strong>permanently</strong> decline your{% if application.group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members'{% endif %} {{ room_type }} award in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
+        {% if c.HOTEL_LOTTERY_OPEN %}
+        Your lottery {% if application.group_members %}entries{% else %}entry{% endif %} will also be cancelled and will not be considered when assigning cancelled rooms.
+        {% else %}
+        Since the hotel lottery is closed, this award is your{% if application.group_members %} {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% endif %}
+        ONLY chance for a room or suite award.
+        {% endif %}
+    </p>
+    <form method="post" action="decline" class="mb-3">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ application.id }}" />
+        <label><input type="checkbox" name="confirm" value="1" class="form-check-input mb-3" /> <strong>Yes</strong>, I'm sure that I want to decline the {{ room_type }} award detailed below{% if application.group_members %} for both myself and my {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s members{% endif %}.</label>
+        <br/><button type="submit" class="btn btn-danger">Decline {{ room_type|title }} Award</button>
+    </form>
+    {% if application.group_members %}Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members will be notified.{% endif %}
+    {% set app_or_parent = application.parent_application or application %}
+    {% include 'hotel_lottery/award_info.html' with context %}
+</div>
+{% endblock %}

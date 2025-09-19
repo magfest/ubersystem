@@ -1,0 +1,19 @@
+{% set room_type = 'suite' if app.assigned_suite_type else 'room' %}
+<html>
+<head></head>
+<body>
+<p>
+    {{ app.attendee.full_name }},<br/>
+    You still have not provided a credit card guarantee for your {{ room_type }} award in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
+    You <strong>must</strong> place a credit card down to secure your room before {{ app.guarantee_deadline|datetime_local('%A, %B %-d') }} - {{ ((app.guarantee_deadline - now_localized()).total_seconds() // 86400)|int }} days from now.
+    If you do not put down a valid credit card, we will release your booking and <strong><span class="text-danger">you{% if app.group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members{% endif %} will no longer have a {{ room_type }} reservation.</span></strong>.
+</p>
+<p>
+    You can <a href="{{ c.URL_BASE }}/hotel_lottery/confirm?id={{ app.id }}" target="_blank">click here to put a card down</a> to guarantee the reservation.
+    The credit card you provide will have a refundable one-night deposit charged to it within a week.
+    Alternatively, you can <a href="{{ c.URL_BASE }}/hotel_lottery/decline?id={{ app.id }}" target="_blank">decline the reservation here</a>.
+    This will also cancel your{% if app.group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members' lottery entries{% else %} lottery entry{% endif %}.
+</p>
+<p>
+    <a href="{{ c.CONTACT_URL }}" target="_blank">Contact us</a> if you believe this is in error or if you have any questions.
+</p>

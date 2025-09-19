@@ -39,7 +39,7 @@
 {% endblock %}
 
 {% block terms %}
-{% if not read_only %}
+{% if not read_only and 'suite_agreement' in c.HOTEL_LOTTERY_FORM_STEPS %}
 <div class="accordion-item">
     <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
         <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">

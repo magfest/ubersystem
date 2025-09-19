@@ -1,0 +1,37 @@
+{% set room_type = 'suite' if app.assigned_suite_type else 'room' %}
+{% set app_or_parent = app.parent_application if app.entry_type == c.GROUP_ENTRY else app %}
+<html>
+<head></head>
+<body>
+<p>
+    {{ app.attendee.full_name }},<br/>
+    <strong><span class="text-success">{{ app.award_status_str }}</span></strong>
+    You can view your awarded {{ room_type }} details below.
+</p>
+<p>
+    Your {{ room_type }} is <strong>not</strong> confirmed until you{% if app.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader provides {% else %} provide {% endif %}a credit card guarantee.
+{% if not app.parent_application %}
+    <strong><span class="text-danger">Failure to provide a credit card by {{ app_or_parent.guarantee_deadline|datetime_local }} will result in your reservation being cancelled.</span></strong>
+</p>
+<p>
+    You can <a href="{{ c.URL_BASE }}/hotel_lottery/confirm?id={{ app.id }}" target="_blank">confirm your reservation here</a>.
+    The credit card you provide will have a refundable one-night deposit charged to it within a week.
+    Alternatively, you can <a href="{{ c.URL_BASE }}/hotel_lottery/decline?id={{ app.id }}" target="_blank">decline the reservation here</a>.
+    This will also cancel your{% if app.group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members' lottery entries{% else %} lottery entry{% endif %}.
+</p>
+{% else %}
+You will receive an email when your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s reservation has been confirmed.
+</p>
+{% endif %}
+<ul>
+    <li><strong>Hotel</strong>: {{ app_or_parent.assigned_hotel_label['name'] }}</li>
+    <li><strong>Room Type</strong>: {{ app_or_parent.assigned_suite_type_label['name'] if app_or_parent.assigned_suite_type else app_or_parent.assigned_room_type_label['name'] }}</li>
+    <li><strong>Check-In/Out</strong>: {{ app_or_parent.assigned_check_in_date.strftime("%B %-d") }} to {{ app_or_parent.assigned_check_out_date.strftime("%B %-d") }}</li>
+    {% if not app.parent_application and app.wants_ada %}<li><strong>Requested Accommodations</strong>: {{ app.ada_requests }}</li>{% endif %}
+    {% if not app.parent_application %}
+        <li><em>Primary Guest</em>: {{ app.legal_first_name }} {{ app.legal_last_name }}</li>
+        {% if app.group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
+    {% endif %}
+</ul>
+</body>
+</html>

@@ -65,7 +65,7 @@
     </a>
   </li>
 {% endif %}
-{% if 'hotel_lottery' in c.PAGE_PATH or attendee.lottery_application and (attendee.lottery_application.status in [c.COMPLETE, c.PROCESSED] or attendee.lottery_application.finalized) and (c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and attendee.staff_hotel_lottery_eligible) %}
+{% if 'hotel_lottery' in c.PAGE_PATH or attendee.lottery_application and (attendee.lottery_application.status in [c.COMPLETE, c.PROCESSED] or attendee.lottery_application.finalized) %}
 {% set which_page, button_text = attendee.lottery_application.homepage_link %}
 <li class="nav-item" role="presentation">
   <a href="../hotel_lottery/index?attendee_id={{ attendee.id }}" class="nav-link{% if 'hotel_lottery' in c.PAGE_PATH %} active{% endif %}">

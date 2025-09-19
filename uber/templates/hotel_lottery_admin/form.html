@@ -101,7 +101,11 @@
 {% endif %}
 
 <div class="row g-3 mb-3">
-    <div class="col-sm align-self-center">{{ form_macros.input(lottery_admin_info.can_edit) }}</div>
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.can_edit) }}</div>
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.is_staff_entry) }}</div>
+</div>
+
+<div class="row g-3 mb-3">
     <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.current_step, admin_text="Controls what fields are required and which step is shown to the attendee.") }}
     </div>
@@ -113,13 +117,22 @@
 
 <div class="row g-sm-3 mb-3">
     <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_hotel, disabled=application.parent_application|default(False, true)) }}
+        {{ form_macros.input(lottery_admin_info.assigned_hotel) }}
     </div>
     <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_room_type, disabled=application.parent_application|default(False, true)) }}
+        {{ form_macros.input(lottery_admin_info.assigned_check_in_date) }}
     </div>
     <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_suite_type, disabled=application.parent_application|default(False, true)) }}
+        {{ form_macros.input(lottery_admin_info.assigned_check_out_date) }}
+    </div>
+</div>
+
+<div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.assigned_room_type) }}
+    </div>
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.assigned_suite_type) }}
     </div>
 </div>
 
@@ -158,18 +171,6 @@
     <!-- <div class="col-sm">{{ form_macros.input(lottery_admin_info.invite_code) }}</div> -->
 </div>
 {% endif %}
-
-<div class="row g-3 mb-3">
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.legal_first_name) }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.legal_last_name) }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.cellphone) }}
-    </div>
-</div>
 
 {% if 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
 <div class="row g-3 mb-3">

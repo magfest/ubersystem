@@ -73,7 +73,7 @@
             </div>
             {% endif %}
         {% endif %}
-        {% if application.status == c.COMPLETE and application.entry_type != c.GROUP_ENTRY and app_editable %}
+        {% if application.status == c.COMPLETE and application.entry_type != c.GROUP_ENTRY and (app_editable or application.finalized) %}
         <div class="col col-auto">
         <form id="withdraw-lottery" method="post" action="withdraw_entry">
             <input type="hidden" name="id" value="{{ application.id }}">
@@ -82,7 +82,7 @@
         </div>
         {% endif %}
     </div>
-    {% if application.status != c.COMPLETE and not application.parent_application and app_editable %}
+    {% if c.SHOW_HOTEL_LOTTERY_GROUPS and application.status != c.COMPLETE and not application.parent_application and app_editable %}
     <p>
         You are currently not eligible to create a group.
         {% if application.entry_type in [c.ROOM_ENTRY, c.SUITE_ENTRY] %}Complete your lottery application below first.
@@ -108,13 +108,16 @@
     {% if application.parent_application or application.room_group_name %}
     <h2>Your {{ c.HOTEL_LOTTERY_GROUP_TERM }}</h2>
     <p>You {{ application.group_status_str }}.</p>
+    {% if not application.parent_application %}
+    {% include 'hotel_lottery/room_group_members.html' with context %}
+    {% endif %}
     <div class="row g-1 row-cols-auto">
         <div class="col col-auto mb-4">
             <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View {{ c.HOTEL_LOTTERY_GROUP_TERM }} Policies</button>
         </div>
     {% if application.room_group_name and app_editable %}
         <div class="col col-auto"><a class="btn btn-primary" href="room_group?id={{ application.id }}">Manage {{ c.HOTEL_LOTTERY_GROUP_TERM }}</a></div>
-    {% elif app_editable %}
+    {% elif app_editable or application.finalized %}
         <div class="col col-auto">
         <form method="post" action="leave_group" id="leave-group">
             <input type="hidden" name="id" value="{{ application.id }}">

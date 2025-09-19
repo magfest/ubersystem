@@ -1,18 +1,18 @@
 {% macro basic_entry_details(application, app_or_parent, confirmation=True) %}
 {% if confirmation %}
-    <li><strong>Entry Received</strong>: {{ application.last_submitted|datetime_local }}</li>
-    <li><strong>Confirmation Number</strong>: {{ application.confirmation_num }}</li>
-    <li><strong>Entry Email Address</strong>: {{ application.attendee.email }}</li>
-    {% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %}
+    <li><strong>Entry Received</strong>: {{ app.last_submitted|datetime_local }}</li>
+    <li><strong>Confirmation Number</strong>: {{ app.confirmation_num }}</li>
+    <li><strong>Entry Email Address</strong>: {{ app.attendee.email }}</li>
+    {% if c.STAFF_HOTEL_LOTTERY_OPEN and app.qualifies_for_staff_lottery %}
     <li><strong>Staff Lottery Close</strong>: {{ c.HOTEL_LOTTERY_STAFF_DEADLINE|datetime_local }}</li>
     {% endif %}
     {% if c.HOTEL_LOTTERY_OPEN %}
     <li><strong>Lottery Close</strong>: {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local }}</li>
     {% endif %}
 {% endif %}
-{% if application.entry_type != c.GROUP_ENTRY %}
-<li><strong>Check-in Name</strong>: {{ application.legal_first_name }} {{ application.legal_last_name }}</li>
-<li><strong>Contact Phone #</strong>: {{ application.cellphone }}</li>
+{% if app.entry_type != c.GROUP_ENTRY %}
+<li><strong>Check-in Name</strong>: {{ app.legal_first_name }} {{ app.legal_last_name }}</li>
+<li><strong>Contact Phone #</strong>: {{ app.cellphone }}</li>
 {% endif %}
 {% if app_or_parent.entry_type == c.SUITE_ENTRY and 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
 <li><strong>Preferred Check-In/Out Dates</strong>: {{ app_or_parent.earliest_checkin_date.strftime('%m/%d/%Y') }} to {{ app_or_parent.latest_checkout_date.strftime('%m/%d/%Y') }}</li>
@@ -41,8 +41,8 @@
     {% if c.HOTEL_LOTTERY_HOTELS_OPTS %}
     <li><strong>Hotel Preference</strong>: {{ app_or_parent.hotel_preference_labels|readable_join }}</li>
     {% endif %}
-    <li><strong>Room Type Preference</strong>: {{ app_or_parent.room_type_preference_labels|readable_join }}{% if application.wants_ada and not application.parent_application %} (ADA Room Requested){% endif %}</li>
-    {% if application.wants_ada and not application.parent_application %}
+    <li><strong>Room Type Preference</strong>: {{ app_or_parent.room_type_preference_labels|readable_join }}{% if app.wants_ada and not app.parent_application %} (ADA Room Requested){% endif %}</li>
+    {% if app.wants_ada and not app.parent_application %}
     <li><strong>ADA Room Accommodations Requested</strong>: {{ app_or_parent.ada_requests }}</li>
     {% endif %}
     {% if app_or_parent.entry_type == c.ROOM_ENTRY and 'room_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}

@@ -44,33 +44,6 @@
           });
     }
 
-    removeConfirm = function(event){
-        var formToSubmit = this;
-        event.preventDefault();
-        name = $(this).find('[name=member_name]').first().val();
-        bootbox.confirm({
-            title: "Remove Group Member?",
-            message: "<p>This will remove " + name + " from your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.</p>" + 
-                     "<p>They will be notified via email. They may be able to join again unless you disband the group.</p>" +
-                     "<p>Are you sure?</p>",
-            buttons: {
-                confirm: {
-                    label: 'Yes, Remove ' + name,
-                    className: 'btn-danger'
-                },
-                cancel: {
-                    label: 'Nevermind',
-                    className: 'btn-outline-secondary'
-                }
-            },
-            callback: function (result) {
-                if(result) {
-                    formToSubmit.submit();
-                }
-            }
-        });
-    }
-
     disbandConfirm = function(event){
         var formToSubmit = this;
         event.preventDefault();
@@ -134,7 +107,6 @@
         {% endif %}
 
         $('#group-lookup-form').submit(lookupRoomGroup);
-        $("#remove-member").submit(removeConfirm);
         if($('#disband-group').length) { $("#disband-group").submit(disbandConfirm); }
 
         {% if application.status == c.COMPLETE %}
@@ -183,17 +155,19 @@
                 {% endif %}
                 <p>{{ c.HOTEL_LOTTERY_GROUP_TERM|capitalize }} members will be able to view your initials ({{ application.group_leader_name }}) and most of the details of your lottery entry. They will NOT see your check-in name{% if application.entry_type == c.ROOM_ENTRY %} or any ADA-related requests{% endif %}.</p>
                 
-                <div class="row g-3">
-                    <div class="col-12 col-sm-6">
+                {% include 'hotel_lottery/room_group_members.html' with context %}
+
+                <div class="row g-3 mb-3">
+                    <div class="col-sm">
                         <form method="post" action="save_group" id="update-group">
                             {{ csrf_token() }}
                             <input type="hidden" name="id" value="{{ application.id }}">
                             {{ form_macros.input(lottery_room_group.room_group_name) }}
-                            <button type="submit" class="btn btn-primary mb-3">Update Group Name</button>
+                            <button type="submit" class="btn btn-primary mt-3">Update Group Name</button>
                         </form>
                     </div>
                     {% if False %}
-                    <div class="col-12 col-sm-6">
+                    <div class="col-sm">
                         <form method="post" action="new_invite_code">
                             <input type="hidden" name="id" value="{{ application.id }}">
                             {{ form_macros.input(lottery_room_group.invite_code) }}
@@ -202,34 +176,6 @@
                     </div>
                     {% endif %}
                 </div>
-
-                {% if application.group_members %}
-                <p>
-                    Here are the members of your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}:
-                    <table class="table table-sm table-borderless">
-                        <tbody>
-                        {% for member in application.group_members %}
-                        <tr>
-                            <td class="text-nowrap w-25">{{ member.attendee.full_name }}</td>
-                            <td>
-                                <form method="post" action="remove_group_member" id="remove-member">
-                                    <input type="hidden" name="id" value="{{ application.id }}">
-                                    {{ csrf_token() }}
-                                    <input type="hidden" name="member_id" value="{{ member.id }}">
-                                    <input type="hidden" name="member_name" value="{{ member.attendee.full_name }}">
-                                    {% if c.HOTEL_LOTTERY_OPEN %}
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        Remove
-                                    </button>
-                                    {% endif %}
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
-                </p>
-                {% endif %}
             {% endif %}
             {% if application.room_group_name %}
             <form method="post" action="delete_group" id="disband-group">
@@ -272,7 +218,7 @@
             <form method="post" id="group-lookup-form" action="room_group_search">
             <input type="hidden" name="member_id" value="{{ application.id }}" />
             {{ csrf_token() }}
-            <div class="row g-3">
+            <div class="row g-3 mb-3">
                 {% if False %}
                 <div class="col-12 col-sm-4">
                     <div class="form-text">Invite Code</div>
@@ -302,7 +248,7 @@
             <form method="post" action="join_group" id="join-group-form">
                 <input type="hidden" name="id" value="{{ application.id }}">
                 <input type="hidden" id="room_group_id" name="room_group_id" value="">
-                <div class="row g-3">
+                <div class="row g-3 mb-3">
                     <div class="col-12 col-sm-6">
                         <button type="button" class="btn btn-outline-secondary" onClick="setStep('#group-lookup')">
                             Back
@@ -326,13 +272,13 @@
         </p>
         <form method="post" action="save_group" id="create-group-form">
             {{ csrf_token() }}
-            <div class="row g-3">
+            <div class="row g-3 mb-3">
                 <input type="hidden" name="id" value="{{ application.id }}">
                 <div class="col-12 col-sm-6">
                     {{ form_macros.input(lottery_room_group.room_group_name) }}
                 </div>
             </div>
-            <div class="row g-3">
+            <div class="row g-3 mb-3">
                 <div class="col-12 col-sm-6">
                     <button type="submit" class="btn btn-primary">Create {{ c.HOTEL_LOTTERY_GROUP_TERM }}</button>
                 </div>

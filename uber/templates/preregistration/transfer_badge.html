@@ -102,7 +102,7 @@
 
     <form method="POST" novalidate action="transfer_badge" id="transfer-badge" x-data="attendeeMetadata()">
       {{ csrf_token() }}
-      <input type="hidden" name="id" value="{{ old.id }}" />
+      <input type="hidden" name="old_id" value="{{ old.id }}" />
       {% if ban_bypass %}
         <input type="hidden" name="ban_bypass" value="True" />
       {% endif %}

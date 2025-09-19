@@ -31,9 +31,11 @@
 <div class="d-flex gap-3 mb-3 justify-content-between">
   <div>
     {{ total_count }} total application{{ total_count|pluralize }}
-    {{ complete_count }} completed application{{ complete_count|pluralize }}
+    | {{ complete_count }} completed valid application{{ complete_count|pluralize }}
+    <br/>{{ room_count }} requested room{{ room_count|pluralize }}
+    | {{ suite_count }} requested suite{{ suite_count|pluralize }}
   </div>
-  {% if c.HOTEL_ROOM_INVENTORY %}
+  {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
   <a href="hotel_inventory">View Room/Suite Inventory</a>
   {% else %}
   <div>
@@ -42,7 +44,7 @@
   </div>
   {% endif %}
 </div>
-{% if c.HOTEL_ROOM_INVENTORY %}
+{% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
 <form method="post" action="run_lottery" class="d-flex gap-3 mb-3 justify-content-end">
   <div>
     <div class="form-text">
@@ -133,7 +135,7 @@
             <th># Group Members</th>
             <th>Admin Notes</th>
             <th><a href="index?order={{ order.is_staff_entry }}&page={{ page }}&search_text={{ search_text|urlencode }}">Staff Entry</a></th>
-            {% if c.HOTEL_ROOM_INVENTORY %}
+            {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
             <th><a href="index?order={{ order.assigned_hotel }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hotel</a></th>
             <th><a href="index?order={{ order.assigned_room_type }}&page={{ page }}&search_text={{ search_text|urlencode }}">Room Type</a></th>
             <th><a href="index?order={{ order.assigned_suite_type }}&page={{ page }}&search_text={{ search_text|urlencode }}">Suite Type</a></th>
@@ -143,11 +145,17 @@
         </thead>
         <tbody>
           {% for app in applications %}
-            <tr{% if app.status != c.COMPLETE and app.status not in c.HOTEL_LOTTERY_AWARD_STATUSES %} class="bg-light"{% endif %}>
+            <tr{% if app.status not in c.HOTEL_LOTTERY_AWARD_STATUSES and (app.status != c.COMPLETE or not app.attendee or not app.attendee.hotel_lottery_eligible) %} class="bg-light"{% endif %}>
                 {% block tablerows scoped %}
                 <td>
-                  {% if app.status in [c.WITHDRAWN, c.DISQUALIFIED, c.REJECTED] %}
-                  <span class="text-danger">{{ app.status_label }}</span>
+                  {% if app.status in [c.WITHDRAWN, c.DISQUALIFIED, c.REJECTED] or not app.attendee or not app.attendee.hotel_lottery_eligible %}
+                  <span class="text-danger">
+                    {% if not app.attendee or not app.attendee.hotel_lottery_eligible %}
+                    Invalid Attendee
+                    {% else %}
+                    {{ app.status_label }}
+                    {% endif %}
+                  </span>
                   {% else %}{{ app.status_label }}{% endif %}
                 </td>
                 <td>{{ app.entry_type_label }}</td>
@@ -157,7 +165,7 @@
                 <td>{{ app.group_members|length if app.room_group_name else "" }}</td>
                 <td>{{ app.admin_notes }}</td>
                 <td>{{ app.is_staff_entry|yesno("Yes,No") }}</td>
-                {% if c.HOTEL_ROOM_INVENTORY %}
+                {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
                 <td>{{ app.assigned_hotel_label['name'] }}</td>
                 <td>{{ app.assigned_room_type_label['name'] }}</td>
                 <td>{{ app.assigned_suite_type_label['name'] }}</td>
