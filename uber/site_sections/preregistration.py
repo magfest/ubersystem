@@ -522,6 +522,7 @@ class Root:
         badges = params.get('badges', 0)
         name = params.get('name', '')
         loaded_from_group = False
+        force_form_defaults = True
 
         if cherrypy.request.method == 'POST' and not params.get('badge_type'):
             params['badge_type'] = c.ATTENDEE_BADGE
@@ -531,6 +532,7 @@ class Root:
             if group.attendees:
                 attendee = group.attendees[0]
                 loaded_from_group = True
+                force_form_defaults = False
             else:
                 attendee.badge_type = c.PSEUDO_DEALER_BADGE
             attendee.group_id = dealer_id
@@ -539,18 +541,20 @@ class Root:
             attendee = self._get_unsaved(edit_id)
             badges = getattr(attendee, 'badges', 0)
             name = getattr(attendee, 'name', '')
+            force_form_defaults = False
 
         forms_list = ['PersonalInfo', 'BadgeExtras', 'Consents']
         if c.GROUPS_ENABLED:
             forms_list.append('GroupInfo')
-        forms = load_forms(params, attendee, forms_list)
+        forms = load_forms(params, attendee, forms_list, force_form_defaults=force_form_defaults)
         if edit_id or loaded_from_group:
             forms['consents'].pii_consent.data = True
 
-        for form in forms.values():
-            if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
-                form['legal_name'].data = ''
-            form.populate_obj(attendee)
+        if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+                    form['legal_name'].data = ''
+                form.populate_obj(attendee)
 
         if (cherrypy.request.method == 'POST' or edit_id is not None) and c.PRE_CON:
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
