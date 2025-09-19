@@ -619,7 +619,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                     and not self.group.is_unpaid):
             self.badge_status = c.COMPLETED_STATUS
 
-        if not self.has_or_will_have_badge:
+        if not self.has_or_will_have_badge and self.badge_status != c.PENDING_STATUS:
             self.badge_pickup_group = None
 
     @presave_adjustment
@@ -2650,6 +2650,19 @@ class BadgePickupGroup(MagModel):
         for attendee in account.attendees:
             if attendee.has_badge:
                 self.attendees.append(attendee)
+
+    def finalize_cart(self, session):
+        pending_free_badges = [attendee for attendee in self.attendees if 
+                               attendee.badge_status == c.PENDING_STATUS and not attendee.total_cost_if_valid]
+
+        if not all([attendee for attendee in self.attendees if (attendee.is_valid and attendee.is_paid) or 
+                    attendee in pending_free_badges]):
+            return
+        
+        for attendee in pending_free_badges:
+            attendee.badge_status = c.COMPLETED_STATUS
+            attendee.badge_pickup_group_id = None
+            session.add(attendee)
 
     @property
     def fallback_purchaser_id(self):

@@ -1821,6 +1821,20 @@ class ReceiptManager:
             session.commit()
             session.check_receipt_closed(txn_receipt)
 
+            session.refresh(model)
+            badge_pickup_group = getattr(model, 'badge_pickup_group', None)
+            if badge_pickup_group:
+                badge_pickup_group.finalize_cart(session)
+                if c.ATTENDEE_ACCOUNTS_ENABLED or getattr(model, 'group', None):
+                    model.badge_pickup_group_id = None
+                    session.add(model)
+                session.commit()
+
+                session.refresh(badge_pickup_group)
+                if len(badge_pickup_group.attendees) == 0:
+                    session.delete(badge_pickup_group)
+                    session.commit()
+
             if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_purchase_items:
                 try:
                     send_email.delay(

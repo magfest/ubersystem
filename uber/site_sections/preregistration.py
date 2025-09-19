@@ -77,7 +77,7 @@ def update_prereg_cart(session):
             existing_model = session.query(Group).filter_by(id=id).first()
         if existing_model:
             receipt = session.refresh_receipt_and_model(existing_model, is_prereg=True)
-            if receipt and receipt.current_amount_owed or not receipt.payment_total:
+            if receipt and (receipt.current_amount_owed or not receipt.payment_total):
                 PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
             elif receipt:
                 PreregCart.paid_preregs.append(PreregCart.pending_preregs[id])
@@ -849,6 +849,23 @@ class Root:
         update_prereg_cart(session)
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
+
+        pickup_group_id = None
+        for attendee in cart.attendees:
+            pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
+            if pending_attendee and pending_attendee.badge_pickup_group_id:
+                pickup_group_id = pending_attendee.badge_pickup_group_id
+        pending_attendee = None
+        
+        if pickup_group_id:
+            pickup_group = session.badge_pickup_group(pickup_group_id)
+        else:
+            pickup_group = BadgePickupGroup()
+            session.add(pickup_group)
+
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            pickup_group.account_id = session.current_attendee_account().id
+
         if not cart.total_cost:
             if not cart.models:
                 HTTPRedirect('form?message={}', 'Your preregistration has already been finalized')
@@ -968,7 +985,9 @@ class Root:
 
                 attendee.badge_status = c.PENDING_STATUS
                 attendee.paid = c.PENDING
+                attendee.badge_pickup_group_id = pickup_group.id
                 session.add(attendee)
+
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     session.add_attendee_to_account(attendee, session.current_attendee_account())
 
