@@ -227,13 +227,23 @@ class Ranking():
                 choice_item = choice_dict[choice_id]
                 extra_info = self.extra_info_list(choice_item, show_staff_rates=show_staff_rates)
                 selected_html.append(f"""
-                <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
+                <li class="card card-body border-dark p-2 p-sm-3 sortable-item" data-choice="{choice_id}" value="{choice_id}">
+                    <div class="d-flex justify-content-between">
                     <h4 class="card-title {'mb-0' if not extra_info else 'mb-1 mb-sm-2'}">
                         {choice_item["name"]}
-                    </h4>""")
+                    </h4>
+                    <div>
+                        <i class="fa fa-arrow-circle-up move-up-{id}" data-direction="up" tabindex="0"></i>
+                        <i class="fa fa-arrow-circle-down move-down-{id}" data-direction="down" tabindex="0"></i>
+                    </div>
+                    </div>""")
                 selected_html.extend(extra_info)
                 selected_html.append(f"""
-                    <input type="hidden" name="{id}" value="{choice_id}">
+                    <div class="d-flex gap-1 justify-content-end">
+                        <input type="hidden" name="{id}" value="{choice_id}">
+                        <i class="fa fa-minus-circle text-danger deselect-{id}" tabindex="0"></i>
+                        <i class="fa fa-plus-circle text-success select-{id}" tabindex="0" style="display:none;"></i>
+                    </div>
                 </li>""")
             except KeyError:
                 continue
@@ -241,13 +251,23 @@ class Ranking():
             if not choice_id in selected_choices:
                 extra_info = self.extra_info_list(choice_item, show_staff_rates=show_staff_rates)
                 deselected_html.append(f"""
-                <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
+                <li class="card card-body border-dark p-2 p-sm-3 sortable-item" data-choice="{choice_id}" value="{choice_id}">
+                    <div class="d-flex justify-content-between">
                     <h4 class="card-title {'mb-0' if not extra_info else 'mb-1 mb-sm-2'}">
                         {choice_item["name"]}
-                    </h4>""")
+                    </h4>
+                    <div>
+                        <i class="fa fa-arrow-circle-up move-up-{id}" data-direction="up" tabindex="0"></i>
+                        <i class="fa fa-arrow-circle-down move-down-{id}" data-direction="down" tabindex="0"></i>
+                    </div>
+                    </div>""")
                 deselected_html.extend(extra_info)
                 deselected_html.append(f"""
-                    <input type="hidden" value="{choice_id}">
+                    <div class="d-flex gap-1 justify-content-end">
+                        <input type="hidden" value="{choice_id}">
+                        <i class="fa fa-minus-circle text-danger deselect-{id}" tabindex="0" style="display:none;"></i>
+                        <i class="fa fa-plus-circle text-success select-{id}" tabindex="0"></i>
+                    </div>
                 </li>""")
 
         script = f"""
@@ -261,33 +281,123 @@ class Ranking():
                 }}
             }}
 
-            Sortable.create(deselected_{ id }, {{
-                group: '{ id }',
-                animation: 100
-            }});
-
-            Sortable.create(selected_{ id }, {{
+            var deselected_list_{id} = Sortable.create(deselected_{ id }, {{
                 group: '{ id }',
                 animation: 100,
+                dataIdAttr: 'data-choice',
+            }});
+
+            var selected_list_{id} = Sortable.create(selected_{ id }, {{
+                group: '{ id }',
+                animation: 100,
+                dataIdAttr: 'data-choice',
                 onSort: function(evt) {{
                     el = document.getElementById("selected_{ id }");
                     showOrHidePlaceholders_{ id }("select");
                     for (let i=0; i<el.children.length; i++) {{
+                        el.children[i].querySelector(".select").style.display = 'none';
+                        el.children[i].querySelector(".deselect").style.display = 'block';
                         el.children[i].querySelector("input").setAttribute("name", "{ id }");
                     }}
 
                     dl = document.getElementById("deselected_{ id }");
                     showOrHidePlaceholders_{ id }("deselect");
                     for (let i=0; i<dl.children.length; i++) {{
+                        dl.children[i].querySelector(".select").style.display = 'block';
+                        dl.children[i].querySelector(".deselect").style.display = 'none';
                         dl.children[i].querySelector("input").removeAttribute("name");
                     }}
                     
                 }}
             }});
 
+            var listItemSelector = 'li.sortable-item';
+
+            var moveElement_{id} = function(element, direction) {{
+                if (typeof(element.dataset.choice) == 'undefined') {{
+                    return false
+                }}
+
+                let sortable_list;
+
+                if (element.closest('ul').id.includes('deselected')) {{
+                    sortable_list = deselected_list_{id};
+                }} else {{
+                    sortable_list = selected_list_{id};
+                }}
+                
+                // `sortableId` is whatever you've set in your sortablejs config for `dataIdAttr`
+                let sortableId = element.dataset.choice
+                let order = sortable_list.toArray()
+                let index = order.indexOf(sortableId)
+                
+                // pull the item we're moving out of the order
+                order.splice(index, 1)
+                
+                // put it back in at the correct position
+                if (direction == 'down') {{
+                    order.splice(index+1, 0, sortableId)
+                }} else if (direction == 'up') {{
+                    order.splice(index-1, 0, sortableId)
+                }}
+
+                sortable_list.sort(order, true)
+            }}
+
+            var arrowButton_{id} = function(event) {{
+                direction = event.currentTarget.dataset.direction
+                otherButton = direction == 'down' ? 'up' : 'down'
+
+                if (event && (event.key == "Enter" || event.screenX && event.screenY)) {{
+                    this.moveElement_{id}(event.currentTarget.closest(listItemSelector), direction)
+                    if (window.getComputedStyle(event.currentTarget).display == 'none') {{
+                    event.currentTarget.parentNode.querySelector(`i[data-direction={{otherButton}}]`).focus()
+                    }} else {{
+                    event.currentTarget.focus()
+                    }}
+                }}
+            }}
+
+            var addOrRemove_{id} = function(element, oldList, newList) {{
+                if (typeof(element.dataset.choice) == 'undefined') {{
+                    return false;
+                }}
+
+                let sortableId = element.dataset.choice;
+                let oldOrder = oldList.toArray()
+                let newOrder = newList.toArray()
+                let newElement = Sortable.utils.clone(element)
+                console.log(newElement)
+
+                // pull the item we're moving out of the order
+                oldOrder.splice(index, 1)
+
+                // ...and into the new list
+                newOrder.splice(index, 0, sortableId);
+
+                oldList.sort(oldOrder, true);
+                newList.sort(newOrder, true);
+            }}
+
+            var addButton_{id} = function(event) {{
+                if (event && (event.key == "Enter" || event.screenX && event.screenY)) {{
+                    addOrRemove_{id}(event.currentTarget.closest(listItemSelector), deselected_list_{id}, selected_list_{id});
+                }}
+            }}
+
+            var removeButton_{id} = function(event) {{
+                if (event && (event.key == "Enter" || event.screenX && event.screenY)) {{
+                    addOrRemove_{id}(event.currentTarget.closest(listItemSelector), selected_list_{id}, deselected_list_{id});
+                }}
+            }}
+
             $().ready(function() {{
-                showOrHidePlaceholders_{ id }("select");
-                showOrHidePlaceholders_{ id }("deselect");
+                showOrHidePlaceholders_{id}("select");
+                showOrHidePlaceholders_{id}("deselect");
+                $('.move-up-{id}').bind('click keydown', function() {{ arrowButton_{id}(event) }});
+                $('.move-down-{id}').bind('click keydown', function() {{ arrowButton_{id}(event) }});
+                $('.select-{id}').bind('click keydown', function() {{ addButton_{id}(event) }});
+                $('.deselect-{id}').bind('click keydown', function() {{ removeButton_{id}(event) }});
             }});
         </script>"""
 
