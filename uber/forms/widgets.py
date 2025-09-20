@@ -227,13 +227,23 @@ class Ranking():
                 choice_item = choice_dict[choice_id]
                 extra_info = self.extra_info_list(choice_item, show_staff_rates=show_staff_rates)
                 selected_html.append(f"""
-                <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
+                <li class="card card-body border-dark p-2 p-sm-3 sortable-item" data-choice="{choice_id}" value="{choice_id}">
+                    <div class="d-flex justify-content-between">
                     <h4 class="card-title {'mb-0' if not extra_info else 'mb-1 mb-sm-2'}">
                         {choice_item["name"]}
-                    </h4>""")
+                    </h4>
+                    <div>
+                        <i data-id="{id}" class="fa fa-arrow-circle-up move-up" data-direction="up" tabindex="0"></i>
+                        <i data-id="{id}" class="fa fa-arrow-circle-down move-down" data-direction="down" tabindex="0"></i>
+                    </div>
+                    </div>""")
                 selected_html.extend(extra_info)
                 selected_html.append(f"""
-                    <input type="hidden" name="{id}" value="{choice_id}">
+                    <div class="d-flex gap-1 justify-content-end">
+                        <input type="hidden" name="{id}" value="{choice_id}">
+                        <i data-id="{id}" class="fa fa-minus-circle text-danger deselect" tabindex="0"></i>
+                        <i data-id="{id}" class="fa fa-plus-circle text-success select" tabindex="0" style="display:none;"></i>
+                    </div>
                 </li>""")
             except KeyError:
                 continue
@@ -241,54 +251,30 @@ class Ranking():
             if not choice_id in selected_choices:
                 extra_info = self.extra_info_list(choice_item, show_staff_rates=show_staff_rates)
                 deselected_html.append(f"""
-                <li class="card card-body border-dark p-2 p-sm-3" value="{choice_id}">
+                <li class="card card-body border-dark p-2 p-sm-3 sortable-item" data-choice="{choice_id}" value="{choice_id}">
+                    <div class="d-flex justify-content-between">
                     <h4 class="card-title {'mb-0' if not extra_info else 'mb-1 mb-sm-2'}">
                         {choice_item["name"]}
-                    </h4>""")
+                    </h4>
+                    <div>
+                        <i data-id="{id}" class="fa fa-arrow-circle-up move-up" data-direction="up" tabindex="0"></i>
+                        <i data-id="{id}" class="fa fa-arrow-circle-down move-down" data-direction="down" tabindex="0"></i>
+                    </div>
+                    </div>""")
                 deselected_html.extend(extra_info)
                 deselected_html.append(f"""
-                    <input type="hidden" value="{choice_id}">
+                    <div class="d-flex gap-1 justify-content-end">
+                        <input type="hidden" value="{choice_id}">
+                        <i data-id="{id}" class="fa fa-minus-circle text-danger deselect" tabindex="0" style="display:none;"></i>
+                        <i data-id="{id}" class="fa fa-plus-circle text-success select" tabindex="0"></i>
+                    </div>
                 </li>""")
 
         script = f"""
         <script type="text/javascript">
-            var showOrHidePlaceholders_{ id } = function(select_or_deselect) {{
-                let ulOpts = document.getElementById(select_or_deselect + "ed_{ id }");
-                if (ulOpts.children.length == 0) {{
-                    ulOpts.classList.add('placeholder-'+ select_or_deselect +'-opt');
-                }} else {{
-                    ulOpts.classList.remove('placeholder-'+ select_or_deselect +'-opt');
-                }}
-            }}
-
-            Sortable.create(deselected_{ id }, {{
-                group: '{ id }',
-                animation: 100
-            }});
-
-            Sortable.create(selected_{ id }, {{
-                group: '{ id }',
-                animation: 100,
-                onSort: function(evt) {{
-                    el = document.getElementById("selected_{ id }");
-                    showOrHidePlaceholders_{ id }("select");
-                    for (let i=0; i<el.children.length; i++) {{
-                        el.children[i].querySelector("input").setAttribute("name", "{ id }");
-                    }}
-
-                    dl = document.getElementById("deselected_{ id }");
-                    showOrHidePlaceholders_{ id }("deselect");
-                    for (let i=0; i<dl.children.length; i++) {{
-                        dl.children[i].querySelector("input").removeAttribute("name");
-                    }}
-                    
-                }}
-            }});
-
-            $().ready(function() {{
-                showOrHidePlaceholders_{ id }("select");
-                showOrHidePlaceholders_{ id }("deselect");
-            }});
+            //Initialize the sortable extensions for keyboard accessibility.
+            //ID and what your sortable li class are must be passed in.
+            SortableExt.initWidget('{id}', 'li.sortable-item');
         </script>"""
 
         if read_only:
