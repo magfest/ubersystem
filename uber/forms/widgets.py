@@ -286,28 +286,31 @@ class Ranking():
                 animation: 100,
                 dataIdAttr: 'data-choice',
             }});
+            
+            var sort_lists_{id} = function(evt){{
+                el = document.getElementById("selected_{ id }");
+                showOrHidePlaceholders_{ id }("select");
+                for (let i=0; i<el.children.length; i++) {{
+                     el.children[i].querySelector(".select-{id}").style.display = 'none';
+                     el.children[i].querySelector(".deselect-{id}").style.display = 'block';
+                     el.children[i].querySelector("input").setAttribute("name", "{ id }");
+                }}
+
+                dl = document.getElementById("deselected_{ id }");
+                showOrHidePlaceholders_{ id }("deselect");
+                for (let i=0; i<dl.children.length; i++) {{
+                    dl.children[i].querySelector(".select-{id}").style.display = 'block';
+                    dl.children[i].querySelector(".deselect-{id}").style.display = 'none';
+                    dl.children[i].querySelector("input").removeAttribute("name");
+                }}
+            }}
 
             var selected_list_{id} = Sortable.create(selected_{ id }, {{
                 group: '{ id }',
                 animation: 100,
                 dataIdAttr: 'data-choice',
                 onSort: function(evt) {{
-                    el = document.getElementById("selected_{ id }");
-                    showOrHidePlaceholders_{ id }("select");
-                    for (let i=0; i<el.children.length; i++) {{
-                        el.children[i].querySelector(".select").style.display = 'none';
-                        el.children[i].querySelector(".deselect").style.display = 'block';
-                        el.children[i].querySelector("input").setAttribute("name", "{ id }");
-                    }}
-
-                    dl = document.getElementById("deselected_{ id }");
-                    showOrHidePlaceholders_{ id }("deselect");
-                    for (let i=0; i<dl.children.length; i++) {{
-                        dl.children[i].querySelector(".select").style.display = 'block';
-                        dl.children[i].querySelector(".deselect").style.display = 'none';
-                        dl.children[i].querySelector("input").removeAttribute("name");
-                    }}
-                    
+                    sort_lists_{id}();
                 }}
             }});
 
@@ -330,6 +333,11 @@ class Ranking():
                 let sortableId = element.dataset.choice
                 let order = sortable_list.toArray()
                 let index = order.indexOf(sortableId)
+                
+                //If index is 0 and we're moving up, dont change the list.
+                if(index === 0 && direction == 'up'){{ return false; }}
+                //And if the index is last and we're moving down, don't do it either.
+                if(index === order.length && direction === 'down'){{ return false; }}
                 
                 // pull the item we're moving out of the order
                 order.splice(index, 1)
@@ -362,21 +370,13 @@ class Ranking():
                 if (typeof(element.dataset.choice) == 'undefined') {{
                     return false;
                 }}
-
-                let sortableId = element.dataset.choice;
-                let oldOrder = oldList.toArray()
-                let newOrder = newList.toArray()
-                let newElement = Sortable.utils.clone(element)
-                console.log(newElement)
-
-                // pull the item we're moving out of the order
-                oldOrder.splice(index, 1)
-
-                // ...and into the new list
-                newOrder.splice(index, 0, sortableId);
-
-                oldList.sort(oldOrder, true);
-                newList.sort(newOrder, true);
+                
+                //Take it off the old list
+                oldList.el.removeChild(element);
+                //Put it at the end of the new list.
+                newList.el.appendChild(element);
+                
+                sort_lists_{id}();
             }}
 
             var addButton_{id} = function(event) {{
