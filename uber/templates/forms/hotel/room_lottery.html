@@ -27,6 +27,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 {% block ranking_js %}
 {% if not read_only %}
 {{ "deps/Sortable.js"|serve_static_content }}
+{{ "deps/SortableExt.js"|serve_static_content }}
 
 <style>
     .sortable-ghost {
