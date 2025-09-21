@@ -36,19 +36,38 @@ window.SortableExt = (function () {
     function sortLists(dataId) {
         const selectedEl = document.getElementById(`selected_${dataId}`);
         const deselectedEl = document.getElementById(`deselected_${dataId}`);
+        let rankingIndex = 1;
 
         showOrHidePlaceholders("select", dataId);
         for (let li of selectedEl.children) {
-            li.querySelector(".select").style.display = 'none';
-            li.querySelector(".deselect").style.display = 'block';
+            li.querySelector(".select").classList.add('d-none');
+            li.querySelector(".deselect").classList.remove('d-none');
+            li.querySelector(".move-up").classList.remove('d-none');
+            li.querySelector(".move-down").classList.remove('d-none');
+            
+            li.querySelector('h4').classList.remove('text-muted', 'h5');
+
+            if (li == selectedEl.firstElementChild) {
+                li.querySelector(".move-up").classList.add('d-none');
+            }
+            if (li == selectedEl.lastElementChild) {
+                li.querySelector(".move-down").classList.add('d-none');
+            }
             li.querySelector("input").setAttribute("name", dataId);
+            li.querySelector(".selected-order").innerHTML = rankingIndex + ")";
+            rankingIndex++;
         }
 
         showOrHidePlaceholders("deselect", dataId);
         for (let li of deselectedEl.children) {
-            li.querySelector(".select").style.display = 'block';
-            li.querySelector(".deselect").style.display = 'none';
+            
+            li.querySelector('h4').classList.add('text-muted', 'h5');
+            li.querySelector(".select").classList.remove('d-none');
+            li.querySelector(".deselect").classList.add('d-none');
+            li.querySelector(".move-up").classList.add('d-none');
+            li.querySelector(".move-down").classList.add('d-none');
             li.querySelector("input").removeAttribute("name");
+            li.querySelector(".selected-order").innerHTML = "";
         }
     }
 
@@ -71,6 +90,7 @@ window.SortableExt = (function () {
         order.splice(direction === 'down' ? index + 1 : index - 1, 0, choiceId);
 
         sortableList.sort(order, true);
+        sortLists(dataId);
     }
 
     function arrowButton(event, dataId, listItemSelector) {
@@ -156,8 +176,7 @@ window.SortableExt = (function () {
     function initWidget(id, listItemSelector) {
         createSelected(id);
         createDeselected(id);
-        showOrHidePlaceholders("select", id);
-        showOrHidePlaceholders("deselect", id);
+        sortLists(id);
         bindButtons(id, listItemSelector);
     }
 
