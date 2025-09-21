@@ -95,10 +95,30 @@ window.SortableExt = (function () {
     function addOrRemove(element, oldList, newList, dataId) {
         if (!element.dataset.choice) return;
 
-        oldList.el.removeChild(element);
-        newList.el.appendChild(element);
+        // Ensure the element has Bootstrap fade classes
+        if (!element.classList.contains('fade')) {
+             element.classList.add('fade', 'show'); // start fully visible
+        }
+         //Force reflow to commit initial state to the browser
+         void element.offsetWidth;
 
-        sortLists(dataId);
+        //Add listener for transitional end
+        element.addEventListener('transitionend', function handler(e) {
+            if (e.propertyName !== 'opacity') return;
+            //Now remove from the old list
+            oldList.el.removeChild(element);
+            element.removeEventListener('transitionend', handler);
+            // Move to new parent
+            newList.el.appendChild(element);
+            // Force reflow to restart transition
+             void element.offsetWidth;
+            // Fade in
+            element.classList.add('show');
+            sortLists(dataId);
+         });
+
+        //Start fade out
+        element.classList.remove('show');
     }
 
     function addButton(event, dataId, listItemSelector) {
