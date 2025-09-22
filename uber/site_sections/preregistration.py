@@ -1916,7 +1916,7 @@ class Root:
 
         for id in abandon_ids:
             attendee = session.attendee(id)
-            if attendee.cannot_abandon_badge_reason:
+            if attendee.cannot_abandon_badge_check(including_last_adult=False):
                 failed_attendees.add(attendee)
             elif attendee.amount_paid:
                 receipt_manager = ReceiptManager(attendee.active_receipt, 'non-admin')

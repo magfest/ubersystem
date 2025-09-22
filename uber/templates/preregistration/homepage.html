@@ -93,8 +93,6 @@
             {% else %}
             Select a registration below to purchase a badge for this year. You will be able to review and edit your information before purchasing.
             {% endif %}
-        {% elif not prereg_message %}
-            <a href="../preregistration/form" class="btn btn-primary">Register Now!</a>
         {% endif %}
         </p>
         {% if account.imported_group_leaders and dealer_reg_open %}
@@ -103,9 +101,18 @@
             {% else %}
                 Select a registration below to purchase a badge or reapply as a {{ c.DEALER_TERM }}. You will be able to review and edit your information before purchasing.
             {% endif %}
-        {% elif dealer_reg_open %}
+        {% endif %}
+
+        {% if not prereg_message or dealer_reg_open %}
+        <div class="btn-group mb-3">
+            {% if not prereg_message %}
+            <a href="../preregistration/form" class="btn btn-primary">Register Now!</a>
+            {% endif %}
+            {% if dealer_reg_open %}
             <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
-            {% if account.imported_group_badges %}If you were a {{ c.DEALER_HELPER_TERM }} last year, ask your group leader to log into their account to reapply.{% endif %}
+            {% endif %}
+        </div>
+        {% if account.imported_group_badges and dealer_reg_open %}If you were a {{ c.DEALER_HELPER_TERM }} last year, ask your group leader to log into their account to reapply.{% endif %}
         {% endif %}
     </div>
 {% else %}
@@ -253,9 +260,9 @@
     </div>
     {% endfor %}
 
-    <div class="text-center">
+    <div class="text-center mb-3">
         {% if not prereg_message or dealer_reg_open %}
-        <div class="btn-group mb-3">
+        <div class="btn-group">
             {% if not prereg_message %}
             <a href="../preregistration/form" class="btn btn-primary">Add More Registration(s)</a>
             {% endif %}

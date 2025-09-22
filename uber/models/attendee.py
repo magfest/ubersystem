@@ -1349,6 +1349,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def cannot_abandon_badge_reason(self):
+        return self.cannot_abandon_badge_check()
+
+    def cannot_abandon_badge_check(self, including_last_adult=True):
         from uber.custom_tags import email_only
         if self.checked_in:
             return "This badge has already been picked up."
@@ -1365,7 +1368,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             )
 
         reason = ""
-        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
+        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers and including_last_adult:
             account = self.managers[0]
             other_adult_badges = [a for a in account.valid_adults if a.id != self.id]
             if account.badges_needing_adults and not other_adult_badges:
@@ -2623,7 +2626,8 @@ class AttendeeAccount(MagModel):
 
     @property
     def cancellable_badges(self):
-        return [attendee for attendee in self.attendees if attendee.is_valid and not attendee.cannot_abandon_badge_reason]
+        return [attendee for attendee in self.attendees if attendee.is_valid and 
+                not attendee.cannot_abandon_badge_check(including_last_adult=False)]
 
     @property
     def imported_attendees(self):
