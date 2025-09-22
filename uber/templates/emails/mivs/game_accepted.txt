@@ -16,17 +16,20 @@ As a reminder, while we encourage you to bring help to run your booth, devs will
 
 You may have some questions about showing at MIVS.  Here's a quick FAQ. More detailed information will come after you accept:
 
-Q: What is the Health and Safety policy for {{ c.ESCHATON.year }}?
-A: The Health and Safety policy is outlined at {{ c.COVID_POLICIES_URL }} - By accepting your spot in MIVS, you are agreeing to the Health and Safety policy.
+Q: What's next after I accept?
+A: After you accept, you will have access to your developer checklist which includes information and links for booking your hotel, selling at the event, purchasing additional team member badges, etc. and the handbook which contains everything you need to know for the show. *Note that not all checklist items will be available immediately.
 
 Q: What's required of me and my team?
-A: You are required to have yourself or someone from your team in your booth during our core hours. You can expect core hours to be around 12pm - 7pm everyday except for Sunday which is 12pm-3pm.  A handbook will be given to you later which will have the exact times.
+A: You are required to have yourself or someone from your team in your booth during our core hours. Core hours are Thursday 1pm - 7pm, Friday & Saturday 12pm - 7pm, Sunday 12pm - 2pm.
 
 Q: Will I be able to get a room at the Gaylord?
-A: You will have the chance to purchase a room at the Gaylord for use by your team.
+A: Yes, you will have the chance to purchase a room from the MIVS block at the Gaylord for use by your team as part of your checklist.
 
 Q: What will I have for setup?
-A: You will have 2 badges, 2 six foot tables, 4 chairs, and access to a power drop. You can expect the booth space to be 10’x10’.
+A: You will receive 2 badges, a 10’x10’ booth space, 2 six foot tables, 4 chairs, and access to a power drop.
+
+Q: What is the Health and Safety policy for {{ c.ESCHATON.year }}?
+A: The Health and Safety policy is outlined at {{ c.COVID_POLICIES_URL }} - By accepting your spot in MIVS, you are agreeing to the Health and Safety policy.
 
 
 If you need something answered to determine your participation, please email {{ c.MIVS_EMAIL|email_only }}. Otherwise, please accept now and more information will be sent to you.
