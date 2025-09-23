@@ -117,7 +117,7 @@ def overridden_app_cost(app, new_app=None):
 def panel_cost(app, new_app=None):
     if app.overridden_price is not None or new_app and new_app.overridden_price is not None:
         return
-    
+
     return calc_multiplied_cost_change(app, 'panels', 'General Panels', c.COST_PER_PANEL, new_app)
 
 
@@ -150,14 +150,22 @@ def mailing_fee_cost(app, new_app=None):
     if not new_app and app.delivery_method != c.BY_MAIL:
         return
     elif not new_app:
-        return ("Mailing Fee", c.ART_MAILING_FEE * 100, 'delivery_method')
+        return ("Mailing Fee", app.mailing_fee * 100, 'delivery_method')
 
-    old_cost = c.ART_MAILING_FEE * 100 if app.delivery_method == c.BY_MAIL else 0
-    new_cost = c.ART_MAILING_FEE * 100 if new_app.delivery_method == c.BY_MAIL else 0
+    old_cost = app.mailing_fee * 100 if app.delivery_method == c.BY_MAIL else 0
+    new_cost = new_app.mailing_fee * 100 if new_app.delivery_method == c.BY_MAIL else 0
     if old_cost == new_cost:
         return
 
-    label = "Add" if not old_cost else "Remove"
+    if not old_cost:
+        label = "Add"
+    elif not new_cost:
+        label = "Remove"
+    elif new_cost > old_cost:
+        label = "Increase"
+    else:
+        label = "Decrease"
+
     return (f"{label} Mailing Fee", new_cost - old_cost, 'delivery_method')
 
 
@@ -168,6 +176,7 @@ ArtShowApplication.receipt_changes = {
     'tables': (table_cost, c.SPACE),
     'tables_ad': (mature_table_cost, c.SPACE),
     'delivery_method': (mailing_fee_cost, c.MAIL_IN_FEE),
+    'mailing_fee_update': (mailing_fee_cost, c.MAIL_IN_FEE),
 }
 
 

@@ -219,7 +219,7 @@ class ArtShowApplication(MagModel):
     @hybrid_property
     def true_default_cost_cents(self):
         return self.true_default_cost * 100
-    
+
     @property
     def panels_and_tables_cost(self):
         # Mail-in fees are applied on top of this price
@@ -237,6 +237,20 @@ class ArtShowApplication(MagModel):
     @property
     def potential_cost(self):
         return self.true_default_cost or 0
+    
+    @property
+    def mailing_fee(self):
+        if self.delivery_method != c.BY_MAIL:
+            return 0
+        if not c.EXTRA_ART_MAILING_FEE or not c.EXTRA_ART_MAILING_INCREMENT:
+            return c.BASE_ART_MAILING_FEE
+
+        all_spaces = self.panels + self.panels_ad + self.tables + self.tables_ad
+        extra_spaces = all_spaces - c.BASE_ART_MAILING_SPACES
+        base_cost = c.BASE_ART_MAILING_FEE
+        if extra_spaces > 0:
+            num_increments = -(extra_spaces // -c.EXTRA_ART_MAILING_INCREMENT)
+            return base_cost + (c.EXTRA_ART_MAILING_FEE * num_increments)
 
     @property
     def email(self):
