@@ -122,7 +122,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, panelist, form_list, {form_name: prefix for form_name in form_list})
+        forms = load_forms(params, panelist, form_list, field_prefix=prefix)
         all_errors = validate_model(forms, panelist, is_admin=True)
 
         if all_errors:
@@ -142,8 +142,7 @@ class Root:
             prefix = '' if panelist.submitter else panelist.id
 
         form_list = ['PanelistInfo', 'PanelistCredentials']
-        forms = load_forms(params, panelist, form_list,
-                           {form_name: prefix for form_name in form_list})
+        forms = load_forms(params, panelist, form_list, field_prefix=prefix)
 
         for form in forms.values():
             form.populate_obj(panelist)
