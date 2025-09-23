@@ -1,12 +1,10 @@
 Ahoy {{ judge.attendee.first_name }},
 
-Thanks again for helping judge entries for the MAGFest Indie Video Game Showcase. Please stop by the MIVS area and talk with the indie devs showcasing their games. You can also say hi to the MIVS staff at the MIVS Ops booth.
-
-*** Survey ***
-
-First, please fill out this short survey about your experience being a judge: https://forms.gle/a4gCGkTeBgvKRKK37 - It only takes a minute and helps us to make your judging experience better next year!
+Thanks again for helping judge entries for the MAGFest Indie Video Game Showcase! Please stop by the MIVS area and talk with the indie devs showcasing their games. You can also say hi to the MIVS staff at the MIVS Ops booth.
 
 *** Badge Information ***
+
+You will receive an email later this week to register your complimentary badge. Once registered, you will be able to enter the hotel lottery or join a roommate group the same as any other badge.
 
 {% if judge.attendee.paid == c.NEED_NOT_PAY %}Your complimentary badge will be waiting for you at our registration desk under your name ({{ judge.attendee.full_name }}). Simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to pick it up. Due to limitations in our system, we can not transfer complimentary judge badges to other people right now.{% else %}We provide complimentary badges to our judges that completed their assigned games, but if you already paid for a badge, please reply to this email to let us know to issue you a refund.{% endif %}
 
