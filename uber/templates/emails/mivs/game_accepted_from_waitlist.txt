@@ -1,39 +1,44 @@
 Ahoy {{ game.studio.primary_contact_first_names }},
 
-Congratulations!  Your game submission ({{ game.title }}) has been chosen to be part of the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS)
+Congratulations! Your game submission ({{ game.title }}) has been chosen to be part of the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS).
 
-** You now need to either CONFIRM or DECLINE your acceptance! ***
+*** You now need to either CONFIRM or DECLINE your acceptance! ***
 
 Please confirm your spot OR decline it at {{ c.URL_BASE }}/showcase/index?id={{ game.studio.id }}
 
 You have until {{ game.studio.confirm_deadline|datetime_local }} to confirm (or decline).
 
-If you cannot make MAGFest, please decline ASAP so that we can contact the next game on our wait-list. Failure to either confirm or decline your game by the deadline is rude to others waiting and can be taken into account for future events. 
+If you cannot make MAGFest, please decline ASAP so that we can contact the next game on our wait-list. Failure to either confirm or decline your game by the deadline is rude to others waiting and can be taken into account for future events.
 
 As a reminder, while we encourage you to bring help to run your booth, devs will need to be the primary presenter at the showcase.
 
 *** FAQ
 
-You may have some questions about showing at MIVS.  Here's a quick FAQ, more detailed information will come after you accept:
+You may have some questions about showing at MIVS. Here's a quick FAQ. More detailed information will come after you accept:
+
+Q: What's next after I accept?
+A: After you accept, you will have access to your developer checklist which includes information and links for booking your hotel, selling at the event, purchasing additional team member badges, etc. and the handbook which contains everything you need to know for the show. *Note that not all checklist items will be available immediately.
+
+Q: What's required of me and my team?
+A: You are required to have yourself or someone from your team in your booth during our core hours. Core hours are Thursday 1pm - 7pm, Friday & Saturday 12pm - 7pm, Sunday 12pm - 2pm.
+
+Q: Will I be able to get a room at the Gaylord?
+A: Yes, you will have the chance to purchase a room from the MIVS block at the Gaylord for use by your team as part of your checklist.
+
+Q: What will I have for setup?
+A: You will receive 2 badges, a 10’x10’ booth space, 2 six foot tables, 4 chairs, and access to a power drop.
 
 Q: What is the Health and Safety policy for {{ c.ESCHATON.year }}?
 A: The Health and Safety policy is outlined at {{ c.COVID_POLICIES_URL }} - By accepting your spot in MIVS, you are agreeing to the Health and Safety policy.
 
-Q: What's required of me and my team?
-A: You are be required to have yourself or someone from your team in your booth during our core hours. You can expect core hours to be around 12pm - 7pm everyday except for sunday which is 12pm-3pm.  A handbook will be given to you later which will have the exact times. 
-
-Q: Will I be able to get a room at the Gaylord?
-A: If you are accepting before Dec 11th, You will have the chance to purchase a room at the Gaylord for use by your team.  If past that date, we can't guarantee a room but we will do our best to secure one for you.  If you are past that date and need to resolve if a room is available room before accepting, please email {{ c.MIVS_EMAIL|email_only }}
-
-Q: What will I have for setup?
-A: You will have 2 badges, 2 six foot tables, 4 chairs, and access to a power drop. You can expect the booth space to be 10’x10’.
 
 If you need something answered to determine your participation, please email {{ c.MIVS_EMAIL|email_only }}. Otherwise, please accept now and more information will be sent to you.
 
 *** Dropping Out
 
-After accepting your spot, we understand something may happen which may prevent you or your team from participating in the event.  If this happens, please contact us ASAP so we can allow one of our many wait-listed teams to participate. Telling us will leave you on good terms with the MIVS Volunteer Staff.  Deciding to not show up at MAGFest without contacting us will impact you at future events.
+After accepting your spot, we understand something may happen which may prevent you or your team from participating in the event. If this happens, please contact us ASAP so we can allow one of our many wait-listed teams to participate. Telling us will leave you on good terms with the MIVS Volunteer Staff. Deciding to not show up at MAGFest without contacting us will impact you at future events.
 
 Please confirm or decline at {{ c.URL_BASE }}/showcase/index?id={{ game.studio.id }} by {{ game.studio.confirm_deadline|datetime_local }}.
 
 {{ email_signature }}
+
