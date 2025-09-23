@@ -9,7 +9,7 @@ from uber.custom_tags import format_image_size
 from uber.decorators import all_renderable, ajax, csrf_protected
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, Group, IndieGameCode, IndieStudio, IndieDeveloper, IndieGameImage
+from uber.models import Attendee, Group, GuestGroup, IndieGameCode, IndieStudio, IndieDeveloper, IndieGameImage
 from uber.utils import add_opt, check, check_csrf, GuidebookUtils, validate_model
 
 
@@ -206,3 +206,79 @@ class Root:
             game.submitted = True
             raise HTTPRedirect('index?id={}&message={}', game.studio.id,
                                'Your game has been submitted to our panel of judges.')
+    
+    def confirm(self, session, id, decision=None, **params):
+        studio = session.indie_studio(id)
+
+        if not studio.comped_badges:
+            raise HTTPRedirect('index?id={}&message={}', studio.id,
+                               'You did not have any games accepted.')
+        elif studio.group:
+            raise HTTPRedirect('index?id={}&message={}', studio.id,
+                               'Your group has already been created.')
+        elif studio.after_confirm_deadline and not c.HAS_SHOWCASE_ADMIN_ACCESS:
+            raise HTTPRedirect('index?id={}&message={}', studio.id,
+                               'The deadline for confirming your acceptance has passed.')
+
+        has_leader = False
+        badges_remaining = studio.comped_badges
+        developers = sorted(studio.developers, key=lambda d: (not d.gets_emails, d.full_name))
+        for dev in developers:
+            if not dev.matching_attendee and badges_remaining:
+                dev.comped = True
+                badges_remaining -= 1
+            else:
+                dev.comped = False
+
+            if not has_leader and not getattr(dev.matching_attendee, 'group_id', None):
+                dev.leader = has_leader = True
+            else:
+                dev.leader = False
+
+        if cherrypy.request.method == 'POST':
+            assert decision in ['accept', 'decline']
+            if decision == 'decline':
+                for game in studio.games:
+                    if game.status == c.ACCEPTED:
+                        game.status = c.CANCELLED
+                raise HTTPRedirect('index?id={}&message={}', studio,id,
+                                   'You have been marked as declining space in the showcase.')
+            else:
+                group = studio.group = Group(name='Showcase Studio: ' + studio.name, can_add=True)
+                session.add(group)
+                session.commit()
+                for dev in developers:
+                    if dev.matching_attendee:
+                        add_opt(dev.matching_attendee.ribbon_ints, c.MIVS)
+                        if not dev.matching_attendee.group_id:
+                            group.attendees.append(dev.matching_attendee)
+                            if dev.leader:
+                                group.leader_id = dev.matching_attendee.id
+                        dev.matching_attendee.indie_developer = dev
+                    else:
+                        attendee = Attendee(
+                            placeholder=True,
+                            badge_type=c.ATTENDEE_BADGE,
+                            ribbon=c.MIVS,
+                            paid=c.NEED_NOT_PAY if dev.comped else c.PAID_BY_GROUP,
+                            first_name=dev.first_name,
+                            last_name=dev.last_name,
+                            cellphone=dev.cellphone,
+                            email=dev.email
+                        )
+                        attendee.indie_developer = dev
+                        group.attendees.append(attendee)
+                        session.commit()
+                        if dev.leader:
+                            group.leader_id = attendee.id
+                for i in range(badges_remaining):
+                    group.attendees.append(Attendee(badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY))
+                group.cost = group.calc_default_cost()
+                group.guest = GuestGroup()
+                group.guest.group_type = c.MIVS
+                raise HTTPRedirect('index?id={}&message={}', studio.id, 'Your studio has been registered!')
+
+        return {
+            'studio': studio,
+            'developers': developers
+        }
