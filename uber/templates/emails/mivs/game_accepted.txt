@@ -38,6 +38,6 @@ If you need something answered to determine your participation, please email {{ 
 
 After accepting your spot, we understand something may happen which may prevent you or your team from participating in the event.  If this happens, please contact us ASAP so we can allow one of our many wait-listed teams to participate. Telling us will leave you on good terms with the MIVS Volunteer Staff.  Deciding to not show up at MAGFest without contacting us will impact you at future events.
 
-Please confirm or decline at {{ c.URL_BASE }}/showcase/index?id={{ game.studio.id }} by {{ game.studio.confirm_deadline|datetime_local }}.
+Please confirm or decline at {{ c.URL_BASE }}/showcase/confirm?id={{ game.studio.id }} by {{ game.studio.confirm_deadline|datetime_local }}.
 
 {{ email_signature }}
