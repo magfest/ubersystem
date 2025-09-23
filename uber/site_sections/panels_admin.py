@@ -427,6 +427,7 @@ class Root:
             'Type of Panel',
             'Tabletop?',
             'Technical Needs',
+            'OK to Livestream',
             'Applied',
             'Panelists'])
 
@@ -448,6 +449,7 @@ class Root:
                 app.other_presentation if app.presentation == c.OTHER else app.presentation_label,
                 app.tabletop,
                 ' / '.join(app.tech_needs_labels) + (' / ' if app.other_tech_needs else '') + app.other_tech_needs,
+                app.livestream_label,
                 app.applied.strftime('%Y-%m-%d')
             ] + panelists)
 
