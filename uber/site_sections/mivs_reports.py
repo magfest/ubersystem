@@ -13,22 +13,21 @@ from uber.utils import localized_now
 class Root:
     @csv_file
     def social_media(self, out, session):
-        out.writerow(['Studio', 'Website', 'Twitter', 'Facebook'])
+        out.writerow(['Studio', 'Website', 'Other Links'])
         for game in session.indie_games().filter(IndieGame.showcase_type == c.MIVS):
             if game.confirmed:
                 out.writerow([
                     game.studio.name,
                     game.studio.website,
-                    game.studio.twitter,
-                    game.studio.facebook
+                    game.studio.other_links,
                 ])
 
     @csv_file
     def everything(self, out, session):
         out.writerow([
-            'Game', 'Studio', 'Studio URL', 'Primary Contact Names', 'Primary Contact Emails',
-            'Game Website', 'Twitter', 'Facebook', 'Other Social Media',
-            'Genres', 'Brief Description', 'Long Description', 'How to Play', 'Player Count',
+            'Game', 'Studio', 'Studio URL', 'Studio Website', 'Other Links',
+            'Primary Contact Names', 'Primary Contact Emails',
+            'Genres', 'Platforms', 'Brief Description', 'Long Description', 'How to Play', 'Player Count',
             'Link to Video for Judging', 'Link to Promo Video', 'Link to Game', 'Game Link Password',
             'Game Requires Codes?', 'Code Instructions', 'Build Status', 'Build Notes',
             'Game Submitted', 'Current Status',
@@ -39,14 +38,12 @@ class Root:
             out.writerow([
                 game.title,
                 game.studio.name,
-                '{}/mivs/index?id={}'.format(c.PATH, game.studio.id),
-                ' / '.join(game.studio.primary_contact_first_names),
-                game.studio.email,
-                game.link_to_webpage,
-                game.twitter,
-                game.facebook,
-                game.other_social_media,
-                ' / '.join(game.genres_labels),
+                '{}/showcase/index?id={}'.format(c.PATH, game.studio.id),
+                game.studio.website, game.studio.other_links,
+                game.studio.primary_contact_first_names,
+                ' / '.join(game.studio.email),
+                ' / '.join(game.genres_labels) + (f'{' / ' if game.genres else ''}Other: {game.genres_text}' if game.genres_text else ''),
+                ' / '.join(game.platforms_labels) + (f'{' / ' if game.platforms else ''}Other: {game.platforms_text}' if game.platforms_text else ''),
                 game.brief_description,
                 game.description,
                 game.how_to_play,
@@ -59,11 +56,11 @@ class Root:
                 game.code_instructions,
                 game.build_status_label,
                 game.build_notes,
-                'submitted' if game.submitted else 'not submitted',
-                'accepted and confirmed' if game.confirmed else game.status_label,
+                'Submitted' if game.submitted else 'Not Submitted',
+                'Accepted and Confirmed' if game.confirmed else game.status_label,
                 game.registered.strftime('%Y-%m-%d'),
-                'n/a' if not game.accepted else game.accepted.strftime('%Y-%m-%d'),
-                'n/a' if not game.accepted else game.studio.confirm_deadline.strftime('%Y-%m-%d'),
+                'N/A' if not game.accepted else game.accepted.strftime('%Y-%m-%d'),
+                'N/A' if not game.accepted else game.studio.confirm_deadline.strftime('%Y-%m-%d'),
                 '\n'.join(c.URL_BASE + screenshot.url.lstrip('.') for screenshot in game.screenshots),
                 str(game.average_score)
             ] + [str(score) for score in game.scores])
@@ -111,17 +108,15 @@ class Root:
                                                     IndieGame.status == c.ACCEPTED):
             screenshots = game.accepted_image_download_filenames()
             rows.append([
-                game.studio.name, game.studio.website,
-                game.title, game.brief_description, game.link_to_webpage,
-                game.twitter, game.facebook, game.other_social_media,
-                game.link_to_promo_video, game.link_to_video, game.link_to_game,
+                game.studio.name, game.studio.website, game.studio.other_links,
+                game.title, game.brief_description,
+                game.link_to_video, game.link_to_game,
                 screenshots[0], screenshots[1]
             ])
 
         header_row = [
-            'Studio', 'Studio Website',
+            'Studio', 'Studio Website', 'Other Links',
             'Game Title', 'Description', 'Website',
-            'Twitter', 'Facebook', 'Other Social Media',
             'Link to Promo Video', 'Link to Video for Judging', 'Link to Game',
             'Screenshot 1', 'Screenshot 2']
         out.writerows(header_row, rows)

@@ -283,7 +283,7 @@ class RetroLogistics(MagForm):
         'How do you plan to have your game physically available at the event?', default=0,
         description="Games that require Cartridge Assistance will be evaluated on a case-by case basis and the service is not guaranteed.",
         coerce=int, choices=[(0, 'Please select an option')] + c.INDIE_RETRO_DELIVERY_OPTS)
-    found_how = TextAreaField('How did you learn about the Indie Arcade?')
+    found_how = TextAreaField('How did you learn about Indie Retro?')
 
 
 class RetroScreenshot(MagForm):
