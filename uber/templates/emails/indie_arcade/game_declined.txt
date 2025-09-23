@@ -1,0 +1,9 @@
+{{ game.studio.primary_contact_first_names }},
+
+Thank you for your game submission ({{ game.title }}) to the MAGFest Indie Arcade.
+
+This is Matt from the Indie Arcade, writing to let you know that unfortunately we’re not going to be able to show {{ game.title }} at the MAGFest Indie Arcade this year. This was a record shattering year for submissions, and we encourage you to submit this or other projects to future events.
+
+Thank you for your submission,
+
+{{ email_signature }}

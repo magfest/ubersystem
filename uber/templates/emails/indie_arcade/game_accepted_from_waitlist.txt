@@ -1,0 +1,38 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+Congratulations!  Your game submission ({{ game.title }}) has been chosen to be part of the {{ c.ESCHATON.year }} MAGFest Indie Arcade!
+
+*** You now need to either CONFIRM or DECLINE your acceptance! ***
+
+Please confirm your spot OR decline it at {{ c.URL_BASE }}/showcase/index?id={{ game.studio.id }}
+
+You have until {{ game.studio.confirm_deadline|datetime_local }} to confirm (or decline).
+
+If you cannot make MAGFest, please decline ASAP so that we can contact the next game on our wait-list. Failure to either confirm or decline your game by the deadline is rude to others waiting and can be taken into account for future events. 
+
+*** FAQ
+
+You may have some questions about showing at MAGFest. Here's a quick FAQ, and you can see more at https://super.magfest.org/indie-arcade. More detailed information will come after you accept:
+
+Q: What's next after I accept?
+A: After you accept, you will have access to your developer checklist which includes information and links for booking your hotel, selling at the event, purchasing additional team member badges, etc. and the handbook which contains everything you need to know for the show. *Note that not all checklist items will be available immediately.
+
+Q: What's required of me and my team?
+A: Somebody from your team must be on-site all weekend, arriving on Wednesday Jan 7th or early Thursday Jan 8th to set up. The Indie Arcade staff will not be able to set up or monitor your machine for you. MAGFest is an intense stress-test for any custom machine, and we can almost guarantee from experience that something will go wrong with your game during the event. That is fine, but we will need you to be at the event to fix it. Our showroom is open to the public from Thursday at 1pm through Sunday at 2pm, and we expect to see your game ready to go during those times.
+
+Q: Will I be able to get a room at the Gaylord?
+A: Yes, you will have the chance to purchase a room from the Indies block at the Gaylord for use by your team as part of your checklist.
+
+Q: What is the Health and Safety policy for {{ c.ESCHATON.year }}?
+A: The Health and Safety policy is outlined at {{ c.COVID_POLICIES_URL }} - By accepting your spot in the Indie Arcade, you are agreeing to the Health and Safety policy.
+
+
+If you need something answered to determine your participation, please email {{ c.INDIE_ARCADE_EMAIL|email_only }}. Otherwise, please accept now and more information will be sent to you.
+
+*** Dropping Out
+
+After accepting your spot, we understand something may happen which may prevent you or your team from participating in the event. If this happens, please contact us ASAP so we can allow one of our many wait-listed teams to participate. Telling us will leave you on good terms with the Indie Arcade. Deciding to not show up at MAGFest without contacting us will impact you at future events.
+
+Please confirm or decline at {{ c.URL_BASE }}/showcase/confirm?id={{ game.studio.id }} by {{ game.studio.confirm_deadline|datetime_local }}.
+
+{{ email_signature }}
