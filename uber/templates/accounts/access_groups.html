@@ -38,8 +38,9 @@
                   updateAccesses(json.access, '_access');
                   updateAccesses(json.read_only_access, '_read_only_access');
                   updateAllColors();
-                  $('#start_time').val(json.start_time);
-                  $('#end_time').val(json.end_time);
+
+                  startFlatpickr.setDate(json.start_time);
+                  endFlatpickr.setDate(json.end_time);
               },
               error: function () {
                   showErrorMessage('Unable to connect to server, please try again.');
@@ -109,6 +110,8 @@
                   $('.select_read_only_access').val("0");
                   $.field('name').val('');
                   updateAllColors();
+                  startFlatpickr.setDate(default_start);
+                  endFlatpickr.setDate(default_end);
               }
               enableOrDisabledDelete();
           });
@@ -162,19 +165,19 @@
           var default_end = new Date('{{ c.ESCHATON.isoformat()[:-6] }}');
           default_start.setHours(0,0,0);
           default_end.setHours(0,0,0);
-          $('#start-time').flatpickr({
+          let startFlatpickr = flatpickr('#start_time',{
                 allowInput: true,
                 enableTime: true,
                 altInput: true,
-                altFormat: 'n/j/Y h:i K',
+                altFormat: 'n/j/Y h:i K l',
                 dateFormat: 'Z',
                 defaultDate: default_start
           });
-          $('#end_time').flatpickr({
+          let endFlatpickr = flatpickr('#end_time',{
                 allowInput: true,
                 enableTime: true,
                 altInput: true,
-                altFormat: 'n/j/Y h:i K',
+                altFormat: 'n/j/Y h:i K l',
                 dateFormat: 'Z',
                 defaultDate: default_end
           });
