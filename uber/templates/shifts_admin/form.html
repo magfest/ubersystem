@@ -140,13 +140,15 @@
   {% endif %}
 
   <script type="text/javascript">
-    $('#start-time').datetimepicker({
-      sideBySide: true,
-      useCurrent: false,
-      defaultDate: '{{ min_date.isoformat()[:-6] }}',
-      minDate: '{{ min_date.isoformat()[:-6] }}',
-      maxDate: '{{ max_date.isoformat()[:-6] }}',
-      format: 'M/D/Y h:mm A'
+    $('#start-time').flatpickr({
+        allowInput: true,
+        enableTime: true,
+        altInput: true,
+        altFormat: 'n/j/Y h:i K',
+        dateFormat: 'Z',
+        defaultDate: '{{ min_date.isoformat()[:-6] }}',
+        minDate: '{{ min_date.isoformat()[:-6] }}',
+        maxDate: '{{ max_date.isoformat()[:-6] }}'
     });
   </script>
   <div class="form-group">
