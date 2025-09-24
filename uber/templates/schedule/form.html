@@ -92,13 +92,15 @@
 </div>
 
 <script type="text/javascript">
-    $('#start-time').datetimepicker({
-      sideBySide: true,
-      useCurrent: false,
-      defaultDate: '{{ c.PANELS_EPOCH.isoformat()[:-6] }}',
-      minDate: '{{ c.PANELS_EPOCH.isoformat()[:-6] }}',
-      maxDate: '{{ c.PANELS_ESCHATON.isoformat()[:-6] }}',
-      format: 'M/D/Y h:mm A'
+    $('#start-time').flatpickr({
+        allowInput: true,
+        enableTime: true,
+        altInput: true,
+        altFormat: 'n/j/Y h:i K',
+        dateFormat: 'Z',
+        defaultDate: '{{ c.PANELS_EPOCH.isoformat()[:-6] }}',
+        minDate: '{{ c.PANELS_EPOCH.isoformat()[:-6] }}',
+        maxDate: '{{ c.PANELS_ESCHATON.isoformat()[:-6] }}'
     });
 
     var panelists = {{ panelists|jsonize }};

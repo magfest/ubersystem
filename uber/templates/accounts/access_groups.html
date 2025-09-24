@@ -162,15 +162,21 @@
           var default_end = new Date('{{ c.ESCHATON.isoformat()[:-6] }}');
           default_start.setHours(0,0,0);
           default_end.setHours(0,0,0);
-          $('#start_time').datetimepicker({
-            sideBySide: true,
-            defaultDate: default_start,
-            format: 'M/D/Y h:mm A'
+          $('#start-time').flatpickr({
+                allowInput: true,
+                enableTime: true,
+                altInput: true,
+                altFormat: 'n/j/Y h:i K',
+                dateFormat: 'Z',
+                defaultDate: default_start
           });
-          $('#end_time').datetimepicker({
-            sideBySide: true,
-            defaultDate: default_end,
-            format: 'M/D/Y h:mm A'
+          $('#end_time').flatpickr({
+                allowInput: true,
+                enableTime: true,
+                altInput: true,
+                altFormat: 'n/j/Y h:i K',
+                dateFormat: 'Z',
+                defaultDate: default_end
           });
           $('#start_time').val('');
           $('#end_time').val('');

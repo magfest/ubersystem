@@ -35,21 +35,25 @@
                 $opPanel.find('select[name*="mode"]').on('change', function() {onModeChange($(this));});
                 $opPanel.appendTo('#travels_container');
                 onModeChange($opPanel.find('select[name*="mode"]'));
-                $('#arrival-time' + suffix).datetimepicker({
-                  sideBySide: true,
-                  useCurrent: false,
-                  defaultDate: '{{ c.EPOCH.isoformat()[:-6] }}',
-                  minDate: '{{ min_arrival_time.isoformat()[:-6] }}',
-                  maxDate: '{{ max_arrival_time.isoformat()[:-6] }}',
-                  format: 'M/D/Y h:mm A'
+                $('#arrival-time' + suffix).flatpickr({
+                    allowInput: true,
+                    enableTime: true,
+                    altInput: true,
+                    altFormat: 'n/j/Y h:i K',
+                    dateFormat: 'Z',
+                    defaultDate: '{{ c.EPOCH.isoformat()[:-6] }}',
+                    minDate: '{{ min_arrival_time.isoformat()[:-6] }}',
+                    maxDate: '{{ max_arrival_time.isoformat()[:-6] }}'
                 });
-                $('#departure-time' + suffix).datetimepicker({
-                  sideBySide: true,
-                  useCurrent: false,
-                  defaultDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
-                  minDate: '{{ min_departure_time.isoformat()[:-6] }}',
-                  maxDate: '{{ max_departure_time.isoformat()[:-6] }}',
-                  format: 'M/D/Y h:mm A'
+                 $('#departure-time' + suffix).flatpickr({
+                    allowInput: true,
+                    enableTime: true,
+                    altInput: true,
+                    altFormat: 'n/j/Y h:i K',
+                    dateFormat: 'Z',
+                    defaultDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
+                    minDate: '{{ min_departure_time.isoformat()[:-6] }}',
+                    maxDate: '{{ max_departure_time.isoformat()[:-6] }}'
                 });
             }
         }
