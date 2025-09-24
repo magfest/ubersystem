@@ -1,6 +1,4 @@
 {% extends "preregistration/preregbase.html" %}
-{% import 'art_show_common/bidder_signup_macros.html' as bidder_signup_macros with context %}
-{% include "region_opts.html" %}
 {% block title %}Sign Up for Bidder Number{% endblock %}
 
 {% block content %}
@@ -17,7 +15,7 @@
         If you are an artist in the Art Show, go straight to a "Bidder Sign-Up" table.
     </p>
     <form method="post" action="bidder_signup" role="form">
-    {{ bidder_signup_macros.sign_up_form(attendee, printable=False) }}
+    {% include 'forms/art_show/bidder_signup.html' with context %}
     <button type="submit" class="btn btn-primary">Begin Bidder Sign-Up</button>
     </form>
     {% endif %}

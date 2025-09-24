@@ -4,8 +4,12 @@
 
 {# BLOCK NAMES in this form:
     x_data
-    title_desc
-    dev_video
+    hours
+    physical_setup
+    found_faq
+    sanitation
+    transit
+    mailing_list
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
@@ -22,7 +26,7 @@ get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
 {% endblock %} }">
 
 <div class="row g-3 mb-3">
-{% block title_desc %}
+{% block hours %}
     <div class="col-sm">
         {{ c.EVENT_NAME }} runs for 72 hours straight. It's a lot of fun but it can be taxing for physical installations. Will your game be able to run uninterrupted for this time?
         <br/>{% call form_macros.input(arcade_logistics.game_hours, alpine_model="game_hours", show_label=False) %}
@@ -40,7 +44,7 @@ get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
 
 
 <div class="row g-3 mb-3">
-{% block dev_video %}
+{% block physical_setup %}
   <div class="col-sm">
     {% call form_macros.input(arcade_logistics.floorspace, alpine_model="floorspace") %}
     <div x-show="otherFloorSpace">{{ form_macros.input(arcade_logistics.floorspace_text, required_if="otherFloorSpace") }}</div>
@@ -58,14 +62,14 @@ get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
 </div>
 
 <div class="row g-3 mb-3">
-{% block three %}
+{% block found_faq %}
 <div class="col-sm">{{ form_macros.input(arcade_logistics.found_how) }}</div>
 <div class="col-sm">{{ form_macros.input(arcade_logistics.read_faq) }}</div>
 {% endblock %}
 </div>
 
 <div class="row g-3 mb-3">
-{% block one %}
+{% block sanitation %}
     <div class="col-12 alert alert-info mb-0">
         <p>The Indie Arcade understands that standard safety precautions such as masking, social distancing, and surface cleaning can be difficult 
         for innovative and custom-made games. We are committed to creating a safe environment for both players and games - 
@@ -78,7 +82,7 @@ get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
 </div>
 
 <div class="row g-3 mb-3">
-{% block four %}
+{% block transit %}
 <div class="col-sm">
         {{ form_macros.input(arcade_logistics.needs_transit, alpine_model="needs_transit") }}
     </div>
@@ -95,7 +99,7 @@ get otherCabinetType() { return this.cabinet_type == '{{ c.OTHER }}' },
 </div>
 
 <div class="row g-3 mb-3">
-{% block two %}
+{% block mailing_list %}
     <div class="col-sm">{{ form_macros.input(arcade_logistics.mailing_list) }}</div>
 {% endblock %}
 </div>

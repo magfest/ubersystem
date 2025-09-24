@@ -1,8 +1,9 @@
 import cherrypy
 from functools import wraps
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from markupsafe import Markup
+from dateutil.relativedelta import relativedelta
 from wtforms import (BooleanField, DateField, EmailField,
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
                      StringField, TelField, validators, TextAreaField)
@@ -61,8 +62,8 @@ if c.COLLECT_FULL_ADDRESS:
             lambda x: (not x or not x.data) and field_name not in placeholder_unassigned_fields(x.form))
 
     for field_name in ['region', 'region_us', 'region_canada']:
-        PersonalInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(field_name,
-                                                                                                    check_placeholder=True)
+        PersonalInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(
+            field_name, check_placeholder=True)
 
 
 PersonalInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
@@ -157,8 +158,12 @@ def birthdate_format(form, field):
             raise StopValidation('Please use the format MM/DD/YYYY for your date of birth.')
     else:
         value = field.data
+
     if value > date.today():
-        raise ValidationError('You cannot be born in the future.')
+        raise StopValidation('You cannot be born in the future.')
+    
+    if value < (date.today() - relativedelta(years=120)):
+        raise StopValidation('You cannot be more than 120 years old.')
 
 
 @PersonalInfo.field_validation('birthdate')
@@ -220,7 +225,8 @@ def must_select_day(form, field):
     if form.is_admin or (form.model.attendance_type == form.attendance_type.data and not form.model.is_new):
         return
 
-    if form.attendance_type.data and form.attendance_type.data == c.SINGLE_DAY and c.BADGES[field.data] not in c.DAYS_OF_WEEK:
+    if hasattr(c, 'SINGLE_DAY') and form.attendance_type.data and \
+            form.attendance_type.data == c.SINGLE_DAY and c.BADGES[field.data] not in c.DAYS_OF_WEEK:
         raise ValidationError("Please select which day you would like to attend.")
 
 
@@ -294,7 +300,6 @@ Consents.field_validation.required_fields = {
 
 AdminBadgeFlags.field_validation.validations['overridden_price']['minimum'] = validators.NumberRange(
     min=0, message="Base badge price must be a number that is 0 or higher.")
-AdminBadgeFlags.field_validation.validations['badge_num']['optional'] = validators.Optional()
 
 
 @AdminBadgeFlags.new_or_changed('badge_num')
@@ -309,6 +314,18 @@ def dupe_badge_num(form, field):
             else:
                 existing_name = existing.first().attendee.full_name
         raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))
+
+
+@AdminBadgeFlags.field_validation('badge_num')
+def not_in_range(form, field):
+    if not field.data or form.no_badge_num and form.no_badge_num.data:
+        return
+
+    badge_type = get_real_badge_type(form.model.badge_type)
+    lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
+    if not (lower_bound <= int(field.data) <= upper_bound):
+        raise ValidationError(f'Badge number {field.data} is out of range for badge type \
+                              {c.BADGES[form.model.badge_type]} ({lower_bound} - {upper_bound})')
 
 # =============================
 # CheckInForm

@@ -120,8 +120,8 @@ class Root:
             count = attendees.count()
 
         if order in ['badge_num', '-badge_num']:
-            attendees = attendees.outerjoin(BadgeInfo).order_by(BadgeInfo.ident.desc()
-                                                                if order.startswith('-') else BadgeInfo.ident)
+            attendees = attendees.order_by(BadgeInfo.ident.desc()
+                                           if order.startswith('-') else BadgeInfo.ident)
         else:
             attendees = attendees.order(order)
 
@@ -251,8 +251,8 @@ class Root:
                             attendee.amount_unpaid_if_valid)
                         stay_on_form = True
                     else:
-                        attendee.check_in()
                         session.commit()
+                        attendee.check_in()
                         message = '{} saved and checked in as {}{}.'.format(
                             attendee.full_name, attendee.badge, attendee.accoutrements)
                         stay_on_form = False
@@ -513,8 +513,8 @@ class Root:
                                                                  c.REG_RECEIPT_ITEM,
                                                                  c.GROUP_BADGE,
                                                                  f'Adding {badges} Badge{"s" if badges > 1 else ""}',
-                                                                 badges * int(cost_per_badge) * 100),
-                                                                 purchaser_id=buyer_id if buyer_id != None else buyer.id)
+                                                                 badges * int(cost_per_badge) * 100,
+                                                                 purchaser_id=buyer_id if buyer_id != None else buyer.id))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
 
         return {
@@ -899,7 +899,8 @@ class Root:
 
         for form in forms.values():
             form.populate_obj(attendee, is_admin=True)
-
+        
+        session.commit()
         pre_badge = attendee.badge_num
         success, increment = False, False
 
@@ -1256,11 +1257,11 @@ class Root:
         if 'reg_station' not in cherrypy.session:
             raise HTTPRedirect('index?message={}', 'You must set your reg station number')
 
+        session.commit()
         attendee.check_in()
         attendee.reg_station = cherrypy.session.get('reg_station')
         message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
         checked_in = attendee.id
-        session.commit()
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 

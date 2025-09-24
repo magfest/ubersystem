@@ -1,18 +1,72 @@
-{% macro label(field, label_text='', required_if=None) %}
+{% macro label(field, label_text='', required_if="false") %}
   <label for="{{ field.label.field_id }}"
 {% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>{{ label_text }}
   <span class="required-indicator text-danger" x-show="{{ required_if }}"> *</span></label>
 {% endmacro %}
 
 
-{% macro input(field, label_text='', help_text='', admin_text='', show_label=True, label_kwargs={}) %}
+{% macro input(field, label_text='', help_text='', admin_text='', show_label=True, field_only=False, label_kwargs={}) %}
 {#
   Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
   field (Field): WTForms form field.
   help_text (str): Extra text to display on non-admin pages underneath the field.
   admin_text (str): Extra text to display on admin pages underneath the field.
   show_label (bool): Set to False to avoid rendering the label for the field.
+  field_only (bool): Set to True to suppress all other text associated with this field,
+                     including the validation and label.
+  null_text (str): Only used when an entire form is set to read-only. This controls what
+                   is displayed if the field is empty.
+  label_kwargs (dict): Passed to the label macro.
 #}
+
+{% set label_text = label_text or field.label.text %}
+{% set widget = field.widget|string %}
+
+{% if field.form.read_only and ('readonly' not in kwargs or kwargs['readonly'] == True) and 'Hidden' not in widget %}
+  {% if show_label and not field_only and 'CheckboxInput' not in widget and 'SwitchInput' not in widget %}
+  <div class="form-text">{{ label_text }}</div>
+  {% endif %}
+
+  {% set choices = kwargs['choices'] if 'choices' in kwargs else field.choices %}
+  {% set null_text = null_text or "N/A" %}
+
+  {% set field_display %}
+    {% if 'Ranking' in widget %}
+    <ul class="list-group col-sm-6 mb-3">
+      {% for choice in field.data %}
+      {% set choice_item = dict(choices)[choice] %}
+      {% set extra_info = field.widget.extra_info_list(choice_item, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) %}
+      <li class="list-group-item p-2 p-sm-3">
+        <h4 class="{{ 'mb-0' if not extra_info else 'mb-1 mb-sm-2' }}">{{ loop.index }}) {{ choice_item['name'] }}</h4>
+        {% for html in extra_info %}{{ html|safe }}{% endfor %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% elif choices %}
+      {% if 'MultiCheckbox' in widget %}
+        {% if not field.data %}
+          {{ null_text }}
+        {% else %}
+          {% for item in field.data %}
+          {{ dict(choices)[item] }}{% if not loop.last %} / {% endif %}
+          {%- endfor %}
+        {% endif %}
+      {% elif field.data in [True, False] %}
+        {{ dict(choices)['yes' if field.data == True else 'no'] }}
+      {%- else %}
+        {{ dict(choices)[field.data] }}
+      {%- endif %}
+    {%- elif 'Checkbox' in widget or 'SwitchInput' in widget %}
+      {% if field.data %}
+      &#10003; {{ label_text }}
+      {%- endif %}
+    {%- else %}
+      {{ field.data|default(null_text, true) }}
+    {%- endif %}
+  {%- endset %}
+  {{ field_display }}{% if caller %}{% if field.data %}: {% endif %}{{ caller() }}{% endif %}
+
+{% else %}
 
 {% set custom_kwargs = {} %}
 
@@ -25,19 +79,14 @@
   {% endif %}
 {% endfor %}
 
-{% if field.form.read_only and not 'readonly' in kwargs %}
-{% set _ = custom_kwargs.update({'readonly': true}) %}
-{% endif %}
-
 {% if locked_fields|default(None, true) and field.name in locked_fields and not upgrade_modal %}
 {% set _ = custom_kwargs.update({'readonly': true}) %}
 {% endif %}
 
-{% set widget = field.widget|string %}
-{% set label_text = label_text or field.label.text %}
 {% set is_readonly = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
 
 {% set text_below_field %}
+{% if not field_only %}
   {% if field.form.admin_desc %}{% set admin_text = admin_text or field.description %}{% endif %}
 
   {% if not admin_area and (help_text or field.description) %}
@@ -50,13 +99,14 @@
     </div>
   {% endif %}
   <div id="{{ field.id }}-validation" class="invalid-feedback" role="alert"></div>
+{% endif %}
 {% endset %}
 
-{% if show_label and 'Checkbox' not in widget and 'SwitchInput' not in widget %}
+{% if show_label and not field_only and 'Checkbox' not in widget and 'SwitchInput' not in widget %}
   <div class="form-text">{{ label(field, label_text, label_required, **label_kwargs) }}</div>
 {% endif %}
 {% if 'CheckboxInput' in widget or 'SwitchInput' in widget %}
-  <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
+  <div class="form-check{% if 'SwitchInput' in widget %} form-switch{% endif %}">
     {% if is_readonly %}
     <input type="hidden" name="{{ field.id }}" value="{{ field.data }}" />
     {{ field(checked=custom_kwargs.pop('checked') if 'checked' in custom_kwargs else field.data, disabled=true, value=1, **custom_kwargs) }}
@@ -75,7 +125,7 @@
   {% if caller %}{{ caller() }}{% endif %}
 {% elif 'MultiCheckbox' in widget %}
 <fieldset id="{{ field.id }}">
-  {% if show_label %}<legend class="mb-0 form-text">{{ label(field, label_text, label_required, **label_kwargs) }}</legend>{% endif %}
+  {% if show_label and not field_only %}<legend class="mb-0 form-text">{{ label(field, label_text, label_required, **label_kwargs) }}</legend>{% endif %}
   <div class="card card-body">
     <div class="checkgroup">
       {{ field(**custom_kwargs) }}
@@ -89,6 +139,7 @@
   {{ field(**custom_kwargs) }}
   {{ text_below_field }}
   {% if caller %}{{ caller() }}{% endif %}
+{% endif %}
 {% endif %}
 {% endmacro %}
 
@@ -203,7 +254,8 @@
 </script>
 {%- endmacro %}
 
-{% macro address_fields(form_obj) %}
+{% macro address_fields(form_obj, label_prefix='') %}
+{% if not form_obj.read_only %}
 <script type="module">
   import Autocomplete from "https://cdn.jsdelivr.net/gh/lekoala/bootstrap5-autocomplete@master/autocomplete.js";
 
@@ -231,6 +283,7 @@
   })
   }
 </script>
+{% endif %}
 <div x-data='{
   country: {{ form_obj.country.data|tojson }},
   get copyAddress() { return this.copy_address },
@@ -239,34 +292,34 @@
 }'>
   <div class="row g-3 mb-3">
     <div class="col-sm">
-      {{ form_macros.input(form_obj.address1, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+      {{ input(form_obj.address1, label_text=label_prefix + form_obj.address1.label.text, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
     <div class="col-sm">
-      {{ form_macros.input(form_obj.address2, **{':disabled':'copyAddress'}) }}
+      {{ input(form_obj.address2, label_text=label_prefix + form_obj.address2.label.text, **{':disabled':'copyAddress'}) }}
     </div>
   </div>
   <div class="row g-3 mb-3">
     <div class="col-sm">
-      {{ form_macros.input(form_obj.country, required_if="addressRequired", **{'x-model': 'country', ':disabled': 'copyAddress'}) }}
+      {{ input(form_obj.country, label_text=label_prefix + form_obj.country.label.text, required_if="addressRequired", **{'x-model': 'country', ':disabled': 'copyAddress'}) }}
     </div>
     <div class="col-sm">
       <div x-show="country == 'United States'">
-        {{ form_macros.input(form_obj.region_us, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+        {{ input(form_obj.region_us, label_text=label_prefix + form_obj.region_us.label.text, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
       </div>
       <div x-show="country == 'Canada'">
-        {{ form_macros.input(form_obj.region_canada, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+        {{ input(form_obj.region_canada, label_text=label_prefix + form_obj.region_canada.label.text, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
       </div>
       <div x-show="isGlobal">
-        {{ form_macros.input(form_obj.region, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+        {{ input(form_obj.region, label_text=label_prefix + form_obj.region.label.text, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
       </div>
     </div>
   </div>
   <div class="row g-3 mb-3">
     <div class="col-sm">
-      {{ form_macros.input(form_obj.city, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+      {{ input(form_obj.city, label_text=label_prefix + form_obj.city.label.text, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
     <div class="col-sm">
-      {{ form_macros.input(form_obj.zip_code, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
+      {{ input(form_obj.zip_code, label_text=label_prefix + form_obj.zip_code.label.text, required_if="addressRequired", **{':disabled':'copyAddress'}) }}
     </div>
   </div>
 </div>
@@ -349,7 +402,6 @@
             {{ callback|safe }};
           {% else %}
           if (submit_button_name != '') {
-            console.log($("#{{ form_id }}").find($("[name=" + submit_button_name + "]")))
             $("#{{ form_id }}").find($("[name=" + submit_button_name + "]")).click();
           } else {
             $("#{{ form_id }}").submit();

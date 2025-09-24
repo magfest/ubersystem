@@ -30,7 +30,7 @@ x-data="{ {% block x_data %}
    delivery_method: {{ art_show_info.delivery_method.data|tojson }},
    panels_ad: {{ art_show_info.panels_ad.data|tojson }},
    tables_ad: {{ art_show_info.tables_ad.data|tojson }},
-   separate_ad_banner: '{{ app.banner_name_ad }}',
+   separate_ad_banner: {{ app.banner_name_ad|boolean|tojson }},
    get deliveryByMail() { return this.delivery_method == {{ c.BY_MAIL|tojson }} },
 {% endblock %} }">
 
@@ -42,14 +42,23 @@ x-data="{ {% block x_data %}
 
 <div class="row g-3 mb-3">
 {% block name_delivery %}
+{% if not app.is_new %}
 {{ form_macros.input(art_show_info.not_attending, show_label=False, alpine_model="not_attending") }}
+{% endif %}
 <div class="col-sm">{{ form_macros.input(art_show_info.artist_name) }}</div>
 <div class="col-sm">
     {% call form_macros.input(art_show_info.delivery_method, alpine_model="delivery_method", disabled=readonly) %}
-        {% if c.ART_MAILING_FEE or c.BY_MAIL_US_ONLY %}
+        {% if c.BASE_ART_MAILING_FEE or c.BY_MAIL_US_ONLY %}
         <div x-show="deliveryByMail">
-            {% if c.ART_MAILING_FEE %}
-            <span class="form-text">Mailing your art to the show incurs a fee of {{ c.ART_MAILING_FEE|format_currency }}.</span>
+            {% if c.BASE_ART_MAILING_FEE %}
+            <span class="form-text">
+                {% if c.EXTRA_ART_MAILING_FEE and c.EXTRA_ART_MAILING_INCREMENT %}
+                Mailing your art to the show incurs a fee, starting at {{ c.BASE_ART_MAILING_FEE|format_currency }} for {{ c.BASE_ART_MAILING_SPACES }} spaces
+                and increasing by {{ c.EXTRA_ART_MAILING_FEE|format_currency }} for every {{ c.EXTRA_ART_MAILING_INCREMENT }} spaces on top of that.
+                {% else %}
+                Mailing your art to the show incurs a fee of {{ c.BASE_ART_MAILING_FEE|format_currency }}.
+                {% endif %}
+            </span>
             {% endif %}
             {% if c.BY_MAIL_US_ONLY %}
             {{ form_macros.input(art_show_info.us_only, required_if="deliveryByMail", disabled=readonly) }}

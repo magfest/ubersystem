@@ -1,21 +1,36 @@
 {% set attendee = attendee or application.attendee %}
 <h2>Hotel Contact Information</h2>
 
+{% if not application.current_lottery_closed %}
 <p>
     Hotels require your first and last name to match the photo ID you use during check-in, plus a phone number they can contact you at.
     {% if 'index' not in c.PAGE_PATH %}
-    We need this information even if you are planning to join a room group. Please verify your first name, last name, and phone number below.
+        {% if c.SHOW_HOTEL_LOTTERY_GROUPS %}
+        We need this information even if you are planning to join a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.
+        {% endif %}
     {% else %}
-    You can update your contact information below. Please make sure it is accurate!
+        You can update your contact information below. Please make sure it is accurate!
     {% endif %}
 </p>
 
+{% if application.is_new %}
+<p>
+    Please verify your first and last name below accurately matches the first and last name listed on your photo ID.
+    You will not be able to change it after continuing.
+</p>
+<p>
+    <strong>If the name on your lottery application does not reasonably match your registration information, your lottery entry will be disqualified.</strong>
+    Contact {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to update the name on your registration, or {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} if you have any questions.
+</p>
+{% endif %}
+{% endif %}
+
 <div class="row g-3 mb-3">
     <div class="col-sm">
-        {{ form_macros.input(lottery_info.legal_first_name, value=lottery_info.legal_first_name.data or attendee.legal_first_name) }}
+        {{ form_macros.input(lottery_info.legal_first_name, value=lottery_info.legal_first_name.data or attendee.legal_first_name, readonly=not application.is_new) }}
     </div>
     <div class="col-sm">
-        {{ form_macros.input(lottery_info.legal_last_name, value=lottery_info.legal_last_name.data or attendee.legal_last_name) }}
+        {{ form_macros.input(lottery_info.legal_last_name, value=lottery_info.legal_last_name.data or attendee.legal_last_name, readonly=not application.is_new) }}
     </div>
 </div>
 <div class="row g-3 mb-3">

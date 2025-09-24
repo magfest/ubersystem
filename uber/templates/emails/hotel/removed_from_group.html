@@ -2,23 +2,26 @@
 <head></head>
 <body>
 <p>
-    {{ application.attendee.full_name }},<br/>
-    This is to notify you that {% if old_room_group_name %}the room group you were in, "{{ old_room_group_name }}", has been disbanded{% else %}you have been removed from the room group "{{ parent.room_group_name }}".{% endif %}
+    {{ app.attendee.full_name }},<br/>
+    This is to notify you that {% if old_room_group_name %}the {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} you were in, "{{ old_room_group_name }}", has been disbanded{% else %}you have been removed from the {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} "{{ parent.room_group_name }}".{% endif %}
 </p>
 <p>
-    {% if application.status == c.COMPLETE %}
-    Since you completed a {{ application.entry_type_label|lower }} lottery entry before joining the room group, we have reverted you back to your status before joining.
-    You {{ application.current_status_str }}.
+    {% if app.status == c.COMPLETE %}
+    Since you completed a {{ app.entry_type_label|lower }} lottery entry before joining the {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}, we have reverted you back to your status before joining.
+    You {{ app.application_status_str }}.
 </p>
-<p><strong>Your new confirmation number is {{ application.confirmation_num }}.</strong> Your previous confirmation number is now invalid.</p>
+<p><strong>Your new confirmation number is {{ app.confirmation_num }}.</strong> Your previous confirmation number is now invalid.</p>
 <p>
-    For more options, log into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.
+    For more options, {% if c.ATTENDEE_ACCOUNTS_ENABLED %}log into{% else %}visit{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.
     {% else %}
     <strong>This means that you have been withdrawn from the {{ c.EVENT_NAME }} hotel lottery.</strong>
     You do NOT have an entry in the lottery and will not be awarded a room.
 </p>
-<p>You can <a href="{{ c.URL_BASE }}/hotel_lottery/start?attendee_id={{ application.attendee.id }}" target="_blank">enter the lottery</a> any time until {{ application.current_lottery_deadline|datetime_local }}.
+{% if app.current_lottery_deadline %}
+<p>
+    You can <a href="{{ c.URL_BASE }}/hotel_lottery/start?attendee_id={{ app.attendee.id }}" target="_blank">enter the lottery</a> any time until {{ app.current_lottery_deadline|datetime_local }}.
     {% endif %}
 </p>
+{% endif %}
 </body>
 </html>

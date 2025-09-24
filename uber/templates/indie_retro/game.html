@@ -1,0 +1,38 @@
+{% import 'forms/macros.html' as form_macros with context %}
+{% extends "preregistration/preregbase.html" %}
+{% set title_text = c.EVENT_NAME ~ "Indie Retro Game" %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<div class="card card-body">
+  <h2>{% if game.is_new %}Register an Indie Retro Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>
+  <p>
+    Indie Retro is home to physical cartridges and throwback PC games from DOS and earlier.
+  </p>
+  <p>Not sure where to submit your game? <a href="#" data-bs-toggle="modal" data-bs-target="#showcase-types">Check here</a> for a list of all {{ c.EVENT_NAME }} indie showcases.</p>
+  {% include 'showcase/showcase_types.html' %}
+
+  {{ form_macros.form_validation('game-form', 'validate_game') }}
+  <form novalidate method="post" id="game-form" action="game" enctype="multipart/form-data" role="form">
+    <input type="hidden" name="id" value="{{ game.db_id }}" />
+    <input type="hidden" name="studio_id" value="{{ studio.id }}" />
+    {{ csrf_token() }}
+
+    <div class="card card-body pb-0 mb-3">
+      <h3>Basic Information</h3>
+    {% include "forms/showcase/retro_game_info.html" %}
+    </div>
+
+    <div class="card card-body pb-0 mb-3">
+      <h3>Game Details</h3>
+    {% include "forms/showcase/retro_game_details.html" %}
+    </div>
+
+    <div class="card card-body pb-0 mb-3">
+      <h3>Additional Information</h3>
+    {% include "forms/showcase/retro_logistics.html" %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">{% if game.is_new %}Add Game{% else %}Upload Changes{% endif %}</button>
+  </form>
+</div>
+{% endblock %}

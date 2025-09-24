@@ -1,0 +1,35 @@
+{% for studio in studios %}
+<div
+    id="studio-{{ studio.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="studio-{{ studio.id }}-title"
+    style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <h4 class="modal-title" id="studio-{{ studio.id }}-title">
+            {{ studio.name }} Information
+        </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form novalidate method="post" action="update_studio" id="studio-{{ studio.id }}-form" role="form">
+        <div class="modal-body">
+            <a href="../showcase/index?id={{ studio.id }}" class="btn btn-primary mb-3" target="_blank">View Studio Application <i class="fa fa-external-link"></i></a>
+            {{ form_macros.form_validation('studio-' ~ studio.id ~ '-form', 'validate_studio') }}
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ studio.id }}" />
+            <input type="hidden" name="showcase_type" value="{{ showcase_type }}" />
+            {% set studio_info = studio_forms[studio.id]['studio_info'] %}
+            {% include 'forms/showcase/admin_studio_info.html' with context %}
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Update Studio</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </form>
+    </div>
+    </div>
+</div>
+{% endfor %}

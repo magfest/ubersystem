@@ -21,7 +21,7 @@
 
     function attendeeMetadata() {
         return {
-            default_placeholder: {{ (not admin_area and 'register_group_member' in c.PAGE_PATH and not c.ATTENDEE_ACCOUNTS_ENABLED)|tojson }},
+            default_placeholder: false,
             forbid_placeholder: {{ (not admin_area and attendee.placeholder)|tojson }},
             badge_placeholder: {{ attendee.placeholder|boolean|tojson }},
             badge_ribbons: {{ attendee.ribbon_ints|tojson }},

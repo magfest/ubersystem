@@ -42,53 +42,67 @@ class Root:
             entry = WatchList()
 
         forms = load_forms(params, entry, ['WatchListEntry'])
-        for form in forms.values():
-            form.populate_obj(entry)
-
         entry.attendee_guesses = session.guess_watchentry_attendees(entry)
 
         if cherrypy.request.method == 'POST':
-            all_errors = validate_model(forms, entry)
-            if all_errors:
-                message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+            for form in forms.values():
+                form.populate_obj(entry)
 
             changed_attendees = 0
+            entry_pii_updated = entry.is_new or any(
+                [entry.orig_value_of(attr) != getattr(entry, attr) for attr in ['first_names', 'last_name',
+                                                                                'email', 'birthdate']])
+            session.add(entry)
+            session.commit()
 
-            if not message:
-                entry_pii_updated = entry.is_new or any(
-                    [entry.orig_value_of(attr) != getattr(entry, attr) for attr in ['first_names', 'last_name',
-                                                                                    'email', 'birthdate']])
-                session.add(entry)
-                session.commit()
+            if entry.active:
+                for attendee in entry.attendee_guesses:
+                    if entry_pii_updated and attendee.is_valid and attendee.badge_status != c.WATCHED_STATUS:
+                        attendee.badge_status = c.WATCHED_STATUS
+                        changed_attendees += 1
+                        session.add(attendee)
+            else:
+                for attendee in entry.attendees + entry.attendee_guesses:
+                    if attendee.badge_status == c.WATCHED_STATUS:
+                        attendee.badge_status = c.NEW_STATUS
+                        changed_attendees -= 1
+            new_status = c.BADGE_STATUS[c.WATCHED_STATUS] if changed_attendees > 0 else c.BADGE_STATUS[c.NEW_STATUS]
+            changed_message = "" if not changed_attendees else \
+                                " and {} attendee{} moved to {} status".format(abs(changed_attendees),
+                                                                                's' if changed_attendees else '',
+                                                                                new_status)
 
-                if entry.active:
-                    for attendee in entry.attendee_guesses:
-                        if entry_pii_updated and attendee.is_valid and attendee.badge_status != c.WATCHED_STATUS:
-                            attendee.badge_status = c.WATCHED_STATUS
-                            changed_attendees += 1
-                            session.add(attendee)
-                else:
-                    for attendee in entry.attendees + entry.attendee_guesses:
-                        if attendee.badge_status == c.WATCHED_STATUS:
-                            attendee.badge_status = c.NEW_STATUS
-                            changed_attendees -= 1
-                new_status = c.BADGE_STATUS[c.WATCHED_STATUS] if changed_attendees > 0 else c.BADGE_STATUS[c.NEW_STATUS]
-                changed_message = "" if not changed_attendees else \
-                                  " and {} attendee{} moved to {} status".format(abs(changed_attendees),
-                                                                                 's' if changed_attendees else '',
-                                                                                 new_status)
-
-                if 'id' not in params:
-                    message = 'New watchlist entry added'
-                else:
-                    message = 'Watchlist entry updated'
-                raise HTTPRedirect('index?message={}{}', message, changed_message)
+            if 'id' not in params:
+                message = 'New watchlist entry added'
+            else:
+                message = 'Watchlist entry updated'
+            raise HTTPRedirect('index?message={}{}', message, changed_message)
 
         return {
             'forms': forms,
             'entry': entry,
             'message': message
         }
+    
+    @ajax
+    def validate_watchlist_entry(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            entry = WatchList()
+        else:
+            entry = session.watch_list(params.get('id'))
+
+        if not form_list:
+            form_list = ['WatchListEntry']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        
+        forms = load_forms(params, entry, form_list)
+        errors = validate_model(forms, entry, is_admin=True)
+
+        if errors:
+            return {"error": errors}
+
+        return {"success": True}
 
     @ajax
     def update_watchlist_entry(self, session, attendee_id, watchlist_id=None, message='', **params):

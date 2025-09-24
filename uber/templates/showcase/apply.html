@@ -1,6 +1,6 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% extends "preregistration/preregbase.html" %}
-{% set title = c.EVENT_NAME ~ "Showcase Application" %}
+{% set title_text = c.EVENT_NAME ~ "Showcase Application" %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
@@ -14,7 +14,7 @@
 
         {% include 'showcase/deadlines.html' %}
     {% else %}
-        {% if c.HAS_ANY_SHOWCASE_ADMIN_ACCESS and not c.INDIE_SHOWCASE_OPEN %}
+        {% if c.HAS_SHOWCASE_ADMIN_ACCESS and not c.INDIE_SHOWCASE_OPEN %}
         <div class="alert alert-warning">
             ADMIN NOTE: Because you are logged in as a MIVS or Indie Arcade admin, you can still use this form to manually enter a new
             studio. For non-admin users, they will see a message about the deadline being passed.
@@ -39,7 +39,7 @@
           {{ csrf_token() }}
           
           <h3>Studio Information</h3>
-          {% include "forms/showcase/studio.html" %}
+          {% include "forms/showcase/studio_info.html" %}
 
           <h3>Your Information</h3>
           {% include "forms/showcase/developer.html" %}

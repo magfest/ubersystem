@@ -9,12 +9,13 @@ from sqlalchemy import func, literal_column
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render
 from uber.errors import HTTPRedirect
 from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
     PanelApplicant, PanelApplication, GuestGroup
 from uber.utils import add_opt, check, localized_now, validate_model
 from uber.forms import load_forms
+from uber.tasks.email import send_email
 
 
 @all_renderable()
@@ -29,7 +30,7 @@ class Root:
                 message = f"No panel applications found for the {dept.name} department."
         return {
             'message': message,
-            'apps': session.panel_apps(),
+            'apps': apps,
             'department': dept,
         }
 
@@ -50,10 +51,10 @@ class Root:
         
         for panelist in app.other_panelists:
             panelist_forms[panelist.id] = load_forms(params, panelist, panelist_form_list,
-                                               {form_name: panelist.id for form_name in panelist_form_list})
+                                                     field_prefix=panelist.id)
         
         panelist_forms['new'] = load_forms(params, PanelApplicant(), panelist_form_list,
-                                           {form_name: 'new' for form_name in panelist_form_list})
+                                           field_prefix='new')
         
         guest_groups = session.query(GuestGroup).filter(GuestGroup.group_type != c.MIVS).options(
             joinedload(GuestGroup.group))
@@ -86,7 +87,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, app, form_list)
-        all_errors = validate_model(forms, app)
+        all_errors = validate_model(forms, app, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -122,7 +123,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, panelist, form_list, {form_name: prefix for form_name in form_list})
-        all_errors = validate_model(forms, panelist)
+        all_errors = validate_model(forms, panelist, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -208,6 +209,16 @@ class Root:
         if app.status != c.ACCEPTED and int(status) == c.ACCEPTED:
             app.accepted = datetime.now()
             app.add_credentials_to_desc()
+            if c.ACCESSIBILITY_EMAIL and any([panelist for panelist in app.applicants if panelist.requested_accessibility_services]):
+                body = render('emails/panels/accessibility_requested.txt', {
+                'app': app,
+                }, encoding=None)
+                send_email.delay(
+                    c.ADMIN_EMAIL,
+                    c.ACCESSIBILITY_EMAIL,
+                    f'{c.EVENT_NAME} Panel Accepted With Accessibility Request(s)',
+                    body,
+                    model='n/a')
         app.status = int(status)
         if not app.poc:
             app.poc_id = session.admin_attendee().id
@@ -395,7 +406,7 @@ class Root:
                 getattr(app.event, 'status', app.status_label),
                 getattr(app.event, 'name', app.name),
                 getattr(app.event, 'location_label', '(not scheduled)'),
-                app.event.timespan(minute_increment=30) if app.event else '(not scheduled)',
+                app.event.timespan() if app.event else '(not scheduled)',
                 '\n'.join([
                     '{} ({}) {}'.format(
                         a.full_name,

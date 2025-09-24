@@ -4,6 +4,6 @@ Don't forget! The final date we can accept judging is {{ c.MIVS_JUDGING_DEADLINE
 
 {% if judge.judging_complete %}Our records indicate that you've completed reviews of all the games you've been assigned.  Thanks!  Please let us know if you're available to judge any additional games, as some other judges may find themselves unable to do so.{% else %}Our records indicate that you have completed judging on {{ judge.game_reviews|length }} games, out of the {{ judge.reviews|length }} you have been assigned.  Please try to get the remainder evaluated before the deadline, and if you don't think you'll be able to do so, please let us know so that we can assign those games to another judge.{% endif %}
 
-As always, here's the link you can use for judging: {{ c.URL_BASE }}/mivs_judging
+As always, here's the link you can use for judging: {{ c.URL_BASE }}/showcase_judging
 
 {{ email_signature }}

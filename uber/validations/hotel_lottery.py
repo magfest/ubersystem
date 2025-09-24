@@ -12,7 +12,7 @@ from uber.utils import get_age_from_birthday
 def get_common_required_fields(check_func):
     return {
         'earliest_checkin_date': ("Please enter your preferred check-in date.", 'earliest_checkin_date', check_func),
-        'latest_checkout_date': ("Please enter your preferred check-out date.", 'earliest_checkin_date', check_func),
+        'latest_checkout_date': ("Please enter your preferred check-out date.", 'latest_checkout_date', check_func),
         'selection_priorities': ("Please rank your priorities for selecting a hotel room.", 'selection_priorities', check_func),
     }
 
@@ -41,15 +41,15 @@ LotteryInfo.field_validation.required_fields = {
 LotteryConfirm.field_validation.required_fields['guarantee_policy_accepted'] = "You must agree to the payment guarantee policy to continue."
 
 
-LotteryRoomGroup.field_validation.required_fields['room_group_name'] = "Please enter a name for your room group."
+LotteryRoomGroup.field_validation.required_fields['room_group_name'] = f"Please enter a name for your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
 LotteryRoomGroup.field_validation.validations['room_group_name']['length'] = validators.Length(
-    max=40, message="Room group names cannot be longer than 40 characters.")
+    max=40, message=f"{c.HOTEL_LOTTERY_GROUP_TERM.capitalize()} names cannot be longer than 40 characters.")
 
 
 @LotteryRoomGroup.field_validation('room_group_name')
 def no_dashes(form, field):
     if '-' in field.data:
-        raise ValidationError("Please do not use dashes ('-') in your room group name.")
+        raise ValidationError(f"Please do not use dashes ('-') in your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} name.")
 
 
 def check_required_room_steps(form):
@@ -57,13 +57,13 @@ def check_required_room_steps(form):
 
     room_step = int(form.model.current_step) if form.model.current_step else 0
 
-    if not c.HOTEL_LOTTERY_PREF_RANKING or room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_selection_pref']:
+    if room_step < c.HOTEL_LOTTERY_FORM_STEPS.get('room_selection_pref', 9999):
         optional_list.append('selection_priorities')
-    if room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_hotel_type']:
+    if room_step < c.HOTEL_LOTTERY_FORM_STEPS.get('room_hotel_type', 9999):
         optional_list.extend(['room_type_preference', 'hotel_preference'])
     elif not c.HOTEL_LOTTERY_HOTELS_OPTS:
         optional_list.append('hotel_preference')
-    if not c.SHOW_HOTEL_LOTTERY_DATE_OPTS or room_step < c.HOTEL_LOTTERY_FORM_STEPS['room_dates']:
+    if room_step < c.HOTEL_LOTTERY_FORM_STEPS.get('room_dates', 9999):
         optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
     return optional_list
 
@@ -164,14 +164,16 @@ def check_required_suite_steps(form):
 
     suite_step = int(form.model.current_step) if form.model.current_step else 0
 
-    if not c.HOTEL_LOTTERY_PREF_RANKING or suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_selection_pref']:
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_selection_pref', 9999):
         optional_list.append('selection_priorities')
-    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_hotel_type'] or form.room_opt_out.data:
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_hotel_type', 9999) or form.room_opt_out.data:
         optional_list.extend(['room_type_preference', 'hotel_preference'])
-    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_type']:
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_type', 9999):
         optional_list.append('suite_type_preference')
-    if not c.SHOW_HOTEL_LOTTERY_DATE_OPTS or suite_step < c.HOTEL_LOTTERY_FORM_STEPS['suite_dates']:
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_dates', 9999):
         optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
+    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_agreement', 9999):
+        optional_list.append('suite_terms_accepted')
 
     return optional_list
 
@@ -186,7 +188,7 @@ SuiteLottery.field_validation.required_fields.update({
     'room_type_preference': ("Please select at least one preferred standard room type, or opt out of the room lottery.",
                              'room_type_preference', suite_steps_check),
     'suite_terms_accepted': ("You must agree to the suite lottery policies to enter the suite lottery.",
-                             'suite_terms_accepted', lambda x: True),  # Allow LotteryAdminInfo to override
+                             'suite_terms_accepted', suite_steps_check),
     'suite_type_preference': ("Please select at least one preferred suite type.",
                               'suite_type_preference', suite_steps_check),
 })
@@ -228,6 +230,8 @@ LotteryAdminInfo.field_validation.required_fields.update({
 })
 
 
+LotteryAdminInfo.field_validation.validations['assigned_check_in_date']['optional'] = validators.Optional()
+LotteryAdminInfo.field_validation.validations['assigned_check_out_date']['optional'] = validators.Optional()
 LotteryAdminInfo.field_validation.validations['current_step']['optional'] = validators.Optional()
 LotteryAdminInfo.field_validation.validations['current_step']['minimum'] = validators.NumberRange(
     min=0, message="A lottery entry cannot be on a step below 0.")

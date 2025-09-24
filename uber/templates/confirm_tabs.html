@@ -65,11 +65,14 @@
     </a>
   </li>
 {% endif %}
-{% if attendee.lottery_application and attendee.lottery_application.status == c.COMPLETE and (c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN) %}
+{% if 'hotel_lottery' in c.PAGE_PATH or attendee.lottery_application and (attendee.lottery_application.status in [c.COMPLETE, c.PROCESSED] or attendee.lottery_application.finalized) %}
 {% set which_page, button_text = attendee.lottery_application.homepage_link %}
 <li class="nav-item" role="presentation">
-  <a href="../hotel_lottery/{{ which_page }}" class="nav-link{% if 'hotel_lottery' in c.PAGE_PATH %} active{% endif %}">
-    <span class="fa fa-hotel"></span> {{ button_text }}
+  <a href="../hotel_lottery/index?attendee_id={{ attendee.id }}" class="nav-link{% if 'hotel_lottery' in c.PAGE_PATH %} active{% endif %}">
+    <span class="fa fa-hotel"></span>
+    {% if attendee.lottery_application and attendee.lottery_application.status == c.COMPLETE %}
+    {{ 'Suite Lottery Entry' if attendee.lottery_application.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry' }}
+    {% else %}Hotel Lottery{% if attendee.lottery_application and attendee.lottery_application.finalized %} Results{% endif %}{% endif %}
   </a>
 </li>
 {% endif %}
@@ -86,7 +89,7 @@
       <button type="button" class="btn btn-outline-primary"><i class="fa fa-shopping-cart"></i> Apply for Marketplace</button>
     </a>
     {% endif %}
-    {% if 'hotel_lottery' not in c.PAGE_PATH and c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) and (not attendee.lottery_application or attendee.lottery_application.status != c.COMPLETE) %}
+    {% if 'hotel_lottery' not in c.PAGE_PATH and (c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and attendee.staff_hotel_lottery_eligible) and (not attendee.lottery_application or attendee.lottery_application.status not in [c.COMPLETE, c.PROCESSED, c.DISQUALIFIED] and not attendee.lottery_application.finalized) %}
       {% if attendee.hotel_lottery_eligible %}
       <a class="p-0" href="../hotel_lottery/start?attendee_id={{ attendee.id }}">
         <button type="button" class="btn btn-outline-primary"><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>

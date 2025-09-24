@@ -4,8 +4,8 @@
 
 {# BLOCK NAMES in this form:
     x_data
-    title_desc
-    dev_video
+    title_contact
+    desc_video
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
@@ -13,15 +13,17 @@
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
 <div class="row g-3 mb-3">
-{% block title_desc %}
+{% block title_contact %}
+{% if not review %}
 <div class="col-sm">{{ form_macros.input(arcade_game_info.title) }}</div>
 <div class="col-sm">{{ form_macros.input(arcade_game_info.primary_contact_id, choices=studio.primary_contact_opts) }}</div>
+{% endif %}
 {% endblock %}
 </div>
 
 
 <div class="row g-3 mb-3">
-{% block dev_video %}
+{% block desc_video %}
   <div class="col-sm">{{ form_macros.input(arcade_game_info.description) }}</div>
   <div class="col-sm">{{ form_macros.input(arcade_game_info.link_to_video) }}</div>
 {% endblock %}

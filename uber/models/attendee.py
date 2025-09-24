@@ -12,7 +12,7 @@ from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, subqueryload
+from sqlalchemy.orm import backref, subqueryload, aliased
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
@@ -523,6 +523,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     art_agent_apps = relationship(
         'ArtShowApplication',
         backref='agents',
+        secondaryjoin='and_(ArtShowAgentCode.app_id == ArtShowApplication.id, ArtShowAgentCode.cancelled == None)',
         secondary='art_show_agent_code',
         viewonly=True)
 
@@ -566,7 +567,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr)
-            if (value.isupper() or value.islower()) and value.lower() != self.orig_value_of(attr).lower():
+            if (value.isupper() or value.islower()):
                 setattr(self, attr, value.title())
 
         if self.legal_name and self.full_name == self.legal_name:
@@ -618,7 +619,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                     and not self.group.is_unpaid):
             self.badge_status = c.COMPLETED_STATUS
 
-        if not self.has_or_will_have_badge:
+        if not self.has_or_will_have_badge and self.badge_status != c.PENDING_STATUS:
             self.badge_pickup_group = None
 
     @presave_adjustment
@@ -758,7 +759,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def badge_num(self):
         if self.active_badge:
             return self.active_badge.ident
-    
+
     @badge_num.setter
     def badge_num(self, value):
         if self.badge_num and self.badge_num == value:
@@ -1348,6 +1349,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def cannot_abandon_badge_reason(self):
+        return self.cannot_abandon_badge_check()
+
+    def cannot_abandon_badge_check(self, including_last_adult=True):
         from uber.custom_tags import email_only
         if self.checked_in:
             return "This badge has already been picked up."
@@ -1359,12 +1363,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.art_show_applications and self.art_show_applications[0].is_valid:
             return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
         if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
-            return "Please ask the artist you're agenting for {} first.".format(
+            return "Please ask the artist you're agenting for to {} first.".format(
                 "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
             )
 
         reason = ""
-        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
+        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers and including_last_adult:
             account = self.managers[0]
             other_adult_badges = [a for a in account.valid_adults if a.id != self.id]
             if account.badges_needing_adults and not other_adult_badges:
@@ -1476,8 +1480,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @primary_account_email.expression
     def primary_account_email(cls):
-        return select([AttendeeAccount.email]
-                      ).where(AttendeeAccount.id == attendee_attendee_account.c.attendee_account_id
+        aliased_account = aliased(AttendeeAccount)
+        return select([aliased_account.email]
+                      ).where(aliased_account.id == attendee_attendee_account.c.attendee_account_id
                               ).where(attendee_attendee_account.c.attendee_id == cls.id).label('primary_account_email')
 
     @hybrid_property
@@ -1488,7 +1493,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @group_name.expression
     def group_name(cls):
-        return select([Group.name]).where(Group.id == cls.group_id).label('group_name')
+        aliased_group = aliased(Group)
+        return select([aliased_group.name]).where(aliased_group.id == cls.group_id).label('group_name')
 
     @group_name.setter
     def group_name(self, value):
@@ -1511,12 +1517,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @promo_code_group_name.expression
     def promo_code_group_name(cls):
         from uber.models.promo_code import PromoCode, PromoCodeGroup
+        aliased_pc = aliased(PromoCode)
+        aliased_pcgroup = aliased(PromoCodeGroup)
         return case([
             (cls.promo_code != None,  # noqa: E711
-             select([PromoCodeGroup.name]).where(PromoCodeGroup.id == PromoCode.group_id)
-             .where(PromoCode.id == cls.promo_code_id).label('promo_code_group_name')),
+             select([aliased_pcgroup.name]).where(aliased_pcgroup.id == aliased_pc.group_id)
+             .where(aliased_pc.id == cls.promo_code_id).label('promo_code_group_name')),
             (cls.promo_code_groups != None,  # noqa: E711
-             select([PromoCodeGroup.name]).where(PromoCodeGroup.buyer_id == cls.id)
+             select([aliased_pcgroup.name]).where(aliased_pcgroup.buyer_id == cls.id)
              .label('promo_code_group_name'))
         ])
 
@@ -1581,7 +1589,27 @@ class Attendee(MagModel, TakesPaymentMixin):
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
             and not self.overridden_price \
             and not self.admin_account \
-            and not self.dept_memberships_with_inherent_role
+            and not self.dept_memberships_with_inherent_role \
+            and (not self.art_show_applications or not self.art_show_applications[0].is_valid) \
+            and (not self.art_agent_apps or not any(app.is_valid for app in self.art_agent_apps)) \
+            and (not self.lottery_application or self.lottery_application.status not in [
+                c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED])
+
+    @property
+    def transferable_actions(self):
+        from uber.custom_tags import email_only
+        can_do = []
+
+        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+            can_do.append("withdraw your hotel lottery entry")
+        if self.art_show_applications and self.art_show_applications[0].is_valid:
+            can_do.append(f"contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application")
+        if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
+            can_do.append("ask the artist you're agenting for to {} first.".format(
+                "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
+            ))
+
+        return can_do
 
     @property
     def is_transferable(self):
@@ -1600,6 +1628,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             reasons.append("they are a department head, checklist admin, \
                            or point of contact for the following departments: {}".format(
                                readable_join(self.get_labels_for_memberships('dept_memberships_with_role'))))
+        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+            reasons.append(f"they have a {self.lottery_application.status_label.lower()} hotel lottery application")
         return reasons
 
     @presave_adjustment
@@ -1709,7 +1739,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         Here is the business logic surrounding shirts:
         - People who kick in enough to get a shirt get an event shirt.
         - People with staff badges get a configurable number of staff shirts.
-        - Volunteers who meet the requirements get a complementary event shirt
+        - Volunteers who meet the requirements get a complimentary event shirt
             (NOT a staff shirt).
 
         If the c.SEPARATE_STAFF_SWAG setting is true, then this excludes staff
@@ -2596,7 +2626,8 @@ class AttendeeAccount(MagModel):
 
     @property
     def cancellable_badges(self):
-        return [attendee for attendee in self.attendees if attendee.is_valid and not attendee.cannot_abandon_badge_reason]
+        return [attendee for attendee in self.attendees if attendee.is_valid and 
+                not attendee.cannot_abandon_badge_check(including_last_adult=False)]
 
     @property
     def imported_attendees(self):
@@ -2645,6 +2676,19 @@ class BadgePickupGroup(MagModel):
         for attendee in account.attendees:
             if attendee.has_badge:
                 self.attendees.append(attendee)
+
+    def finalize_cart(self, session):
+        pending_free_badges = [attendee for attendee in self.attendees if 
+                               attendee.badge_status == c.PENDING_STATUS and not attendee.total_cost_if_valid]
+
+        if not all([attendee for attendee in self.attendees if (attendee.is_valid and attendee.is_paid) or 
+                    attendee in pending_free_badges]):
+            return
+        
+        for attendee in pending_free_badges:
+            attendee.badge_status = c.COMPLETED_STATUS
+            attendee.badge_pickup_group_id = None
+            session.add(attendee)
 
     @property
     def fallback_purchaser_id(self):

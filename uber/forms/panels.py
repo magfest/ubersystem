@@ -38,10 +38,14 @@ class PanelistInfo(MagForm):
                                              widget=MultiCheckbox())
     other_communication_pref = StringField("Other Communication Preference",
                                            render_kw={'placeholder': "What other way should we contact you?"})
+    requested_accessibility_services = BooleanField(
+        f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department if my panel is accepted '
+        'and I understand my contact information will be shared with Accessibility Services for this purpose.',
+        widget=SwitchInput())
 
 
 class PanelistCredentials(MagForm):
-    occupation = StringField("Occupation", render_kw={'placeholder': "What do you do?"})
+    occupation = StringField("Occupation (if relevant)", render_kw={'placeholder': "What do you do?"})
     website = StringField("Website", render_kw={'placeholder': "www.example.com"})
     other_credentials = TextAreaField("Other Experience",
                                       render_kw={'placeholder': "What else qualifies you to conduct this panel?"})
@@ -57,7 +61,7 @@ class PanelInfo(MagForm):
     dynamic_choices_fields = {'department': lambda: [("", 'Please select an option')] + c.PANELS_DEPT_OPTS}
     name = StringField("Panel Name", description="The title that will appear on the event schedule. Max 120 characters.")
     department = SelectField("Department")
-    presentation = SelectField("Type of Panel", coerce=int,
+    presentation = SelectField("Type of Panel", coerce=int, default=0,
                                choices=[(0, 'Please select an option')] + c.PRESENTATION_OPTS)
     other_presentation = StringField("Other Panel Type")
     is_loud = BooleanField("I require an environment to have a large volume presentation.")
@@ -71,14 +75,14 @@ class PanelInfo(MagForm):
     public_description = TextAreaField("Schedule Description", description=(
         "To be shown on the public facing schedule. 200 words max. "
         "Leave blank if this is the same as the Panel Description."))
-    noise_level = SelectField("Panel Noise Level", coerce=int,
+    noise_level = SelectField("Panel Noise Level", coerce=int, default=0,
                               choices=[(0, 'Please select an option')] + c.NOISE_LEVEL_OPTS)
-    livestream = SelectField("Is it okay to livestream your panel?",
+    livestream = SelectField("Is it okay to livestream your panel?", default=0,
                              coerce=int, choices=[(0, 'Please select an option')] + c.LIVESTREAM_OPTS)
-    record = SelectField("Is it okay to record your panel?",
+    record = SelectField("Is it okay to record your panel?", default=0,
                          coerce=int, choices=[(0, 'Please select an option')] + c.LIVESTREAM_OPTS,
                          description="While we don't record every panel, we attempt to record and post most panels to our YouTube channel after the event.")
-    rating = SelectField(coerce=int, choices=[(0, 'Please select an option')] + c.PANEL_RATING_OPTS)
+    rating = SelectField(coerce=int, default=0, choices=[(0, 'Please select an option')] + c.PANEL_RATING_OPTS)
     granular_rating = SelectMultipleField("Panel Content", coerce=int, choices=c.PANEL_CONTENT_OPTS, widget=MultiCheckbox(),
                                           description='Please select the checkboxes above to let us know what your panel content may contain, or select "None" if you are sure your panel will be for all ages.')
 

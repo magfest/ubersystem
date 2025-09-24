@@ -18,29 +18,33 @@
     </div>
     {% endif %}
 
-    <h2>Standard Room Lottery{% if application.status == c.COMPLETE %} <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a>{% endif %}</h2>
-    {% if application.status != c.COMPLETE %}
+    <h2>Standard Room Lottery{% if application.status == c.COMPLETE or application.current_lottery_closed %} <a class="btn btn-outline-secondary pull-right" href="index?attendee_id={{ application.attendee.id }}">Return to Options</a>{% endif %}</h2>
+    {% if application.current_lottery_closed %}
+    <p>
+        <strong><span class="text-danger">The hotel lottery is now closed.</span></strong>
+        {% if application.status == c.COMPLETE and not application.parent_application %}You can view your entry details below.{% endif %}
+    </p>
+    {% if application.status == c.COMPLETE and not application.parent_application %}
+        {% set read_only = True %}
+        {% include "forms/hotel/lottery_entry_readonly.html" with context %}
+    {% endif %}
+    {% elif application.status != c.COMPLETE %}
     <p>
         Please read the instructions for each step below carefully. Any completed steps (steps with a <i class='fa fa-check'></i>) will be saved if you leave and come back later, but your lottery entry is <strong>NOT</strong> complete until you see the confirmation screen.
     </p>
     <p>You can review or edit completed (<i class='fa fa-check'></i>) steps by clicking the name of the step. Changes to completed steps are saved when you click the "Save and Continue" button on your current step.</p>
-    {% elif application.current_lottery_closed %}
-    <p>
-        <strong><span class="text-danger">The hotel lottery is now closed.</span></strong>
-        You can view your entry details below. Your entry is already being processed; any changes you make will NOT affect your potential room award.
-    </p>
     {% else %}
     <p>
         Click or tap any of the steps below to update that step's information, then click "Update Room Lottery Entry" to save your changes.
     </p>
     {% endif %}
 
+    {% if not application.current_lottery_closed %}
     <form novalidate method="post" id="room-lottery-form" action="room_lottery">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ application.id }}">
         <input type="hidden" name="entry_type" value="{{ c.ROOM_ENTRY }}">
     <div class="accordion mb-3" id="room-lottery-accordion">
-        {% set read_only = False %}
         {% include 'forms/hotel/room_lottery.html' with context %}
     </div>
         <div class="row g-3 mb-3">
@@ -54,5 +58,6 @@
             </div>
         </div>
     </form>
+    {% endif %}
 </div>
 {% endblock %}

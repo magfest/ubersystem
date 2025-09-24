@@ -49,7 +49,7 @@
   {% if receipt_open %}
     <div class="row text-center">
       <div class="col-sm-4">
-        <form role="form" method="post" action="pieces_bought" id="search_form">
+        <form role="form" method="post" action="pieces_bought">
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <div class="input-group">
             <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />

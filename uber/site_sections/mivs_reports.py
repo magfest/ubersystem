@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.custom_tags import humanize_timedelta
 from uber.decorators import all_renderable, csv_file, multifile_zipfile, xlsx_file
-from uber.models import Group, IndieGame, IndieJudge, IndieStudio
+from uber.models import Group, IndieGame, IndieJudge, IndieStudio, GuestGroup
 from uber.utils import localized_now
 
 
@@ -14,7 +14,7 @@ class Root:
     @csv_file
     def social_media(self, out, session):
         out.writerow(['Studio', 'Website', 'Twitter', 'Facebook'])
-        for game in session.indie_games():
+        for game in session.indie_games().filter(IndieGame.showcase_type == c.MIVS):
             if game.confirmed:
                 out.writerow([
                     game.studio.name,
@@ -28,19 +28,19 @@ class Root:
         out.writerow([
             'Game', 'Studio', 'Studio URL', 'Primary Contact Names', 'Primary Contact Emails',
             'Game Website', 'Twitter', 'Facebook', 'Other Social Media',
-            'Genres', 'Brief Description', 'Long Description', 'How to Play',
+            'Genres', 'Brief Description', 'Long Description', 'How to Play', 'Player Count',
             'Link to Video for Judging', 'Link to Promo Video', 'Link to Game', 'Game Link Password',
             'Game Requires Codes?', 'Code Instructions', 'Build Status', 'Build Notes',
             'Game Submitted', 'Current Status',
             'Registered', 'Accepted', 'Confirmation Deadline',
             'Screenshot Links', 'Average Score', 'Individual Scores'
         ])
-        for game in session.indie_games():
+        for game in session.indie_games().filter(IndieGame.showcase_type == c.MIVS):
             out.writerow([
                 game.title,
                 game.studio.name,
                 '{}/mivs/index?id={}'.format(c.PATH, game.studio.id),
-                game.studio.primary_contact_first_names,
+                ' / '.join(game.studio.primary_contact_first_names),
                 game.studio.email,
                 game.link_to_webpage,
                 game.twitter,
@@ -50,6 +50,7 @@ class Root:
                 game.brief_description,
                 game.description,
                 game.how_to_play,
+                game.player_count,
                 game.link_to_video,
                 game.link_to_promo_video,
                 game.link_to_game,
@@ -75,7 +76,8 @@ class Root:
             header_row.append('Past Due?')
         out.writerow(header_row)
 
-        for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
+        for studio in session.query(IndieStudio).join(IndieStudio.group
+                                                      ).join(Group.guest).filter(GuestGroup.group_type == c.MIVS):
             row = [studio.name]
             for key, val in c.MIVS_CHECKLIST.items():
                 row.extend([
@@ -89,7 +91,8 @@ class Root:
     @csv_file
     def discussion_group_emails(self, out, session):
         out.writerow(['Studio', 'Emails', 'Last Updated'])
-        for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
+        for studio in session.query(IndieStudio).join(IndieStudio.group
+                                                      ).join(Group.guest).filter(GuestGroup.group_type == c.MIVS):
             emails = []
             row = [studio.name]
             emails.extend(studio.group.guest.email)
@@ -104,7 +107,8 @@ class Root:
     @xlsx_file
     def accepted_games_xlsx(self, out, session):
         rows = []
-        for game in session.query(IndieGame).filter_by(status=c.ACCEPTED):
+        for game in session.query(IndieGame).filter(IndieGame.showcase_type == c.MIVS,
+                                                    IndieGame.status == c.ACCEPTED):
             screenshots = game.accepted_image_download_filenames()
             rows.append([
                 game.studio.name, game.studio.website,
@@ -126,7 +130,8 @@ class Root:
     def accepted_games_zip(self, zip_file, session):
         output = self.accepted_games_xlsx(set_headers=False)
         zip_file.writestr('mivs_accepted_games.xlsx', output)
-        for game in session.query(IndieGame).filter_by(status=c.ACCEPTED):
+        for game in session.query(IndieGame).filter(IndieGame.showcase_type == c.MIVS,
+                                                    IndieGame.status == c.ACCEPTED):
             filenames = game.accepted_image_download_filenames()
             images = game.accepted_image_downloads()
             for filename, screenshot in zip(filenames, images):
@@ -137,9 +142,9 @@ class Root:
     @csv_file
     def presenters(self, out, session):
         presenters = set()
-        for game in (session.query(IndieGame)
-                            .filter_by(status=c.ACCEPTED)
-                            .options(joinedload(IndieGame.studio).joinedload(IndieStudio.group))):
+        for game in (session.query(IndieGame).filter(IndieGame.showcase_type == c.MIVS,
+                                                     IndieGame.status == c.ACCEPTED).options(
+                                                         joinedload(IndieGame.studio).joinedload(IndieStudio.group))):
             for attendee in getattr(game.studio.group, 'attendees', []):
                 if not attendee.is_unassigned and attendee not in presenters:
                     presenters.add(attendee)
@@ -154,7 +159,8 @@ class Root:
             'Genres', 'Platforms', 'Other Platforms',
             'Staff Notes']
 
-        for judge in session.query(IndieJudge).options(joinedload(IndieJudge.admin_account)):
+        for judge in session.query(IndieJudge).filter(IndieJudge.showcases.contains(c.MIVS)
+                                                      ).options(joinedload(IndieJudge.admin_account)):
             attendee = judge.admin_account.attendee
             rows.append([
                 attendee.first_name, attendee.last_name,

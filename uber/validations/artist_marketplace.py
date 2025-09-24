@@ -9,14 +9,13 @@ from uber.utils import localized_now
 
 
 ArtistMarketplaceForm.field_validation.required_fields = {
-    'attendee_id': "There is an issue with the form.",
     'name': "Please enter your business or fandom name.",
-    'email_address': ("Please enter an email address.", 'copy_email'),
+    'email_address': ("Please enter an email address.", 'copy_email', lambda x: not x.data),
     'tax_number': "Please enter your Illinois Business Tax number.",
     'terms_accepted': "You must agree to the Artist Marketplace rules to continue.",
 }
 
-
+ArtistMarketplaceForm.field_validation.validations['email_address']['optional'] = validators.Optional()
 ArtistMarketplaceForm.field_validation.validations['tax_number']['pattern_match'] = validators.Regexp(
     "^[0-9-]*$", message="Please use only numbers and hyphens for your IBT number.")
 

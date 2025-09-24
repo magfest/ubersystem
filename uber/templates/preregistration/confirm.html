@@ -131,26 +131,32 @@
       {# Deprecated form included for backwards compatibility with old plugins #}
       {% include "regform.html" %}
 
-      <div class="form-group">
-        <div class="col-sm-9 col-sm-offset-3">
+      <div class="d-flex gap-1 mb-3">
           {% if not page_ro %}
+          <div class="flex-grow-1">
           <button type="submit" class="btn btn-primary" id="updateButton">
             {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
           </button>
-          {% if attendee.is_transferable %}
-            <a href="transfer_badge?id={{ attendee.id }}" class="btn btn-primary">Transfer my Badge</a>
+          </div>
+          {% if c.TRANSFERABLE_BADGE_TYPES or attendee.is_transferable %}
+            {% if attendee.is_transferable %}
+            <a href="transfer_badge?id={{ attendee.id }}" class="btn btn-outline-primary">Transfer My Badge</a>
+            {% else %}
+            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="This badge is not transferable. Please{% if attendee.transferable_actions %} {{ attendee.transferable_actions|readable_join }} first, or{% endif %} contact us at {{ c.CONTACT_EMAIL|email_only }} if you have any questions.">
+            <a class="btn btn-outline-primary disabled" aria-disabled="true">Transfer My Badge</a>
+            </span>
+            {% endif %}
           {% endif %}
           {% include '/preregistration/badge_refund.html' %}
           {% if attendee.can_defer_badge %}
-          <a href="defer_badge?id={{ attendee.id }}" class="btn btn-warning">Defer my Badge</a>
+          <a href="defer_badge?id={{ attendee.id }}" class="btn btn-warning">Defer My Badge</a>
           {% endif %}
           {% endif %}
           {% if receipt %}
-            <a class="btn btn-info" data-bs-toggle="modal" data-bs-target="#receiptModal">
+            <a class="btn btn-info ms-auto" data-bs-toggle="modal" data-bs-target="#receiptModal">
               <i class="fa fa-list-alt"></i> Receipt
             </a>
           {% endif %}
-        </div>
       </div>
 
       {% if not page_ro and not attendee.cannot_check_in_reason and c.USE_CHECKIN_BARCODE %}

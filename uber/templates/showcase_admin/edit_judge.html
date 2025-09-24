@@ -1,0 +1,239 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set title_text = "Judge Info for " ~ judge.full_name %}
+
+{% set show_platforms = c.MIVS in judge.showcases_ints %}
+{% set show_genres = c.MIVS in judge.showcases_ints or c.INDIE_RETRO in judge.showcases_ints %}
+
+{% block content %}
+<div class="card card-body">
+<h2>Edit {{ judge.full_name }} <small><a href="index?showcase_type={{ showcase_type }}">Back to Index</a></small></h2>
+
+<p>
+    <a href="../showcase_judging/index?id={{ judge.id }}" class="btn btn-primary" target="_blank">
+        View Judge Homepage <i class="fa fa-external-link"></i></a>
+</p>
+
+<ul class="nav nav-tabs flex-grow-1" role="tablist">
+    <li class="nav-item" role="presentation">
+    <button class="nav-link" id="judge-tab" data-bs-toggle="tab" data-bs-target="#judge" type="button" role="tab" aria-controls="judge">
+        <i class="fa fa-user"></i>&nbsp;Judge Info
+    </button>
+    </li>
+    <li class="nav-item" role="presentation">
+    <button class="nav-link" id="games-tab" data-bs-toggle="tab" data-bs-target="#games" type="button" role="tab" aria-controls="games">
+        <i class="fa fa-list"></i>&nbsp;Assigned Games
+    </button>
+    </li>
+</ul>
+<div class="tab-content">
+    &nbsp;
+    <div role="tabpanel" class="tab-pane" id="judge" aria-labelledby="judge-tab">
+        <form novalidate method="post" action="edit_judge" id="judge-form" role="form">
+            {{ form_macros.form_validation('judge-form', 'validate_judge') }}
+            
+            <input type="hidden" name="id" value="{{ judge.id }}" />
+            <input type="hidden" name="showcase_type" value="{{ showcase_type }}" />
+            {{ csrf_token() }}
+
+            {% include "forms/showcase/judge_showcase_info.html" %}
+
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return to Index</button>
+            <a href="#" class="btn btn-danger" onClick="confirmDisqualify()">Disqualify for {{ c.EVENT_YEAR }}</a>
+        </form>
+    </div>
+    <div role="tabpanel" class="tab-pane" id="games" aria-labelledby="games-tab">
+        {% if judge.status not in [c.UNCONFIRMED, c.CONFIRMED] %}
+        <p>
+        This judge is <strong>{{ judge.status_label }}</strong> and cannot be assigned any games.
+        {% if judge.reviews %}However, you can view their existing reviews below.{% endif %}
+        </p>
+        {% endif %}
+    {% if judge.reviews %}
+        <h3>Current Games</h3>
+        <form method="post" id="remove-games" class="mb-3" action="remove">
+        {{ csrf_token() }}
+        <input type="hidden" name="judge_id" value="{{ judge.id }}" />
+        <input type="hidden" name="return_to" value="edit_judge?id={{ judge.id }}&showcase_type={{ showcase_type }}" />
+            <table class="table table-hover" x-data="{ selectall: false, }">
+                <thead>
+                    <th>Game</th>
+                    <th>Has Code?</th>
+                    <th>Video Review</th>
+                    <th>Game Review Status</th>
+                    <th>Review Scores</th>
+                    <th>Review Notes</th>
+                    <th>
+                        <input type="checkbox" class="form-check-input" x-model="selectall" @click="selectall=!selectall">
+                        &nbsp;Remove Game
+                    </th>
+                </thead>
+                <tbody>
+                    {% for review in judge.reviews %}
+                    <tr>
+                        <td>{{ review.game.title }}</td>
+                        <td>
+                            {% if review.game.codes %}
+                                {% if review.game.unlimited_code %}
+                                Unlimited
+                                {% else %}
+                                {{ review.judge.get_code_for(review.game.id)|yesno }}
+                                {% endif %}
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if review.game.link_to_video %}
+                            {{ review.video_status_label }}
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </td>
+                        <td>{{ review.game_status_label }}</td>
+                        <td>Readiness: {{ review.readiness_score }}
+                            <br/>Design: {{ review.design_score }}
+                            <br/>Enjoyment: {{ review.enjoyment_score }}
+                        </td>
+                        <td>{{ review.game_review }}</td>
+                        <td>
+                            {% if review.game.showcase_type in judge.all_games_showcases_ints %}
+                            <em>This judge is set to review all games in {{ review.game.showcase_type_label }}.</em>
+                            {% else %}
+                            <input type="checkbox" class="form-check-input" name="game_id" value="{{ review.game.id }}" x-bind:checked="selectall" @click="selectall = false" />
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-danger">Remove Selected Games</button>
+        </form>
+    {% else %}
+        <p>{{ judge.full_name }} currently has no games assigned for review.</p>
+    {% endif %}
+
+    {% macro game_list(games, show_matching_genres=False) %}
+        <form method="post" class="mb-3" action="assign">
+            {{ csrf_token() }}
+            <input type="hidden" name="judge_id" value="{{ judge.id }}" />
+            <input type="hidden" name="return_to" value="edit_judge?id={{ judge.id }}&showcase_type={{ showcase_type }}" />
+            <table class="table table-hover mb-3" x-data="{ selectall: false, }">
+                <thead>
+                    <tr>
+                        {% if judge.showcases_ints|length > 1 %}<th>Showcase</th>{% endif %}
+                        <th>Game</th>
+                        <th>Studio</th>
+                        {% if show_platforms %}<th>Platforms</th>{% endif %}
+                        {% if show_genres %}<th>Genres</th>{% endif %}
+                        {% if show_matching_genres %}<th>Matching Genres?</th>{% endif %}
+                        <th>
+                            <input type="checkbox" class="form-check-input" x-model="selectall" @click="selectall=!selectall">
+                            &nbsp;Assign
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for game in games %}
+                    <tr>
+                        {% if judge.showcases_ints|length > 1 %}<td>{{ game.showcase_type_label }}</td>{% endif %}
+                        <td>{{ game.title }}</td>
+                        <td>{{ game.studio.name }}</td>
+                        {% if show_platforms %}
+                        <td>
+                        {% if game.showcase_type == c.MIVS %}
+                            {{ game.platforms_labels|join(' / ') }}
+                            {% if game.platforms_text %}Other: {{ game.platforms_text }}{% endif %}
+                        {% else %}N/A{% endif %}
+                        </td>
+                        {% endif %}
+                        {% if show_genres %}
+                        <td>{% if game.genres %}{{ game.genres_labels|join(' / ') }}{% else %}N/A{% endif %}</td>
+                        {% endif %}
+                        {% if show_matching_genres %}<td>{{ (game in matching_genre)|yesno('Yes,No') }}</td>{% endif %}
+                        <td><input type="checkbox" class="form-check-input" name="game_id" value="{{ game.id }}" x-bind:checked="selectall" @click="selectall = false" /></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <button type="submit" class="btn {% if show_matching_genres %}btn-success{% else %}btn-primary{% endif %}">Assign Selected Games</button>
+        </form>
+    {% endmacro %}
+    {% if matching %}
+        {% if c.MIVS in judge.showcases_ints %}
+        <hr/>
+        <h3>Games Matching {{ judge.full_name }}'s Platforms</h3>
+
+        <p>
+            Below is a list of games not already assigned to {{ judge.full_name }} which matches one or more of their owned
+            platforms ({{ judge.platforms_labels|join(' / ') }}).
+        </p>
+        {% if judge.showcases_ints|length > 1 %}<p>This list will also include games in showcases that do not have specific demo platforms.</p>{% endif %}
+        {% else %}
+        <h3>Available Games</h3>
+        <p>
+            Below is a list of games not already assigned to {{ judge.full_name }}.
+        </p>
+        {% endif %}
+
+        {{ game_list(matching, show_matching_genres=True) }}
+    {% endif %}
+
+    {% if nonmatching %}
+        <hr/>
+        <h3>Other Games</h3>
+
+        <p>
+            Below are a list of games NOT matching {{ judge.full_name }}'s owned platforms, which you may still assign to
+            them for review anyway as you see appropriate.
+        </p>
+
+        {{ game_list(nonmatching) }}
+    {% endif %}
+
+    {% if not matching and not nonmatching %}
+        <p>There are no{% if judge.reviews %} other{% endif %} submitted games available to assign this judge to.</p>
+    {% endif %}
+    </div>
+<script type="text/javascript">
+    var confirmDisqualify = function() {
+        bootbox.confirm({
+        backdrop: true,
+        title: 'Disqualify {{ judge.full_name }}?',
+        message: 'Are you sure you want to disqualify this judge for this year? This will trigger an email letting them know they are disqualified.',
+        buttons: {
+            confirm: { label: 'Disqualify Judge', className: 'btn-danger' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+        },
+        callback: function (result) {
+            if (result) {
+            window.location = "disqualify_judge?id={{ judge.id }}"
+            }
+        }});
+    }
+    $(function() {
+      $('#remove-games').on('submit', function(event) {
+        event.preventDefault();
+        var $toSubmit = $(this);
+        bootbox.confirm({
+          backdrop: true,
+          title: 'Remove Selected Game(s)?',
+          message: '<p>Are you sure you want to remove these games from {{ judge.full_name }}?</p>' +
+                   '<p>This will delete any score they\'ve given these games. <strong>This cannot be undone.</strong></p>',
+          buttons: {
+            confirm: { label: '<i class="fa fa-remove"></i> Remove', className: 'btn-danger' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+          },
+          callback: function (result) {
+            if (result) {
+              $toSubmit[0].submit();
+            }
+          }
+        });
+      });
+    });
+</script>
+</div>
+{{ "js/window-hash-tabload.js"|serve_static_content }}
+{% endblock %}

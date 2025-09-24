@@ -1,8 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% import 'art_show_common/artist_checkin_macros.html' as artist_checkin_macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Art Show Admin{% endblock %}
 {% block content %}
-{% include "region_opts.html" %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="../accounts/homepage">Home</a></li>
@@ -16,9 +15,8 @@
     <h3 class="card-title">Artist Check-{{ checkout|yesno("Out, In") }}</h3>
   </div>
   <div class="card-body">
-    <div class="row justify-content-start">
-      <div class="col-12 col-sm-4">
-      <form role="form" method="get" action="artist_check_in_out" id="search_form">
+    <div class="d-flex gap-1 justify-content-start">
+      <form role="form" class="col-12 col-sm-4" method="get" action="artist_check_in_out">
         {% if checkout %}<input type="hidden" name="checkout" value="1" />
         {% elif hanging %}<input type="hidden" name="hanging" value="1" />{% endif %}
         <div class="input-group">
@@ -28,40 +26,89 @@
           </button>
         </div>
       </form>
-      </div>
       {% if search_text %}
-      <div class="col col-auto"><a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a></div>
+      <a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a>
       {% endif %}
       {% if not checkout %}
-      <div class="col col-auto">
         {% if hanging %}
         <a class="btn btn-info" href="artist_check_in_out?search_text={{ search_text }}">Show All Artists</a>
         {% else %}
         <a class="btn btn-outline-info" href="artist_check_in_out?search_text={{ search_text }}&hanging=true">Show Artists Hanging Art</a>
         {% endif %}
-      </div>
       {% endif %}
       {% set new_app_link = '../art_show_applications/' if c.INDEPENDENT_ART_SHOW else 'form?new_app=True' %}
-      <div class="col col-auto">
-        <a class="btn btn-outline-secondary" href="{{ new_app_link }}" target="_blank">Add a new {{ c.ART_SHOW_APP_TERM }}</a>
-      </div>
+      <a class="btn btn-outline-secondary" href="{{ new_app_link }}" target="_blank">Add a new {{ c.ART_SHOW_APP_TERM }}</a>
     </div>
 
-    <iframe id="upload_frame" name="upload_frame" style="display:none"></iframe>
-    <div id="app_modals">
+    {%- macro check_in_out_modal(app) -%}
+    <div class="modal fade" id="app-modal-{{ app.id }}" role="dialog" tabindex="-1">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title" id="app-title-{{ app.id }}">Check-{{ checkout|yesno("Out, In") }} Artist</h4>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form novalidate method="post" action="../art_show_admin/save_and_check_in_out" class="check-in-out-form" id="check-in-out-{{ app.id }}" role="form">
+            <div class="modal-body">
+              {{ form_macros.form_validation('check-in-out-' ~ app.id, 'validate_check_in_out') }}
+              <div class="d-flex gap-2 justify-content-end mb-3">
+                {% if check_out %}
+                <button type="button" onClick="$('#check-in-out-{{ app.id }}').submit()" class="btn btn-warning undo-btn"{% if not app.checked_out %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkout" value="1">Undo Check-Out</button>
+                {% else %}
+                <button type="button" onClick="$('#check-in-out-{{ app.id }}').submit()" class="btn btn-warning undo-btn"{% if not app.checked_in %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkin" value="1">Undo Check-In</button>
+                {% endif %}
+                <a href="form?id={{ app.id }}" class="btn btn-secondary" target="_blank">Open Full Application&nbsp;<i class="fa fa-external-link"></i></a>
+              </div>
+              <input type="hidden" name="id" value="{{ app.id }}" />
+              {{ csrf_token() }}
+
+              {% set artist_attendee_info = forms[app.id]['artist_attendee_info'] %}
+              {% set artist_mailing_info = forms[app.id]['artist_mailing_info'] %}
+              {% if checkout %}
+              {% set artist_check_in_out_info = forms[app.id]['artist_check_out_info'] %}
+              {% include 'forms/art_show/artist_check_out_info.html' with context %}
+              {% else %}
+              {% set artist_check_in_out_info = forms[app.id]['artist_check_in_info'] %}
+              {% include 'forms/art_show/artist_check_in_info.html' with context %}
+              {% endif %}
+
+              {% if not app.checked_in %}<em>NOTE: All "Expected" and "Hanging" pieces will become "Hung" upon clicking "Save & Check-In"</em>
+              {% elif checkout and not app.checked_out %}<em>NOTE: All "Hung" pieces will become "Return to Artist" upon clicking "Save & Check-Out"</em>{% endif %}
+            </div>
+            <div class="modal-footer d-flex">
+              <button type="submit" class="btn btn-secondary order-5">Save</button>
+              {% set print_invoice = checkout and app.total_sales %}
+              <button type="submit" class="btn btn-outline-primary save-check-in-out"{% if app.checked_in %} disabled="disabled" style="display:none;"{% endif %} name="hanging" value="1">Artist Hanging</button>
+
+              <button type="submit" class="btn btn-primary" name="print" value="1">
+                Save & Print Form
+              </button>
+
+              {% if print_invoice %}
+              <button type="submit" class="btn btn-info" name="print_invoice" value="1">
+                Save & Print Invoice
+              </button>
+              {% endif %}
+
+              {% if checkout %}
+              <button type="submit" class="btn btn-success save-check-in-out"{% if app.checked_out %} disabled="disabled" style="display:none;"{% endif %} name="check_out" value="1">Save & Check-Out</button>
+              {% else %}
+              <button type="submit" class="btn btn-success save-check-in-out"{% if app.checked_in %} disabled="disabled" style="display:none;"{% endif %} name="check_in" value="1">Save & Check-In</button>
+              {% endif %}
+              
+              <button type="button" class="btn btn-outline-secondary order-5" data-bs-dismiss="modal">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {%- endmacro -%}
+
+    <div id="app-modals">
       {% for app in applications -%}
-      {{ artist_checkin_macros.check_in_modal(app) }}
+      {{ check_in_out_modal(app) }}
       {%- endfor %}
     </div>
-    <form role="form" method="post" id="print_form" action="print_check_in_out_form">
-      <input type="hidden" name="id" class="print_id" />
-      {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
-      {{ csrf_token() }}
-    </form>
-    <form role="form" method="post" id="print_invoice" action="print_artist_invoice">
-      <input type="hidden" name="id" class="print_id" />
-      {{ csrf_token() }}
-    </form>
     <br/>
   <ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
   {% for pagenum in pages %}
@@ -99,7 +146,7 @@
         <td><a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}</a></td>
         <td>{{ app.display_name|default("?????") }}{% if app.banner_name_ad %} ({{ app.banner_name_ad }}){% endif %}</td>
         <td>{% if app.incomplete_reason or app.is_unpaid %}{{ app.incomplete_reason|default("Unpaid") }}{% else %}
-          {{ app.art_show_pieces|length }} (<a href="pieces?id={{ app.id }}">View</a>){% endif %}</td>
+          {{ app.art_show_pieces|length }} (<a href="form?id={{ app.id }}#pieces">View</a>){% endif %}</td>
         <td>{{ app.panels }}</td>
         <td>{{ app.tables }}</td>
         <td>{{ app.panels_ad }}</td>
@@ -108,15 +155,21 @@
         <td>{{ app.admin_notes }}</td>
         <td>{{ app.art_show_pieces|selectattr('status','equalto',c.HANGING)|first|yesno("Yes,No") }}</td>
         <td>
-          {% if not app.checked_in %}
-          <button type="button" class="btn btn-primary open_modal">Check-In Artist</button>
-          {% elif not app.checked_out and checkout %}
-          <button type="button" class="btn btn-primary open_modal">Check-Out Artist</button>
+          {% set show_edit_btn = (checkout and app.checked_out) or (not checkout and app.checked_in) %}
+          <span id="check-in-out-btn-{{ app.id }}"{% if show_edit_btn %} style="display:none;"{% endif %}>
+          {% if checkout %}
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#app-modal-{{ app.id }}">Check-Out Artist</button>
           {% else %}
-          {% if app.checked_out %}<em>Checked-out {{ app.checked_out_local|datetime("%-I:%M%p")|lower }} {{ app.checked_out_local|datetime("%a") }}</em><br/>
-          {% elif app.checked_in %}<em>Checked-in {{ app.checked_in_local|datetime("%-I:%M%p")|lower }} {{ app.checked_in_local|datetime("%a") }}</em><br/>{% endif %}
-          (<a href="#" class="open_modal">View/Edit Artist Info</a>)
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#app-modal-{{ app.id }}">Check-In Artist</button>
           {% endif %}
+          </span>
+          <span id="edit-btn-{{ app.id }}"{% if not show_edit_btn %} style="display:none;"{% endif %}>
+            <span id="check-in-out-text-{{ app.id }}">
+            {% if app.checked_out %}<em>Checked out {{ app.checked_in_out_str(app.checked_out_local) }}</em><br/>
+            {% elif app.checked_in %}<em>Checked in {{ app.checked_in_out_str(app.checked_in_local) }}</em><br/>{% endif %}
+            </span>
+            (<a href="#app-modal-{{ app.id }}" data-bs-toggle="modal">View/Edit Artist Info</a>)
+          </span>
         </td>
       </tr>
       {% endfor %}
@@ -125,88 +178,93 @@
       </caption>
     </table>
     <script type="text/javascript">
-        var openModal = function(e) {
-            e.preventDefault();
-            var id = $(this).closest('.app-row').data('app_id');
-            $('#app_modals').find('.modal').removeClass('print_form');
-            hideMessageBox('artist-message-alert-'+ id);
-            var modal = bootstrap.Modal.getOrCreateInstance($('#app_'+id));
-            modal.show();
+      $(document).ready(function() {
+        $('.check-in-out-datatable').each(function() {
+          if (! $.fn.DataTable.isDataTable($(this))) {
+            var table = $(this).DataTable({
+              columns: [null, { width: '15%' }, { width: '10%' }, { width: '35%' }, null, null],
+              autoWidth: false,
+              paging: false,
+              stateSave: true,
+              searching: false,
+              info: false
+            });
+          }
+        });
 
-            // We need to run regionChange again because the function is running before the modal is actually ready
-            $('#app_'+id).find('.address_suffixes').each(function() {
-                eval("regionChange" + $(this).val() + "()");
-            })
+        $('#app_modals').find('form').submit(function(e) {
+            $(this).find('button[type=submit]').prop('disabled', true);
+            return true;
+        });
 
-            $('#datatable_'+id).each(function() {
-              if (! $.fn.DataTable.isDataTable($(this))) {
-                var table = $(this).DataTable({
-                  paging: false,
-                  stateSave: true,
-                  searching: false,
-                  info: false
-                });
+
+        $('.check-in-out-form').on('submit', function(event) {
+          event.preventDefault();
+
+          if(!serverValidationPassed) {
+            return false;
+          }
+          
+          let form = $(this);
+          let data = form.serialize();
+          let app_id = form.find('[name=id]').val();
+          form.find('button[type=submit]').prop('disabled', true);
+
+          if (event.originalEvent !== undefined && event.originalEvent.submitter.name) {
+            data = data + "&" + event.originalEvent.submitter.name + "=" + event.originalEvent.submitter.value;
+          }
+
+          $.ajax({
+              method: 'POST',
+              url: form.attr("action"),
+              dataType: 'json',
+              data: data,
+              success: function (json) {
+                  hideMessageBox('form-validations-check-in-out-' + app_id);
+                  hideMessageBox();
+                  if (json.success) {
+                    if (json.close_modal) {
+                      $("#message-alert").addClass("alert-success").show().children('span').html(json.success);
+                      $("#app-modal-" + app_id + " .btn-close").trigger('click');
+                    } else {
+                      $("#form-validations-check-in-out-" + app_id).addClass("alert-success").show().children('span').html(json.success);
+                      $('#app-modal-' + app_id).scrollTop(0);
+                    }
+                    if (json.checked_in_out_str) {
+                      $('#check-in-out-btn-' + app_id).hide();
+                      $('#edit-btn-' + app_id).show();
+                      $('#check-in-out-text-' + app_id).html('<em>' + json.checked_in_out_str + '</em><br/>')
+                      form.find('.undo-btn').show().prop('disabled', false);
+                      form.find('.save-check-in-out').hide().prop('disabled', true);
+                    }
+                    else if (json.undo) {
+                      $('#check-in-out-btn-' + app_id).show();
+                      $('#edit-btn-' + app_id).hide();
+                      form.find('.undo-btn').hide().prop('disabled', true);
+                      form.find('.save-check-in-out').show().prop('disabled', false);
+                    }
+
+                    if (json.print) {
+                      window.open('../art_show_admin/print_check_in_out_form?id=' + app_id + '{{ "&checkout=True" if checkout }}',
+                                  '_blank', 'width=400,height=400,resizeable,scrollbars');
+                    } else if (json.print_invoice) {
+                      window.open('../art_show_admin/print_artist_invoice?id=' + app_id,
+                                  '_blank', 'width=400,height=400,resizeable,scrollbars');
+                    }
+                  } else {
+                  showErrorMessage(json.error, 'form-validations-check-in-out-' + app_id);
+                  }
+              },
+              error: function () {
+                  showErrorMessage('Unable to connect to server, please try again.', 'form-validations-check-in-out-' + app_id);
+                  $('#app-modal-' + app_id).scrollTop(0);
+              },
+              complete: function () {
+                form.find('button[type=submit]').prop('disabled', false);
+                serverValidationPassed = false;
               }
-            });
-        };
-
-        $(document).ready(function() {
-            var print = false;
-            var print_invoice = false;
-            $('.open_modal').on('click', openModal);
-            $('.save_app').on('click', function() {
-                print = $(this).hasClass('print');
-                print_invoice = $(this).hasClass('print_invoice');
-                if ($(this).hasClass('action')) {
-                    $('.complete').val('1');
-                } else {
-                    $('.complete').val('');
-                }
-            });
-
-            $('#app_modals').find('form').submit(function(e) {
-                $(this).find('.save_app').prop('disabled', true);
-                return true;
-            });
-
-            $('#upload_frame').load(function() {
-                try {
-                    var responseText = $(this.contentDocument.body).text().trim();
-                    this.contentDocument.body.innerHTML = '';
-                    if (responseText) {
-                        try {
-                            var response = $.parseJSON(responseText);
-                            if (!response['error']) {
-                                var $modals = $('#app_modals').find('.modal');
-
-                                if (print || print_invoice) {
-                                  $('.print_id').val(response['id']);
-                                  if (print) {
-                                    window.open('', 'print_form_target', 'width=400,height=400,resizeable,scrollbars');
-                                    $('#print_form').attr('target', 'print_form_target').submit();
-                                  }
-                                  if (print_invoice) {
-                                      window.open('', 'print_invoice_target', 'width=400,height=400,resizeable,scrollbars');
-                                      $('#print_invoice').attr('target', 'print_invoice_target').submit();
-                                  }
-                                } else {
-                                    var modal = bootstrap.Modal.getOrCreateInstance($modals);
-                                    modal.hide();
-                                    location.href = '?{% if checkout %}checkout=True&{% endif %}message=' + response['success'];
-                                }
-                              } else {
-                            showErrorMessage(response['error'], 'artist-message-alert-'+response['app_id']);
-                        }
-                    } catch(ex) {
-                      modal.hide();
-                      showErrorMessage('There was an error saving the bidder: ' + responseText.substring(0, 1024));
-                    }
-                    }
-                } finally {
-                    $('#app_modals').find('.save_app').prop('disabled', false);
-                }
-            });
-
+          });
+        })
         });
   </script>
     {% endblock %}

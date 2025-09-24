@@ -1,15 +1,15 @@
-{% set app_or_parent = application.parent_application if application.entry_type == c.GROUP_ENTRY else application %}
+{% set app_or_parent = app.parent_application if app.entry_type == c.GROUP_ENTRY else app %}
 
 <html>
 <head></head>
 <body>
 <p>
-    {{ application.attendee.full_name }},<br/>
-    Thank you for {{ action_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your{% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} entry details are below.
+    {{ app.attendee.full_name }},<br/>
+    Thank you for {{ action_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your{% if app.entry_type == c.SUITE_ENTRY %} suite{% elif app.entry_type == c.GROUP_ENTRY %} group's{% endif %} entry details are below.
 </p>
-{% if maybe_swapped and application.entry_type == c.ROOM_ENTRY %}
+{% if maybe_swapped and app.entry_type == c.ROOM_ENTRY %}
 <p>
-    <strong>IMPORTANT</strong>: If you originally entered the lottery for a suite, please note that your current lottery entry is <strong>ONLY</strong> for a standard room. If this was a mistake, you can <a href="{{ c.URL_BASE }}/hotel_lottery/index?id={{ application.id }}" target="_blank">change your entry</a> to a suite entry.
+    <strong>IMPORTANT</strong>: If you originally entered the lottery for a suite, please note that your current lottery entry is <strong>ONLY</strong> for a standard room. If this was a mistake, you can <a href="{{ c.URL_BASE }}/hotel_lottery/index?id={{ app.id }}" target="_blank">change your entry</a> to a suite entry.
 </p>
 {% endif %}
 {% if new_conf %}
@@ -17,14 +17,14 @@
     <strong>IMPORTANT</strong>: Your previous lottery entry has been <strong>withdrawn</strong> and your old confirmation number is invalid. Your new confirmation number is below.
 </p>
 {% endif %}
-{% if not application.room_group_name and not application.parent_application %}
+{% if not app.room_group_name and not app.parent_application and c.SHOW_HOTEL_LOTTERY_GROUPS %}
 <p>
     If you know who you are rooming with, you can 
-    <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ application.id }}&create=True" target="_blank">create a room group</a> for up to four people total.
-    Room groups are given additional weighting in the lottery. Note that in order to join a room group you must have a valid registration for {{ c.EVENT_NAME }}.
+    <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ app.id }}&create=True" target="_blank">create a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}</a> for up to four people total.
+    {{ c.HOTEL_LOTTERY_GROUP_TERM|capitalize }}s are given additional weighting in the lottery. Note that in order to join a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} you must have a valid registration for {{ c.EVENT_NAME }}.
 </p>
 {% endif %}
-<p>You can review{% if application.entry_type != c.GROUP_ENTRY %} and update{% endif %} your{% if application.entry_type == c.SUITE_ENTRY %} suite{% elif application.entry_type == c.GROUP_ENTRY %} group's{% endif %} lottery entry by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
+<p>You can review{% if app.entry_type != c.GROUP_ENTRY %} and update{% endif %} your{% if app.entry_type == c.SUITE_ENTRY %} suite{% elif app.entry_type == c.GROUP_ENTRY %} group's{% endif %} lottery entry by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging into{% else %}visiting{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.</p>
 {% set confirmation = True %}
 {% include 'emails/hotel/entry_details.html' with context %}
 </body>

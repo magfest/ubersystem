@@ -23,7 +23,9 @@
             {% include 'forms/showcase/mivs_demo_info.html' %}
         </div>
         <div class="modal-footer">
+            {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
             <button type="submit" class="btn btn-primary">Update Demo Info for {{ game.title }}</button>
+            {% endif %}
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
         </div>
         </form>
@@ -31,6 +33,7 @@
     </div>
 </div>
 
+{% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
 {% if game.code_type != c.NO_CODE %}
 <div
     id="new-code-{{ game.id }}"
@@ -111,6 +114,7 @@
     </div>
     </div>
 </div>
+{% endif %}
 
 {% if game.code_type != c.NO_CODE and game.codes %}
 <div
@@ -138,7 +142,7 @@
                     <tr>
                         <th>Code</th>
                         <th>Shared?</th>
-                        <th></th>
+                        {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}<th></th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -146,6 +150,7 @@
                     {% set mivs_code = code_forms[code.id]['mivs_code'] %}
                         <tr x-data="">
                             <td>{{ form_macros.input(mivs_code.code, show_label=False, form=code.id ~ "-form") }}</td>
+                            {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <td>{{ form_macros.input(mivs_code.unlimited_use, label_text="Yes", form=code.id ~ "-form") }}</td>
                             <td>
                                 <div class="d-flex gap-1">
@@ -162,6 +167,9 @@
                                 </form>
                                 </div>
                             </td>
+                            {% else %}
+                            <td>{{ code.unlimited_use|yesno("Yes,No") }}</td>
+                            {% endif %}
                         </tr>
                     </form>
                     {% endfor %}
@@ -203,7 +211,7 @@
                     <tr>
                         <th>Image</th>
                         <th>Description</th>
-                        <th></th>
+                        {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}<th></th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -217,6 +225,7 @@
                             <td>
                                 {{ form_macros.input(mivs_screenshot.description, show_label=False, form=image.id ~ "-form") }}
                             </td>
+                            {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <td>
                                 <div class="d-flex gap-1">
                                 <form novalidate method="post" action="../mivs/screenshot" id="{{ image.id }}-form" role="form" enctype="multipart/form-data">
@@ -234,6 +243,7 @@
                                 {% endif %}
                                 </div>
                             </td>
+                            {% endif %}
                         </tr>
                     </form>
                     {% endfor %}

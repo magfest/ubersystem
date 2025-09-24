@@ -17,30 +17,34 @@
         <h2>How the Room Lottery Works</h2>
         {% include 'hotel_lottery/lottery_tos.html' with context %}
 
-        {{ form_macros.input(lottery_info.terms_accepted) }}
+        <p>{{ form_macros.input(lottery_info.terms_accepted) }}</p>
 
         {% include 'hotel_lottery/data_policy.html' with context %}
 
-        {{ form_macros.input(lottery_info.data_policy_accepted) }}
+        <p>{{ form_macros.input(lottery_info.data_policy_accepted) }}</p>
         <hr/>
         {% include 'forms/hotel/contact_info.html' with context %}
 
-        <div class="d-flex gap-1 flex-wrap">
+        <div class="d-flex gap-1 flex-wrap align-items-center">
         {% if attendee.managers %}
             {% set room_group_owners = attendee.managers[0].get_room_group_owners(staff=attendee.staff_hotel_lottery_eligible) %}
-            {% if attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] %}
+            {% if c.SHOW_HOTEL_LOTTERY_GROUPS and attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] %}
                 {% for group_leader in room_group_owners %}
-                <button type="submit" name="group_id" value="{{ group_leader.lottery_application.id }}" class="btn btn-primary">Join "{{ group_leader.lottery_application.room_group_name }}" Room Group</button>
+                <button type="submit" name="group_id" value="{{ group_leader.lottery_application.id }}" class="btn btn-primary">Join "{{ group_leader.lottery_application.room_group_name }}" {{ c.HOTEL_LOTTERY_GROUP_TERM }}</button>
                 {% endfor %}
             {% endif %}
         {% endif %}
         {% if attendee.managers and application.status in [c.PARTIAL, c.WITHDRAWN] and room_group_owners %}
-        <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button>
-        <button type="submit" name="suite" value="true" class="btn btn-success">Enter Suite Lottery</button>
-        <button type="submit" name="group" value="true" class="btn btn-outline-primary">Search Room Groups</button>
+        <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button> OR
+        <button type="submit" name="suite" value="true" class="btn btn-success">Enter Suite Lottery</button> OR
+        {% if c.SHOW_HOTEL_LOTTERY_GROUPS %}
+        <button type="submit" name="group" value="true" class="btn btn-outline-primary">Search {{ c.HOTEL_LOTTERY_GROUP_TERM }}s</button>
+        {% endif %}
         {% else %}
-        <button type="submit" name="group" value="true" class="btn btn-primary">Join Room Group</button>
-        <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button>
+        {% if c.SHOW_HOTEL_LOTTERY_GROUPS %}
+        <button type="submit" name="group" value="true" class="btn btn-primary">Join {{ c.HOTEL_LOTTERY_GROUP_TERM }}</button> OR
+        {% endif %}
+        <button type="submit" name="room" value="true" class="btn btn-secondary">Enter Room Lottery</button> OR
         <button type="submit" name="suite" value="true" class="btn btn-success">Enter Suite Lottery</button>
         {% endif %}
         </div>

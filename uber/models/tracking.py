@@ -255,9 +255,11 @@ class Tracking(MagModel):
             return
 
         try:
-            snapshot = json.dumps(instance.to_dict(), cls=serializer)
+            dict = instance.to_dict()
+            dict.pop('receipt_changes', None)
+            snapshot = json.dumps(dict, cls=serializer)
         except TypeError as e:
-            snapshot = "(Could not save JSON dump due to error: {}".format(e)
+            snapshot = "Could not save JSON dump due to error: {}".format(e)
 
         def _insert(session):
             session.add(Tracking(

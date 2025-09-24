@@ -1,0 +1,45 @@
+{% set room_type = 'suite' if app.assigned_suite_type else 'room' %}
+<html>
+<head></head>
+<body>
+<p>
+    {{ app.attendee.full_name }},<br/>
+    This is to notify you that your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} "{{ new_leader.room_group_name }}" now has a new group leader.
+    So {{ old_leader.attendee.full_name }} is no longer the leader of your group, and {{ new_leader.attendee.full_name }} can now manage your group{% if new_leader.booking_url %} and its {{ room_type }} reservation{% endif %}.
+</p>
+<p>
+{% if app == old_leader %}
+    You can, if you need, now withdraw from the group by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging into{% else %}visiting{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.
+    Since you are no longer the group leader, this will not affect your group's {% if new_leader.booking_url %}{{ room_type }} reservation{% else %}lottery entry{% endif %}.
+{% elif app == new_leader %}
+    {% if new_leader.booking_url %}
+        {% if new_leader.status == c.SECURED %}
+        You can <a href="{{ c.URL_BASE }}/hotel_lottery/confirm?id={{ app.id }}" target="_blank">view and update your group's reservation here</a>, or
+        {% else %}
+        Your group's reservation is <strong>not</strong> confirmed yet.
+        Please <a href="{{ c.URL_BASE }}/hotel_lottery/confirm?id={{ app.id }}" target="_blank">click here to put a card down</a> to guarantee the reservation by {{ app.guarantee_deadline|datetime_local('%A, %B %-d') }}.
+        The credit card you provide will have a refundable one-night deposit charged to it within a week.
+        You may receive a second email alongside this one if the deadline for putting your card down is imminent.
+        </p><p>You can also
+        {% endif %}
+    {% else %}
+    You can {% endif %}view and manage your group by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging into{% else %}visiting{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.
+{% else %}
+    If this is not someone you know, you can
+    {% if c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and app.qualifies_for_staff_lottery %}
+        {% if app.guarantee_policy_accepted %}
+        leave your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} and re-activate your previous lottery entry
+        {% else %}
+        withdraw from the group and re-enter the lottery
+        {% endif %}
+    {% else %}
+        leave the group
+    {% endif %}
+    by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging into{% else %}visiting{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.
+    {% if not c.HOTEL_LOTTERY_OPEN and not (c.STAFF_HOTEL_LOTTERY_OPEN and app.qualifies_for_staff_lottery) %}
+    Unfortunately, since the hotel lottery is closed, this will cancel your lottery entry{% if new_leader.booking_url %} and your group leader will be notified to remove your name from the group's reservation{% endif %}.
+    {% endif %}
+{% endif %}
+</p>
+</body>
+</html>

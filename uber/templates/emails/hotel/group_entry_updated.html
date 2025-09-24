@@ -1,14 +1,14 @@
-{% set app_or_parent = application.parent_application %}
+{% set app_or_parent = app.parent_application if app.entry_type == c.GROUP_ENTRY else app %}
 
 <html>
 <head></head>
 <body>
 <p>
-    {{ application.attendee.full_name }},<br/>
+    {{ app.attendee.full_name }},<br/>
     This is to let you know that your group leader has updated your group's {% if app_or_parent.entry_type == c.SUITE_ENTRY %} suite{% endif %} lottery entry. Your group's updated details are below.
 </p>
 {% set confirmation = False %}
 {% include 'emails/hotel/entry_details.html' with context %}
-<p>You can review your group's lottery entry by logging into your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ application.attendee.id }}" target="_blank">lottery options page</a>.</p>
+<p>You can review your group's lottery entry by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging into{% else %}visiting{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.</p>
 </body>
 </html>

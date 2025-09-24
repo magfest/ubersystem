@@ -27,19 +27,17 @@
 
 <br/><br/>Note that if accepted, your day and time will be manually scheduled <strong>based on the availability you specified on your submission</strong>, which you can review below. If this availability has changed, please let us know as soon as possible, as we will not be reaching out again for availability before scheduling.
 
-<strong>Panel Information</strong>
+<br/><br/><strong>Panel Information</strong>
 <ul>
     <li><strong>Name</strong>: {{ app.name }}</li>
-    {% if c.PANELS_DEPT_OPTS|length > 1 %}<li><strong>Department</strong>: {{ app.department_label }}</li>{% endif %}
+    {% if c.PANELS_DEPT_OPTS|length > 1 %}<li><strong>Department</strong>: {{ app.department_name }}</li>{% endif %}
     <li><strong>Type</strong>: {{ app.presentation_label }}{% if app.presentation == c.OTHER %} ({{ app.other_presentation }}){% endif %}</li>
     <li><strong>Description</strong>: {{ app.description }}</li>
     {% if app.public_description %}<li><strong>Schedule Description</strong>: {{ app.public_description }}</li>{% endif %}
     {% if c.PANEL_RATING_OPTS|length > 1 %}<li><strong>Rating</strong>: {{ app.rating_label }}</li>{% endif %}
     {% if c.PANEL_CONTENT_OPTS|length > 1 %}
     <li><strong>Mature Content</strong>: {{ app.granular_rating_labels|join(', ') }}</li>
-    <li><strong>Opted in to MAGScouts</strong>: {{ "N/A" if app.magscouts_opt_in == c.NO_CHOICE else app.magscouts_opt_in_label }}</li>
     {% endif %}
-    <li><strong>Tabletop Related</strong>: {{ app.tabletop|yesno|title }}</li>
     <li><strong>Expected Length</strong>: {{ app.length_label if app.length != c.OTHER and not app.length_text else app.length_text }}</li>
     {% if app.length_reason %}<li><strong>Reason for Length</strong>: {{ app.length_reason }}</li>{% endif %}
     <li><strong>Noise Level</strong>: {{ app.noise_level_label }}</li>

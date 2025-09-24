@@ -94,7 +94,7 @@ class Root:
                         app.department_label,
                         app.other_presentation if app.presentation == c.OTHER else app.presentation_label,
                         getattr(app.event, 'location_label', '(not scheduled)'),
-                        app.event.timespan(minute_increment=30) if app.event else '(not scheduled)',
+                        app.event.timespan() if app.event else '(not scheduled)',
                     ])
 
 

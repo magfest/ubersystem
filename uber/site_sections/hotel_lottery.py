@@ -21,12 +21,12 @@ def _join_room_group(session, application, group_id):
     try:
         room_group = session.lottery_application(group_id)
     except NoResultFound:
-        message = "No room group found!"
+        message = f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found!"
     else:
         if len(room_group.group_members) == 3:
-            message = "This room group is full."
+            message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is full."
         elif room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
-            message = "This room group is locked."
+            message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is locked."
     if message:
         return message, got_new_conf_num
     
@@ -54,6 +54,7 @@ def _join_room_group(session, application, group_id):
     application.status = c.COMPLETE
     application.entry_type = c.GROUP_ENTRY
     application.last_submitted = datetime.now()
+    application.attendee.hotel_eligible = False
     application.parent_application = room_group
     if application.is_staff_entry and not application.parent_application.is_staff_entry:
         application.is_staff_entry = False
@@ -73,11 +74,11 @@ def _disband_room_group(session, application):
         session.add(member)
         session.commit()
         body = render('emails/hotel/removed_from_group.html', {
-            'application': member, 'parent': application, 'old_room_group_name': old_room_group_name}, encoding=None)
+            'app': member, 'parent': application, 'old_room_group_name': old_room_group_name}, encoding=None)
         send_email.delay(
             c.HOTEL_LOTTERY_EMAIL,
             member.attendee.email_to_address,
-            f'{c.EVENT_NAME} Lottery Room Group "{old_room_group_name}" Disbanded',
+            f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{old_room_group_name}" Disbanded',
             body,
             format='html',
             model=member.to_dict('id'))
@@ -108,6 +109,19 @@ def _reset_group_member(application):
     return application
 
 
+def _clear_application(application, status=c.WITHDRAWN):
+    application.status = status
+    application.attendee.hotel_eligible = True
+    keep_attrs = [
+        'id', 'attendee_id', 'response_id', 'legal_first_name', 'legal_last_name', 'cellphone']
+
+    defaults = LotteryApplication().to_dict()
+    for attr in defaults:
+        if attr not in keep_attrs:
+            setattr(application, attr, defaults.get(attr))
+    return application
+
+
 def _return_link(attendee_id):
     if c.ATTENDEE_ACCOUNTS_ENABLED:
         return "../preregistration/homepage?"
@@ -120,6 +134,9 @@ class Root:
     @requires_account(Attendee)
     def start(self, session, attendee_id, message="", **params):
         attendee = session.attendee(attendee_id)
+        if attendee.lottery_application and not attendee.lottery_application.can_reenter:
+            raise HTTPRedirect('index?attendee_id={}', attendee.id)
+
         return {
             'attendee': attendee,
             'message': message,
@@ -131,17 +148,19 @@ class Root:
         attendee = session.attendee(attendee_id)
         if attendee.lottery_application:
             application = attendee.lottery_application
+            if not attendee.lottery_application.can_reenter:
+                raise HTTPRedirect('index?attendee_id={}', attendee.id)
         else:
-            application = LotteryApplication(attendee_id=attendee_id)
+            application = LotteryApplication()
+            application.attendee = attendee
 
         forms_list = ["LotteryInfo"]
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
                 form.populate_obj(application)
             session.add(application)
-            application.status = c.PARTIAL
             session.commit()
 
             if params.get('group'):
@@ -155,13 +174,13 @@ class Root:
                 if application.status not in [c.PARTIAL, c.WITHDRAWN]:
                     message = "Application status has changed, please view your new options below."
                 elif not group_id:
-                    message = 'Group lookup failed. Please use the "Join Room Group" button to try again.'
+                    message = f'Group lookup failed. Please use the "Join {c.HOTEL_LOTTERY_GROUP_TERM}" button to try again.'
                 else:
                     message, _ = _join_room_group(session, application, group_id)
 
                 if not message:
                     room_group = session.lottery_application(group_id)
-                    message = f'Successfully joined room group "{room_group.room_group_name}"!'
+                    message = f'Successfully joined {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "{room_group.room_group_name}"!'
                 raise HTTPRedirect(f'index?id={application.id}&message={message}')
 
         return {
@@ -177,6 +196,7 @@ class Root:
     def index(self, session, attendee_id=None, message="", **params):
         if 'id' in params:
             application = session.lottery_application(params['id'])
+            attendee_id = application.attendee.id
         elif attendee_id:
             attendee = session.attendee(attendee_id)
             application = attendee.lottery_application
@@ -194,11 +214,12 @@ class Root:
 
         forms_list = ["RoomLottery", "SuiteLottery"]
         if application.parent_application:
-            forms = load_forms(params, application.parent_application, forms_list)
+            forms = load_forms(params, application.parent_application, forms_list, read_only=True)
         else:
-            forms = load_forms(params, application, forms_list)
+            forms = load_forms(params, application, forms_list, read_only=True)
 
-        contact_form_dict = load_forms(params, application, ["LotteryInfo"])
+        contact_form_dict = load_forms(params, application, ["LotteryInfo"],
+                                       read_only=application.current_lottery_closed)
 
         return {
             'id': application.id,
@@ -229,11 +250,49 @@ class Root:
         application.last_submitted = datetime.now()
         application.status = c.COMPLETE
         application.confirmation_num = ''
+        application.attendee.hotel_eligible = False
         session.add(application)
+        
+        body = render('emails/hotel/hotel_lottery_entry.html', {
+            'app': application,
+            'maybe_swapped': False,
+            'new_conf': False,
+            'action_str': f"entering the {application.entry_type_label.lower()} attendee lottery"}, encoding=None)
+        send_email.delay(
+            c.HOTEL_LOTTERY_EMAIL,
+            application.attendee.email_to_address,
+            c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
+            body,
+            format='html',
+            model=application.to_dict('id'))
+
         raise HTTPRedirect('index?id={}&message={}',
                            application.id,
                            "Your staff lottery entry has been entered into the attendee lottery.")
-    
+
+    @requires_account(LotteryApplication)
+    def reenter_lottery(self, session, id=None, **params):
+        application = session.lottery_application(id)
+        _reset_group_member(application)
+        session.add(application)
+        if application.status == c.COMPLETE:
+            body = render('emails/hotel/hotel_lottery_entry.html', {
+                'app': application,
+                'maybe_swapped': False,
+                'new_conf': False,
+                'action_str': f"re-entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                application.attendee.email_to_address,
+                c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
+                body,
+                format='html',
+                model=application.to_dict('id'))
+        else:
+            raise HTTPRedirect('start?attendee_id={}&message={}',
+                               application.attendee.id,
+                               "Your lottery entry has been reset and you may now re-enter.")
+
     @requires_account(LotteryApplication)
     def withdraw_entry(self, session, id=None, **params):
         application = session.lottery_application(id)
@@ -245,28 +304,22 @@ class Root:
         if was_room_group:
             _disband_room_group(session, application)
 
-        defaults = LotteryApplication().to_dict()
-        for attr in defaults:
-            if attr not in ['id', 'attendee_id', 'response_id']:
-                setattr(application, attr, defaults.get(attr))
-
-        application.confirmation_num = ''
-        application.status = c.WITHDRAWN
+        _clear_application(application)
 
         if old_room_group:
             body = render('emails/hotel/group_member_left.html', {
-                'application': old_room_group, 'member': application}, encoding=None)
+                'app': old_room_group, 'member': application}, encoding=None)
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,
                 old_room_group.attendee.email_to_address,
-                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery Room Group',
+                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
                 body,
                 format='html',
                 model=old_room_group.to_dict('id'))
 
         if has_actually_entered:
             body = render('emails/hotel/lottery_entry_cancelled.html', {
-                'application': application},
+                'app': application},
                 encoding=None)
             send_email.delay(
                 c.HOTEL_LOTTERY_EMAIL,
@@ -284,13 +337,13 @@ class Root:
     @requires_account(LotteryApplication)
     def room_lottery(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
-        forms_list = ["RoomLottery"]
+        forms_list = ["RoomLottery"] + (["SuiteLottery"] if application.current_lottery_closed else [])
 
         if application.parent_application:
-            message = "You cannot edit your room group's application."
+            message = f"You cannot edit your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
-        
-        forms = load_forms(params, application, forms_list)
+
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -310,10 +363,12 @@ class Root:
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
+                if application.status == c.PARTIAL:
+                    application.status = c.COMPLETE
                 application.last_submitted = datetime.now()
 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
-                    'application': application,
+                    'app': application,
                     'action_str': "updating your room lottery entry"}, encoding=None)
                 send_email.delay(
                     c.HOTEL_LOTTERY_EMAIL,
@@ -325,7 +380,7 @@ class Root:
                 if update_group_members:
                     for member in application.group_members:
                         body = render('emails/hotel/group_entry_updated.html', {
-                            'application': member}, encoding=None)
+                            'app': member}, encoding=None)
                         send_email.delay(
                             c.HOTEL_LOTTERY_EMAIL,
                             member.attendee.email_to_address,
@@ -351,10 +406,10 @@ class Root:
         forms_list = ["SuiteLottery"]
 
         if application.parent_application:
-            message = "You cannot edit your room group's application."
+            message = f"You cannot edit your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
 
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -374,10 +429,12 @@ class Root:
             if not application.guarantee_policy_accepted:
                 raise HTTPRedirect('guarantee_confirm?id={}', application.id)
             else:
+                if application.status == c.PARTIAL:
+                    application.status = c.COMPLETE
                 application.last_submitted = datetime.now()
 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
-                    'application': application,
+                    'app': application,
                     'action_str': "updating your suite lottery entry"}, encoding=None)
                 send_email.delay(
                     c.HOTEL_LOTTERY_EMAIL,
@@ -390,7 +447,7 @@ class Root:
                 if update_group_members:
                     for member in application.group_members:
                         body = render('emails/hotel/group_entry_updated.html', {
-                            'application': member}, encoding=None)
+                            'app': member}, encoding=None)
                         send_email.delay(
                             c.HOTEL_LOTTERY_EMAIL,
                             member.attendee.email_to_address,
@@ -458,7 +515,7 @@ class Root:
     def guarantee_confirm(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
         forms_list = ["LotteryConfirm"]
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -467,6 +524,7 @@ class Root:
             maybe_swapped = application.last_submitted != None
             application.last_submitted = datetime.now()
             application.status = c.COMPLETE
+            application.attendee.hotel_eligible = False
 
             if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
                 application.is_staff_entry = True
@@ -476,7 +534,7 @@ class Root:
 
             room_or_suite = "suite" if application.entry_type == c.SUITE_ENTRY else "room"
             body = render('emails/hotel/hotel_lottery_entry.html', {
-                'application': application,
+                'app': application,
                 'maybe_swapped': maybe_swapped,
                 'new_conf': False,
                 'action_str': f"entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
@@ -513,8 +571,9 @@ class Root:
 
         if application.entry_type == c.ROOM_ENTRY:
             application.entry_type = c.SUITE_ENTRY
-            application.wants_ada = False
-            application.ada_requests = ''
+            if 'suite_ada_info' not in c.HOTEL_LOTTERY_FORM_STEPS:
+                application.wants_ada = False
+                application.ada_requests = ''
         elif application.entry_type == c.SUITE_ENTRY:
             application.entry_type = c.ROOM_ENTRY
             application.suite_terms_accepted = False
@@ -530,7 +589,7 @@ class Root:
         application = session.lottery_application(id)
 
         forms_list = ["LotteryRoomGroup"]
-        forms = load_forms(params, application, forms_list)
+        forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
         if cherrypy.request.method == 'POST':
             pass
@@ -581,17 +640,59 @@ class Root:
         session.commit()
         session.refresh(member)
         body = render('emails/hotel/removed_from_group.html', {
-            'application': member, 'parent': application, 'group_disbanded': False}, encoding=None)
+            'app': member, 'parent': application, 'group_disbanded': False}, encoding=None)
         send_email.delay(
             c.HOTEL_LOTTERY_EMAIL,
             member.attendee.email_to_address,
-            f'Removed From {c.EVENT_NAME} Lottery Room Group "{application.room_group_name}"',
+            f'Removed From {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{application.room_group_name}"',
             body,
             format='html',
             model=member.to_dict('id'))
         raise HTTPRedirect('room_group?id={}&message={}', application.id,
-                           f"{member.attendee.full_name} has been removed from your room group.")
-    
+                           f"{member.attendee.full_name} has been removed from your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.")
+
+    @requires_account(LotteryApplication)
+    def transfer_leadership(self, session, id=None, member_id=None, message="", **params):
+        application = session.lottery_application(id)
+        new_leader = session.lottery_application(member_id)
+
+        leader_entry = application.to_dict()
+        defaults = LotteryApplication().to_dict()
+
+        for attr in ['earliest_checkin_date', 'latest_checkin_date', 'earliest_checkout_date', 'latest_checkout_date',
+                     'selection_priorities', 'hotel_preference', 'room_type_preference', 'wants_ada', 'ada_requests',
+                     'room_opt_out', 'suite_type_preference', 'suite_terms_accepted', 'guarantee_policy_accepted',
+                     'assigned_hotel', 'assigned_room_type', 'assigned_suite_type', 'assigned_check_in_date',
+                     'assigned_check_out_date', 'deposit_cutoff_date', 'lottery_name', 'booking_url', 'room_group_name',
+                     'status']:
+            setattr(new_leader, attr, leader_entry.get(attr))
+            setattr(application, attr, defaults.get(attr))
+
+        for member in application.group_members:
+            if member != new_leader:
+                member.parent_application_id = new_leader.id
+                session.add(member)
+
+        application.status = new_leader.status
+        application.entry_type = c.GROUP_ENTRY
+        new_leader.parent_application_id = None
+        session.commit()
+
+        for member in application.group_members + [application]:
+            body = render('emails/hotel/group_new_leader.html', {
+                    'app': member, 'old_leader': application, 'new_leader': new_leader}, encoding=None)
+            send_email.delay(
+                c.HOTEL_LOTTERY_EMAIL,
+                member.email_to_address,
+                f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Leader Changed',
+                body,
+                format='html',
+                model=member.to_dict('id'))
+        
+        raise HTTPRedirect('index?id={}&message={}', application.id,
+                           f"Group leadership successfully transferred to {new_leader.full_name}.")
+
+
     @requires_account(LotteryApplication)
     def delete_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
@@ -612,18 +713,22 @@ class Root:
         if not invite_code:
             errors.append("a group confirmation number")
         if not leader_email:
-            errors.append("the room group leader's email address")
+            errors.append(f"the {c.HOTEL_LOTTERY_GROUP_TERM.lower()} leader's email address")
         if errors:
             return {'error': f"Please enter {readable_join(errors)}."}
 
         #room_group = session.lookup_registration_code(invite_code, LotteryApplication)
-        room_group = session.query(LotteryApplication).filter_by(confirmation_num=invite_code).first()
+        room_group = session.query(LotteryApplication).filter(
+            LotteryApplication.confirmation_num == invite_code,
+            LotteryApplication.room_group_name != '').first()
 
-        if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email):
-            return {'error': "No room group found. Please check the confirmation number and leader email address."}
+        if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email) or \
+                room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
+            return {'error': f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found. Please check the confirmation number and leader email address, \
+                    and make sure the application you're trying to join is a valid {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."}
 
-        if room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
-            return {'error': "No valid room group found. Please check the confirmation number and leader email address."}
+        if room_group.finalized:
+            return {'error': f"No valid {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found."}
 
         return {
             'success': True,
@@ -641,7 +746,7 @@ class Root:
         if cherrypy.request.method == "POST":
             if not params.get('room_group_id'):
                 message = "Group ID invalid!"
-            elif application.group_members:
+            elif application.group_members or application.room_group_name:
                 message = "Please disband your own group before joining another group."
             if not message:
                 message, got_new_conf_num = _join_room_group(session, application, params.get('room_group_id'))
@@ -655,17 +760,17 @@ class Root:
                 session.refresh(application)
 
                 body = render('emails/hotel/group_member_joined.html', {
-                    'application': room_group, 'member': application}, encoding=None)
+                    'app': room_group, 'member': application}, encoding=None)
                 send_email.delay(
                     c.HOTEL_LOTTERY_EMAIL,
                     room_group.attendee.email_to_address,
-                    f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery Room Group',
+                    f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
                     body,
                     format='html',
                     model=room_group.to_dict('id'))
                 
                 body = render('emails/hotel/hotel_lottery_entry.html', {
-                    'application': application,
+                    'app': application,
                     'new_conf': got_new_conf_num,
                     'action_str': f"entering the lottery as a roommate"}, encoding=None)
                 send_email.delay(
@@ -685,23 +790,87 @@ class Root:
         if cherrypy.request.method == "POST":
             room_group = application.parent_application
 
-            body = render('emails/hotel/group_member_left.html', {
-                'application': room_group, 'member': application}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                room_group.attendee.email_to_address,
-                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery Room Group',
-                body,
-                format='html',
-                model=room_group.to_dict('id'))
+            if room_group.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+                body = render('emails/hotel/group_member_left.html', {
+                    'app': room_group, 'member': application}, encoding=None)
+                send_email.delay(
+                    c.HOTEL_LOTTERY_EMAIL,
+                    room_group.attendee.email_to_address,
+                    f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
+                    body,
+                    format='html',
+                    model=room_group.to_dict('id'))
             
             application = _reset_group_member(application)
 
             if application.status == c.WITHDRAWN:
                 raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),
-                                   f'You have left the room group "{room_group.room_group_name}" and been removed from the hotel lottery.'))
+                                   f'You have left the {c.HOTEL_LOTTERY_GROUP_TERM.lower()} \
+                                    "{room_group.room_group_name}" and been removed from the hotel lottery.'))
             raise HTTPRedirect('index?id={}&message={}&confirm={}&action={}',
                                application.id,
-                               f'Successfully left the room group "{room_group.room_group_name}".',
+                               f'Successfully left the {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "{room_group.room_group_name}".',
                                "suite" if application.entry_type == c.SUITE_ENTRY else "room",
                                're-entered')
+        
+    def confirm(self, session, id, message='', **params):
+        application = session.lottery_application(id)
+        if application.parent_application or application.group_members:
+            you_str = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s"
+        else:
+            you_str = "Your"
+
+        if not application.status in [c.AWARDED, c.SECURED]:
+            message = f"{you_str} entry does not have a room or suite award."
+        if not application.booking_url:
+            message = f"{you_str} entry is still being processed and the booking link is not available yet."
+
+        if application.parent_application:
+            message = f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} may confirm or edit your room or suite award."
+        
+        if message:
+            raise HTTPRedirect('index?id={}&message={}', id, message)
+        raise HTTPRedirect(application.booking_url)
+        
+    def decline(self, session, id, message='', **params):
+        application = session.lottery_application(id)
+        if application.parent_application or application.group_members:
+            you_str = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s"
+        else:
+            you_str = "Your"
+
+        if application.status == c.SECURED:
+            message = "You cannot cancel a reservation that has already been confirmed with a credit card guarantee."
+        elif application.status == c.CANCELLED:
+            message = "This reservation has already been cancelled."
+        elif application.status != c.AWARDED:
+            message = f"{you_str} entry does not have a room or suite award."
+
+        if application.parent_application:
+            message = f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} may decline your room or suite award."
+        
+        if message:
+            raise HTTPRedirect('index?id={}&message={}', id, message)
+        
+        if cherrypy.request.method == "POST":
+            room_type = 'suite' if application.assigned_suite_type else 'room'
+            if 'confirm' not in params:
+                message = f"Please check the box confirming that you want to give up {you_str.lower()} {room_type} award."
+            else:
+                _clear_application(application, status=c.CANCELLED)
+                if application.group_members:
+                    for group_member in application.group_members:
+                        _clear_application(group_member, status=c.CANCELLED)
+                        group_member.former_parent_id = application.id
+
+                    message = f"You have declined your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s {room_type} award. \
+                        Your lottery entry has been cancelled and your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} has been disbanded."
+                else:
+                    message = f"You have declined your {room_type} award and your lottery entry has been cancelled."
+                raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id), message))
+
+        return {
+            'application': application,
+            'message': message,
+        }
+

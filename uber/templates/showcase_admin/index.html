@@ -1,0 +1,153 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title_text = "Showcase Admin" %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% block content %}
+<div class="card card-body">
+    <div class="d-flex justify-content-between">
+        <h2>
+            {% if showcase_label == 'All' %}All Showcases{% else %}{{ showcase_label }} Showcase{% endif %}
+        </h2>
+        <div class="d-flex gap-2">
+            <span>Showcase Type:</span>
+            {% for showcase, label in c.SHOWCASE_GAME_TYPES.items() %}
+            {% if label != showcase_label %}
+            <a class="include-tab-hash" href="index?showcase_type={{ showcase }}">{{ label }}</a>
+            {% else %}
+            <span>{{ label }}</span>
+            {% endif %} /
+            {% endfor %}
+            {% if showcase_label != 'All' %}
+            <a class="include-tab-hash" href="index">All</a>
+            {% else %}
+            <span>All</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between">
+        <ul class="nav nav-tabs flex-grow-1" role="tablist">
+            <li class="nav-item" role="presentation">
+            <button class="nav-link" id="games-tab" data-bs-toggle="tab" data-bs-target="#games" type="button" role="tab" aria-controls="games">
+                <i class="fa fa-list"></i>&nbsp;{{ showcase_label }} Games
+            </button>
+            </li>
+            <li class="nav-item" role="presentation">
+            <button class="nav-link" id="judges-tab" data-bs-toggle="tab" data-bs-target="#judges" type="button" role="tab" aria-controls="judges">
+                <i class="fa fa-user"></i>&nbsp;{{ showcase_label }} Judges
+            </button>
+            </li>
+        </ul>
+        <a href="studios" target="_blank" class="ms-3 btn btn-primary">View Indie Studios <i class="fa fa-external-link"></i></a>
+    </div>
+    <div class="tab-content">
+        &nbsp;
+        <div role="tabpanel" class="tab-pane" id="games" aria-labelledby="games-tab">
+            <div class="d-flex gap-2 mb-3">
+                {% if show_all %}
+                <a href="index?showcase_type={{ showcase_type }}" class="btn btn-secondary">Hide Unsubmitted Games</a>
+                {% else %}
+                <a href="index?showcase_type={{ showcase_type }}&show_all=True" class="btn btn-outline-secondary">Show Unsubmitted Games</a>
+                {% endif %}
+            </div>
+            <table class="table table-hover datatable" data-page-length="-1">
+            <thead>
+                <tr>
+                    {% if showcase_label == "All" %}<th>Showcase</th>{% endif %}
+                    <th>Game</th>
+                    <th>Status</th>
+                    <th>Studio</th>
+                    <th>Primary Contact</th>
+                    <th>Judges Assigned</th>
+                    <th>Game Reviews Completed</th>
+                    <th>Review Issues</th>
+                    <th>Average Score</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for game in games %}
+                <tr>
+                    {% if showcase_label == "All" %}<td>{{ game.showcase_type_label }}</td>{% endif %}
+                    <td><a href="edit_game?id={{ game.id }}">{{ game.title }}</a></td>
+                    <td>
+                        {% if game.confirmed %}
+                            Confirmed
+                        {% else %}
+                            {{ game.status_label }}
+                        {% endif %}
+                    </td>
+                    <td><a href="#studio-{{ game.studio.id }}" data-bs-toggle="modal" data-bs-target="#studio-{{ game.studio.id }}">{{ game.studio.name }}</a></td>
+                    <td>{{ game.studio.primary_contacts[0].full_name if game.studio.primary_contacts else 'N/A' }}</td>
+                    <td><a href="edit_game?id={{ game.id }}#judges">{{ game.reviews|length }}</a></td>
+                    <td>
+                        {% if game.scores %}
+                            <a href="edit_game?id={{ game.id }}#results">{{ game.scores|length }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if game.has_issues %}
+                            <a href="edit_game?id={{ game.id }}#problems">{{ game.issues|length }}</a>
+                        {% elif game.status == c.ACCEPTED %}
+                            {% if not game.confirmed %}
+                            Confirm deadline: {{ game.studio.confirm_deadline|datetime_local('%x %-I:%M%p') }}
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        {% else %}
+                        0
+                        {% endif %}
+                    </td>
+                    <td>{{ game.average_score|round(1) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+            </table>
+        </div>
+        <div role="tabpanel" class="tab-pane" id="judges" aria-labelledby="judges-tab">
+            <div class="d-flex gap-2 mb-3">
+                <a href="create_judge?showcase_type={{ showcase_type }}" class="btn btn-primary">Add {% if showcase_label != 'All' %} {{ showcase_label }} {% endif %}Judge</a>
+            </div>
+            <table class="table table-hover datatable" data-page-length="-1">
+            <thead>
+                <tr>
+                    {% if showcase_label == "All" %}<th>Showcase(s)</th>{% endif %}
+                    <th>Judge</th>
+                    <th>Status</th>
+                    <th>Games Assigned</th>
+                    <th>Game Reviews Completed</th>
+                    <th>Submitted a Game to MIVS</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for judge in judges %}
+                <tr>
+                    {% if showcase_label == "All" %}<td>{{ (judge.all_games_showcases_labels + judge.assignable_showcases_labels)|join(' / ') }}</td>{% endif %}
+                    <td><a href="edit_judge?id={{ judge.id }}&showcase_type={{ showcase_type }}">{{ judge.full_name }}</a></td>
+                    <td>{{ judge.status_label }}</td>
+                    <td>
+                        {% if judge.status != c.CONFIRMED %}
+                        N/A
+                        {% else %}
+                        <a href="edit_judge?id={{ judge.id }}&showcase_type={{ showcase_type }}#games">
+                            {% if showcase_label == "All" %}{{ judge.reviews|length }}{% else %}{{ judge.reviews_by_showcase(showcase_type)|length }}{% endif %}
+                        </a>
+                        {% if judge.all_games_showcases %}
+                        &nbsp; <a class="include-tab-hash" href="#" data-bs-toggle="popover" data-bs-content="Judge is assigned to all games in {{ judge.all_games_showcases_labels|readable_join }}."><i class="fa fa-info-circle"></i></a>
+                        {% endif %}
+                        {% endif %}
+                    </td>
+                    <td>{{ judge.game_reviews|length }}</td>
+                    <td>{{ "Yes" if judge.has_game_submission == False else "No" }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% include 'showcase_admin/studio_modals.html' with context %}
+
+{{ "js/window-hash-tabload.js"|serve_static_content }}
+{% endblock %}

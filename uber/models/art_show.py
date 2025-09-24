@@ -3,6 +3,7 @@ import string
 
 from collections import defaultdict
 from pockets import classproperty
+from pockets.autolog import log
 from sqlalchemy import func, case
 from datetime import datetime
 from pytz import UTC
@@ -30,7 +31,7 @@ class ArtShowAgentCode(MagModel):
                        foreign_keys=app_id,
                        cascade='merge,refresh-expire,expunge')
     attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'),
-                         unique=True, nullable=True)
+                         nullable=True)
     attendee = relationship('Attendee',
                             backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
                             foreign_keys=attendee_id,
@@ -66,8 +67,6 @@ class ArtShowApplication(MagModel):
     banner_name_ad = Column(UnicodeText)
     artist_id_ad = Column(UnicodeText, admin_only=True)
     check_payable = Column(UnicodeText)
-    hotel_name = Column(UnicodeText)
-    hotel_room_num = Column(UnicodeText)
     contact_at_con = Column(UnicodeText)
     panels = Column(Integer, default=0)
     panels_ad = Column(Integer, default=0)
@@ -81,10 +80,11 @@ class ArtShowApplication(MagModel):
     city = Column(UnicodeText)
     region = Column(UnicodeText)
     country = Column(UnicodeText)
-    paypal_address = Column(UnicodeText)
+    paypal_address = Column(UnicodeText) # TODO: Move to AC plugin
     website = Column(UnicodeText)
     special_needs = Column(UnicodeText)
     status = Column(Choice(c.ART_SHOW_STATUS_OPTS), default=c.UNAPPROVED)
+    decline_reason = Column(UnicodeText)
     delivery_method = Column(Choice(c.ART_SHOW_DELIVERY_OPTS), default=c.BRINGING_IN)
     us_only = Column(Boolean, default=False)
     admin_notes = Column(UnicodeText, admin_only=True)
@@ -150,7 +150,7 @@ class ArtShowApplication(MagModel):
         if self.artist_id_ad:
             return f"{self.artist_id}/{self.artist_id_ad}"
         return f"{self.artist_id}"
-        
+
     def generate_new_agent_code(self):
         from uber.utils import RegistrationCode
         return ArtShowAgentCode(
@@ -194,7 +194,7 @@ class ArtShowApplication(MagModel):
         if not self.attendee:
             return "No attendee assigned to application"
         if self.delivery_method == c.BY_MAIL \
-                and not self.address1 and not self.attendee.address1:
+                and not self.address1:
             return "Mailing address required"
         if self.attendee.placeholder and self.attendee.badge_status != c.NOT_ATTENDING:
             return "Missing registration info"
@@ -219,7 +219,7 @@ class ArtShowApplication(MagModel):
     @hybrid_property
     def true_default_cost_cents(self):
         return self.true_default_cost * 100
-    
+
     @property
     def panels_and_tables_cost(self):
         # Mail-in fees are applied on top of this price
@@ -237,10 +237,40 @@ class ArtShowApplication(MagModel):
     @property
     def potential_cost(self):
         return self.true_default_cost or 0
+    
+    @property
+    def mailing_fee(self):
+        if self.delivery_method != c.BY_MAIL:
+            return 0
+        if not c.EXTRA_ART_MAILING_FEE or not c.EXTRA_ART_MAILING_INCREMENT:
+            return c.BASE_ART_MAILING_FEE
+
+        all_spaces = self.panels + self.panels_ad + self.tables + self.tables_ad
+        extra_spaces = all_spaces - c.BASE_ART_MAILING_SPACES
+        base_cost = c.BASE_ART_MAILING_FEE
+        if extra_spaces > 0:
+            num_increments = -(extra_spaces // -c.EXTRA_ART_MAILING_INCREMENT)
+            return base_cost + (c.EXTRA_ART_MAILING_FEE * num_increments)
 
     @property
     def email(self):
-        return self.attendee.email
+        if self.attendee:
+            return self.attendee.email
+        return ''
+    
+    @property
+    def badge_status(self):
+        if self.attendee:
+            return self.attendee.badge_status
+        
+    @badge_status.setter
+    def badge_status(self, value):
+        value = int(value)
+        if value not in c.BADGE_STATUS_OPTS:
+            log.error(f"Tried to set invalid badge status on art show app {self.id}'s attendee: {value}")
+            return
+        if self.attendee:
+            self.attendee.badge_status = value
 
     @property
     def is_unpaid(self):
@@ -269,6 +299,11 @@ class ArtShowApplication(MagModel):
     @property
     def has_mature_space(self):
         return self.panels_ad or self.tables_ad
+
+    def checked_in_out_str(self, val):
+        if not val:
+            return ''
+        return val.strftime("%-I:%M%p ").lower() + val.strftime("%a")
 
     def num_pieces_gallery(self, gallery):
         if gallery not in c.ART_PIECE_GALLERYS:
@@ -514,8 +549,6 @@ class ArtShowReceipt(MagModel):
 class ArtShowBidder(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     bidder_num = Column(UnicodeText)
-    hotel_name = Column(UnicodeText)
-    hotel_room_num = Column(UnicodeText)
     admin_notes = Column(UnicodeText)
     signed_up = Column(UTCDateTime, nullable=True)
     email_won_bids = Column(Boolean, default=False)
@@ -533,7 +566,10 @@ class ArtShowBidder(MagModel):
     def strip_bidder_num(cls, num):
         if not num:
             return 0
-        return int(num[2:])
+        try:
+            return int(num[2:])
+        except ValueError:
+            return 0
 
     @hybrid_property
     def bidder_num_stripped(self):

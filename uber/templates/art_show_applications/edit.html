@@ -1,95 +1,155 @@
 {% extends "preregistration/preregbase.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Art Show {{ c.ART_SHOW_APP_TERM|title }}{% endblock %}
 {% block content %}
-{% include "region_opts.html" %}
 {% set attendee = app.attendee %}
 <div class="card">
   <div class="card-header">
     Art Show {{ c.ART_SHOW_APP_TERM|title }} Information
   </div>
   <div class="card-body">
-    {% if not c.INDEPENDENT_ART_SHOW %}
+    {% if not c.INDEPENDENT_ART_SHOW and app.attendee.badge_status != c.NOT_ATTENDING %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
-      {% if app.status == c.APPROVED %}
-      Your {{ c.ART_SHOW_APP_TERM }} has been approved!
-        {% if not app.incomplete_reason and app.amount_unpaid %}
-        <br/><br/>
-          {% if c.AT_THE_CON %}
-            <div class="alert alert-warning" role="alert">
-              You currently have an outstanding balance of <strong>{{ app.amount_unpaid|format_currency }}</strong>.
-              Please see the help desk at the Art Show to complete your payment.
-            </div>
-          {% elif receipt and receipt.pending_total %}
-            {% if incomplete_txn %}
-              <div class="alert alert-warning" role="alert">
-                You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
-                with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
-                Please contact us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
-                <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', app, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
-              </div>
-            {% else %}
-            You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
-              with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
-              Please contact us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
-            {% endif %}
-          {% else %}
-          In order to complete your {{ c.ART_SHOW_APP_TERM }}, please pay {{ app.amount_unpaid|format_currency }} using the button below.
-          <br/><br/>
-          <div style="text-align:center">
-              {{ stripe_form('process_art_show_payment', app) }}
+    {% if app.status == c.APPROVED %}
+      <p>Your {{ c.ART_SHOW_APP_TERM }} has been approved!
+      {% if not app.incomplete_reason and app.amount_unpaid %}
+        </p>
+        {% if c.AT_THE_CON %}
+          <div class="alert alert-warning" role="alert">
+            You currently have an outstanding balance of <strong>{{ app.amount_unpaid|format_currency }}</strong>.
+            Please see the help desk at the Art Show to complete your payment.
           </div>
+        {% elif receipt and receipt.pending_total %}
+          <div class="alert alert-warning" role="alert">
+          {% if incomplete_txn %}
+            <p>You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
+            with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+            Please contact us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.</p>
+            <p>Click here to complete your payment: {{ stripe_form('finish_pending_payment', app, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}</p>
+          {% else %}
+            <p>You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
+            with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
+            Please contact us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.</p>
           {% endif %}
-        {% elif app.attendee.placeholder and app.attendee.badge_status != c.NOT_ATTENDING %}
-        <br/><br/>
-          Before completing your {{ c.ART_SHOW_APP_TERM }}, please finish filling out your information
-          <a href="../preregistration/confirm?id={{ app.attendee_id }}">here</a>. Afterwards, you will
-          be able to pay for your {{ c.ART_SHOW_APP_TERM }} on this page.
-        {% elif app.delivery_method == c.BY_MAIL and not app.address1 %}
-        <br/><br/>
-          Please fill in your mailing address below. Afterwards, you will be able to pay for your {{ c.ART_SHOW_APP_TERM }} on this page.
+          </div>
         {% else %}
+        In order to complete your {{ c.ART_SHOW_APP_TERM }}, please pay {{ app.amount_unpaid|format_currency }} using the button below.
+        </p>
+        <div style="text-align:center">
+            {{ stripe_form('process_art_show_payment', app) }}
+        </div>
+        <hr/>
+        {% endif %}
+      {% elif app.attendee.placeholder and app.attendee.badge_status != c.NOT_ATTENDING %}
+        </p>
+        <p>Before completing your {{ c.ART_SHOW_APP_TERM }}, please finish filling out your information
+        <a href="../preregistration/confirm?id={{ app.attendee_id }}">here</a>. Afterwards, you will
+        be able to pay for your {{ c.ART_SHOW_APP_TERM }} on this page.</p>
+      {% elif app.delivery_method == c.BY_MAIL and not app.address1 %}
+        </p>
+        <p>Please fill in your mailing address below. Afterwards, you will be able to pay for your {{ c.ART_SHOW_APP_TERM }} on this page.</p>
+        {{ form_macros.form_validation('address-form', 'validate_app', form_list=['ArtistMailingInfo']) }}
+        <form novalidate method="post" action="mailing_address" id="address-form" role="form">
+          <input type="hidden" name="id" value="{{ app.id }}" />
+          {{ csrf_token() }}
+          {% include 'forms/art_show/artist_mailing_info.html' with context %}
+          <button type="submit" class="btn btn-primary">Add Mailing Address</button>
+        </form>
+        <hr/>
+      {% else %}
         You can update your information below and add, edit, or delete your pieces anytime until you check in on-site.
-        <br/><br/>{% include 'art_show_common/art_pieces_form.html' %}<br/><br/>
+        </p>
+        {% if app.delivery_method == c.AGENT and not app.current_agents and app.valid_agent_codes %}
+          <div class="alert alert-warning">
+            <p>Your art show {{ c.ART_SHOW_APP_TERM }} does not yet have an agent assigned to bring and hang art.</p>
+            <p>
+            {% if app.valid_agent_codes|length == 1 %}
+              Your agent code is <strong>{{ app.valid_agent_codes[0].code }}</strong>. Your agent can enter this code
+            {% else %}
+              Your agent can enter one of the available codes below
+            {% endif %}
+            after registering for {{ c.EVENT_NAME }} by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging in and editing their registration{% else %}using their registration confirmation link{% endif %}.
+            </p>
+
+            {% if c.ONE_AGENT_PER_APP %}
+            <p>{{ c.ART_SHOW_APP_TERM|title }}s are limited to one agent. Use the button below to cancel the existing code and generate a new one.</p>
+            <input type="hidden" form="cancel_agent_code" name="id" value="{{ app.valid_agent_codes[0].id }}" />
+            <button type="submit" form="cancel_agent_code" class="btn btn-danger">Generate New Code</button>
+            {% endif %}
+          </div>
         {% endif %}
-        {% if app.delivery_method == c.BY_MAIL and not app.address1 %}
-          <br/><br/>
-          <form method="post" action="mailing_address" class="form-horizontal" role="form">
-            <input type="hidden" name="id" value="{{ app.id }}" />
-            {{ csrf_token() }}
-            {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name) }}
-            <div class="form-group">
-              <div class="col-sm-6 col-sm-offset-3">
-                <button type="submit" class="btn btn-success" name="copy_address" value="1"{% if not app.attendee.address1 %} disabled{% endif %}>Use My Personal Address</button>
-              </div>
-            </div>
-            {{ macros.address_form(app, label_prefix="Mailing") }}
-            <div class="form-group">
-              <div class="col-sm-6 col-sm-offset-3">
-                <button type="submit" class="btn btn-primary">Add Mailing Address</button>
-              </div>
-            </div>
-          </form>
+        {% if app.delivery_method == c.AGENT and app.valid_agent_codes %}
+        {% if not c.ONE_AGENT_PER_APP %}
+        <form method="post" id="add_agent_code" action="add_agent_code">
+          <input type="hidden" form="add_agent_code" name="id" value="{{ app.id }}" />
+          <button type="submit" form="add_agent_code" class="btn btn-primary">Generate Another Agent Code</button>
+        </form>
         {% endif %}
-      {% elif not app.editable %}
-      Unfortunately, since your {{ c.ART_SHOW_APP_TERM }} has been {{ app.status_label|lower }}, you may no longer edit it. However,
-      you may still view the details of your {{ c.ART_SHOW_APP_TERM }} below. <br/><br/>
+
+        {% if app.current_agents or app.valid_agent_codes|length > 1 %}
+          {% for agent_code in app.valid_agent_codes %}
+            {% set label = "Agent" if agent_code.attendee else "Agent Code" %}
+            <div class="d-flex gap-3 align-items-start">
+              <div>
+                <div class="form-text">{{ label }}{% if app.valid_agent_codes|length > 1 %}{{ loop.index }}{% endif %}</div>
+                <p>{{ agent_code.attendee.full_name if agent_code.attendee else agent_code.code }}</p>
+              </div>
+              {% if not readonly %}
+              <form method="post" id="cancel_agent_code" action="cancel_agent_code" role="form">
+                <div class="form-text">&nbsp;</div>
+                <input type="hidden" form="cancel_agent_code" name="id" value="{{ app.valid_agent_codes[0].id }}" />
+                <button type="submit" form="cancel_agent_code" class="btn btn-danger btn-sm">{{ "Remove Agent" if agent_code.attendee else "Cancel Code" }}</button>
+              </form>
+            {% endif %}
+            </div>
+          {% endfor %}
+        {% endif %}
+        {% endif %}
+        
+        {{ form_macros.form_validation('edit-app-form', 'validate_app') }}
+        <form novalidate method="post" action="edit" id="edit-app-form" role="form">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ app.id }}">
+          {% if c.INDEPENDENT_ART_SHOW %}
+            <h3>Your Information</h3>
+            <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+            {% include 'form/art_show/artist_attendee_info.html' with context %}
+            {% include 'form/art_show/artist_mailing_info.html' with context %}
+            <hr/>
+          {% endif %}
+          {% include 'forms/art_show/approved_editable_fields.html' with context %}
+          {% if app.delivery_method == c.BY_MAIL and not c.INDEPENDENT_ART_SHOW %}
+              {% include 'forms/art_show/artist_mailing_info.html' with context %}
+          {% endif %}
+          <button type="submit" class="btn btn-primary">Update Info</button>
+        </form>
+        <hr/>
+        <h3>Art Show Pieces</h3>
+        {% include 'art_show_common/art_show_pieces.html' with context %}
+        <hr/>
+        <h3 class="mt-3">{{ c.ART_SHOW_APP_TERM|title }} Information</h3>
+        {% include 'forms/art_show/approved_readonly_fields.html' with context %}
       {% endif %}
-    <form method="post" id="cancel_agent_code" action="cancel_agent_code" role="form"></form>
-    <form method="post" id="add_agent_code" action="add_agent_code"></form>
-    <form method="post" action="edit" class="form-horizontal" role="form">
+    {% elif not app.editable %}
+      <p>Unfortunately, since your {{ c.ART_SHOW_APP_TERM }} has been {{ app.status_label|lower }}, you may no longer edit it. However,
+      you may still view the details of your {{ c.ART_SHOW_APP_TERM }} below.</p>
+    {% endif %}
+    {% if app.status != c.APPROVED or app.incomplete_reason or app.amount_unpaid or app.attendee.placeholder and app.attendee.badge_status != c.NOT_ATTENDING or app.delivery_method == c.BY_MAIL and not app.address1 %}
+    {{ form_macros.form_validation('edit-app-form', 'validate_app') }}
+    <form novalidate method="post" action="edit" id="edit-app-form" role="form">
       <input type="hidden" name="id" value="{{ app.id }}">
+      {{ csrf_token() }}
 
       {% if c.INDEPENDENT_ART_SHOW %}
       <h3>Your Information</h3>
       <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
-      {% include 'art_show_applications/new_attendee_fields.html' %}
-      {% include "region_opts.html" %}
-      {{ macros.address_form(app, label_prefix="Mailing", use_bs5=True, is_readonly=not app.is_new and not app.editable and not admin_area) }}
+      {% include 'form/art_show/artist_attendee_info.html' %}
+      {% include 'form/art_show/artist_mailing_info.html' %}
       <h3 class="mt-3">{{ c.ART_SHOW_APP_TERM|title }} Details</h3>
       {% endif %}
 
-      {% include 'art_show_applications/art_show_form.html' %}
+      {% include 'forms/art_show/art_show_info.html' with context %}
 
       {% if app.editable %}
       <div class="form-group">
@@ -99,6 +159,7 @@
       </div>
       {% endif %}
     </form>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

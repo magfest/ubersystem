@@ -1,0 +1,2 @@
+The panel "{{ app.name }}" has just been marked as Accepted. The following panelist(s) requested accessibility services:
+{% for panelist in app.applicants|selectattr('requested_accessibility_services') %}- {{ panelist.full_name }} {{ panelist.email }}{% endfor %}

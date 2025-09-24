@@ -246,7 +246,11 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
 
     @property
     def filter(self):
-        return self.fixture.filter if self.fixture else lambda x: True
+        if not self.fixture:
+            if not self.ident.startswith('panelapps_'):
+                log.error(f"We want to send {self.ident} but it has no fixture!")
+            return lambda x: False
+        return self.fixture.filter
 
     @property
     def fixture(self):

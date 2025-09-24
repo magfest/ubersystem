@@ -48,8 +48,9 @@ def convert_declined_groups():
                                                       Group.convert_badges == True,
                                                       Group.badges_purchased > 0)
         for group in declined_groups:
+            name = group.name
             result = decline_and_convert_dealer_group(session, group, delete_group=c.DELETE_DECLINED_GROUPS)
-            log.debug(f"{group.name} converted: {result}")
+            log.debug(f"{name} converted: {result}")
 
 
 @celery.schedule(crontab(minute=0, hour=0))

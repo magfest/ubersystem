@@ -1,0 +1,108 @@
+{% if c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
+<div
+    id="new-screenshot-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="new-screenshot-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="new-screenshot-{{ game.id }}-title">
+            Upload Screenshot
+        </h4>
+        </div>
+        <form novalidate method="post" action="../indie_retro/screenshot" id="new-screenshot-{{ game.id }}-form" role="form" enctype="multipart/form-data">
+        <div class="modal-body">
+            {% set retro_screenshot = image_forms['retro_new']['retro_screenshot'] %}
+            {{ form_macros.form_validation('new-screenshot-' ~ game.id ~ '-form', '../indie_retro/validate_image') }}
+            {{ csrf_token() }}
+            <input type="hidden" name="game_id" value="{{ game.id }}" />
+            <div x-data="">
+                <div class="row g-3 mb-3">
+                    <div class="col-sm">{{ form_macros.input(retro_screenshot.image) }}</div>
+                </div>
+                {{ form_macros.input(retro_screenshot.is_screenshot) }}
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-success">Upload Screenshot</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </form>
+    </div>
+    </div>
+</div>
+{% endif %}
+
+{% if game.submission_images %}
+<div
+    id="edit-screenshots-{{ game.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="edit-screenshots-{{ game.id }}-title"
+    style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h4 class="modal-title" id="edit-screenshots-{{ game.id }}-title">
+            {{ game.title }} Screenshots
+        </h4>
+        </div>
+        <div class="modal-body">
+            {% for image in game.submission_images %}
+            {{ form_macros.form_validation(image.id ~ '-form', '../indie_retro/validate_image') }}
+            {% endfor %}
+            <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        {% if c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}<th></th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set can_delete_screenshots = not game.submitted or game.submission_images|length > 2 %}
+                    {% for image in game.submission_images %}
+                    {% set retro_screenshot = image_forms[image.id]['retro_screenshot'] %}
+                        <tr x-data="">
+                            <td>
+                                {{ form_macros.input(retro_screenshot.image, show_label=False, form=image.id ~ "-form") }}
+                            </td>
+                            {% if c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
+                            <td>
+                                <div class="d-flex gap-1">
+                                <form novalidate method="post" action="../indie_retro/screenshot" id="{{ image.id }}-form" role="form" enctype="multipart/form-data">
+                                    {{ csrf_token() }}
+                                    <input type="hidden" name="game_id" value="{{ game.id }}" />
+                                    <input type="hidden" name="id" value="{{ image.db_id }}" />
+                                    <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check"></i></button>
+                                </form>
+                                {% if can_delete_screenshots %}
+                                <form method="post" action="../indie_retro/delete_screenshot">
+                                    {{ csrf_token() }}
+                                    <input type="hidden" name="id" value="{{ image.id }}" />
+                                    <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
+                                </form>
+                                {% endif %}
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                    </form>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+    </div>
+</div>
+{% endif %}

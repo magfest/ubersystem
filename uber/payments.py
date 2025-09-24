@@ -212,6 +212,10 @@ class PreregCart:
             for purchaser in maybe_purchasers:
                 if purchaser.email == target_email:
                     return purchaser
+                
+        paid_purchasers = [p for p in maybe_purchasers if p.total_cost > 0]
+        if paid_purchasers:
+            return paid_purchasers[0]
 
         return maybe_purchasers[0]
 
@@ -439,7 +443,7 @@ class AuthNetRequestMixin:
                                                 zip=zip, txn_id=charge_id)
         if error:
             return 'An unexpected problem occurred: ' + str(error)
-    
+
     def get_or_create_customer(self, customer_id=''):
         if not self.receipt_email:
             return
@@ -1572,7 +1576,7 @@ class ReceiptManager:
 
 
     @classmethod
-    def process_receipt_change(cls, model, col_name, new_model, receipt=None, who='', count=1, revert_change={}):
+    def process_receipt_change(cls, model, col_name, new_model, receipt=None, who='', count=1, revert_change=None):
         from uber.models import AdminAccount, ReceiptItem, Group
         from uber.models.types import Choice
 
@@ -1598,12 +1602,6 @@ class ReceiptManager:
             log.error(str(e))
             return
 
-        old_val = getattr(model, col_name)
-        try:
-            old_val = int(old_val)
-        except Exception:
-            pass
-
         if isinstance(maybe_category, int):
             category = maybe_category
 
@@ -1611,6 +1609,17 @@ class ReceiptManager:
             department = c.DEALER_RECEIPT_ITEM if model.is_dealer else c.REG_RECEIPT_ITEM
         else:
             department = getattr(model, 'department', c.OTHER_RECEIPT_ITEM)
+
+        if revert_change is None:
+            if col_name in ['promo_code_code', 'badges', 'birthdate', 'mailing_fee_update']:
+                revert_change = {}
+            else:
+                old_val = getattr(model, col_name)
+                try:
+                    old_val = int(old_val)
+                except Exception:
+                    pass
+                revert_change = {col_name: old_val}
 
         if isinstance(cost_change, Iterable):
             # A list of the same item at different prices, e.g., group badges
@@ -1631,8 +1640,6 @@ class ReceiptManager:
             return receipt_items
 
         if receipt:
-            if not revert_change:
-                revert_change = {col_name: old_val} if col_name not in ['promo_code_code', 'badges', 'birthdate'] else {}
             return [ReceiptItem(purchaser_id=ReceiptManager.get_purchaser_id(receipt) if cost_change > 0 else None,
                                 receipt_id=receipt.id,
                                 department=department,
@@ -1742,6 +1749,10 @@ class ReceiptManager:
 
         if isinstance(model, Attendee) and (model.qualifies_for_discounts != new_model.qualifies_for_discounts):
             changed_params.append('birthdate')
+        
+        if isinstance(model, ArtShowApplication) and c.EXTRA_ART_MAILING_FEE and c.EXTRA_ART_MAILING_INCREMENT and any(
+                [param in changed_params for param in ['panels', 'panels_ad', 'tables', 'tables_ad']]):
+            changed_params.append('mailing_fee_update')
 
         for param in changed_params:
             items = self.process_receipt_change(model, param, new_model, receipt, who=who)
@@ -1816,6 +1827,20 @@ class ReceiptManager:
 
             session.commit()
             session.check_receipt_closed(txn_receipt)
+
+            session.refresh(model)
+            badge_pickup_group = getattr(model, 'badge_pickup_group', None)
+            if badge_pickup_group:
+                badge_pickup_group.finalize_cart(session)
+                if c.ATTENDEE_ACCOUNTS_ENABLED or getattr(model, 'group', None):
+                    model.badge_pickup_group_id = None
+                    session.add(model)
+                session.commit()
+
+                session.refresh(badge_pickup_group)
+                if len(badge_pickup_group.attendees) == 0:
+                    session.delete(badge_pickup_group)
+                    session.commit()
 
             if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_purchase_items:
                 try:

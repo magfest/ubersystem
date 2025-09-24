@@ -1,0 +1,80 @@
+{% extends 'forms/art_show/art_show_info.html' %}
+
+{% block x_data %}
+{{ super() }}
+status: {{ art_show_info.status.data|tojson }},
+get showDeclineReason() { return this.status == {{ c.DECLINED|tojson }} },
+{% endblock %}
+
+{% block attendee_info %}
+<div class="col-sm">{{ form_macros.input(art_show_info.attendee_id, choices=[('', 'None')] + all_attendees) }}</div>
+{% if not new_app %}
+<div class="col-sm">{{ form_macros.input(art_show_info.badge_status) }}</div>
+{% endif %}
+<div class="col-sm">{{ form_macros.input(art_show_info.email) }}</div>
+{% endblock %}
+
+{% block status_ids %}
+<div class="col-sm">
+    {% call form_macros.input(art_show_info.status, admin_text="Changing this may trigger an email to the attendee.", alpine_model="status") %}
+    <div x-show="showDeclineReason">{{ form_macros.input(art_show_info.decline_reason) }}</div>
+    {% endcall %}
+</div>
+<div class="col-sm">
+    <div class="row">
+        <div class="col-sm">{{ form_macros.input(art_show_info.artist_id) }}</div>
+        <div class="col-sm" x-show="separate_ad_banner">{{ form_macros.input(art_show_info.artist_id_ad) }}</div>
+    </div>
+</div>
+<div class="col-sm">{{ form_macros.input(art_show_info.locations) }}</div>
+{% endblock %}
+
+{% block money_info %}
+{% if c.ART_SHOW_HAS_FEES %}
+<div class="col-sm">
+    <div class="form-text">Paid?</div>
+    {% if app.status == c.APPROVED %}
+        <p id="amount_paid" class="form-control-static">
+            {{ (app.amount_paid / 100)|format_currency }} out of {{ app.total_cost|format_currency }}
+        </p>
+        {% if app.amount_unpaid %}
+            {% if not app.is_new and (not c.AT_THE_CON or not c.SPIN_TERMINAL_AUTH_KEY) %}
+            <div class="form-text">
+                <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View this {{ c.ART_SHOW_APP_TERM }}</a> for the payment button.
+            </div>
+            {% elif not app.is_new %}
+            <div class="d-flex align-items-center gap-1">
+            <a href="paid_with_cash?id={{ app.id }}" class="btn btn-success" type="submit">Paid with Cash</a>
+            <strong>OR</strong>
+            <button type="button" class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ app.id }}', '', refreshPage, '../art_show_admin/start_terminal_payment')">Prompt Payment at Terminal</button>
+            <button class="btn btn-primary" onClick="checkTerminalPayment('{{ app.id }}', 'application', refreshPage)">Check Payment Terminal</button>
+            </div>
+            {% endif %}
+        {% endif %}
+    {% else %}
+        <p class="form-control-static">
+            N/A
+        </p>
+    {% endif %}
+</div>
+<div class="col-sm">
+    {% call form_macros.input(art_show_info.overridden_price, placeholder=app.potential_cost, admin_text="This fee will NOT include any mail-in fees.") %}
+    <div class="form-text">
+        {% if app.status != c.APPROVED %}Attendees are only asked to pay once their {{ c.ART_SHOW_APP_TERM }}s are approved.{% endif %}
+    </div>
+    {% endcall %}
+</div>
+{% endif %}
+{% if c.ARTIST_PAYOUT_METHOD_OPTS|length < 3 %}
+<div class="col-sm">{{ form_macros.input(art_show_info.payout_method) }}</div>
+{% endif %}
+</div>
+<button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
+<hr/>
+<div>
+{% endblock %}
+
+{% block admin_notes %}
+<div class="col-sm">{{ form_macros.input(art_show_info.check_in_notes) }}</div>
+<div class="col-sm">{{ form_macros.input(art_show_info.admin_notes) }}</div>
+{% endblock %}

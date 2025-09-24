@@ -177,6 +177,7 @@ class MITSGame(MagModel):
     personally_own = Column(Boolean, default=False)
     unlicensed = Column(Boolean, default=False)
     professional = Column(Boolean, default=False)
+    tournament = Column(Boolean, default=False)
     pictures = relationship('MITSPicture', backref='game')
     documents = relationship('MITSDocument', backref='game')
 

@@ -1,0 +1,13 @@
+{% extends "guest_checklist/hospitality_deadline.html" %}
+
+{% block deadline_headline %}Arena Questionnaire{% endblock %}
+
+{% block form_title %}Arena Questionnaire for {{ guest.group.name }}{% endblock %}
+
+{% block form_desc %}
+    {% if guest.hospitality_status %}
+      You've already indicated that you have completed <a href="https://forms.gle/XBqeuFiZfYCuHuhW8" target="_blank">the arena questionnaire</a>. If you need to update something, please contact us at {{ c.ARENA_EMAIL|email_only|email_to_link }}.
+    {% else %}
+        Please fill out <a href="https://forms.gle/XBqeuFiZfYCuHuhW8" target="_blank">this survey</a> to help us make your MAGFest experience an even more positive one.
+    {% endif %}
+{% endblock %}

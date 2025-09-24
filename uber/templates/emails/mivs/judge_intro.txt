@@ -1,6 +1,6 @@
 Hello {{ judge.attendee.first_name }},
 
-If you're receiving this, you've been selected to be a Judge for this year's MAGFest Indie Video Game Showcase. (MIVS) You should have already received an email with login information for your judging account. If you haven't already done so, please log in at {{ c.URL_BASE }}/mivs_judging/index and tell us what genres you prefer to play and what platforms you own.
+If you're receiving this, you've been selected to be a Judge for this year's MAGFest Indie Video Game Showcase. (MIVS) You should have already received an email with login information for your judging account. If you haven't already done so, please log in at {{ c.URL_BASE }}/showcase_judging/index and tell us what genres you prefer to play and what platforms you own.
 
 For helping us judge the entries to be shown for this year, we are happy to give you a free pass to MAGFest.  If you feel at any time that you are unable to complete your duties as a judge, everything will be fine as long as you let us known as soon as possible.
 

@@ -19,65 +19,49 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 copy_email: {{ artist_marketplace_form.copy_email.data|tojson }},
 {% endblock %} }">
 
-{% block attendee_app_info %}
-{% endblock %}
+<div class="row g-3 mb-3">{% block attendee_app_info %}{% endblock %}</div>
 
-{% block status_cost %}
-{% endblock %}
+<div class="row g-3 mb-3">{% block status_cost %}{% endblock %}</div>
 
+<div class="row g-3 mb-3">
 {% block names %}
-<div class="row g-3">
-    <div class="col-sm">
-        {{ form_macros.input(artist_marketplace_form.name, readonly=read_only) }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(artist_marketplace_form.display_name, readonly=read_only) }}
-    </div>
-</div>
+<div class="col-sm">{{ form_macros.input(artist_marketplace_form.name, readonly=read_only) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_marketplace_form.display_name, readonly=read_only) }}</div>
 {% endblock %}
+</div>
 
+<div class="row g-3 mb-3">
 {% block email %}
-<div class="row g-3">
-    <div class="col-12">
-        {% call form_macros.input(artist_marketplace_form.email_address, readonly=read_only, required_if="!copy_email", **{':disabled':'copy_email'}) %}
-        {% if app.is_new %}
-        {{ form_macros.input(artist_marketplace_form.copy_email, alpine_model="copy_email") }}
-        {% endif %}
-        {% endcall %}
-    </div>
+<div class="col-sm">
+    {% call form_macros.input(artist_marketplace_form.email_address, readonly=read_only, required_if="!copy_email", **{':disabled':'copy_email'}) %}
+    {% if app.is_new %}
+    {{ form_macros.input(artist_marketplace_form.copy_email, alpine_model="copy_email") }}
+    {% endif %}
+    {% endcall %}
 </div>
 {% endblock %}
+</div>
 
+<div class="row g-3 mb-3">
 {% block website_tax %}
-<div class="row g-3 row-cols-sm-2">
-    <div class="col">
-        {{ form_macros.input(artist_marketplace_form.website, readonly=read_only) }}
-    </div>
-    <div class="col">
-        {{ form_macros.input(artist_marketplace_form.tax_number, readonly=read_only) }}
-    </div>
-</div>
+<div class="col-sm">{{ form_macros.input(artist_marketplace_form.website, readonly=read_only) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_marketplace_form.tax_number, readonly=read_only) }}</div>
 {% endblock %}
+</div>
 
+<div class="row g-3 mb-3">
 {% block seating_accessibility %}
 {% if app.status == c.ACCEPTED or admin_area %}
-<div class="row g-3 row-cols-sm-2">
-    <div class="col">
-        {{ form_macros.input(artist_marketplace_form.seating_requests, readonly=read_only) }}
-    </div>
-    <div class="col">
-        {{ form_macros.input(artist_marketplace_form.accessibility_requests, readonly=read_only) }}
-    </div>
-</div>
+<div class="col-sm">{{ form_macros.input(artist_marketplace_form.seating_requests, readonly=read_only) }}</div>
+<div class="col-sm">{{ form_macros.input(artist_marketplace_form.accessibility_requests, readonly=read_only) }}</div>
 {% endif %}
 {% endblock %}
-
-{% block terms %}
-<div class="row g-3">
-    <div class="col-12">
-        {{ form_macros.input(artist_marketplace_form.terms_accepted, readonly=not app.is_new and not admin_area) }}
-    </div>
 </div>
+
+<div class="row g-3 mb-3">
+{% block terms %}
+<div class="col-sm">{{ form_macros.input(artist_marketplace_form.terms_accepted, readonly=not app.is_new and not admin_area) }}</div>
 {% endblock %}
+</div>
 
 </div>

@@ -12,15 +12,14 @@ the changes.
     {% if not app.incomplete_reason and not app.is_unpaid %}
     <li><strong>Banner Name</strong>: {{ app.display_name }}</li>
     <li><strong>Name on Check</strong>: {{ app.check_payable or app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name }}</li>
-    {% if app.hotel_name %}<li><strong>Hotel Staying At</strong>: {{ app.hotel_name }}</li>{% endif %}
-    {% if app.hotel_name %}<li><strong>Room Number</strong>: {{ app.hotel_room_num }}</li>{% endif %}
     {% endif %}
     {% if app.artist_name %}<li><strong>Artist Name</strong>: {{ app.artist_name }}</li>{% endif %}
     <li><strong>General Panels</strong>: {{ app.panels }} panels ({{ app.default_panel_cost|format_currency }}) </li>
     <li><strong>General Table Sections</strong>: {{ app.tables }} table sections ({{ app.default_table_cost|format_currency }}) </li>
     <li><strong>Mature Panels</strong>: {{ app.panels_ad }} mature panels ({{ app.default_mature_panel_cost|format_currency }}) </li>
     <li><strong>Mature Table Sections</strong>: {{ app.tables_ad }} mature table sections ({{ app.default_mature_table_cost|format_currency }}) </li>
-    {% if c.ART_SHOW_HAS_FEES %}<li><strong>Total Price</strong>: {{ app.potential_cost|format_currency }}{% if app.delivery_method == c.BY_MAIL and c.ART_MAILING_FEE %} (including {{ app.default_mailing_fee_cost|format_currency }} mailing fee){% endif %}</li>{% endif %}
+    {% if app.mailing_fee %}<li><strong>Mailing Fee</strong>: {{ app.mailing_fee|format_currency }}{% if c.EXTRA_ART_MAILING_FEE and c.EXTRA_ART_MAILING_INCREMENT %} for {{ app.panels + app.panels_ad + app.tables + app.tables_ad }} spaces{% endif %}</li>{% endif %}
+    {% if c.ART_SHOW_HAS_FEES %}<li><strong>Total Price</strong>: {{ app.potential_cost|format_currency }}</li>{% endif %}
     <li><strong>Description</strong>: {{ app.description }}</li>
     {% if app.special_needs %}<li><strong>Special Requests</strong>: {{ app.special_needs }}</li>{% endif %}
     {% if app.attendee.badge_status == c.NOT_ATTENDING and not c.INDEPENDENT_ART_SHOW %}<li>You will not be attending {{ c.EVENT_NAME }} and thus will

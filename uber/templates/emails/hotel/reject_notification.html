@@ -1,0 +1,26 @@
+{% set app_or_parent = app.parent_application if app.entry_type == c.GROUP_ENTRY else app %}
+<html>
+<head></head>
+<body>
+<p>
+    {{ app.attendee.full_name }},<br/>
+    <strong><span class="text-danger">{{ app.award_status_str }}</span></strong>
+</p>
+{% block reject_info %}
+    {% if not app_or_parent.finalized and c.HOTEL_LOTTERY_OPEN and c.HOTEL_LOTTERY_FORM_WAITLIST and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}
+    <p>
+    Your{% if app.parent_application %} {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% endif %} lottery entry is still active and will be considered when allocating cancelled rooms.
+    If you{% if app.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} is{% else %} are{% endif %} chosen for one of these rooms, you will receive an email and
+    you{% if app.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} will be given the chance to confirm or decline the reservation.
+    </p>
+    {% endif %}
+{% endblock %}
+{% if not app_or_parent.finalized and c.HOTEL_LOTTERY_OPEN and c.HOTEL_LOTTERY_FORM_WAITLIST and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}
+    <p>
+        You can also
+        {% if not app.parent_application %}edit your lottery entry details{% else %}view your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s entry or leave your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}{% endif %}
+        by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging into{% else %}visiting{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.
+    </p>
+{% endif %}
+</body>
+</html>

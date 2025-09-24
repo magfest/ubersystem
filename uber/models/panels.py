@@ -263,6 +263,7 @@ class PanelApplicant(SocialMediaMixin, MagModel):
     cellphone = Column(UnicodeText)
     communication_pref = Column(MultiChoice(c.COMMUNICATION_PREF_OPTS))
     other_communication_pref = Column(UnicodeText)
+    requested_accessibility_services = Column(Boolean, default=False)
     pronouns = Column(MultiChoice(c.PRONOUN_OPTS))
     other_pronouns = Column(UnicodeText)
     occupation = Column(UnicodeText)
