@@ -13,9 +13,21 @@
     </p>
 
     {% if app_editable %}
-    <p>
-        You currently {{ application.application_status_str }}.
-    </p>
+        <p class="h4 text-{% if app_or_parent.status in [c.COMPLETE, c.PROCESSED] %}success{% else %}danger{% endif %}">
+            You are currently {{ application.application_status_str }}.
+        </p>
+        <p>
+        {% if not application.parent_application %}
+            {% if app_or_parent.status not in [c.COMPLETE, c.PROCESSED] %}
+                You must complete your entry details below to be entered in the lottery.
+            {% else %}You can view your entry details below.{% endif %}
+        {% else %}
+            {% if app_or_parent.status not in [c.COMPLETE, c.PROCESSED] %}
+            Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader must review and complete their lottery entry for your group to be entered in the lottery.
+            {% else %}You can view your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s entry below.
+            {% endif %}
+        {% endif %}
+        </p>
     {% endif %}
 
     {% if application.is_staff_entry and application.current_lottery_closed %}
@@ -82,7 +94,7 @@
         </div>
         {% endif %}
     </div>
-    {% if c.SHOW_HOTEL_LOTTERY_GROUPS and application.status != c.COMPLETE and not application.parent_application and app_editable %}
+    {% if c.SHOW_HOTEL_LOTTERY_GROUPS and application.status != c.COMPLETE and not application.parent_application and app_editable and not application.room_group_name %}
     <p>
         You are currently not eligible to create a group.
         {% if application.entry_type in [c.ROOM_ENTRY, c.SUITE_ENTRY] %}Complete your lottery application below first.
@@ -134,7 +146,7 @@
     {% endif %}
 
     {% if app_or_parent.entry_type in [c.ROOM_ENTRY, c.SUITE_ENTRY] %}
-        {% if application.parent_application %}
+        {% if application.parent_application and application.parent_application.status == c.COMPLETE %}
         <h2>Your Group's {{ app_or_parent.entry_type_label }} Lottery Application</h2>
         <div class="h5 text-muted mb-3">Confirmation # {{ app_or_parent.confirmation_num }}</div>
         {% elif application.status != c.COMPLETE and application.status not in c.HOTEL_LOTTERY_AWARD_STATUSES and app_editable %}

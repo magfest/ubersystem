@@ -18,6 +18,7 @@
                     </button>
                     {% endif %}
                 </form>
+                {% if application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] %}
                 <form method="post" action="transfer_leadership" id="make-leader">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
@@ -27,6 +28,7 @@
                         Make {{ c.HOTEL_LOTTERY_GROUP_TERM }} Leader
                     </button>
                 </form>
+                {% endif %}
                 </div>
             </td>
         </tr>

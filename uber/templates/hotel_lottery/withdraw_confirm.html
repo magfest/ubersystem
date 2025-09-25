@@ -36,7 +36,7 @@ withdrawConfirm = function() {
     title: 'Withdraw From Hotel Lottery?',
     message: '<p>Are you sure you want to withdraw from the {{ c.EVENT_NAME }} hotel lottery?</p>' +
         '<p>This will <strong>delete {% if application.wants_suite %}BOTH your suite and room lottery entries{% else %}your lottery entry{% endif %}{% if application.group_members %} and disband your group{% endif %}</strong>. ' +
-        'You will need to re-enter the hotel lottery from the beginning to be eligible for a room or suite.</p>',
+        {% if not application.current_lottery_closed %}'You will need to re-enter the hotel lottery from the beginning to be eligible for a room or suite.</p>',{% endif %}
     buttons: {
         confirm: { label: 'Yes, Withdraw', className: 'btn-danger' },
         cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
