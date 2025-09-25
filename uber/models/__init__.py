@@ -1715,14 +1715,14 @@ class Session(SessionManager):
         def index_attendees(self):
             # Returns a base attendee query with extra joins for the index page
             attendees = self.query(Attendee).outerjoin(Group,
-                                                       Attendee.group_id == Group.id, aliased=True
-                                                       ).outerjoin(BadgePickupGroup, aliased=True
-                                                       ).outerjoin(PromoCode, aliased=True
-                                                                   ).outerjoin(PromoCodeGroup, aliased=True)
+                                                       Attendee.group_id == Group.id
+                                                       ).outerjoin(BadgePickupGroup
+                                                       ).outerjoin(PromoCode
+                                                                   ).outerjoin(PromoCodeGroup)
             if c.ATTENDEE_ACCOUNTS_ENABLED:
                 attendees = attendees.outerjoin(AttendeeAccount, Attendee.managers, aliased=True)
             if c.NUMBERED_BADGES:
-                attendees = attendees.outerjoin(BadgeInfo, Attendee.active_badge, aliased=True)
+                attendees = attendees.outerjoin(BadgeInfo, Attendee.active_badge)
             return attendees
 
         def search(self, text, *filters):
@@ -1766,7 +1766,7 @@ class Session(SessionManager):
                 elif int(terms[0]) <= sorted(
                         c.BADGE_RANGES.items(),
                         key=lambda badge_range: badge_range[1][0])[-1][1][1]:
-                    return attendees.join(BadgeInfo).filter(BadgeInfo.ident == terms[0]), ''
+                    return attendees.filter(BadgeInfo.ident == terms[0]), ''
 
             elif len(terms) == 1 \
                     and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
