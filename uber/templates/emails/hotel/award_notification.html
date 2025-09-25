@@ -19,6 +19,9 @@
     Alternatively, you can <a href="{{ c.URL_BASE }}/hotel_lottery/decline?id={{ app.id }}" target="_blank">decline the reservation here</a>.
     This will also cancel your{% if app.group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members' lottery entries{% else %} lottery entry{% endif %}.
 </p>
+<p>
+    <strong>If you experience any issues while confirming your reservation</strong>, please contact us at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} as soon as possible so we can help resolve them before the deadline.
+</p>
 {% else %}
 You will receive an email when your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s reservation has been confirmed.
 </p>
