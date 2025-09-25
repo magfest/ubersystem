@@ -563,7 +563,7 @@ class Root:
 
         if application.entry_type not in [c.ROOM_ENTRY, c.SUITE_ENTRY]:
             raise HTTPRedirect('index?id={}&message={}', application.id,
-                               f"You cannot switch from a {application.entry_level} to a room or suite entry.")
+                               f"You cannot switch from a {application.entry_type} to a room or suite entry.")
 
         application.status = c.PARTIAL
         application.current_step = 0
