@@ -5,7 +5,7 @@
     {{ attendee.full_name }},<br/>
     Your registration qualifies for entering the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery, but you haven't entered yet. 
     {% if c.HOTEL_LOTTERY_FORM_WAITLIST %}
-    The first run for the lottery is in {{ ((c.HOTEL_LOTTERY_FORM_WAITLIST - now_localized()).total_seconds() // 86400)|int }} days, on {{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }},
+    The deadline for entering the first run of the lottery is in {{ ((c.HOTEL_LOTTERY_FORM_WAITLIST - now_localized()).total_seconds() // 86400)|int }} days, on {{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }},
     {% else %}
     The lottery closes in {{ ((c.HOTEL_LOTTERY_FORM_DEADLINE - now_localized()).total_seconds() // 86400)|int }} days, on {{ c.HOTEL_LOTTERY_FORM_DEADLINE|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }},
     {% endif %}
