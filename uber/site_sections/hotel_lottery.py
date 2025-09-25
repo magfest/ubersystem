@@ -656,6 +656,10 @@ class Root:
         application = session.lottery_application(id)
         new_leader = session.lottery_application(member_id)
 
+        if new_leader not in application.group_members:
+            raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
+                               f"{new_leader.attendee.full_name} is not a member of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}")
+
         leader_entry = application.to_dict()
         defaults = LotteryApplication().to_dict()
 
@@ -664,11 +668,12 @@ class Root:
                      'room_opt_out', 'suite_type_preference', 'suite_terms_accepted', 'guarantee_policy_accepted',
                      'assigned_hotel', 'assigned_room_type', 'assigned_suite_type', 'assigned_check_in_date',
                      'assigned_check_out_date', 'deposit_cutoff_date', 'lottery_name', 'booking_url', 'room_group_name',
-                     'status']:
+                     'status', 'entry_type', 'current_step']:
             setattr(new_leader, attr, leader_entry.get(attr))
             setattr(application, attr, defaults.get(attr))
 
-        for member in application.group_members:
+        all_group_members = application.group_members + [application]
+        for member in all_group_members:
             if member != new_leader:
                 member.parent_application_id = new_leader.id
                 session.add(member)
@@ -678,7 +683,7 @@ class Root:
         new_leader.parent_application_id = None
         session.commit()
 
-        for member in application.group_members + [application]:
+        for member in all_group_members:
             body = render('emails/hotel/group_new_leader.html', {
                     'app': member, 'old_leader': application, 'new_leader': new_leader}, encoding=None)
             send_email.delay(
@@ -690,7 +695,7 @@ class Root:
                 model=member.to_dict('id'))
         
         raise HTTPRedirect('index?id={}&message={}', application.id,
-                           f"Group leadership successfully transferred to {new_leader.full_name}.")
+                           f"Group leadership successfully transferred to {new_leader.attendee.full_name}.")
 
 
     @requires_account(LotteryApplication)

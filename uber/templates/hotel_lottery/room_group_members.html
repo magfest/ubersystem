@@ -18,7 +18,6 @@
                     </button>
                     {% endif %}
                 </form>
-                {% if False %}
                 <form method="post" action="transfer_leadership" id="make-leader">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
@@ -28,7 +27,6 @@
                         Make {{ c.HOTEL_LOTTERY_GROUP_TERM }} Leader
                     </button>
                 </form>
-                {% endif %}
                 </div>
             </td>
         </tr>

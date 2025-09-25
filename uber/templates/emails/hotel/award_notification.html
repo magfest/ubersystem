@@ -23,6 +23,11 @@
 You will receive an email when your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s reservation has been confirmed.
 </p>
 {% endif %}
+{% if app.is_staff_entry and c.HOURS_FOR_HOTEL_SPACE %}
+<p>
+    If you confirm this room award, you will need to work {{ c.HOURS_FOR_HOTEL_SPACE }} hours of weighted shifts for {{ c.EVENT_NAME_AND_YEAR }} to maintain this perk. If you utilize this perk and do not work the required number of hours, you will lose access to this perk in the future, and may lose the ability to staff in future years.
+</p>
+{% endif %}
 <ul>
     <li><strong>Hotel</strong>: {{ app_or_parent.assigned_hotel_label['name'] }}</li>
     <li><strong>Room Type</strong>: {{ app_or_parent.assigned_suite_type_label['name'] if app_or_parent.assigned_suite_type else app_or_parent.assigned_room_type_label['name'] }}</li>
