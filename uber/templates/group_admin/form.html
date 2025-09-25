@@ -85,6 +85,7 @@
   <form novalidate method="post" id="group-form" action="form" enctype="multipart/form-data" x-data="{
     guest_group_type: {{ group.guest_group_type|jsonize }},
     is_dealer: {{ group.is_dealer|jsonize }},
+    is_new: {{ group.is_new|jsonize }},
   }">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ group.db_id }}" />
@@ -197,11 +198,15 @@
     $(function () {
       if($.field('guest_group_type') && $.field('guest_group_type').length) {
         var autoTypeAndRibbon = function() {
-          if($.val('guest_group_type') == '{{ c.GUEST }}') {
+          if($.val('guest_group_type') != '0' && $.val('guest_group_type') != '{{ c.MIVS }}') {
             $.field('new_badge_type').val('{{ c.GUEST_BADGE }}');
-          } else if ($.val('guest_group_type') == '{{ c.BAND }}') {
-            $.field('new_badge_type').val('{{ c.GUEST_BADGE }}');
+          } else {
+            $.field('new_badge_type').val('{{ c.ATTENDEE_BADGE }}');
+          }
+          if ($.val('guest_group_type') == '{{ c.BAND }}') {
             $(':checkbox[value={{ c.BAND }}]').prop("checked","true");
+          } else {
+            $(':checkbox[value={{ c.BAND }}]').prop("checked",false);
           }
         };
         $.field('guest_group_type').change(autoTypeAndRibbon);

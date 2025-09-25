@@ -14,7 +14,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div x-data="{ {% block x_data %}
 badges: {{ group_or_table_info.badges.data|jsonize }},
-get showNewBadgeFields() { return this.badges > {{ group_or_table_info.badges.data|jsonize }} },
+get showNewBadgeFields() { return this.is_new || this.badges > {{ group_or_table_info.badges.data|jsonize }} },
 {% endblock %} }">
 
 <div class="row g-3 mb-3">
@@ -36,14 +36,18 @@ get showNewBadgeFields() { return this.badges > {{ group_or_table_info.badges.da
         {% endcall %}
     </div>
 </div>
-<div class="row g-3 mb-3 bg-light p-2" x-show="showNewBadgeFields">
-    <div class="col-12 form-text">New Badges Settings</div>
-    <div class="col-sm">
-        {{ form_macros.input(group_or_table_info.new_badge_type) }}
+<div class="mb-3" x-show="showNewBadgeFields">
+    <div class="form-text">New Badges Settings</div>
+    <div class="card card-body bg-light">
+    <div class="row g-3">
+        <div class="col-sm">
+            {{ form_macros.input(group_or_table_info.new_badge_type) }}
+        </div>
+        <div class="col-sm">
+            {{ form_macros.input(group_or_table_info.new_ribbons) }}
+        </div>
     </div>
-    <div class="col-sm">
-        {{ form_macros.input(group_or_table_info.new_ribbons) }}
-    </div>
+</div>
 {% endblock %}
 </div>
 
@@ -56,7 +60,7 @@ get showNewBadgeFields() { return this.badges > {{ group_or_table_info.badges.da
 {% endset %}
     <div class="col-sm">
         {% call form_macros.input(group_or_table_info.cost, admin_text=cost_warning, no_margin=True) %}
-        {{ form_macros.input(group_or_table_info.auto_recalc) }}
+        {{ form_macros.input(group_or_table_info.auto_recalc, **{'x-bind:checked': 'guest_group_type == 0 || guest_group_type == ' ~ c.MIVS}) }}
         {% endcall %}
     </div>
     {% if group.cost %}
