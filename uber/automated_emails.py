@@ -543,13 +543,13 @@ def deferred_attendee_placeholder(a): return a.placeholder and (a.registered_loc
                                                                 and not a.admin_account)
 
 
-def panelist_placeholder(a): return a.placeholder and c.PANELIST_RIBBON in a.ribbon_ints
+def panelist_placeholder(a): return a.placeholder and a.badge_type != c.GUEST_BADGE and c.PANELIST_RIBBON in a.ribbon_ints
 
 
 def guest_placeholder(a): return a.placeholder and a.badge_type == c.GUEST_BADGE and (
             not a.group
             or a.group.guest
-            and a.group.guest.group_type in [c.ARENA, c.GUEST])
+            and a.group.guest.group_type == c.GUEST)
 
 
 def band_placeholder(a): return a.placeholder and a.badge_type == c.GUEST_BADGE and (
