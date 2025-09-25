@@ -854,7 +854,7 @@ if c.HOTEL_LOTTERY_STAFF_START:
     HotelLotteryEmailFixture(
         'Last chance to complete your staff hotel lottery entry',
         'hotel/lottery_reminder.html',
-        lambda a: a.status == c.PARTIAL and a.qualifies_for_staff_lottery,
+        lambda a: a.status == c.PARTIAL and a.qualifies_for_staff_lottery and days_after(1, a.entry_started)(),
         when=days_before(3, c.HOTEL_LOTTERY_STAFF_DEADLINE),
         ident='staff_hotel_lottery_reminder',
     )
@@ -863,10 +863,19 @@ if c.HOTEL_LOTTERY_STAFF_START:
 if c.HOTEL_LOTTERY_FORM_START:
     earliest_hotel_deadline = c.HOTEL_LOTTERY_FORM_WAITLIST if c.HOTEL_LOTTERY_FORM_WAITLIST else c.HOTEL_LOTTERY_FORM_DEADLINE
 
+    AutomatedEmailFixture(
+        Attendee,
+        'Did you want to enter the {EVENT_NAME} {EVENT_YEAR} hotel lottery?',
+        'hotel/enter_lottery.html',
+        lambda a: a.hotel_lottery_eligible and not a.lottery_application,
+        when=days_before(7, earliest_hotel_deadline),
+        sender=c.HOTEL_LOTTERY_EMAIL,
+        ident='enter_hotel_lottery')
+
     HotelLotteryEmailFixture(
         'Last chance to complete your hotel lottery entry',
         'hotel/lottery_reminder.html',
-        lambda a: a.status == c.PARTIAL,
+        lambda a: a.status == c.PARTIAL and days_after(1, a.entry_started)(),
         when=days_before(3, earliest_hotel_deadline),
         ident='hotel_lottery_reminder',
     )
