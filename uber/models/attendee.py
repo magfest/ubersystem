@@ -2346,7 +2346,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return 'Hotel nights: {} ({})'.format(hr.nights_display, 'approved' if hr.approved else 'not yet approved')
         else:
             return 'Hotel nights: ' + hr.nights_display
-        
+
     @property
     def hotel_lottery_ineligible_reason(self):
         if not self.is_valid:
@@ -2355,14 +2355,15 @@ class Attendee(MagModel, TakesPaymentMixin):
             return f'You cannot enter the hotel lottery with a badge status of "{self.badge_status_label}".'
         else:
             return "Please finish registering to enter the hotel lottery."
-            
+
 
     @hybrid_property
     def hotel_lottery_eligible(self):
         return (self.is_valid and not self.placeholder and not self.is_unassigned
                 and self.badge_status not in [c.REFUNDED_STATUS,
                                               c.NOT_ATTENDING,
-                                              c.DEFERRED_STATUS])
+                                              c.DEFERRED_STATUS,
+                                              c.WATCHED_STATUS])
                                                            
 
     @hotel_lottery_eligible.expression

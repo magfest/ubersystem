@@ -66,6 +66,7 @@ class Root:
                     if attendee.badge_status == c.WATCHED_STATUS:
                         attendee.badge_status = c.NEW_STATUS
                         changed_attendees -= 1
+                        session.add(attendee)
             new_status = c.BADGE_STATUS[c.WATCHED_STATUS] if changed_attendees > 0 else c.BADGE_STATUS[c.NEW_STATUS]
             changed_message = "" if not changed_attendees else \
                                 " and {} attendee{} moved to {} status".format(abs(changed_attendees),
