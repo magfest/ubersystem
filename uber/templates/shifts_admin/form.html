@@ -118,7 +118,7 @@
         name="start_time"
         type="text"
         class="form-control"
-        value="{{ job.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if job.start_time else '' }}">
+        value="">
         <span class="input-group-text">
           <i class="fa fa-calendar"></i>
         </span>
@@ -140,13 +140,13 @@
   {% endif %}
 
   <script type="text/javascript">
-    $('#start-time').flatpickr({
+      let startFlatpickr = flatpickr('#start-time',{
         allowInput: true,
         enableTime: true,
         altInput: true,
         altFormat: 'n/j/Y h:i K',
         dateFormat: 'Z',
-        defaultDate: '{{ min_date.isoformat()[:-6] }}',
+        defaultDate: '{{ job.start_time.astimezone(c.EVENT_TIMEZONE).isoformat() if job.start_time else min_date.isoformat()[:-6]}}',
         minDate: '{{ min_date.isoformat()[:-6] }}',
         maxDate: '{{ max_date.isoformat()[:-6] }}'
     });
