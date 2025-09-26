@@ -39,7 +39,7 @@
             name="start_time"
             type="text"
             class="form-control"
-            value="{{ event.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if event.start_time else '' }}">
+            value="">
             <span class="input-group-text">
               <i class="fa fa-calendar"></i>
             </span>
@@ -92,13 +92,13 @@
 </div>
 
 <script type="text/javascript">
-    $('#start-time').flatpickr({
+    let startFlatpickr = flatpickr('#start-time',{
         allowInput: true,
         enableTime: true,
         altInput: true,
         altFormat: 'n/j/Y h:i K',
         dateFormat: 'Z',
-        defaultDate: '{{ c.PANELS_EPOCH.isoformat()[:-6] }}',
+        defaultDate: '{{ event.start_time.astimezone(c.EVENT_TIMEZONE).isoformat() if event.start_time else c.PANELS_EPOCH.isoformat()[:-6]}}',
         minDate: '{{ c.PANELS_EPOCH.isoformat()[:-6] }}',
         maxDate: '{{ c.PANELS_ESCHATON.isoformat()[:-6] }}'
     });
