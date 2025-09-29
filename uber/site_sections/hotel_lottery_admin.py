@@ -122,7 +122,7 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
             entries[app.id] = entry
                     
    for app in applications:
-        if app.entry_type and app.parent_application in entries:
+        if app.entry_type == lottery_type and app.parent_application in entries:
             entries[app.parent_application]["members"].append(app)
 
     for app_id, entry in entries.items():
