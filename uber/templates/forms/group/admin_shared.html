@@ -60,7 +60,11 @@ get showNewBadgeFields() { return this.is_new || this.badges > {{ group_or_table
 {% endset %}
     <div class="col-sm">
         {% call form_macros.input(group_or_table_info.cost, admin_text=cost_warning, no_margin=True) %}
+        {% if group.is_new %}
         {{ form_macros.input(group_or_table_info.auto_recalc, **{'x-bind:checked': 'guest_group_type == 0 || guest_group_type == ' ~ c.MIVS}) }}
+        {% else %}
+        {{ form_macros.input(group_or_table_info.auto_recalc) }}
+        {% endif %}
         {% endcall %}
     </div>
     {% if group.cost %}
