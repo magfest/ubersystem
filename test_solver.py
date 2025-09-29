@@ -99,7 +99,7 @@ def solve_lottery(applications, hotel_rooms):
         
         Returns Dict[Applications -> hotel, room_type]: A mapping of Application.id -> (id, room_type) or None if it failed
     """
-    solver = pywraplp.Solver.CreateSolver("GLOP")
+    solver = pywraplp.Solver.CreateSolver("SAT")
     
     # Set up our data structures
     for hotel_room in hotel_rooms:
