@@ -1,3 +1,4 @@
+from collections import defaultdict
 from ortools.linear_solver import pywraplp
 import uuid
 import random
@@ -113,21 +114,20 @@ def solve_lottery(applications, hotel_rooms):
                 "constraints": []
             }
             entries[app.id] = entry
-            for hotel_room in hotel_rooms:
-                if hotel_room["id"] in entry["hotels"]:
-                    weight = weight_entry(entry, hotel_room)                 
-                    
-                    # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
-                    constraint = solver.BoolVar(f'{app.id}_assigned_to_{hotel_room["id"]}')
-                    entry["constraints"].append((constraint, weight, hotel_room))
-                    hotel_room["constraints"].append(constraint)
-                    
+
     for app in applications:
         if app.entry_type and app.parent_application in entries:
             entries[app.parent_application]["members"].append(app)
-                    
-    # Set up constraints
-    
+
+    for app_id, entry in entries.items():
+        for hotel_room in hotel_rooms:
+            if hotel_room["id"] in entry["hotels"]:
+                weight = weight_entry(entry, hotel_room)                 
+                # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
+                constraint = solver.BoolVar(f'{app_id}_assigned_to_{hotel_room["id"]}')
+                entry["constraints"].append((constraint, weight, hotel_room))
+                hotel_room["constraints"].append(constraint)
+
     ## Limit capacity of each room to fit the groups
     for app, entry in entries.items():
         num_entrants = len(entry["members"])
@@ -170,20 +170,38 @@ def solve_lottery(applications, hotel_rooms):
     
     
 #for apps in range(1000, 25000, 1000):
-apps = 1000000
-num_rooms = 100000
+apps = 24000
+num_rooms = 3000
 applications, hotel_rooms, num_groups, num_singles = generate_data(num_apps=apps, num_rooms=num_rooms)
 start = time.time()
 results = solve_lottery(applications, hotel_rooms)
 duration = time.time() - start
 print(f"{len(results)} rooms assigned out of {num_rooms} ({len(results) / num_rooms * 100:.1f}%)")
-print(f"Allocated {len(results)} room groups out of {num_groups + num_singles} ({len(results) / (num_groups + num_singles) * 100:.1f}%)")
-print(f"{len(applications)} applications and {num_rooms} hotel rooms")
-print(f"Solve took {duration:.2f}s")
-print()
+# print(f"Allocated {len(results)} room groups out of {num_groups + num_singles} ({len(results) / (num_groups + num_singles) * 100:.1f}%)")
+# print(f"{len(applications)} applications and {num_rooms} hotel rooms")
+# print(f"Solve took {duration:.2f}s")
+# print()
 
 for hotel_room in results.values():
     hotel_room["count"] += 1
 for hotel_room in hotel_rooms:
     #print(f"{hotel_room['id']}-{hotel_room['room_type']}: {hotel_room['count']} / {hotel_room['quantity']}")
     assert hotel_room['count'] <= hotel_room['quantity']
+
+
+child_count = defaultdict(int)
+for app in applications:
+    if app.entry_type and app.parent_application:
+        child_count[app.parent_application] += 1
+
+assigned_groups = len(results)
+assigned_people = sum(1 + child_count[parent_id] for parent_id in results.keys())
+
+eligible_people = sum(1 for app in applications if app.entry_type)
+
+print(f"{assigned_groups} groups assigned out of {num_groups + num_singles} "
+      f"({assigned_groups / (num_groups + num_singles) * 100:.1f}%)")
+print(f"{assigned_people} people assigned out of {eligible_people} "
+      f"({assigned_people / eligible_people * 100:.1f}%)")
+print(f"{len(applications)} applications and {num_rooms} hotel rooms")
+print(f"Solve took {duration:.2f}s")

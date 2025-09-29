@@ -10,7 +10,6 @@ from dateutil import parser as dateparser
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import joinedload
 from ortools.linear_solver import pywraplp
 
 from uber.config import c
@@ -27,7 +26,7 @@ def beep_on_start():
 cherrypy.engine.subscribe('start', beep_on_start)
 
 def _search(session, text):
-    applications = session.query(LotteryApplication)
+    applications = session.query(LotteryApplication).outerjoin(LotteryApplication.attendee)
 
     terms = text.split()
     if len(terms) == 1 and terms[0].isdigit():
@@ -37,22 +36,7 @@ def _search(session, text):
     check_list = []
     for attr in [col for col in LotteryApplication().__table__.columns if isinstance(col.type, UnicodeText)]:
         check_list.append(attr.ilike('%' + text + '%'))
-
-    for col_name in ['assigned_hotel', 'assigned_room_type', 'assigned_suite_type']:
-        col = getattr(LotteryApplication, col_name).type
-        label_dict = {key: val['name'] for key, val in col.choices.items()}
-
-        for key, label in label_dict.items():
-            if text.lower() in label.lower():
-                check_list.append(getattr(LotteryApplication, col_name) == key)
     
-    for col_name in ['entry_type', 'status']:
-        col = getattr(LotteryApplication, col_name).type
-        label_list = [choice for choice in col.choices.values()]
-        for label in label_list:
-            if text.lower() in label.lower():
-                check_list.append(getattr(LotteryApplication, col_name) == col.convert_if_label(label))
-
     return applications.filter(or_(*check_list)), ''
 
 def weight_entry(entry, hotel_room):
@@ -94,7 +78,7 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
     """
     random.shuffle(applications)
     solver = pywraplp.Solver.CreateSolver("SAT")
-
+    
     # Set up our data structures
     for hotel_room in hotel_rooms:
         hotel_room["constraints"] = []
@@ -118,18 +102,20 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
                     "constraints": []
                 }
             entries[app.id] = entry
-            for hotel_room in hotel_rooms:
-                if hotel_room["id"] in entry["hotels"] and hotel_room["room_type"] in entry["room_types"]:
-                    weight = weight_entry(entry, hotel_room)                 
                     
-                    # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
-                    constraint = solver.BoolVar(f'{app.id}_assigned_to_{hotel_room["id"]}')
-                    entry["constraints"].append((constraint, weight, hotel_room))
-                    hotel_room["constraints"].append(constraint)
-                    
-    for app in applications:
-        if app.entry_type == lottery_type and app.parent_application in entries:
+   for app in applications:
+        if app.entry_type and app.parent_application in entries:
             entries[app.parent_application]["members"].append(app)
+
+    for app_id, entry in entries.items():
+        for hotel_room in hotel_rooms:
+            if hotel_room["id"] in entry["hotels"] and hotel_room["room_type"] in entry["room_types"]:
+                weight = weight_entry(entry, hotel_room)                 
+                # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
+                constraint = solver.BoolVar(f'{app_id}_assigned_to_{hotel_room["id"]}')
+                entry["constraints"].append((constraint, weight, hotel_room))
+                hotel_room["constraints"].append(constraint)
+
                     
     # Set up constraints
     
@@ -195,10 +181,10 @@ class Root:
             elif not message:
                 message = 'No matches found. Try searching the lottery tracking history instead.'
         if not count:
-            applications = session.query(LotteryApplication)
+            applications = session.query(LotteryApplication).outerjoin(LotteryApplication.attendee)
             count = applications.count()
 
-        applications = applications.order(order).options(joinedload(LotteryApplication.attendee))
+        applications = applications.order(order)
 
         page = int(page)
         if search_text:
@@ -327,17 +313,12 @@ class Root:
         if lottery_type_val == "room":
             lottery_type = c.ROOM_ENTRY
         elif lottery_type_val == "suite":
-            lottery_type = c.SUITE_ENTRY
+            lottery_type_val = c.SUITE_ENTRY
         else:
             raise ValueError(f"Unknown lottery_type {lottery_type_val}")
         
         applications = session.query(LotteryApplication).filter(LotteryApplication.status == c.PROCESSED)
-
-        if lottery_type == c.SUITE_ENTRY:
-            applications = applications.filter(LotteryApplication.assigned_suite_type != None)
-        else:
-            applications = applications.filter(LotteryApplication.assigned_room_type != None)
-
+        applications = applications.filter(LotteryApplication.entry_type == lottery_type)
         lottery_group_val = params.get("lottery_group", "attendee")
         if lottery_group_val == "attendee":
             applications = applications.filter(LotteryApplication.is_staff_entry == False)
@@ -367,12 +348,7 @@ class Root:
         
         applications = session.query(LotteryApplication).join(LotteryApplication.attendee).filter(
             LotteryApplication.status == c.PROCESSED, Attendee.hotel_lottery_eligible == True)
-
-        if lottery_type == c.SUITE_ENTRY:
-            applications = applications.filter(LotteryApplication.assigned_suite_type != None)
-        else:
-            applications = applications.filter(LotteryApplication.assigned_room_type != None)
-
+        applications = applications.filter(LotteryApplication.entry_type == lottery_type)
         lottery_group_val = params.get("lottery_group", "attendee")
         if lottery_group_val == "attendee":
             applications = applications.filter(LotteryApplication.is_staff_entry == False)
