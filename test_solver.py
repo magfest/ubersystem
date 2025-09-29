@@ -104,6 +104,35 @@ def solve_lottery(applications, hotel_rooms):
     # Set up our data structures
     for hotel_room in hotel_rooms:
         hotel_room["constraints"] = []
+
+    ####ORIGINAL SOLUTION UNCOMMENT FOR COMPARATIVE TESTING
+    # entries = {}
+    # for app in applications:
+    #     if app.entry_type and not app.parent_application:
+    #         entry = {
+    #             "members": [app],
+    #             "hotels": app.hotel_preference.split(","),
+    #             "room_types": app.room_type_preference.split(","),
+    #             "constraints": []
+    #         }
+    #         entries[app.id] = entry
+    #         for hotel_room in hotel_rooms:
+    #             if hotel_room["id"] in entry["hotels"]:
+    #                 weight = weight_entry(entry, hotel_room)                 
+                    
+    #                 # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
+    #                 constraint = solver.BoolVar(f'{app.id}_assigned_to_{hotel_room["id"]}')
+    #                 entry["constraints"].append((constraint, weight, hotel_room))
+    #                 hotel_room["constraints"].append(constraint)
+                    
+    # for app in applications:
+    #     if app.entry_type and app.parent_application in entries:
+    #         entries[app.parent_application]["members"].append(app)
+    ###########
+    
+
+    
+    #### PROPOSED CHANGE COMMENT/UNCOMMENT FOR TESTING
     entries = {}
     for app in applications:
         if app.entry_type and not app.parent_application:
@@ -127,6 +156,7 @@ def solve_lottery(applications, hotel_rooms):
                 constraint = solver.BoolVar(f'{app_id}_assigned_to_{hotel_room["id"]}')
                 entry["constraints"].append((constraint, weight, hotel_room))
                 hotel_room["constraints"].append(constraint)
+    ######################
 
     ## Limit capacity of each room to fit the groups
     for app, entry in entries.items():
