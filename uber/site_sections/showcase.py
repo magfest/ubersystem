@@ -241,7 +241,7 @@ class Root:
                 for game in studio.games:
                     if game.status == c.ACCEPTED:
                         game.status = c.CANCELLED
-                raise HTTPRedirect('index?id={}&message={}', studio,id,
+                raise HTTPRedirect('index?id={}&message={}', studio.id,
                                    'You have been marked as declining space in the showcase.')
             else:
                 group = studio.group = Group(name='Showcase Studio: ' + studio.name, can_add=True)
