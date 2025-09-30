@@ -867,7 +867,7 @@ if c.HOTEL_LOTTERY_FORM_START:
         Attendee,
         'Did you want to enter the {EVENT_NAME} {EVENT_YEAR} hotel lottery?',
         'hotel/enter_lottery.html',
-        lambda a: a.hotel_lottery_eligible and not a.lottery_application,
+        lambda a: a.hotel_lottery_eligible and not a.lottery_application and days_after(1, a.registered)(),
         when=days_before(7, earliest_hotel_deadline),
         sender=c.HOTEL_LOTTERY_EMAIL,
         ident='enter_hotel_lottery')
