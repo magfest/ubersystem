@@ -353,7 +353,7 @@ class Root:
 
             if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
                 application.is_staff_entry = True
-            else:
+            elif not application.can_edit:
                 application.is_staff_entry = False
 
             application.current_step = 999
@@ -419,7 +419,7 @@ class Root:
 
             if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
                 application.is_staff_entry = True
-            else:
+            elif not application.can_edit:
                 application.is_staff_entry = False
 
             application.current_step = 999
