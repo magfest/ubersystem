@@ -119,12 +119,12 @@ def acceptable_dates_not_swapped(form, field):
         raise StopValidation(f"Your acceptable check-in date is after your {checkout_label}.")
 
 
-@RoomLottery.field_validation('earliest_checkin_date')
+@RoomLottery.new_or_changed('earliest_checkin_date')
 def earliest_checkin_within_range(form, field):
     date_in_range(field, "preferred check-in", c.HOTEL_LOTTERY_CHECKIN_START, c.HOTEL_LOTTERY_CHECKIN_END)
 
 
-@RoomLottery.field_validation('latest_checkin_date')
+@RoomLottery.new_or_changed('latest_checkin_date')
 def latest_checkin_within_range(form, field):
     date_in_range(field, "latest acceptable check-in", c.HOTEL_LOTTERY_CHECKIN_START, c.HOTEL_LOTTERY_CHECKIN_END)
 
@@ -136,12 +136,12 @@ def after_preferred_checkin(form, field):
                              "is later than your preferred check-in date.")
 
 
-@RoomLottery.field_validation('latest_checkout_date')
+@RoomLottery.new_or_changed('latest_checkout_date')
 def latest_checkin_within_range(form, field):
     date_in_range(field, "preferred check-out", c.HOTEL_LOTTERY_CHECKOUT_START, c.HOTEL_LOTTERY_CHECKOUT_END)
 
 
-@RoomLottery.field_validation('earliest_checkout_date')
+@RoomLottery.new_or_changed('earliest_checkout_date')
 def earliest_checkin_within_range(form, field):
     date_in_range(field, "earliest acceptable check-out", c.HOTEL_LOTTERY_CHECKOUT_START, c.HOTEL_LOTTERY_CHECKOUT_END)
 
