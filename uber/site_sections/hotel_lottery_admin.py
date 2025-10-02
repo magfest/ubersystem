@@ -220,7 +220,7 @@ class Root:
             'complete_count': complete_valid_entries.count(),
             'suite_count': room_count_base.filter(LotteryApplication.entry_type == c.SUITE_ENTRY).count(),
             'room_count': room_count_base.filter(or_(LotteryApplication.entry_type == c.ROOM_ENTRY,
-                                                            LotteryApplication.room_opt_out == False)).count(),
+                                                     LotteryApplication.room_opt_out == False)).count(),
         }  # noqa: E711
 
     def feed(self, session, message='', page='1', who='', what='', action=''):
@@ -510,6 +510,22 @@ class Root:
             'suite_lookup': dict(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS),
             'now': localized_now(),
         }
+
+    @csv_file
+    def assigned_entries(self, out, session):
+        out.writerow(['Assigned Hotel', 'Assigned Room Type', 'Wants ADA?', 'ADA Request',
+                      'Assigned Check-in Date', 'Assigned Check-out Date',
+                      'Legal First Name', 'Legal Last Name', 'Phone', 'Email'])
+        
+        assigned_entries = session.query(LotteryApplication).filter(
+            LotteryApplication.status == c.AWARDED,
+            LotteryApplication.entry_type != c.GROUP_ENTRY).order_by(LotteryApplication.assigned_hotel)
+
+        for entry in assigned_entries:
+            out.writerow([entry.assigned_hotel_label['name'],
+                          entry.assigned_suite_type_label['name'] if entry.assigned_suite_type else entry.assigned_room_type_label['name'],
+                          entry.wants_ada, entry.ada_requests, entry.assigned_check_in_date, entry.assigned_check_out_date,
+                          entry.legal_first_name, entry.legal_last_name, entry.cellphone, entry.email])
     
     @xlsx_file
     def hotel_inventory_xlsx(self, out, session, hotel_enum):

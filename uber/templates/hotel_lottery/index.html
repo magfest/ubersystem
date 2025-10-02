@@ -125,7 +125,7 @@
         <p>
             Your booking is currently
             {% if app_or_parent.status == c.SECURED %}
-                <span class="text-success">confirmed</span>! You can <a href="{{ application.booking_url }}" target="_blank">view or edit your booking</a> at any time.
+                <span class="text-success">confirmed</span>!{% if application.booking_url %} You can <a href="{{ application.booking_url }}" target="_blank">view or edit your booking</a> at any time.{% endif %}
             {% elif app_or_parent.status == c.AWARDED and app_or_parent.booking_url %}
                 <span class="text-danger">awaiting confirmation</span>.
                 Please{% if application.parent_application %} ask your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader to{% endif %}

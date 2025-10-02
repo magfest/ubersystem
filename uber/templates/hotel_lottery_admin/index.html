@@ -36,7 +36,13 @@
     | {{ suite_count }} requested suite{{ suite_count|pluralize }}
   </div>
   {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
+  <div class="text-end">
   <a href="hotel_inventory">View Room/Suite Inventory</a>
+  &nbsp;
+  <a href="hotel_inventory_zip"><i class="fa fa-download"></i> Assigned Rooms by Date</a>
+  <br/>
+  <a href="assigned_entries"><i class="fa fa-download"></i> Assigned Rooms by Entry</a>
+  </div>
   {% else %}
   <div>
     Download <a href="interchange_export"><i class="fa fa-download"></i> Interchange CSV</a>
