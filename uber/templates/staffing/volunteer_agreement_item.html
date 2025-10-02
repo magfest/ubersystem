@@ -8,6 +8,6 @@
         {% else %}
             You have agreed
         {% endif %}
-        to the terms of the {% if not attendee.placeholder %}<a href="volunteer_agreement">Volunteer Agreement</a>{% else %}Volunteer Agreement{% endif %}. (Deadline: {{ c.VOLUNTEER_CHECKLIST_DEADLINE }})
+        to the terms of the {% if not attendee.placeholder and False %}<a href="volunteer_agreement">Volunteer Agreement</a>{% else %}Volunteer Agreement{% endif %}.
     </li>
 {% endif %}
