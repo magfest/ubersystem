@@ -29,9 +29,22 @@
             <td>{{ member.legal_first_name }} {{ member.legal_last_name }}</td>
             <td>{{ member.cellphone }}</td>
             <td>{{ member.email }}</td>
-            <td></td>
+            <td>
+                {% if application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] %}
+                <form method="post" action="transfer_leadership" class="make-leader">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="member_id" value="{{ member.id }}">
+                    <input type="hidden" name="member_name" value="{{ member.attendee.full_name }}">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        Make {{ c.HOTEL_LOTTERY_GROUP_TERM }} Leader
+                    </button>
+                </form>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+{% include 'hotel_lottery/room_leader_transfer.html' with context %}
 {% endif %}

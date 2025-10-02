@@ -1,0 +1,39 @@
+<script type="text/javascript">
+    leaderConfirm = function(event){
+        var formToSubmit = this;
+        event.preventDefault();
+        name = $(this).find('[name=member_name]').first().val();
+        bootbox.confirm({
+            title: "Transfer Group Leadership?",
+            message: "<p>This will make " + name + " the new leader for your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.</p>" + 
+                     "<p>All group members will be notified via email." +
+                     {% if application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] %}
+                        {% if not application.finalized %}
+                        " You will then be able to withdraw from the lottery without disbanding the group." +
+                        {% else %}
+                        " You will no longer be able to view your group's reservation, but you'll be able to withdraw from the lottery without affecting your group's {{ 'suite' if application.assigned_suite_type else 'room' }} award." +
+                        {% endif %}
+                     {% endif %}
+                     "</p><p>Are you sure?</p>",
+            buttons: {
+                confirm: {
+                    label: 'Yes, Transfer Leadership to ' + name,
+                    className: 'btn-warning'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    formToSubmit.submit();
+                }
+            }
+        });
+    }
+
+    $().ready(function () {
+        $(".make-leader").submit(leaderConfirm);
+    })
+</script>

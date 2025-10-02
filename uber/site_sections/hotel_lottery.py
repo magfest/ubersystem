@@ -110,7 +110,6 @@ def _reset_group_member(application):
 
 
 def _clear_application(application, status=c.WITHDRAWN):
-    application.status = status
     application.attendee.hotel_eligible = True
     keep_attrs = [
         'id', 'attendee_id', 'response_id', 'legal_first_name', 'legal_last_name', 'cellphone']
@@ -119,6 +118,7 @@ def _clear_application(application, status=c.WITHDRAWN):
     for attr in defaults:
         if attr not in keep_attrs:
             setattr(application, attr, defaults.get(attr))
+    application.status = status
     return application
 
 
@@ -207,6 +207,8 @@ class Root:
 
         if not application:
             raise HTTPRedirect(f'start?attendee_id={attendee_id}')
+        elif application.finalized:
+            pass
         elif not application.terms_accepted:
             raise HTTPRedirect(f'terms?attendee_id={attendee_id}')
         elif application.entry_form_completed and not application.guarantee_policy_accepted:
@@ -806,7 +808,10 @@ class Root:
                     format='html',
                     model=room_group.to_dict('id'))
             
-            application = _reset_group_member(application)
+            if room_group.finalized:
+                application = _clear_application(application)
+            else:
+                application = _reset_group_member(application)
 
             if application.status == c.WITHDRAWN:
                 raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),

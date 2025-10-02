@@ -20,11 +20,11 @@
         {% if not application.parent_application %}
             {% if app_or_parent.status not in [c.COMPLETE, c.PROCESSED] %}
                 You must complete your entry details below to be entered in the lottery.
-            {% else %}You can view your entry details below.{% endif %}
+            {% else %}You can view and update your entry details below.{% endif %}
         {% else %}
             {% if app_or_parent.status not in [c.COMPLETE, c.PROCESSED] %}
             Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader must review and complete their lottery entry for your group to be entered in the lottery.
-            {% else %}You can view your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s entry below.
+            {% else %}You can view your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s entry and update your contact information below.
             {% endif %}
         {% endif %}
         </p>
@@ -106,7 +106,22 @@
             </div>
             {% endif %}
         {% endif %}
-        {% if application.status == c.COMPLETE and application.entry_type != c.GROUP_ENTRY and (app_editable or application.finalized) %}
+        {% if application.entry_type == c.GROUP_ENTRY and (app_editable or application.finalized) %}
+        <div class="col col-auto">
+        <form method="post" action="leave_group" id="leave-group">
+            <input type="hidden" name="id" value="{{ application.id }}">
+            {{ csrf_token() }}
+            {% if application.guarantee_policy_accepted %}
+            <button class="btn btn-warning">Leave Group</button>
+            {% else %}
+            <button class="btn btn-danger">Withdraw From Hotel Lottery</button>
+            {% endif %}
+        </form>
+        </div>
+        {% endif %}
+        {% if application.status == c.COMPLETE and application.entry_type != c.GROUP_ENTRY and app_editable or (
+            application.finalized and application.entry_type == c.GROUP_ENTRY
+        ) %}
         <div class="col col-auto">
         <form id="withdraw-lottery" method="post" action="withdraw_entry">
             <input type="hidden" name="id" value="{{ application.id }}">
@@ -149,19 +164,7 @@
             <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View {{ c.HOTEL_LOTTERY_GROUP_TERM }} Policies</button>
         </div>
     {% if application.room_group_name and app_editable %}
-        <div class="col col-auto"><a class="btn btn-primary" href="room_group?id={{ application.id }}">Manage {{ c.HOTEL_LOTTERY_GROUP_TERM }}</a></div>
-    {% elif app_editable or application.finalized %}
-        <div class="col col-auto">
-        <form method="post" action="leave_group" id="leave-group">
-            <input type="hidden" name="id" value="{{ application.id }}">
-            {{ csrf_token() }}
-            {% if application.guarantee_policy_accepted %}
-            <button class="btn btn-warning">Leave Group</button>
-            {% else %}
-            <button class="btn btn-danger">Withdraw From Hotel Lottery</button>
-            {% endif %}
-        </form>
-        </div>
+    <div class="col col-auto"><a class="btn btn-primary" href="room_group?id={{ application.id }}">Manage {{ c.HOTEL_LOTTERY_GROUP_TERM }}</a></div>
     {% endif %}
     </div>
     {% endif %}

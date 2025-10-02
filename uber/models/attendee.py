@@ -1363,6 +1363,14 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "Please ask the artist you're agenting for to {} first.".format(
                 "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
             )
+        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+            if self.lottery_application.status == c.COMPLETE or self.lottery_application.entry_type == c.GROUP_ENTRY:
+                return "Please withdraw from the hotel lottery first."
+            elif self.lottery_application.group_members:
+                return f"Please transfer your hotel lottery {c.HOTEL_LOTTERY_GROUP_TERM.lower()} to another group member, then withdraw from the lottery."
+            else:
+                return f"You cannot cancel your badge after being awarded a room or suite in the hotel lottery. \
+                    Please contact us at {email_only(c.HOTEL_LOTTERY_EMAIL)} to cancel your room."
 
         reason = ""
         if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
@@ -1597,7 +1605,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.custom_tags import email_only
         can_do = []
 
-        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+        if self.lottery_application and self.lottery_application.status == c.COMPLETE:
             can_do.append("withdraw your hotel lottery entry")
         if self.art_show_applications and self.art_show_applications[0].is_valid:
             can_do.append(f"contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application")

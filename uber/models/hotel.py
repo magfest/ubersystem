@@ -289,7 +289,7 @@ class LotteryApplication(MagModel):
             you_str = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s"
         else:
             you_str = "Your"
-        
+
         room_type = 'suite' if app_or_parent.assigned_suite_type else 'room'
 
         if app_or_parent.status == c.CANCELLED:
@@ -308,7 +308,7 @@ class LotteryApplication(MagModel):
     
     @property
     def finalized(self):
-        return self.status in [c.AWARDED, c.SECURED, c.REJECTED]
+        return self.status in [c.AWARDED, c.SECURED, c.REJECTED, c.CANCELLED, c.REMOVED]
 
     @property
     def group_status_str(self):
