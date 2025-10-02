@@ -22,7 +22,7 @@
             <a href="../preregistration/group_members?id={{ studio.group_id }}">group management page</a>.
             {% if False %}Please remember to fill out show info for each game below.{% endif %}
         </p>
-    {% elif studio.comped_badges %}
+    {% elif studio.comped_badges and (not studio.after_confirm_deadline or c.HAS_SHOWCASE_ADMIN_ACCESS) %}
         <h3>Accept or Decline</h3>
 
         <p>
