@@ -476,12 +476,12 @@ class Root:
     
     def hotel_inventory(self, session, message=''):
         assigned_applications = session.query(
-            LotteryApplication.assigned_hotel, LotteryApplication.assigned_room_type, LotteryApplication.status,
+            LotteryApplication.assigned_hotel, LotteryApplication.assigned_room_or_suite_type, LotteryApplication.status,
             func.count(LotteryApplication.id)).join(LotteryApplication.attendee).filter(
                 LotteryApplication.status.in_(c.HOTEL_LOTTERY_AWARD_STATUSES),
                 LotteryApplication.entry_type != c.GROUP_ENTRY,
                 ).group_by(LotteryApplication.assigned_hotel).group_by(
-                    LotteryApplication.assigned_room_type).group_by(LotteryApplication.status).all()
+                    LotteryApplication.assigned_room_or_suite_type).group_by(LotteryApplication.status).all()
         
         assigned_applications_dict = defaultdict(list)
         for hotel, room_type, status, count in assigned_applications:

@@ -6,7 +6,7 @@ from pytz import UTC
 from markupsafe import Markup
 from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import Sequence
+from sqlalchemy import Sequence, case
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -193,6 +193,16 @@ class LotteryApplication(MagModel):
     def set_confirmation_num(self):
         if not self.confirmation_num and self.status not in [c.WITHDRAWN, c.DISQUALIFIED]:
             self.confirmation_num = self.generate_confirmation_num()
+
+    @hybrid_property
+    def assigned_room_or_suite_type(self):
+        return self.assigned_suite_type or self.assigned_room_type
+
+    @assigned_room_or_suite_type.expression
+    def assigned_room_or_suite_type(cls):
+        return case(
+            [(cls.assigned_suite_type != None, cls.assigned_suite_type)],  # noqa: E711
+            else_=cls.assigned_room_type)
 
     @hybrid_property
     def normalized_code(self):
