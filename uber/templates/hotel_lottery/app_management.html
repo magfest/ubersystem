@@ -18,11 +18,11 @@
         </p>
         <p>
         {% if not application.parent_application %}
-            {% if app_or_parent.status not in [c.COMPLETE, c.PROCESSED] %}
+            {% if app_or_parent.status not in [c.COMPLETE, c.PROCESSED] and not app_or_parent.finalized %}
                 You must complete your entry details below to be entered in the lottery.
             {% else %}You can view and update your entry details below.{% endif %}
         {% else %}
-            {% if app_or_parent.status not in [c.COMPLETE, c.PROCESSED] %}
+            {% if app_or_parent.status not in [c.COMPLETE, c.PROCESSED] and not app_or_parent.finalized %}
             Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader must review and complete their lottery entry for your group to be entered in the lottery.
             {% else %}You can view your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s entry and update your contact information below.
             {% endif %}
@@ -60,7 +60,7 @@
     {% endif %}
     {% endblock %}
 
-    {% if not application.parent_application and app_or_parent.status not in [c.COMPLETE, c.PROCESSED] and app_editable %}
+    {% if not application.parent_application and app_or_parent.status not in [c.COMPLETE, c.PROCESSED] and not app_or_parent.finalized and app_editable %}
     <div class="row g-1 mb-3">
         <div class="col col-auto">
         <a class="btn btn-primary" href="{{ 'suite' if application.entry_type == c.SUITE_ENTRY else 'room' }}_lottery?id={{ application.id }}">Complete {{ application.entry_type_label }} Lottery Entry</a>
