@@ -163,7 +163,8 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
             for is_assigned, weight, hotel_room in entry["constraints"]:
                 if is_assigned.solution_value() > 0.5:
                     assert not app in assignments
-                    assignments[app] = (hotel_room["id"], hotel_room["room_type"])
+                    for member in entry["members"]:
+                        assignments[member.id] = (hotel_room["id"], hotel_room["room_type"])
                     histogram[len(entry["members"])] += 1
         for group_size, room_count in histogram.items():
             print(f"  {group_size}: {room_count}")
@@ -442,6 +443,7 @@ class Root:
 
         assignments = solve_lottery(applications, available_rooms, lottery_type=lottery_type)
 
+        num_rooms_assigned = 0
         for application in applications:
             if application.id in assignments:
                 hotel, room_type = assignments[application.id]
@@ -457,13 +459,15 @@ class Root:
                 application.assigned_check_out_date = application.latest_checkout_date
                 application.status = c.PROCESSED
                 session.add(application)
+                if not application.parent_application:
+                    num_rooms_assigned += 1
         session.commit()
         application_lookup = {x.id: x for x in applications}
         
         return {
             'lottery_type': lottery_type,
             'num_rooms_available_before': sum([x['quantity'] for x in available_rooms]),
-            'num_rooms_available_after': sum([x['quantity'] for x in available_rooms]) - len(assignments),
+            'num_rooms_available_after': sum([x['quantity'] for x in available_rooms]) - num_rooms_assigned,
             'num_entries': len([x for x in applications if x.entry_type == lottery_type]),
             'assignments': [(application_lookup[x], y[0], y[1]) for x, y in assignments.items()],
             'hotel_lookup': dict(c.HOTEL_LOTTERY_HOTELS_OPTS),
