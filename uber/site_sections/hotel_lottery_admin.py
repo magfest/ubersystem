@@ -22,10 +22,6 @@ from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, Pa
 from uber.tasks.email import send_email
 from uber.utils import Order, get_page, localized_now, validate_model, get_age_from_birthday, normalize_email_legacy
 
-def beep_on_start():
-    print("Beeping!\a", flush=True)
-cherrypy.engine.subscribe('start', beep_on_start)
-
 def _search(session, text):
     applications = session.query(LotteryApplication)
 
@@ -55,12 +51,11 @@ def _search(session, text):
 
     return applications.filter(or_(*check_list)), ''
 
-def weight_entry(entry, hotel_room):
+def weight_entry(entry, hotel_room, base_weight):
     """Takes a lottery entry and a hotel room and returns an arbitrary score for how likely that applicant
         should be to get that particular room.
     """
-    # Higher weight increases the odds of them getting this room.
-    weight = 1.0
+    weight = 0
     
     # Give 10 points for being the first choice hotel, 9 points for the second, etc
     hotel_choice_rank = 10 - entry["hotels"].index(hotel_room["id"])
@@ -74,11 +69,8 @@ def weight_entry(entry, hotel_room):
     except ValueError:
         # room types are optional, so we need to figure out how much weight to give people who don't choose any
         weight += 9 # Probably fine?
-
-    # Give one point for each group member
-    weight += len(entry["members"])
     
-    return weight
+    return weight + base_weight
     
 def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
     """Takes a set of hotel_rooms and applications and assigns the hotel_rooms mostly randomly.
@@ -87,6 +79,7 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
         hotel_rooms  List[hotels]: Iterable set of hotel rooms, represented as dictionaries with the following keys:
         * id: c.HOTEL_LOTTERY_HOTELS_OPTS
         * capacity: int
+        * min_capacity: int
         * room_type: c.HOTEL_LOTTERY_ROOM_TYPE_OPTS
         * quantity: int
         
@@ -94,6 +87,7 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
     """
     random.shuffle(applications)
     solver = pywraplp.Solver.CreateSolver("SAT")
+    solver.SetSolverSpecificParametersAsString("log_search_progress: true")
 
     # Set up our data structures
     for hotel_room in hotel_rooms:
@@ -118,38 +112,39 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
                     "constraints": []
                 }
             entries[app.id] = entry
-            for hotel_room in hotel_rooms:
-                if hotel_room["id"] in entry["hotels"] and hotel_room["room_type"] in entry["room_types"]:
-                    weight = weight_entry(entry, hotel_room)                 
-                    
-                    # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
-                    constraint = solver.BoolVar(f'{app.id}_assigned_to_{hotel_room["id"]}')
-                    entry["constraints"].append((constraint, weight, hotel_room))
-                    hotel_room["constraints"].append(constraint)
                     
     for app in applications:
-        if app.entry_type == lottery_type and app.parent_application in entries:
-            entries[app.parent_application]["members"].append(app)
-                    
+        if app.parent_application and app.parent_application.id in entries:
+            entries[app.parent_application.id]["members"].append(app)
+    
+    for app_id, entry in entries.items():
+        # Bias weights based on group weights
+        base_weight = 0
+        if random.random() < c.HOTEL_LOTTERY["weights"][f"group_weight_{len(entry['members'])}"]:
+            base_weight = c.HOTEL_LOTTERY["weights"][f"group_base_{len(entry['members'])}"]
+        
+        for hotel_room in hotel_rooms:
+            if hotel_room["id"] in entry["hotels"] and hotel_room["room_type"] in entry["room_types"] and (hotel_room["min_capacity"] <= len(entry["members"]) <= hotel_room["capacity"]):
+                weight = weight_entry(entry, hotel_room, base_weight)
+                
+                # Each constraint is a tuple of (BoolVar(), weight, hotel_room)
+                constraint = solver.BoolVar(f'{app_id}_assigned_to_{hotel_room["id"]}')
+                entry["constraints"].append((constraint, weight, hotel_room))
+                hotel_room["constraints"].append(constraint)
+    
     # Set up constraints
-    
-    ## Limit capacity of each room to fit the groups
-    for app, entry in entries.items():
-        num_entrants = len(entry["members"])
-        for is_assigned, weight, hotel_room in entry["constraints"]:
-            solver.Add(is_assigned * num_entrants <= hotel_room["capacity"])
-    
-    ## Only allow each group to have one room
-        solver.Add(sum([x[0] for x in entry["constraints"]]) <= 1)
-    
     ## Only allow each room type to fit only the quantity available
     for hotel_room in hotel_rooms:
         if hotel_room["constraints"]:
-            solver.Add(sum(hotel_room["constraints"]) <= hotel_room["quantity"])
-            
+            print(f"hotel_room {hotel_room['name']} constraints {len(hotel_room['constraints'])}, {hotel_room['quantity']}: {type(hotel_room['quantity'])}", flush=True)
+            solver.Add(sum(hotel_room["constraints"]) <= hotel_room["quantity"])   
+    
+    ## Only allow each group to have one room
+    for app, entry in entries.items():
+        solver.Add(sum([x[0] for x in entry["constraints"]]) <= 1)
+    
     # Set up Objective function
     objective = solver.Objective()
-    
     for app, entry in entries.items():
         for is_assigned, weight, hotel_room in entry["constraints"]:
             objective.SetCoefficient(is_assigned, weight)
@@ -158,6 +153,7 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
     
     # Run the solver
     status = solver.Solve()
+    histogram = {x: 0 for x in range(1, 5)}
     if status in [pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE]:
         # If it's optimal we know we got an ideal solution
         # If it's feasible then we may have been on the way to an ideal solution,
@@ -168,6 +164,9 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY):
                 if is_assigned.solution_value() > 0.5:
                     assert not app in assignments
                     assignments[app] = (hotel_room["id"], hotel_room["room_type"])
+                    histogram[len(entry["members"])] += 1
+        for group_size, room_count in histogram.items():
+            print(f"  {group_size}: {room_count}")
         return assignments
     else:
         log.error(f"Error solving room lottery: {status}")
