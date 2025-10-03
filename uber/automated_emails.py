@@ -901,7 +901,7 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
         HotelLotteryEmailFixture(
             f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
             'hotel/reject_notification.html',
-            lambda a: a.status != c.PROCESSED and not a.finalized,
+            lambda a: a.status == c.COMPLETE,
             when=after(c.HOTEL_LOTTERY_FORM_WAITLIST),
             ident='hotel_lottery_first_round_rejected'
         )
