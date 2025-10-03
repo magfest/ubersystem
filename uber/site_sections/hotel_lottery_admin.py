@@ -555,7 +555,7 @@ class Root:
             rows.append(row)
         
         if assigned_entries.filter(LotteryApplication.assigned_suite_type != None).count():
-            for _, suite_item in c.HOTEL_LOTTERY_SUITE_TYPES.items():
+            for _, suite_item in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES.items():
                 suite_enum, suite_info = suite_item
                 row = [suite_info['name']]
                 for date in date_range:
