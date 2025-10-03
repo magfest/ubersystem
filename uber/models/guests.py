@@ -24,7 +24,7 @@ from uber.utils import filename_extension
 
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
-    'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph', 'GuestImage',
+    'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph', 'GuestImage', 'GuestMediaRequest',
     'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality', 'GuestTrack']
 
 
@@ -55,6 +55,7 @@ class GuestGroup(MagModel):
     interview = relationship('GuestInterview', backref=backref('guest', load_on_pending=True), uselist=False)
     travel_plans = relationship('GuestTravelPlans', backref=backref('guest', load_on_pending=True), uselist=False)
     hospitality = relationship('GuestHospitality', backref=backref('guest', load_on_pending=True), uselist=False)
+    media_request = relationship('GuestMediaRequest', backref=backref('guest', load_on_pending=True), uselist=False)
 
     email_model_name = 'guest'
 
@@ -760,6 +761,11 @@ class GuestTravelPlans(MagModel):
 
 
 class GuestHospitality(MagModel):
+    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    completed = Column(Boolean, default=False)
+
+
+class GuestMediaRequest(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
     completed = Column(Boolean, default=False)
 

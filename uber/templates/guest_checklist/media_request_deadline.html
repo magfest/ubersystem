@@ -1,0 +1,45 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.media_request_status) }}</td>
+    <td><b><a href="media_request?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Performer Media Request{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('media_request')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+      {% if guest.media_request_status %}
+      You've already indicated that you have completed the performance media request form. If you need to update something, please contact us at {% if guest.group_type == c.BAND %}{{ c.BAND_EMAIL|email_only|email_to_link }}{% else %}{{ c.GUEST_EMAIL|email_only|email_to_link }}{% endif %}.
+      {% else %}
+      Please let us know your performance media needs so we may effectively plan our post-production work.
+      {% endif %}
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+  <h2>{% block form_title %}Performer Media Request for {{ guest.group.name }}{% endblock %}</h2>
+
+  {% block form_desc %}
+    {% if guest.media_request_status %}
+      You've already indicated that you have completed <a href="https://forms.gle/NBvR3mF55fsDf5dE6" target="_blank">the media request survey</a>. If you need to update something, please contact us at {% if guest.group_type == c.BAND %}{{ c.BAND_EMAIL|email_only|email_to_link }}{% else %}{{ c.GUEST_EMAIL|email_only|email_to_link }}{% endif %}.
+    {% else %}
+      Please <a href="https://forms.gle/NBvR3mF55fsDf5dE6" target="_blank">let us know your media needs</a> so we may effectively plan our post-production work.
+      All requested media will be sent via download link after the event.
+    {% endif %}
+  {% endblock %}
+
+  <br/><br/>
+
+  {% if guest.media_request_status %}
+  <a href="index?id={{ guest.id }}" class="btn btn-default">Back to Checklist</a>
+  {% else %}
+  <form method="post" action="media_request" role="form">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_media_request.db_id }}" />
+    {{ csrf_token() }}
+    {% block form_extra %}{% endblock %}
+    <button type="submit" name="completed" class="btn btn-primary" value="1">I Have Filled Out the Survey Above</button>
+  </form>
+  {% endif %}
+{% endif %}

@@ -2148,6 +2148,7 @@ c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'hospitality'},
     {'name': 'travel_plans'},
     {'name': 'charity', 'header': 'Charity'},
+    {'name': 'media_request'},
 ]
 
 # Generate the possible template prefixes per step
