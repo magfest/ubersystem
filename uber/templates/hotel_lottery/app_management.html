@@ -13,7 +13,7 @@
     </p>
 
     {% if app_editable %}
-        <p class="h4 text-{% if app_or_parent.status in [c.COMPLETE, c.PROCESSED] %}success{% else %}danger{% endif %}">
+        <p class="h4 text-{% if app_or_parent.status in [c.COMPLETE, c.PROCESSED] or app_or_parent.finalized %}success{% else %}danger{% endif %}">
             You are currently {{ application.application_status_str }}.
         </p>
         <p>
