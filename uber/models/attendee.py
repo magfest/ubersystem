@@ -1350,6 +1350,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def cannot_abandon_badge_reason(self):
         from uber.custom_tags import email_only
+
         if self.checked_in:
             return "This badge has already been picked up."
         if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
@@ -1357,22 +1358,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_type in c.BADGE_TYPE_PRICES and c.AFTER_EPOCH:
             return f"Please contact {email_only(c.REGDESK_EMAIL)} to cancel your badge."
 
-        if self.art_show_applications and self.art_show_applications[0].is_valid:
-            return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
-        if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
-            return "Please ask the artist you're agenting for to {} first.".format(
-                "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
-            )
-        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
-            if self.lottery_application.status == c.COMPLETE or self.lottery_application.entry_type == c.GROUP_ENTRY:
-                return "Please withdraw from the hotel lottery first."
-            elif self.lottery_application.valid_group_members:
-                return f"Please transfer your hotel lottery {c.HOTEL_LOTTERY_GROUP_TERM.lower()} to another group member, then withdraw from the lottery."
-            else:
-                return f"You cannot cancel your badge after being awarded a room or suite in the hotel lottery. \
-                    Please contact us at {email_only(c.HOTEL_LOTTERY_EMAIL)} to cancel your room."
-
         reason = ""
+
         if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
             account = self.managers[0]
             other_adult_badges = [a for a in account.valid_adults if a.id != self.id]
@@ -1388,12 +1375,28 @@ class Attendee(MagModel, TakesPaymentMixin):
                 reason = self.cannot_self_service_refund_reason
                 if reason and "Refunds will open" in reason:
                     return reason
-
+                
         if reason:
             return reason + " Please {} contact us at {}{}.".format(
                 "transfer your badge instead or" if self.is_transferable else "",
                 email_only(c.REGDESK_EMAIL),
                 " to cancel your badge")
+
+        if self.art_show_applications and self.art_show_applications[0].is_valid:
+            return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
+        if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
+            return "Please ask the artist you're agenting for to {} first.".format(
+                "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
+            )
+        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+            if self.lottery_application.status == c.COMPLETE or self.lottery_application.entry_type == c.GROUP_ENTRY:
+                return "Please withdraw from the hotel lottery first."
+            elif self.lottery_application.valid_group_members:
+                return f"Please transfer your hotel lottery {c.HOTEL_LOTTERY_GROUP_TERM.lower()} to another group member, \
+                    then withdraw from the lottery."
+            else:
+                return f"You cannot cancel your badge after being awarded a room or suite in the hotel lottery. \
+                    Please contact us at {email_only(c.HOTEL_LOTTERY_EMAIL)} to cancel your room."
 
     @property
     def cannot_self_service_refund_reason(self):
