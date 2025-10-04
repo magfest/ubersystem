@@ -24,7 +24,7 @@
             <td>{{ application.email }}</td>
             <td><em>Primary Guest</em></td>
         </tr>
-        {% for member in application.group_members %}
+        {% for member in application.valid_group_members %}
         <tr>
             <td>{{ member.legal_first_name }} {{ member.legal_last_name }}</td>
             <td>{{ member.cellphone }}</td>

@@ -22,7 +22,7 @@
     {% if not app.parent_application and app.wants_ada %}<li><strong>Requested Accommodations</strong>: {{ app.ada_requests }}</li>{% endif %}
     {% if not app.parent_application %}
         <li><em>Primary Guest</em>: {{ app.legal_first_name }} {{ app.legal_last_name }}</li>
-        {% if app.group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
+        {% if app.valid_group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
     {% endif %}
 </ul>
 </body>

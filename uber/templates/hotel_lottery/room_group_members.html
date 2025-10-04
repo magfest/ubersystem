@@ -1,8 +1,8 @@
-{% if application.group_members %}
+{% if application.valid_group_members %}
     Here are the members of your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}:
     <table class="table table-sm table-borderless">
         <tbody>
-        {% for member in application.group_members %}
+        {% for member in application.valid_group_members %}
         <tr>
             <td class="text-nowrap w-25">{{ member.attendee.full_name }}</td>
             <td>

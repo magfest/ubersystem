@@ -166,7 +166,7 @@
     <div class="col-sm">
         <div class="form-text">Group Members</div>
         {% if not application.room_group_name %}N/A{% elif not application.group_members %}None{% else %}
-        {% for member in application.group_members %}{% if not loop.first %} / {% endif %}{{ member.attendee|form_link }} ({{ member|form_link }}){% endfor %}
+        {% for member in application.group_members %}{% if not loop.first %} / {% endif %}{{ member.attendee|form_link }} ({{ member|form_link }}){% if member not in application.valid_group_members %}[INVALID]{% endif %}{% endfor %}
         {% endif %}
     </div>
     <!-- <div class="col-sm">{{ form_macros.input(lottery_admin_info.invite_code) }}</div> -->

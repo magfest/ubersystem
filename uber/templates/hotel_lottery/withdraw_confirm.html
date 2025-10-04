@@ -8,13 +8,13 @@ withdrawConfirmSuite = function() {
     title: 'Withdraw From Suite Lottery?',
     message: '<p>Are you sure you want to withdraw from the suite lottery?</p>' +
         '<p>This will <strong>delete your lottery entry</strong>. '+
-        {% if application.group_members %}
+        {% if application.valid_group_members %}
         'Unless you re-enter the lottery, you and your group members ' +
         {% else %}
         'Unless you join a {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} or re-enter the lottery, you ' +
         {% endif %}
         'will not be eligible for a suite booking.</p>'
-        {% if application.group_members %} + '<p>Your group members will be notified of the cancellation.</p>'{% endif %},
+        {% if application.valid_group_members %} + '<p>Your group members will be notified of the cancellation.</p>'{% endif %},
     buttons: {
         confirm: { label: 'Yes, Withdraw', className: 'btn-danger' },
         cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }

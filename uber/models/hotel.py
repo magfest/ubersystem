@@ -333,7 +333,12 @@ class LotteryApplication(MagModel):
 
     @property
     def group_member_names(self):
-        return [f"{app.legal_first_name} {app.legal_last_name}" for app in self.group_members]
+        return [f"{app.legal_first_name} {app.legal_last_name}" for app in self.valid_group_members]
+    
+    @property
+    def valid_group_members(self):
+        return [app for app in self.group_members if app.attendee and app.attendee.hotel_lottery_eligible and 
+                app.status in ([c.COMPLETE, c.REJECTED] + c.HOTEL_LOTTERY_AWARD_STATUSES)]
 
     @property
     def qualifies_for_staff_lottery(self):

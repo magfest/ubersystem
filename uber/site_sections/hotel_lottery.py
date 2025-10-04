@@ -23,7 +23,7 @@ def _join_room_group(session, application, group_id):
     except NoResultFound:
         message = f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found!"
     else:
-        if len(room_group.group_members) == 3:
+        if len(room_group.valid_group_members) == 3:
             message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is full."
         elif room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
             message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is locked."
@@ -380,7 +380,7 @@ class Root:
                     format='html',
                     model=application.to_dict('id'))
                 if update_group_members:
-                    for member in application.group_members:
+                    for member in application.valid_group_members:
                         body = render('emails/hotel/group_entry_updated.html', {
                             'app': member}, encoding=None)
                         send_email.delay(
@@ -447,7 +447,7 @@ class Root:
                     model=application.to_dict('id'))
                 
                 if update_group_members:
-                    for member in application.group_members:
+                    for member in application.valid_group_members:
                         body = render('emails/hotel/group_entry_updated.html', {
                             'app': member}, encoding=None)
                         send_email.delay(
@@ -658,7 +658,7 @@ class Root:
         application = session.lottery_application(id)
         new_leader = session.lottery_application(member_id)
 
-        if new_leader not in application.group_members:
+        if new_leader not in application.valid_group_members:
             raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
                                f"{new_leader.attendee.full_name} is not a member of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}")
 
@@ -753,7 +753,7 @@ class Root:
         if cherrypy.request.method == "POST":
             if not params.get('room_group_id'):
                 message = "Group ID invalid!"
-            elif application.group_members or application.room_group_name:
+            elif application.valid_group_members or application.room_group_name:
                 message = "Please disband your own group before joining another group."
             if not message:
                 message, got_new_conf_num = _join_room_group(session, application, params.get('room_group_id'))
@@ -825,7 +825,7 @@ class Root:
         
     def confirm(self, session, id, message='', **params):
         application = session.lottery_application(id)
-        if application.parent_application or application.group_members:
+        if application.parent_application or application.valid_group_members:
             you_str = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s"
         else:
             you_str = "Your"
@@ -844,7 +844,7 @@ class Root:
         
     def decline(self, session, id, message='', **params):
         application = session.lottery_application(id)
-        if application.parent_application or application.group_members:
+        if application.parent_application or application.valid_group_members:
             you_str = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s"
         else:
             you_str = "Your"

@@ -1366,7 +1366,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
             if self.lottery_application.status == c.COMPLETE or self.lottery_application.entry_type == c.GROUP_ENTRY:
                 return "Please withdraw from the hotel lottery first."
-            elif self.lottery_application.group_members:
+            elif self.lottery_application.valid_group_members:
                 return f"Please transfer your hotel lottery {c.HOTEL_LOTTERY_GROUP_TERM.lower()} to another group member, then withdraw from the lottery."
             else:
                 return f"You cannot cancel your badge after being awarded a room or suite in the hotel lottery. \

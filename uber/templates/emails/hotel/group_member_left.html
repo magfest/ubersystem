@@ -5,7 +5,7 @@
     {{ app.attendee.full_name }},<br/>
     This is to notify you that {{ member.attendee.full_name }} has left your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} "{{ app.room_group_name }}".
 {% if not app.finalized %}
-    This brings the total number of group members, including yourself, to {{ app.group_members|length + 1 }}.
+    This brings the total number of group members, including yourself, to {{ app.valid_group_members|length + 1 }}.
 </p>
 <p>
     Your group confirmation number is {{ app.confirmation_num }}. You can view your current group members on your <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ app.id }}" target="_blank">{{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} management page</a>.
