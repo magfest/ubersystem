@@ -173,8 +173,7 @@ def send_automated_emails():
         start_time = time()
         with Session() as session:
             active_automated_emails = session.query(AutomatedEmail) \
-                .filter(*AutomatedEmail.filters_for_active) \
-                .options(joinedload(AutomatedEmail.emails)).all()
+                .filter(*AutomatedEmail.filters_for_active).all()
 
             automated_emails_by_model = groupify(active_automated_emails, 'model')
 
@@ -199,7 +198,7 @@ def send_automated_emails():
                         matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
                         fk_id_list = [id for id, in matching_email_ids]
                     else:
-                        fk_id_list = automated_email.emails_by_fk_id
+                        fk_id_list = [email.fk_id for email in automated_email.emails]
 
                     log.debug("Loading instances for " + automated_email.ident)
                     model_instances = query_func(session)
@@ -211,7 +210,7 @@ def send_automated_emails():
                                 if automated_email.approved or not automated_email.needs_approval:
                                     if getattr(model_instance, 'active_receipt', None):
                                         session.refresh_receipt_and_model(model_instance)
-                                    automated_email.send_to(model_instance, delay=False)
+                                    #automated_email.send_to(model_instance, delay=False)
                                     quantity_sent += 1
                                 else:
                                     unapproved_count += 1
