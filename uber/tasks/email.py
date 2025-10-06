@@ -210,7 +210,7 @@ def send_automated_emails():
                                 if automated_email.approved or not automated_email.needs_approval:
                                     if getattr(model_instance, 'active_receipt', None):
                                         session.refresh_receipt_and_model(model_instance)
-                                    #automated_email.send_to(model_instance, delay=False)
+                                    automated_email.send_to(model_instance, delay=False)
                                     quantity_sent += 1
                                 else:
                                     unapproved_count += 1
