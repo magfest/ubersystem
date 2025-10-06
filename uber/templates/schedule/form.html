@@ -92,15 +92,47 @@
 </div>
 
 <script type="text/javascript">
+    const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+
     let startFlatpickr = flatpickr('#start-time',{
         allowInput: true,
         enableTime: true,
         altInput: true,
-        altFormat: 'n/j/Y h:i K',
-        dateFormat: 'Z',
-        defaultDate: '{{ event.start_time.astimezone(c.EVENT_TIMEZONE).isoformat() if event.start_time else c.PANELS_EPOCH.isoformat()[:-6]}}',
-        minDate: '{{ c.PANELS_EPOCH.isoformat()[:-6] }}',
-        maxDate: '{{ c.PANELS_ESCHATON.isoformat()[:-6] }}'
+        altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
+        dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+        defaultDate: '{{ event.start_time.astimezone(c.EVENT_TIMEZONE).isoformat() if event.start_time else c.PANELS_EPOCH.isoformat()}}',
+        minDate: '{{ c.PANELS_EPOCH.isoformat() }}',
+        maxDate: '{{ c.PANELS_ESCHATON.isoformat() }}',
+        parseDate(dateString, format) {
+            //Flatpickr uses JS native Dates. These are always in local time zone for the client or UTC under the hood.
+            //We need times shown as if they are in the c.EVENT_TIMEZONE.
+            //See: https://github.com/flatpickr/flatpickr/issues/930
+            //Parse the date in the event's timezone
+            //Parses on the way into the internals.
+            let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+            //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+            return new Date(
+                eventTimezonedDate.year(),
+                eventTimezonedDate.month(),
+                eventTimezonedDate.date(),
+                eventTimezonedDate.hour(),
+                eventTimezonedDate.minute(),
+                eventTimezonedDate.second()
+            );
+        },
+        formatDate(date, format) {
+            //Format on the way *out* from the internal storage.
+             let formatted =  moment.tz([
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate(),
+                date.getHours(),
+                date.getMinutes(),
+                date.getSeconds()
+            ], eventTimeZone).format(format);
+            return formatted;
+        }
     });
 
     var panelists = {{ panelists|jsonize }};
