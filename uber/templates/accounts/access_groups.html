@@ -161,25 +161,79 @@
           </div>
         </div>
         <script type="text/javascript">
-          var default_start = new Date('{{ c.EPOCH.isoformat()[:-6] }}');
-          var default_end = new Date('{{ c.ESCHATON.isoformat()[:-6] }}');
+          const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+
+          var default_start = new Date('{{ c.EPOCH.isoformat() }}');
+          var default_end = new Date('{{ c.ESCHATON.isoformat() }}');
           default_start.setHours(0,0,0);
           default_end.setHours(0,0,0);
           let startFlatpickr = flatpickr('#start_time',{
                 allowInput: true,
                 enableTime: true,
                 altInput: true,
-                altFormat: 'n/j/Y h:i K l',
-                dateFormat: 'Z',
-                defaultDate: default_start
-          });
+                altFormat: 'M/D/YYYY hh:mm A dddd',
+                dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+                defaultDate: default_start,
+                parseDate(dateString, format) {
+                    //Parses on the way into the internals.
+                    let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+                    //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+                    return new Date(
+                        eventTimezonedDate.year(),
+                        eventTimezonedDate.month(),
+                        eventTimezonedDate.date(),
+                        eventTimezonedDate.hour(),
+                        eventTimezonedDate.minute(),
+                        eventTimezonedDate.second()
+                    );
+                },
+                formatDate(date, format) {
+                    //Format on the way *out* from the internal storage.
+                     let formatted =  moment.tz([
+                        date.getFullYear(),
+                        date.getMonth(),
+                        date.getDate(),
+                        date.getHours(),
+                        date.getMinutes(),
+                        date.getSeconds()
+                    ], eventTimeZone).format(format);
+                    return formatted;
+                }
+            });
           let endFlatpickr = flatpickr('#end_time',{
                 allowInput: true,
                 enableTime: true,
                 altInput: true,
-                altFormat: 'n/j/Y h:i K l',
-                dateFormat: 'Z',
-                defaultDate: default_end
+                altFormat: 'M/D/YYYY hh:mm A dddd',
+                dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+                defaultDate: default_end,
+                parseDate(dateString, format) {
+                    //Parses on the way into the internals.
+                    let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+                    //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+                    return new Date(
+                        eventTimezonedDate.year(),
+                        eventTimezonedDate.month(),
+                        eventTimezonedDate.date(),
+                        eventTimezonedDate.hour(),
+                        eventTimezonedDate.minute(),
+                        eventTimezonedDate.second()
+                    );
+                },
+                formatDate(date, format) {
+                    //Format on the way *out* from the internal storage.
+                     let formatted =  moment.tz([
+                        date.getFullYear(),
+                        date.getMonth(),
+                        date.getDate(),
+                        date.getHours(),
+                        date.getMinutes(),
+                        date.getSeconds()
+                    ], eventTimeZone).format(format);
+                    return formatted;
+                }
           });
           $('#start_time').val('');
           $('#end_time').val('');
