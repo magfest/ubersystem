@@ -294,6 +294,10 @@ class Root:
                                                                        application.confirmation_num)
             stay_on_form = params.get('save_return_to_search', False) is False
             session.add(application)
+            if application.orig_value_of('status') != application.status and application.status in [
+                    c.REJECTED, c.CANCELLED, c.REMOVED, c.WITHDRAWN]:
+                application.attendee.hotel_eligible = True
+                session.add(application.attendee)
             session.commit()
             if stay_on_form:
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', application.id, message, return_to)
