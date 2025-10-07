@@ -32,7 +32,7 @@ manages_panels: {{ department_info.manages_panels.data|jsonize }},
 {% block hours_panels %}
     {# Consecutive hours has to be a whole number currently, so make python do whole number math here #}
 <div class="col-sm">{{ form_macros.input(department_info.max_consecutive_minutes,
-    value=(department_info.max_consecutive_minutes.data // 60 if department_info.max_consecutive_minutes.data else 0), render_kw={'step': 1}) }}</div>
+    value=(department_info.max_consecutive_minutes.data // 60 if department_info.max_consecutive_minutes.data else 0)) }}</div>
 <div class="col-sm pt-1">
     <div class="form-text">&nbsp;</div>
     {% call form_macros.input(department_info.manages_panels, alpine_model="manages_panels") %}
