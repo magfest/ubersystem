@@ -15,7 +15,7 @@ from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Date, Integer
 
 from uber.config import c
-from uber.custom_tags import readable_join
+from uber.custom_tags import readable_join, datetime_local_filter
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import Choice, default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
@@ -160,6 +160,8 @@ class LotteryApplication(MagModel):
     suite_terms_accepted = Column(Boolean, default=False)
     guarantee_policy_accepted = Column(Boolean, default=False)
     can_edit = Column(Boolean, default=False)
+    final_status_hidden = Column(Boolean, default=True)
+    booking_url_hidden = Column(Boolean, default=True)
 
     # If this is set then the above values are ignored
     parent_application_id = Column(UUID, ForeignKey('lottery_application.id'), nullable=True)
@@ -267,8 +269,8 @@ class LotteryApplication(MagModel):
 
     @property
     def application_status_str(self):
-        app_or_parent = self.parent_application or self
-        if app_or_parent.status not in [c.COMPLETE, c.PROCESSED] and not app_or_parent.finalized:
+        app_or_parent = self.parent_application if self.entry_type == c.GROUP_ENTRY else self
+        if not app_or_parent.complete_or_processed:
             return "NOT entered in the hotel room or suite lottery"
 
         if app_or_parent.entry_type == c.SUITE_ENTRY:
@@ -284,10 +286,10 @@ class LotteryApplication(MagModel):
 
     @property
     def award_status_str(self):
-        app_or_parent = self.parent_application or self
-        if not c.HOTEL_LOTTERY_ROOM_INVENTORY:
+        app_or_parent = self.parent_application if self.entry_type == c.GROUP_ENTRY else self
+        if not c.HOTEL_LOTTERY_ROOM_INVENTORY or self.final_status_hidden and not self.status in [c.SECURED, c.CANCELLED]:
             return ''
-        if not app_or_parent.finalized and (
+        if not self.finalized and (
                 not c.HOTEL_LOTTERY_FORM_WAITLIST or c.BEFORE_HOTEL_LOTTERY_FORM_WAITLIST):
             return ''
         if self.staff_award_status_str:
@@ -303,7 +305,19 @@ class LotteryApplication(MagModel):
         room_type = 'suite' if app_or_parent.assigned_suite_type else 'room'
 
         if app_or_parent.status == c.CANCELLED:
-            return f"Unfortunately, {you_str.lower()} {room_type} has been cancelled."
+            has_or_had_parent = self.parent_application or self.former_parent_id
+            if not has_or_had_parent and self.declined:
+                return f"You have declined your {room_type} and your lottery entry has been cancelled."
+
+            base_str = f"Unfortunately, {you_str.lower()} {room_type} has been cancelled "
+            if self.entry_started:
+                if has_or_had_parent:
+                    base_str = base_str + f"because your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} leader "
+                else:
+                    base_str = base_str + "because you "
+                return base_str + f"did not secure your room with a credit card before the deadline of {datetime_local_filter(self.guarantee_deadline, '%A, %B %-d')}."
+            elif has_or_had_parent:
+                return base_str + f"by your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} leader."
         elif app_or_parent.assigned_hotel:
             return f"Congratulations! {you_str} entry for the {c.EVENT_NAME_AND_YEAR} {room_type} lottery was chosen."
         else:
@@ -311,14 +325,38 @@ class LotteryApplication(MagModel):
             if c.HOTEL_LOTTERY_FORM_WAITLIST and not app_or_parent.finalized and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST:
                 return base_str + " in the first round of the lottery."
             return base_str + "."
-        
+
     @property
     def can_reenter(self):
-        return self.status in [c.PARTIAL, c.WITHDRAWN, c.CANCELLED]
+        return self.status in [c.PARTIAL, c.WITHDRAWN, c.CANCELLED, c.REMOVED]
     
     @property
     def finalized(self):
         return self.status in [c.AWARDED, c.SECURED, c.REJECTED, c.CANCELLED, c.REMOVED]
+
+    @property
+    def locked(self):
+        return self.status == c.PROCESSED or self.finalized or self.current_lottery_closed or (
+            self.qualifies_for_first_round and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST
+        )
+
+    @property
+    def declined(self):
+        return self.status == c.CANCELLED and not self.entry_started
+
+    @property
+    def complete_or_processed(self):
+        return self.status in [c.COMPLETE, c.PROCESSED] or self.finalized
+
+    @property
+    def qualifies_for_first_round(self):
+        if c.HOTEL_LOTTERY_FORM_WAITLIST:
+            return self.complete_or_processed and self.last_submitted and self.last_submitted < c.HOTEL_LOTTERY_FORM_WAITLIST
+
+    @property
+    def booking_url_ready(self):
+        app_or_parent = self.parent_application if self.entry_type == c.GROUP_ENTRY else self
+        return app_or_parent.booking_url and not app_or_parent.booking_url_hidden
 
     @property
     def group_status_str(self):
@@ -330,6 +368,8 @@ class LotteryApplication(MagModel):
             return f'{text}. Your confirmation number is {self.confirmation_num}'
         elif self.room_group_name:
             return f'are the group leader for "{self.room_group_name}"'
+        else:
+            return f"are not part of a {c.HOTEL_LOTTERY_GROUP_TERM.lower()}"
 
     @property
     def group_member_names(self):
@@ -385,7 +425,7 @@ class LotteryApplication(MagModel):
     @property
     def homepage_link(self):
         entry_text = 'Suite Lottery Entry' if self.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry'
-        if self.status in [c.COMPLETE, c.PROCESSED]:
+        if self.status in [c.COMPLETE, c.PROCESSED] or self.finalized and self.final_status_hidden:
             prepend = "View " if c.ATTENDEE_ACCOUNTS_ENABLED else ""
             return f'index?attendee_id={self.attendee.id}', f'{prepend}{entry_text}'
         elif self.finalized:

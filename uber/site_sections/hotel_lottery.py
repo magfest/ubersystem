@@ -25,7 +25,9 @@ def _join_room_group(session, application, group_id):
     else:
         if len(room_group.valid_group_members) == 3:
             message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is full."
-        elif room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
+        elif room_group.is_staff_entry and not application.qualifies_for_staff_lottery:
+            message = f"You are not qualified to join this {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
+        elif room_group.locked:
             message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is locked."
     if message:
         return message, got_new_conf_num
@@ -161,6 +163,8 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
             session.add(application)
+            if application.can_reenter:
+                application.status = c.PARTIAL
             session.commit()
 
             if params.get('group'):
@@ -207,7 +211,7 @@ class Root:
 
         if not application:
             raise HTTPRedirect(f'start?attendee_id={attendee_id}')
-        elif application.finalized:
+        elif application.locked:
             pass
         elif not application.terms_accepted:
             raise HTTPRedirect(f'terms?attendee_id={attendee_id}')
@@ -221,7 +225,7 @@ class Root:
             forms = load_forms(params, application, forms_list, read_only=True)
 
         contact_form_dict = load_forms(params, application, ["LotteryInfo"],
-                                       read_only=application.current_lottery_closed)
+                                       read_only=application.locked)
 
         return {
             'id': application.id,
@@ -238,6 +242,10 @@ class Root:
     @requires_account(LotteryApplication)
     def update_contact_info(self, session, id, **params):
         application = session.lottery_application(id)
+        if application.locked:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               "You cannot edit your contact info at this time.")
+
         forms = load_forms(params, application, ["LotteryInfo"])
         for form in forms.values():
             form.populate_obj(application)
@@ -344,6 +352,9 @@ class Root:
         if application.parent_application:
             message = f"You cannot edit your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
+        elif application.locked:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               "You cannot edit your lottery entry at this time.")
 
         forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
@@ -410,6 +421,9 @@ class Root:
         if application.parent_application:
             message = f"You cannot edit your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s application."
             raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
+        elif application.locked:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               "You cannot edit your lottery entry at this time.")
 
         forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
@@ -481,6 +495,9 @@ class Root:
         else:
             application = session.lottery_application(params.get('id'))
             attendee = application.attendee
+        
+        if application.locked:
+            return {"error": "You cannot edit your lottery entry at this time."}
 
         if not form_list:
             form_list = ["LotteryInfo"]
@@ -518,6 +535,10 @@ class Root:
         application = session.lottery_application(id)
         forms_list = ["LotteryConfirm"]
         forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
+
+        if application.locked:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               "You cannot edit your lottery entry at this time.")
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -565,7 +586,10 @@ class Root:
 
         if application.entry_type not in [c.ROOM_ENTRY, c.SUITE_ENTRY]:
             raise HTTPRedirect('index?id={}&message={}', application.id,
-                               f"You cannot switch from a {application.entry_type} to a room or suite entry.")
+                               f"You cannot switch from a {application.entry_type_label} to a room or suite entry.")
+        elif application.locked:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               "You cannot edit your lottery entry at this time.")
 
         application.status = c.PARTIAL
         application.current_step = 0
@@ -611,6 +635,10 @@ class Root:
     def save_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
 
+        if application.locked:
+            raise HTTPRedirect('room_group?id={}&message={}', application.id,
+                               f"You cannot edit or create a {c.HOTEL_LOTTERY_GROUP_TERM.lower()} at this time.")
+
         forms_list = ["LotteryRoomGroup"]
         forms = load_forms(params, application, forms_list)
 
@@ -637,6 +665,10 @@ class Root:
     @requires_account(LotteryApplication)
     def remove_group_member(self, session, id=None, member_id=None, message="", **params):
         application = session.lottery_application(id)
+        if application.locked:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               "You cannot remove group members at this time.")
+
         member = session.lottery_application(member_id)
         member = _reset_group_member(member)
         session.commit()
@@ -661,6 +693,9 @@ class Root:
         if new_leader not in application.valid_group_members:
             raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
                                f"{new_leader.attendee.full_name} is not a member of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}")
+        elif application.locked and not (application.finalized and not application.final_status_hidden):
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               "You cannot transfer group leadership at this time.")
 
         leader_entry = application.to_dict()
         defaults = LotteryApplication().to_dict()
@@ -703,6 +738,10 @@ class Root:
     @requires_account(LotteryApplication)
     def delete_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
+        if application.locked:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               f"You cannot disband your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} at this time.")
+
         old_room_group_name = application.room_group_name
         _disband_room_group(session, application)
 
@@ -734,7 +773,7 @@ class Root:
             return {'error': f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found. Please check the confirmation number and leader email address, \
                     and make sure the application you're trying to join is a valid {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."}
 
-        if room_group.finalized:
+        if room_group.locked:
             return {'error': f"No valid {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found."}
 
         return {
@@ -748,6 +787,10 @@ class Root:
     @requires_account(LotteryApplication)
     def join_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
+
+        if application.locked:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               f"You cannot join a {c.HOTEL_LOTTERY_GROUP_TERM.lower()} at this time.")
         got_new_conf_num = False
 
         if cherrypy.request.method == "POST":
@@ -755,6 +798,8 @@ class Root:
                 message = "Group ID invalid!"
             elif application.valid_group_members or application.room_group_name:
                 message = "Please disband your own group before joining another group."
+            elif application.parent_application:
+                message = f"You are already in a {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
             if not message:
                 message, got_new_conf_num = _join_room_group(session, application, params.get('room_group_id'))
                 
@@ -789,10 +834,14 @@ class Root:
                     model=application.to_dict('id'))
 
                 raise HTTPRedirect('room_group?id={}&action={}&new_conf={}', application.id, "joined", got_new_conf_num)
-    
+
     @requires_account(LotteryApplication)
     def leave_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
+
+        if application.locked and not (application.finalized and not application.final_status_hidden):
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               f"You cannot leave your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} at this time.")
 
         if cherrypy.request.method == "POST":
             room_group = application.parent_application
@@ -822,7 +871,7 @@ class Root:
                                f'Successfully left the {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "{room_group.room_group_name}".',
                                "suite" if application.entry_type == c.SUITE_ENTRY else "room",
                                're-entered')
-        
+
     def confirm(self, session, id, message='', **params):
         application = session.lottery_application(id)
         if application.parent_application or application.valid_group_members:
@@ -832,7 +881,7 @@ class Root:
 
         if not application.status in [c.AWARDED, c.SECURED]:
             message = f"{you_str} entry does not have a room or suite award."
-        if not application.booking_url:
+        if not application.booking_url or application.booking_url_hidden:
             message = f"{you_str} entry is still being processed and the booking link is not available yet."
 
         if application.parent_application:
