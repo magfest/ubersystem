@@ -1,6 +1,7 @@
 {% extends 'signup_base.html' %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set dietary_restrictions = dietary_restrictions or forms['dietary_restrictions'] %}
 {% block title %}Dietary Restrictions{% endblock %}
-
 {% block content %}
 
 <h2> Dietary Restrictions </h2>
@@ -18,22 +19,24 @@ Thanks for volunteering, welcome to the fold! Please let us know any dietary res
 
 <br/> <br/>
 
-<form method="post" action="food_restrictions">
+{{ form_macros.form_validation('dietary-restrictions', 'validate_food_restrictions') }}
+
+<form novalidate method="post" action="food_restrictions" id="dietary-restrictions">
     {{ csrf_token() }}
-    <input type="hidden" name="id" value="{{ fr.db_id }}" />
+    <input type="hidden" name="id" value="{{ restrictions.db_id }}" />
 
     Please select any options that apply:<br/>
-    <div id="restrictions">{{ macros.checkgroup(fr, 'standard') }}</div>
+    <div class="col-sm-6 mb-3">{{ form_macros.input(dietary_restrictions.standard, alpine_model='allergies') }}</div>
 
     <br/>
     Let us know if you have any other allergies or restrictions,
     please use commas to separate each allergy and food restriction.
     <br/><br/>Please note we are unable to accommodate every constraint, and the form below is not designed for preferences due to taste.
     <br/><br/>
-    <textarea name="freeform" rows="3" cols="80">{{ fr.freeform }}</textarea>
+    {{ form_macros.input(dietary_restrictions.freeform) }}
 
-    <br/> <br/> <input type="submit" value="Save" /><br/>
-    By clicking Save I agree that I have read the above information and indicated any restrictions requested.
+    <br/> <br/> <button type="submit" class="btn btn-primary">Save</button><br/>
+    <div class="form-text">By clicking Save I agree that I have read the above information and indicated any restrictions requested.</div>
 
     <br/> <br/>
     * We understand that there are different types of vegetarians/vegans, but due to the amount of food and restrictions we have to work with, we cannot accommodate all types. All vegetarian options would also be vegan.
