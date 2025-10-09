@@ -520,19 +520,27 @@ class Root:
 
     @csv_file
     def assigned_entries(self, out, session):
-        out.writerow(['Assigned Hotel', 'Assigned Room Type', 'Wants ADA?', 'ADA Request',
-                      'Assigned Check-in Date', 'Assigned Check-out Date',
-                      'Legal First Name', 'Legal Last Name', 'Phone', 'Email'])
-        
+        out.writerow(['CheckInDate', 'CheckOutDate', 'NumberofGuests', 'HotelName', 'RoomType', 'SpecialRequest', 'AccessibleRoom',
+                      'Guest1CheckInDate', 'Guest1CheckOutDate', 'Guest1FirstName', 'Guest1LastName', 'Guest1Email',
+                      'Guest2CheckInDate', 'Guest2CheckOutDate', 'Guest2FirstName', 'Guest2LastName', 'Guest2Email',
+                      'Guest3CheckInDate', 'Guest3CheckOutDate', 'Guest3FirstName', 'Guest3LastName', 'Guest3Email',
+                      'Guest4CheckInDate', 'Guest4CheckOutDate', 'Guest4FirstName', 'Guest4LastName', 'Guest4Email',])
+
         assigned_entries = session.query(LotteryApplication).filter(
-            LotteryApplication.status == c.AWARDED,
+            or_(LotteryApplication.status == c.AWARDED, and_(LotteryApplication.status == c.SECURED,
+                                                             LotteryApplication.is_staff_entry == False)),
             LotteryApplication.entry_type != c.GROUP_ENTRY).order_by(LotteryApplication.assigned_hotel)
 
         for entry in assigned_entries:
-            out.writerow([entry.assigned_hotel_label['name'],
-                          entry.assigned_suite_type_label['name'] if entry.assigned_suite_type else entry.assigned_room_type_label['name'],
-                          entry.wants_ada, entry.ada_requests, entry.assigned_check_in_date, entry.assigned_check_out_date,
-                          entry.legal_first_name, entry.legal_last_name, entry.cellphone, entry.email])
+            check_in_date = entry.assigned_check_in_date
+            check_out_date = entry.assigned_check_out_date
+            num_guests = entry.valid_group_members + 1
+            row = [check_in_date, check_out_date, num_guests, entry.assigned_hotel_label['name'],
+                   entry.assigned_room_or_suite_type_label['name'], entry.ada_requests, entry.wants_ada,
+                   check_in_date, check_out_date, entry.legal_first_name, entry.legal_last_name, entry.cellphone, entry.email]
+            for member in entry.valid_group_members:
+                row.extend([check_in_date, check_out_date, member.legal_first_name, member.legal_last_name, member.cellphone, member.email])
+            out.writerow(row)
     
     @xlsx_file
     def hotel_inventory_xlsx(self, out, session, hotel_enum):
