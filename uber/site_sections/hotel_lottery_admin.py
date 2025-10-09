@@ -534,7 +534,7 @@ class Root:
         for entry in assigned_entries:
             check_in_date = entry.assigned_check_in_date
             check_out_date = entry.assigned_check_out_date
-            num_guests = entry.valid_group_members + 1
+            num_guests = len(entry.valid_group_members) + 1
             row = [check_in_date, check_out_date, num_guests, entry.assigned_hotel_label['name'],
                    entry.assigned_room_or_suite_type_label['name'], entry.ada_requests, entry.wants_ada,
                    check_in_date, check_out_date, entry.legal_first_name, entry.legal_last_name, entry.cellphone, entry.email]
