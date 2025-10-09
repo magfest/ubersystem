@@ -6,7 +6,7 @@
 
   <div class="card card-body">
     <h2>{{ c.EVENT_NAME }} Indies</h2>
-    {% if not c.INDIE_SHOWCASE_OPEN and not c.HAS_ANY_SHOWCASE_ADMIN_ACCESS %}
+    {% if not c.INDIE_SHOWCASE_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS %}
         <p>Applications are currently closed for {{ c.ENABLED_INDIES_STR }}. Please refer to the schedule below.</p>
         {% if c.MITS_SUBMISSIONS_OPEN %}
             <p>To enter the Indie Tabletop Showcase (MITS), <a href="../mits/team">click here</a>.</p>

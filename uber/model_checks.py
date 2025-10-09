@@ -356,7 +356,7 @@ def _is_invalid_url(url):
 
 @validation.IndieStudio
 def showcase_new_studio_deadline(studio):
-    if studio.is_new and not c.INDIE_SHOWCASE_OPEN:
+    if studio.is_new and not c.INDIE_SHOWCASE_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS:
         return 'Sorry, but the deadline has already passed, so no new studios may be registered.'
 
 
@@ -386,7 +386,7 @@ def mivs_new_game_deadline(game):
         if session.current_admin_account():
             return
 
-    if game.is_new and game.showcase_type == c.MIVS and not c.MIVS_SUBMISSIONS_OPEN:
+    if game.is_new and game.showcase_type == c.MIVS and not c.MIVS_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS:
         return 'Sorry, but the deadline has already passed, so no new MIVS games may be registered.'
 
 
@@ -396,7 +396,7 @@ def arcade_new_game_deadline(game):
         if session.current_admin_account():
             return
 
-    if game.is_new and game.showcase_type == c.INDIE_ARCADE and not c.INDIE_ARCADE_SUBMISSIONS_OPEN:
+    if game.is_new and game.showcase_type == c.INDIE_ARCADE and not c.INDIE_ARCADE_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS:
         return 'Sorry, but the deadline has already passed, so no new Indie Arcade games may be registered.'
 
 
@@ -406,7 +406,7 @@ def retro_new_game_deadline(game):
         if session.current_admin_account():
             return
 
-    if game.is_new and game.showcase_type == c.INDIE_RETRO and not c.INDIE_RETRO_SUBMISSIONS_OPEN:
+    if game.is_new and game.showcase_type == c.INDIE_RETRO and not c.INDIE_RETRO_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS:
         return 'Sorry, but the deadline has already passed, so no new Indie Retro games may be registered.'
 
 
