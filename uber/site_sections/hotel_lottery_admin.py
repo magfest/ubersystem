@@ -325,7 +325,42 @@ class Root:
                                                       ).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application))
         }
+    
+    def show_awards(self, session, **params):
+        applications = session.query(LotteryApplication).filter(LotteryApplication.status in [c.AWARDED, c.REJECTED, c.REMOVED],
+                                                                LotteryApplication.final_status_hidden == True)
+        total = applications.count()
+        for app in applications:
+            app.final_status_hidden = False
+            session.add(app)
+
+        raise HTTPRedirect('index?message={}',
+                           f"{total} awarded, rejected, and removed from group lottery entries can now see their status.")
         
+
+    def publish_booking_links(self, session, **params):
+        applications = session.query(LotteryApplication).filter(LotteryApplication.booking_url != '',
+                                                                LotteryApplication.booking_url_hidden == True)
+        total = applications.count()
+        for app in applications:
+            app.booking_url_hidden = False
+            session.add(app)
+
+        raise HTTPRedirect('index?message={}',
+                           f"{total} lottery entries can now see their booking link.")
+
+    def close_waitlist(self, session, **params):
+        applications = session.query(LotteryApplication).filter(LotteryApplication.status == c.COMPLETE,
+                                                                LotteryApplication.last_submitted < c.HOTEL_LOTTERY_FORM_WAITLIST)
+
+        total = applications.count()
+        for app in applications:
+            app.last_submitted = localized_now()
+            session.add(app)
+        
+        raise HTTPRedirect('index?message={}',
+                           f"{total} locked 'first-round' lottery entries are now unlocked.")
+
     def reset_lottery(self, session, **params):
         lottery_type_val = params.get("lottery_type", "room")
         if lottery_type_val == "room":
@@ -348,6 +383,7 @@ class Root:
         elif lottery_group_val == "staff":
             applications = applications.filter(LotteryApplication.is_staff_entry == True)
         
+        total = applications.count()
         applications = applications.all()
         
         for app in applications:
@@ -358,7 +394,7 @@ class Root:
             session.add(app)
         session.commit()
         raise HTTPRedirect('index?message={}',
-                           "All processed lottery entries are reset to completed.")
+                           f"{total} {lottery_type_val} {lottery_group_val} processed lottery entries have been reset to complete.")
         
     def award_lottery(self, session, **params):
         lottery_type_val = params.get("lottery_type", "room")
@@ -383,17 +419,18 @@ class Root:
         elif lottery_group_val == "staff":
             applications = applications.filter(LotteryApplication.is_staff_entry == True)
         
+        total = applications.count()
         applications = applications.all()
         
         for app in applications:
             app.status = c.AWARDED
             if c.HOTEL_LOTTERY_GUARANTEE_HOURS:
-                dt = datetime.now() + timedelta(hours=c.HOTEL_LOTTERY_GUARANTEE_HOURS).date()
+                dt = localized_now() + timedelta(hours=c.HOTEL_LOTTERY_GUARANTEE_HOURS).date()
                 app.deposit_cutoff_date = c.EVENT_TIMEZONE.localize(datetime.strptime(dt + ' 23:59', '%Y-%m-%d %H:%M'))
             session.add(app)
         session.commit()
         raise HTTPRedirect('index?message={}',
-                           "All processed lottery entries have been awarded.")
+                           f"{total} {lottery_type_val} {lottery_group_val} processed lottery entries have been awarded.")
         
     def run_lottery(self, session, lottery_group="attendee", lottery_type="room", **params):
         if lottery_type == "room":
@@ -406,7 +443,7 @@ class Root:
 
         if params.get('cutoff', ''):
             last_time = dateparser.parse(params['cutoff']).replace(tzinfo=c.EVENT_TIMEZONE)
-            applications = applications.filter(LotteryApplication.entry_started < last_time)
+            applications = applications.filter(LotteryApplication.last_submitted < last_time)
 
         # We always grab all roommate entries, but the solver only looks at those that have a matching parent
         # in the lottery batch.

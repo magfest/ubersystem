@@ -885,15 +885,14 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
         'hotel/award_notification.html',
-        lambda a: a.status == c.AWARDED and (
-            a.booking_url or a.parent_application and a.parent_application.booking_url),
+        lambda a: a.status == c.AWARDED and not a.final_status_hidden and a.booking_url_ready,
         ident='hotel_lottery_awarded'
     )
 
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
         'hotel/reject_notification.html',
-        lambda a: a.status == c.REJECTED,
+        lambda a: a.status == c.REJECTED and not a.final_status_hidden,
         ident='hotel_lottery_rejected'
     )
 
@@ -901,7 +900,7 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
         HotelLotteryEmailFixture(
             f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
             'hotel/reject_notification.html',
-            lambda a: a.status == c.COMPLETE,
+            lambda a: a.status == c.COMPLETE and a.qualifies_for_first_round,
             when=after(c.HOTEL_LOTTERY_FORM_WAITLIST),
             ident='hotel_lottery_first_round_rejected'
         )
@@ -909,8 +908,8 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',
         'hotel/guarantee_reminder.html',
-        lambda a: a.status == c.AWARDED and a.booking_url and days_before(
-            7, a.guarantee_deadline)() and not a.parent_application,
+        lambda a: a.status == c.AWARDED and a.booking_url_ready and \
+            days_before(7, a.guarantee_deadline)() and not a.parent_application,
         ident='hotel_lottery_guarantee_reminder'
     )
     

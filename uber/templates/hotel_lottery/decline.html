@@ -23,7 +23,7 @@
         <br/><button type="submit" class="btn btn-danger">Decline {{ room_type|title }} Award</button>
     </form>
     {% if application.valid_group_members %}<p>Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members will be notified.</p>{% endif %}
-    {% set app_or_parent = application.parent_application or application %}
+    {% set app_or_parent = application.parent_application if application.entry_type == c.GROUP_ENTRY else application %}
     {% include 'hotel_lottery/award_info.html' with context %}
 </div>
 {% endblock %}
