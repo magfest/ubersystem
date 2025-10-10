@@ -1094,28 +1094,28 @@ if c.INDIE_ARCADE_START:
         IndieGame,
         'Your game has been accepted into the MAGFest Indie Arcade',
         'indie_arcade/game_accepted.txt',
-        lambda game: game.status == c.ACCEPTED and not game.waitlisted and game.showcase_type == c.MIVS,
+        lambda game: game.status == c.ACCEPTED and not game.waitlisted and game.showcase_type == c.INDIE_ARCADE,
         ident='ia_game_accepted')
 
     IAEmailFixture(
         IndieGame,
         'Your game has been accepted into the MAGFest Indie Arcade from our waitlist',
         'indie_arcade/game_accepted_from_waitlist.txt',
-        lambda game: game.status == c.ACCEPTED and game.waitlisted and game.showcase_type == c.MIVS,
+        lambda game: game.status == c.ACCEPTED and game.waitlisted and game.showcase_type == c.INDIE_ARCADE,
         ident='ia_game_accepted_from_waitlist')
 
     IAEmailFixture(
         IndieGame,
         'Your game application has been declined from the {c.EVENT_YEAR} Indie Arcade',
         'indie_arcade/game_declined.txt',
-        lambda game: game.status == c.DECLINED and game.showcase_type == c.MIVS,
+        lambda game: game.status == c.DECLINED and game.showcase_type == c.INDIE_ARCADE,
         ident='ia_game_declined')
 
     IAEmailFixture(
         IndieGame,
         'Your Indie Arcade application has been waitlisted',
         'indie_arcade/game_waitlisted.txt',
-        lambda game: game.status == c.WAITLISTED and game.showcase_type == c.MIVS,
+        lambda game: game.status == c.WAITLISTED and game.showcase_type == c.INDIE_ARCADE,
         ident='ia_game_waitlisted')
 
 
