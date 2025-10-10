@@ -26,7 +26,7 @@ def _join_room_group(session, application, group_id):
         if len(room_group.valid_group_members) == 3:
             message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is full."
         elif room_group.is_staff_entry and not application.qualifies_for_staff_lottery:
-            message = f"You are not qualified to join this {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
+            message = f"You are not eligible to join this {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
         elif room_group.locked:
             message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is locked."
     if message:
@@ -768,13 +768,10 @@ class Root:
             LotteryApplication.confirmation_num == invite_code,
             LotteryApplication.room_group_name != '').first()
 
-        if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email) or \
+        if not room_group or room_group.attendee.normalized_email != normalize_email_legacy(leader_email) or room_group.locked or \
                 room_group.is_staff_entry and (not c.STAFF_HOTEL_LOTTERY_OPEN or not application.qualifies_for_staff_lottery):
-            return {'error': f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found. Please check the confirmation number and leader email address, \
-                    and make sure the application you're trying to join is a valid {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."}
-
-        if room_group.locked:
-            return {'error': f"No valid {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found."}
+            return {'error': f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found. Please check the confirmation number and email address, \
+                    and make sure the group you're trying to join is valid, open, and not full."}
 
         return {
             'success': True,
