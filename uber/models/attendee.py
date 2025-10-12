@@ -1373,7 +1373,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
             elif self.amount_paid:
                 reason = self.cannot_self_service_refund_reason
-                if reason and "Refunds will open" in reason or "Refunds are no longer" in reason:
+                if reason and ("Refunds will open" in reason or "Refunds are no longer" in reason):
                     return reason
                 
         if reason:
