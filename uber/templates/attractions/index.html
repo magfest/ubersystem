@@ -27,7 +27,7 @@
             </div>
             <div class="hover-btn-body">
               <p>
-                {{ attraction.description|linebreaksbr }}
+                {{ attraction.description|sanitize_html|linebreaksbr }}
               </p>
               {% if attraction.public_features %}
                 <ul>
