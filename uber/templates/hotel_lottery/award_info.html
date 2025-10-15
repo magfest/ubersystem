@@ -30,7 +30,7 @@
             <td>{{ member.cellphone }}</td>
             <td>{{ member.email }}</td>
             <td>
-                {% if application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] %}
+                {% if app_editable or application.finalized and not application.final_status_hidden %}
                 <form method="post" action="transfer_leadership" class="make-leader">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}

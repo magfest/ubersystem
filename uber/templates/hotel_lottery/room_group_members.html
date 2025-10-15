@@ -12,13 +12,13 @@
                     {{ csrf_token() }}
                     <input type="hidden" name="member_id" value="{{ member.id }}">
                     <input type="hidden" name="member_name" value="{{ member.attendee.full_name }}">
-                    {% if c.HOTEL_LOTTERY_OPEN %}
+                    {% if app_editable %}
                     <button type="submit" class="btn btn-sm btn-danger">
                         Remove
                     </button>
                     {% endif %}
                 </form>
-                {% if application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] %}
+                {% if app_editable or application.finalized and not application.final_status_hidden %}
                 <form method="post" action="transfer_leadership" class="make-leader">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}

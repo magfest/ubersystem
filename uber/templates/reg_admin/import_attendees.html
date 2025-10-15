@@ -65,53 +65,61 @@
 
 <h3>Attendee, Account, and Group Importer</h3>
 
-<form id="attendees" action="import_attendees" method="post" class="form">
-  <div class="form-group">
-    <label class="control-label">What Are You Importing?</label>
-    <select name="which_import" class="form-control">
-      <option value="">Select a model to import</option>
-      {{ options([('groups', 'Groups'), ('accounts', 'Attendee Accounts'), ('attendees', 'Attendees')], which_import) }}
-    </select>
-    <p class="help-text">
-      Importing attendee accounts will also import their attendees.
-      If you want to import any groups (e.g., dealers), do that FIRST before importing accounts.
-      If you just want to import staff, select "Attendees" and ignore the rest.
-    </p>
+<form id="attendees" action="import_attendees" method="post" x-data="{
+  import_model: '',
+}">
+  <div class="row g-3 mb-3">
+    <div class="col-sm">
+      <label class="form-text">What Are You Importing?</label>
+      <select name="which_import" class="form-select" x-model="import_model">
+        <option value="">Select a model to import</option>
+        {{ options([('groups', 'Groups'), ('accounts', 'Attendee Accounts'), ('attendees', 'Attendees')], which_import) }}
+      </select>
+      <p class="form-text">
+        Importing attendee accounts will also import their attendees.
+        If you want to import any groups (e.g., dealers), do that FIRST before importing accounts.
+        If you just want to import staff, select "Attendees" and ignore the rest.
+      </p>
+    </div>
+    <div class="col-sm">
+      <label class="form-text">Hostname</label>
+      <input
+          class="form-control"
+          type="text"
+          name="target_server"
+          value="{{ target_server }}"
+          placeholder="event.uber.magfest.org/uber"
+          required>
+    </div>
+    <div class="col-sm">
+      <label class="form-text">API Token</label>
+      <input
+          class="form-control"
+          type="text"
+          name="api_token"
+          value="{{ api_token }}"
+          placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
+      <p class="form-text">Leave blank to try using system API token</p>
+    </div>
   </div>
-  <div class="form-group">
-    <label class="control-label">Hostname</label>
-    <input
-        class="form-control"
-        type="text"
-        name="target_server"
-        value="{{ target_server }}"
-        placeholder="event.uber.magfest.org/uber"
-        required>
+  <div class="d-flex gap-3 align-items-center mb-3" x-show="import_model == 'groups'">
+    <div>
+      <select name="dealer_status" class="form-select">
+      <option value="" selected="selected">Any Status</option>
+      {{ options(c.DEALER_STATUS_OPTS) }}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary" name="dealers" value="1">Import Dealers</button>
+    OR
   </div>
-  <div class="form-group">
-    <label class="control-label">API Token</label>
-    <input
-        class="form-control"
-        type="text"
-        name="api_token"
-        value="{{ api_token }}"
-        placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
-    <p class="form-control-static help-block">Leave blank to try using system API token</p>
-  </div>
+  <div class="d-flex gap-3 align-items-center mb-3" x-show="import_model == 'groups'"></div>
   <div class="form-group" id="all_accounts">
     <input class="btn btn-primary" name="all" type="submit" value="Import All Attendee Accounts" />
     <br/><br/>OR
   </div>
   <div class="form-group" id="all_dealers">
-    <div class="col-sm-3">
-    <input class="btn btn-primary" name="dealers" type="submit" value="Import All Dealers" />
-    </div>
-    <div class="col-sm-6">
-    <select name="dealer_status" class="form-control">
-      <option value="" selected="selected">Any Status</option>
-      {{ options(c.DEALER_STATUS_OPTS) }}
-    </select>
-    </div>
+    
+    
     <div class="clearfix"></div>
     <br/><br/>OR
   </div>
