@@ -232,7 +232,10 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
             poc_depts = {}
             roles_depts = defaultdict(list)
 
-            active_dept_memberships = [m for m in a.dept_memberships if m.has_inherent_role or 
+            if a.badge_status == c.DEFERRED_STATUS:
+                active_dept_memberships = a.dept_memberships
+            else:
+                active_dept_memberships = [m for m in a.dept_memberships if m.has_inherent_role or 
                                            m.department in a.depts_where_working or m.department.is_shiftless]
 
             for membership in active_dept_memberships:
