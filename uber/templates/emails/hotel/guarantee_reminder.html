@@ -5,7 +5,7 @@
 <p>
     {{ app.attendee.full_name }},<br/>
     You still have not provided a credit card guarantee for your {{ room_type }} award in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
-    You <strong>must</strong> place a credit card down to secure your room before {{ app.guarantee_deadline|datetime_local('%A, %B %-d') }} - {{ ((app.guarantee_deadline - now_localized()).total_seconds() // 86400)|int }} days from now.
+    You <strong>must</strong> place a credit card down to secure your room before {{ app.guarantee_deadline|datetime_local('%-I:%M%p %Z on %A, %B %-d') }} - {{ ((app.guarantee_deadline - now_localized()).total_seconds() // 86400)|int }} days from now.
     If you do not put down a valid credit card, we will release your booking and <strong><span class="text-danger">you{% if app.valid_group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members{% endif %} will no longer have a {{ room_type }} reservation</span></strong>.
 </p>
 <p>
