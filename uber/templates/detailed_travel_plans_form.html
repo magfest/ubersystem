@@ -40,6 +40,7 @@
                     enableTime: true,
                     altInput: true,
                     altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
+                    disableMobile: true, //Do not let mobile native datepicker take over.
                     dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
                     defaultDate: '{{ c.EPOCH.isoformat() }}',
                     minDate: '{{ min_arrival_time.isoformat() }}',
@@ -78,6 +79,7 @@
                     enableTime: true,
                     altInput: true,
                     altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
+                    disableMobile: true, //Do not let mobile native datepicker take over.
                     dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
                     defaultDate: '{{ c.ESCHATON.isoformat() }}',
                     minDate: '{{ min_departure_time.isoformat() }}',

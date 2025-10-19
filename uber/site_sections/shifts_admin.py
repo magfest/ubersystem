@@ -77,7 +77,7 @@ class Root:
         by_start = defaultdict(list)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
 
-        if department_id != '':
+        if department_id != '' and department_id is not None:
             jobs = session.jobs(department_id).all()
             for job in jobs:
                 if job.type == c.REGULAR:
@@ -423,17 +423,14 @@ class Root:
         try:
             shift = session.shift(id)
             shift.worked = int(status)
+            if shift.worked == c.SHIFT_UNMARKED:
+                shift.rating = c.UNRATED
+                shift.comment = ''
             session.commit()
         except Exception:
             return {'error': 'Unexpected error setting status'}
         else:
             return job_dict(session.job(shift.job_id))
-
-    @ajax
-    def undo_worked(self, session, id):
-        shift = session.shift(id)
-        shift.worked = c.SHIFT_UNMARKED
-        raise HTTPRedirect(cherrypy.request.headers['Referer'])
 
     @ajax
     def rate(self, session, shift_id, rating, comment=''):

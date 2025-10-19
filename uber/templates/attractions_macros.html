@@ -79,6 +79,7 @@
         enableTime: true,
         altInput: true,
         altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
+        disableMobile: true, //Do not let mobile native datepicker take over.
         dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
         defaultDate: '{{ value.isoformat() }}',
         minDate: '{{ c.EPOCH.isoformat() }}',

@@ -1,8 +1,4 @@
-var RATINGS = {
-    {{ c.RATED_GOOD }}: {
-        false: '../static/images/check_blank.png',
-        true:  '../static/images/check_filled.png'
-    },
+let RATINGS = {
     {{ c.RATED_BAD }}: {
         prompt: 'Please explain how this volunteer performed poorly:',
         false: '../static/images/lookofdisapproval.jpg',
@@ -15,6 +11,8 @@ var RATINGS = {
     }
 };
 
+let UNRATED = {{c.UNRATED}};
+
 var $id = function(id, el) {
     var $el = $('#' + id);
     if (!$el.length) {
@@ -23,27 +21,55 @@ var $id = function(id, el) {
     return $el;
 };
 
-var setupShiftRatingClickHandler = function () {
+let setupShiftRatingClickHandler = function () {
     $(document.body).on('click', '.rating img', function (event) {
-        var $img = $(event.target),
-            shift = $img.parent().data('shift'),
-            rating = $img.data('rating'),
-            comment = '';
+        let $img = $(event.target);
+        let $container = $img.parent();
+        let shift = $container.data('shift');
+        let rating = $img.data('rating');
+        let comment = '';
+        let isSameRating = shift.rating === rating;
 
-        while (comment === '' && RATINGS[rating].prompt) {
-            comment = prompt(RATINGS[rating].prompt);
-        }
-
-        if (comment !== null ) {
-            var params = {shift_id: shift.id, rating: rating, comment: comment, csrf_token: csrf_token};
+        //If they have chosen the same rating the shift already has
+        //Unset it which allows for an "undo" feature.
+        if(isSameRating){
+            let params = {
+                shift_id: shift.id,
+                rating: UNRATED, // No rating
+                comment: '',
+                csrf_token: csrf_token
+            };
             $.post('../shifts_admin/rate', params, function (json) {
-                $img.parent().find('img').each(function () {
+                $container.find('img').each(function () {
                     var r = $(this).data('rating');
                     $(this)
-                        .attr('title', comment)
-                        .attr('src', RATINGS[r][r == rating]);
+                        .attr('title', '')
+                        .attr('src', RATINGS[r][false]);
                 });
+
+                shift.rating = UNRATED;
+                shift.comment = '';
             }, 'json');
+        } else {
+            while (comment === '' && RATINGS[rating].prompt) {
+                comment = prompt(RATINGS[rating].prompt);
+            }
+
+            if (comment !== null ) {
+                let params = {shift_id: shift.id, rating: rating, comment: comment, csrf_token: csrf_token};
+                $.post('../shifts_admin/rate', params, function (json) {
+                    $container.find('img').each(function () {
+                        var r = $(this).data('rating');
+                        $(this)
+                            .attr('title', comment)
+                            .attr('src', RATINGS[r][r == rating]);
+                    });
+                    //Update our copy in memory of the shift since it didn't come back from the server API
+                    //And this is a *success* call back
+                    shift.rating = rating;
+                    shift.comment = comment;
+                }, 'json');
+            }
         }
     });
 };
@@ -57,7 +83,7 @@ var renderShiftRating = function(shift) {
     return $id('rating_' + shift.id, '<span class="rating"></span>')
         .data('shift', shift)
         .append(
-            $.map([{{ c.RATED_GOOD }}, {{ c.RATED_BAD }}, {{ c.RATED_GREAT }}], function(rating, i) {
+            $.map([{{ c.RATED_BAD }}, {{ c.RATED_GREAT }}], function(rating, i) {
                 return $('<img/>')
                     .attr('src', RATINGS[rating][shift.rating === rating])
                     .attr('title', shift.comment)
@@ -92,7 +118,7 @@ var updateShiftStatus = function(shift, status, onUpdateShiftStatus) {
         csrf_token: csrf_token
     }, function(job) {
         if (!job.error) {
-            shift = _.filter(job.shifts, {id: shift.id})[0];
+            shift = Array.isArray(job.shifts) ? job.shifts.find(s => s.id === shift.id) : undefined;
             if (typeof SHIFTS !== 'undefined') {
                 SHIFTS[shift.id] = shift;
             }
