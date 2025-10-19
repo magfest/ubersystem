@@ -77,7 +77,7 @@ class Root:
         by_start = defaultdict(list)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
 
-        if department_id != '':
+        if department_id != '' and department_id is not None:
             jobs = session.jobs(department_id).all()
             for job in jobs:
                 if job.type == c.REGULAR:
