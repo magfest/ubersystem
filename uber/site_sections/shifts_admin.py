@@ -423,17 +423,14 @@ class Root:
         try:
             shift = session.shift(id)
             shift.worked = int(status)
+            if shift.worked == c.SHIFT_UNMARKED:
+                shift.rating = c.UNRATED
+                shift.comment = ''
             session.commit()
         except Exception:
             return {'error': 'Unexpected error setting status'}
         else:
             return job_dict(session.job(shift.job_id))
-
-    @ajax
-    def undo_worked(self, session, id):
-        shift = session.shift(id)
-        shift.worked = c.SHIFT_UNMARKED
-        raise HTTPRedirect(cherrypy.request.headers['Referer'])
 
     @ajax
     def rate(self, session, shift_id, rating, comment=''):

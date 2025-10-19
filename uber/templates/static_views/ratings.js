@@ -58,7 +58,7 @@ let setupShiftRatingClickHandler = function () {
             if (comment !== null ) {
                 let params = {shift_id: shift.id, rating: rating, comment: comment, csrf_token: csrf_token};
                 $.post('../shifts_admin/rate', params, function (json) {
-                    $img.parent().find('img').each(function () {
+                    $container.find('img').each(function () {
                         var r = $(this).data('rating');
                         $(this)
                             .attr('title', comment)
