@@ -54,6 +54,19 @@ class Root:
             row.append(a.food_restrictions.freeform if a.food_restrictions else "")
             out.writerow(row)
 
+    @csv_file
+    @site_mappable(download=True)
+    def cash_handlers(self, out, session):
+        header = ['Name', 'Name on ID', 'Badge #', 'Department(s)', 'Reviewed']
+        out.writerow(header)
+
+        for a in session.staffers():
+            cash_handling_depts = [dept.name for dept in a.assigned_depts if dept.handles_cash]
+            if cash_handling_depts:
+                row = [a.full_name, a.legal_name, a.badge_num,
+                       ' / '.join(cash_handling_depts), a.reviewed_cash_handling_local.strftime("%Y-%m-%d %-H:%M") if a.reviewed_cash_handling else "Not Reviewed"]
+                out.writerow(row)
+
     def guest_donations(self, session):
         return {
             'donation_offers': session.query(GuestCharity).filter(GuestCharity.desc != '')

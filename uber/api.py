@@ -1313,6 +1313,10 @@ class DepartmentLookup:
                 'is_setup_approval_exempt': True,
                 'is_teardown_approval_exempt': True,
                 'max_consecutive_minutes': True,
+                'from_email': True,
+                'manages_panels': True,
+                'handles_cash': True,
+                'panels_desc': True,
                 'jobs': {
                     'id': True,
                     'type': True,

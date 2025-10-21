@@ -145,7 +145,22 @@ class Root:
         return {
             'message': message,
             'attendee': attendee,
-            'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
+        }
+    
+    @check_shutdown
+    def cash_handling(self, session, message='', reviewed_cash_handling=None, csrf_token=None):
+        attendee = session.logged_in_volunteer()
+        if csrf_token is not None:
+            check_csrf(csrf_token)
+            if reviewed_cash_handling:
+                attendee.reviewed_cash_handling = datetime.now()
+                raise HTTPRedirect('index?message={}', 'Thanks for reviewing our payment handling guidelines!')
+
+            message = "You must acknowledge that you reviewed our payment handling guidelines."
+
+        return {
+            'message': message,
+            'attendee': attendee,
         }
 
     @check_shutdown
