@@ -1,7 +1,7 @@
 """Add visibility property to lottery entries
 
 Revision ID: 4112406db1ae
-Revises: 445fb71a63a3
+Revises: bdf63d57ac69
 Create Date: 2025-10-07 08:10:47.114414
 
 """
@@ -9,7 +9,7 @@ Create Date: 2025-10-07 08:10:47.114414
 
 # revision identifiers, used by Alembic.
 revision = '4112406db1ae'
-down_revision = '445fb71a63a3'
+down_revision = 'bdf63d57ac69'
 branch_labels = None
 depends_on = None
 
