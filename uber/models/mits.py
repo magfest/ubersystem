@@ -88,10 +88,8 @@ class MITSTeam(MagModel):
 
     @property
     def can_save(self):
-        return c.HAS_MITS_ADMIN_ACCESS or self.status in [c.ACCEPTED, c.WAITLISTED] or (
-            self.is_new
-            and c.BEFORE_MITS_SUBMISSION_DEADLINE
-            or c.BEFORE_MITS_EDITING_DEADLINE)
+        return c.HAS_MITS_ADMIN_ACCESS or self.status in [c.ACCEPTED, c.WAITLISTED] or \
+            c.BEFORE_MITS_SUBMISSION_DEADLINE or not self.is_new and c.BEFORE_MITS_EDITING_DEADLINE
 
     @property
     def completed_panel_request(self):
