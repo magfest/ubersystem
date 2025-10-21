@@ -1,15 +1,12 @@
 {% import 'macros.html' as macros %}
 {% if c.HOURS_FOR_FOOD and c.PRE_CON %}
-</ol>
-<p>The steps below will be available in late October!</p>
-<ol>
 <li>
     {{ macros.checklist_image(attendee.food_restrictions) }}
-    {% if not attendee.placeholder and False %}
+    {% if not attendee.placeholder %}
         <a href="food_restrictions">Let us know</a>
     {% else %}
         Let us know
     {% endif %}
-    about any dietary restrictions.
+    about any dietary restrictions. (Deadline: {{ c.VOLUNTEER_FOOD_DEADLINE }})
 </li>
 {% endif %}
