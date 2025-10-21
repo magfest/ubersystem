@@ -431,6 +431,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     staffing = Column(Boolean, default=False)
     agreed_to_volunteer_agreement = Column(Boolean, default=False)
     reviewed_emergency_procedures = Column(Boolean, default=False)
+    reviewed_cash_handling = Column(UTCDateTime, nullable=True, default=None)
     name_in_credits = Column(UnicodeText, nullable=True)
     walk_on_volunteer = Column(Boolean, default=False)
     nonshift_minutes = Column(Integer, default=0, admin_only=True)
@@ -1373,7 +1374,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
             elif self.amount_paid:
                 reason = self.cannot_self_service_refund_reason
-                if reason and "Refunds will open" in reason:
+                if reason and ("Refunds will open" in reason or "Refunds are no longer" in reason):
                     return reason
                 
         if reason:
@@ -1871,6 +1872,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             not d.is_shiftless for d in self.assigned_depts))
 
     @property
+    def handles_cash(self):
+        return bool(self.staffing and any(d.handles_cash for d in self.assigned_depts))
+
+    @property
     def shift_minutes(self):
         all_minutes = set()
         for shift in self.shifts:
@@ -2324,7 +2329,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             or not c.HOTELS_ENABLED
             or c.HOTEL_REQUESTS_URL) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
-            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
+            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) and (
+            not c.CASH_HANDLING_URL or not self.handles_cash or self.reviewed_cash_handling) \
             and c.AFTER_SHIFTS_CREATED
 
     @property

@@ -100,6 +100,7 @@ def _reset_group_member(application):
         application.status = c.WITHDRAWN
         application.terms_accepted = False
         application.data_policy_accepted = False
+        application.attendee.hotel_eligible = True
     
     if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
         application.is_staff_entry = True
@@ -670,7 +671,10 @@ class Root:
                                "You cannot remove group members at this time.")
 
         member = session.lottery_application(member_id)
-        member = _reset_group_member(member)
+        if application.status == c.PROCESSED or application.finalized:
+            member = _clear_application(application)
+        else:
+            member = _reset_group_member(application)
         session.commit()
         session.refresh(member)
         body = render('emails/hotel/removed_from_group.html', {
@@ -854,7 +858,7 @@ class Root:
                     format='html',
                     model=room_group.to_dict('id'))
             
-            if room_group.finalized:
+            if room_group.status == c.PROCESSED or room_group.finalized:
                 application = _clear_application(application)
             else:
                 application = _reset_group_member(application)

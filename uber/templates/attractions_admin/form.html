@@ -684,7 +684,7 @@
 </h1>
 
 <div class="attraction-info info-block">
-  <p>{{ attraction.full_description|linebreaksbr }}</p>
+  <p>{{ attraction.full_description|sanitize_html|linebreaksbr }}</p>
 
   {% if attraction.restriction != attraction._NONE -%}
     <p>{{ attraction._RESTRICTIONS[attraction.restriction].split('–')|last|trim }}.</p>
@@ -809,7 +809,7 @@
             </div>
             <div class="feature-body">
               <div class="feature-description">
-                <p>{{ feature.description|linebreaksbr }}</p>
+                <p>{{ feature.description|sanitize_html|linebreaksbr }}</p>
                 <p>
                   {% if feature.is_public %}
                     Open to the <a href="../attractions/{{ attraction.slug }}?feature={{ feature.slug }}">public</a>.

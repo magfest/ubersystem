@@ -16,7 +16,12 @@
 The tabletop showcase is not open yet. Check back soon!
 {% elif not team.can_save %}
     <h2>The MITS application deadline has passed!</h2>
-    Unfortunately, it's too late to apply to the MAGFest Indie Tabletop Showcase this year.  We hope you see you next year!
+    <p>Unfortunately, it's too late to apply to the MAGFest Indie Tabletop Showcase this year. We hope you see you next year!</p>
+    {% if team.is_new and c.BEFORE_MITS_EDITING_DEADLINE %}
+    <p>
+        If you already have a submitted game, please use the link in your confirmation email to edit it, or <a href="../mits/check_if_applied">click here</a> to receive a new link.
+    </p>
+    {% endif %}
 {% else %}
     {% if team.is_new %}
         <h2>MAGFest Indie Tabletop Showcase Application</h2>

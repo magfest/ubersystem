@@ -44,8 +44,11 @@ manages_panels: {{ department_info.manages_panels.data|jsonize }},
 
 <div class="row g-3 mb-3">
 {% block checkboxes %}
-<div class="col-sm">{{ form_macros.input(department_info.solicits_volunteers) }}</div>
-<div class="col-sm">{{ form_macros.input(department_info.is_shiftless) }}</div>
+    <div class="col-sm">{{ form_macros.input(department_info.solicits_volunteers) }}</div>
+    <div class="col-sm">{{ form_macros.input(department_info.is_shiftless) }}</div>
+</div>
+<div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(department_info.handles_cash) }}</div>
 {% endblock %}
 </div>
 

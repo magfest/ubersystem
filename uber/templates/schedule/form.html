@@ -100,6 +100,7 @@
         altInput: true,
         altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
         dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+        disableMobile: true, //Do not let mobile native datepicker take over.
         defaultDate: '{{ event.start_time.astimezone(c.EVENT_TIMEZONE).isoformat() if event.start_time else c.PANELS_EPOCH.isoformat()}}',
         minDate: '{{ c.PANELS_EPOCH.isoformat() }}',
         maxDate: '{{ c.PANELS_ESCHATON.isoformat() }}',

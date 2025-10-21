@@ -33,6 +33,7 @@ class DepartmentInfo(MagForm):
         description="The maximum number of consecutive hours a staffer may work. Enter 0 for no limit.")
     from_email = EmailField("Department Email")
     manages_panels = BooleanField("This department accepts panel applications.")
+    handles_cash = BooleanField("Volunteers in this department handle cash and/or electronic payments.")
     panels_desc = TextAreaField(
         "Panel Application Description",
         description="What text, if any, should be shown when applying for a panel for this department?")

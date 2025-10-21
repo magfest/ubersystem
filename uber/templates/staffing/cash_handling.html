@@ -1,0 +1,25 @@
+{% extends 'signup_base.html' %}
+{% block title %}Cash and Electronic Payment Handling{% endblock %}
+
+{% block content %}
+
+<h1>Cash and Electronic Payment Handling</h1>
+
+<p>
+<a href="{{ c.CASH_HANDLING_URL }}" class="btn btn-info" target="_blank">Review Cash and Electronic Payment Handling Guidelines</a>
+</p>
+
+{% if not attendee.reviewed_cash_handling %}
+    <form method="post" action="cash_handling">
+        {{ csrf_token() }}
+        <label for="reviewed_cash_handling" class="checkbox-label">
+          I have reviewed these guidelines: <input type="checkbox" id="reviewed_cash_handling" name="reviewed_cash_handling" class="checkbox" />
+        </label>
+        <br><br>
+        <input class="btn btn-primary" type="submit" value="Save" />
+    </form>
+{% else %}
+    <p>You have already told us that you reviewed our payment handling guidelines.</p>
+{% endif %}
+
+{% endblock %}

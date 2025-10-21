@@ -1,0 +1,13 @@
+{% import 'macros.html' as macros %}
+{% if c.CASH_HANDLING_URL and attendee.handles_cash %}
+<li>
+    {{ macros.checklist_image(attendee.reviewed_cash_handling) }}
+    {% if not attendee.reviewed_cash_handling %}
+        Please review our
+    {% else %}
+        You have acknowledged that you reviewed our
+    {% endif %}
+    {% if not attendee.placeholder and (attendee.agreed_to_volunteer_agreement or not c.VOLUNTEER_AGREEMENT_ENABLED) and (attendee.reviewed_emergency_procedures or not c.EMERGENCY_PROCEDURES_ENABLED) %}<a href="cash_handling">Cash and Electronic Payment Handling Guidelines</a>{% else %}Cash and Electronic Payment Handling Guidelines{% endif %}
+    {% if not attendee.reviewed_cash_handling %} and acknowledge that you have done so{% endif %}.
+</li>
+{% endif %}

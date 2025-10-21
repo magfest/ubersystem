@@ -30,7 +30,7 @@
       {% endif %}
       <h1 class="text-center">{{ attraction.name }}</h1>
       <p class="text-center">
-        {{ attraction.full_description|default(attraction.description)|linebreaksbr }}
+        {{ attraction.full_description|default(attraction.description)|sanitize_html|linebreaksbr }}
       </p>
       <hr>
       <div id="features">
@@ -45,7 +45,7 @@
               <h2><span class="bling-icon"></span> {{ feature.name }}</h2>
             </div>
             <div class="hover-btn-body">
-              <p>{{ feature.description|linebreaksbr }}</p>
+              <p>{{ feature.description|sanitize_html|linebreaksbr }}</p>
               {%- set summary = feature.available_events_summary -%}
               {% if summary %}
                 {% for day, times in summary.items() %}

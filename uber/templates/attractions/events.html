@@ -393,7 +393,7 @@
       </a>
       <h1 class="text-center">Schedule for {{ feature.name }}</h1>
       <p class="text-center">
-        {{ feature.description|linebreaksbr }}
+        {{ feature.description|sanitize_html|linebreaksbr }}
       </p>
       <hr>
       {%- set available_events_by_day = feature.available_events_by_day -%}
