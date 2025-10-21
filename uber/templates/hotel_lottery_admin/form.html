@@ -102,6 +102,7 @@
 {% endif %}
 
 <div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.final_status_hidden) }}</div>
     <div class="col-sm">{{ form_macros.input(lottery_admin_info.can_edit) }}</div>
     <div class="col-sm">{{ form_macros.input(lottery_admin_info.is_staff_entry) }}</div>
 </div>
@@ -129,6 +130,11 @@
 </div>
 
 <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {% call form_macros.input(lottery_admin_info.booking_url) %}
+        {{ form_macros.input(lottery_admin_info.booking_url_hidden) }}
+        {% endcall %}
+    </div>
     <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.assigned_room_type) }}
     </div>

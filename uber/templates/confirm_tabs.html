@@ -65,14 +65,19 @@
     </a>
   </li>
 {% endif %}
-{% if 'hotel_lottery' in c.PAGE_PATH or attendee.lottery_application and (attendee.lottery_application.status in [c.COMPLETE, c.PROCESSED] or attendee.lottery_application.finalized) %}
+{% if 'hotel_lottery' in c.PAGE_PATH or attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
 {% set which_page, button_text = attendee.lottery_application.homepage_link %}
 <li class="nav-item" role="presentation">
   <a href="../hotel_lottery/index?attendee_id={{ attendee.id }}" class="nav-link{% if 'hotel_lottery' in c.PAGE_PATH %} active{% endif %}">
     <span class="fa fa-hotel"></span>
-    {% if attendee.lottery_application and attendee.lottery_application.status == c.COMPLETE %}
-    {{ 'Suite Lottery Entry' if attendee.lottery_application.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry' }}
-    {% else %}Hotel Lottery{% if attendee.lottery_application and attendee.lottery_application.finalized %} Results{% endif %}{% endif %}
+    {% if attendee.lottery_application and attendee.lottery_application.finalized and not attendee.lottery_application.final_status_hidden %}
+      Hotel Lottery Results
+    {% elif attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
+      {% set app_or_parent = attendee.lottery_application.parent_application if attendee.lottery_application.entry_type == c.GROUP_ENTRY else attendee.lottery_application %}
+      {{ 'Suite Lottery Entry' if app_or_parent.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry' }}
+    {% else %}
+      Hotel Lottery
+    {% endif %}
   </a>
 </li>
 {% endif %}
