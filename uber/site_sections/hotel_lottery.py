@@ -672,9 +672,9 @@ class Root:
 
         member = session.lottery_application(member_id)
         if application.status == c.PROCESSED or application.finalized:
-            member = _clear_application(application)
+            member = _clear_application(member)
         else:
-            member = _reset_group_member(application)
+            member = _reset_group_member(member)
         session.commit()
         session.refresh(member)
         body = render('emails/hotel/removed_from_group.html', {
