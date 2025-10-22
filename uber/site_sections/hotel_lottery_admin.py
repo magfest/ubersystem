@@ -327,7 +327,7 @@ class Root:
         }
     
     def show_awards(self, session, **params):
-        applications = session.query(LotteryApplication).filter(LotteryApplication.status in [c.AWARDED, c.REJECTED, c.REMOVED],
+        applications = session.query(LotteryApplication).filter(LotteryApplication.status.in_([c.AWARDED, c.REJECTED, c.REMOVED]),
                                                                 LotteryApplication.final_status_hidden == True)
         total = applications.count()
         for app in applications:
