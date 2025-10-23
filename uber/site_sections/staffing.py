@@ -341,6 +341,7 @@ class Root:
                     'assigned': False,
                     }
             })
+        session.close()
         return event_list
     
     @ajax_gettable
@@ -374,6 +375,7 @@ class Root:
                     'assigned': True,
                     }
             })
+        session.close()
         return event_list
 
     def shifts_ical(self, session, **params):
