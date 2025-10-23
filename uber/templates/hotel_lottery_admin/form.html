@@ -45,11 +45,7 @@
 {% set edit_link = "suite_lottery" if application.entry_type == c.SUITE_ENTRY else "room_lottery" %}
 <div class="row g-3 mb-3">
     <div class="col-sm">
-        {% if application.parent_application %}
         <a class="btn btn-primary" href="../hotel_lottery/index?id={{ application.id }}" target="_blank">View as Attendee</a>
-        {% else %}
-        <a class="btn btn-primary" href="../hotel_lottery/{{ edit_link }}?id={{ application.id }}" target="_blank">View as Attendee</a>
-        {% endif %}
     </div>
 </div>
 {% endif %}
