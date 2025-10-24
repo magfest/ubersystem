@@ -685,14 +685,10 @@ class Root:
             name=track.filename,
             content_type=track.content_type)
 
-    def view_bio_pic(self, session, id):
-        guest = session.guest_group(id)
+    def view_image(self, session, id):
+        image = session.guest_image(id)
         cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(
-            guest.bio_pic.filepath,
-            disposition="attachment",
-            name=guest.bio_pic.download_filename,
-            content_type=guest.bio.pic_content_type)
+        return serve_file(image.filepath, name=image.filename, content_type=image.content_type)
 
     def view_stage_plot(self, session, id):
         guest = session.guest_group(id)
