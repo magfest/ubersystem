@@ -329,16 +329,16 @@ class LotteryApplication(MagModel):
     @property
     def can_reenter(self):
         return self.status in [c.PARTIAL, c.WITHDRAWN, c.CANCELLED, c.REMOVED]
-    
+
     @property
     def finalized(self):
         return self.status in [c.AWARDED, c.SECURED, c.REJECTED, c.CANCELLED, c.REMOVED]
 
     @property
     def locked(self):
-        return self.status == c.PROCESSED or self.finalized or self.current_lottery_closed or (
+        return self.current_lottery_closed or (
             self.qualifies_for_first_round and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST
-        )
+        ) or (self.finalized and not self.final_status_hidden)
 
     @property
     def declined(self):
