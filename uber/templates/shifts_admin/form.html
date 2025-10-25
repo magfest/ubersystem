@@ -125,19 +125,8 @@
       </div>
     </div>
   </div>
-  {% if job.type == c.SETUP %}
-    {% set min_date = c.SETUP_JOB_START %}
-    {% set max_date = c.EPOCH %}
-  {% elif job.type == c.TEARDOWN %}
-    {% set min_date = c.ESCHATON %}
-    {% set max_date = c.TEARDOWN_JOB_END %}
-  {% elif job.type == c.REGULAR %}
-    {% set min_date = c.EPOCH %}
-    {% set max_date = c.ESCHATON %}
-  {% else %}
-    {% set min_date = c.SETUP_JOB_START %}
-    {% set max_date = c.TEARDOWN_JOB_END %}
-  {% endif %}
+  {% set min_date = c.SHIFTS_EPOCH %}
+  {% set max_date = c.SHIFTS_ESCHATON %}
 
   <script type="text/javascript">
       //pyzt uses the olson aka IANA timezone names which JS libraries also talk IANA

@@ -193,8 +193,8 @@ class Department(MagModel):
     solicits_volunteers = Column(Boolean, default=True)
     is_shiftless = Column(Boolean, default=False)
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
-    is_setup_approval_exempt = Column(Boolean, default=True)
-    is_teardown_approval_exempt = Column(Boolean, default=True)
+    is_setup_approval_exempt = Column(Boolean, default=True)  # Deprecated
+    is_teardown_approval_exempt = Column(Boolean, default=True)  # Deprecated
     max_consecutive_minutes = Column(Integer, default=0)
     from_email = Column(UnicodeText)
     manages_panels = Column(Boolean, default=False)
@@ -385,7 +385,7 @@ class Job(MagModel):
         (_ONLY_MEMBERS, 'Members of this department'),
         (_ALL_VOLUNTEERS, 'All volunteers')]
 
-    type = Column(Choice(c.JOB_TYPE_OPTS), default=c.REGULAR)
+    type = Column(Choice(c.JOB_TYPE_OPTS), default=c.REGULAR)  # Deprecated
     name = Column(UnicodeText)
     description = Column(UnicodeText)
     start_time = Column(UTCDateTime)

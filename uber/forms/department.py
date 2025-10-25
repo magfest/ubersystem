@@ -38,8 +38,6 @@ class DepartmentInfo(MagForm):
         "Panel Application Description",
         description="What text, if any, should be shown when applying for a panel for this department?")
     parent_id = HiddenField()
-    is_setup_approval_exempt = HiddenField()
-    is_teardown_approval_exempt = HiddenField()
 
     def populate_obj(self, obj, is_admin=False):
         max_minutes = self._fields.get('max_consecutive_minutes', None)

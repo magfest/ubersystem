@@ -13,8 +13,7 @@ from uber.utils import get_api_service_from_server
 
 def _create_copy_department(from_department):
     to_department = Department()
-    for field in ['name', 'description', 'solicits_volunteers', 'is_shiftless',
-                  'is_setup_approval_exempt', 'is_teardown_approval_exempt', 'max_consecutive_minutes']:
+    for field in ['name', 'description', 'solicits_volunteers', 'is_shiftless', 'max_consecutive_minutes']:
         if field in from_department:
             setattr(to_department, field, from_department[field])
 

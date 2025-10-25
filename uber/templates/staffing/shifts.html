@@ -611,7 +611,7 @@
         customButtons: {
           setupView: {
             text: 'Setup',
-            click: function() { showWeekCal('{{ c.SETUP_JOB_START.date() }}', {{ setup_duration }}, 'setupView'); },
+            click: function() { showWeekCal('{{ c.SHIFTS_EPOCH.date() }}', {{ setup_duration }}, 'setupView'); },
             active: false,
           },
           eventView: {
@@ -641,8 +641,8 @@
             }
         },
         validRange: {
-          start: '{{ c.SETUP_JOB_START.date() }}',
-          end: '{{ c.TEARDOWN_JOB_END.date() }}',
+          start: '{{ c.SHIFTS_EPOCH.date() }}',
+          end: '{{ c.SHIFTS_ESCHATON.date() }}',
         },
         viewDidMount: showOtherView,
         eventSources: [{events: fetchEvents}],

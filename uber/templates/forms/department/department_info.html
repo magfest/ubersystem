@@ -54,8 +54,6 @@ manages_panels: {{ department_info.manages_panels.data|jsonize }},
 
 {% block hidden %}
 {{ form_macros.input(department_info.parent_id, show_label=False) }}
-{{ form_macros.input(department_info.is_setup_approval_exempt, show_label=False) }}
-{{ form_macros.input(department_info.is_teardown_approval_exempt, show_label=False) }}
 {% endblock %}
 
 </div>

@@ -69,7 +69,7 @@ class Root:
         jobs = []
         dept_shifts_days = []
 
-        initial_date = max(datetime.now(c.EVENT_TIMEZONE), c.SHIFTS_START_DAY)
+        initial_date = max(datetime.now(c.EVENT_TIMEZONE), c.SHIFTS_EPOCH)
         if time:
             initial_date = max(initial_date, datetime.strptime(time, "%Y-%m-%dT%H:%M:%S%z"))
 
@@ -94,9 +94,7 @@ class Root:
         return {
             'department_id': 'All' if department_id is None else department_id,
             'department': department,
-            'setup': [j for j in jobs if j.type == c.SETUP],
-            'teardown': [j for j in jobs if j.type == c.TEARDOWN],
-            'normal': [j for j in jobs if j.type != c.SETUP and j.type != c.TEARDOWN],
+            'normal': [j for j in jobs],
             'checklist': department_id and checklist,
             'times': [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
             'jobs': jobs,
@@ -333,13 +331,6 @@ class Root:
                     cherrypy.session['job_defaults'] = defaults
                 tgt_start_time = job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z")
                 raise HTTPRedirect('index?department_id={}&time={}', job.department_id, tgt_start_time)
-
-        if 'start_time' in params and 'type' not in params:
-            local_start_time = c.EVENT_TIMEZONE.localize(datetime.strptime(params['start_time'], "%Y-%m-%d %H:%M:%S"))
-            if c.EPOCH <= local_start_time < c.ESCHATON:
-                job.type = c.REGULAR
-            else:
-                job.type = c.SETUP if local_start_time < c.EPOCH else c.TEARDOWN
 
         departments = session.admin_attendee().depts_where_can_admin
         can_admin_dept = any(job.department_id == d.id for d in departments)

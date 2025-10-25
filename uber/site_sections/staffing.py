@@ -258,21 +258,10 @@ class Root:
     def shifts(self, session, **params):
         volunteer = session.logged_in_volunteer()
 
-        has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
-        has_teardown = volunteer.can_work_teardown or any(
-            d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
-
-        if has_setup:
-            start = c.SETUP_JOB_START
-        else:
-            start = c.EPOCH
-
-        end = c.TEARDOWN_JOB_END if has_teardown else c.ESCHATON
-
         total_duration = 0
         event_dates = []
-        day = start
-        while day <= end:
+        day = c.SHIFTS_EPOCH
+        while day <= c.SHIFTS_ESCHATON:
             total_duration += 1
             if c.EPOCH <= day and day <= c.ESCHATON:
                 event_dates.append(day.strftime('%Y-%m-%d'))
@@ -298,11 +287,11 @@ class Root:
             'assigned_depts_labels': volunteer.assigned_depts_labels,
             'default_filters': default_filters,
             'all_filters': default_filters + other_filters,
-            'start': start.date(),
+            'start': c.SHIFTS_EPOCH.date(),
             'total_duration': total_duration,
             'highlighted_dates': event_dates,
-            'setup_duration': 0 if not has_setup else (c.EPOCH - c.SETUP_JOB_START).days,
-            'teardown_duration': 0 if not has_teardown else (c.TEARDOWN_JOB_END - c.ESCHATON).days,
+            'setup_duration': (c.EPOCH - c.SHIFTS_EPOCH).days,
+            'teardown_duration': (c.SHIFTS_ESCHATON - c.ESCHATON).days,
             'requested_setup_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.SETUP_NIGHTS],
             'requested_teardown_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.TEARDOWN_NIGHTS],
         }

@@ -1935,15 +1935,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         return [
             job for job in self.available_jobs
-            if job.no_overlap(self) and job.working_limit_ok(self)
-            and (
-                job.type != c.SETUP
-                or self.can_work_setup
-                or job.department.is_setup_approval_exempt)
-            and (
-                job.type != c.TEARDOWN
-                or self.can_work_teardown
-                or job.department.is_teardown_approval_exempt)]
+            if job.no_overlap(self) and job.working_limit_ok(self)]
 
     @property
     def possible_opts(self):
