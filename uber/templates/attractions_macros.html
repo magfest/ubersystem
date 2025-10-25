@@ -74,13 +74,51 @@
     </span>
   </div>
   <script>
-    $('#{{ html_id }} input[name="{{ field_name }}"]').datetimepicker({
-      sideBySide: true,
-      useCurrent: false,
-      defaultDate: '{{ value.isoformat()[:-6] }}',
-      minDate: '{{ c.EPOCH.isoformat()[:-6] }}',
-      maxDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
-      format: 'M/D/Y h:mm A'
+      $('#{{ html_id }} input[name="{{ field_name }}"]').flatpickr({
+        allowInput: true,
+        enableTime: true,
+        altInput: true,
+        altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
+        disableMobile: true, //Do not let mobile native datepicker take over.
+        dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+        defaultDate: '{{ value.isoformat() }}',
+        minDate: '{{ c.EPOCH.isoformat() }}',
+        maxDate: '{{ c.ESCHATON.isoformat() }}',
+        parseDate(dateString, format) {
+            //Flatpickr uses JS native Dates. These are always in local time zone for the client or UTC under the hood.
+            //We need times shown as if they are in the c.EVENT_TIMEZONE.
+            //See: https://github.com/flatpickr/flatpickr/issues/930
+            //Parse the date in the event's timezone
+            //Parses on the way into the internals.
+
+            //pyzt uses the olson aka IANA timezone names which JS libraries also talk IANA
+            const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+            let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+            //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+            return new Date(
+                eventTimezonedDate.year(),
+                eventTimezonedDate.month(),
+                eventTimezonedDate.date(),
+                eventTimezonedDate.hour(),
+                eventTimezonedDate.minute(),
+                eventTimezonedDate.second()
+            );
+        },
+        formatDate(date, format) {
+             const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+
+            //Format on the way *out* from the internal storage.
+             let formatted =  moment.tz([
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate(),
+                date.getHours(),
+                date.getMinutes(),
+                date.getSeconds()
+            ], eventTimeZone).format(format);
+            return formatted;
+        }
     });
   </script>
 {% endmacro %}

@@ -431,6 +431,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     staffing = Column(Boolean, default=False)
     agreed_to_volunteer_agreement = Column(Boolean, default=False)
     reviewed_emergency_procedures = Column(Boolean, default=False)
+    reviewed_cash_handling = Column(UTCDateTime, nullable=True, default=None)
     name_in_credits = Column(UnicodeText, nullable=True)
     walk_on_volunteer = Column(Boolean, default=False)
     nonshift_minutes = Column(Integer, default=0, admin_only=True)
@@ -1353,19 +1354,13 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def cannot_abandon_badge_check(self, including_last_adult=True):
         from uber.custom_tags import email_only
+
         if self.checked_in:
             return "This badge has already been picked up."
         if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             return f"Please contact {email_only(c.STAFF_EMAIL)} to cancel or defer your badge."
         if self.badge_type in c.BADGE_TYPE_PRICES and c.AFTER_EPOCH:
             return f"Please contact {email_only(c.REGDESK_EMAIL)} to cancel your badge."
-
-        if self.art_show_applications and self.art_show_applications[0].is_valid:
-            return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
-        if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
-            return "Please ask the artist you're agenting for to {} first.".format(
-                "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
-            )
 
         reason = ""
         if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers and including_last_adult:
@@ -1381,12 +1376,30 @@ class Attendee(MagModel, TakesPaymentMixin):
                 reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
             elif self.amount_paid:
                 reason = self.cannot_self_service_refund_reason
-
+                if reason and ("Refunds will open" in reason or "Refunds are no longer" in reason):
+                    return reason
+                
         if reason:
             return reason + " Please {} contact us at {}{}.".format(
                 "transfer your badge instead or" if self.is_transferable else "",
                 email_only(c.REGDESK_EMAIL),
                 " to cancel your badge")
+
+        if self.art_show_applications and self.art_show_applications[0].is_valid:
+            return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
+        if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
+            return "Please ask the artist you're agenting for to {} first.".format(
+                "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
+            )
+        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+            if self.lottery_application.status == c.COMPLETE or self.lottery_application.entry_type == c.GROUP_ENTRY:
+                return "Please withdraw from the hotel lottery first."
+            elif self.lottery_application.valid_group_members:
+                return f"Please transfer your hotel lottery {c.HOTEL_LOTTERY_GROUP_TERM.lower()} to another group member, \
+                    then withdraw from the lottery."
+            else:
+                return f"You cannot cancel your badge after being awarded a room or suite in the hotel lottery. \
+                    Please contact us at {email_only(c.HOTEL_LOTTERY_EMAIL)} to cancel your room."
 
     @property
     def cannot_self_service_refund_reason(self):
@@ -1600,7 +1613,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.custom_tags import email_only
         can_do = []
 
-        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+        if self.lottery_application and self.lottery_application.status == c.COMPLETE:
             can_do.append("withdraw your hotel lottery entry")
         if self.art_show_applications and self.art_show_applications[0].is_valid:
             can_do.append(f"contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application")
@@ -1859,6 +1872,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def takes_shifts(self):
         return bool(self.staffing and self.badge_type != c.CONTRACTOR_BADGE and any(
             not d.is_shiftless for d in self.assigned_depts))
+
+    @property
+    def handles_cash(self):
+        return bool(self.staffing and any(d.handles_cash for d in self.assigned_depts))
 
     @property
     def shift_minutes(self):
@@ -2314,7 +2331,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             or not c.HOTELS_ENABLED
             or c.HOTEL_REQUESTS_URL) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
-            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
+            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) and (
+            not c.CASH_HANDLING_URL or not self.handles_cash or self.reviewed_cash_handling) \
             and c.AFTER_SHIFTS_CREATED
 
     @property
@@ -2349,7 +2367,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return 'Hotel nights: {} ({})'.format(hr.nights_display, 'approved' if hr.approved else 'not yet approved')
         else:
             return 'Hotel nights: ' + hr.nights_display
-        
+
     @property
     def hotel_lottery_ineligible_reason(self):
         if not self.is_valid:
@@ -2358,14 +2376,15 @@ class Attendee(MagModel, TakesPaymentMixin):
             return f'You cannot enter the hotel lottery with a badge status of "{self.badge_status_label}".'
         else:
             return "Please finish registering to enter the hotel lottery."
-            
+
 
     @hybrid_property
     def hotel_lottery_eligible(self):
         return (self.is_valid and not self.placeholder and not self.is_unassigned
                 and self.badge_status not in [c.REFUNDED_STATUS,
                                               c.NOT_ATTENDING,
-                                              c.DEFERRED_STATUS])
+                                              c.DEFERRED_STATUS,
+                                              c.WATCHED_STATUS])
                                                            
 
     @hotel_lottery_eligible.expression

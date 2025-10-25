@@ -9,8 +9,9 @@ from uber.config import c
 from uber.custom_tags import safe_string
 from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, public
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Job, Shift
-from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now, extract_urls
+from uber.forms import load_forms
+from uber.models import Attendee, Job, FoodRestrictions
+from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now, extract_urls, validate_model
 
 
 def _convert_urls(desc):
@@ -41,22 +42,46 @@ class Root:
         return {'attendee': session.logged_in_volunteer()}
 
     def food_restrictions(self, session, message='', **params):
-        from uber.models.attendee import FoodRestrictions
         attendee = session.logged_in_volunteer()
-        fr = attendee.food_restrictions or FoodRestrictions()
-        if params:
-            fr = session.food_restrictions(dict(params, attendee_id=attendee.id), checkgroups=['standard'])
-            session.add(fr)
+        restrictions = attendee.food_restrictions or FoodRestrictions(attendee_id=attendee.id)
+        forms = load_forms(params, restrictions, ["DietaryRestrictions"])
+
+        if cherrypy.request.method == "POST":
+            for form in forms.values():
+                form.populate_obj(restrictions)
+            session.add(restrictions)
+            session.commit()
             if attendee.badge_type == c.GUEST_BADGE:
                 raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
             else:
-                raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded')
+                raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded.')
 
         return {
-            'fr': fr,
+            'restrictions': restrictions,
+            'forms': forms,
             'message': message,
             'attendee': attendee
         }
+
+    @ajax
+    def validate_food_restrictions(self, session, form_list=[], **params):
+        all_errors = {}
+
+        attendee = session.logged_in_volunteer()
+        restrictions = attendee.food_restrictions or FoodRestrictions()
+
+        if not form_list:
+            form_list = ['DietaryRestrictions']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, restrictions, form_list)
+        all_errors = validate_model(forms, restrictions)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     @check_shutdown
     def shirt_size(self, session, message='', **params):
@@ -120,7 +145,22 @@ class Root:
         return {
             'message': message,
             'attendee': attendee,
-            'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
+        }
+    
+    @check_shutdown
+    def cash_handling(self, session, message='', reviewed_cash_handling=None, csrf_token=None):
+        attendee = session.logged_in_volunteer()
+        if csrf_token is not None:
+            check_csrf(csrf_token)
+            if reviewed_cash_handling:
+                attendee.reviewed_cash_handling = datetime.now()
+                raise HTTPRedirect('index?message={}', 'Thanks for reviewing our payment handling guidelines!')
+
+            message = "You must acknowledge that you reviewed our payment handling guidelines."
+
+        return {
+            'message': message,
+            'attendee': attendee,
         }
 
     @check_shutdown
@@ -301,6 +341,7 @@ class Root:
                     'assigned': False,
                     }
             })
+        session.close()
         return event_list
     
     @ajax_gettable
@@ -334,6 +375,7 @@ class Root:
                     'assigned': True,
                     }
             })
+        session.close()
         return event_list
 
     def shifts_ical(self, session, **params):

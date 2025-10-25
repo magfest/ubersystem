@@ -1,7 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
 {% set title_text = "Hotel Lottery Applications for " ~ application.attendee.full_name %}
-{% set app_or_parent = application.parent_application or application %}
-{% set app_editable = not application.current_lottery_closed and not application.status.finalized %}
+{% set app_or_parent = application.parent_application if application.entry_type == c.GROUP_ENTRY else application %}
 
 {% block content %}
 {% include 'hotel_lottery/withdraw_confirm.html' with context %}
@@ -98,43 +97,58 @@
     {% include 'confirm_tabs.html' with context %}
     {% endif %}
     
-    <h1>{{ c.EVENT_NAME }}{% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
+    <h1>{{ c.EVENT_NAME }}{% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery or application.is_staff_entry %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
     <hr/>
-    {% if c.HOTEL_LOTTERY_ROOM_INVENTORY and app_or_parent.finalized %}
-        {% if app_or_parent.status in c.REJECTED or application.status == [c.REMOVED, c.CANCELLED] %}
-        <p>
-            <strong><span class="text-danger">{{ application.award_status_str }}</span></strong>
-            {% if app_or_parent.status == c.CANCELLED and app_or_parent.assigned_hotel %}
-                This may be because you{% if application.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} did not confirm the booking in time.
-                {% if not application.parent_application %}Please email us at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} if you have any questions.{% endif %}
-            {% endif %}
-        </p>
-        {% if c.HOTEL_LOTTERY_OPEN or (c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) %}
-        <p>You can use the button below to re-enter the{% if not c.STAFF_HOTEL_LOTTERY_OPEN and application.is_staff_entry %} attendee{% endif %} lottery.</p>
+    {% if c.HOTEL_LOTTERY_ROOM_INVENTORY and application.award_status_str %}
+        {% if application.status in [c.REJECTED, c.REMOVED, c.CANCELLED] %}
+            <p>
+                <strong><span class="text-danger">{{ application.award_status_str }}</span></strong>
+            </p>
+            {% if c.HOTEL_LOTTERY_OPEN or (c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) %}
+            <p>You can use the button below to {% if not c.STAFF_HOTEL_LOTTERY_OPEN and application.is_staff_entry %}enter the attendee{% else %}re-enter the{% endif %} lottery.</p>
 
-        <form method="post" action="reenter_lottery">
-            {{ csrf_token() }}
-            <input type="hidden" name="id" value="{{ application.id }}" />
-            <button type="submit" class="btn btn-primary">Re-enter Lottery</button>
-        </form>
-        {% endif %}
-        {% else %}
-        <p>
-            <strong><span class="text-success">{{ application.award_status_str }}</span></strong>
-        </p>
-        <p>
-            Your booking is currently
-            {% if app_or_parent.status == c.SECURED %}
-                <span class="text-success">confirmed</span>! You can <a href="{{ application.booking_url }}" target="_blank">view or edit your booking</a> at any time.
-            {% elif app_or_parent.status == c.AWARDED and app_or_parent.booking_url %}
-                <span class="text-danger">awaiting confirmation</span>.
-                Please{% if application.parent_application %} ask your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader to{% endif %}
-                {% if not application.parent_application %} <a href="{{ application.booking_url }}" target="_blank">confirm your booking</a>{% else %}confirm your booking{% endif %} as soon as possible.
-            {% elif app_or_parent.status == c.AWARDED %}
-                being processed. You{% if application.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} should expect an acknowledgment email with a link to confirm your booking in the coming weeks.
+            {% if not c.STAFF_HOTEL_LOTTERY_OPEN and application.is_staff_entry %}
+            <form method="post" action="enter_attendee_lottery">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ application.id }}" />
+                <button type="submit" class="btn btn-primary">Enter Attendee Lottery</button>
+            </form>
+            {% else %}
+            <form method="post" action="reenter_lottery">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ application.id }}" />
+                <button type="submit" class="btn btn-primary">Re-enter Lottery</button>
+            </form>
             {% endif %}
-        </p>
+            {% endif %}
+        {% else %}
+            <p>
+                <strong><span class="text-success">{{ application.award_status_str }}</span></strong>
+            </p>
+            <p>
+                Your booking is currently
+                {% if app_or_parent.status == c.SECURED %}
+                    <span class="text-success">confirmed</span>!{% if application.booking_url %} You can <a href="{{ application.booking_url }}" target="_blank">view or edit your booking</a> at any time.{% endif %}
+                {% elif app_or_parent.status == c.AWARDED and app_or_parent.booking_url_ready %}
+                    <span class="text-danger">awaiting confirmation</span>.
+                    Please {% if application.parent_application %}ask your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader to {% endif %}
+                    {% if not application.parent_application %}<a href="{{ application.booking_url }}" target="_blank">confirm your booking</a>{% else %}confirm your booking{% endif %} as soon as possible.
+                {% elif app_or_parent.status == c.AWARDED %}
+                    being processed. You{% if application.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} should expect an acknowledgment email with a link to confirm your booking in the coming weeks.
+                {% endif %}
+            </p>
             {% include 'hotel_lottery/award_info.html' with context %}
+            {% if application.entry_type == c.GROUP_ENTRY %}
+                <p>
+                    If you can no longer attend {{ c.EVENT_NAME }}, you may withdraw from the hotel lottery using the button below.
+                    This is <strong>irreversible</strong> and your group leader will receive an email{% if app_or_parent.booking_url %} instructing them to remove your name from the reservation{% endif %}.
+                </p>
+                <form method="post" action="leave_group" id="withdraw-lottery">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    {{ csrf_token() }}
+                    <button class="btn btn-danger">Withdraw From Hotel Lottery</button>
+                </form>
+            {% endif %}
         {% endif %}
     {% else %}
         {% include 'hotel_lottery/app_management.html' with context %}

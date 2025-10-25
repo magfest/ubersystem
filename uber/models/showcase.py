@@ -288,6 +288,10 @@ class IndieStudio(MagModel):
         return [g for g in self.games if g.confirmed]
 
     @property
+    def unconfirmed_games(self):
+        return [g for g in self.games if not g.confirmed]
+
+    @property
     def comped_badges(self):
         game_count = len([g for g in self.games if g.status == c.ACCEPTED])
         return c.MIVS_INDIE_BADGE_COMPS * game_count

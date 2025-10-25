@@ -4,7 +4,7 @@
 <p>
     {{ app.attendee.full_name }},<br/>
     This is to notify you that {{ member.attendee.full_name }} has just joined your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} "{{ app.room_group_name }}".
-    This brings the total number of group members, including yourself, to {{ app.group_members|length + 1 }}{% if app.group_members|length == 3 %} -- the total number of members you can have in a group{% endif %}.
+    This brings the total number of group members, including yourself, to {{ app.valid_group_members|length + 1 }}{% if app.valid_group_members|length == 3 %} -- the total number of members you can have in a group{% endif %}.
 </p>
 <p>
     If this is not someone you expected to join, you can remove them from the group on your <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ app.id }}" target="_blank">{{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} management page</a>.

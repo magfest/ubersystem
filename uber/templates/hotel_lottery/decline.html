@@ -8,22 +8,22 @@
     <hr/>
     <h2>Decline {{ room_type|title }} Award?</h2>
     <p>
-        This will <strong>permanently</strong> decline your{% if application.group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members'{% endif %} {{ room_type }} award in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
+        This will <strong>permanently</strong> decline your{% if application.valid_group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members'{% endif %} {{ room_type }} award in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
         {% if c.HOTEL_LOTTERY_OPEN %}
-        Your lottery {% if application.group_members %}entries{% else %}entry{% endif %} will also be cancelled and will not be considered when assigning cancelled rooms.
+        Your lottery {% if application.valid_group_members %}entries{% else %}entry{% endif %} will also be cancelled and will not be considered when assigning cancelled rooms.
         {% else %}
-        Since the hotel lottery is closed, this award is your{% if application.group_members %} {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% endif %}
+        Since the hotel lottery is closed, this award is your{% if application.valid_group_members %} {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% endif %}
         ONLY chance for a room or suite award.
         {% endif %}
     </p>
     <form method="post" action="decline" class="mb-3">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ application.id }}" />
-        <label><input type="checkbox" name="confirm" value="1" class="form-check-input mb-3" /> <strong>Yes</strong>, I'm sure that I want to decline the {{ room_type }} award detailed below{% if application.group_members %} for both myself and my {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s members{% endif %}.</label>
+        <label class="checkbox-label mb-3"><input type="checkbox" name="confirm" value="1" class="form-check-input" /> <strong>Yes</strong>, I'm sure that I want to decline the {{ room_type }} award detailed below{% if application.valid_group_members %} for both myself and my {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s members{% endif %}.</label>
         <br/><button type="submit" class="btn btn-danger">Decline {{ room_type|title }} Award</button>
     </form>
-    {% if application.group_members %}Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members will be notified.{% endif %}
-    {% set app_or_parent = application.parent_application or application %}
+    {% if application.valid_group_members %}<p>Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members will be notified.</p>{% endif %}
+    {% set app_or_parent = application.parent_application if application.entry_type == c.GROUP_ENTRY else application %}
     {% include 'hotel_lottery/award_info.html' with context %}
 </div>
 {% endblock %}

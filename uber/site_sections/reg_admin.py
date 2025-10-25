@@ -1511,6 +1511,7 @@ class Root:
             existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_import",
                                                            ApiJob.query == id,
                                                            ApiJob.cancelled == None,  # noqa: E711
+                                                           ApiJob.completed == None,  # noqa: E711
                                                            ApiJob.errors == '').count()
             if existing_import:
                 already_queued += 1

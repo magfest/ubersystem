@@ -4,8 +4,8 @@
 <body>
 <p>
     {{ app.attendee.full_name }},<br/>
-    This is to notify you that your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} "{{ new_leader.room_group_name }}" now has a new group leader.
-    So {{ old_leader.attendee.full_name }} is no longer the leader of your group, and {{ new_leader.attendee.full_name }} can now manage your group{% if new_leader.booking_url %} and its {{ room_type }} reservation{% endif %}.
+    This is to notify you that your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} "{{ new_leader.room_group_name }}" now has a new group leader{% if app != new_leader %} ("{{ new_leader.group_leader_name }}"){% endif %} and a new confirmation number ({{ new_leader.confirmation_num }}).
+    So {% if app == old_leader %}you are{% else %}{{ old_leader.group_leader_name }} is{% endif %} no longer the leader of your group, and {% if app == new_leader %}you{% else %}{{ new_leader.group_leader_name }}{% endif %} can now manage your group{% if new_leader.booking_url %} and its {{ room_type }} reservation{% endif %}.
 </p>
 <p>
 {% if app == old_leader %}

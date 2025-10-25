@@ -12,6 +12,7 @@
 }}
 
 {{ "deps/Sortable.js"|serve_static_content }}
+{{ "deps/SortableExt.js"|serve_static_content }}
 
 <style>
     .sortable-ghost {
@@ -44,11 +45,7 @@
 {% set edit_link = "suite_lottery" if application.entry_type == c.SUITE_ENTRY else "room_lottery" %}
 <div class="row g-3 mb-3">
     <div class="col-sm">
-        {% if application.parent_application %}
         <a class="btn btn-primary" href="../hotel_lottery/index?id={{ application.id }}" target="_blank">View as Attendee</a>
-        {% else %}
-        <a class="btn btn-primary" href="../hotel_lottery/{{ edit_link }}?id={{ application.id }}" target="_blank">View as Attendee</a>
-        {% endif %}
     </div>
 </div>
 {% endif %}
@@ -101,6 +98,7 @@
 {% endif %}
 
 <div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(lottery_admin_info.final_status_hidden) }}</div>
     <div class="col-sm">{{ form_macros.input(lottery_admin_info.can_edit) }}</div>
     <div class="col-sm">{{ form_macros.input(lottery_admin_info.is_staff_entry) }}</div>
 </div>
@@ -128,6 +126,11 @@
 </div>
 
 <div class="row g-sm-3 mb-3">
+    <div class="col-sm">
+        {% call form_macros.input(lottery_admin_info.booking_url) %}
+        {{ form_macros.input(lottery_admin_info.booking_url_hidden) }}
+        {% endcall %}
+    </div>
     <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.assigned_room_type) }}
     </div>
@@ -165,7 +168,7 @@
     <div class="col-sm">
         <div class="form-text">Group Members</div>
         {% if not application.room_group_name %}N/A{% elif not application.group_members %}None{% else %}
-        {% for member in application.group_members %}{% if not loop.first %} / {% endif %}{{ member.attendee|form_link }} ({{ member|form_link }}){% endfor %}
+        {% for member in application.group_members %}{% if not loop.first %} / {% endif %}{{ member.attendee|form_link }} ({{ member|form_link }}){% if member not in application.valid_group_members %}[INVALID]{% endif %}{% endfor %}
         {% endif %}
     </div>
     <!-- <div class="col-sm">{{ form_macros.input(lottery_admin_info.invite_code) }}</div> -->

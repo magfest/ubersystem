@@ -1,15 +1,16 @@
 {% extends "mivs_base.html" %}
 {% block body %}
 
-<h2>Please Confirm Your Acceptance into MIVS</h2>
+<h2>Please Confirm Your Acceptance into MAGFest Indies</h2>
 
-You have been accepted into the MAGFest Indie Videogame Showcase!  We need you to confirm that you are still interested
-and able to attend or let us know that you cannot, by clicking the appropriate button below.  As already explained, each
+<p>
+    You have been accepted into MAGFest Indies! We need you to confirm that you are still interested
+    and able to attend, or let us know that you cannot, by clicking the appropriate button below.
+</p>
+
+As already explained, each
 studio receives {{ c.MIVS_INDIE_BADGE_COMPS }} complimentary badges for each game which is accepted into the showcase. These badges can be changed at a later time. You
 have already left information for your presenters, so here is what will happen if you accept:
-
-<br/> <br/>
-
 <ul>
 {% for dev in developers %}
     <li>
@@ -36,14 +37,11 @@ have already left information for your presenters, so here is what will happen i
 {% endif %}
 </ul>
 
-<br/>
-
 <form method="post" action="confirm">
+    <input type="hidden" name="id" value="{{ studio.id }}" />
     {{ csrf_token() }}
-    <input type="submit" name="decision" value="Accept" />
-    <input type="submit" name="decision" value="Decline" />
+    <button type="submit" class="btn btn-success" name="decision" value="accept">Accept</button>
+    <button type="submit" class="btn btn-danger" name="decision" value="decline">Decline</button>
 </form>
-
-<br/>
 
 {% endblock %}

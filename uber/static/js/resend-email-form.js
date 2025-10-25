@@ -12,19 +12,20 @@ $("form[action='resend_email']").each(function(index) {
             dataType: 'json',
             data: data,
             success: function (json) {
-                if(loadForm != undefined) {
+                if(typeof loadForm != 'undefined') {
                     hideMessageBox('attendee-modal-alert');
                 } else { hideMessageBox(); }
                 var message = json.message;
                 if (json.success) {
                     window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
-                    if(loadForm != undefined){
+                    if(typeof loadForm != 'undefined'){
                         loadForm("History").then(function(result) {
                             $("#attendee-modal-alert").addClass("alert-info").show().children('span').html(message);
                         });
                     } else { $("#message-alert").addClass("alert-info").show().children('span').html(message); };
+                    window.scrollTo(0,0);
                 } else {
-                    if(loadForm != undefined) {
+                    if(typeof loadForm != 'undefined') {
                         showErrorMessage(message, 'attendee-modal-alert');
                     } else { showErrorMessage(message); }
                 }

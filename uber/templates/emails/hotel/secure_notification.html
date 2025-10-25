@@ -5,7 +5,7 @@
 <body>
 <p>
     {{ app.attendee.full_name }},<br/>
-    <strong><span class="text-success">Congratulations! You{% if app.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} have successfully confirmed your reservation in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery!</span></strong>
+    <strong><span class="text-success">Congratulations! You{% if app.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader has{% else %} have{% endif %} successfully confirmed your hotel reservation for {{ c.EVENT_NAME_AND_YEAR }}!</span></strong>
 </p>
 {% if not app.parent_application %}
 <p>
@@ -22,7 +22,7 @@
     {% if not app.parent_application and app.wants_ada %}<li><strong>Requested Accommodations</strong>: {{ app.ada_requests }}</li>{% endif %}
     {% if not app.parent_application %}
         <li><em>Primary Guest</em>: {{ app.legal_first_name }} {{ app.legal_last_name }}</li>
-        {% if app.group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
+        {% if app.valid_group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
     {% endif %}
 </ul>
 </body>

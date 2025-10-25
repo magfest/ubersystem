@@ -1,7 +1,5 @@
 {% set attendee = attendee or application.attendee %}
-<h2>Hotel Contact Information</h2>
-
-{% if not application.current_lottery_closed %}
+{% if not application.locked %}
 <p>
     Hotels require your first and last name to match the photo ID you use during check-in, plus a phone number they can contact you at.
     {% if 'index' not in c.PAGE_PATH %}

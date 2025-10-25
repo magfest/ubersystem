@@ -198,6 +198,7 @@ class Department(MagModel):
     max_consecutive_minutes = Column(Integer, default=0)
     from_email = Column(UnicodeText)
     manages_panels = Column(Boolean, default=False)
+    handles_cash = Column(Boolean, default=False)
     panels_desc = Column(UnicodeText)
 
     jobs = relationship('Job', backref='department')

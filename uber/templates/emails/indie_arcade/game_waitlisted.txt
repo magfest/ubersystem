@@ -1,0 +1,13 @@
+{{ game.studio.primary_contact_first_names }},
+
+Thank you for your game submission ({{ game.title }}) to the MAGFest Indie Arcade.
+
+Your submission has been carefully considered, and meets our criteria for acceptance, but we do not currently have space in the 2026 festival to show this game. As such, ({{ game.title }}) has been added to our waitlist. This means that if other games that have been accepted to the Indie Arcade are not able to commit to attending for any reason, we'll ask studios from the waitlist to fill the spot. 
+
+Our waitlist operates on a rolling basis, but we know planning your attendance with an alt control project can be difficult. We hope to get back to you with a final application decision before December 15th; if a spot opens up before that point we'll reach out!
+
+Alternatively, if you know outright that you will not be able to attend MAGFest 2026, please let us know and we'll remove you from the waitlist. If you have any questions, please feel free to reach out to us at indiearcade@magfest.org. 
+
+Thanks,
+{{ email_signature }}
+

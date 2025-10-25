@@ -481,6 +481,20 @@ class Root:
             'message': message
         }
     
+    def media_request(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        guest_media_request = session.guest_media_request(params, restricted=True)
+        if cherrypy.request.method == 'POST':
+            guest.media_request = guest_media_request
+            session.add(guest_media_request)
+            raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for completing the questionnaire!')
+
+        return {
+            'guest': guest,
+            'guest_media_request': guest.media_request or guest_media_request,
+            'message': message
+        }
+    
     def performer_badges(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -671,14 +685,10 @@ class Root:
             name=track.filename,
             content_type=track.content_type)
 
-    def view_bio_pic(self, session, id):
-        guest = session.guest_group(id)
+    def view_image(self, session, id):
+        image = session.guest_image(id)
         cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(
-            guest.bio_pic.filepath,
-            disposition="attachment",
-            name=guest.bio_pic.download_filename,
-            content_type=guest.bio.pic_content_type)
+        return serve_file(image.filepath, name=image.filename, content_type=image.content_type)
 
     def view_stage_plot(self, session, id):
         guest = session.guest_group(id)

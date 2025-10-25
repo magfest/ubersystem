@@ -4,7 +4,7 @@
 {% set suite_lottery = suite_lottery or forms['suite_lottery'] %}
 {% set room_or_suite_lottery = suite_lottery if 'suite_lottery' in forms else room_lottery %}
 {% set room_text = "suite" if 'suite_lottery' in forms else 'room' %}
-{% set app_or_parent = application.parent_application or application %}
+{% set app_or_parent = application.parent_application if application.entry_type == c.GROUP_ENTRY else application %}
 
 {# BLOCK NAMES in this form:
     ranking_js
@@ -27,6 +27,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 {% block ranking_js %}
 {% if not read_only %}
 {{ "deps/Sortable.js"|serve_static_content }}
+{{ "deps/SortableExt.js"|serve_static_content }}
 
 <style>
     .sortable-ghost {

@@ -122,7 +122,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, panelist, form_list, {form_name: prefix for form_name in form_list})
+        forms = load_forms(params, panelist, form_list, field_prefix=prefix)
         all_errors = validate_model(forms, panelist, is_admin=True)
 
         if all_errors:
@@ -142,8 +142,7 @@ class Root:
             prefix = '' if panelist.submitter else panelist.id
 
         form_list = ['PanelistInfo', 'PanelistCredentials']
-        forms = load_forms(params, panelist, form_list,
-                           {form_name: prefix for form_name in form_list})
+        forms = load_forms(params, panelist, form_list, field_prefix=prefix)
 
         for form in forms.values():
             form.populate_obj(panelist)
@@ -426,8 +425,8 @@ class Root:
             'Past Attendance',
             'Affiliations',
             'Type of Panel',
-            'Tabletop?',
             'Technical Needs',
+            'OK to Livestream',
             'Applied',
             'Panelists'])
 
@@ -447,8 +446,8 @@ class Root:
                 app.past_attendance,
                 app.affiliations,
                 app.other_presentation if app.presentation == c.OTHER else app.presentation_label,
-                app.tabletop,
                 ' / '.join(app.tech_needs_labels) + (' / ' if app.other_tech_needs else '') + app.other_tech_needs,
+                app.livestream_label,
                 app.applied.strftime('%Y-%m-%d')
             ] + panelists)
 

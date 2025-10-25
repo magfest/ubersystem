@@ -390,7 +390,7 @@
       try {
           const responses = await Promise.all(fetchEventsURLS.map(url => fetch(url + "?" + eventParams)));
           const eventLists = await Promise.all(responses.map((response) => response.json()));
-          let allNewEvents = [].concat(...eventLists);
+          let allNewEvents = eventLists.flat();
           fetchedEventList.push(...allNewEvents);
 
           {% if requested_setup_nights or requested_teardown_nights %}

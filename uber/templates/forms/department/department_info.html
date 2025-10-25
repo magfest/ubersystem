@@ -30,8 +30,9 @@ manages_panels: {{ department_info.manages_panels.data|jsonize }},
 
 <div class="row g-3 mb-3">
 {% block hours_panels %}
+    {# Consecutive hours has to be a whole number currently, so make python do whole number math here #}
 <div class="col-sm">{{ form_macros.input(department_info.max_consecutive_minutes,
-    value=(department_info.max_consecutive_minutes.data / 60 if department_info.max_consecutive_minutes.data else 0)) }}</div>
+    value=(department_info.max_consecutive_minutes.data // 60 if department_info.max_consecutive_minutes.data else 0)) }}</div>
 <div class="col-sm pt-1">
     <div class="form-text">&nbsp;</div>
     {% call form_macros.input(department_info.manages_panels, alpine_model="manages_panels") %}
@@ -43,8 +44,11 @@ manages_panels: {{ department_info.manages_panels.data|jsonize }},
 
 <div class="row g-3 mb-3">
 {% block checkboxes %}
-<div class="col-sm">{{ form_macros.input(department_info.solicits_volunteers) }}</div>
-<div class="col-sm">{{ form_macros.input(department_info.is_shiftless) }}</div>
+    <div class="col-sm">{{ form_macros.input(department_info.solicits_volunteers) }}</div>
+    <div class="col-sm">{{ form_macros.input(department_info.is_shiftless) }}</div>
+</div>
+<div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(department_info.handles_cash) }}</div>
 {% endblock %}
 </div>
 

@@ -7,14 +7,9 @@
     {{ app.attendee.full_name }},<br/>
     {% if not app.entry_started and not has_or_had_parent %}
         This message is to confirm that you have declined your {{ room_type }} reservation awarded in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
-        This decision is final. We have also withdrawn your {% if app.group_members %}and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members' entries{% else %}entry{% endif %} from the hotel lottery.
+        This decision is final. We have also withdrawn your {% if app.valid_group_members %}and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members' entries{% else %}entry{% endif %} from the hotel lottery.
     {% else %}
-        Unfortunately, your{% if has_or_had_parent %} {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% endif %} {{ room_type }} reservation was <strong><span class="text-danger">cancelled</span></strong>
-        {% if app.entry_started %}
-        because you{% if has_or_had_parent %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} did not secure your room with a credit card before the deadline of {{ app.guarantee_deadline|datetime_local('%A, %B %-d') }}.
-        {% elif has_or_had_parent %}
-        by your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader.
-        {% endif %}
+        <strong><span class="text-danger">{{ app.award_status_str }}</span></strong>
         This {{ room_type }} has been returned to the lottery{% if has_or_had_parent and not app.entry_started %} and your lottery entry has been withdrawn{% endif %}.
     {% endif %}
 </p>

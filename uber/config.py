@@ -1646,11 +1646,14 @@ def build_hotel_inventory(inventory_type, room_types):
             if not room_type:
                 raise ValueError(f"Could not locate hotel room_type {room_type_key}")
             capacity = room_type.get(f'{key}_capacity', room_type['capacity'])
+            min_capacity = room_type.get(f'{key}_min_capacity', room_type['min_capacity'])
             hotel_inventory.append({
                 "id": str(hotel_enum),
                 "capacity": int(capacity),
+                "min_capacity": int(min_capacity),
                 "room_type": str(room_type_enum),
-                "quantity": int(quantity)
+                "quantity": int(quantity),
+                "name": room_type_key,
             })
     return hotel_inventory
     
@@ -2145,6 +2148,7 @@ c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'hospitality'},
     {'name': 'travel_plans'},
     {'name': 'charity', 'header': 'Charity'},
+    {'name': 'media_request'},
 ]
 
 # Generate the possible template prefixes per step

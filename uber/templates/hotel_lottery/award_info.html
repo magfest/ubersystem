@@ -24,14 +24,27 @@
             <td>{{ application.email }}</td>
             <td><em>Primary Guest</em></td>
         </tr>
-        {% for member in application.group_members %}
+        {% for member in application.valid_group_members %}
         <tr>
             <td>{{ member.legal_first_name }} {{ member.legal_last_name }}</td>
             <td>{{ member.cellphone }}</td>
             <td>{{ member.email }}</td>
-            <td></td>
+            <td>
+                {% if app_editable or application.finalized and not application.final_status_hidden %}
+                <form method="post" action="transfer_leadership" class="make-leader">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="member_id" value="{{ member.id }}">
+                    <input type="hidden" name="member_name" value="{{ member.attendee.full_name }}">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        Make {{ c.HOTEL_LOTTERY_GROUP_TERM }} Leader
+                    </button>
+                </form>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+{% include 'hotel_lottery/room_leader_transfer.html' with context %}
 {% endif %}

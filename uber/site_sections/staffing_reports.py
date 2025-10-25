@@ -190,12 +190,12 @@ class Root:
         out.writerow(['Volunteer', 'Departments', 'Hours Worked', 'Hours Taken',
                       'Badge Cost', 'Owed/Refunded/Maybe'])
         for attendee in attendees:
-            if attendee.has_been_refunded or attendee.paid_for_badge:
+            if attendee.weighted_hours >= c.HOURS_FOR_REFUND and (attendee.has_been_refunded or attendee.paid_for_badge):
                 if attendee.has_been_refunded:
                     owed = "Refunded"
                 elif attendee.worked_hours >= c.HOURS_FOR_REFUND:
                     owed = "Owed Refund"
-                elif attendee.weighted_hours >= c.HOURS_FOR_REFUND:
+                else:
                     owed = "Once Shifts Marked"
                 out.writerow([attendee.full_name, ' / '.join(attendee.assigned_depts_labels),
                             attendee.worked_hours, attendee.weighted_hours,

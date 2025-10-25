@@ -9,7 +9,7 @@ from wtforms.widgets import TextInput
 
 from uber.config import c
 from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, BlankOrIntegerField, DateMaskInput)
+                        HiddenBoolField, HiddenIntField, BlankOrIntegerField, DateMaskInput, SelectBooleanField)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
 from uber.models import Attendee, BadgeInfo, Session, PromoCodeGroup
@@ -19,7 +19,7 @@ from uber.utils import get_age_conf_from_birthday
 
 __all__ = ['AdminBadgeExtras', 'AdminBadgeFlags', 'AdminConsents', 'AdminStaffingInfo', 'BadgeExtras',
            'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo',
-           'Consents', 'CheckInForm']
+           'Consents', 'CheckInForm', 'DietaryRestrictions']
 
 
 class PersonalInfo(AddressForm):
@@ -281,3 +281,10 @@ class CheckInForm(MagForm):
     badge_printed_name = PersonalInfo.badge_printed_name
     got_merch = AdminBadgeExtras.got_merch
     got_staff_merch = AdminStaffingInfo.got_staff_merch
+
+
+class DietaryRestrictions(MagForm):
+    has_allergies = SelectBooleanField('Do you have food allergies or restrictions?', default='')
+    standard = SelectMultipleField('Food Restrictions', coerce=int, choices=c.FOOD_RESTRICTION_OPTS, widget=MultiCheckbox())
+    sandwich_pref = SelectMultipleField('Sandwich Preferences', coerce=int, choices=c.SANDWICH_OPTS, widget=MultiCheckbox())
+    freeform = TextAreaField('Other Restrictions')

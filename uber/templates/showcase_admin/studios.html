@@ -6,7 +6,7 @@
 <h2>
   {{ c.EVENT_NAME }} Indies Studios <small><a href="index">Back to Index</a></small>
 </h2>
-<p><a href="../mivs/studio" class="btn btn-primary">Add a Studio</a></p>
+<p><a href="../showcase/apply" class="btn btn-primary">Add a Studio</a></p>
 <table class="table table-hover datatable" data-page-length="-1">
 <thead>
   <tr>
@@ -44,9 +44,9 @@
       {% else %}
         {% for contact in studio.primary_contacts %}
           {% if not loop.first %}
-          {{ studio.primary_contacts[0].full_name }} | 
-          <a href="mailto:{{ studio.primary_contacts[0].email }}">{{ studio.primary_contacts[0].email }}</a>
-          {% if studio.primary_contacts[0].cellphone_num -%} | {{ studio.primary_contacts[0].cellphone_num }}{% endif %}
+          {{ contact.full_name }} | 
+          <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+          {% if contact.cellphone_num -%} | {{ contact.cellphone_num }}{% endif %}
           {% if not loop.last %}<br/>{% endif %}
           {% endif %}
         {% endfor %}

@@ -10,7 +10,7 @@
       $('#disclaimers_modal').scrollTop(0);
 
       $('#disclaimers_modal').on('hidden.bs.modal', function (event) {
-        if(serverValidationPassed != undefined) { serverValidationPassed = false; }
+        if(typeof serverValidationPassed != 'undefined') { serverValidationPassed = false; }
       })
     }
     

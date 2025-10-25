@@ -46,7 +46,7 @@
                 {% endif %}
                 (<a href="checkin?id={{ attraction.slug }}">Check In Attendees</a>)
               </td>
-              <td>{{ attraction.description|linebreaksbr }}</td>
+              <td>{{ attraction.description|sanitize_html|linebreaksbr }}</td>
               <td>
                 {% if attraction.is_public %}
                   <a href="../attractions/{{ attraction.slug }}">Yes</a>

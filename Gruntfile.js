@@ -5,14 +5,16 @@ module.exports = function (grunt) {
             libs: {
                 files: {
                     'uber/static/deps/libs/jquery.js': 'jquery:main',
-                    'uber/static/deps/libs/datepicker.js': 'eonasdan-bootstrap-datetimepicker:main',
                     'uber/static/deps/libs/jquery-scanner.js': 'jQuery-Scanner-Detection:main',
                     'uber/static/deps/libs/moment.js': 'moment:main',
                     'uber/static/deps/libs/jquery-ui.js': 'jquery-ui-dist/jquery-ui.js',
                     'uber/static/deps/libs/jquery-ui.css': 'jquery-ui-dist/jquery-ui.css',
                     'uber/static/deps/libs/geocomplete.js': 'geocomplete:main',
                     'uber/static/deps/libs/jquery.form.js': 'jquery-form/jquery.form.js',
-                    'uber/static/deps/libs/choices.js':'choices.js:main'
+                    'uber/static/deps/libs/choices.js':'choices.js:main',
+                    'uber/static/deps/libs/flatpickr.css':'flatpickr/dist/flatpickr.css',
+                    'uber/static/deps/libs/flatpickr.js':'flatpickr:main',
+                    'uber/static/deps/libs/moment-tz-10yr.js':'moment-timezone/builds/moment-timezone-with-data-10-year-range.js'
                 }
             }
         },

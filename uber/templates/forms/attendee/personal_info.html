@@ -51,7 +51,7 @@
   <div class="col-sm">{{ form_macros.input(personal_info.first_name, alpine_model="first_name", required_if="!unassignedBadge") }}</div>
   <div class="col-sm">{{ form_macros.input(personal_info.last_name, value=attendee_last_name, alpine_model="last_name", required_if="!unassignedBadge") }}</div>
 
-  {% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
+  {% if attendee.legal_name or attendee.is_new or attendee.placeholder or attendee.is_unassigned or admin_area %}
   </div>
   <div class="row g-3 mb-3">
     <div class="col-sm">

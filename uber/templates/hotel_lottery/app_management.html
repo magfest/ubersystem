@@ -1,97 +1,120 @@
+{% set app_editable = not application.locked %}
 <div id="select-action" class="collapse">
-    {% block lottery_info %}
     <p>
-        Welcome {% if application.status == c.COMPLETE %}back {% endif %} to the {{ c.EVENT_NAME }} hotel lottery!
+        Welcome {% if application.status != c.PARTIAL %}back {% endif %} to the {{ c.EVENT_NAME }} hotel lottery!
         {% if c.HOTEL_LOTTERY_FORM_WAITLIST and not (c.STAFF_HOTEL_LOTTERY_OPEN and app_or_parent.qualifies_for_staff_lottery) %}
             The initial deadline for the first round of the lottery {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}was {{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}{% else %}is <strong>{{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}</strong>{% endif %}.
-            {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}Your lottery entry will still be considered when allocating cancelled rooms.{% endif %}
+            {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST and not application.qualifies_for_first_round %}Your lottery entry will still be considered when allocating cancelled rooms.{% endif %}
         </p><p>
         {% endif %}
-        {% if app_editable and application.current_lottery_deadline %}
+        {% if not (application.status == c.PROCESSED or application.finalized or application.current_lottery_closed) and application.current_lottery_deadline %}
         The hotel lottery form will close at <strong>{{ application.current_lottery_deadline|datetime_local }}</strong>.
         {% endif %}
     </p>
 
-    {% if app_editable %}
-    <p>
-        You currently {{ application.application_status_str }}.
+    <p class="h4 mb-3 text-{% if app_or_parent.complete_or_processed %}success{% else %}danger{% endif %}">
+        You are currently {{ application.application_status_str }}.
     </p>
-    {% endif %}
-
-    {% if application.is_staff_entry and application.current_lottery_closed %}
+    {% if application.qualifies_for_first_round and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}
         <p>
-            <strong><span class="text-danger">The staff lottery is now closed.</span></strong>
-            {% if application.status == c.PROCESSED %}
-            You can opt into the attendee lottery using the button below. You'll be able to edit your lottery entry after opting in.
-            {% else %}
-            You can view your entry details below. You will be able to opt into the attendee lottery after staff rooms are awarded.
+            Your{% if application.parent_application %} {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% endif %} lottery entry is being considered in the first round of the lottery{% if not application.parent_application %}, so your entry details{% if application.room_group_name %} and {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}{% endif %} are locked{% endif %}.
+            You should receive an email in the next few days letting you know whether you were awarded a room{% if app_or_parent.entry_type == c.SUITE_ENTRY %} or suite{% endif %}.
+        </p>
+    {% elif application.current_lottery_closed %}
+        {% block lottery_closed_info %}
+        {% if application.is_staff_entry %}
+            <p>
+                <strong><span class="text-danger">The staff lottery is now closed.</span></strong>
+                {% if not c.HOTEL_LOTTERY_ROOM_INVENTORY %}
+                    {% if application.status == c.PROCESSED %}
+                    You can opt into the attendee lottery using the button below. You'll be able to edit your lottery entry after opting in.
+                    {% else %}
+                    You can view your entry details below. You will be able to opt into the attendee lottery after staff rooms are awarded.
+                    {% endif %}
+                {% endif %}
+            </p>
+            {% if application.status == c.PROCESSED and not c.HOTEL_LOTTERY_ROOM_INVENTORY %}
+                {% include 'hotel_lottery/staff_attendee_lottery_info.html' with context %}
+                <p>
+                    <form method="post" action="enter_attendee_lottery">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="id" value="{{ application.id }}" />
+                        <button type="submit" class="btn btn-primary">Enter Attendee Lottery</button>
+                    </form>
+                </p>
+            {% endif %}
+        {% else %}
+        <p>
+            <strong><span class="text-danger">The hotel lottery is now closed.</span></strong>
+            {% if application.complete_or_processed %}
+            You can view your entry details below.
             {% endif %}
         </p>
-        {% if application.status == c.PROCESSED %}
-            {% include 'hotel_lottery/staff_attendee_lottery_info.html' with context %}
-            <p>
-                <form method="post" action="enter_attendee_lottery">
-                    {{ csrf_token() }}
-                    <input type="hidden" name="id" value="{{ application.id }}" />
-                    <button type="submit" class="btn btn-primary">Enter Attendee Lottery</button>
-                </form>
-            </p>
         {% endif %}
-    {% endif %}
-    {% if not application.is_staff_entry and application.current_lottery_closed %}
-    <p>
-        <strong><span class="text-danger">The hotel lottery is now closed.</span></strong>
-        {% if application.status in [c.COMPLETE, c.PROCESSED] %}
-        You can view your entry details below.
-        {% endif %}
-    </p>
-    {% endif %}
-    {% endblock %}
-
-    {% block additional_lottery_info %}{% endblock %}
-
-    <div class="row g-1 mb-3">
-        <div class="col col-auto">
-            <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
-        </div>
-        {% if c.SHOW_HOTEL_LOTTERY_GROUPS and not application.parent_application and app_editable and not application.room_group_name %}
-            <div class="col col-auto">
-            <a class="btn btn-primary" href="room_group?id={{ application.id }}">
-                Join {% if application.status == c.COMPLETE %}or Create {% endif %}{{ c.HOTEL_LOTTERY_GROUP_TERM }}
-            </a>
-            </div>
-            {% if not application.entry_type %}
-            <div class="col col-auto">
-                <a class="btn btn-secondary" href="room_lottery?id={{ application.id }}">
-                    Enter Room Lottery
-                </a>
-            </div>
-            <div class="col col-auto">
-                <a class="btn btn-success" href="suite_lottery?id={{ application.id }}">
-                    Enter Suite Lottery
-                </a>
-            </div>
+        {% endblock %}
+    {% elif application.locked %}
+        <p>You can view your entry details below.</p>
+    {% else %}
+        <p>
+        {% if not application.parent_application %}
+            {% if not app_or_parent.complete_or_processed %}
+                {% if not application.entry_type %}
+                Please select an option below to enter the lottery.
+                {% else %}
+                You must complete your entry below to be entered in the lottery.
+                {% endif %}
+            {% else %}You can view and update your entry details below.{% endif %}
+        {% else %}
+            {% if not app_or_parent.complete_or_processed %}
+            Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader must review and complete their lottery entry for your group to be entered in the lottery.
+            {% else %}You can view your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s entry and update your contact information below.
             {% endif %}
         {% endif %}
-        {% if application.status == c.COMPLETE and application.entry_type != c.GROUP_ENTRY and (app_editable or application.finalized) %}
-        <div class="col col-auto">
-        <form id="withdraw-lottery" method="post" action="withdraw_entry">
-            <input type="hidden" name="id" value="{{ application.id }}">
-            <button type="submit" class="btn btn-danger">Withdraw From Hotel Lottery</button>
-        </form>
+        </p>
+
+        {% block additional_lottery_info %}{% endblock %}
+
+        {% if app_editable and application.status == c.PARTIAL %}
+        <div class="row g-1 mb-3">
+            {% if not application.entry_type %}
+                <div class="col col-auto">
+                    <a class="btn btn-secondary" href="room_lottery?id={{ application.id }}">
+                        Enter Room Lottery
+                    </a>
+                </div>
+                <div class="col col-auto">
+                    <a class="btn btn-success" href="suite_lottery?id={{ application.id }}">
+                        Enter Suite Lottery
+                    </a>
+                </div>
+                {% else %}
+                <div class="col col-auto">
+                <a class="btn btn-success" href="{{ 'suite' if application.entry_type == c.SUITE_ENTRY else 'room' }}_lottery?id={{ application.id }}">
+                    Complete {{ application.entry_type_label }} Lottery Entry
+                </a>
+                </div>
+            {% endif %}
+            <div class="col col-auto">
+            <a class="btn btn-primary" href="room_group?id={{ application.id }}">
+                Join {{ c.HOTEL_LOTTERY_GROUP_TERM }}
+            </a>
+            </div>
+            {% if application.entry_type in [c.ROOM_ENTRY, c.SUITE_ENTRY] %}
+            <div class="col col-auto">
+                <form method="post" action="switch_entry_type" id="switch-type">
+                    <input type="hidden" name="id" value="{{ application.id }}">
+                    {{ csrf_token() }}
+                    <button class="btn btn-info">Change to {{ 'Room' if application.entry_type == c.SUITE_ENTRY else 'Suite' }} Entry</button>
+                </form>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
-    </div>
-    {% if c.SHOW_HOTEL_LOTTERY_GROUPS and application.status != c.COMPLETE and not application.parent_application and app_editable %}
-    <p>
-        You are currently not eligible to create a group.
-        {% if application.entry_type in [c.ROOM_ENTRY, c.SUITE_ENTRY] %}Complete your lottery application below first.
-        {% else %}Use the buttons above to create a room or suite lottery entry first.{% endif %}
-    </p>
     {% endif %}
-    {% if (application.parent_application or application.entry_type) and app_editable %}
     <hr/>
 
+    {% if app_or_parent.complete_or_processed %}
+    <h2>Hotel Contact Information</h2>
     {% import 'forms/macros.html' as form_macros with context %}
     {{ form_macros.form_validation('contact-info-form', 'validate_hotel_lottery', form_list=['LotteryInfo']) }}
     <form novalidate method="post" id="contact-info-form" action="update_contact_info">
@@ -102,67 +125,35 @@
         {% include 'forms/hotel/contact_info.html' with context %}
         {% if app_editable %}<button type="submit" class="btn btn-primary mb-3">Update Contact Info</button>{% endif %}
     </form>
-    {% endif %}
 
+    {% if c.SHOW_HOTEL_LOTTERY_GROUPS %}
     {% set read_only = True %}
-    {% if application.parent_application or application.room_group_name %}
     <h2>Your {{ c.HOTEL_LOTTERY_GROUP_TERM }}</h2>
     <p>You {{ application.group_status_str }}.</p>
-    {% if not application.parent_application %}
-    {% include 'hotel_lottery/room_group_members.html' with context %}
-    {% endif %}
-    <div class="row g-1 row-cols-auto">
-        <div class="col col-auto mb-4">
-            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View {{ c.HOTEL_LOTTERY_GROUP_TERM }} Policies</button>
-        </div>
-    {% if application.room_group_name and app_editable %}
+    {% if application.parent_application or application.room_group_name %}
+        {% if not application.parent_application %}
+        {% include 'hotel_lottery/room_group_members.html' with context %}
+        {% endif %}
+        <div class="row g-1 row-cols-auto">
+            <div class="col col-auto mb-4">
+                <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#room-group-terms">View {{ c.HOTEL_LOTTERY_GROUP_TERM }} Policies</button>
+            </div>
+        {% if application.room_group_name and app_editable %}
         <div class="col col-auto"><a class="btn btn-primary" href="room_group?id={{ application.id }}">Manage {{ c.HOTEL_LOTTERY_GROUP_TERM }}</a></div>
-    {% elif app_editable or application.finalized %}
-        <div class="col col-auto">
-        <form method="post" action="leave_group" id="leave-group">
-            <input type="hidden" name="id" value="{{ application.id }}">
-            {{ csrf_token() }}
-            {% if application.guarantee_policy_accepted %}
-            <button class="btn btn-warning">Leave Group</button>
-            {% else %}
-            <button class="btn btn-danger">Withdraw From Hotel Lottery</button>
-            {% endif %}
-        </form>
+        {% endif %}
         </div>
+    {% elif app_editable %}
+    <a class="btn btn-primary mb-3" href="room_group?id={{ application.id }}">
+        Join {% if application.status == c.COMPLETE %}or Create {% endif %}{{ c.HOTEL_LOTTERY_GROUP_TERM }}
+    </a>
     {% endif %}
-    </div>
     {% endif %}
 
     {% if app_or_parent.entry_type in [c.ROOM_ENTRY, c.SUITE_ENTRY] %}
         {% if application.parent_application %}
         <h2>Your Group's {{ app_or_parent.entry_type_label }} Lottery Application</h2>
         <div class="h5 text-muted mb-3">Confirmation # {{ app_or_parent.confirmation_num }}</div>
-        {% elif application.status != c.COMPLETE and application.status not in c.HOTEL_LOTTERY_AWARD_STATUSES and app_editable %}
-        <h2 class="text-danger">Incomplete Lottery Application</h2>
-        <p>
-            You have an <span class="text-danger">incomplete</span> {{ application.entry_type_label|lower }} application.
-            You are <strong>NOT</strong> entered into the {{ application.entry_type_label|lower }} lottery until you complete your application.
-        </p>
-        <div class="row g-1">
-            <div class="col col-auto">
-            <a class="btn btn-primary" href="{{ 'suite' if application.entry_type == c.SUITE_ENTRY else 'room' }}_lottery?id={{ application.id }}">Complete {{ application.entry_type_label }} Lottery Entry</a>
-            </div>
-            <div class="col col-auto">
-                <form method="post" action="switch_entry_type" id="switch-type">
-                    <input type="hidden" name="id" value="{{ application.id }}">
-                    {{ csrf_token() }}
-                    <button class="btn btn-info">Change to {{ 'Room' if application.entry_type == c.SUITE_ENTRY else 'Suite' }} Entry</button>
-                </form>
-            </div>
-            <div class="col col-auto">
-                <form id="withdraw-lottery" method="post" action="withdraw_entry">
-                    <input type="hidden" name="id" value="{{ application.id }}">
-                    <button type="submit" class="btn btn-danger">Withdraw From Hotel Lottery</button>
-                </form>
-            </div>
-        </div>
-        {% endif %}
-        {% if not application.parent_application and application.status == c.COMPLETE %}
+        {% else %}
         <h2 class="d-flex gap-2">
             <div>Your {{ application.entry_type_label }} Lottery Application</div>
             {% if app_editable %}
@@ -178,9 +169,7 @@
         </h2>
         <div class="h5 text-muted">Confirmation # {{ application.confirmation_num }}</div>
         {% endif %}
-    {% endif %}
 
-    {% if app_or_parent.status == c.COMPLETE %}
         {% set read_only = True %}
         {% include "forms/hotel/lottery_entry_readonly.html" with context %}
         {% if not application.parent_application %}
@@ -188,7 +177,29 @@
         {% include 'hotel_lottery/guarantee_info.html' %}
         {% endif %}
     {% endif %}
-    
+    {% endif %}
+
+    <div class="d-flex gap-1 justify-content-between">
+    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
+    <div>
+        {% if application.entry_type == c.GROUP_ENTRY and app_editable %}
+        <form method="post" action="leave_group" id="leave-group">
+            <input type="hidden" name="id" value="{{ application.id }}">
+            {{ csrf_token() }}
+            {% if application.guarantee_policy_accepted %}
+            <button class="btn btn-warning">Leave Group</button>
+            {% else %}
+            <button class="btn btn-danger">Withdraw From Hotel Lottery</button>
+            {% endif %}
+        </form>
+        {% elif app_editable or (application.finalized and application.entry_type == c.GROUP_ENTRY and not application.current_lottery_closed) %}
+        <form id="withdraw-lottery" method="post" action="withdraw_entry">
+            <input type="hidden" name="id" value="{{ application.id }}">
+            <button type="submit" class="btn btn-danger">Withdraw From Hotel Lottery</button>
+        </form>
+        {% endif %}
+    </div>
+    </div>
 </div>
 <div id="confirm" class="collapse">
     <h2>{{ confirm.title() }} Lottery Entry {{ action.title() }}</h2>
@@ -215,7 +226,7 @@
     {% include "forms/hotel/lottery_entry_readonly.html" with context %}
     <p>We have sent a copy of this information to your entry email address.</p>
     <p>
-        {% if c.SHOW_HOTEL_LOTTERY_GROUPS and (action == 'confirmation' or action == 're-entered') %}
+        {% if c.SHOW_HOTEL_LOTTERY_GROUPS and (action == 'confirmation' or action == 're-entered') and not application.room_group_name %}
         <a class="btn btn-primary" href="room_group?id={{ application.id }}">Create {{ c.HOTEL_LOTTERY_GROUP_TERM }}</a>
         <button type="button" class="btn btn-outline-secondary" onClick="setStep('#select-action')">Back to Options</button>
         {% else %}

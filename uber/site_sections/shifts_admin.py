@@ -2,11 +2,11 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import cherrypy
-from sqlalchemy import select
+from sqlalchemy import select, func, literal
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, \
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, \
     check_can_edit_dept, requires_shifts_admin
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, Job
@@ -57,12 +57,17 @@ class Root:
     def index(self, session, department_id=None, message='', time=None):
         redirect_to_allowed_dept(session, department_id, 'index')
 
+        def date_trunc_day(dt):
+            dt_correct_time = func.timezone(c.EVENT_TIMEZONE.zone, func.timezone('UTC', dt))
+            return func.date_trunc(literal('day'), dt_correct_time)
+
         if department_id == 'None':
             department_id = ''
         elif department_id == 'All':
             department_id = None
 
         jobs = []
+        dept_shifts_days = []
 
         initial_date = max(datetime.now(c.EVENT_TIMEZONE), c.SHIFTS_START_DAY)
         if time:
@@ -72,11 +77,14 @@ class Root:
         by_start = defaultdict(list)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
 
-        if department_id != '':
+        if department_id != '' and department_id is not None:
             jobs = session.jobs(department_id).all()
             for job in jobs:
                 if job.type == c.REGULAR:
                     by_start[job.start_time_local].append(job)
+            dept_shifts_days = session.query(date_trunc_day(Job.start_time)).filter(
+                Job.department_id == department.id
+                ).group_by(date_trunc_day(Job.start_time)).order_by(date_trunc_day(Job.start_time)).all()
 
         try:
             checklist = session.checklist_status('creating_shifts', department_id)
@@ -94,6 +102,7 @@ class Root:
             'jobs': jobs,
             'message': message,
             'initial_date': initial_date,
+            'dept_shifts_days': dept_shifts_days,
         }
 
     @department_id_adapter
@@ -414,17 +423,14 @@ class Root:
         try:
             shift = session.shift(id)
             shift.worked = int(status)
+            if shift.worked == c.SHIFT_UNMARKED:
+                shift.rating = c.UNRATED
+                shift.comment = ''
             session.commit()
         except Exception:
             return {'error': 'Unexpected error setting status'}
         else:
             return job_dict(session.job(shift.job_id))
-
-    @ajax
-    def undo_worked(self, session, id):
-        shift = session.shift(id)
-        shift.worked = c.SHIFT_UNMARKED
-        raise HTTPRedirect(cherrypy.request.headers['Referer'])
 
     @ajax
     def rate(self, session, shift_id, rating, comment=''):
@@ -448,3 +454,22 @@ class Root:
         return {
             'depts': [(d.name, d.jobs) for d in departments]
         }
+
+    @csv_file
+    def shift_schedule_csv(self, out, session, department_id, day='all', **params):
+        filters = []
+
+        if day != 'all':
+            date = datetime.combine(datetime.strptime(day, '%Y-%m-%d'), datetime.min.time()).replace(tzinfo=c.EVENT_TIMEZONE)
+            filters.extend([Job.start_time >= date, Job.start_time < date + timedelta(days=1)])
+        
+        jobs = session.query(Job).filter(Job.department_id == department_id).filter(*filters).order_by(Job.start_time).order_by(Job.name)
+
+        out.writerow(["Name", "Description", "Start Time", "Duration", "Extra 15?", "Slots", "Weight", "Roles"])
+        
+        for job in jobs:
+            duration_str = f"{job.duration // 60} hours"
+            if job.duration % 60:
+                duration_str += f" {job.duration % 60} minutes"
+            out.writerow([job.name, job.description, job.start_time_local.strftime('%Y-%m-%d %-I:%M %p'),
+                          duration_str, job.extra15, job.slots, job.weight, job.required_roles_labels])

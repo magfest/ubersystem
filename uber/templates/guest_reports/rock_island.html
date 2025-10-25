@@ -47,6 +47,14 @@
     <div class="form-text">Delivery Method</div>
     <div>{{ guest_merch.delivery_method_label }}</div>
   </div>
+  {% if guest_merch.checkin_time %}
+  <div class="col header-group arrival-info">
+    <div class="form-text">Arrival Plans</div>
+    <div>Check-in: {{ guest_merch.checkin_time_label }}</div>
+    <div>Check-out: {{ guest_merch.checkout_time_label }}</div>
+    <div>Details: {{ guest_merch.arrival_plans }}</div>
+  </div>
+  {% endif %}
   <div class="col header-group payout-method">
     <div class="form-text">Preferred Payout Method</div>
     <div>{{ guest_merch.payout_method_label }}</div>

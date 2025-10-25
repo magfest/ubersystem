@@ -7,7 +7,7 @@
     {{ app.attendee.full_name }},<br/>
     Your entry into the {{ c.EVENT_NAME }} {% if staff_lottery %}staff {% endif %}hotel lottery is not complete!
     {% if c.HOTEL_LOTTERY_FORM_WAITLIST and not (c.STAFF_HOTEL_LOTTERY_OPEN and app_or_parent.qualifies_for_staff_lottery) %}
-    The first run for the lottery is in {{ ((c.HOTEL_LOTTERY_FORM_WAITLIST - now_localized()).total_seconds() // 86400)|int }} days, on {{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}.
+    The deadline for entering the first run of the lottery is in {{ ((c.HOTEL_LOTTERY_FORM_WAITLIST - now_localized()).total_seconds() // 86400)|int }} days, on {{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}.
     {% else %}
     The lottery closes in {{ ((app.current_lottery_deadline - now_localized()).total_seconds() // 86400)|int }} days, on {{ app.current_lottery_deadline|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}.
     {% endif %}
@@ -15,6 +15,9 @@
 <p>
     You can complete your entry or withdraw from the lottery by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging into{% else %}visiting{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.
     If you do not do either, your entry will be tagged in our system as incomplete and ignored when the {% if staff_lottery %}staff {% endif %}hotel lottery is run and you will not be eligible for any room award.
+</p>
+<p>
+    If you are experiencing any issues with your lottery entry, please email us ASAP at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} so we can help you before the deadline!
 </p>
 </body>
 </html>

@@ -118,7 +118,7 @@
         name="start_time"
         type="text"
         class="form-control"
-        value="{{ job.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if job.start_time else '' }}">
+        value="">
         <span class="input-group-text">
           <i class="fa fa-calendar"></i>
         </span>
@@ -140,13 +140,49 @@
   {% endif %}
 
   <script type="text/javascript">
-    $('#start-time').datetimepicker({
-      sideBySide: true,
-      useCurrent: false,
-      defaultDate: '{{ min_date.isoformat()[:-6] }}',
-      minDate: '{{ min_date.isoformat()[:-6] }}',
-      maxDate: '{{ max_date.isoformat()[:-6] }}',
-      format: 'M/D/Y h:mm A'
+      //pyzt uses the olson aka IANA timezone names which JS libraries also talk IANA
+      const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+
+      let startFlatpickr = flatpickr('#start-time',{
+        allowInput: true,
+        enableTime: true,
+        altInput: true,
+        altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
+        disableMobile: true, //Do not let mobile native datepicker take over.
+        dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+        defaultDate: '{{ job.start_time.astimezone(c.EVENT_TIMEZONE).isoformat() if job.start_time else min_date.isoformat()}}',
+        minDate: '{{ min_date.isoformat() }}',
+        maxDate: '{{ max_date.isoformat() }}',
+        parseDate(dateString, format) {
+            //Flatpickr uses JS native Dates. These are always in local time zone for the client or UTC under the hood.
+            //We need times shown as if they are in the c.EVENT_TIMEZONE.
+            //See: https://github.com/flatpickr/flatpickr/issues/930
+            //Parse the date in the event's timezone
+            //Parses on the way into the internals.
+            let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+            //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+            return new Date(
+                eventTimezonedDate.year(),
+                eventTimezonedDate.month(),
+                eventTimezonedDate.date(),
+                eventTimezonedDate.hour(),
+                eventTimezonedDate.minute(),
+                eventTimezonedDate.second()
+            );
+        },
+        formatDate(date, format) {
+            //Format on the way *out* from the internal storage.
+             let formatted =  moment.tz([
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate(),
+                date.getHours(),
+                date.getMinutes(),
+                date.getSeconds()
+            ], eventTimeZone).format(format);
+            return formatted;
+        }
     });
   </script>
   <div class="form-group">

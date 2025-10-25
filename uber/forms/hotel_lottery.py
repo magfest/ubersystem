@@ -109,6 +109,8 @@ class LotteryAdminInfo(SuiteLottery):
     current_step = IntegerField('Current Step')
     confirmation_num = StringField('Confirmation Number', render_kw={'readonly': "true"})
     can_edit = BooleanField(f'Make this application editable even after its lottery is closed.')
+    final_status_hidden = BooleanField(f"This application's final award status is hidden.")
+    booking_url_hidden = BooleanField(f"This application's booking URL is hidden.")
     is_staff_entry = BooleanField(f'This application is entered into the staff lottery.')
     legal_first_name = LotteryInfo.legal_first_name
     legal_last_name = LotteryInfo.legal_last_name
@@ -127,3 +129,4 @@ class LotteryAdminInfo(SuiteLottery):
     assigned_suite_type = SelectField('Assigned Suite Room Type', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS])
     assigned_check_in_date = DateField('Assigned Check-In Date')
     assigned_check_out_date = DateField('Assigned Check-Out Date')
+    booking_url = StringField('Booking URL')

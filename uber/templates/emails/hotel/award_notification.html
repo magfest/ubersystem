@@ -17,10 +17,18 @@
     You can <a href="{{ c.URL_BASE }}/hotel_lottery/confirm?id={{ app.id }}" target="_blank">confirm your reservation here</a>.
     The credit card you provide will have a refundable one-night deposit charged to it within a week.
     Alternatively, you can <a href="{{ c.URL_BASE }}/hotel_lottery/decline?id={{ app.id }}" target="_blank">decline the reservation here</a>.
-    This will also cancel your{% if app.group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members' lottery entries{% else %} lottery entry{% endif %}.
+    This will also cancel your{% if app.valid_group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members' lottery entries{% else %} lottery entry{% endif %}.
+</p>
+<p>
+    <strong>If you experience any issues while confirming your reservation</strong>, please contact us at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} as soon as possible so we can help resolve them before the deadline.
 </p>
 {% else %}
 You will receive an email when your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s reservation has been confirmed.
+</p>
+{% endif %}
+{% if app.is_staff_entry and c.HOURS_FOR_HOTEL_SPACE %}
+<p>
+    If you confirm this room award, you will need to work {{ c.HOURS_FOR_HOTEL_SPACE }} hours of weighted shifts for {{ c.EVENT_NAME_AND_YEAR }} to maintain this perk. If you utilize this perk and do not work the required number of hours, you will lose access to this perk in the future, and may lose the ability to staff in future years.
 </p>
 {% endif %}
 <ul>
@@ -30,7 +38,7 @@ You will receive an email when your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s res
     {% if not app.parent_application and app.wants_ada %}<li><strong>Requested Accommodations</strong>: {{ app.ada_requests }}</li>{% endif %}
     {% if not app.parent_application %}
         <li><em>Primary Guest</em>: {{ app.legal_first_name }} {{ app.legal_last_name }}</li>
-        {% if app.group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
+        {% if app.valid_group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
     {% endif %}
 </ul>
 </body>

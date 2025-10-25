@@ -14,54 +14,112 @@
 
     {% include 'showcase/deadlines.html' %}
 
-    <h3>Team Members</h3>
-    {% if c.MIVS_START %}
-    <p>If accepted to MIVS, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complimentary badges and a 10'x10' booth space.</p>
-    {% endif %}
-    {% if c.INDIE_ARCADE_START %}
-    <p>If accepted to Indie Arcade, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complimentary badges and the floor space as indicated on your submission form.</p>
-    {% endif %}
-    <p>Additional team members must purchase their badges. Transfer of badges between team members is prohibited.</p>
-    <div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone #</th>
-            <th>Gets Emails</th>
-            <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for dev in studio.developers %}
-            <tr>
-            <td>{{ dev.full_name }}</td>
-            <td>{{ dev.email }}</td>
-            <td>{{ dev.cellphone }}</td>
-            <td>{{ dev.gets_emails|yesno|title }}</td>
-            <td>
-                <div class="d-flex gap-1">
-                <a href="developer?id={{ dev.id }}" class="btn btn-sm btn-primary"><i class="fa fa-pencil"></i></a>
-                <form method="post" action="delete_developer">
-                    {{ csrf_token() }}
-                    <input type="hidden" name="id" value="{{ dev.id }}" />
-                    <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
-                </form>
-                </div>
-            </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        <tfoot>
-            <tr><td colspan="5" class="text-end">
-                <a href="developer?studio_id={{ studio.id }}" class="btn btn-sm btn-success">Add a Presenter</a>
-            </td></tr>
-        </tfoot>
-    </table>
-    </div>
+    {% if studio.group %}
+        <h3>Your Badges</h3>
 
-    <h3>Registered Games</h3>
+        <p>
+            You have been accepted into the showcase and confirmed that you are coming.  You may manage the badges in your
+            <a href="../preregistration/group_members?id={{ studio.group_id }}">group management page</a>.
+            {% if False %}Please remember to fill out show info for each game below.{% endif %}
+        </p>
+    {% elif studio.comped_badges and (not studio.after_confirm_deadline or c.HAS_SHOWCASE_ADMIN_ACCESS) %}
+        <h3>Accept or Decline</h3>
+
+        <p>
+            You have been accepted into the showcase, but we need you to confirm by {{ studio.confirm_deadline|datetime_local }} that you
+            are still interested and able to attend, which you may do by <a href="confirm?id={{ studio.id }}">clicking here</a>.
+        </p>
+    {% else %}
+        <h3>Team Members</h3>
+        {% if c.MIVS_START %}
+        <p>If accepted to MIVS, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complimentary badges and a 10'x10' booth space.</p>
+        {% endif %}
+        {% if c.INDIE_ARCADE_START %}
+        <p>If accepted to Indie Arcade, you will receive {{ c.MIVS_INDIE_BADGE_COMPS }} complimentary badges and the floor space as indicated on your submission form.</p>
+        {% endif %}
+        <p>Additional team members must purchase their badges. Transfer of badges between team members is prohibited.</p>
+        <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone #</th>
+                <th>Gets Emails</th>
+                <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dev in studio.developers %}
+                <tr>
+                <td>{{ dev.full_name }}</td>
+                <td>{{ dev.email }}</td>
+                <td>{{ dev.cellphone }}</td>
+                <td>{{ dev.gets_emails|yesno|title }}</td>
+                <td>
+                    <div class="d-flex gap-1">
+                    <a href="developer?id={{ dev.id }}" class="btn btn-sm btn-primary"><i class="fa fa-pencil"></i></a>
+                    <form method="post" action="delete_developer">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="id" value="{{ dev.id }}" />
+                        <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
+                    </form>
+                    </div>
+                </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr><td colspan="5" class="text-end">
+                    <a href="developer?studio_id={{ studio.id }}" class="btn btn-sm btn-success">Add a Presenter</a>
+                </td></tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endif %}
+
+    {% macro finalized_games_table(games, show_info=False) %}
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                <th>Showcase</th>
+                <th>Title</th>
+                {% if not show_info %}<th>Status</th>{% endif %}
+                {% if show_info and False %}<th></th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for game in games %}
+                <tr>
+                    <td>{{ game.showcase_type_label }}</td>
+                    <td>{{ game.title }}</td>
+                    {% if not show_info %}<td>{{ game.status_label }}</td>{% endif %}
+                    {% if show_info and False %}
+                    <td>
+                        {% if not game.link_to_promo_video %}
+                        <a class="btn btn-warning" href="show_info?id={{ game.id }}">Add Show Info</a>
+                        {% else %}
+                        <a class="btn btn-primary" href="show_info?id={{ game.id }}">Update Show Info</a>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endmacro %}
+
+    {% if studio.group or studio.comped_badges %}
+        <h3>Accepted Games</h3>
+        {{ finalized_games_table(studio.confirmed_games, show_info=True) }}
+        {% if studio.unconfirmed_games %}
+        <h3>Submitted Games</h3>
+        {{ finalized_games_table(studio.unconfirmed_games, show_info=False) }}
+        {% endif %}
+    {% else %}
+        <h3>Registered Games</h3>
         {% if not studio.games and c.INDIE_SHOWCASE_OPEN %}
         <p>You have not registered any games yet. Use one of the buttons below to get started.</p>
         {% endif %}
@@ -348,7 +406,7 @@
             </div>
         </div>
         {% endif %}
-    <p>
+        <p>
         {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
         <a href="../mivs/game?studio_id={{ studio.id }}" class="btn btn-primary">Add MIVS Game</a>
         {% endif %}
@@ -360,6 +418,7 @@
         {% endif %}
         {% include 'showcase/showcase_types.html' %}
         <a href="#" data-bs-toggle="modal" data-bs-target="#showcase-types"><i class="fa fa-question-circle" aria-hidden="true"></i> What type of game should I submit?</a>
-    </p>
+        </p>
+    {% endif %}
 </div>
 {% endblock %}

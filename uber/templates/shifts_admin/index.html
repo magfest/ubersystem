@@ -51,6 +51,26 @@ Please select a department above to view its shifts.
 {% endif %}
 </div>
 
+<form method="post" action="shift_schedule_csv" class="d-flex gap-3 mb-3 justify-content-end">
+    <div>
+        {{ csrf_token() }}
+        <input type="hidden" name="department_id" value="{{ department.id }}" />
+        <div class="form-text">
+        <label for="day">Day</label>
+        </div>
+        <select class="form-select" id="day" name="day">
+        <option selected="true" value="all">All Days</option>
+        {% for (day,) in dept_shifts_days %}
+        <option value="{{ day.strftime('%Y-%m-%d') }}">{{ day.strftime('%A %-m/%-d') }}</option>
+        {% endfor %}
+        </select>
+    </div>
+    <div>
+        <div class="form-text">&nbsp;</div>
+        <button type="submit" formaction="shift_schedule_csv" class="btn btn-primary">Download Shift Schedule</button>
+    </div>
+</form>
+
 <div class="row text-center button_row">
     <div class="col-md-4">
         <h3>Setup Shifts ({{ setup|length }})</h3>

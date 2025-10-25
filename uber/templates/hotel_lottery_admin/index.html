@@ -36,7 +36,13 @@
     | {{ suite_count }} requested suite{{ suite_count|pluralize }}
   </div>
   {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
+  <div class="text-end">
   <a href="hotel_inventory">View Room/Suite Inventory</a>
+  &nbsp;
+  <a href="hotel_inventory_zip"><i class="fa fa-download"></i> Assigned Rooms by Date</a>
+  &nbsp;
+  <a href="assigned_entries"><i class="fa fa-download"></i> Passkey Export</a>
+  </div>
   {% else %}
   <div>
     Download <a href="interchange_export"><i class="fa fa-download"></i> Interchange CSV</a>
@@ -45,38 +51,46 @@
   {% endif %}
 </div>
 {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
-<form method="post" action="run_lottery" class="d-flex gap-3 mb-3 justify-content-end">
-  <div>
-    <div class="form-text">
-      <label for="lottery_group">Lottery Cutoff</label>
-      <input type="datetime-local" class="form-control" name="cutoff" id="cutoff" placeholder="N/A" />
-    </div>
-  </div>
-  <div>
-    {{ csrf_token() }}
-    <div class="form-text">
-      <label for="lottery_group">Lottery Group</label>
-    </div>
-    <select class="form-select" id="lottery_group" name="lottery_group">
-      <option selected="true" value="attendee">Attendee</option>
-      <option value="staff">Staff</option>
-      <option value="both">Both</option>
-    </select>
-  </div>
-  <div>
-    <div class="form-text">
-      <label for="lottery_type">Lottery Type</label>
-    </div>
-    <select class="form-select" id="lottery_type" name="lottery_type">
-      <option selected="true" value="room">Room</option>
-      <option value="suite">Suite</option>
-    </select>
-  </div>
+<form method="post" action="run_lottery" class="d-flex gap-3 mb-3 justify-content-between">
   <div>
     <div class="form-text">&nbsp;</div>
-    <button type="submit" formaction="run_lottery" class="btn btn-primary">Run Lottery</button>
-    <button type="submit" formaction="reset_lottery" class="btn btn-danger">Reset Lottery</button>
-    <button type="submit" formaction="award_lottery" class="btn btn-warning">Award Winners</button>
+    <button type="submit" formaction="show_awards" class="btn btn-success">Show Awards</button>
+    <button type="submit" formaction="publish_booking_links" class="btn btn-primary">Publish Booking URLs</button>
+    <button type="submit" formaction="close_waitlist" class="btn btn-danger">Close First Round</button>
+  </div>
+  <div class="d-flex gap-3 justify-content-end">
+    <div>
+      <div class="form-text">
+        <label for="lottery_group">Lottery Cutoff</label>
+        <input type="datetime-local" class="form-control" name="cutoff" id="cutoff" placeholder="N/A" />
+      </div>
+    </div>
+    <div>
+      {{ csrf_token() }}
+      <div class="form-text">
+        <label for="lottery_group">Lottery Group</label>
+      </div>
+      <select class="form-select" id="lottery_group" name="lottery_group">
+        <option selected="true" value="attendee">Attendee</option>
+        <option value="staff">Staff</option>
+        <option value="both">Both</option>
+      </select>
+    </div>
+    <div>
+      <div class="form-text">
+        <label for="lottery_type">Lottery Type</label>
+      </div>
+      <select class="form-select" id="lottery_type" name="lottery_type">
+        <option selected="true" value="room">Room</option>
+        <option value="suite">Suite</option>
+      </select>
+    </div>
+    <div>
+      <div class="form-text">&nbsp;</div>
+      <button type="submit" formaction="run_lottery" class="btn btn-primary">Run Lottery</button>
+      <button type="submit" formaction="reset_lottery" class="btn btn-danger">Reset Lottery</button>
+      <button type="submit" formaction="award_lottery" class="btn btn-warning">Award Winners</button>
+    </div>
   </div>
 </form>
 {% else %}
@@ -162,7 +176,7 @@
                 <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
                 <td>{{ app.room_group_name }}</td>
                 <td>{{ app.attendee|form_link if app.attendee else 'Dissociated/No Attendee' }}</td>
-                <td>{{ app.group_members|length if app.room_group_name else "" }}</td>
+                <td>{{ app.valid_group_members|length if app.room_group_name else "" }}</td>
                 <td>{{ app.admin_notes }}</td>
                 <td>{{ app.is_staff_entry|yesno("Yes,No") }}</td>
                 {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}

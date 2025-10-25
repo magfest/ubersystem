@@ -29,7 +29,7 @@
                             return this.games.filter((game) => game.checked_out);
                         }
                         if (this.availableOnly) {
-                            return this.games.filter((game) => !game.checked_out);
+                            return this.games.filter((game) => !game.checked_out && !game.returned);
                         }
                         return this.games;
                     }

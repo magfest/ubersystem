@@ -1,25 +1,25 @@
-{% if application.group_members %}
+{% if application.valid_group_members %}
     Here are the members of your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}:
     <table class="table table-sm table-borderless">
         <tbody>
-        {% for member in application.group_members %}
+        {% for member in application.valid_group_members %}
         <tr>
             <td class="text-nowrap w-25">{{ member.attendee.full_name }}</td>
             <td>
                 <div class="d-flex gap-2">
-                <form method="post" action="remove_group_member" id="remove-member">
+                <form method="post" action="remove_group_member" class="remove-member">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <input type="hidden" name="member_id" value="{{ member.id }}">
                     <input type="hidden" name="member_name" value="{{ member.attendee.full_name }}">
-                    {% if c.HOTEL_LOTTERY_OPEN %}
+                    {% if app_editable %}
                     <button type="submit" class="btn btn-sm btn-danger">
                         Remove
                     </button>
                     {% endif %}
                 </form>
-                {% if False %}
-                <form method="post" action="transfer_leadership" id="make-leader">
+                {% if app_editable or application.finalized and not application.final_status_hidden %}
+                <form method="post" action="transfer_leadership" class="make-leader">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <input type="hidden" name="member_id" value="{{ member.id }}">
@@ -35,6 +35,7 @@
         {% endfor %}
         </tbody>
     </table>
+{% include 'hotel_lottery/room_leader_transfer.html' with context %}
 {% endif %}
 
 <script type="text/javascript">
@@ -65,42 +66,7 @@
         });
     }
 
-    leaderConfirm = function(event){
-        var formToSubmit = this;
-        event.preventDefault();
-        name = $(this).find('[name=member_name]').first().val();
-        bootbox.confirm({
-            title: "Transfer Group Leadership?",
-            message: "<p>This will make " + name + " the new leader for your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.</p>" + 
-                     "<p>All group members will be notified via email." +
-                     {% if application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] %}
-                        {% if not application.finalized %}
-                        " You will then be able to withdraw from the lottery without disbanding the group." +
-                        {% else %}
-                        " You will no longer be able to view your group's reservation, but you'll be able to withdraw from the lottery without affecting your group's {{ 'suite' if application.assigned_suite_type else 'room' }} award." +
-                        {% endif %}
-                     {% endif %}
-                     "</p><p>Are you sure?</p>",
-            buttons: {
-                confirm: {
-                    label: 'Yes, Transfer Leadership to ' + name,
-                    className: 'btn-warning'
-                },
-                cancel: {
-                    label: 'Nevermind',
-                    className: 'btn-outline-secondary'
-                }
-            },
-            callback: function (result) {
-                if(result) {
-                    formToSubmit.submit();
-                }
-            }
-        });
-    }
-
     $().ready(function () {
-        $("#remove-member").submit(removeConfirm);
-        $("#make-leader").submit(leaderConfirm);
+        $(".remove-member").submit(removeConfirm);
     })
 </script>

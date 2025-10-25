@@ -4,7 +4,8 @@
 <p>
     {{ app.attendee.full_name }},<br/>
     This is to notify you that {{ member.attendee.full_name }} has left your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} "{{ app.room_group_name }}".
-    This brings the total number of group members, including yourself, to {{ app.group_members|length + 1 }}.
+{% if not app.finalized %}
+    This brings the total number of group members, including yourself, to {{ app.valid_group_members|length + 1 }}.
 </p>
 <p>
     Your group confirmation number is {{ app.confirmation_num }}. You can view your current group members on your <a href="{{ c.URL_BASE }}/hotel_lottery/room_group?id={{ app.id }}" target="_blank">{{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} management page</a>.
@@ -12,5 +13,14 @@
 <p>
     For more options, {% if c.ATTENDEE_ACCOUNTS_ENABLED %}log into{% else %}visit{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.
 </p>
+{% else %}
+</p>
+{% if app.booking_url %}
+<p>
+    We ask that you remove their name from your <a href="{{ c.URL_BASE }}/hotel_lottery/confirm?id={{ app.id }}" target="_blank">group's hotel reservation</a> as soon as possible.
+    Per {{ c.EVENT_NAME }} policy, all names on hotel reservations must match attendees with badges.
+</p>
+{% endif %}
+{% endif %}
 </body>
 </html>

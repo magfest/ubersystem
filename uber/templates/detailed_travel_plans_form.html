@@ -35,21 +35,83 @@
                 $opPanel.find('select[name*="mode"]').on('change', function() {onModeChange($(this));});
                 $opPanel.appendTo('#travels_container');
                 onModeChange($opPanel.find('select[name*="mode"]'));
-                $('#arrival-time' + suffix).datetimepicker({
-                  sideBySide: true,
-                  useCurrent: false,
-                  defaultDate: '{{ c.EPOCH.isoformat()[:-6] }}',
-                  minDate: '{{ min_arrival_time.isoformat()[:-6] }}',
-                  maxDate: '{{ max_arrival_time.isoformat()[:-6] }}',
-                  format: 'M/D/Y h:mm A'
+                $('#arrival-time' + suffix).flatpickr({
+                    allowInput: true,
+                    enableTime: true,
+                    altInput: true,
+                    altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
+                    disableMobile: true, //Do not let mobile native datepicker take over.
+                    dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+                    defaultDate: '{{ c.EPOCH.isoformat() }}',
+                    minDate: '{{ min_arrival_time.isoformat() }}',
+                    maxDate: '{{ max_arrival_time.isoformat() }}',
+                    parseDate(dateString, format) {
+                        const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+                        let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+                        //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+                        return new Date(
+                            eventTimezonedDate.year(),
+                            eventTimezonedDate.month(),
+                            eventTimezonedDate.date(),
+                            eventTimezonedDate.hour(),
+                            eventTimezonedDate.minute(),
+                            eventTimezonedDate.second()
+                        );
+                    },
+                    formatDate(date, format) {
+                         const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+
+                        //Format on the way *out* from the internal storage.
+                         let formatted =  moment.tz([
+                            date.getFullYear(),
+                            date.getMonth(),
+                            date.getDate(),
+                            date.getHours(),
+                            date.getMinutes(),
+                            date.getSeconds()
+                        ], eventTimeZone).format(format);
+                        return formatted;
+                    }
                 });
-                $('#departure-time' + suffix).datetimepicker({
-                  sideBySide: true,
-                  useCurrent: false,
-                  defaultDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
-                  minDate: '{{ min_departure_time.isoformat()[:-6] }}',
-                  maxDate: '{{ max_departure_time.isoformat()[:-6] }}',
-                  format: 'M/D/Y h:mm A'
+                 $('#departure-time' + suffix).flatpickr({
+                    allowInput: true,
+                    enableTime: true,
+                    altInput: true,
+                    altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
+                    disableMobile: true, //Do not let mobile native datepicker take over.
+                    dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+                    defaultDate: '{{ c.ESCHATON.isoformat() }}',
+                    minDate: '{{ min_departure_time.isoformat() }}',
+                    maxDate: '{{ max_departure_time.isoformat() }}',
+                    parseDate(dateString, format) {
+                        const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+                        let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+                        //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+                        return new Date(
+                            eventTimezonedDate.year(),
+                            eventTimezonedDate.month(),
+                            eventTimezonedDate.date(),
+                            eventTimezonedDate.hour(),
+                            eventTimezonedDate.minute(),
+                            eventTimezonedDate.second()
+                        );
+                    },
+                    formatDate(date, format) {
+                         const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+
+                        //Format on the way *out* from the internal storage.
+                         let formatted =  moment.tz([
+                            date.getFullYear(),
+                            date.getMonth(),
+                            date.getDate(),
+                            date.getHours(),
+                            date.getMinutes(),
+                            date.getSeconds()
+                        ], eventTimeZone).format(format);
+                        return formatted;
+                    }
                 });
             }
         }
