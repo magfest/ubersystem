@@ -95,6 +95,7 @@ class Root:
 
     def view_image(self, session, id):
         image = session.indie_game_image(id)
+        cherrypy.response.headers['Cache-Control'] = 'no-store'
         return serve_file(image.filepath, name=image.filename, content_type=image.content_type)
     
     def studio(self, session, id, message='', **params):
@@ -282,3 +283,91 @@ class Root:
             'studio': studio,
             'developers': developers
         }
+    
+    def show_info(self, session, message='', **params):
+        game = session.indie_game(params)
+        header_pic, thumbnail_pic = None, None
+        cherrypy.session['studio_id'] = game.studio.id
+        image_form = load_forms({}, IndieGameImage(), ['MivsScreenshot'], field_prefix='new')
+
+        if cherrypy.request.method == 'POST':
+            header_image = params.get('header_image')
+            thumbnail_image = params.get('thumbnail_image')
+
+            if not params.get('contact_phone', ''):
+                message = "Please enter a phone number for MAGFest Indies staff to contact your studio."
+            else:
+                game.studio.contact_phone = params.get('contact_phone', '')
+            
+            if not params.get('studio_name', ''):
+                message = "Please enter a studio name."
+            else:
+                game.studio.contact_phone = params.get('contact_phone', '')
+
+            message = check(game)
+
+            if not message:
+                if header_image and header_image.filename:
+                    message = GuidebookUtils.check_guidebook_image_filetype(header_image)
+                    if not message:
+                        header_pic = IndieGameImage.upload_image(header_image, game_id=game.id,
+                                                                is_screenshot=False, is_header=True)
+                        if not header_pic.check_image_size():
+                            message = f"Your header image must be {format_image_size(c.GUIDEBOOK_HEADER_SIZE)}."
+                elif not game.guidebook_header:
+                    message = f"You must upload a {format_image_size(c.GUIDEBOOK_HEADER_SIZE)} header image."
+            
+            if not message:
+                if thumbnail_image and thumbnail_image.filename:
+                    message = GuidebookUtils.check_guidebook_image_filetype(thumbnail_image)
+                    if not message:
+                        thumbnail_pic = IndieGameImage.upload_image(thumbnail_image, game_id=game.id,
+                                                                    is_screenshot=False, is_thumbnail=True)
+                        if not thumbnail_pic.check_image_size():
+                            message = f"Your thumbnail image must be {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)}."
+                elif not game.guidebook_thumbnail:
+                    message = f"You must upload a {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)} thumbnail image."
+
+            if not message:
+                message = check(game) or check(game.studio)
+            if not message:
+                session.add(game)
+                if header_pic:
+                    if game.guidebook_header:
+                        session.delete(game.guidebook_header)
+                    session.add(header_pic)
+                if thumbnail_pic:
+                    if game.guidebook_thumbnail:
+                        session.delete(game.guidebook_thumbnail)
+                    session.add(thumbnail_pic)
+
+                if game.studio.group.guest:
+                    raise HTTPRedirect('../guests/mivs_show_info?guest_id={}&message={}',
+                                       game.studio.group.guest.id, 'Show information updated.')
+                raise HTTPRedirect('index?message={}', 'Show information updated.')
+
+        return {
+            'message': message,
+            'game': game,
+            'image_form': image_form,
+        }
+
+    @csrf_protected
+    def mark_image(self, session, id):
+        image = session.indie_game_image(id)
+        if len(image.game.best_images) >= 2:
+            raise HTTPRedirect('show_info?id={}&message={}', image.game.id,
+                               'You may only have up to two "best" images.')
+        image.use_in_promo = True
+        session.add(image)
+        raise HTTPRedirect('show_info?id={}&message={}', image.game.id,
+                           'Screenshot marked as one of your "best" images.')
+
+    @csrf_protected
+    def unmark_image(self, session, id):
+        image = session.indie_game_image(id)
+        image.use_in_promo = False
+        session.add(image)
+        raise HTTPRedirect('show_info?id={}&message={}', image.game.id,
+                           'Screenshot unmarked as one of your "best" images.')
+

@@ -605,14 +605,14 @@ class Root:
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
             if guest.group.studio:
-                if not params['selling_at_event']:
+                selling_preference = params.get('selling_merch', '')
+                if not selling_preference:
                     message = "Please select if you want to sell items at MAGFest or not."
-                elif params['selling_at_event'] == '1':
-                    if 'confirm_checkbox' not in params:
-                        message = "You must confirm that you have filled out the Google form provided."
+                elif int(selling_preference) == c.SELF_SELL and 'confirm_checkbox' not in params:
+                    message = "You must confirm that you have filled out the Google form provided."
 
                 if not message:
-                    guest.group.studio.selling_at_event = True if params['selling_at_event'] == '1' else False
+                    guest.group.studio.selling_merch = selling_preference
                     session.add(guest)
                     raise HTTPRedirect('index?id={}&message={}',
                                        guest.id,

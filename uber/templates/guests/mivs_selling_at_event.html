@@ -1,31 +1,33 @@
 {% extends "guestbase.html" %}
 
 {% block body %}
-  <h3>Selling at MAGFest</h3>
-  <p>We are allowing Indies to sell items in MIVS. If you wish to do so, the highlights to remember are:</p>
-  <ul>
-  <li>There is a google form you will need to fill out. This information will be sent to the Maryland State Comptroller.</li>
-  <li>You can only sell things that are directly related to your game or studio.</li>
-  <li>You must own the license to any intellectual property that you are selling.</li>
-  <li>You can only sell at your MIVS Booth.</li>
-  <li>The Selling Policy is at the discretion of MIVS.</li>
-  </ul>
+  <h3>Selling Merch</h3>
+  <p>
+    {{ c.EVENT_NAME }} will provide access to our Indie Island merch department during the event.
+    You may utilize this service, or sell items directly related to your game or studio from your booth.
+  </p>
 
-  <form class="form form-horizontal" method="post" action="mivs_selling_at_event">
+  <p>
+    You have until <strong>{{ guest.group.studio.checklist_deadline('selling_at_event')|datetime_local }}</strong> to let us know your preferences for selling merch.
+  </p>
+
+  <form class="form form-horizontal" method="post" action="mivs_selling_at_event" x-data="{
+    selling_merch: {{ guest.group.studio.selling_merch|int }},
+  }">
     <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
     <div class="form-group">
       <label for="selling_at_event" class="col-sm-3 control-label optional-field">Want to sell at MAGFest?</label>
       <div class="col-sm-6">
-        <select name="selling_at_event" id="selling_at_event" class="form-control">
-          <option value="">Please select an option</option>
-          <option value="1"{% if guest.group.studio.selling_at_event %} selected{% endif %}>Yes</option>
-          <option value="0"{% if guest.group.studio.selling_at_event == False %} selected{% endif %}>No</option>
+        <select name="selling_merch" class="form-control" x-model="selling_merch">
+          <option value="">Tell us how you'd like to sell your merch</option>
+          {{ options(c.MIVS_MERCH_OPTS, guest.group.studio.selling_merch) }}
         </select>
+        <p x-show="selling_merch == {{ c.INDIE_ISLAND }}">Someone from our team will be in contact with you to coordinate merch sales.</p>
       </div>
     </div>
-    <div class="form-group">
+    <div class="form-group" x-show="selling_merch == {{ c.SELF_SELL }}">
       <div class="col-sm-9 col-sm-offset-3">
-        <p id="selling_link">
+        <p>
           You will need to fill out the <a href="{{ c.MIVS_SELLING_URL }}" target="_blank">MAGFest Maryland Tax Info Collection google form</a>.
         <label for="confirm_checkbox">
           <input type="checkbox" name="confirm_checkbox" id="confirm_checkbox" value="1"{% if guest.group.studio.selling_at_event %} checked{% endif %}>
