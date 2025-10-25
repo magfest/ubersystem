@@ -2,15 +2,15 @@
 
 {% block body %}
   <h3>Hotel Signups</h3>
-  <p>We're happy to allow you to purchase 1 hotel room for the Gaylord and this service is made available to you for being part of MIVS. We don't have any extra rooms other than the 1 provided for you. This room is for your use and you are not allowed to transfer your reservation to someone else unless authorized by MAGFest. Dropping out of MIVS may cause your room to be canceled.</p>
+  <p>We're happy to allow you to purchase 1 hotel room for the Gaylord and this service is made available to you for being part of MAGFest Indies. We don't have any extra rooms other than the 1 provided for you. This room is for your use and you are not allowed to transfer your reservation to someone else unless authorized by MAGFest. Dropping out of MAGFest Indies may cause your room to be canceled.</p>
 
   <p>When you click on the hotel link, you will be taken to the same landing page attendees see. Click on the black box HOTEL RESERVATION to begin the process. The other text on the page about sleeping room availability doesn't apply in your case.</p>
 
   <p>If you want an additional day that isn't available, add it to the waitlist and the request will get cleared once the availability of the room night is confirmed.</p>
 
-  <p>If you are unable to commit to a room before the deadline, please contact {{ c.MIVS_EMAIL|email_only|email_to_link }} as soon as possible and definitely before the deadline of {{ guest.group.studio.checklist_deadline('hotel_space')|datetime_local }} for assistance.</p>
+  <p>If you are unable to commit to a room before the deadline, please contact {{ c.INDIE_SHOWCASE_EMAIL|email_only|email_to_link }} as soon as possible and definitely before the deadline of {{ guest.group.studio.checklist_deadline('hotel_space')|datetime_local }} for assistance.</p>
 
-  <p>Please email any hotel questions about to {{ 'hotel@magfest.org'|email_to_link }}.</p>
+  <p>Please email any hotel questions about to {{ c.HOTEL_LOTTERY_EMAIL|email_to_link }}.</p>
 
   <form class="form form-horizontal" method="post" action="mivs_hotel_space">
     <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
