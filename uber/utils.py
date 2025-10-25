@@ -1612,7 +1612,7 @@ class SignNowRequest:
 
         invite_payload = {
             "to": [
-                {"email": self.group.email, "prefill_signature_name": self.group_leader_name,
+                {"email": self.group.email, "printed_name": self.group_leader_name,
                  "role": "Dealer", "order": 1}
             ],
             "from": email_only(c.MARKETPLACE_EMAIL),
