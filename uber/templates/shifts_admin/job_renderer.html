@@ -40,19 +40,21 @@
     margin-right: 10px;
   }
 
-  #jobs .shifts-table .rating img {
+  #jobs .shifts-table .rating img,
+  #jobs .shifts-table .rating .comment-btn {
     cursor: pointer;
     margin: 0 5px;
   }
 </style>
 
 <script type="text/javascript" src="../static_views/ratings.js"></script>
-
-
+{% include 'shifts_admin/shift_comment_modal.html'%}
 
 <div class="table-responsive">
   <table id="jobs"></table>
 </div>
+
+
 
 <script>
     $(setupShiftRatingClickHandler);

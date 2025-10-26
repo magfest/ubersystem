@@ -1,0 +1,17 @@
+<div class="modal fade" id="shiftCommentModal" tabindex="-1" aria-labelledby="shiftCommentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div id="shiftPrompt" class="mb-2 text-muted"></div>
+          <label class="fw-bold" for="shiftCommentText">Shift Comment<span id="shiftCommentRequired" class="required-indicator text-danger" style="display:none;" > *</span></label>
+          <textarea id="shiftCommentText" class="form-control" rows="3" placeholder="Enter a comment"></textarea>
+          <div id="invalidShiftComment" class="invalid-feedback">
+            Please enter a comment
+         </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="shiftCommentSubmit" class="btn btn-primary" onclick="commentSubmit()">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>

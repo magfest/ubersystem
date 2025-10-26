@@ -4,13 +4,16 @@
     padding: 5px 10px;
   }
 
-  .rating img {
+  .rating img,
+  .rating .comment-btn {
     cursor: pointer;
     margin: 0 5px;
   }
 </style>
 
 <script type="text/javascript" src="../static_views/ratings.js"></script>
+{% include 'shifts_admin/shift_comment_modal.html'%}
+
 <script type="text/javascript">
     $(function () {
         $("form[action*='/shifts_admin/']").submit(function(event){
