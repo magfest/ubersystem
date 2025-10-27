@@ -1562,7 +1562,7 @@ class Session(SessionManager):
             badge_type = uber.badge_funcs.get_real_badge_type(attendee.badge_type)
             lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
 
-            if attendee.badge_num:
+            if attendee.active_badge and attendee.active_badge.attendee_id:
                 if lower_bound <= attendee.badge_num <= upper_bound:
                     return
                 attendee.active_badge.unassign()
