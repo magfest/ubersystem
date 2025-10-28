@@ -86,7 +86,7 @@
                 <th>Showcase</th>
                 <th>Title</th>
                 {% if not show_info %}<th>Status</th>{% endif %}
-                {% if show_info and False %}<th></th>{% endif %}
+                {% if show_info %}<th></th>{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -95,7 +95,7 @@
                     <td>{{ game.showcase_type_label }}</td>
                     <td>{{ game.title }}</td>
                     {% if not show_info %}<td>{{ game.status_label }}</td>{% endif %}
-                    {% if show_info and False %}
+                    {% if show_info %}
                     <td>
                         {% if not game.link_to_promo_video %}
                         <a class="btn btn-warning" href="show_info?id={{ game.id }}">Add Show Info</a>
