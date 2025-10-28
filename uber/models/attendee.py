@@ -769,6 +769,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.badge_num:
                 self.session.add(self.active_badge)
                 self.active_badge.unassign()
+                self.session.update_badge(self)
             return
 
         badge = self.session.query(BadgeInfo).filter(BadgeInfo.ident == value,
