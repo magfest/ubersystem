@@ -149,6 +149,7 @@ class IndieStudio(MagModel):
     email_for_hotel = Column(UnicodeText)
     contact_phone = Column(UnicodeText)
     show_info_updated = Column(Boolean, default=False)
+    logistics_updated = Column(Boolean, default=False)
 
     games = relationship(
         'IndieGame', backref='studio', order_by='IndieGame.title')

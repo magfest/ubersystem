@@ -514,7 +514,7 @@ class Root:
                 session.add(guest)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have accepted the MIVS core hours.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
         return {
             'guest': guest,
             'message': message,
@@ -529,7 +529,7 @@ class Root:
                 session.add(guest)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Discussion email addresses updated.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
         return {
             'guest': guest,
             'message': message,
@@ -543,7 +543,7 @@ class Root:
                 session.add(guest)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have confirmed that you read the handbook.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
         return {
             'guest': guest,
             'message': message,
@@ -564,6 +564,24 @@ class Root:
         return {
             'guest': guest,
             'message': message,
+        }
+
+    def mivs_logistics(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            if guest.group.studio:
+                if 'confirm_checkbox' not in params:
+                    message = "You must confirm that you have filled out the Logistics form."
+                else:
+                    guest.group.studio.logistics_updated = True
+                    session.add(guest)
+                    raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thanks for filling out the logistics form!')
+            else:
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_ARCADE_EMAIL)
+        return {
+            'guest': guest,
+            'message': message,
+            'confirm_checkbox': True if 'confirm_checkbox' in params or guest.group.studio.logistics_updated else False,
         }
 
     def mivs_hotel_space(self, session, guest_id, message='', **params):
@@ -594,7 +612,7 @@ class Root:
                                        guest.id,
                                        'Hotel needs updated.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
         return {
             'guest': guest,
             'message': message,
@@ -618,7 +636,7 @@ class Root:
                                        guest.id,
                                        'Selling preferences updated.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
         return {
             'guest': guest,
             'message': message,
@@ -651,7 +669,7 @@ class Root:
                                        guest.id,
                                        'Thanks for confirming your studio and game information is up-to-date!')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
         return {
             'guest': guest,
             'message': message,

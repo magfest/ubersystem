@@ -57,6 +57,7 @@ def upgrade():
     op.drop_column('indie_game', 'facebook')
     op.add_column('indie_studio', sa.Column('selling_merch', sa.Integer(), nullable=True))
     op.drop_column('indie_studio', 'selling_at_event')
+    op.add_column('indie_studio', sa.Column('logistics_updated', sa.Boolean(), server_default='False', nullable=False))
 
 
 def downgrade():
@@ -65,3 +66,4 @@ def downgrade():
     op.add_column('indie_studio', sa.Column('selling_at_event', sa.BOOLEAN(), autoincrement=False, nullable=True))
     op.drop_column('indie_studio', 'selling_merch')
     op.drop_column('indie_game', 'link_to_store')
+    op.drop_column('indie_studio', 'logistics_updated')

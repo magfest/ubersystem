@@ -1038,6 +1038,19 @@ class RetroEmailFixture(AutomatedEmailFixture):
         AutomatedEmailFixture.__init__(self, *args, sender=c.INDIE_RETRO_EMAIL, **kwargs)
 
 
+class RetroGuestEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(
+            self,
+            GuestGroup,
+            subject,
+            template,
+            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases[c.INDIE_RETRO] and filter(mg),
+            ident,
+            sender=c.INDIE_RETRO_EMAIL,
+            **kwargs)
+
+
 if c.INDIE_RETRO_START:
     RetroEmailFixture(
         IndieGame,
@@ -1052,6 +1065,13 @@ if c.INDIE_RETRO_START:
         'indie_retro/judge_welcome.html',
         lambda judge: judge.single_showcase == c.INDIE_RETRO,
         ident='retro_judge_welcome')
+    
+    RetroGuestEmailFixture(
+        '{EVENT_NAME} Indie Retro Checklist',
+        'indie_arcade/checklist_open.txt',
+        lambda mg: True,
+        ident='ia_checklist_open'
+    )
 
 
 class IAEmailFixture(AutomatedEmailFixture):
@@ -1068,7 +1088,7 @@ class IAGuestEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda mg: mg.group_type == c.MIVS and mg.group.studio and filter(mg),
+            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases[c.INDIE_ARCADE] and filter(mg),
             ident,
             sender=c.INDIE_ARCADE_EMAIL,
             **kwargs)
@@ -1116,7 +1136,13 @@ if c.INDIE_ARCADE_START:
         'indie_arcade/game_waitlisted.txt',
         lambda game: game.status == c.WAITLISTED and game.showcase_type == c.INDIE_ARCADE,
         ident='ia_game_waitlisted')
-
+    
+    IAGuestEmailFixture(
+        '{EVENT_NAME} Indie Arcade Checklist',
+        'indie_arcade/checklist_open.txt',
+        lambda mg: True,
+        ident='ia_checklist_open'
+    )
 
 class MIVSEmailFixture(AutomatedEmailFixture):
     def __init__(self, *args, **kwargs):
@@ -1132,7 +1158,7 @@ class MIVSGuestEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda mg: mg.group_type == c.MIVS and mg.group.studio and filter(mg),
+            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases[c.MIVS] and filter(mg),
             ident,
             sender=c.MIVS_EMAIL,
             **kwargs)

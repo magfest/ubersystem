@@ -10,9 +10,9 @@
   <form class="form form-horizontal" method="post" action="mivs_show_info">
     <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
     {% for game in guest.group.studio.confirmed_games %}
-    <a href="../showcase/show_info?id={{ game.id }}" class="btn btn-default" target="_blank">Update Studio and Game Information for {{ game.title }}</a><br/>
+    <p><a href="../showcase/show_info?id={{ game.id }}" class="btn btn-default" target="_blank">Update Studio and Game Information for {{ game.title }}</a></p>
     {% endfor %}
-    <br/>{{ macros.checkbox(guest.group.studio, 'show_info_updated', label="I have checked and updated my game and studio information.") }}
+    {{ macros.checkbox(guest.group.studio, 'show_info_updated', label="I have checked and updated my game and studio information.") }}
     <br/><button type="submit" class="btn btn-primary">Confirm Info</button>
   </form>
 {% endblock body %}
