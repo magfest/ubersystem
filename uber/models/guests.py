@@ -98,6 +98,14 @@ class GuestGroup(MagModel):
 
         return sorted(checklist_items, key=lambda i: self.deadline_from_model(i['name']))
 
+    def matches_showcases(self, showcases):
+        if self.group_type != c.MIVS or not self.group or not self.group.studio:
+            return
+        for game in self.group.studio.confirmed_games:
+            if game.showcase_type in showcases:
+                return True
+        return False
+
     @property
     def uses_detailed_travel_plans(self):
         return  # Disabled for now

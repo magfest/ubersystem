@@ -1,0 +1,20 @@
+Ahoy {{ studio.primary_contact_first_names }},
+
+{% if due_soon %}
+The following items are due soon:
+{% for key, name in due_soon %}
+-{{ name }}: {{ c.URL_BASE }}/guests/mivs_{{ key }}?guest_id={{ studio.group.guest.id }} (Deadline: {{ studio.checklist_deadline(key)|datetime_local("%A, %B %e") }})
+{% endfor %}
+{% endif %}
+{% if overdue %}
+The following items are overdue:
+{% for key, name in overdue %}
+-{{ name }}: {{ c.URL_BASE }}/guests/mivs_{{ key }}?guest_id={{ studio.group.guest.id }}
+{% endfor %}
+{% endif %}
+
+Some items, such as Hotels or Selling, have hard dates and need to be completed by their due date.
+
+If you have any questions, please email {{ c.INDIE_ARCADE_EMAIL|email_only }}
+
+{{ email_signature }}

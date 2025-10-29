@@ -291,7 +291,7 @@ class Root:
         requested_hotel_nights = volunteer.hotel_requests.nights_ints if volunteer.hotel_requests else []
 
         return {
-            'has_public_jobs': session.query(Job).filter(Job.is_public == True).count(),
+            'has_public_jobs': session.query(Job).filter(Job.is_public == True).first(),
             'depts_with_roles': [membership.department.name for membership in volunteer.dept_memberships_with_role],
             'assigned_depts_list': [(dept.id, dept.name) for dept in volunteer.assigned_depts],
             'hours': volunteer.weighted_hours,

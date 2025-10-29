@@ -1,0 +1,37 @@
+{% extends "guestbase.html" %}
+
+{% block body %}
+  <h3>Expo Hall Logistics</h3>
+  Please fill out a Google form to help our team plan logistics for your game. Once you have completed the form, let us know that you've done so below.</p>
+
+  <form class="form form-horizontal" method="post" action="mivs_logistics">
+  <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
+    {% if guest.matches_showcases([c.MIVS]) %}
+    <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+            <h4><a href="https://forms.gle/5xYAJmHPnRZqxzet5" target="_blank">MIVS Expo Hall Logistics Form</a></h4>
+        </div>
+    </div>
+    {% endif %}
+    {% if guest.matches_showcases([c.INDIE_ARCADE]) %}
+    <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+            <h4><a href="https://docs.google.com/forms/d/e/1FAIpQLSckiPFjmG-zqqrpKvaxAAfwopLx14GYi4YuAnzcBmM_d_ew7w/viewform?usp=dialog" target="_blank">Indie Arcade Expo Hall Logistics Form</a></h4>
+        </div>
+    </div>
+    {% endif %}
+    <div class="form-group">
+      <div class="col-sm-9 col-sm-offset-3">
+        <label for="confirm_checkbox">
+          <input type="checkbox" name="confirm_checkbox" id="confirm_checkbox" value="1"{% if confirm_checkbox %} checked{% endif %}>
+          I have filled out the logistics form linked above.
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">Confirm Logistics</button>
+      </div>
+    </div>
+  </form>
+{% endblock body %}

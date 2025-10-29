@@ -1,0 +1,178 @@
+{% extends "mivs_base.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% block body %}
+  <h2>Show Information for MAGFest Indies</h2>
+
+  <p>
+  Thank you for confirming your acceptance into MAGFest Indies! We have several things we still need to know about your game to
+  help us build the show, run tournaments, etc. Please fill out the form below.
+  </p>
+
+  <h4>Gameplay Images for Promotion</h4>
+  Please upload a max of two gameplay images for use on the website, social media, and other promotion.
+  <table>
+    {% for image in game.submission_images %}
+      <tr>
+        <td><ul><li></li></ul></td>
+        <td><a target="_blank" href="{{ image.url }}">{{ image.filename }}</a></td>
+        <td>{{ image.description }}</td>
+        <td>
+          {% if image.use_in_promo %}
+            <form method="post" action="unmark_image">
+              {{ csrf_token() }}
+              <input type="hidden" name="id" value="{{ image.id }}" />
+              <input class="btn btn-sm btn-warning" type="submit" value="Unmark as Best" />
+            </form>
+          {% elif game.best_images|length < 2 %}
+            <form method="post" action="mark_image">
+              {{ csrf_token() }}
+              <input type="hidden" name="id" value="{{ image.id }}" />
+              <input class="btn btn-sm btn-success" type="submit" value="Mark as Best" />
+            </form>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="../mivs/delete_screenshot">
+              {{ csrf_token() }}
+              <input type="hidden" name="id" value="{{ image.id }}" />
+              <input type="hidden" name="show_info" value="1" />
+              <input class="btn btn-sm btn-danger" type="submit" value="Remove" />
+            </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#new-image">Upload an Image</button><br/>
+  <br/>
+  <h4>Guidebook Images</h4>
+  <p>Please upload images to accompany {{ game.title }}'s entry on Guidebook.</p>
+  
+  <form method="post" enctype="multipart/form-data" class="form-horizontal" action="show_info">
+  <div class="row g-3 mb-3">
+    <div class="col-sm">
+      <label class="form-text">Header Image</label>
+          <input type="file" name="header_image" />
+          {% if game.guidebook_header %}
+          <a target="_blank" href="{{ game.guidebook_header.url }}">{{ game.guidebook_header.filename }}</a>
+          {% endif %}
+      <p class="form-text">
+          A {{ c.GUIDEBOOK_HEADER_SIZE|format_image_size }} image to display on the schedule next to your game details.<br/>
+          {% if game.guidebook_header %}Uploading a file will replace the existing image.{% endif %}
+      </p>
+    </div>
+    <div class="col-sm">
+      <label class="form-text">Thumbnail Image</label>
+        <input type="file" name="thumbnail_image" />
+        {% if game.guidebook_thumbnail %}
+        <a target="_blank" href="{{ game.guidebook_thumbnail.url }}">{{ game.guidebook_thumbnail.filename }}</a>
+        {% endif %}
+    <p class="form-text">
+        A {{ c.GUIDEBOOK_THUMBNAIL_SIZE|format_image_size }} image to display on the schedule next to your game name.<br/>
+        {% if game.guidebook_thumbnail %}Uploading a file will replace the existing image.{% endif %}
+    </p>
+    </div>
+  </div>
+
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ game.id }}" />
+
+    <h4>Promo Information</h4>
+
+    <div class="row g-3 mb-3">
+      <div class="col-sm">
+        <label class="form-text">Studio Name <span class="text-danger">*</span></label>
+        <input class="form-control focus" type="text" name="studio_name" value="{{ game.studio.name }}" />
+      </div>
+      <div class="col-sm">
+        <label class="form-text">Game Title <span class="text-danger">*</span></label>
+        <input class="form-control" type="text" name="title" value="{{ game.title }}" />
+      </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-sm">
+        <label class="form-text">Brief Description for Guidebook <span class="text-danger">*</span></label>
+        <input class="form-control" type="text" maxlength="80" name="brief_description" value="{{ game.brief_description }}" />
+        <div class="form-text">Limit 80 characters.</div>
+      </div>
+      <div class="col-sm">
+        <label class="form-text">Full Description for Website <span class="text-danger">*</span></label>
+        <textarea class="form-control" name="description" rows="4">{{ game.description }}</textarea>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-sm">
+        <label class="form-text">Gameplay Video</label>
+        <input class="form-control" type="text" name="link_to_promo_video" value="{{ game.link_to_promo_video }}" />
+        <p class="form-text">
+          Thirty seconds of your game's best gameplay. Must be YouTube-hosted, 720p or better.
+          This will be used on an attract screen on the show floor and also on magTV.
+        </p>
+      </div>
+      <div class="col-sm">
+        <label class="form-text">Website</label>
+        <input class="form-control" type="text" name="link_to_webpage" value="{{ game.link_to_webpage }}" />
+      </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-sm">
+        <label class="form-text">Steam Page</label>
+        <input class="form-control" type="text" name="link_to_store" value="{{ game.link_to_store }}" />
+      </div>
+      <div class="col-sm">
+        <label class="form-text">Other Social Media</label>
+        <input class="form-control" type="text" name="other_social_media" value="{{ game.other_social_media }}" />
+        <p class="form-text">
+          A link to your game's main social media platform, if applicable.
+        </p>
+      </div>
+    </div>
+
+    {{ macros.form_group(game.studio, 'contact_phone', label="Studio Contact Phone #", help="Used only for MAGFest Indies staff to contact you.", is_required=True, use_bs5=True) }}
+
+    <button type="submit" class="btn btn-primary">Upload Information</button>
+  </form>
+
+<div
+  id="new-image"
+  class="modal fade"
+  tabindex="-1"
+  role="dialog"
+  aria-labelledby="new-image-title"
+  style="display: none">
+  <div class="modal-dialog" role="document">
+  <div class="modal-content">
+      <div class="modal-header">
+      <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+      <h4 class="modal-title" id="new-image-title">
+          Upload Image
+      </h4>
+      </div>
+      <form novalidate method="post" action="../mivs/screenshot" id="new-image-form" role="form" enctype="multipart/form-data">
+      <div class="modal-body">
+          {% set mivs_image = image_form['mivs_screenshot'] %}
+          {{ form_macros.form_validation('new-image-form', '../mivs/validate_image') }}
+          {{ csrf_token() }}
+          <input type="hidden" name="game_id" value="{{ game.id }}" />
+          <input type="hidden" name="use_in_promo" value="1" />
+          <div x-data="">
+              <div class="row g-3 mb-3">
+                  <div class="col-sm">{{ form_macros.input(mivs_image.image) }}</div>
+              </div>
+              <div class="row g-3 mb-3">
+                  <div class="col-sm">{{ form_macros.input(mivs_image.description, label_text="Image Description") }}</div>
+              </div>
+              {{ form_macros.input(mivs_image.is_screenshot) }}
+          </div>
+      </div>
+      <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Upload Image</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+      </form>
+  </div>
+  </div>
+</div>
+{% endblock %}

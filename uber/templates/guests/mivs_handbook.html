@@ -2,11 +2,16 @@
 
 {% block body %}
 
-  <h3>MIVS Handbook</h3>
+  <h3>Indies Handbook and Communication Tools</h3>
 
-  <p>The MIVS Indie Handbook is here to give you information about being a MIVS Participant. Please read through the entire Handbook so that you know what is expected of you and your team at MAGFest.</p>
+  <p>The Indie Handbook and communication tools are here to give you information about being an Indies participant.</p>
+
+  <p>We use Discord as our primary means of communication during the event and we host Q&A's leading up to the event in the voice channels. The Discord is also a great way to start networking not just with this year's showcasing devs, but with alumni developers. You can join the Discord here: <a href="https://discord.gg/RyKfFeqmQF" target="_blank">https://discord.gg/RyKfFeqmQF</a></p>
+
+  <p>Please read through the entire handbook corresponding to your showcase area so that you know what is expected of you and your team at MAGFest.</p>
 
   <p><a href="{{ c.MIVS_HANDBOOK_URL }}" target="_blank">(The MIVS Indie Handbook)</a></p>
+  <p><a href="{{ c.INDIE_ARCADE_HANDBOOK_URL }}" target="_blank">(The Indie Arcade Handbook)</a></p>
 
   <form class="form form-horizontal" method="post" action="mivs_handbook">
     <input type="hidden" name="guest_id" value="{{ guest.id }}"/>

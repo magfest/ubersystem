@@ -1805,6 +1805,8 @@ for key, val in c.MIVS_CHECKLIST.items():
     val['deadline'] = c.EVENT_TIMEZONE.localize(datetime.strptime(val['deadline'] + ' 23:59', '%Y-%m-%d %H:%M'))
     if val['start']:
         val['start'] = c.EVENT_TIMEZONE.localize(datetime.strptime(val['start'] + ' 23:59', '%Y-%m-%d %H:%M'))
+    showcases = val['showcases']
+    val['showcases'] = [getattr(c, label.upper()) for label in showcases]
 
 c.DEPT_HEAD_CHECKLIST = {key: val for key, val in _config['dept_head_checklist'].items() if val['deadline']}
 

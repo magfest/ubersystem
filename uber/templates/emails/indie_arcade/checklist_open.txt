@@ -1,0 +1,11 @@
+Ahoy {{ guest.group.studio.primary_contact_first_names }},
+
+Your Indie Arcade Checklist is now available.  The checklist website contains information and tasks to prepare you for MAGFest and must be completed before their deadlines. We hope that this will help you manage the logistics so you can put on a great show for the MAGFest Attendees.
+
+
+You can get to your checklist using this link: {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
+
+
+More checklist items will come online as we approach MAGFest and you will receive emails as they approach. If you have any questions, please email {{ c.INDIE_ARCADE_EMAIL|email_only }}
+
+{{ email_signature }}
