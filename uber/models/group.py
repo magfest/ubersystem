@@ -299,7 +299,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def gets_emails(self):
-        return self.status not in [c.DECLINED, c.CANCELLED] and not self.leader or self.leader.is_valid
+        return self.status not in [c.DECLINED, c.CANCELLED] and (not self.leader or self.leader.is_valid)
 
     @hybrid_property
     def badges_purchased(self):
