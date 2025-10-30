@@ -6,7 +6,7 @@ Your MIVS Checklist is now available.  The checklist website contains informatio
 You can get to your checklist using this link: {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
 
 
-More checklist items will come online as we approach MAGFest and you will receive emails as they approach. If you have any questions, please email {{ c.MIVS_EMAIL|email_only }}
+If you have any questions, please email {{ c.MIVS_EMAIL|email_only }}
 
 Forever Your Fan,
 -The MIVS Team
