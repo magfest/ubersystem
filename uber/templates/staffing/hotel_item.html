@@ -1,6 +1,6 @@
 {% import 'macros.html' as macros %}
 {% if c.HOTELS_ENABLED and c.PRE_CON %}
-{% if attendee.hotel_eligible and c.AFTER_ROOM_DEADLINE and c.HAS_HOTEL_ADMIN_ACCESS %}
+{% if attendee.hotel_eligible and c.AFTER_ROOM_DEADLINE and c.HAS_STAFFING_ADMIN_ACCESS %}
     <li>
         {% if c.HOTEL_REQUESTS_URL %}
             <img src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ attendee.id }}&event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}" style="vertical-align:top ; margin-right:5px" height="20" width="20" />

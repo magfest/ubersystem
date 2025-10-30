@@ -419,7 +419,7 @@ class Root:
             checklist = {'conf': None, 'relevant': False, 'completed': None}
 
         return {
-            'admin_has_room_access': c.HAS_HOTEL_ADMIN_ACCESS,
+            'admin_has_room_access': c.HAS_STAFFING_ADMIN_ACCESS,
             'attendee': attendee,
             'requests': requests,
             'department_id': 'All' if department_id is None else department_id,
