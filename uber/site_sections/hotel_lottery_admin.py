@@ -464,7 +464,8 @@ class Root:
         assigned_applications = session.query(LotteryApplication.assigned_hotel,
                                               LotteryApplication.assigned_room_type,
                                               func.count(LotteryApplication.id)).join(LotteryApplication.attendee).filter(
-                                                  LotteryApplication.status.in_(c.HOTEL_LOTTERY_AWARD_STATUSES)
+                                                  LotteryApplication.status.in_(c.HOTEL_LOTTERY_AWARD_STATUSES),
+                                                  LotteryApplication.entry_type != c.GROUP_ENTRY,
                                                   ).group_by(LotteryApplication.assigned_hotel).group_by(
                                                       LotteryApplication.assigned_room_type).all()
         
