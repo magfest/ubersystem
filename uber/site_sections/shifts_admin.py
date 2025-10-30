@@ -38,6 +38,20 @@ def job_dict(job, shifts=None):
         } for shift in job.shifts]
     }
 
+# Return only an updated shift for smaller API traffic payload
+def shift_dict(shift):
+    return {
+        'shift': {
+            'id': shift.id,
+            'rating': shift.rating,
+            'comment': shift.comment,
+            'worked': shift.worked,
+            'worked_label': shift.worked_label,
+            'attendee_id': shift.attendee.id,
+            'attendee_name': shift.attendee.full_name,
+            'attendee_badge': shift.attendee.badge_num
+        }
+    }
 
 def update_counts(job, counts):
     counts['all_total'] += job.total_hours
@@ -434,10 +448,15 @@ class Root:
 
     @ajax
     def rate(self, session, shift_id, rating, comment=''):
-        shift = session.shift(shift_id)
-        shift.rating, shift.comment = int(rating), comment
-        session.commit()
-        return {}
+        try:
+            shift = session.shift(shift_id)
+            shift.rating, shift.comment = int(rating), comment
+            session.commit()
+        except Exception:
+            return {'error': 'Unexpected error setting shift rating'}
+        else:
+            return shift_dict(shift)
+
 
     def summary(self, session):
         departments = defaultdict(lambda: defaultdict(int))
