@@ -224,8 +224,11 @@ class IndieStudio(MagModel):
 
     @property
     def selling_at_event_status(self):
-        if self.selling_at_event is not None:
-            return "Expressed interest in selling" if self.selling_at_event else "Opted out"
+        return self.selling_merch_label or "Not Completed"
+    
+    @property
+    def logistics_status(self):
+        return "Completed" if self.logistics_updated else "Not Filled Out"
 
     @property
     def hotel_space_status(self):
