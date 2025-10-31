@@ -143,12 +143,13 @@ class IndieStudio(MagModel):
     completed_discussion = Column(Boolean, default=False)
     read_handbook = Column(Boolean, default=False)
     training_password = Column(UnicodeText)
-    selling_at_event = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
+    selling_merch = Column(Choice(c.MIVS_MERCH_OPTS), nullable=True)
     needs_hotel_space = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
     name_for_hotel = Column(UnicodeText)
     email_for_hotel = Column(UnicodeText)
     contact_phone = Column(UnicodeText)
     show_info_updated = Column(Boolean, default=False)
+    logistics_updated = Column(Boolean, default=False)
 
     games = relationship(
         'IndieGame', backref='studio', order_by='IndieGame.title')
@@ -392,8 +393,7 @@ class IndieGame(MagModel, ReviewMixin):
 
     link_to_promo_video = Column(UnicodeText)
     link_to_webpage = Column(UnicodeText)
-    twitter = Column(UnicodeText)
-    facebook = Column(UnicodeText)
+    link_to_store = Column(UnicodeText)
     other_social_media = Column(UnicodeText)
 
     tournament_at_event = Column(Boolean, default=False)
@@ -492,10 +492,10 @@ class IndieGame(MagModel, ReviewMixin):
         return [img for img in self.images if img.is_screenshot]
 
     @property
-    def best_screenshots(self):
+    def best_images(self):
         return [
-            img for img in self.images
-            if img.is_screenshot and img.use_in_promo]
+            img for img in self.submission_images
+            if img.use_in_promo]
 
     def accepted_image_downloads(self, count=2):
         all_screenshots = reversed(sorted(
@@ -620,7 +620,7 @@ class IndieGame(MagModel, ReviewMixin):
 
     @property
     def guidebook_edit_link(self):
-        return f"../mivs/show_info?id={self.id}"
+        return f"../showcase/show_info?id={self.id}"
 
     @property
     def guidebook_data(self):

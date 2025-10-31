@@ -560,7 +560,7 @@ class Root:
 
     @csv_file
     def assigned_entries(self, out, session):
-        out.writerow(['Lottery Name',
+        out.writerow(['Lottery Name', 'Staff Entry?',
                       'CheckInDate', 'CheckOutDate', 'NumberofGuests', 'HotelName', 'RoomType', 'SpecialRequest', 'AccessibleRoom',
                       'Guest1CheckInDate', 'Guest1CheckOutDate', 'Guest1FirstName', 'Guest1LastName', 'Guest1Phone', 'Guest1Email',
                       'Guest2CheckInDate', 'Guest2CheckOutDate', 'Guest2FirstName', 'Guest2LastName', 'Guest2Phone', 'Guest2Email',
@@ -568,15 +568,14 @@ class Root:
                       'Guest4CheckInDate', 'Guest4CheckOutDate', 'Guest4FirstName', 'Guest4LastName', 'Guest4Phone', 'Guest4Email',])
 
         assigned_entries = session.query(LotteryApplication).filter(
-            or_(LotteryApplication.status == c.AWARDED, and_(LotteryApplication.status == c.SECURED,
-                                                             LotteryApplication.is_staff_entry == False)),
+            or_(LotteryApplication.status == c.AWARDED, LotteryApplication.status == c.SECURED),
             LotteryApplication.entry_type != c.GROUP_ENTRY).order_by(LotteryApplication.assigned_hotel)
 
         for entry in assigned_entries:
             check_in_date = entry.assigned_check_in_date
             check_out_date = entry.assigned_check_out_date
             num_guests = len(entry.valid_group_members) + 1
-            row = [entry.lottery_name, check_in_date, check_out_date, num_guests, entry.assigned_hotel_label['name'],
+            row = [entry.lottery_name, entry.is_staff_entry, check_in_date, check_out_date, num_guests, entry.assigned_hotel_label['name'],
                    entry.assigned_suite_type_label['name'] if entry.assigned_suite_type else entry.assigned_room_type_label['name'],
                    entry.ada_requests, entry.wants_ada,
                    check_in_date, check_out_date, entry.legal_first_name, entry.legal_last_name, entry.cellphone, entry.email]

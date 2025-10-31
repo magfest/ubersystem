@@ -79,24 +79,33 @@ def send_mivs_checklist_reminders():
                 due_soon, overdue = studio.checklist_items_due_soon_grouped
                 due_soon_keys = [key for key, val in due_soon]
                 overdue_keys = [key for key, val in overdue]
+                from_email, folder = c.INDIE_SHOWCASE_EMAIL, 'mivs'
+
+                if studio.group.guest.matches_showcases([c.MIVS]):
+                    from_email, folder = c.MIVS_EMAIL, 'mivs'
+                elif studio.group.guest.matches_showcases([c.INDIE_ARCADE]):
+                    from_email, folder = c.INDIE_ARCADE_EMAIL, 'indie_arcade'
+                elif studio.group.guest.matches_showcases([c.INDIE_RETRO]):
+                    from_email, folder = c.INDIE_RETRO_EMAIL, 'indie_retro'
+
                 if due_soon and should_send_reminder(session, studio, due_soon_keys, 'mivs_checklist_reminder_'):
                     send_email.delay(
-                        c.MIVS_EMAIL,
+                        from_email,
                         studio.email,
-                        f"You have {len(due_soon_keys)} MIVS checklist "
+                        f"You have {len(due_soon_keys)} checklist "
                         f"item{'s' if len(due_soon_keys) > 1 else ''} due soon",
-                        render('emails/mivs/checklist_reminder.txt', {'due_soon': due_soon, 'studio': studio},
+                        render(f'emails/{folder}/checklist_reminder.txt', {'due_soon': due_soon, 'studio': studio},
                                encoding=None),
                         model=studio.to_dict(),
                         ident='mivs_checklist_reminder_' + '_AND_'.join(due_soon_keys)
                     )
                 if overdue and should_send_reminder(session, studio, overdue_keys, 'mivs_checklist_overdue_'):
                     send_email.delay(
-                        c.MIVS_EMAIL,
+                        from_email,
                         studio.email,
-                        f"You have {len(overdue_keys)} MIVS checklist "
+                        f"You have {len(overdue_keys)} checklist "
                         f"item{'s' if len(overdue_keys) > 1 else ''} overdue!",
-                        render('emails/mivs/checklist_reminder.txt', {'overdue': overdue, 'studio': studio},
+                        render(f'emails/{folder}/checklist_reminder.txt', {'overdue': overdue, 'studio': studio},
                                encoding=None),
                         model=studio.to_dict(),
                         ident='mivs_checklist_overdue_' + '_AND_'.join(overdue_keys)
