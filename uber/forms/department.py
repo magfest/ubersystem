@@ -27,7 +27,6 @@ class DepartmentInfo(MagForm):
     description = StringField(
         'Description', description="Displayed to potential volunteers during registration.")
     solicits_volunteers = BooleanField("This department publically asks volunteers for help.")
-    is_shiftless = BooleanField("This department does not use shift signups.")
     max_consecutive_minutes = IntegerField(
         "Max Consecutive Hours",
         description="The maximum number of consecutive hours a staffer may work. Enter 0 for no limit.")

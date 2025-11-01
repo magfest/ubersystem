@@ -1871,8 +1871,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def takes_shifts(self):
-        return bool(self.staffing and self.badge_type != c.CONTRACTOR_BADGE and any(
-            not d.is_shiftless for d in self.assigned_depts))
+        return bool(self.staffing and self.badge_type != c.CONTRACTOR_BADGE)
 
     @property
     def handles_cash(self):

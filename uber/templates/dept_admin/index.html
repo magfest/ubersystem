@@ -58,7 +58,6 @@
           <tr>
             <th>Name</th>
             <th>Description</th>
-            <th>Shiftless</th>
             <th>Solicits Volunteers</th>
             <th>Max Consecutive Hours</th>
             <th>Members</th>
@@ -69,7 +68,6 @@
             <tr>
               <td>{{ department|form_link }}</td>
               <td>{{ department.description }}</td>
-              <td>{{ department.is_shiftless|yesno("Yes,No") }}</td>
               <td>{{ department.solicits_volunteers|yesno("Yes,No") }}</td>
               <td>{{ department.max_consecutive_minutes // 60 }}</td>
               <td>{{ department.member_count }}</td>
