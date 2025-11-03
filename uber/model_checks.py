@@ -427,10 +427,6 @@ def mivs_show_info_required_fields(game):
             return 'Please include a full description for our website.'
         if not game.link_to_promo_video:
             return 'Please include a link to a 30-second promo video.'
-        if game.has_multiplayer and not game.player_count:
-            return 'Please tell us how many players your game supports.'
-        if game.has_multiplayer and not game.multiplayer_game_length:
-            return 'Please enter the average length for a multiplayer game or match.'
 
 
 # =============================
