@@ -25,6 +25,7 @@ def needs_badge_num(attendee=None, badge_type=None):
     if c.NUMBERED_BADGES:
         if attendee:
             return (badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.has_personalized_badge
-                    ) and not attendee.is_unassigned and attendee.paid != c.NOT_PAID and attendee.is_valid
+                    ) and (not attendee.is_unassigned or attendee.badge_type == c.CONTRACTOR_BADGE
+                           ) and attendee.paid != c.NOT_PAID and attendee.is_valid
         else:
             return badge_type in c.PREASSIGNED_BADGE_TYPES
