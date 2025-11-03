@@ -42,15 +42,20 @@
 {% block content %}
 <div class="d-none csrf_token"> {{ csrf_token() }} </div>
 <div class="row justify-content-center">
-<div class="col-12 col-md-10 text-center">
-  <h2>{{ c.CURRENT_VOLUNTEER.first_name }} {{ c.CURRENT_VOLUNTEER.last_name }}'s Available Shifts</h2>
+<div class="col-12 col-md-10">
+  <div class="d-flex justify-content-between align-items-end">
+    <h2>
+      {{ c.CURRENT_VOLUNTEER.first_name }} {{ c.CURRENT_VOLUNTEER.last_name }}'s Available Shifts
+    </h2>
+    <div class="text-end mb-1">
+      {% if not c.HIDE_SCHEDULE %}<a target="_blank" href="../schedule/">View Event Schedule</a> |{% endif %}
+      <a href="shifts_ical">Download .ics File ⤓</a> | 
+      <a href="printable" target="_blank">View Printable Schedule</a>
+    </div>  
+  </div>
   {% if c.BEFORE_SHIFTS_CREATED %}
   <p>Shifts will be available starting {{ c.SHIFTS_CREATED.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}.</p>
   {% else %}
-  {% if not c.HIDE_SCHEDULE %}
-    <p><a target="_blank" href="../schedule/">View the {{ c.EVENT_NAME }} Schedule here</a>.</p>
-  {% endif %}
-  <p><a href="shifts_ical">Click Here</a> to download your shifts in ical format.</p>
   <div class="accordion mb-3 text-start" id="shifts-info">
     <div class="accordion-item">
       <h2 class="accordion-header" id="shifts-info-details-header">
