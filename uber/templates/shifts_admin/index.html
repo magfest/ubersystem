@@ -3,20 +3,6 @@
 {% block page_styles %}
 <!--inside page_style -->
 {{ "fullcalendar-5.3.2/lib/main.min.css"|serve_static_content }}
-
-<style>
-  .button_row {
-    margin-bottom: 20px;
-  }
-
-  .button_row div a.setup_button, .button_row div a.teardown_button {
-    background-color: #239875;
-    background-image: -webkit-linear-gradient(top, #239875 0%, #209572 100%);
-    background-image: -o-linear-gradient(top, #239875 0%, #209572 100%);
-    background-image: -webkit-gradient(linear, left top, left bottom, from(#239875), to(#209572));
-    background-image: linear-gradient(to bottom, #239875 0%, #209572 100%);
-  }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -30,16 +16,12 @@ Please select a department above to view its shifts.
     {% if checklist.completed %}
         You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  If that's not the case, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
     {% else %}
-        {% if department.is_shiftless %}
-            This department is on record as not needing any shifts.  Please click the following link to confirm this so we know we don't need to make any shifts.  If this is in error and you'd like shifts for your people, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
-        {% else %}
-            <p>We are able to import shifts from last year. If you want us to import last year's shifts, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
-                You will still be able to edit those shifts, add slots for additional volunteers, and create new shifts. If you choose to import last year’s shifts, please take the time to look them over and make any needed changes. After the import, you will need to return to this page and approve that they are correct by clicking "I Don’t Need To Do Anything Else Here."</p>
+        <p>We are able to import shifts from last year. If you want us to import last year's shifts, please email {{ c.STAFF_EMAIL|email_only|email_to_link }}.
+            You will still be able to edit those shifts, add slots for additional volunteers, and create new shifts. If you choose to import last year’s shifts, please take the time to look them over and make any needed changes. After the import, you will need to return to this page and approve that they are correct by clicking "I Don’t Need To Do Anything Else Here."</p>
 
-            <p>If you want any shifts to be restricted to certain staffers, <strong>including setup or teardown shifts</strong>, please use the "roles" function when creating shifts. Shifts with specific roles will only be visible to staff that you have assigned to ALL of those roles.</p>
+        <p>If you want any shifts to be restricted to certain staffers, <strong>including setup or teardown shifts</strong>, please use the "roles" function when creating shifts. Shifts with specific roles will only be visible to staff that you have assigned to ALL of those roles.</p>
 
-            <p>Otherwise, you can create shifts, and when you are done, click "I Don’t Need To Do Anything Else Here."</p>
-        {% endif %}
+        <p>Otherwise, you can create shifts, and when you are done, click "I Don’t Need To Do Anything Else Here."</p>
         <p><a href="#" onClick="$('#checkoff').show(); return false;">I Don't Need To Do Anything Else Here</a></p>
         <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
         {{ csrf_token() }}
@@ -51,30 +33,47 @@ Please select a department above to view its shifts.
 {% endif %}
 </div>
 
-<form method="post" action="shift_schedule_csv" class="d-flex gap-3 mb-3 justify-content-end">
-    <div>
-        {{ csrf_token() }}
-        <input type="hidden" name="department_id" value="{{ department.id }}" />
-        <div class="form-text">
-        <label for="day">Day</label>
+<div class="d-flex gap-2 justify-content-between mb-3 align-items-end">
+    <div class="d-flex gap-2">
+        <div><a class="btn btn-primary" href="form?id=None&department_id={{ department.id }}">Add Job</a></div>
+        <div><a class="btn btn-primary" href="template?id=None&department_id={{ department.id }}">Add Jobs by Template</a></div>
+        {% if department.job_templates %}
+        <div x-data="{
+            template_id: '',
+            getTemplateURL() { return 'template?id=' + this.template_id }
+        }" class="d-flex gap-2">
+            <div>
+                <select class="form-select" x-model="template_id">
+                    <option value="">Select a Template</option>
+                    {% for template in department.job_templates %}
+                    <option value="{{ template.id }}">{{ template.template_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div><a class="btn btn-primary" :href="getTemplateURL">Edit Template</a></div>
         </div>
-        <select class="form-select" id="day" name="day">
-        <option selected="true" value="all">All Days</option>
-        {% for (day,) in dept_shifts_days %}
-        <option value="{{ day.strftime('%Y-%m-%d') }}">{{ day.strftime('%A %-m/%-d') }}</option>
-        {% endfor %}
-        </select>
+        {% endif %}
     </div>
     <div>
-        <div class="form-text">&nbsp;</div>
-        <button type="submit" formaction="shift_schedule_csv" class="btn btn-primary">Download Shift Schedule</button>
-    </div>
-</form>
-
-<div class="row text-center button_row">
-    <div class="col-md-4">
-        <h3>Shifts ({{normal|length}})</h3>
-        <a class="btn btn-primary" href="form?id=None&department_id={{ department.id }}&type={{ c.REGULAR }}">Add Shift</a>
+        <form method="post" action="shift_schedule_csv" class="d-flex gap-2">
+        <div>
+            {{ csrf_token() }}
+            <input type="hidden" name="department_id" value="{{ department.id }}" />
+            <div class="form-text">
+            <label for="day">Day</label>
+            </div>
+            <select class="form-select" id="day" name="day">
+            <option selected="true" value="all">All Days</option>
+            {% for (day,) in dept_shifts_days %}
+            <option value="{{ day.strftime('%Y-%m-%d') }}">{{ day.strftime('%A %-m/%-d') }}</option>
+            {% endfor %}
+            </select>
+        </div>
+        <div>
+            <div class="form-text">&nbsp;</div>
+            <button type="submit" formaction="shift_schedule_csv" class="btn btn-primary">Download Shift Schedule</button>
+        </div>
+    </form>
     </div>
 </div>
 

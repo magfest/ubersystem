@@ -52,7 +52,6 @@ def _copy_department_shifts(service, to_department, from_department, dept_role_m
             name=from_job['name'],
             description=from_job['description'],
             duration=from_job['duration'],
-            type=from_job['type'],
             extra15=from_job['extra15'],
             slots=from_job['slots'],
             start_time=UTC.localize(dateparser.parse(from_job['start_time'])) + EPOCH_DELTA,

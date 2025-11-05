@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, time
 
 import six
 from pockets import cached_property, classproperty, groupify, readable_join
@@ -7,19 +7,19 @@ from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
-from sqlalchemy.types import Boolean, Float, Integer
+from sqlalchemy.types import Boolean, Float, Integer, Time
 
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.attendee import Attendee
-from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
+from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, UniqueList, MultiChoice
 
 
 __all__ = [
     'dept_membership_dept_role', 'job_required_role', 'Department',
     'DeptChecklistItem', 'BulkPrintingRequest', 'DeptMembership', 'DeptMembershipRequest',
-    'DeptRole', 'Job', 'Shift']
+    'DeptRole', 'Job', 'Shift', 'JobTemplate']
 
 
 # Many to many association table to represent the DeptRoles fulfilled
@@ -45,6 +45,18 @@ job_required_role = Table(
     UniqueConstraint('dept_role_id', 'job_id'),
     Index('ix_job_required_role_dept_role_id', 'dept_role_id'),
     Index('ix_job_required_role_job_id', 'job_id'),
+)
+
+
+# Many to many association table to store the DeptRoles in JobTemplate
+job_template_required_role = Table(
+    'job_template_required_role',
+    MagModel.metadata,
+    Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
+    Column('job_template_id', UUID, ForeignKey('job_template.id')),
+    UniqueConstraint('dept_role_id', 'job_template_id'),
+    Index('ix_job_template_required_role_dept_role_id', 'dept_role_id'),
+    Index('ix_job_template_required_role_job_template_id', 'job_template_id'),
 )
 
 
@@ -191,10 +203,7 @@ class Department(MagModel):
     name = Column(UnicodeText, unique=True)
     description = Column(UnicodeText)
     solicits_volunteers = Column(Boolean, default=True)
-    is_shiftless = Column(Boolean, default=False)
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
-    is_setup_approval_exempt = Column(Boolean, default=True)  # Deprecated
-    is_teardown_approval_exempt = Column(Boolean, default=True)  # Deprecated
     max_consecutive_minutes = Column(Integer, default=0)
     from_email = Column(UnicodeText)
     manages_panels = Column(Boolean, default=False)
@@ -202,6 +211,7 @@ class Department(MagModel):
     panels_desc = Column(UnicodeText)
 
     jobs = relationship('Job', backref='department')
+    job_templates = relationship('JobTemplate', backref='department')
 
     dept_checklist_items = relationship('DeptChecklistItem', backref='department')
     dept_roles = relationship('DeptRole', backref='department')
@@ -303,14 +313,6 @@ class Department(MagModel):
         remote_side='Department.id',
         single_parent=True)
 
-    @presave_adjustment
-    def force_approval_exempt(self):
-        # We used to have a system where departments would approve staffers for
-        # setup and teardown shifts -- we're getting rid of this option, which
-        # is most easily accomplished by making all departments always exempt
-        self.is_setup_approval_exempt = True
-        self.is_teardown_approval_exempt = True
-
     @hybrid_property
     def member_count(self):
         return len(self.memberships)
@@ -368,6 +370,10 @@ class Department(MagModel):
     @classmethod
     def normalize_name(cls, name):
         return name.lower().replace('_', '').replace(' ', '')
+    
+    @property
+    def dept_roles_choices(self):
+        return [(role.id, role.name) for role in self.dept_roles]
 
     @property
     def dept_roles_by_id(self):
@@ -376,6 +382,10 @@ class Department(MagModel):
     @property
     def dept_roles_by_name(self):
         return groupify(self.dept_roles, 'name')
+    
+    @property
+    def job_templates_choices(self):
+        return [(template.id, template.template_name) for template in self.job_templates]
 
 
 class Job(MagModel):
@@ -385,7 +395,9 @@ class Job(MagModel):
         (_ONLY_MEMBERS, 'Members of this department'),
         (_ALL_VOLUNTEERS, 'All volunteers')]
 
-    type = Column(Choice(c.JOB_TYPE_OPTS), default=c.REGULAR)  # Deprecated
+    job_template_id = Column(UUID, ForeignKey('job_template.id'), nullable=True)
+    department_id = Column(UUID, ForeignKey('department.id'))
+
     name = Column(UnicodeText)
     description = Column(UnicodeText)
     start_time = Column(UTCDateTime)
@@ -393,8 +405,8 @@ class Job(MagModel):
     weight = Column(Float, default=1)
     slots = Column(Integer)
     extra15 = Column(Boolean, default=False)
-    department_id = Column(UUID, ForeignKey('department.id'))
     visibility = Column(Choice(_VISIBILITY_OPTS), default=_ONLY_MEMBERS)
+    all_roles_required = Column(Boolean, default=True)
 
     required_roles = relationship(
         'DeptRole', backref='jobs', cascade='save-update,merge,refresh-expire,expunge', secondary='job_required_role')
@@ -405,6 +417,20 @@ class Job(MagModel):
     )
 
     _repr_attr_names = ['name']
+
+    @presave_adjustment
+    def zero_slots(self):
+        if not self.slots and not self.slots == 0:
+            self.slots = 0
+
+    def fill_gaps(self, session):
+        old_start_time = self.orig_value_of('start_time')
+        old_duration = self.orig_value_of('duration')
+        if self.template and self.template.type == c.FILL_GAPS and (self.duration != old_duration or
+                                                                    self.start_time != old_start_time):
+            self.template.fill_gap(session, self.start_time_local, self)
+            if old_start_time.date() != self.start_time.date():
+                self.template.fill_gap(session, old_start_time.astimezone(c.EVENT_TIMEZONE))
 
     @classproperty
     def _extra_apply_attrs(cls):
@@ -512,6 +538,10 @@ class Job(MagModel):
         )
 
     @hybrid_property
+    def signups_enabled(self):
+        return self.slots != 0
+
+    @hybrid_property
     def slots_taken(self):
         return len(self.shifts)
 
@@ -612,6 +642,235 @@ class Job(MagModel):
         """
         return [s for s in self._potential_volunteers(order_by=Attendee.last_first) if self.no_overlap(s)
                 and self.working_limit_ok(s)]
+
+
+class JobTemplate(MagModel):
+    department_id = Column(UUID, ForeignKey('department.id'))
+
+    template_name = Column(UnicodeText)
+    type = Column(Choice(c.JOB_TEMPLATE_TYPE_OPTS), default=c.FILL_GAPS)
+    name = Column(UnicodeText)
+    description = Column(UnicodeText)
+    duration = Column(Integer)
+    weight = Column(Float, default=1)
+    extra15 = Column(Boolean, default=False)
+    visibility = Column(Choice(Job._VISIBILITY_OPTS), default=Job._ONLY_MEMBERS)
+    all_roles_required = Column(Boolean, default=True)
+
+    min_slots = Column(Integer)  # Future improvement: a bulk-edit for slots in jobs by time of day
+    days = Column(MultiChoice(c.JOB_DAY_OPTS))
+    open_time = Column(Time, nullable=True)
+    close_time = Column(Time, nullable=True)
+    interval = Column(Integer, nullable=True)
+
+    required_roles = relationship(
+        'DeptRole', backref='job_templates', cascade='save-update,merge,refresh-expire,expunge', secondary='job_template_required_role')
+    jobs = relationship('Job', backref='template', cascade='save-update,merge,refresh-expire,expunge')
+
+    @presave_adjustment
+    def zero_slots(self):
+        if not self.min_slots and not self.min_slots == 0:
+            self.min_slots = 0
+
+    @property
+    def needs_refresh(self):
+        if self.type == c.CUSTOM:
+            return False
+        elif self.type != self.orig_value_of('type'):
+            return True
+
+        if self.type == c.INTERVAL:
+            return self.interval != self.orig_value_of('interval')
+        elif self.type == c.FILL_GAPS:
+            return self.duration != self.orig_value_of('duration')
+    
+    @property
+    def required_roles_ids(self):
+        _, ids = self._get_relation_ids('required_roles')
+        return [str(d.id) for d in self.required_roles] if ids is None else ids
+
+    @required_roles_ids.setter
+    def required_roles_ids(self, value):
+        self._set_relation_ids('required_roles', DeptRole, value)
+
+    def create_jobs(self, session, days_ints=None, reset=True):
+        if reset:
+            for job in self.jobs:
+                session.delete(job)
+        
+        days_ints = days_ints or self.days_ints
+
+        for day_int in days_ints:
+            first_shift = c.EVENT_TIMEZONE.localize(datetime.strptime(f"{day_int} {self.open_time}", '%Y%m%d %H:%M:%S'))
+            self.fill_working_hours(session, first_shift, day_int, skip_first_shift=False)
+
+        session.commit()
+
+    def fill_working_hours(self, session, shift_start, day_int, skip_first_shift=True):
+        cutoff_time = self.real_cutoff_time(day_int)
+        interval_delta = timedelta(minutes=(self.duration if self.type == c.FILL_GAPS else self.interval))
+        next_shift_start = (shift_start + interval_delta) if skip_first_shift else shift_start
+
+        while next_shift_start < cutoff_time:
+            if self.type == c.FILL_GAPS and (next_shift_start + interval_delta) > cutoff_time:
+                duration = (cutoff_time - next_shift_start).seconds // 60
+            else:
+                duration = self.duration
+
+            next_job = Job(department_id=self.department_id, job_template_id=self.id,
+                           name=self.name, description=self.description,
+                           start_time=next_shift_start, duration=duration,
+                           weight=self.weight, slots=self.min_slots,
+                           extra15=self.extra15, visibility=self.visibility,
+                           all_roles_required=self.all_roles_required)
+            session.add(next_job)
+            next_shift_start += interval_delta
+
+    def update_jobs(self, session):
+        """
+        Updates this template's existing jobs based on changes made to the template.
+        Order of operations:
+            1. Check for differences in days: if different, set aside jobs on removed days
+            so we don't process them in the next steps. Added days are saved for the end.
+            2. Update all the basic attributes that don't require extra logic. Required roles and min slots need
+            some simple custom logic, but otherwise they are applied to jobs the same as the others.
+            3. If the open or close time has changed, build a list of jobs by day for processing.
+            We shift the start time of jobs while building this list if the open time has changed.
+            4. Ship each list to update_last_jobs so that it can delete extra jobs, adjust the last job's duration
+            (if the template is a "Fill Gaps" type), and add new jobs until the cutoff time is hit.
+            5. Add shifts for any added days from step 1 -- we save this till the end to avoid extra processing.
+        """
+
+        from uber.utils import date_trunc_day
+        from collections import defaultdict
+
+        update_attrs = ['name', 'description', 'duration', 'weight', 'extra15',
+                        'min_slots', 'visibility', 'all_roles_required']
+
+        changes = {}
+        add_days = None
+        deleted_jobs = []
+        jobs_by_day = defaultdict(list)
+
+        # Storing these now prevents extra hits to the DB
+        old_open_time = self.orig_value_of('open_time')
+        old_close_time = self.orig_value_of('close_time')
+        old_days = self.orig_value_of('days')
+
+        if old_days != self.days:
+            old_days_ints = set([int(i) for i in str(old_days).split(',') if i])
+            delete_days = old_days_ints - self.days_ints
+            add_days = self.days_ints - old_days_ints
+
+            if delete_days:
+                jobs_by_date = session.query(
+                    date_trunc_day(Job.start_time), Job
+                    ).join(Job.template).filter(Job.job_template_id == self.id)
+                for dt, job_to_delete in jobs_by_date:
+                    if int(dt.strftime('%Y%m%d')) in delete_days:
+                        deleted_jobs.append(job_to_delete)
+                        session.delete(job_to_delete)
+        
+        jobs_to_process = [j for j in self.jobs if j.id not in deleted_jobs]
+
+        for attr in update_attrs:
+            if self.orig_value_of(attr) != getattr(self, attr):
+                changes[attr] = getattr(self, attr)
+        
+        old_required_roles_ids = [role.id for role in self.required_roles]
+        if old_required_roles_ids != self.required_roles_ids:
+            changes['required_roles_ids'] = self.required_roles_ids
+
+        for job in jobs_to_process:
+            job_updated = False
+            for attr_name, new_val in changes.items():
+                if attr_name == 'min_slots':
+                    if job.slots and job.slots < new_val:
+                        job.slots = new_val
+                        job_updated = True
+                else:
+                    setattr(job, attr_name, new_val)
+                    job_updated = True
+            if job_updated:
+                session.add(job)
+
+        if self.type != c.CUSTOM and (old_open_time != self.open_time or old_close_time != self.close_time):
+            old_open_minutes = (old_open_time.hour * 60) + old_open_time.minute
+            new_open_minutes = (self.open_time.hour * 60) + self.open_time.minute
+            start_time_delta = timedelta(minutes=abs(new_open_minutes - old_open_minutes))
+
+            for job in jobs_to_process:
+                jobs_by_day[job.start_time_local.strftime('%Y%m%d')].append(job)
+                if self.open_time > old_open_time:
+                    job.start_time += start_time_delta
+                elif self.open_time < old_open_time:
+                    job.start_time -= start_time_delta
+
+            for day, jobs in jobs_by_day.items():
+                self.update_last_jobs(session, day, jobs)
+
+        if add_days:
+            self.create_jobs(session, add_days, reset=False)
+
+    def update_last_jobs(self, session, day_int, jobs):
+        cutoff_time = self.real_cutoff_time(day_int)
+        jobs = sorted(jobs, key=lambda x: x.start_time, reverse=True)
+
+        for job in jobs:
+            if job.start_time >= cutoff_time:
+                session.delete(job)
+            else:
+                last_job = job
+                break
+
+        if self.type == c.FILL_GAPS:
+            last_job_time = last_job.start_time + timedelta(minutes=last_job.duration)
+        elif self.type == c.INTERVAL:
+            last_job_time = last_job.start_time
+
+        if last_job_time < cutoff_time and self.type == c.FILL_GAPS and last_job.duration != self.duration:
+            last_job.duration = min(self.duration, (cutoff_time - last_job.start_time).seconds // 60)
+            last_job_time = last_job.start_time + timedelta(minutes=self.duration)
+            session.add(last_job)
+
+        if last_job_time < cutoff_time:
+            self.fill_working_hours(session, last_job.start_time, day_int)
+        elif last_job_time > cutoff_time and self.type == c.FILL_GAPS:
+            last_job.duration = (cutoff_time - last_job.start_time).seconds // 60
+            session.add(last_job)
+
+    def fill_gap(self, session, start_time, job=None):
+        from uber.utils import date_trunc_day
+        prev_job_end = None
+        day_int = start_time.strftime('%Y%m%d')
+        cutoff_time = self.real_cutoff_time(day_int)
+        job_query = session.query(Job).filter(Job.job_template_id == self.id,
+                                              date_trunc_day(Job.start_time) == start_time.date())
+        if job:
+            other_jobs = job_query.filter(Job.id != job.id).all()
+            jobs = sorted([job] + other_jobs, key=lambda x: x.start_time)
+        else:
+            jobs = job_query.order_by(Job.start_time).all()
+
+        for next_job in jobs:
+            if prev_job_end:
+                gap = 0
+                if prev_job_end > next_job.start_time:
+                    gap = (prev_job_end - next_job.start_time).seconds // 60
+                elif prev_job_end < next_job.start_time:
+                    gap = (next_job.start_time - prev_job_end).seconds // 60 * -1
+                if gap != 0:
+                    next_job.start_time += timedelta(minutes=gap)
+                    next_job.duration = min(self.duration, (cutoff_time - next_job.start_time).seconds // 60)
+                    session.add(next_job)
+            prev_job_end = next_job.start_time + timedelta(minutes=next_job.duration)
+        self.fill_working_hours(session, jobs[-1].start_time, day_int)
+    
+    def real_cutoff_time(self, day_int):
+        cutoff_time = c.EVENT_TIMEZONE.localize(datetime.strptime(f"{day_int} {self.close_time}", '%Y%m%d %H:%M:%S'))
+        if self.close_time == time(hour=23, minute=59):
+            cutoff_time += timedelta(minutes=1)
+        return cutoff_time
 
 
 class Shift(MagModel):

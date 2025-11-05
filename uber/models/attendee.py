@@ -2197,7 +2197,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             return True
         required_role_ids = set(r.id for r in job.required_roles)
         role_ids = set(r.id for r in self.dept_roles)
-        return required_role_ids.issubset(role_ids)
+        if job.all_roles_required:
+            return required_role_ids.issubset(role_ids)
+        else:
+            for role_id in required_role_ids:
+                if role_id in role_ids:
+                    return True
 
     @property
     def has_role_somewhere(self):

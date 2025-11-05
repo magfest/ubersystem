@@ -1,0 +1,63 @@
+{% if job_info or ('job_info' in forms) %}
+{% set job_or_template_info = job_info or forms['job_info'] %}
+{% else %}
+{% set job_or_template_info = job_template_info or forms['job_template_info'] %}
+{% endif %}
+
+{% set job_or_template = job or job_template %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+{% if job or job_or_template.is_new %}
+'no_slots': !{{ 'true' if job_or_template.is_new else job_or_template_info.slots.data|boolean|tojson }},
+{% endif %}
+{% endblock %} }">
+
+<div class="row g-3 mb-3">{% block type_interval %}{% endblock %}</div>
+
+<div class="row g-3 mb-3">
+{% block name_desc %}
+<div class="col-sm">{{ form_macros.input(job_or_template_info.name) }}</div>
+<div class="col-sm">{{ form_macros.input(job_or_template_info.description) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block start_duration %}
+<div class="col-sm">{{ form_macros.input(job_or_template_info.start_time, start_dt=job_or_template.start_time.astimezone(c.EVENT_TIMEZONE) if job_or_template.start_time else c.SHIFTS_EPOCH) }}</div>
+<div class="col-sm">
+    {% call form_macros.input(job_or_template_info.duration) %}
+    {{ form_macros.input(job_or_template_info.extra15) }}
+    {% endcall %}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block weight_visibility %}
+<div class="col-sm">{{ form_macros.input(job_or_template_info.weight) }}</div>
+{% if job or job_or_template.is_new %}
+<div class="col-sm">{{ form_macros.input(job_or_template_info.visibility, **{':disabled':'no_slots'}) }}</div>
+{% else %}
+<div class="col-sm">{{ form_macros.input(job_or_template_info.visibility) }}</div>
+{% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block roles %}
+<div class="col-sm">
+    {% call form_macros.input(job_or_template_info.required_roles_ids, choices=department.dept_roles_choices) %}
+    {{ form_macros.input(job_or_template_info.all_roles_required) }}
+    {% endcall %}
+</div>
+{% endblock %}
+</div>
+
+</div>

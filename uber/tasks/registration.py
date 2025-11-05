@@ -503,7 +503,7 @@ def check_authnet_held_txns():
         name=c.AUTHORIZENET_LOGIN_ID,
         transactionKey=c.AUTHORIZENET_LOGIN_KEY
         )
-    
+
     heldTransactionListRequest = apicontractsv1.getUnsettledTransactionListRequest()
     heldTransactionListRequest.merchantAuthentication = merchantAuth
     heldTransactionListRequest.status = 'pendingApproval'

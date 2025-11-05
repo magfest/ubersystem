@@ -1819,6 +1819,14 @@ if not c.SHIFTS_EPOCH:
 if not c.SHIFTS_ESCHATON:
     c.SHIFTS_ESCHATON = c.ESCHATON + timedelta(days=1, hours=23)
 
+c.JOB_DAYS = {}
+c.JOB_DAY_OPTS = []
+_day = c.SHIFTS_EPOCH
+while _day.date() != c.SHIFTS_ESCHATON.date():
+    c.JOB_DAYS[int(_day.strftime('%Y%m%d'))] = _day.strftime('%A %-m/%d')
+    c.JOB_DAY_OPTS.append((int(_day.strftime('%Y%m%d')), _day.strftime('%A %-m/%d')))
+    _day += timedelta(days=1)
+
 c.CON_TOTAL_DAYS = -(-(int((c.SHIFTS_ESCHATON - c.SHIFTS_EPOCH).total_seconds() // 3600)) // 24)
 c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 

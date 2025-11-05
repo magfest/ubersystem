@@ -23,7 +23,7 @@ from phonenumbers import PhoneNumberFormat
 from pockets import floor_datetime, listify
 from pockets.autolog import log
 from pytz import UTC
-from sqlalchemy import func, or_, cast
+from sqlalchemy import func, or_, cast, literal
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
@@ -338,6 +338,11 @@ def get_age_conf_from_birthday(birthdate, today=None):
             return age_group
 
     return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
+
+
+def date_trunc_day(dt):
+    dt_correct_time = func.timezone(c.EVENT_TIMEZONE.zone, func.timezone('UTC', dt))
+    return func.date_trunc(literal('day'), dt_correct_time)
 
 
 class DateBase:

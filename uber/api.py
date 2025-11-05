@@ -236,7 +236,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
                 active_dept_memberships = a.dept_memberships
             else:
                 active_dept_memberships = [m for m in a.dept_memberships if m.has_inherent_role or 
-                                           m.department in a.depts_where_working or m.department.is_shiftless]
+                                           m.department in a.depts_where_working]
 
             for membership in active_dept_memberships:
                 assigned_depts[membership.department_id] = membership.department.name

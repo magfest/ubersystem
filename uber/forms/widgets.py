@@ -1,14 +1,18 @@
 from markupsafe import escape, Markup
-from wtforms.widgets import NumberInput, html_params, CheckboxInput, TextInput, Select
+from wtforms.widgets import NumberInput, html_params, CheckboxInput, TextInput, Select, HiddenInput
 from uber.config import c
 from uber.custom_tags import linebreaksbr
+from pockets.autolog import log
 
 
 class MultiCheckbox():
     """
     Renders a MultiSelect field as a set of checkboxes, e.g., "What interests you?"
     """
-    def __call__(self, field, **kwargs):
+    def __call__(self, field, choices=None, **kwargs):
+        choices = choices or field.choices
+        field.choices = choices
+
         kwargs.setdefault('type', 'checkbox')
         field_id = kwargs.pop('id', field.id)
         html = []
@@ -158,6 +162,79 @@ class DateMaskInput(TextInput):
         return Markup(''.join(html))
 
 
+class DateTimePicker(TextInput):
+    def __call__(self, field, min_date=c.SHIFTS_EPOCH, max_date=c.SHIFTS_ESCHATON, start_dt=None, **kwargs):
+        id = kwargs.pop('id', field.id) or "date-time-picker"
+        start_dt = start_dt or min_date
+        html = f"""
+        <div class="input-group">
+            <input id="{id}" name="{field.name}" type="text" class="form-control" value="">
+            <span class="input-group-text"><i class="fa fa-calendar"></i></span>
+        </div>"""
+
+        script = f"""
+        <script type="text/javascript">
+            const eventTimeZone = "{c.EVENT_TIMEZONE}";
+
+            let startFlatpickr = flatpickr('#{id}',{{
+                allowInput: true,
+                enableTime: true,
+                altInput: true,
+                altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
+                disableMobile: true, //Do not let mobile native datepicker take over.
+                dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+                defaultDate: '{start_dt.isoformat()}',
+                minDate: '{min_date.isoformat()}',
+                maxDate: '{max_date.isoformat()}',
+                parseDate(dateString, format) {{
+                    let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+                    //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+                    return new Date(
+                        eventTimezonedDate.year(),
+                        eventTimezonedDate.month(),
+                        eventTimezonedDate.date(),
+                        eventTimezonedDate.hour(),
+                        eventTimezonedDate.minute(),
+                        eventTimezonedDate.second()
+                    );
+                }},
+                formatDate(date, format) {{
+                    let formatted =  moment.tz([
+                        date.getFullYear(),
+                        date.getMonth(),
+                        date.getDate(),
+                        date.getHours(),
+                        date.getMinutes(),
+                        date.getSeconds()
+                    ], eventTimeZone).format(format);
+                    return formatted;
+                }}
+            }});
+        </script>"""
+        return Markup(''.join([html, script]))
+
+
+class HourMinuteDuration(HiddenInput):
+    def __call__(self, field, **kwargs):
+        id = kwargs.pop('id', field.id)
+        duration = int(field.data) if field.data else 0
+        hours, minutes = int(duration / 60), int(duration % 60)
+        html = f"""
+        <div x-data="{{
+            hours: {hours},
+            minutes: {minutes},
+            getTotal() {{ return parseInt(this.hours) * 60 + parseInt(this.minutes) }},
+            }}">
+            <div class="input-group">
+                <input type="number" x-model="hours" class="form-control" onfocus="this.select();" name="{field.name}_hours" placeholder="# hours" value="{hours}" />
+                <span class="input-group-text">hours,</span>
+                <input type="number" x-model="minutes" class="form-control" onfocus="this.select();" name="{field.name}_minutes" placeholder="# minutes" value="{minutes}" />
+                <span class="input-group-text">minutes</span>
+            </div>
+            <input type="hidden" name="{field.name}" id="{id}" value={duration} x-bind:value="getTotal">
+        </div>"""
+        return Markup(html)
 
 class UniqueList(TextInput):
     """

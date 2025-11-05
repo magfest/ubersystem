@@ -1,16 +1,18 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 
 import cherrypy
 from sqlalchemy import select, func, literal
 from sqlalchemy.orm import subqueryload
+from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, \
     check_can_edit_dept, requires_shifts_admin
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, Job
-from uber.utils import check, localized_now, redirect_to_allowed_dept
+from uber.forms import load_forms
+from uber.models import Attendee, Department, Job, JobTemplate
+from uber.utils import check, localized_now, redirect_to_allowed_dept, validate_model, date_trunc_day
 
 
 def job_dict(job, shifts=None):
@@ -57,10 +59,6 @@ class Root:
     def index(self, session, department_id=None, message='', time=None):
         redirect_to_allowed_dept(session, department_id, 'index')
 
-        def date_trunc_day(dt):
-            dt_correct_time = func.timezone(c.EVENT_TIMEZONE.zone, func.timezone('UTC', dt))
-            return func.date_trunc(literal('day'), dt_correct_time)
-
         if department_id == 'None':
             department_id = ''
         elif department_id == 'All':
@@ -80,8 +78,7 @@ class Root:
         if department_id != '' and department_id is not None:
             jobs = session.jobs(department_id).all()
             for job in jobs:
-                if job.type == c.REGULAR:
-                    by_start[job.start_time_local].append(job)
+                by_start[job.start_time_local].append(job)
             dept_shifts_days = session.query(date_trunc_day(Job.start_time)).filter(
                 Job.department_id == department.id
                 ).group_by(date_trunc_day(Job.start_time)).order_by(date_trunc_day(Job.start_time)).all()
@@ -302,57 +299,118 @@ class Root:
             defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['department_id']]
             params.update(defaults)
 
-        job = session.job(
-            params,
-            bools=['extra15'],
-            allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
+        department = session.admin_attendee().depts_where_can_admin[0]
+
+        if params.get('id') in [None, '', 'None']:
+            job = Job()
+        else:
+            job = session.job(params.get('id'))
+            department = job.department
+        
+        if params.get('department_id'):
+                department = session.department(params['department_id'])
+
+        forms = load_forms(params, job, ['JobInfo'])
 
         if cherrypy.request.method == 'POST':
-            hours = params.get('duration_hours', 0)
-            minutes = params.get('duration_minutes', 0)
+            for form in forms.values():
+                form.populate_obj(job)
+            job.department = department
+            session.add(job)
 
-            try:
-                hours = int(hours)
-            except ValueError:
-                hours = 0
+            if not job.is_new:
+                job.fill_gaps(session)
 
-            try:
-                minutes = int(minutes)
-            except ValueError:
-                minutes = 0
-
-            job.duration = hours * 60 + minutes
-            message = check(job)
-            if not message:
-                session.add(job)
-                if params.get('id') == 'None':
-                    defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
-                    defaults[params['department_id']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
-                    cherrypy.session['job_defaults'] = defaults
-                tgt_start_time = job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z")
-                raise HTTPRedirect('index?department_id={}&time={}', job.department_id, tgt_start_time)
-
-        departments = session.admin_attendee().depts_where_can_admin
-        can_admin_dept = any(job.department_id == d.id for d in departments)
-        if not can_admin_dept and (job.department or job.department_id):
-            job_department = job.department or session.query(Department).get(job.department_id)
-            if job.is_new:
-                departments = sorted(departments + [job_department], key=lambda d: d.name)
-            else:
-                departments = [job_department]
-
-        dept_roles = defaultdict(list)
-        for department in departments:
-            for d in department.dept_roles:
-                dept_roles[d.department_id].append((d.id, d.name, d.description))
+            if params.get('id') == 'None':
+                defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
+                defaults[params['department_id']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
+                cherrypy.session['job_defaults'] = defaults
+            tgt_start_time = job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z")
+            raise HTTPRedirect('index?department_id={}&time={}', job.department_id, tgt_start_time)
 
         return {
             'job': job,
+            'department': department,
+            'forms': forms,
             'message': message,
-            'dept_roles': dept_roles,
-            'dept_opts': [(d.id, d.name) for d in departments],
             'defaults': 'defaults' in locals() and defaults
         }
+    
+    @ajax
+    def validate_job(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            job = Job()
+        else:
+            job = session.job(params.get('id'))
+
+        if not form_list:
+            form_list = ['JobInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, job, form_list)
+        all_errors = validate_model(forms, job, is_admin=True)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
+    
+    @requires_shifts_admin
+    def template(self, session, message='', **params):
+        department = session.admin_attendee().depts_where_can_admin[0]
+
+        if params.get('id') in [None, '', 'None']:
+            job_template = JobTemplate()
+        else:
+            job_template = session.job_template(params.get('id'))
+            department = job_template.department
+
+        if params.get('department_id'):
+            department = session.department(params['department_id'])
+
+        forms = load_forms(params, job_template, ['JobTemplateInfo'])
+
+        if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                form.populate_obj(job_template)
+            job_template.department_id = department.id
+            session.add(job_template)
+
+            if job_template.is_new or job_template.needs_refresh:
+                job_template.create_jobs(session)
+            else:
+                job_template.update_jobs(session)
+
+            raise HTTPRedirect('index?department_id={}&message={}', job_template.department_id,
+                               f"Job template saved.")
+
+        return {
+            'job_template': job_template,
+            'department': department,
+            'forms': forms,
+            'message': message,
+        }
+    
+    @ajax
+    def validate_job_template(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            job_template = JobTemplate()
+        else:
+            job_template = session.job_template(params.get('id'))
+
+        if not form_list:
+            form_list = ['JobTemplateInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, job_template, form_list)
+        all_errors = validate_model(forms, job_template, is_admin=True)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     def staffers_by_job(self, session, id, message=''):
         job = session.job(id)
@@ -378,6 +436,38 @@ class Root:
         raise HTTPRedirect('index?department_id={}&time={}',
                            job.department_id,
                            job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z"))
+
+    @csrf_protected
+    def delete_template(self, session, id):
+        template = session.job_template(id)
+
+        message = check_can_edit_dept(session, template.department, override_access='full_shifts_admin')
+        if message:
+            raise HTTPRedirect('index?department_id={}&message={}',
+                               template.department_id, message)
+
+        session.delete(template)
+        raise HTTPRedirect('index?department_id={}&message={}',
+                           template.department_id,
+                           "Job template deleted.")
+    
+    @csrf_protected
+    def delete_template_cascade(self, session, id):
+        template = session.job_template(id)
+
+        message = check_can_edit_dept(session, template.department, override_access='full_shifts_admin')
+        if message:
+            raise HTTPRedirect('index?department_id={}&message={}',
+                               template.department_id, message)
+        
+        job_count = len(template.jobs)
+        for job in template.jobs:
+            session.delete(job)
+
+        session.delete(template)
+        raise HTTPRedirect('index?department_id={}&message={}',
+                           template.department_id,
+                           f"Job template and {job_count} job(s) deleted.")
 
     @csrf_protected
     def assign_from_job(self, session, job_id, staffer_id):
