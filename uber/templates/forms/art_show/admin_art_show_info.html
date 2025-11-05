@@ -38,7 +38,7 @@ get showDeclineReason() { return this.status == {{ c.DECLINED|tojson }} },
             {{ (app.amount_paid / 100)|format_currency }} out of {{ app.total_cost|format_currency }}
         </p>
         {% if app.amount_unpaid %}
-            {% if not app.is_new and (not c.AT_THE_CON or not c.SPIN_TERMINAL_AUTH_KEY) %}
+            {% if not app.is_new and c.ONLINE_PAYMENT_AVAILABLE %}
             <div class="form-text">
                 <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View this {{ c.ART_SHOW_APP_TERM }}</a> for the payment button.
             </div>

@@ -554,6 +554,11 @@ class Config(_Overridable):
     @dynamic
     def GROUP_PRICE(self):
         return self.get_group_price()
+    
+    @property
+    @dynamic
+    def ONLINE_PAYMENT_AVAILABLE(self):
+        return not c.SPIN_TERMINAL_AUTH_KEY or c.BEFORE_ONLINE_PAYMENT_DEADLINE
 
     @property
     def PREREG_BADGE_TYPES(self):

@@ -2125,7 +2125,7 @@ class Root:
             account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
         attendees_who_owe_money = {}
-        if not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY:
+        if c.ONLINE_PAYMENT_AVAILABLE:
             for attendee in account.valid_attendees:
                 if attendee not in account.at_door_pending_attendees and attendee.active_receipt and not attendee.is_paid:
                     attendees_who_owe_money[attendee.full_name] = attendee.active_receipt.current_amount_owed
@@ -2206,8 +2206,7 @@ class Root:
             if attendee.is_valid:
                 if not receipt:
                     receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-                if not receipt.current_amount_owed or receipt.pending_total or (c.AFTER_PREREG_TAKEDOWN
-                                                                                and c.SPIN_TERMINAL_AUTH_KEY):
+                if not receipt.current_amount_owed or receipt.pending_total or not c.ONLINE_PAYMENT_AVAILABLE:
                     raise HTTPRedirect(page + 'message=' + message)
                 elif receipt.current_amount_owed and not receipt.pending_total:
                     # TODO: could use some cleanup, needed because of how we handle the placeholder attr
@@ -2222,8 +2221,7 @@ class Root:
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
-        if receipt and receipt.current_amount_owed and not receipt.pending_total and not attendee.placeholder and (
-                c.BEFORE_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY):
+        if receipt and receipt.current_amount_owed and not receipt.pending_total and not attendee.placeholder and c.ONLINE_PAYMENT_AVAILABLE:
             raise HTTPRedirect('new_badge_payment?id={}&message={}&return_to={}', attendee.id, message, return_to)
 
         return {
@@ -2477,7 +2475,7 @@ class Root:
     @id_required(Attendee)
     @requires_account(Attendee)
     def new_badge_payment(self, session, id, return_to, message=''):
-        if c.AFTER_PREREG_TAKEDOWN and c.SPIN_TERMINAL_AUTH_KEY:
+        if not c.ONLINE_PAYMENT_AVAILABLE:
             raise HTTPRedirect('confirm?id={}&message={}', id, "Please go to Registration to pay for this badge.")
         attendee = session.attendee(id)
         return {

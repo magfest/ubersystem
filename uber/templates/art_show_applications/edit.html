@@ -15,11 +15,14 @@
       <p>Your {{ c.ART_SHOW_APP_TERM }} has been approved!
       {% if not app.incomplete_reason and app.amount_unpaid %}
         </p>
-        {% if c.AT_THE_CON %}
+        {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
           <div class="alert alert-warning" role="alert">
             You currently have an outstanding balance of <strong>{{ app.amount_unpaid|format_currency }}</strong>.
             Please see the help desk at the Art Show to complete your payment.
           </div>
+        {% elif not c.ONLINE_PAYMENT_AVAILABLE %}
+          You will need to pay {{ app.amount_unpaid|format_currency }} to complete your {{ c.ART_SHOW_APP_TERM }}, but
+          we are not able to take online payments at this time. You will be able to pay your balance at the Art Show help desk on-site.
         {% elif receipt and receipt.pending_total %}
           <div class="alert alert-warning" role="alert">
           {% if incomplete_txn %}

@@ -46,7 +46,10 @@
             <div class="alert alert-warning" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
               with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
-              {% if c.AT_THE_CON %}Please go to the registration desk during opening hours to pay.{% else %}
+              {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}Please go to the registration desk during opening hours to pay.
+              {% elif not c.ONLINE_PAYMENT_AVAILABLE %}We are not able to take online payments at this time.
+              You will be able to pay your balance at the Registration help desk on-site.
+              {% else %}
               Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
               <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', attendee, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
               {% endif %}
@@ -54,7 +57,10 @@
             {% else %}
             <div class="alert alert-danger" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
-              {% if c.AT_THE_CON %}Please go to the registration desk during opening hours to pay.{% else %}
+              {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}Please go to the registration desk during opening hours to pay.
+              {% elif not c.ONLINE_PAYMENT_AVAILABLE %}We are not able to take online payments at this time.
+              You will be able to pay your balance at the Registration help desk on-site.
+              {% else %}
               Please <a href="" data-bs-toggle="modal" data-bs-target="#receiptModal">check your receipt here</a> to pay or 
               contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
               {% endif %}

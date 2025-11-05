@@ -4,7 +4,7 @@
             {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
                 <a href="at_door_confirmation" class="btn btn-success">Confirm Registrations and Get Check-in Barcode</a>
             {% else %}
-                {{ stripe_form('prereg_payment', text="Pay with Card Now") }}
+                {% if c.ONLINE_PAYMENT_AVAILABLE %}{{ stripe_form('prereg_payment', text="Pay with Card Now") }}{% endif %}
                 {% if c.AT_THE_CON %}
                 <a href="at_door_confirmation" class="btn btn-success">Pay with Cash/Card at Desk</a>
                 {% endif %}

@@ -1,4 +1,4 @@
-{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, cancel_url='cancel_payment_and_revert', stripe_button_id="upgrade-stripe-btn") }}
+{% if c.ONLINE_PAYMENT_AVAILABLE %}{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, cancel_url='cancel_payment_and_revert', stripe_button_id="upgrade-stripe-btn") }}{% endif %}
 <div class="modal fade" id="upgradeModal" tabindex="-1" role="dialog" aria-labelledby="upgradeTitle">
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
