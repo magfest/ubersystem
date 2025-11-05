@@ -129,7 +129,8 @@ class Root:
                 or_(Tracking.links.like('%artist_marketplace_application({})%'.format(id)),
                     and_(Tracking.model == 'ArtistMarketplaceApplication',
                          Tracking.fk_id == id))).order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(app)),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(app)
+                                                                ).order_by(PageViewTracking.when).all(),
             'receipt_items': marketplace_items_and_txns,
         }
 
