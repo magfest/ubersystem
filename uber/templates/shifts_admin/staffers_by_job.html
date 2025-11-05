@@ -38,7 +38,11 @@
     {% endfor %}
     </table>
 {% else %}
+    {% if job.slots %}
     <b> No staffers are currently signed up for this shift, which has {{ job.slots }} slot{{ job.slots|pluralize }} </b>
+    {% else %}
+    <b>No staffers are currently assigned to this shift. This shift is not available for signups.</b>
+    {% endif %}
 {% endif %}
 
 {% endblock %}

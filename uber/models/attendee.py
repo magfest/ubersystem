@@ -1871,8 +1871,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def takes_shifts(self):
-        return bool(self.staffing and self.badge_type != c.CONTRACTOR_BADGE and any(
-            not d.is_shiftless for d in self.assigned_depts))
+        return bool(self.staffing and self.badge_type != c.CONTRACTOR_BADGE)
 
     @property
     def handles_cash(self):
@@ -1936,15 +1935,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         return [
             job for job in self.available_jobs
-            if job.no_overlap(self) and job.working_limit_ok(self)
-            and (
-                job.type != c.SETUP
-                or self.can_work_setup
-                or job.department.is_setup_approval_exempt)
-            and (
-                job.type != c.TEARDOWN
-                or self.can_work_teardown
-                or job.department.is_teardown_approval_exempt)]
+            if job.no_overlap(self) and job.working_limit_ok(self)]
 
     @property
     def possible_opts(self):
@@ -2206,7 +2197,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             return True
         required_role_ids = set(r.id for r in job.required_roles)
         role_ids = set(r.id for r in self.dept_roles)
-        return required_role_ids.issubset(role_ids)
+        if job.all_roles_required:
+            return required_role_ids.issubset(role_ids)
+        else:
+            for role_id in required_role_ids:
+                if role_id in role_ids:
+                    return True
 
     @property
     def has_role_somewhere(self):

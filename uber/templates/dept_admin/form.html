@@ -237,14 +237,10 @@
 </p>{% endif %}
 <p>{{ department.description }}</p>
 <div class="card card-body mb-3">
-{% if department.is_shiftless -%}
-  <p>This department is <b>shiftless</b>; it does not track staff hours using shifts.</p>
-{%- else -%}
 {% if not department.max_consecutive_minutes -%}
   <p>Members of this department may work <strong>any number of hours</strong> in a row.</p>
 {%- else -%}
   <p>Members of this department may work <strong>{{ department.max_consecutive_minutes // 60 }} hours</strong> in a row.</p>
-{%- endif %}
 {%- endif %}
 <p>This department {% if department.solicits_volunteers %}solicits{% else %}<b>does not</b> solicit{% endif %} volunteers.</p>
 {% if department.manages_panels %}
@@ -400,6 +396,7 @@
             </a>
           </p>
         {% endif %}
+        {{ department.attendees_working_shifts }}
         {% set members_with_shifts_emails = department.members_with_shifts_emails %}
         {% if members_with_shifts_emails %}
           <p>

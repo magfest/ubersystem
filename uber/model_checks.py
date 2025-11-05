@@ -165,23 +165,15 @@ def money_amount(model):
         return 'Amount must be a positive number'
 
 
-Job.required = [
-    ('name', 'Job Name'),
-    ('description', 'Job Description'),
-    ('start_time', 'Start Time'),
-    ('duration', 'Hours and/or Minutes')
-]
-
-
 @validation.Job
 def slots(job):
-    if job.slots < len(job.shifts):
-        return 'You cannot reduce the number of slots to below the number of staffers currently signed up for this job'
+    if job.slots and job.slots < len(job.shifts):
+        return 'You cannot reduce the number of slots to below the number of staffers currently signed up for this job.'
 
 
 @validation.Job
 def time_conflicts(job):
-    if not job.is_new:
+    if not job.is_new and job.slots:
         original_minutes = Job(start_time=job.orig_value_of('start_time'),
                                duration=job.orig_value_of('duration')).minutes
         for shift in job.shifts:

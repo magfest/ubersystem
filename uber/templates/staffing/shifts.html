@@ -206,7 +206,7 @@
     <small id="shift-dept"></small>
   </div>
   <div class="toast-body">
-    <div class="d-flex fst-italic mb-1">
+    <div class="d-flex fst-italic mb-1 slots-weighting">
       <div><span id="shift-slots"></span> slots filled</div><div class="ms-auto">x<span id="shift-weight"></span> weighting</div>
     </div>
     <div id="shift-desc"></div>
@@ -509,8 +509,13 @@
     let eventInfo = info.event;
     $('#shift-title').text(eventInfo.title);
     $('#shift-dept').text(eventInfo.extendedProps.department_name);
-    $('#shift-slots').text(eventInfo.extendedProps.slots);
-    $('#shift-weight').text(eventInfo.extendedProps.weight);
+    if (eventInfo.extendedProps.slots != "") {
+      $('#shift-slots').text(eventInfo.extendedProps.slots);
+      $('#shift-weight').text(eventInfo.extendedProps.weight);
+      $(".slots-weighting").removeClass('d-none');
+    } else {
+      $(".slots-weighting").addClass('d-none');
+    }
     $('#shift-desc').html(eventInfo.extendedProps.desc);
 
     let button = '';
@@ -519,14 +524,18 @@
       button = `<button type="button" class="btn btn-sm btn-success"
                 onClick="signUp('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
                 '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")})')">Sign Up</button>`
-    } else if (dropDeadlinePassed) {
-      button = `<span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"
-      title="You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.STAFF_EMAIL|email_only }}.">
-      <button type="button" class="btn btn-sm btn-warning" disabled>Drop</button></span>`
-    } else {
+    } else if (eventInfo.extendedProps.can_drop) {
       button = `<button type="button" class="btn btn-sm btn-warning" 
                 onClick="dropShift('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
                 '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Drop</button>`;
+    } else {
+      let cant_drop_reason;
+      if (dropDeadlinePassed) {
+        cant_drop_reason = "You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.STAFF_EMAIL|email_only }}."
+      } else { cant_drop_reason = "You cannot drop an assigned shift. Please contact your department head." }
+      button = `<span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"
+      title="${cant_drop_reason}">
+      <button type="button" class="btn btn-sm btn-warning" disabled>Drop</button></span>`
     }
 
     $('#shift-button').html(button);
@@ -579,12 +588,17 @@
     html = html + `<div class="d-flex flex-column${(extraClasses['fullHeight'] ?? '')} 
       p-1"><h2 class="${extraClasses['titleSize']} mb-0 text-truncate">${eventInfo.title}`;
     if (info.view.type == 'listWeek') {
-      html = html + `</h2><p class="mt-1 mb-1 fs-6"><em>${eventInfo.extendedProps.slots} slots filled</em> &nbsp;|&nbsp; 
-        <em>x${eventInfo.extendedProps.weight} weighting</em></p>
-        <p class="fs-5 pt-1 mb-1">${eventInfo.extendedProps.desc}</p>
+      if (eventInfo.extendedProps.slots != "") {
+        html = html + `</h2><p class="mt-1 mb-1 fs-6"><em>${eventInfo.extendedProps.slots}</em> &nbsp;|&nbsp; 
+          <em>x${eventInfo.extendedProps.weight} weighting</em></p>`;
+      }
+      html = html + `<p class="fs-5 pt-1 mb-1">${eventInfo.extendedProps.desc}</p>
         <p class="mb-0 mt-2">${button}</p>`;
     } else {
-      html = html + ` (${eventInfo.extendedProps.slots}) x${eventInfo.extendedProps.weight}</h2>
+      if (eventInfo.extendedProps.slots != "") {
+        html = html + ` (${eventInfo.extendedProps.slots}) x${eventInfo.extendedProps.weight}`;
+      }
+      html = html + `</h2>
         <p class="flex-grow-1 mt-1 text-truncate mb-0">${eventInfo.extendedProps.desc_text}</p>
         <p class="fst-italic mb-1 text-truncate">Click for details & options</p>`;''
     }
@@ -611,7 +625,7 @@
         customButtons: {
           setupView: {
             text: 'Setup',
-            click: function() { showWeekCal('{{ c.SETUP_JOB_START.date() }}', {{ setup_duration }}, 'setupView'); },
+            click: function() { showWeekCal('{{ c.SHIFTS_EPOCH.date() }}', {{ setup_duration }}, 'setupView'); },
             active: false,
           },
           eventView: {
@@ -641,8 +655,8 @@
             }
         },
         validRange: {
-          start: '{{ c.SETUP_JOB_START.date() }}',
-          end: '{{ c.TEARDOWN_JOB_END.date() }}',
+          start: '{{ c.SHIFTS_EPOCH.date() }}',
+          end: '{{ c.SHIFTS_ESCHATON.date() }}',
         },
         viewDidMount: showOtherView,
         eventSources: [{events: fetchEvents}],

@@ -4,20 +4,20 @@ from datetime import date
 from markupsafe import Markup
 from wtforms import (BooleanField, DateField, EmailField,
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
-                     StringField, TelField, validators, TextAreaField)
+                     StringField, TimeField, validators, TextAreaField)
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
-                        HiddenBoolField, HiddenIntField, CustomValidation, Ranking)
+from uber.forms import (MultiCheckbox, MagForm, SelectBooleanField, DateTimePicker, HourMinuteDuration,
+                        SelectDynamicChoices, HiddenIntField, CustomValidation, Ranking)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
-from uber.models import Attendee, BadgeInfo, Session, PromoCodeGroup
+from uber.models import Job
 from uber.model_checks import invalid_phone_number
 from uber.utils import get_age_conf_from_birthday
 
 
-__all__ = ['DepartmentInfo', 'BulkPrintingRequestInfo']
+__all__ = ['DepartmentInfo', 'JobInfo', 'JobTemplateInfo', 'BulkPrintingRequestInfo']
 
 
 class DepartmentInfo(MagForm):
@@ -27,7 +27,6 @@ class DepartmentInfo(MagForm):
     description = StringField(
         'Description', description="Displayed to potential volunteers during registration.")
     solicits_volunteers = BooleanField("This department publically asks volunteers for help.")
-    is_shiftless = BooleanField("This department does not use shift signups.")
     max_consecutive_minutes = IntegerField(
         "Max Consecutive Hours",
         description="The maximum number of consecutive hours a staffer may work. Enter 0 for no limit.")
@@ -38,14 +37,65 @@ class DepartmentInfo(MagForm):
         "Panel Application Description",
         description="What text, if any, should be shown when applying for a panel for this department?")
     parent_id = HiddenField()
-    is_setup_approval_exempt = HiddenField()
-    is_teardown_approval_exempt = HiddenField()
 
     def populate_obj(self, obj, is_admin=False):
         max_minutes = self._fields.get('max_consecutive_minutes', None)
         if max_minutes and max_minutes.data:
             max_minutes.data = max_minutes.data * 60
         super().populate_obj(obj, is_admin)
+
+
+class BaseJobInfo(MagForm):
+    admin_desc = True
+
+    name = StringField('Job Name')
+    description = TextAreaField('Description')
+    duration = IntegerField('Duration', widget=HourMinuteDuration())
+    no_slots = BooleanField('This job is not available for signups.',
+                            description="You will still be able to assign members of your department to this job.")
+    extra15 = BooleanField("This job's shifts should last an extra 15 minutes unless being worked back-to-back.",
+                           description="This can help ensure coverage in case the next shift arrives late.")
+    weight = SelectField('Weight', coerce=str, choices=c.WEIGHT_OPTS, default='1.0',
+                         description="A multiplier for how many hours volunteers are credited with when they work this job.")
+    visibility = SelectField('Visibility', coerce=int, choices=Job._VISIBILITY_OPTS,
+                             description="Controls who can see this job on their shift signups page.")
+    required_roles_ids = SelectMultipleField('Required Roles', widget=MultiCheckbox(), validate_choice=False,
+                                             description="Only volunteers assigned these roles can sign up OR be assigned to this job.")
+    all_roles_required = SelectBooleanField(
+        f'Role Requirement Type',
+        yes_label='ALL of the roles above', no_label='ANY of the roles above')
+
+
+class JobInfo(BaseJobInfo):
+    job_template_id = SelectField('Template', widget=SelectDynamicChoices(), validate_choice=False)
+    start_time = StringField('Start Time', widget=DateTimePicker())
+    slots = IntegerField('Slots')
+
+
+class JobTemplateInfo(BaseJobInfo):
+    template_name = StringField('Template Name')
+    type = SelectField('Template Type', coerce=int, choices=c.JOB_TEMPLATE_TYPE_OPTS)
+    min_slots = IntegerField(
+        'Minimum # Slots',
+        description="This will not affect any jobs that are not available for signups.")
+    days = SelectMultipleField('Working Days', coerce=int, choices=c.JOB_DAY_OPTS, widget=MultiCheckbox())
+    open_time = TimeField('Daily Opening Time',
+                          description="To start at midnight, enter 00:00am.")
+    close_time = TimeField('Daily Closing Time',
+                           description="To end at midnight, enter 11:59pm (or 23:59).")
+    interval = IntegerField(
+        'Interval', widget=HourMinuteDuration(),
+        description="Creates a job at specified intervals until closing time. Jobs may go past closing time and may overlap."
+    )
+
+    def no_slots_label(self):
+        return 'These jobs are not available to sign up for.'
+    
+    def no_slots_desc(self):
+        return "This can only be set when creating a new template."
+    
+    def extra15_label(self):
+        return "These jobs' shifts should last an extra 15 minutes unless being worked back-to-back."
 
 
 class BulkPrintingRequestInfo(MagForm):
