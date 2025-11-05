@@ -4,11 +4,13 @@ Congrats on presenting at the MAGFest Indie Videogame Showcase!
 
 We want to know if you would like to run a Leaderboard Challenge or Tournament at the Showcase.
 
-* To run a Leaderboard Challenge your game should have a way to track a high score, distance, or highest level of some sort.
+* To run a Leaderboard Challenge, your game should have a way to track a high score, distance, or highest level of some sort.
 
-* To run a Tournament your game should contain some sort of head to head/ Versus mode where a Single Elimination bracket can be used. We can run them at your booth or at the Large Tournament Collider.
+* To run a Tournament, your game should contain some sort of head to head / versus mode where a Single Elimination bracket can be used. These would be run at your booth currently.
 
-If you are interested, please email mivs@magfest.org expressing your interest.
+* There are also opportunities to possibly have your game at The Versus Show or, if your game can be used for a speed run, magFAST. If you do want to explore these options, please note that in your reply email and we can further discuss details. 
+
+If you are interested, please email mivs@magfest.org expressing your interest by the end of the day Sunday, November 23rd.
 
 Forever your Fan,
 {{ email_signature }}
