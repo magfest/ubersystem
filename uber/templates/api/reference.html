@@ -133,6 +133,23 @@
   <script type="text/javascript">
     $(function() {
       var $forms = $('form');
+
+      //HTML characters to escape and their escape codes.
+      const htmlCharMap = {
+           '&': '&amp;',
+           '<': '&lt;',
+           '>': '&gt;',
+           '"': '&quot;',
+           "'": '&#39;',
+           '`': '&#96;'
+      }
+      //Escape a handful of characters that could be HTML.
+      const escape = str => {
+        //insist on a string representation.
+        let string = str.toString();
+        return string.replace(/[&<>"'`]/g, m => htmlCharMap[m]);
+      }
+
       $forms.on('submit', function(event) {
         event.preventDefault();
         var $form = $(this),
@@ -141,7 +158,7 @@
             $output = $form.parent().find('.output');
 
         var print = function(text) {
-          $output.append(_.escape(text) + '\n');
+          $output.append(escape(text) + '\n');
         };
 
         var handleError = function(message) {
