@@ -107,10 +107,10 @@ $(document).ready(function() {
     let eventList = new Array();
     {% for job in jobs %}
         eventList.push({
+            id: "{{ job.id }}",
             title: "{{ job.name }} ({{ job.shifts | length }}/{{ job.slots }}) x{{ job.weight }}{{ " +15" if job.extra15 else "" }}",
             start: "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
             end: "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-            url: "form?id={{ job.id }}",
             {% if job.type == c.SETUP or job.type == c.TEARDOWN %}
                 {% if job.shifts|length == job.slots %}
                     color: '#186850'
@@ -127,19 +127,6 @@ $(document).ready(function() {
         });
     {% endfor %}
 
-    let showOtherView = function (info) {
-        if (info['type'] == 'timeGridWeek' && getActiveButton() == '') {
-          setActiveButton('eventView');
-        } else if (info['type'] != 'timeGridWeek') {
-          customButtons = ec.getOption('customButtons');
-          for (const [key, value] of Object.entries(customButtons)) { value['active'] = false; }
-          ec.setOption('customButtons', customButtons);
-          if (info['type'] == 'listWeek') {
-            ec.setOption('date', '{{ start }}');
-          }
-        }
-    }
-
     const getDateArray = function(startDate, endDate) {
       const dateArray = [];
       let currentDate = new Date(startDate);
@@ -155,14 +142,20 @@ $(document).ready(function() {
     }
 
     const goToEventForm = function(info){
-        let startDate = info.event.start;
-        window.location.href = "form?id=None&department_id={{ department.id }}&start_time=" +
+        let url;
+        if(info.event && info.event.id){
+            url = "form?id=" + info.event.id;
+        } else {
+            let startDate = info.date;
+            url = "form?id=None&department_id={{ department.id }}&start_time=" +
             startDate.getFullYear() + '-' +
             (startDate.getMonth() + 1).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + '-' +
             (startDate.getDate()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ' ' +
             (startDate.getHours()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
             (startDate.getMinutes()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
             (startDate.getSeconds()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
+        }
+        window.location.href = url;
     }
 
     const setup_duration = {{ (c.EPOCH - c.SETUP_JOB_START).days }};
@@ -194,7 +187,7 @@ $(document).ready(function() {
           eventView: {
             text: 'Event',
             click: function() { showWeekCal('{{ c.EPOCH.date() }}', event_duration, 'eventView'); },
-            active: false,
+            active: true,
           },
           teardownView: {
             text: 'Teardown',
@@ -217,10 +210,11 @@ $(document).ready(function() {
               duration: {days: total_duration},
             }
         },
-        viewDidMount: showOtherView,
+      //  viewDidMount: showOtherView, Not needed, set default active to true and it's managed internally
         events: eventList,
        // eventSources: [possibleEventSources['available'], possibleEventSources['assigned']],
        // eventContent: renderEvent,
+        dateClick: goToEventForm,
         eventClick: goToEventForm,
       //  filterEventsWithResources: true,
       //  resources: {{ default_filters|safe }},
