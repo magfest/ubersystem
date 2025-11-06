@@ -1,4 +1,6 @@
 {{ app.attendee.first_name }},
-Thank you for applying to be in the Artist Marketplace at {{ c.EVENT_NAME }} this year. Unfortunately, we always have more applicants than spaces, so your application "{{ app.name }}" has been placed on the waitlist. If space becomes available for you, we will notify you via email and you may pay for your space at that time.
+Thanks so much for applying for the Artist's Marketplace for {{ c.EVENT_NAME_AND_YEAR }}! Regrettably, we've had an incredible number of artists sign up for our space this year and we've found ourselves with a waitlist. As we receive cancellations over the next two weeks, we'll reach out to every artist in the order our lottery was drawn to ensure every seat is filled. If we have a seat open up for you, we'll reach out right away!
 
-{{ c.ARTIST_MARKETPLACE_SIGNATURE }}
+Worry not though, because even if our waitlist persists until the convention, we also have over 100 additional seats this year in our Artists Alley available! If you have any questions, please let us know and we'll be thrilled to help.
+
+{{ email_signature }}

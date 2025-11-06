@@ -58,12 +58,12 @@ class ArtistMarketplaceApplication(MagModel):
     
     @property
     def default_cost(self):
-        return (self.overridden_price or c.ARTIST_MARKETPLACE_FEE) * 100
+        return self.overridden_price or c.ARTIST_MARKETPLACE_FEE
 
     @property
     def total_cost(self):
         if self.receipt_items:
-            return sum([item.amount for item in self.receipt_items])
+            return sum([item.amount for item in self.receipt_items]) / 100
         return self.default_cost
 
     @property
@@ -73,7 +73,7 @@ class ArtistMarketplaceApplication(MagModel):
         elif not self.receipt_items or self.was_refunded:
             return self.default_cost
 
-        return sum([item.amount for item in self.receipt_items if not item.closed])
+        return sum([item.amount for item in self.receipt_items if not item.closed]) / 100
 
     @property
     def was_refunded(self):

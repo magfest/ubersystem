@@ -1,24 +1,46 @@
 <html>
 <head></head>
 <body>
-<p>Your Artist Marketplace application "{{ app.name }}" has been accepted for {{ c.EVENT_NAME }} this coming {{ event_dates() }}!</p>
+<p>
+  Welcome to the Artist's Marketplace for {{ c.EVENT_NAME_AND_YEAR }}! We had a huge turnout this year with almost 200 artists applying for our wonderful little space,
+  so it's going to be an incredible year ahead! We'll be back in Hall B on the first floor of the DESCC, and with the Dealer's Den right next door in Hall F - it'll be a ton of traffic all in one place!
+</p>
+
+<p>
+  I would like to take a moment though to call out some <strong>super important things</strong>, and would very much appreciate your attention
+  before completing the table payment process below:
+  <ul>
+    <li>
+      Above all else, the Marketplace is a space to create in! Every artist is expected to arrive ready to create work live in this space.
+      Everything from digital art to chainmail, stitching fursuit parts to traditional media, the Marketplace is alive with creative energy!
+      Most attendees will never get to see artists deep in the creative process anywhere else, and this is a wonderful opportunity to showcase
+      your skills and hard work for the community so they can truly appreciate it!
+    </li>
+    <li>
+      As a reminder, selling commercially available products is not allowed in the Marketplace. Only work that you have created or collaborated
+      on is allowed for sale.
+    </li>
+    <li>There is no electric power available, so bring your battery backups in the event you want to run devices or tools!</li>
+    <li>
+      We ask that no additional guests are located behind your table. You can certainly have someone take your place during breaks,
+      but due to space concerns additional folks or helpers are not allowed. In the event you have a disability, please let us know and we'll be
+      glad to accommodate.
+    </li>
+    <li>Hall B can be cold! Bring an extra layer to make sure you're not uncomfortable during the event!</li>
+    <li>If you haven't already, please familiarize yourself with our rules linked below. You're agreeing to them by being a part of the Marketplace.</li>
+    <li>
+      If you have a request to be seated next to another artist or artists, please let us know by updating your application:
+      <a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}" target="_blank">here</a> and we'll assign tables accordingly.
+    </li>
+  </ul>
+</p>
 
 <p>
 {% if app.amount_unpaid %}
-  In order to complete your application, you must pay the {{ (app.amount_unpaid / 100)|format_currency }} marketplace fee 
+  In order to complete your application, you must pay the {{ app.amount_unpaid|format_currency }} marketplace fee 
   <a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}" target="_blank">here</a>.
 Payment is expected by {{ c.MARKETPLACE_PAYMENT_DUE|datetime_local }} or your application may be removed and your space
 filled by another applicant.{% endif %}
-</p>
-
-<p>
-  As an accepted application, you may also specify your preferences for where you will be placed in the marketplace, plus any accessibility needs you may have.
-  Be sure to <a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}" target="_blank">update your application</a> with this information.
-</p>
-
-<p>
-  If your plans change, you can cancel your application anytime until {{ c.MARKETPLACE_CANCEL_DEADLINE|datetime_local }}.
-  We fill spots as they are cancelled, so please don't delay cancelling if you know you won't need your spot!
 </p>
 
 <p>
@@ -26,6 +48,10 @@ filled by another applicant.{% endif %}
   <a href="{{ c.ARTIST_MARKETPLACE_RULES_URL }}" target="_blank">{{ c.EVENT_NAME }} Artist Marketplace rules</a>.
 </p>
 
-<p>{{ c.ARTIST_MARKETPLACE_SIGNATURE }}</p>
+<p>
+  Congrats again, and see you at {{ c.EVENT_NAME }}, {{ event_dates() }}!
+</p>
+
+<p>{{ email_signature }}</p>
 </body>
 </html>

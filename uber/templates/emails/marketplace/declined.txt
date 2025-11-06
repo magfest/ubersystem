@@ -1,4 +1,6 @@
 {{ app.attendee.first_name }},
-Thank you for applying to be in the Artist Marketplace at {{ c.EVENT_NAME }} this year. We regret to inform you that your application "{{ app.name }}" has been declined.
+Thanks so much for applying for the Artist's Marketplace for {{ c.EVENT_NAME_AND_YEAR }}! Regrettably, we've had an incredible number of artists sign up for our space this year and we've found ourselves with a lengthy waitlist. Though we expect cancelations, we do call on artists in the order our lottery was drawn to ensure every seat is filled. Rather than keep everyone waiting, artists after our 15th waitlist spot are declined.
 
-{{ c.ARTIST_MARKETPLACE_SIGNATURE }}
+Worry not though, because we also have over 100 additional seats this year in our Artists Alley available! Signups begin Thursday night 12/4 and continue into the morning of 12/5. If you have any questions, please let us know and we'll be thrilled to help!
+
+{{ email_signature }}

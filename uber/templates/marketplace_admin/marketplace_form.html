@@ -27,7 +27,7 @@
 <div class="col-sm">
     <div class="form-text">Paid?</div>
     {% if app.status != c.ACCEPTED %}N/A (Application status {{ app.status_label }})
-    {% else %}{{ "Yes" if app.amount_unpaid == 0 else ((app.amount_unpaid / 100)|format_currency ~ " Owed") }}
+    {% else %}{{ "Yes" if app.amount_unpaid == 0 else (app.amount_unpaid|format_currency ~ " Owed") }}
     {% endif %}
 </div>
 <div class="col-sm">
