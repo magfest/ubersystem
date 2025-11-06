@@ -2,7 +2,7 @@
 {% block title %}Shifts{% endblock %}
 {% block page_styles %}
 <!--inside page_style -->
-{{ "fullcalendar-5.3.2/lib/main.min.css"|serve_static_content }}
+{{ "event-calendar-3.10.0/event-calendar.min.css"|serve_static_content }}
 
 <style>
   .button_row {
@@ -99,11 +99,12 @@ Please select a department above to view its shifts.
 {% endblock %}
 {% block page_scripts %}
 {% if department_id != '' %}
-{{ "fullcalendar-5.3.2/lib/main.min.js"|serve_static_content }}
+{{ "event-calendar-3.10.0/event-calendar.min.js"|serve_static_content }}
+
 <script type="text/javascript">
 
 $(document).ready(function() {
-    var eventList = new Array();
+    let eventList = new Array();
     {% for job in jobs %}
         eventList.push({
             title: "{{ job.name }} ({{ job.shifts | length }}/{{ job.slots }}) x{{ job.weight }}{{ " +15" if job.extra15 else "" }}",
@@ -126,14 +127,142 @@ $(document).ready(function() {
         });
     {% endfor %}
 
-    shiftCal = new FullCalendar.Calendar(document.getElementById('shift_cal'), {
+    let showOtherView = function (info) {
+        if (info['type'] == 'timeGridWeek' && getActiveButton() == '') {
+          setActiveButton('eventView');
+        } else if (info['type'] != 'timeGridWeek') {
+          customButtons = ec.getOption('customButtons');
+          for (const [key, value] of Object.entries(customButtons)) { value['active'] = false; }
+          ec.setOption('customButtons', customButtons);
+          if (info['type'] == 'listWeek') {
+            ec.setOption('date', '{{ start }}');
+          }
+        }
+    }
+
+    const getDateArray = function(startDate, endDate) {
+      const dateArray = [];
+      let currentDate = new Date(startDate);
+      let end = new Date(endDate);
+
+      while (currentDate <= end) {
+        dateArray.push(new Date(currentDate));
+        // Use UTC date to prevent problems with time zones and DST
+        // in case an event ever spans a time change.
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+      }
+      return dateArray;
+    }
+
+    const goToEventForm = function(info){
+        let startDate = info.event.start;
+        window.location.href = "form?id=None&department_id={{ department.id }}&start_time=" +
+            startDate.getFullYear() + '-' +
+            (startDate.getMonth() + 1).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + '-' +
+            (startDate.getDate()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ' ' +
+            (startDate.getHours()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
+            (startDate.getMinutes()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
+            (startDate.getSeconds()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
+    }
+
+    const setup_duration = {{ (c.EPOCH - c.SETUP_JOB_START).days }};
+    const teardown_duration = {{ (c.TEARDOWN_JOB_END - c.ESCHATON).days }};
+    const event_duration = {{ (c.ESCHATON - c.EPOCH).days }};
+    const total_duration = {{ (c.TEARDOWN_JOB_END - c.SETUP_JOB_START).days }};
+    const event_start_date = '{{ c.EPOCH.date() }}';
+    const event_end_date = '{{ c.ESCHATON.date() }}';
+    const event_dates = getDateArray(event_start_date, event_end_date);
+
+    const ec = new EventCalendar(document.getElementById('shift_cal'), {
+        view: 'timeGridWeek',
+        date: event_start_date,
+        allDaySlot: false,
+        highlightedDates: event_dates,
+        headerToolbar: {
+            start: 'prev,next timeGridDay',
+            center: 'title',
+            end: 'setupView,eventView,teardownView,allView listWeek'
+        },
+        buttonText: {close: 'Close', listWeek: 'List', timeGridDay: 'Day'},
+        noEventsContent: '<em>No shifts exist for the given department and days chosen.</em>',
+        customButtons: {
+          setupView: {
+            text: 'Setup',
+            click: function() { showWeekCal('{{ c.SETUP_JOB_START.date() }}', setup_duration, 'setupView'); },
+            active: false,
+          },
+          eventView: {
+            text: 'Event',
+            click: function() { showWeekCal('{{ c.EPOCH.date() }}', event_duration, 'eventView'); },
+            active: false,
+          },
+          teardownView: {
+            text: 'Teardown',
+            click: function() { showWeekCal('{{ c.ESCHATON.date() }}', teardown_duration + 1, 'teardownView'); },
+            active: false,
+          },
+          allView: {
+            text: 'All',
+            click: function() { showWeekCal('{{ c.SETUP_JOB_START.date() }}', total_duration + 1, 'allView'); },
+            active: false,
+          },
+        },
+        scrollTime: '09:00:00',
+        views: {
+            timeGridWeek: {
+              pointer: true,
+              duration: {days: event_duration},
+            },
+            listWeek: {
+              duration: {days: total_duration},
+            }
+        },
+        viewDidMount: showOtherView,
+        events: eventList,
+       // eventSources: [possibleEventSources['available'], possibleEventSources['assigned']],
+       // eventContent: renderEvent,
+        eventClick: goToEventForm,
+      //  filterEventsWithResources: true,
+      //  resources: {{ default_filters|safe }},
+        dayMaxEvents: true,
+        nowIndicator: true,
+        selectable: false,
+        eventStartEditable: false,
+        eventDurationEditable: false,
+    });
+
+    let showWeekCal = function (startDay, newDuration, whichButton) {
+        let currentViews = ec.getOption('views');
+        currentViews['timeGridWeek']['duration']['days'] = newDuration;
+        ec.setOption('views', currentViews);
+
+        setActiveButton(whichButton);
+
+        ec.setOption('date', startDay);
+        ec.setOption('view', '');
+        ec.setOption('view', 'timeGridWeek');
+   }
+
+    let setActiveButton = function(whichButton) {
+        let customButtons = ec.getOption('customButtons');
+        for (const [key, value] of Object.entries(customButtons)) {
+          if (key == whichButton) {
+            value['active'] = true;
+          } else {
+            value['active'] = false;
+          }
+        }
+        ec.setOption('customButtons', customButtons);
+   }
+
+   /**shiftCal = new FullCalendar.Calendar(document.getElementById('shift_cal'), {
         headerToolbar: {
             start: 'prev,next today',
             center: 'title',
             end: 'agendaDay,agendaSetup,agendaEvent,agendaTeardown,agendaConWeek,listConDuration'
         },
         views: {
-            agendaDay: { 
+            agendaDay: {
                 type: 'timeGrid',
                 buttonText: 'Day',
             },
@@ -188,8 +317,8 @@ $(document).ready(function() {
         slotEventOverlap: false,
         events: eventList,
         dateClick: function(date) {
-            window.location.href = "form?id=None&department_id={{ department.id }}&start_time=" + 
-                date.date.getFullYear() + '-' + 
+            window.location.href = "form?id=None&department_id={{ department.id }}&start_time=" +
+                date.date.getFullYear() + '-' +
                 (date.date.getMonth() + 1).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + '-' +
                 (date.date.getDate()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ' ' +
                 (date.date.getHours()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
@@ -197,7 +326,7 @@ $(document).ready(function() {
                 (date.date.getSeconds()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
         }
     });
-    shiftCal.render();
+    shiftCal.render(); **/
 });
 
 </script>
