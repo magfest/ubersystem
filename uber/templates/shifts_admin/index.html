@@ -102,32 +102,7 @@ Please select a department above to view its shifts.
 {{ "event-calendar-3.10.0/event-calendar.min.js"|serve_static_content }}
 
 <script type="text/javascript">
-
-$(document).ready(function() {
-    let eventList = new Array();
-    {% for job in jobs %}
-        eventList.push({
-            id: "{{ job.id }}",
-            title: "{{ job.name }} ({{ job.shifts | length }}/{{ job.slots }}) x{{ job.weight }}{{ " +15" if job.extra15 else "" }}",
-            start: "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-            end: "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-            {% if job.type == c.SETUP or job.type == c.TEARDOWN %}
-                {% if job.shifts|length == job.slots %}
-                    color: '#186850'
-                {% else %}
-                    color: '#219170'
-                {% endif %}
-            {% else %}
-                {% if job.shifts|length == job.slots %}
-                    color: '#1e3a7b'
-                {% else %}
-                    color: '#305fc9'
-                {% endif %}
-            {% endif %}
-        });
-    {% endfor %}
-
-    const getDateArray = function(startDate, endDate) {
+   const getDateArray = function(startDate, endDate) {
       const dateArray = [];
       let currentDate = new Date(startDate);
       let end = new Date(endDate);
@@ -166,6 +141,83 @@ $(document).ready(function() {
     const event_end_date = '{{ c.ESCHATON.date() }}';
     const event_dates = getDateArray(event_start_date, event_end_date);
 
+$(document).ready(function() {
+    let eventList = new Array();
+    {% for job in jobs %}
+        eventList.push({
+            id: "{{ job.id }}",
+            title: "{{ job.name }} ({{ job.shifts | length }}/{{ job.slots }}) x{{ job.weight }}{{ " +15" if job.extra15 else "" }}",
+            start: "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+            end: "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+            {% if job.type == c.SETUP or job.type == c.TEARDOWN %}
+                {% if job.shifts|length == job.slots %}
+                    color: '#186850'
+                {% else %}
+                    color: '#219170'
+                {% endif %}
+            {% else %}
+                {% if job.shifts|length == job.slots %}
+                    color: '#1e3a7b'
+                {% else %}
+                    color: '#305fc9'
+                {% endif %}
+            {% endif %}
+        });
+    {% endfor %}
+
+  let renderEvent = function (info) {
+    let eventInfo = info.event;
+    if (eventInfo.display == 'pointer') {
+      return;
+    }
+    let extraClasses = {}
+    if (info.view.type == 'listWeek') {
+      extraClasses['titleSize'] = 'h5';
+    } else {
+      extraClasses['deptClass'] = ' class="ms-auto"';
+      extraClasses['titleSize'] = 'h6';
+      extraClasses['fullHeight'] = ' h-100';
+    }
+
+    let button = ''
+    let dropDeadlinePassed = {{ c.AFTER_DROP_SHIFTS_DEADLINE|yesno('true,false') }};
+    if (eventInfo.extendedProps.assigned == false) {
+      button = `<button type="button" class="btn btn-success"
+                onClick="signUp('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
+                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Sign Up</button>`
+    } else if (dropDeadlinePassed) {
+      button = `<span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"
+      title="You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.STAFF_EMAIL|email_only }}.">
+      <button type="button" class="btn btn-warning" disabled>Drop</button></span>`
+    } else {
+      button = `<button type="button" class="btn btn-warning"
+                onClick="dropShift('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
+                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Drop</button>`;
+    }
+
+    let html = `<div class="overflow-hidden d-flex flex-column h-100"><div class="p-1 d-flex flex-wrap">
+      <div><time class="ec-event-time text-wrap" datetime="${eventInfo.start}">
+      ${info.timeText}&nbsp;</time></div><div${(extraClasses['deptClass'] ?? '')}>
+      <em>@ ${eventInfo.extendedProps.department_name}</em></div></div>`;
+
+    html = html + `<div class="d-flex flex-column${(extraClasses['fullHeight'] ?? '')}
+      p-1"><h2 class="${extraClasses['titleSize']} mb-0 text-truncate">${eventInfo.title}`;
+    if (info.view.type == 'listWeek') {
+      html = html + `</h2><p class="mt-1 mb-1 fs-6"><em>${eventInfo.extendedProps.slots} slots filled</em> &nbsp;|&nbsp;
+        <em>x${eventInfo.extendedProps.weight} weighting</em></p>
+        <p class="fs-5 pt-1 mb-1">${eventInfo.extendedProps.desc}</p>
+        <p class="mb-0 mt-2">${button}</p>`;
+    } else {
+      html = html + ` (${eventInfo.extendedProps.slots}) x${eventInfo.extendedProps.weight}</h2>
+        <p class="flex-grow-1 mt-1 text-truncate mb-0">${eventInfo.extendedProps.desc_text}</p>
+        <p class="fst-italic mb-1 text-truncate">Click for details & options</p>`;''
+    }
+    html = html + '</div></div>';
+    return {
+      html: html,
+    }
+  }
+
     const ec = new EventCalendar(document.getElementById('shift_cal'), {
         view: 'timeGridWeek',
         date: event_start_date,
@@ -186,12 +238,12 @@ $(document).ready(function() {
           },
           eventView: {
             text: 'Event',
-            click: function() { showWeekCal('{{ c.EPOCH.date() }}', event_duration, 'eventView'); },
+            click: function() { showWeekCal(event_start_date, event_duration, 'eventView'); },
             active: true,
           },
           teardownView: {
             text: 'Teardown',
-            click: function() { showWeekCal('{{ c.ESCHATON.date() }}', teardown_duration + 1, 'teardownView'); },
+            click: function() { showWeekCal(event_end_date, teardown_duration + 1, 'teardownView'); },
             active: false,
           },
           allView: {
@@ -210,14 +262,10 @@ $(document).ready(function() {
               duration: {days: total_duration},
             }
         },
-      //  viewDidMount: showOtherView, Not needed, set default active to true and it's managed internally
-        events: eventList,
-       // eventSources: [possibleEventSources['available'], possibleEventSources['assigned']],
+        events: eventList, //if filters become dynamic. event source needed not list.
        // eventContent: renderEvent,
         dateClick: goToEventForm,
         eventClick: goToEventForm,
-      //  filterEventsWithResources: true,
-      //  resources: {{ default_filters|safe }},
         dayMaxEvents: true,
         nowIndicator: true,
         selectable: false,
@@ -249,78 +297,6 @@ $(document).ready(function() {
         ec.setOption('customButtons', customButtons);
    }
 
-   /**shiftCal = new FullCalendar.Calendar(document.getElementById('shift_cal'), {
-        headerToolbar: {
-            start: 'prev,next today',
-            center: 'title',
-            end: 'agendaDay,agendaSetup,agendaEvent,agendaTeardown,agendaConWeek,listConDuration'
-        },
-        views: {
-            agendaDay: {
-                type: 'timeGrid',
-                buttonText: 'Day',
-            },
-            agendaSetup: {
-                type: 'timeGrid',
-                visibleRange: {
-                    start: '{{ c.SHIFTS_START_DAY.strftime('%Y-%m-%d') }}',
-                    end: '{{ c.EPOCH.strftime('%Y-%m-%d') }}'
-                },
-                buttonText: 'Setup',
-            },
-            agendaEvent: {
-                type: 'timeGrid',
-                visibleRange: {
-                    start: '{{ c.EPOCH }}',
-                    end: '{{ c.ESCHATON }}'
-                },
-                buttonText: 'Event',
-            },
-            agendaTeardown: {
-                type: 'timeGrid',
-                visibleRange: {
-                    start: '{{ c.ESCHATON.strftime('%Y-%m-%d') }}',
-                    end: '{{ c.TEARDOWN_JOB_END.strftime('%Y-%m-%d') }}'
-                },
-                buttonText: 'Teardown',
-            },
-            agendaConWeek: {
-                type: 'timeGrid',
-                visibleRange: {
-                    start: '{{ c.SHIFTS_START_DAY.strftime('%Y-%m-%d') }}',
-                    end: '{{ c.TEARDOWN_JOB_END.strftime('%Y-%m-%d') }}'
-                },
-                buttonText: 'All'
-            },
-            listConDuration: {
-                type: 'list',
-                duration: { days: {{ c.CON_TOTAL_DAYS }} },
-                buttonText: 'List'
-            }
-        },
-        buttonText : {
-            today : 'Today',
-            agendaWeek : 'Week',
-            agendaDay : 'Day',
-            listWeek : 'Week'
-        },
-        slotDuration: '00:30:00',
-        allDaySlot: false,
-        initialView: 'agendaDay',
-        initialDate: '{{ initial_date }}',
-        slotEventOverlap: false,
-        events: eventList,
-        dateClick: function(date) {
-            window.location.href = "form?id=None&department_id={{ department.id }}&start_time=" +
-                date.date.getFullYear() + '-' +
-                (date.date.getMonth() + 1).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + '-' +
-                (date.date.getDate()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ' ' +
-                (date.date.getHours()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
-                (date.date.getMinutes()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
-                (date.date.getSeconds()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
-        }
-    });
-    shiftCal.render(); **/
 });
 
 </script>
