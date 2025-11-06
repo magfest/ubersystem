@@ -5,6 +5,45 @@
 {{ "event-calendar-3.10.0/event-calendar.min.css"|serve_static_content }}
 
 <style>
+
+  .ec-event-time {
+     font-size: .85em;
+  }
+  .ec-day.ec-highlight {
+    background-color: #f8f9fa !important;
+  }
+  @media (max-width: 576px) {
+    /* Force vertical button group at smaller sizes */
+    .ec-button-group {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      position: relative;
+      display: inline-flex !important;
+      vertical-align: middle;
+    }
+
+    .ec-button-group>.ec-button:not(:first-child):not(:last-child) {
+    border-radius: 0;
+    }
+    .ec-button-group>.ec-button:last-child {
+      border-top-right-radius: 0;
+      border-bottom-left-radius: .25rem !important;
+    }
+    .ec-button-group>.ec-button:first-child {
+      border-bottom-left-radius: 0 !important;
+      border-top-right-radius: .25rem !important;
+      margin-top: 0px;
+    }
+    .ec-button-group>.ec-button {
+    width: 100%;
+    position: relative;
+    flex: 1 1 auto;
+    margin-left: 0 !important;
+    margin-top: -1px;
+    }
+  }
+
   .button_row {
     margin-bottom: 20px;
   }
@@ -134,6 +173,7 @@ Please select a department above to view its shifts.
     }
 
     const setup_duration = {{ (c.EPOCH - c.SETUP_JOB_START).days }};
+    const setup_date = '{{ c.SETUP_JOB_START.date() }}';
     const teardown_duration = {{ (c.TEARDOWN_JOB_END - c.ESCHATON).days }};
     const event_duration = {{ (c.ESCHATON - c.EPOCH).days }};
     const total_duration = {{ (c.TEARDOWN_JOB_END - c.SETUP_JOB_START).days }};
@@ -165,90 +205,42 @@ $(document).ready(function() {
         });
     {% endfor %}
 
-  let renderEvent = function (info) {
-    let eventInfo = info.event;
-    if (eventInfo.display == 'pointer') {
-      return;
-    }
-    let extraClasses = {}
-    if (info.view.type == 'listWeek') {
-      extraClasses['titleSize'] = 'h5';
-    } else {
-      extraClasses['deptClass'] = ' class="ms-auto"';
-      extraClasses['titleSize'] = 'h6';
-      extraClasses['fullHeight'] = ' h-100';
-    }
-
-    let button = ''
-    let dropDeadlinePassed = {{ c.AFTER_DROP_SHIFTS_DEADLINE|yesno('true,false') }};
-    if (eventInfo.extendedProps.assigned == false) {
-      button = `<button type="button" class="btn btn-success"
-                onClick="signUp('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
-                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Sign Up</button>`
-    } else if (dropDeadlinePassed) {
-      button = `<span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"
-      title="You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.STAFF_EMAIL|email_only }}.">
-      <button type="button" class="btn btn-warning" disabled>Drop</button></span>`
-    } else {
-      button = `<button type="button" class="btn btn-warning"
-                onClick="dropShift('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
-                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Drop</button>`;
-    }
-
-    let html = `<div class="overflow-hidden d-flex flex-column h-100"><div class="p-1 d-flex flex-wrap">
-      <div><time class="ec-event-time text-wrap" datetime="${eventInfo.start}">
-      ${info.timeText}&nbsp;</time></div><div${(extraClasses['deptClass'] ?? '')}>
-      <em>@ ${eventInfo.extendedProps.department_name}</em></div></div>`;
-
-    html = html + `<div class="d-flex flex-column${(extraClasses['fullHeight'] ?? '')}
-      p-1"><h2 class="${extraClasses['titleSize']} mb-0 text-truncate">${eventInfo.title}`;
-    if (info.view.type == 'listWeek') {
-      html = html + `</h2><p class="mt-1 mb-1 fs-6"><em>${eventInfo.extendedProps.slots} slots filled</em> &nbsp;|&nbsp;
-        <em>x${eventInfo.extendedProps.weight} weighting</em></p>
-        <p class="fs-5 pt-1 mb-1">${eventInfo.extendedProps.desc}</p>
-        <p class="mb-0 mt-2">${button}</p>`;
-    } else {
-      html = html + ` (${eventInfo.extendedProps.slots}) x${eventInfo.extendedProps.weight}</h2>
-        <p class="flex-grow-1 mt-1 text-truncate mb-0">${eventInfo.extendedProps.desc_text}</p>
-        <p class="fst-italic mb-1 text-truncate">Click for details & options</p>`;''
-    }
-    html = html + '</div></div>';
-    return {
-      html: html,
-    }
-  }
-
     const ec = new EventCalendar(document.getElementById('shift_cal'), {
-        view: 'timeGridWeek',
+        view: window.matchMedia('(max-width: 576px)').matches ? 'listWeek' : 'timeGridWeek',
         date: event_start_date,
         allDaySlot: false,
         highlightedDates: event_dates,
         headerToolbar: {
             start: 'prev,next timeGridDay',
             center: 'title',
-            end: 'setupView,eventView,teardownView,allView listWeek'
+            end: 'setupView,eventView,teardownView,allView listView'
         },
         buttonText: {close: 'Close', listWeek: 'List', timeGridDay: 'Day'},
         noEventsContent: '<em>No shifts exist for the given department and days chosen.</em>',
         customButtons: {
           setupView: {
             text: 'Setup',
-            click: function() { showWeekCal('{{ c.SETUP_JOB_START.date() }}', setup_duration, 'setupView'); },
+            click: function() { showCalView(setup_date, setup_duration, 'setupView'); },
             active: false,
           },
           eventView: {
             text: 'Event',
-            click: function() { showWeekCal(event_start_date, event_duration, 'eventView'); },
+            click: function() { showCalView(event_start_date, event_duration, 'eventView'); },
             active: true,
           },
           teardownView: {
             text: 'Teardown',
-            click: function() { showWeekCal(event_end_date, teardown_duration + 1, 'teardownView'); },
+            click: function() { showCalView(event_end_date, teardown_duration + 1, 'teardownView'); },
             active: false,
           },
           allView: {
             text: 'All',
-            click: function() { showWeekCal('{{ c.SETUP_JOB_START.date() }}', total_duration + 1, 'allView'); },
+            click: function() { showCalView(setup_date, total_duration + 1, 'allView'); },
+            active: false,
+          },
+          listView: {
+            text: 'List',
+            click: function() { showCalView(setup_date, undefined, 'listView'); },
             active: false,
           },
         },
@@ -259,7 +251,7 @@ $(document).ready(function() {
               duration: {days: event_duration},
             },
             listWeek: {
-              duration: {days: total_duration},
+              duration: {days: total_duration + 1},
             }
         },
         events: eventList, //if filters become dynamic. event source needed not list.
@@ -271,18 +263,25 @@ $(document).ready(function() {
         selectable: false,
         eventStartEditable: false,
         eventDurationEditable: false,
+        validRange: {
+          start: setup_date,
+          end: '{{ c.TEARDOWN_JOB_END.date() }}',
+        }
     });
 
-    let showWeekCal = function (startDay, newDuration, whichButton) {
+
+    let showCalView = function (startDay, newDuration, whichButton) {
         let currentViews = ec.getOption('views');
-        currentViews['timeGridWeek']['duration']['days'] = newDuration;
+        if(whichButton !== 'listView'){
+           currentViews['timeGridWeek']['duration']['days'] = newDuration;
+        }
         ec.setOption('views', currentViews);
 
         setActiveButton(whichButton);
-
         ec.setOption('date', startDay);
         ec.setOption('view', '');
-        ec.setOption('view', 'timeGridWeek');
+        let view = whichButton === 'listView' ? 'listWeek' : 'timeGridWeek';
+        ec.setOption('view', view);
    }
 
     let setActiveButton = function(whichButton) {
