@@ -8,6 +8,7 @@
         </div>
         <div class="modal-body">
             <div class="alert alert-dismissible" role="alert" id="upgrade-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('upgrade-message-alert')" aria-label="Close"></button></div>
+            {% if c.ONLINE_PAYMENT_AVAILABLE %}
             <form method="post" action="purchase_upgrades" id="purchase-upgrades" x-data="attendeeMetadata()">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -19,15 +20,19 @@
             <table class="table table-striped" id="upgrade-preview">
                 <tbody></tbody>
             </table>
+            {% else %}
+            Upgrades are not available online at this time. You can purchase upgrades at the Registration help desk.
+            {% endif %}
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="submit" id="upgrade-purchase" form="purchase-upgrades" type="button" class="btn btn-success">Purchase<span id="upgrade-preview-total"></span></button>
+          {% if c.ONLINE_PAYMENT_AVAILABLE %}<button type="submit" id="upgrade-purchase" form="purchase-upgrades" type="button" class="btn btn-success">Purchase<span id="upgrade-preview-total"></span></button>{% endif %}
         </div>
       </div>
     </div>
 </div>
 
+{% if c.ONLINE_PAYMENT_AVAILABLE %}
 <script type="text/javascript">
     var costChangeDict = {};
     var lastAmountExtra; // I hate JavaScript
@@ -129,3 +134,4 @@
         $("#upgrade-stripe-btn").hide();
     });
 </script>
+{% endif %}
