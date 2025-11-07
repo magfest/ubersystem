@@ -254,7 +254,7 @@ class Group(MagModel, TakesPaymentMixin):
             if self.guest.group_type == c.BAND:
                 section_list.append('band_admin')
             elif self.guest.group_type == c.MIVS:
-                section_list.append('mivs_admin')
+                section_list.append('showcase_admin')
             else:
                 section_list.append('guest_admin')
         return section_list
