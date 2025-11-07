@@ -29,10 +29,14 @@
     <li>Hall B can be cold! Bring an extra layer to make sure you're not uncomfortable during the event!</li>
     <li>If you haven't already, please familiarize yourself with our rules linked below. You're agreeing to them by being a part of the Marketplace.</li>
     <li>
-      If you have a request to be seated next to another artist or artists, please let us know by updating your application:
+      If you have a request to be seated next to another artist or artists, please let us know by updating your application
       <a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}" target="_blank">here</a> and we'll assign tables accordingly.
     </li>
   </ul>
+</p>
+
+<p>
+  Marketplace Rules: <a href="{{ c.ARTIST_MARKETPLACE_RULES_URL }}" target="_blank">{{ c.ARTIST_MARKETPLACE_RULES_URL }}</a>
 </p>
 
 <p>
@@ -41,11 +45,6 @@
   <a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}" target="_blank">here</a>.
 Payment is expected by {{ c.MARKETPLACE_PAYMENT_DUE|datetime_local }} or your application may be removed and your space
 filled by another applicant.{% endif %}
-</p>
-
-<p>
-  As a reminder, make sure you have read the
-  <a href="{{ c.ARTIST_MARKETPLACE_RULES_URL }}" target="_blank">{{ c.EVENT_NAME }} Artist Marketplace rules</a>.
 </p>
 
 <p>
