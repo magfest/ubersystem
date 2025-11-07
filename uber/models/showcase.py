@@ -224,11 +224,12 @@ class IndieStudio(MagModel):
 
     @property
     def selling_at_event_status(self):
-        return self.selling_merch_label or "Not Completed"
+        if self.selling_merch:
+            return self.selling_merch_label
     
     @property
     def logistics_status(self):
-        return "Completed" if self.logistics_updated else "Not Filled Out"
+        return "Completed" if self.logistics_updated else None
 
     @property
     def hotel_space_status(self):
@@ -238,7 +239,7 @@ class IndieStudio(MagModel):
 
     @property
     def show_info_status(self):
-        return self.show_info_updated
+        return "Completed" if self.show_info_updated else None
 
     def checklist_deadline(self, slug):
         default_deadline = c.MIVS_CHECKLIST[slug]['deadline']
