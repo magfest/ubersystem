@@ -5,10 +5,62 @@
 {{ "event-calendar-3.10.0/event-calendar.min.css"|serve_static_content }}
 
 <style>
+  .ec-button.ec-active, .ec-button:not(:disabled):hover {
+      background-color: #1a252f;
+      color: #FFFFFF;
 
-  .ec-event-time {
-     font-size: .85em;
   }
+  .ec-button , .ec-button:not(:disabled){
+      background-color: #3d4752;
+      color: #FFFFFF;
+  }
+
+  .ec-button:is(:disabled){
+      background-color: #6a768f;
+      color: #CCCCCC;
+      cursor: not-allowed;
+  }
+
+
+  .ec-time-grid {
+      .ec-event-time{
+         font-size: .85em;
+      }
+      .ec-event-title{
+          font-size: 1em;
+      }
+  }
+
+  .ec-list {
+    .ec-day-head {
+        font-size: 1em;
+    }
+    .ec-event-body {
+        flex-direction: row;
+        gap: 10px;
+        align-items: center; /* vertically center all children */
+    }
+    .ec-event-tag{
+      display: none;
+    }
+   .ec-event-tag-middle {
+       border-radius: 5px;
+       width: 10px;
+       height: 10px;
+   }
+   .ec-event-title{
+      flex: 1 1 0;
+
+   }
+   .ec-event{
+       font-size: 1em;
+   }
+   .ec-event-time {
+        width: 8rem;           /* fixed-ish width for timestamp */
+        flex-shrink: 0;
+   }
+  }
+
   .ec-day.ec-highlight {
     background-color: #f8f9fa !important;
   }
@@ -205,6 +257,20 @@ $(document).ready(function() {
         });
     {% endfor %}
 
+  let renderEvent = function (info) {
+    let eventInfo = info.event;
+    if (info.view.type !== 'listWeek') {
+        //Don't alter the grid layout. just the list view.
+        return;
+    }
+    let html = `<div class="ec-event-time">${info.timeText}</div>
+                <div class="ec-event-tag-middle"style="background-color:${eventInfo.backgroundColor};"></div>
+                <div class="ec-event-title">${eventInfo.title}</div>`;
+    return {
+      html: html,
+    }
+  }
+
     const ec = new EventCalendar(document.getElementById('shift_cal'), {
         view: window.matchMedia('(max-width: 576px)').matches ? 'listWeek' : 'timeGridWeek',
         date: event_start_date,
@@ -255,8 +321,8 @@ $(document).ready(function() {
             }
         },
         events: eventList, //if filters become dynamic. event source needed not list.
-       // eventContent: renderEvent,
         dateClick: goToEventForm,
+        eventContent: renderEvent,
         eventClick: goToEventForm,
         dayMaxEvents: true,
         nowIndicator: true,
