@@ -503,7 +503,7 @@ class MivsLookup:
         Excludes judges that were disqualified or opted out of judging.
 
         Results are returned in the format expected by
-        <a href="../mivs_admin/import_judges">the MIVS judge importer</a>.
+        <a href="../showcase_admin/import_judges">the MIVS judge importer</a>.
         """
         judges_list = []
         with Session() as session:

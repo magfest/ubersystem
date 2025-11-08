@@ -374,10 +374,13 @@
 </div>
 <div class="card card-body mb-3">
   <div class="d-flex gap-3 align-items-center">
+    {% set members_with_shifts_count = department.members_with_shifts|length %}
+    {% set everyone_with_shifts_emails = department.everyone_with_shifts_emails %}
     <h3>Members</h3>
     <div>{{ department.member_count }} Total Members</div>
     <div>{{ department.members_with_roles|length }} Members with Roles</div>
-    <div>{{ department.members_with_shifts|length }} Members with Shifts</div>
+    <div>{{ members_with_shifts_count }} Members with Shifts</div>
+    <div>{{ everyone_with_shifts_emails|length - members_with_shifts_count }} Non-Members with Shifts</div>
   </div>
   <div class="d-flex gap-3">
       <p>
@@ -396,11 +399,10 @@
             </a>
           </p>
         {% endif %}
-        {{ department.attendees_working_shifts }}
-        {% set members_with_shifts_emails = department.members_with_shifts_emails %}
-        {% if members_with_shifts_emails %}
+        
+        {% if everyone_with_shifts_emails %}
           <p>
-            <a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ members_with_shifts_emails|join(',') }}">
+            <a href="mailto:{{ c.ADMIN_EMAIL|email_only }}?bcc={{ everyone_with_shifts_emails|join(',') }}">
               <i class="fa fa-envelope"></i>
               Email everyone with shifts
             </a>

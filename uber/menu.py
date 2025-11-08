@@ -136,9 +136,9 @@ c.MENU = MenuItem(name='Root', submenu=[
 ])
 
 
-if c.MIVS_START:
-    c.MENU['People'].append_menu_item(MenuItem(name='MIVS', href='../group_admin/#mivs',
-                                               access_override='mivs_admin'), position=5)
+if c.ENABLED_INDIES_STR:
+    c.MENU['People'].append_menu_item(MenuItem(name='Indies', href='../group_admin/#mivs',
+                                               access_override='showcase_admin'), position=5)
 
 
 if c.GROUPS_ENABLED:

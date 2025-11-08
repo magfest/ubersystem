@@ -32,7 +32,7 @@ If you cannot make it to one or more of your existing shifts, contact {{ c.STAFF
     {% for job in jobs %}
         <tr>
             <td>{{ job.start_time|datetime_local("%b %-d at %H:%M (%-I %p %a)") }}</td>
-            <td>{{ job.duration }}</td>
+            <td>{{ job.duration / 60 }}</td>
             <td>{{ job.department_name }}</td>
             <td>{{ job.name }}</td>
             <td>(x{{ job.weight }})</td>

@@ -199,7 +199,7 @@ class Root:
 
     @check_shutdown
     def hotel(self, session, message='', decline=None, **params):
-        if c.AFTER_ROOM_DEADLINE and not c.HAS_HOTEL_ADMIN_ACCESS:
+        if c.AFTER_ROOM_DEADLINE and not c.HAS_STAFFING_ADMIN_ACCESS:
             raise HTTPRedirect('../staffing/index?message={}', 'The room deadline has passed')
         attendee = session.logged_in_volunteer()
         if not attendee.hotel_eligible:

@@ -290,7 +290,7 @@ class LotteryApplication(MagModel):
         if not c.HOTEL_LOTTERY_ROOM_INVENTORY or self.final_status_hidden and not self.status in [c.SECURED, c.CANCELLED]:
             return ''
         if not self.finalized and (
-                not c.HOTEL_LOTTERY_FORM_WAITLIST or c.BEFORE_HOTEL_LOTTERY_FORM_WAITLIST):
+                not c.HOTEL_LOTTERY_FORM_WAITLIST or not self.qualifies_for_first_round or c.BEFORE_HOTEL_LOTTERY_FORM_WAITLIST):
             return ''
         if self.staff_award_status_str:
             return self.staff_award_status_str

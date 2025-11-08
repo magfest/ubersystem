@@ -361,7 +361,7 @@ class Config(_Overridable):
             return True
 
         if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin',
-                                                                  'band_admin', 'mivs_admin']):
+                                                                  'band_admin', 'showcase_admin']):
             return True
         
     def update_name_problems(self):

@@ -1044,7 +1044,7 @@ class RetroGuestEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases[c.INDIE_RETRO] and filter(mg),
+            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases([c.INDIE_RETRO]) and filter(mg),
             ident,
             sender=c.INDIE_RETRO_EMAIL,
             **kwargs)
@@ -1087,7 +1087,7 @@ class IAGuestEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases[c.INDIE_ARCADE] and filter(mg),
+            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases([c.INDIE_ARCADE]) and filter(mg),
             ident,
             sender=c.INDIE_ARCADE_EMAIL,
             **kwargs)
@@ -1157,7 +1157,7 @@ class MIVSGuestEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases[c.MIVS] and filter(mg),
+            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases([c.MIVS]) and filter(mg),
             ident,
             sender=c.MIVS_EMAIL,
             **kwargs)

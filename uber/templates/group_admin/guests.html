@@ -12,7 +12,7 @@
       </tr>
       </thead>
       <tbody>
-      {% for group in guest_groups if (group.guest.group_type == c.BAND if band else group.guest.group_type not in [c.BAND, c.MIVS]) -%}
+      {% for group in guest_groups if (group.guest.group_type in [c.BAND, c.ROCK_ISLAND, c.SIDE_STAGE] if band else group.guest.group_type not in [c.BAND, c.SIDE_STAGE, c.MIVS]) -%}
         <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower|replace(' ','_') if group.guest else "" }} group-row">
           <td>
             <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>

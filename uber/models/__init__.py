@@ -864,12 +864,12 @@ class Session(SessionManager):
             if 'guest_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).join(
                     GuestGroup, Group.id == GuestGroup.group_id).filter(
-                        ~GuestGroup.group_type.in_([c.BAND, c.MIVS])))
+                        ~GuestGroup.group_type.in_([c.BAND, c.SIDE_STAGE, c.MIVS])))
 
             if 'band_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).join(
                     GuestGroup, Group.id == GuestGroup.group_id).filter(
-                        GuestGroup.group_type == c.BAND))
+                        GuestGroup.group_type.in_([c.BAND, c.ROCK_ISLAND, c.SIDE_STAGE])))
 
             if 'dealer_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).filter(Group.is_dealer))
@@ -903,7 +903,7 @@ class Session(SessionManager):
                             Attendee.group_id != None,
                             Group.id == Attendee.group_id,
                             GuestGroup.group_id == Group.id,
-                            GuestGroup.group_type == c.BAND)))
+                            GuestGroup.group_type.in_([c.BAND, c.ROCK_ISLAND, c.SIDE_STAGE]))))
             
             return_dict['guest_admin'] = self.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id).join(
                 GuestGroup, Group.id == GuestGroup.group_id).filter(
@@ -913,7 +913,7 @@ class Session(SessionManager):
                             Attendee.group_id != None,
                             Group.id == Attendee.group_id,
                             GuestGroup.group_id == Group.id,
-                            ~GuestGroup.group_type.in_([c.BAND, c.MIVS]))))
+                            ~GuestGroup.group_type.in_([c.BAND, c.SIDE_STAGE, c.MIVS]))))
 
             return_dict['panels_admin'] = self.query(Attendee).outerjoin(PanelApplicant).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
@@ -925,7 +925,7 @@ class Session(SessionManager):
                                                                     Attendee.group_id == Group.id
                                                                     ).filter(Attendee.is_dealer)
             return_dict['mits_admin'] = self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
-            return_dict['mivs_admin'] = (self.query(Attendee).join(Group, Attendee.group_id == Group.id)
+            return_dict['showcase_admin'] = (self.query(Attendee).join(Group, Attendee.group_id == Group.id)
                                          .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
                                              and_(Group.id == Attendee.group_id,
                                                   GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)

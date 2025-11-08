@@ -206,7 +206,7 @@ $(document).ready(function() {
             backdrop: true,
             message: '<h4>Clear all promo code ' + partOfSpeech + 's?</h4>',
             buttons: {
-                confirm: { label: 'Clear All ' + _.startCase(partOfSpeech) + 's', className: 'btn-danger' },
+                confirm: { label: 'Clear All ' + partOfSpeech + 's', className: 'btn-danger' },
                 cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function(result) {

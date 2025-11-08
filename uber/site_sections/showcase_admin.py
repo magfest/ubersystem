@@ -420,7 +420,7 @@ class Root:
         if service:
             try:
                 results = service.mivs.export_judges()
-                href_base = '{}/mivs_admin/edit_judge?id={}'
+                href_base = '{}/showcase_admin/edit_judge?id={}'
             except Exception as ex:
                 message = str(ex)
 
