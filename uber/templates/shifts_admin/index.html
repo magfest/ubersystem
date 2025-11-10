@@ -2,7 +2,112 @@
 {% block title %}Shifts{% endblock %}
 {% block page_styles %}
 <!--inside page_style -->
-{{ "fullcalendar-5.3.2/lib/main.min.css"|serve_static_content }}
+{{ "event-calendar-3.10.0/event-calendar.min.css"|serve_static_content }}
+
+<style>
+  .ec-button.ec-active, .ec-button:not(:disabled):hover {
+      background-color: #1a252f;
+      color: #FFFFFF;
+
+  }
+  .ec-button , .ec-button:not(:disabled){
+      background-color: #3d4752;
+      color: #FFFFFF;
+  }
+
+  .ec-button:is(:disabled){
+      background-color: #6a768f;
+      color: #CCCCCC;
+      cursor: not-allowed;
+  }
+
+
+  .ec-time-grid {
+      .ec-event-time{
+         font-size: .85em;
+      }
+      .ec-event-title{
+          font-size: 1em;
+      }
+  }
+
+  .ec-list {
+    .ec-day-head {
+        font-size: 1em;
+    }
+    .ec-event-body {
+        flex-direction: row;
+        gap: 10px;
+        align-items: center; /* vertically center all children */
+    }
+    .ec-event-tag{
+      display: none;
+    }
+   .ec-event-tag-middle {
+       border-radius: 5px;
+       width: 10px;
+       height: 10px;
+   }
+   .ec-event-title{
+      flex: 1 1 0;
+
+   }
+   .ec-event{
+       font-size: 1em;
+   }
+   .ec-event-time {
+        width: 8rem;           /* fixed-ish width for timestamp */
+        flex-shrink: 0;
+   }
+  }
+
+  .ec-day.ec-highlight {
+    background-color: #f8f9fa !important;
+  }
+  @media (max-width: 576px) {
+    /* Force vertical button group at smaller sizes */
+    .ec-button-group {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      position: relative;
+      display: inline-flex !important;
+      vertical-align: middle;
+    }
+
+    .ec-button-group>.ec-button:not(:first-child):not(:last-child) {
+    border-radius: 0;
+    }
+    .ec-button-group>.ec-button:last-child {
+      border-top-right-radius: 0;
+      border-bottom-left-radius: .25rem !important;
+    }
+    .ec-button-group>.ec-button:first-child {
+      border-bottom-left-radius: 0 !important;
+      border-top-right-radius: .25rem !important;
+      margin-top: 0px;
+    }
+    .ec-button-group>.ec-button {
+    width: 100%;
+    position: relative;
+    flex: 1 1 auto;
+    margin-left: 0 !important;
+    margin-top: -1px;
+    }
+  }
+
+  .button_row {
+    margin-bottom: 20px;
+  }
+
+  .button_row div a.setup_button, .button_row div a.teardown_button {
+    background-color: #239875;
+    background-image: -webkit-linear-gradient(top, #239875 0%, #209572 100%);
+    background-image: -o-linear-gradient(top, #239875 0%, #209572 100%);
+    background-image: -webkit-gradient(linear, left top, left bottom, from(#239875), to(#209572));
+    background-image: linear-gradient(to bottom, #239875 0%, #209572 100%);
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -90,97 +195,170 @@ Please select a department above to view its shifts.
 {% endblock %}
 {% block page_scripts %}
 {% if department_id != '' %}
-{{ "fullcalendar-5.3.2/lib/main.min.js"|serve_static_content }}
+{{ "event-calendar-3.10.0/event-calendar.min.js"|serve_static_content }}
+
 <script type="text/javascript">
+   const getDateArray = function(startDate, endDate) {
+      const dateArray = [];
+      let currentDate = new Date(startDate);
+      let end = new Date(endDate);
+
+      while (currentDate <= end) {
+        dateArray.push(new Date(currentDate));
+        // Use UTC date to prevent problems with time zones and DST
+        // in case an event ever spans a time change.
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+      }
+      return dateArray;
+    }
+
+    const goToEventForm = function(info){
+        let url;
+        if(info.event && info.event.id){
+            url = "form?id=" + info.event.id;
+        } else {
+            let startDate = info.date;
+            url = "form?id=None&department_id={{ department.id }}&start_time=" +
+            startDate.getFullYear() + '-' +
+            (startDate.getMonth() + 1).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + '-' +
+            (startDate.getDate()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ' ' +
+            (startDate.getHours()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
+            (startDate.getMinutes()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
+            (startDate.getSeconds()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
+        }
+        window.location.href = url;
+    }
+
+    const setup_duration = {{ (c.EPOCH - c.SHIFTS_EPOCH).days }};
+    const setup_date = '{{ c.SHIFTS_EPOCH.date() }}';
+    const teardown_duration = {{ (c.SHIFTS_ESCHATON - c.ESCHATON).days }};
+    const event_duration = {{ (c.ESCHATON - c.EPOCH).days }};
+    const total_duration = {{ (c.SHIFTS_ESCHATON - c.SHIFTS_EPOCH).days }};
+    const event_start_date = '{{ c.EPOCH.date() }}';
+    const event_end_date = '{{ c.ESCHATON.date() }}';
+    const event_dates = getDateArray(event_start_date, event_end_date);
 
 $(document).ready(function() {
-    var eventList = new Array();
+    let eventList = new Array();
     {% for job in jobs %}
         eventList.push({
+            id: "{{ job.id }}",
             title: "{{ job.name }} ({{ job.shifts | length }}/{{ job.slots }}) x{{ job.weight }}{{ " +15" if job.extra15 else "" }}",
             start: "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
             end: "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-            url: "form?id={{ job.id }}",
             {% if job.shifts|length == job.slots %}
-                color: '#1e3a7b'
+                color: '#186850'
             {% else %}
                 color: '#305fc9'
             {% endif %}
         });
     {% endfor %}
 
-    shiftCal = new FullCalendar.Calendar(document.getElementById('shift_cal'), {
+  let renderEvent = function (info) {
+    let eventInfo = info.event;
+    if (info.view.type !== 'listWeek') {
+        //Don't alter the grid layout. just the list view.
+        return;
+    }
+    let html = `<div class="ec-event-time">${info.timeText}</div>
+                <div class="ec-event-tag-middle"style="background-color:${eventInfo.backgroundColor};"></div>
+                <div class="ec-event-title">${eventInfo.title}</div>`;
+    return {
+      html: html,
+    }
+  }
+
+    const ec = new EventCalendar(document.getElementById('shift_cal'), {
+        view: window.matchMedia('(max-width: 576px)').matches ? 'listWeek' : 'timeGridWeek',
+        date: event_start_date,
+        allDaySlot: false,
+        highlightedDates: event_dates,
         headerToolbar: {
-            start: 'prev,next today',
+            start: 'prev,next timeGridDay',
             center: 'title',
-            end: 'agendaDay,agendaSetup,agendaEvent,agendaTeardown,agendaConWeek,listConDuration'
+            end: 'setupView,eventView,teardownView,allView listView'
         },
+        buttonText: {close: 'Close', listWeek: 'List', timeGridDay: 'Day'},
+        noEventsContent: '<em>No shifts exist for the given department and days chosen.</em>',
+        customButtons: {
+          setupView: {
+            text: 'Setup',
+            click: function() { showCalView(setup_date, setup_duration, 'setupView'); },
+            active: false,
+          },
+          eventView: {
+            text: 'Event',
+            click: function() { showCalView(event_start_date, event_duration, 'eventView'); },
+            active: true,
+          },
+          teardownView: {
+            text: 'Teardown',
+            click: function() { showCalView(event_end_date, teardown_duration + 1, 'teardownView'); },
+            active: false,
+          },
+          allView: {
+            text: 'All',
+            click: function() { showCalView(setup_date, total_duration + 1, 'allView'); },
+            active: false,
+          },
+          listView: {
+            text: 'List',
+            click: function() { showCalView(setup_date, undefined, 'listView'); },
+            active: false,
+          },
+        },
+        scrollTime: '09:00:00',
         views: {
-            agendaDay: { 
-                type: 'timeGrid',
-                buttonText: 'Day',
+            timeGridWeek: {
+              pointer: true,
+              duration: {days: event_duration},
             },
-            agendaSetup: {
-                type: 'timeGrid',
-                visibleRange: {
-                    start: '{{ c.SHIFTS_EPOCH.strftime('%Y-%m-%d') }}',
-                    end: '{{ c.EPOCH.strftime('%Y-%m-%d') }}'
-                },
-                buttonText: 'Setup',
-            },
-            agendaEvent: {
-                type: 'timeGrid',
-                visibleRange: {
-                    start: '{{ c.EPOCH }}',
-                    end: '{{ c.ESCHATON }}'
-                },
-                buttonText: 'Event',
-            },
-            agendaTeardown: {
-                type: 'timeGrid',
-                visibleRange: {
-                    start: '{{ c.ESCHATON.strftime('%Y-%m-%d') }}',
-                    end: '{{ c.SHIFTS_ESCHATON.strftime('%Y-%m-%d') }}'
-                },
-                buttonText: 'Teardown',
-            },
-            agendaConWeek: {
-                type: 'timeGrid',
-                visibleRange: {
-                    start: '{{ c.SHIFTS_EPOCH.strftime('%Y-%m-%d') }}',
-                    end: '{{ c.SHIFTS_ESCHATON.strftime('%Y-%m-%d') }}'
-                },
-                buttonText: 'All'
-            },
-            listConDuration: {
-                type: 'list',
-                duration: { days: {{ c.CON_TOTAL_DAYS }} },
-                buttonText: 'List'
+            listWeek: {
+              duration: {days: total_duration + 1},
             }
         },
-        buttonText : {
-            today : 'Today',
-            agendaWeek : 'Week',
-            agendaDay : 'Day',
-            listWeek : 'Week'
-        },
-        slotDuration: '00:30:00',
-        allDaySlot: false,
-        initialView: 'agendaDay',
-        initialDate: '{{ initial_date }}',
-        slotEventOverlap: false,
-        events: eventList,
-        dateClick: function(date) {
-            window.location.href = "form?id=None&department_id={{ department.id }}&start_time=" + 
-                date.date.getFullYear() + '-' + 
-                (date.date.getMonth() + 1).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + '-' +
-                (date.date.getDate()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ' ' +
-                (date.date.getHours()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
-                (date.date.getMinutes()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false}) + ':' +
-                (date.date.getSeconds()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
+        events: eventList, //if filters become dynamic. event source needed not list.
+        dateClick: goToEventForm,
+        eventContent: renderEvent,
+        eventClick: goToEventForm,
+        dayMaxEvents: true,
+        nowIndicator: true,
+        selectable: false,
+        eventStartEditable: false,
+        eventDurationEditable: false,
+        validRange: {
+          start: setup_date,
+          end: '{{ c.SHIFTS_ESCHATON.date() }}',
         }
     });
-    shiftCal.render();
+
+
+    let showCalView = function (startDay, newDuration, whichButton) {
+        let currentViews = ec.getOption('views');
+        if(whichButton !== 'listView'){
+           currentViews['timeGridWeek']['duration']['days'] = newDuration;
+        }
+        ec.setOption('views', currentViews);
+
+        setActiveButton(whichButton);
+        ec.setOption('date', startDay);
+        ec.setOption('view', '');
+        let view = whichButton === 'listView' ? 'listWeek' : 'timeGridWeek';
+        ec.setOption('view', view);
+   }
+
+    let setActiveButton = function(whichButton) {
+        let customButtons = ec.getOption('customButtons');
+        for (const [key, value] of Object.entries(customButtons)) {
+          if (key == whichButton) {
+            value['active'] = true;
+          } else {
+            value['active'] = false;
+          }
+        }
+        ec.setOption('customButtons', customButtons);
+   }
+
 });
 
 </script>
