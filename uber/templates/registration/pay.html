@@ -11,7 +11,9 @@
   <h2>Payment for {{ attendee.full_name }}</h2>
 
   <div class="center">
+    {% if c.ONLINE_PAYMENT_AVAILABLE %}
     {{ stripe_form('take_payment',attendee) }}
+    {% endif %}
     {% if c.CASH in c.DOOR_PAYMENT_METHODS %}
       <br/><br/>
       <a href="register?message=Please+queue+in+the+cash+line+and+have+your+photo+ID+and+cash+ready.">{{ macros.stripe_button("Nevermind, I'll Pay Cash") }}</a>

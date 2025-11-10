@@ -46,7 +46,13 @@
       {% if app.status == c.ACCEPTED %}
       Congratulations, your application has been accepted!
         {% if not app.incomplete_reason and app.amount_unpaid %}
-          In order to complete your application, please pay the {{ (app.amount_unpaid / 100)|format_currency }} artist marketplace fee using the button below.<br/>
+          {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
+          Please see the help desk at Registration to complete your payment of {{ app.amount_unpaid|format_currency }} for your application.
+          {% elif not c.ONLINE_PAYMENT_AVAILABLE %}
+          You will need to pay {{ app.amount_unpaid|format_currency }} to complete your application, but
+          we are not able to take online payments at this time. You will be able to pay your balance at the Registration help desk on-site.
+          {% else %}
+          In order to complete your application, please pay the {{ app.amount_unpaid|format_currency }} artist marketplace fee using the button below.<br/>
           <div style="text-align:center">
             {% if incomplete_txn %}
               {{ stripe_form('finish_pending_payment', app, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
@@ -54,6 +60,7 @@
               {{ stripe_form('process_marketplace_payment', app) }}
             {% endif %}
           </div>
+          {% endif %}
         {% else %}<p>{{ app.incomplete_reason }}</p>{% endif %}
       {% elif app.status in [c.DECLINED, c.CANCELLED] %}
       Unfortunately, since your application has been {{ app.status_label|lower }}, you may no longer edit it. However,

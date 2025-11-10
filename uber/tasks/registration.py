@@ -503,7 +503,7 @@ def check_authnet_held_txns():
         name=c.AUTHORIZENET_LOGIN_ID,
         transactionKey=c.AUTHORIZENET_LOGIN_KEY
         )
-    
+
     heldTransactionListRequest = apicontractsv1.getUnsettledTransactionListRequest()
     heldTransactionListRequest.merchantAuthentication = merchantAuth
     heldTransactionListRequest.status = 'pendingApproval'
@@ -540,19 +540,19 @@ def check_authnet_held_txns():
             if error:
                 log.error(f"Tried to check status of transaction {charge_id} but got the error: {error}")
             else:
-                if txn_status.response.transactionStatus != "settledSuccessfully":
+                if txn_status.response.transactionStatus in ["declined", "expired", "failedReview", "voided"]:
                     body = render('emails/held_txn_declined.html',
                                   {'txns': txns, 'status': str(txn_status.response.transactionStatus)},
                                   encoding=None)
                     subject = f"AuthNet Held Transaction Declined: {charge_id}"
                     send_email.delay(c.REPORTS_EMAIL, c.REGDESK_EMAIL, subject, body,
                                      format='html', model='n/a')
-
-                for txn in txns:
-                    if txn_status.response.transactionStatus != "settledSuccessfully":
+                    
+                    for txn in txns:
                         txn.cancelled = datetime.now()
-                    else:
-                        txn.on_hold = False
+                        session.add(txn)
+                elif txn_status.response.transactionStatus in ["settledSuccessfully", "capturedPendingSettlement"]:
+                    txn.on_hold = False
                     session.add(txn)
 
 

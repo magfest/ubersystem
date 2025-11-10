@@ -1,0 +1,202 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% block title %}Job Form{% endblock %}
+{% block content %}
+
+{{ macros.nav_menu(
+    job_template, c.PAGE_PATH,
+    "template?id={id}", "Job Template", True,
+    "staffers_by_job?id={id}", "Staffer Signups", True,
+    "index?department_id={department_id}", "Return to Shift List", True
+) }}
+
+<h2>
+  {%- if job_template.is_new -%}
+    <i class="fa fa-plus"></i> New Job Template
+  {%- else -%}
+    <i class="fa fa-cog"></i> Edit {{ job_template.template_name }}
+  {%- endif -%}
+</h2>
+
+<div class="card card-body">
+<p>
+    Job templates allow you to create and control multiple jobs at once.
+    {% if job_template.is_new %}
+    Specify the days this job should be active, the opening and closing time, and the duration of each job and the system will create jobs accordingly.
+    {% endif %}
+    All jobs in the template can later be updated by updating properties on the template.
+</p>
+
+<div class="accordion mb-3 text-start">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="template-types-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#template-types" aria-controls="template-types">
+          Job Template Types
+        </button>
+      </h2>
+      <div id="template-types" class="accordion-collapse collapse" aria-labelledby="template-types-header">
+        <div class="accordion-body">
+            There are three types of job template:
+            <ul>
+                <li>
+                    <strong>Fill Gaps</strong>:
+                    The system will make sure that this job fills the specified hours between opening and closing time.
+                    The last shift of the day will end at closing time -- this may mean that its duration is shorter than normal.
+                    If you edit an individual job's duration, the system will move later jobs up to fill in the gap.
+                    <ul>
+                        <li>
+                            <em>Example</em>: You create a template with a job duration of 2 hours and with opening and closing hours
+                            between 9am and 8pm. The last shift the system creates is therefore only 1 hour (7-8pm), but you want a
+                            one-hour shift from 11am-12pm instead. You may do this by editing the 11am job to be only 1 hour long:
+                            after you save, the system will move all later jobs' starting times to fill the gap
+                            (1pm to 12pm, 3pm to 2pm, etc) and adjust the last shift to be 2 hours long.
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Interval</strong>:
+                    The system will create jobs according to a specified interval. All jobs will have the duration you set,
+                    even if that means they end after closing time. The system will not change any other jobs when you edit an individual job.
+                    <ul>
+                        <li>
+                            <em>Example</em>: You create a template with a job duration of 3 hours and an interval of 1 hour and 30 minutes.
+                            The system creates jobs starting from the opening time each day, with all jobs starting before the closing time.
+                            Since the interval is half the job duration, there are overlapping alternating jobs,
+                            so each shift ends in the middle of the other shift.
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Custom</strong>: The system will not delete, create, or move jobs.
+                    You can add jobs to this template to help manage job name, description, and other properties en masse,
+                    or you can switch to this template type from another type to prevent the system from moving existing jobs.
+                </li>
+            </ul>
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="individual-jobs-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#individual-jobs" aria-controls="individual-jobs">
+          Editing Individual Jobs
+        </button>
+      </h2>
+      <div id="individual-jobs" class="accordion-collapse collapse" aria-labelledby="individual-jobs-header">
+        <div class="accordion-body">
+          After creating a template, the system will create jobs based on the template settings.
+          These jobs can then be individually edited or deleted according to your department's needs. Here's some tips to keep in mind:
+          <ul>
+            <li>
+              A "Fill Gaps" job template will only fill <em>gaps</em>, meaning that you can freely delete or edit jobs at the start and end of each day.
+              This lets you customize shift coverage for, e.g., opening late or closing early on certain days.
+            </li>
+            <li>
+              When editing a template, the system will only change existing jobs if you actually change the corresponding property on the template.
+              For example, if you create a template with a x1.0 weighting, then change some of the created jobs to a different weighting,
+              editing the template will NOT change the existing jobs' weighting <em>unless</em> you change the template's weight from x1.0 to something else.
+            </li>
+            <li>
+              Changing the interval of an Interval template or the job duration of a Fill Gaps
+              template will delete and recreate existing jobs. This also happens if you change the template type,
+              unless you are changing it to Custom. Individual edits made to those jobs will not be preserved.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    {% if not job_template.is_new %}
+      $(function() {
+          $("form[action='delete_template']").submit(function(event){
+              var formToSubmit = this;
+              event.preventDefault();
+              bootbox.confirm({
+                  message: "This will permanently delete this template. Existing jobs will not be affected. Are you sure?",
+                  buttons: {
+                      confirm: {
+                          label: 'Delete Template',
+                          className: 'btn-danger'
+                      },
+                      cancel: {
+                          label: 'Nevermind',
+                          className: 'btn-outline-secondary'
+                      }
+                  },
+                  callback: function (result) {
+                      if(result) {
+                          formToSubmit.submit();
+                      }
+                  }
+              });
+          });
+          $("form[action='delete_template_cascade']").submit(function(event){
+              var formToSubmit = this;
+              event.preventDefault();
+              bootbox.confirm({
+                  message: "This will permanently delete this template AND {% if job_template.jobs|length > 1 %}all {{ job_template.jobs|length }} jobs{% else %}the job{% endif %} it controls. Are you sure?",
+                  buttons: {
+                      confirm: {
+                          label: 'Delete Template and Jobs',
+                          className: 'btn-danger'
+                      },
+                      cancel: {
+                          label: 'Nevermind',
+                          className: 'btn-outline-secondary'
+                      }
+                  },
+                  callback: function (result) {
+                      if(result) {
+                          formToSubmit.submit();
+                      }
+                  }
+              });
+          });
+      });
+    {% endif %}
+</script>
+
+  {{ form_macros.form_validation('job-template-form', 'validate_job_template') }}
+  <form novalidate method="post" action="template" id="job-template-form">
+    <input type="hidden" name="id" value="{{ job_template.db_id }}" />
+    <input type="hidden" name="department_id" value="{{ department.id }}" />
+
+    {{ csrf_token() }}
+
+    {% include 'forms/department/job_template_info.html' with context %}
+  </form>
+
+<div class="d-flex gap-2 justify-content-between">
+  <button type="submit" form="job-template-form" class="btn btn-primary">{{ 'Create' if job_template.is_new else 'Save' }} Template</button>
+  {% if not job_template.is_new %}
+    <div class="d-flex gap-2">
+    <form method="post" action="delete_template" class="form-delete">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ job_template.id }}" />
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <input type="submit" class="btn btn-danger" value="Delete Template" />
+        </div>
+      </div>
+    </form>
+    {% if job_template.jobs %}
+    <form method="post" action="delete_template_cascade" class="form-delete-cascade">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ job_template.id }}" />
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <input type="submit" class="btn btn-danger" value="Delete Template AND All Jobs" />
+        </div>
+      </div>
+    </form>
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}{% endblock %}
+

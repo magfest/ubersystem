@@ -1,26 +1,30 @@
 {% import 'macros.html' as macros with context %}
 {% set model = attendee if attendee else group %}
 {% set admin_area=True %}
-  <h2>Changelog for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
-
+  <div class="card card-body">
+    <h2>Changelog for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
   <table class="table table-striped table-bordered table-sm">
     <thead><tr>
-      <th>Which</th>
-      <th>What</th>
       <th>When</th>
       <th>Who</th>
+      <th>Page</th>
+      <th>Which</th>
+      <th>Action</th>
       <th>Changes</th>
     </tr></thead>
     {% for tracked in changes %}
       <tr>
-        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
-        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.page }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
         <td valign="top">{{ tracked.data }}</td>
       </tr>
     {% endfor %}
   </table>
+
+  <hr/>
 
   <h2>Page View History for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
 
@@ -38,6 +42,8 @@
       </tr>
     {% endfor %}
   </table>
+
+  <hr/>
 
   {% if attendee and attendee.past_years %}
     <h2> Past Years' Staffing </h2>
@@ -68,10 +74,11 @@
         {% endfor %}
       </table>
     {% endfor %}
+    <hr/>
   {% endif %}
 
-  {% for email in emails  %}
-    {% if loop.first %}<h2> Automated Emails </h2>{% endif %}
+  <h2> Automated Emails </h2>
+  {% for email in emails %}
     <h3> {{ email.subject }} ({{ email.when|full_datetime_local }}) </h3>
     {{ macros.preview_email(email) }}
     {% if not read_only %}
@@ -83,4 +90,11 @@
     {% endif %}
     <hr/>
   {% endfor %}
+  {% if other_emails %}
+    <h3>Other Emails to {{ model.email }} </h3>
+    {% for email in other_emails %}
+    {{ macros.preview_email(email) }}
+    {% endfor %}
+  {% endif %}
 {{ "js/resend-email-form.js"|serve_static_content }}
+</div>

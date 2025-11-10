@@ -205,7 +205,7 @@ class Root:
                                                                 c.ARTIST_ALLEY_RECEIPT_ITEM,
                                                                 c.MARKETPLACE,
                                                                 "Artist Marketplace Application",
-                                                                app.amount_unpaid,
+                                                                app.amount_unpaid * 100,
                                                                 purchaser_id=app.attendee.id)
             receipt_item.fk_id = app.id
             receipt_item.fk_model = "ArtistMarketplaceApplication"
@@ -214,7 +214,7 @@ class Root:
             session.refresh(receipt)
         
         charge = TransactionRequest(receipt, app.email_address,
-                                    "Artist Marketplace Application Payment", amount=app.amount_unpaid)
+                                    "Artist Marketplace Application Payment", amount=app.amount_unpaid * 100)
         incomplete_txn = receipt.get_last_incomplete_txn()
 
         if incomplete_txn and incomplete_txn.desc == "Artist Marketplace Application Payment":

@@ -129,7 +129,7 @@ ArtShowPieceInfo.field_validation.validations['for_sale']['required'] = validato
 
 
 ArtShowPieceInfo.field_validation.validations['name']['length'] = validators.Length(
-    max=c.PIECE_NAME_LENGTH, message=f"Piece names must be {c.PIECE_NAME_LENGTH} characters or fewer.")
+    max=c.MAX_PIECE_NAME_LENGTH, message=f"Piece names must be {c.MAX_PIECE_NAME_LENGTH} characters or fewer.")
 
 
 @ArtShowPieceInfo.field_validation('quick_sale_price')

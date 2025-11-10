@@ -77,7 +77,7 @@ def update_prereg_cart(session):
             existing_model = session.query(Group).filter_by(id=id).first()
         if existing_model:
             receipt = session.refresh_receipt_and_model(existing_model, is_prereg=True)
-            if receipt and receipt.current_amount_owed:
+            if receipt and (receipt.current_amount_owed or not receipt.payment_total):
                 PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
             elif receipt:
                 PreregCart.paid_preregs.append(PreregCart.pending_preregs[id])
@@ -522,6 +522,7 @@ class Root:
         badges = params.get('badges', 0)
         name = params.get('name', '')
         loaded_from_group = False
+        force_form_defaults = True
 
         if cherrypy.request.method == 'POST' and not params.get('badge_type'):
             params['badge_type'] = c.ATTENDEE_BADGE
@@ -531,6 +532,7 @@ class Root:
             if group.attendees:
                 attendee = group.attendees[0]
                 loaded_from_group = True
+                force_form_defaults = False
             else:
                 attendee.badge_type = c.PSEUDO_DEALER_BADGE
             attendee.group_id = dealer_id
@@ -539,18 +541,20 @@ class Root:
             attendee = self._get_unsaved(edit_id)
             badges = getattr(attendee, 'badges', 0)
             name = getattr(attendee, 'name', '')
+            force_form_defaults = False
 
         forms_list = ['PersonalInfo', 'BadgeExtras', 'Consents']
         if c.GROUPS_ENABLED:
             forms_list.append('GroupInfo')
-        forms = load_forms(params, attendee, forms_list)
+        forms = load_forms(params, attendee, forms_list, force_form_defaults=force_form_defaults)
         if edit_id or loaded_from_group:
             forms['consents'].pii_consent.data = True
 
-        for form in forms.values():
-            if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
-                form['legal_name'].data = ''
-            form.populate_obj(attendee)
+        if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+                    form['legal_name'].data = ''
+                form.populate_obj(attendee)
 
         if (cherrypy.request.method == 'POST' or edit_id is not None) and c.PRE_CON:
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
@@ -850,6 +854,23 @@ class Root:
         update_prereg_cart(session)
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
+
+        pickup_group_id = None
+        for attendee in cart.attendees:
+            pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
+            if pending_attendee and pending_attendee.badge_pickup_group_id:
+                pickup_group_id = pending_attendee.badge_pickup_group_id
+        pending_attendee = None
+        
+        if pickup_group_id:
+            pickup_group = session.badge_pickup_group(pickup_group_id)
+        else:
+            pickup_group = BadgePickupGroup()
+            session.add(pickup_group)
+
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            pickup_group.account_id = session.current_attendee_account().id
+
         if not cart.total_cost:
             if not cart.models:
                 HTTPRedirect('form?message={}', 'Your preregistration has already been finalized')
@@ -880,9 +901,9 @@ class Root:
             receipts = []
             for model in cart.models:
                 charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model,
-                                                                                            who='non-admin',
-                                                                                            create_model=True,
-                                                                                            purchaser_id=cart.purchaser.id)
+                                                                                         who='non-admin',
+                                                                                         create_model=True,
+                                                                                         purchaser_id=cart.purchaser.id)
                 existing_receipt = session.refresh_receipt_and_model(model, is_prereg=True)
                 if existing_receipt:
                     # Multiple attendees can have the same transaction during pre-reg,
@@ -969,7 +990,9 @@ class Root:
 
                 attendee.badge_status = c.PENDING_STATUS
                 attendee.paid = c.PENDING
+                attendee.badge_pickup_group_id = pickup_group.id
                 session.add(attendee)
+
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     session.add_attendee_to_account(attendee, session.current_attendee_account())
 
@@ -1893,7 +1916,7 @@ class Root:
 
         for id in abandon_ids:
             attendee = session.attendee(id)
-            if attendee.cannot_abandon_badge_reason:
+            if attendee.cannot_abandon_badge_check(including_last_adult=False):
                 failed_attendees.add(attendee)
             elif attendee.amount_paid:
                 receipt_manager = ReceiptManager(attendee.active_receipt, 'non-admin')
@@ -2102,7 +2125,7 @@ class Root:
             account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
         attendees_who_owe_money = {}
-        if not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY:
+        if c.ONLINE_PAYMENT_AVAILABLE:
             for attendee in account.valid_attendees:
                 if attendee not in account.at_door_pending_attendees and attendee.active_receipt and not attendee.is_paid:
                     attendees_who_owe_money[attendee.full_name] = attendee.active_receipt.current_amount_owed
@@ -2183,8 +2206,7 @@ class Root:
             if attendee.is_valid:
                 if not receipt:
                     receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-                if not receipt.current_amount_owed or receipt.pending_total or (c.AFTER_PREREG_TAKEDOWN
-                                                                                and c.SPIN_TERMINAL_AUTH_KEY):
+                if not receipt.current_amount_owed or receipt.pending_total or not c.ONLINE_PAYMENT_AVAILABLE:
                     raise HTTPRedirect(page + 'message=' + message)
                 elif receipt.current_amount_owed and not receipt.pending_total:
                     # TODO: could use some cleanup, needed because of how we handle the placeholder attr
@@ -2199,8 +2221,7 @@ class Root:
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
-        if receipt and receipt.current_amount_owed and not receipt.pending_total and not attendee.placeholder and (
-                c.BEFORE_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY):
+        if receipt and receipt.current_amount_owed and not receipt.pending_total and not attendee.placeholder and c.ONLINE_PAYMENT_AVAILABLE:
             raise HTTPRedirect('new_badge_payment?id={}&message={}&return_to={}', attendee.id, message, return_to)
 
         return {
@@ -2454,7 +2475,7 @@ class Root:
     @id_required(Attendee)
     @requires_account(Attendee)
     def new_badge_payment(self, session, id, return_to, message=''):
-        if c.AFTER_PREREG_TAKEDOWN and c.SPIN_TERMINAL_AUTH_KEY:
+        if not c.ONLINE_PAYMENT_AVAILABLE:
             raise HTTPRedirect('confirm?id={}&message={}', id, "Please go to Registration to pay for this badge.")
         attendee = session.attendee(id)
         return {

@@ -1562,7 +1562,7 @@ class Session(SessionManager):
             badge_type = uber.badge_funcs.get_real_badge_type(attendee.badge_type)
             lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
 
-            if attendee.badge_num:
+            if attendee.active_badge and attendee.active_badge.attendee_id:
                 if lower_bound <= attendee.badge_num <= upper_bound:
                     return
                 attendee.active_badge.unassign()
@@ -1958,14 +1958,14 @@ class Session(SessionManager):
                 return f'This badge is currently {attendee.badge_status_label} and cannot sign up for shifts.'
 
             if not attendee.has_required_roles(job):
-                return 'You cannot assign an attendee to this shift who does not have the required roles: {}'.format(
-                    job.required_roles_labels)
+                return f'You cannot assign an attendee to this shift who does not have {'all of' if job.all_roles_required else 'one of'} '\
+                    f'the required roles: {job.required_roles_labels}.'
 
-            if job.slots <= len(job.shifts):
-                return 'All slots for this job have already been filled'
+            if job.slots and job.slots <= len(job.shifts):
+                return 'All slots for this job have already been filled.'
 
             if not job.no_overlap(attendee):
-                return 'This volunteer is already signed up for a shift during that time'
+                return 'This volunteer is already signed up for a shift during that time.'
 
             if not job.working_limit_ok(attendee):
                 return 'This shift would put this volunteer over one of their department\'s max consecutive hours'

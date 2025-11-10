@@ -139,7 +139,8 @@ class Root:
                 or_(Tracking.links.like('%art_show_application({})%'.format(id)),
                     and_(Tracking.model == 'ArtShowApplication', Tracking.fk_id == id))
                     ).order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(app)),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(app)
+                                                                ).order_by(PageViewTracking.when).all(),
         }
 
     def ops(self, session, message=''):

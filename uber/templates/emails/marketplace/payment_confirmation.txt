@@ -8,4 +8,4 @@ We fill spots as they are cancelled, so please don't delay cancelling if you kno
 
 As a reminder, make sure you have read the {{ c.EVENT_NAME }} Artist Marketplace rules here: {{ c.ARTIST_MARKETPLACE_RULES_URL }}
 
-{{ c.ARTIST_MARKETPLACE_SIGNATURE }}
+{{ email_signature }}

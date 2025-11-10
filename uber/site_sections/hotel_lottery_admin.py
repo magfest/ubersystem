@@ -323,7 +323,8 @@ class Root:
                                                   ).order_by(Email.when).all(),
             'changes': session.query(Tracking).filter(Tracking.model == 'LotteryApplication', Tracking.fk_id == id
                                                       ).order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application))
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application)
+                                                                ).order_by(PageViewTracking.when).all(),
         }
     
     def show_awards(self, session, **params):

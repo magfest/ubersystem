@@ -620,7 +620,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                     and not self.group.is_unpaid):
             self.badge_status = c.COMPLETED_STATUS
 
-        if not self.has_or_will_have_badge:
+        if not self.has_or_will_have_badge and self.badge_status != c.PENDING_STATUS:
             self.badge_pickup_group = None
 
     @presave_adjustment
@@ -769,6 +769,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.badge_num:
                 self.session.add(self.active_badge)
                 self.active_badge.unassign()
+                self.session.update_badge(self)
             return
 
         badge = self.session.query(BadgeInfo).filter(BadgeInfo.ident == value,
@@ -1350,6 +1351,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def cannot_abandon_badge_reason(self):
+        return self.cannot_abandon_badge_check()
+
+    def cannot_abandon_badge_check(self, including_last_adult=True):
         from uber.custom_tags import email_only
 
         if self.checked_in:
@@ -1360,8 +1364,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return f"Please contact {email_only(c.REGDESK_EMAIL)} to cancel your badge."
 
         reason = ""
-
-        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
+        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers and including_last_adult:
             account = self.managers[0]
             other_adult_badges = [a for a in account.valid_adults if a.id != self.id]
             if account.badges_needing_adults and not other_adult_badges:
@@ -1868,8 +1871,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def takes_shifts(self):
-        return bool(self.staffing and self.badge_type != c.CONTRACTOR_BADGE and any(
-            not d.is_shiftless for d in self.assigned_depts))
+        return bool(self.staffing and self.badge_type != c.CONTRACTOR_BADGE)
 
     @property
     def handles_cash(self):
@@ -1933,15 +1935,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         return [
             job for job in self.available_jobs
-            if job.no_overlap(self) and job.working_limit_ok(self)
-            and (
-                job.type != c.SETUP
-                or self.can_work_setup
-                or job.department.is_setup_approval_exempt)
-            and (
-                job.type != c.TEARDOWN
-                or self.can_work_teardown
-                or job.department.is_teardown_approval_exempt)]
+            if job.no_overlap(self) and job.working_limit_ok(self)]
 
     @property
     def possible_opts(self):
@@ -2203,7 +2197,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             return True
         required_role_ids = set(r.id for r in job.required_roles)
         role_ids = set(r.id for r in self.dept_roles)
-        return required_role_ids.issubset(role_ids)
+        if job.all_roles_required:
+            return required_role_ids.issubset(role_ids)
+        else:
+            for role_id in required_role_ids:
+                if role_id in role_ids:
+                    return True
 
     @property
     def has_role_somewhere(self):
@@ -2643,7 +2642,8 @@ class AttendeeAccount(MagModel):
 
     @property
     def cancellable_badges(self):
-        return [attendee for attendee in self.attendees if attendee.is_valid and not attendee.cannot_abandon_badge_reason]
+        return [attendee for attendee in self.attendees if attendee.is_valid and 
+                not attendee.cannot_abandon_badge_check(including_last_adult=False)]
 
     @property
     def imported_attendees(self):
@@ -2692,6 +2692,19 @@ class BadgePickupGroup(MagModel):
         for attendee in account.attendees:
             if attendee.has_badge:
                 self.attendees.append(attendee)
+
+    def finalize_cart(self, session):
+        pending_free_badges = [attendee for attendee in self.attendees if 
+                               attendee.badge_status == c.PENDING_STATUS and not attendee.total_cost_if_valid]
+
+        if not all([attendee for attendee in self.attendees if (attendee.is_valid and attendee.is_paid) or 
+                    attendee in pending_free_badges]):
+            return
+        
+        for attendee in pending_free_badges:
+            attendee.badge_status = c.COMPLETED_STATUS
+            attendee.badge_pickup_group_id = None
+            session.add(attendee)
 
     @property
     def fallback_purchaser_id(self):

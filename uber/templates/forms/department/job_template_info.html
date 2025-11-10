@@ -1,0 +1,42 @@
+{% extends 'forms/department/base_job_info.html' %}
+
+{% block x_data %}
+{{ super() }}
+template_type: '{{ job_or_template_info.type.data }}',
+getNotCustom() { return this.template_type != '{{ c.CUSTOM }}' },
+getInterval() { return this.template_type == '{{ c.INTERVAL }}' },
+{% endblock %}
+
+{% block type_interval %}
+<div class="col-sm">{{ form_macros.input(job_or_template_info.template_name) }}</div>
+<div class="col-sm">{{ form_macros.input(job_or_template_info.type, alpine_model="template_type") }}</div>
+<div class="col-sm" x-show="getInterval">{{ form_macros.input(job_or_template_info.interval, required_if="getInterval") }}</div>
+{% endblock %}
+
+{% block start_duration %}
+    <div class="col-sm" x-show="getNotCustom">{{ form_macros.input(job_or_template_info.days, required_if="getNotCustom") }}</div>
+</div>
+<div class="row g-3 mb-3">
+    <div class="col-sm" x-show="getNotCustom">{{ form_macros.input(job_or_template_info.open_time, required_if="getNotCustom") }}</div>
+    <div class="col-sm" x-show="getNotCustom">{{ form_macros.input(job_or_template_info.close_time, required_if="getNotCustom") }}</div>
+{% endblock %}
+
+{% block weight_visibility %}
+    <div class="col-sm">
+        {% call form_macros.input(job_or_template_info.duration, required_if="getNotCustom") %}
+        {{ form_macros.input(job_or_template_info.extra15) }}
+        {% endcall %}
+    </div>
+    <div class="col-sm">
+        {% if job_or_template.is_new %}
+        {% call form_macros.input(job_or_template_info.min_slots, **{':disabled':'no_slots'}) %}
+        {{ form_macros.input(job_or_template_info.no_slots, alpine_model='no_slots') }}
+        {% endcall %}
+        {% else %}
+        {{ form_macros.input(job_or_template_info.min_slots) }}
+        {% endif %}
+    </div>
+</div>
+<div class="row g-3 mb-3">
+{{ super() }}
+{% endblock %}

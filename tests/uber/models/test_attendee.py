@@ -21,15 +21,6 @@ def dept():
 
 
 @pytest.fixture()
-def shiftless_dept():
-    yield Department(
-        id='27152595-2ea8-43ee-8edb-a68cefb2b2ac',
-        name='Con Ops',
-        description='Con Ops',
-        is_shiftless=True)
-
-
-@pytest.fixture()
 def trusted_role(dept):
     yield DeptRole(
         id='45c3fd2a-df1d-46bd-a10c-7289bbfd1167',
@@ -416,14 +407,6 @@ def test_has_personalized_badge():
         assert not Attendee(badge_type=badge_type).has_personalized_badge
 
 
-def test_takes_shifts(dept, shiftless_dept):
-    assert not Attendee().takes_shifts
-    assert not Attendee(staffing=True).takes_shifts
-    assert Attendee(staffing=True, assigned_depts=[dept]).takes_shifts
-    assert not Attendee(staffing=True, assigned_depts=[shiftless_dept]).takes_shifts
-    assert Attendee(staffing=True, assigned_depts=[dept, shiftless_dept]).takes_shifts
-
-
 class TestAttendeeFoodRestrictionsFilledOut:
     @pytest.fixture
     def staff_get_food_true(self, monkeypatch):
@@ -571,7 +554,7 @@ class TestStaffingAdjustments:
         assert a.staffing
         assert a.badge_type == c.STAFF_BADGE
 
-    def test_staffing_still_trusted_assigned(self, dept, shiftless_dept):
+    def test_staffing_still_trusted_assigned(self, dept):
         """
         After applying staffing adjustements:
         Any depts you are both trusted and assigned to should remain unchanged
@@ -584,17 +567,10 @@ class TestStaffingAdjustments:
                 department=dept,
                 department_id=dept.id,
                 is_dept_head=True),
-            DeptMembership(
-                attendee=a,
-                attendee_id=a.id,
-                department=shiftless_dept,
-                department_id=shiftless_dept.id,
-                dept_roles=[DeptRole()])]
-        a.assigned_depts = [dept, shiftless_dept]
+        a.assigned_depts = [dept]
         a.dept_memberships_with_role = dept_memberships
         a._staffing_adjustments()
         assert a.assigned_to(dept) and a.trusted_in(dept)
-        assert a.assigned_to(shiftless_dept) and a.trusted_in(shiftless_dept)
 
     def test_unpaid_dept_head(self, dept):
         dept_membership = DeptMembership(

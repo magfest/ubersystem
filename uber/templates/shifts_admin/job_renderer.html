@@ -101,9 +101,15 @@
             return;
         }
 
-        var jobIsFull = job.slots <= job.shifts.length;
+        let job_slots_info;
+        var jobIsFull = job.slots && job.slots <= job.shifts.length;
         if (!window.SHOW_FULL_JOBS && jobIsFull && !$('#job_' + job.id).length) {
             return '';
+        }
+        if (job.slots != 0) {
+            job_slots_info = job.shifts.length + '/' + job.slots + ' slots filled';
+        } else {
+            job_slots_info = 'assignment only'
         }
         return $id('job_' + job.id, '<tbody></tbody>')
             .empty()
@@ -120,7 +126,7 @@
                             (job.department_id ? '</a>' : '') +
                             ')' +
                         '</td>')
-                    .append('<td><span class="text-nowrap">(' + job.shifts.length + '/' + job.slots + ' slots filled)</span></td>')
+                    .append('<td><span class="text-nowrap">(' + job_slots_info + ')</span></td>')
                     .append(
                         $('<td class="text-end"></td>').append(
                             jobIsFull ? '' : $('<button class="btn btn-sm btn-success">Assign</button>').click(function() {

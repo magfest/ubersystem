@@ -1,29 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Job Form{% endblock %}
-
-{% block page_styles %}
-<style type="text/css">
-  .form-save {
-    margin-top: 30px;
-  }
-
-  .form-group input.btn {
-    margin: 5px 0;
-  }
-
-  .form-group .optional-field {
-    font-weight: normal;
-  }
-
-  .form-group { margin-bottom: 5px }
-  @media (max-width: 768px) {
-    .form-group { margin-bottom: 10px }
-  }
-</style>
-{% endblock %}
-
 {% block content %}
-
 {% include "shifts_admin/job_menu.html" %}
 
 <h2>
@@ -48,22 +26,6 @@
         });
         $("input[type=checkbox]").prop("checked", false);
     }
-
-    var onDepartmentChange = function() {
-      var deptRolesSelector = '#dept_roles-' + $.field('department_id').val();
-
-      $('.dept_roles').hide();
-      $('input[name="required_roles_ids"]').prop('disabled', true);
-
-      $(deptRolesSelector + ' input').prop('disabled', false);
-      $(deptRolesSelector).show();
-    };
-
-    $(function() {
-      onDepartmentChange();
-      $.field('department_id').on('change', onDepartmentChange);
-    });
-
     {% if not job.is_new %}
       $(function() {
           $("form[action='delete']").submit(function(event){
@@ -102,171 +64,33 @@
   </i>
 {% endif %}
 
-<form method="post" action="form" class="form-horizontal form-save" style="max-width: 738px;">
-  <input type="hidden" name="id" value="{{ job.db_id }}" />
-  <input type="hidden" name="type" value="{{ job.type }}" />
-  <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
-  {{ csrf_token() }}
-  {{ macros.form_group(job, 'name', label='Job Name', is_required=True) }}
-  {{ macros.form_group(job, 'description', label='Description', is_required=True) }}
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Start Time</label>
-    <div class="col-sm-6">
-      <div class="input-group">
-        <input
-        id="start-time"
-        name="start_time"
-        type="text"
-        class="form-control"
-        value="">
-        <span class="input-group-text">
-          <i class="fa fa-calendar"></i>
-        </span>
-      </div>
-    </div>
-  </div>
-  {% if job.type == c.SETUP %}
-    {% set min_date = c.SETUP_JOB_START %}
-    {% set max_date = c.EPOCH %}
-  {% elif job.type == c.TEARDOWN %}
-    {% set min_date = c.ESCHATON %}
-    {% set max_date = c.TEARDOWN_JOB_END %}
-  {% elif job.type == c.REGULAR %}
-    {% set min_date = c.EPOCH %}
-    {% set max_date = c.ESCHATON %}
-  {% else %}
-    {% set min_date = c.SETUP_JOB_START %}
-    {% set max_date = c.TEARDOWN_JOB_END %}
-  {% endif %}
-
-  <script type="text/javascript">
-      //pyzt uses the olson aka IANA timezone names which JS libraries also talk IANA
-      const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
-
-      let startFlatpickr = flatpickr('#start-time',{
-        allowInput: true,
-        enableTime: true,
-        altInput: true,
-        altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
-        disableMobile: true, //Do not let mobile native datepicker take over.
-        dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
-        defaultDate: '{{ job.start_time.astimezone(c.EVENT_TIMEZONE).isoformat() if job.start_time else min_date.isoformat()}}',
-        minDate: '{{ min_date.isoformat() }}',
-        maxDate: '{{ max_date.isoformat() }}',
-        parseDate(dateString, format) {
-            //Flatpickr uses JS native Dates. These are always in local time zone for the client or UTC under the hood.
-            //We need times shown as if they are in the c.EVENT_TIMEZONE.
-            //See: https://github.com/flatpickr/flatpickr/issues/930
-            //Parse the date in the event's timezone
-            //Parses on the way into the internals.
-            let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
-
-            //Return a date in the *local* timezone that force uses the values as if they were event timezone.
-            return new Date(
-                eventTimezonedDate.year(),
-                eventTimezonedDate.month(),
-                eventTimezonedDate.date(),
-                eventTimezonedDate.hour(),
-                eventTimezonedDate.minute(),
-                eventTimezonedDate.second()
-            );
-        },
-        formatDate(date, format) {
-            //Format on the way *out* from the internal storage.
-             let formatted =  moment.tz([
-                date.getFullYear(),
-                date.getMonth(),
-                date.getDate(),
-                date.getHours(),
-                date.getMinutes(),
-                date.getSeconds()
-            ], eventTimeZone).format(format);
-            return formatted;
-        }
-    });
-  </script>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">{% if job.type != c.REGULAR %}Expected Approximate {% endif %}Duration</label>
-    <div class="col-sm-2"><input type="number" class="form-control" name="duration_hours" value="{{ ((job.duration or 0) / 60)|int }}" /></div>
-    <span class="col-sm-1 form-control-static"> hours</span>
-    <div class="col-sm-2"><input type="number" class="form-control" name="duration_minutes" value="{{ (job.duration or 0) % 60 }}" /></div>
-    <span class="col-sm-1 form-control-static"> minutes</span>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Extra 15{{ macros.popup_link("../static_views/extra15.html") }}</label>
-    <div class="col-sm-6">
-      <div class="form-control-static checkbox">
-        {{ macros.checkbox(job, 'extra15', label='Yes') }}
-      </div>
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Slots</label>
-    <div class="col-sm-6">
-      <select name="slots" class="form-control">
-        {{ int_options(1, 50, job.slots) }}
-      </select>
-      {% if not job.is_new %}<i>{{ job.shifts|length }} already filled</i>{% endif %}
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Weight{{ macros.popup_link("../static_views/weightDesc.html") }}</label>
-    <div class="col-sm-6">
-      <select name="weight" class="form-control">
-        {{ options(c.WEIGHT_OPTS, job.weight) }}
-      </select>
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Department</label>
-    <div class="col-sm-6">
-      <select name="department_id" class="form-control">
-        {{ options(dept_opts, job.department_id) }}
-      </select>
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Visibility{{ macros.popup_link("../static_views/visibility.html") }}</label>
-    <div class="col-sm-6">
-      <select name="visibility" class="form-control">
-        {{ options(job._VISIBILITY_OPTS, job.visibility) }}
-      </select>
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Required Roles{{ macros.popup_link("../static_views/trustDesc.html") }}</label>
-    <div class="col-sm-9">
-      <div class="form-control-static">
-        {%- for department_id, dept_roles_opts in dept_roles.items() -%}
-          <div id="dept_roles-{{ department_id }}" class="dept_roles">
-            {{ macros.checkgroup_opts(
-                  'required_roles_ids',
-                  dept_roles_opts,
-                  defaults=job.required_roles_ids or defaults.required_roles_ids,
-                  include_empty_hidden=True) }}
-          </div>
-        {%- endfor -%}
-      </div>
-    </div>
-  </div>
-  <div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
-      <input type="submit" class="btn btn-primary" value="Save Job" />
-    </div>
-  </div>
-</form>
-
-{% if not job.is_new %}
-  <form method="post" action="delete" class="form-horizontal form-delete" style="max-width: 738px;">
+<div class="card card-body">
+  {{ form_macros.form_validation('job-form', 'validate_job') }}
+  <form novalidate method="post" action="form" id="job-form">
+    <input type="hidden" name="id" value="{{ job.db_id }}" />
+    <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
+    <input type="hidden" name="department_id" value="{{ department.id }}" />
+    
     {{ csrf_token() }}
-    <input type="hidden" name="id" value="{{ job.id }}" />
-    <div class="form-group">
-      <div class="col-sm-9 col-sm-offset-3">
-        <input type="submit" class="btn btn-danger" value="Delete Job" />
-      </div>
-    </div>
+
+    {% include 'forms/department/job_info.html' with context %}
   </form>
-{% endif %}
+
+  <div class="d-flex gap-2 justify-content-between">
+    <button type="submit" form="job-form" class="btn btn-primary">Save Job</button>
+    {% if not job.is_new %}
+      <form method="post" action="delete" class="form-delete">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ job.id }}" />
+        <div class="form-group">
+          <div class="col-sm-9 col-sm-offset-3">
+            <input type="submit" class="btn btn-danger" value="Delete Job" />
+          </div>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</div>
 
 {% endblock %}
 

@@ -48,10 +48,17 @@ x-data="{ {% block x_data %}
 <div class="col-sm">{{ form_macros.input(art_show_info.artist_name) }}</div>
 <div class="col-sm">
     {% call form_macros.input(art_show_info.delivery_method, alpine_model="delivery_method", disabled=readonly) %}
-        {% if c.ART_MAILING_FEE or c.BY_MAIL_US_ONLY %}
+        {% if c.BASE_ART_MAILING_FEE or c.BY_MAIL_US_ONLY %}
         <div x-show="deliveryByMail">
-            {% if c.ART_MAILING_FEE %}
-            <span class="form-text">Mailing your art to the show incurs a fee of {{ c.ART_MAILING_FEE|format_currency }}.</span>
+            {% if c.BASE_ART_MAILING_FEE and not readonly %}
+            <span class="form-text">
+                {% if c.EXTRA_ART_MAILING_FEE and c.EXTRA_ART_MAILING_INCREMENT %}
+                Mailing your art to the show incurs a fee, starting at {{ c.BASE_ART_MAILING_FEE|format_currency }} for {{ c.BASE_ART_MAILING_SPACES }} spaces
+                and increasing by {{ c.EXTRA_ART_MAILING_FEE|format_currency }} for every {{ c.EXTRA_ART_MAILING_INCREMENT }} spaces on top of that.
+                {% else %}
+                Mailing your art to the show incurs a fee of {{ c.BASE_ART_MAILING_FEE|format_currency }}.
+                {% endif %}
+            </span>
             {% endif %}
             {% if c.BY_MAIL_US_ONLY %}
             {{ form_macros.input(art_show_info.us_only, required_if="deliveryByMail", disabled=readonly) }}
@@ -75,7 +82,7 @@ x-data="{ {% block x_data %}
 
 <div class="row g-3 mb-3">
 {% block payout %}
-{% if c.ARTIST_PAYOUT_METHOD_OPTS|length > 2 %}
+{% if c.SHOW_ARTIST_PAYOUT_METHOD %}
 <div class="col-sm">{{ form_macros.input(art_show_info.payout_method) }}</div>
 <div class="col-sm">{{ form_macros.input(art_show_info.check_payable) }}</div>
 {% endif %}

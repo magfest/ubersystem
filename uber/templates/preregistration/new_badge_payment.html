@@ -12,9 +12,13 @@
         In order to complete your registration, please pay for the following items:
         {% include 'preregistration/receipt_table.html' %}
         <div class="d-flex gap-2">
+            {% if not c.ONLINE_PAYMENT_AVAILABLE %}
+            We are not able to take online payments at this time. Please see the Registration help desk.
+            {% else %}
             <div>
                 {{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, return_to=return_to) }}
             </div>
+            {% endif %}
             {% if attendee.has_extras %}
             <div>
                 <form method="post" action="reset_receipt">

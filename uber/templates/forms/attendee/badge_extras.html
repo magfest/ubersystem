@@ -76,7 +76,7 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 {% elif not is_prereg_attendee %}
     <div class="col-sm">
         <div class="form-text">{{ badge_extras.badge_type.label.text }}</div>
-        <div class="form-control-plaintext h5">{{ attendee.badge_type_label }}{% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ macros.upgrade_button('badge-type') }}{% endif %}</div>
+        <div class="form-control-plaintext h5">{{ attendee.badge_type_label }}{% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE and c.ONLINE_PAYMENT_AVAILABLE %}{{ macros.upgrade_button('badge-type') }}{% endif %}</div>
     </div>
 {% endif %}
 {% endblock %}
@@ -98,7 +98,7 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
     {% else %}
         <div class="col-sm">
             <div class="form-text">{{ badge_extras.amount_extra.label.text }}</div>
-            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label or "None" }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
+            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label or "None" }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] and c.ONLINE_PAYMENT_AVAILABLE %}{{ macros.upgrade_button('amount-extra', text="Purchase Merch" if attendee.amount_extra == 0 else "Upgrade") }}{% endif %}</div>
         </div>
     {% endif %}
 {% endif %}
@@ -124,7 +124,7 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 {% if c.COLLECT_EXTRA_DONATION %}
     <div class="col-sm">
         {{ form_macros.input(badge_extras.extra_donation, id=id_upgrade_prepend ~ "extra_donation") }}
-        {% if receipt and not upgrade_modal and not admin_area %}
+        {% if receipt and not upgrade_modal and not admin_area and c.ONLINE_PAYMENT_AVAILABLE %}
         {{ macros.upgrade_button('extra-donation', extra_classes="") }}
         {% endif %}
     </div>

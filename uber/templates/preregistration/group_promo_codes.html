@@ -22,8 +22,12 @@
     {% if receipt and receipt.current_amount_owed %}
     <div class="alert alert-danger pb-0" role="alert">
       <p>You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+      {% if c.ONLINE_PAYMENT_AVAILABLE %}
       Please use the button below to pay in order to manage your group codes.</p>
       <p>{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, return_to='group_promo_codes?id=' ~ group.id) }}</p>
+      {% else %}
+      Please see the Registration help desk.
+      {% endif %}
     </div>
     {% else %}
     <p>{% if group.valid_codes %}Anyone can claim one of the {{ group.valid_codes|length }} remaining badges in this group using either an unclaimed promo code below or this group's universal code, <strong>{{ group.code }}</strong>.
@@ -99,7 +103,7 @@
         </form>
       </div>
 
-      {% if c.REMAINING_BADGES > 50 and (not c.AT_THE_CON and not c.AFTER_PREREG_TAKEDOWN or not c.SPIN_TERMINAL_AUTH_KEY)  %}
+      {% if c.REMAINING_BADGES > 50 and c.ONLINE_PAYMENT_AVAILABLE  %}
       <script type="text/javascript">
           $(function() {
             {% if attendee.amount_unpaid %}

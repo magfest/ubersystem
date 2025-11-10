@@ -424,11 +424,7 @@ class Config(_Overridable):
     
     @property
     def ART_SHOW_HAS_FEES(self):
-        return c.COST_PER_PANEL or c.COST_PER_TABLE or c.ART_MAILING_FEE
-    
-    @property
-    def MARKETPLACE_CANCEL_DEADLINE(self):
-        return min(self.EPOCH, self.PREREG_TAKEDOWN) if self.PREREG_TAKEDOWN else self.EPOCH
+        return c.COST_PER_PANEL or c.COST_PER_TABLE or c.BASE_ART_MAILING_FEE
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
@@ -554,6 +550,11 @@ class Config(_Overridable):
     @dynamic
     def GROUP_PRICE(self):
         return self.get_group_price()
+    
+    @property
+    @dynamic
+    def ONLINE_PAYMENT_AVAILABLE(self):
+        return not c.SPIN_TERMINAL_AUTH_KEY or c.BEFORE_ONLINE_PAYMENT_DEADLINE
 
     @property
     def PREREG_BADGE_TYPES(self):
@@ -1814,9 +1815,20 @@ c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
 c.START_TIME_OPTS = [
     (dt, dt.strftime('%I %p %a')) for dt in (c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH))]
 
-c.SETUP_JOB_START = c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS)
-c.TEARDOWN_JOB_END = c.ESCHATON + timedelta(days=1, hours=23)  # Allow two full days for teardown shifts
-c.CON_TOTAL_DAYS = -(-(int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).total_seconds() // 3600)) // 24)
+if not c.SHIFTS_EPOCH:
+    c.SHIFTS_EPOCH = c.EPOCH - timedelta(days=5)
+if not c.SHIFTS_ESCHATON:
+    c.SHIFTS_ESCHATON = c.ESCHATON + timedelta(days=1, hours=23)
+
+c.JOB_DAYS = {}
+c.JOB_DAY_OPTS = []
+_day = c.SHIFTS_EPOCH
+while _day.date() != c.SHIFTS_ESCHATON.date():
+    c.JOB_DAYS[int(_day.strftime('%Y%m%d'))] = _day.strftime('%A %-m/%d')
+    c.JOB_DAY_OPTS.append((int(_day.strftime('%Y%m%d')), _day.strftime('%A %-m/%d')))
+    _day += timedelta(days=1)
+
+c.CON_TOTAL_DAYS = -(-(int((c.SHIFTS_ESCHATON - c.SHIFTS_EPOCH).total_seconds() // 3600)) // 24)
 c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
@@ -1824,7 +1836,6 @@ c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.EVENT_YEAR) if c.EVENT_YE
 c.EVENT_MONTH = c.EPOCH.strftime('%B')
 c.EVENT_START_DAY = int(c.EPOCH.strftime('%d')) % 100
 c.EVENT_END_DAY = int(c.ESCHATON.strftime('%d')) % 100
-c.SHIFTS_START_DAY = c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS)
 
 c.DAYS = sorted({(dt.strftime('%Y-%m-%d'), dt.strftime('%a')) for dt, desc in c.START_TIME_OPTS})
 c.HOURS = ['{:02}'.format(i) for i in range(24)]

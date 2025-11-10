@@ -9,8 +9,8 @@
         Registration Payment
       </div>
     <div class="card-body">
-        <p>In order to {{ "manage your group" if count == 0 else "finish adding your group's " ~ count ~ " new badges" }}, please pay {{ (receipt.current_amount_owed / 100)|format_currency }}.
-        <br/>{{ stripe_form('process_group_payment', group) }}</p>
+        <p>In order to {{ "manage your group" if count == 0 else "finish adding your group's " ~ count ~ " new badges" }}, please pay {{ (receipt.current_amount_owed / 100)|format_currency }}{% if c.ONLINE_PAYMENT_AVAILABLE %}.
+        <br/>{{ stripe_form('process_group_payment', group) }}{% else %} at the Registration help desk.{% endif %}</p>
 
         <p>You can view your full receipt below:</p>
         {% include 'preregistration/receipt_table.html' %}

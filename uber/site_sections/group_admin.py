@@ -292,18 +292,21 @@ class Root:
         group = session.group(id)
 
         if group.leader:
-            emails = session.query(Email).filter(
-                or_(Email.to == group.leader.email, Email.fk_id == id)).order_by(Email.when).all()
+            other_emails = session.query(Email).filter(
+                Email.to == group.leader.email).order_by(Email.when).all()
         else:
-            emails = {}
+            other_emails = {}
 
         return {
             'group': group,
-            'emails': emails,
+            'emails': session.query(Email).filter(Email.model == 'Group',
+                                                  Email.fk_id == id).order_by(Email.when).all(),
+            'other_emails': other_emails,
             'changes': session.query(Tracking).filter(or_(
                 Tracking.links.like('%group({})%'.format(id)),
                 and_(Tracking.model == 'Group', Tracking.fk_id == id))).order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(group))
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(group)
+                                                                ).order_by(PageViewTracking.when).all(),
         }
 
     @csrf_protected
