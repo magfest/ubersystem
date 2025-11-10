@@ -65,7 +65,7 @@ get showDeclineReason() { return this.status == {{ c.DECLINED|tojson }} },
     {% endcall %}
 </div>
 {% endif %}
-{% if c.ARTIST_PAYOUT_METHOD_OPTS|length < 3 %}
+{% if not c.SHOW_ARTIST_PAYOUT_METHOD %}
 <div class="col-sm">{{ form_macros.input(art_show_info.payout_method) }}</div>
 {% endif %}
 </div>

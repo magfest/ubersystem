@@ -12,7 +12,7 @@
 {% else %}
     {% set artist_check_in_out_info = forms['artist_check_in_info'] %}
     {% include 'forms/art_show/artist_check_in_info.html' with context %}
-    <span class="text-center pagebreak">
+    <span class="text-center{% if app.art_show_pieces|length > 3 %} pagebreak{% endif %}">
     <strong>{% include "art_show_applications/checkin_agreement.html" %}</strong><br/>
     </span>
 

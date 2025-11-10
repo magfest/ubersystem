@@ -251,6 +251,7 @@ class ArtShowApplication(MagModel):
         if extra_spaces > 0:
             num_increments = -(extra_spaces // -c.EXTRA_ART_MAILING_INCREMENT)
             return base_cost + (c.EXTRA_ART_MAILING_FEE * num_increments)
+        return base_cost
 
     @property
     def email(self):

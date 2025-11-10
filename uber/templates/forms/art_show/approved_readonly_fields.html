@@ -3,7 +3,7 @@
 {% block banner_names %}{% endblock %}
 
 {% block payout %}
-{% if c.ARTIST_PAYOUT_METHOD_OPTS|length > 2 %}
+{% if c.SHOW_ARTIST_PAYOUT_METHOD %}
 <div class="col-sm">{{ form_macros.input(art_show_info.payout_method) }}</div>
 {% endif %}
 {% endblock %}

@@ -51,7 +51,7 @@
           {{ dict(choices)[item] }}{% if not loop.last %} / {% endif %}
           {%- endfor %}
         {% endif %}
-      {% elif field.data in [True, False] %}
+      {% elif field.data is sameas true or field.data is sameas false %}
         {{ dict(choices)['yes' if field.data == True else 'no'] }}
       {%- else %}
         {{ dict(choices)[field.data] }}
@@ -64,7 +64,7 @@
       {{ field.data|default(null_text, true) }}
     {%- endif %}
   {%- endset %}
-  {{ field_display }}{% if caller %}{% if field.data %}: {% endif %}{{ caller() }}{% endif %}
+  {{ field_display }}{% if caller and field.data == c.OTHER %}{% if field.data %}: {% endif %}{{ caller() }}{% endif %}
 
 {% else %}
 
