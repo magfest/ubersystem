@@ -1,25 +1,52 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Schedule{% endblock %}
 {% block content %}
-<div class="schedule-header">
-    <div id="room_toggle">
-    <label>Show</label>
-    <label class="radio-label"><input type="radio" name="room_toggle" class="toggle" value="show_all" checked="checked"> All</label>
-    <label class="radio-label"><input type="radio" name="room_toggle" class="toggle" value="show_music"> Music</label>
-    <label class="radio-label"><input type="radio" name="room_toggle" class="toggle" value="show_panels"> Panels</label>
-    <label class="radio-label"><input type="radio" name="room_toggle" class="toggle" value="show_other"> Other</label>
+<div class="d-flex mb-3 gap-3 justify-content-between align-items-end">
+    <div class="d-flex gap-1 align-items-center">
+        <button type="button" class="btn btn-primary" onClick="$('.schedule-edit').toggleClass('d-none'); return false;">Edit Locations</button>
+        <a class="btn btn-success" href="location">Add Location</a>
     </div>
-    <div id="room_filter">
-    <form method="post" action="ical" class="form-horizontal" role="form">
-        <div class="d-flex gap-3">
-        <label class="col-form-label" for="room_filter_text">Filter</label>
+    <div class="d-flex gap-3">
+        {% if c.EVENT_CATEGORY_OPTS %}
         <div>
-        <input type="text" name="filter" class="filter form-control" id="room_filter_text" autofocus="autofocus" placeholder="Room Name">
-        <input type="hidden" id="filtered_locations" name="locations" />
+        <div class="form-text">
+            <label for="category">Category</label>
         </div>
-        <button class="btn btn-primary form-inline">Export to iCal</button>
+        <select class="form-select" id="category_filter" onChange="setCategory()">
+            <option selected="true" value="all">Filter By Category...</option>
+            <option value="None">No Category</option>
+            {% for val, label in c.EVENT_CATEGORY_OPTS %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+        </select>
         </div>
-        </form>
+        {% endif %}
+        <div>
+        <div class="form-text">
+            <label for="department">Department</label>
+        </div>
+        <select class="form-select" id="dept_filter" onChange="setDepartment()">
+            <option selected="true" value="all">Filter By Department...</option>
+            <option value="None">No Department</option>
+            {% for val, label in c.EVENT_DEPTS_OPTS %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+        </div>
+        <div id="room_filter">
+        <form method="post" action="ical" role="form">
+            <div class="d-flex gap-3 align-items-end">
+                <div>
+                <div class="form-text">
+                    <label for="room_filter_text">Location Name</label>
+                </div>
+                <input type="text" name="filter" class="filter form-control" id="room_filter_text" autofocus="autofocus" placeholder="Room Name">
+                <input type="hidden" id="filtered_locations" name="locations" />
+                </div>
+                <div><button class="btn btn-primary form-inline">Export to iCal</button></div>
+            </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -39,16 +66,6 @@
 
 .schedule-rooms tbody td:hover {
   background: #ff6;
-}
-
-.schedule-header {
-    margin-bottom: 10px;
-}
-
-.schedule-header > div:after {
-    content: '';
-    display: block;
-    clear: both;
 }
 
 label.radio-label {
@@ -77,12 +94,15 @@ label.radio-label {
         width: 100%;
     }
     .ec-header, .ec-body {
-        width: {{ c.EVENT_LOCATIONS|length * 148 + 90 }}px;
+        width: {{ c.SCHEDULE_LOCATIONS|length * 148 + 90 }}px;
     }
 
 .ec-header .ec-day {
     min-height: auto;
     overflow: visible;
+    align-items: center;
+    display: flex;
+    justify-content: center;
 }
 
 .ec-event {
@@ -107,10 +127,7 @@ h2.ec-title {
 
 let ec;
 let currentDate = '{{ current_date }}';
-let panelLocations = {{ panel_locations|safe }};
-let musicLocations = {{ music_locations|safe }};
-let otherLocations = {{ other_locations|safe }};
-let allLocations = panelLocations.concat(musicLocations).concat(otherLocations).sort((a, b) => a.title.localeCompare(b.title));
+let allLocations = {{ locations|safe }}.sort((a, b) => a.title.localeCompare(b.title));
 
 filtered_locs = [];
 var updateiCalFilter = function(locations) {
@@ -125,35 +142,45 @@ var setCalWidth = function(roomCount) {
     $('.ec-body').css('width', `${width}px`);
 }
 
+let deptLocations, categoryLocations, searchLocations;
+let deptSelected = false, categorySelected = false, searchTextEntered = false;
+
+let setDepartment = function () {
+    let choice = $('#dept_filter').val();
+    if (choice == "" || choice == "all") {
+        deptSelected = false;
+    } else {
+        deptLocations = allLocations.filter(function(el) { return el.extendedProps.departments.includes(choice); });
+        deptSelected = true;
+    }
+    updateLocations();
+  }
+
+let setCategory = function () {
+    let choice = $('#category_filter').val();
+    if (choice == "" || choice == "all") {
+        categorySelected = false;
+    } else {
+        categoryLocations = allLocations.filter(function(el) { return el.extendedProps.categories.includes(choice); });
+        categorySelected = true;
+    }
+    updateLocations();
+  }
+
+let updateLocations = function () {
+    let currLocations = allLocations;
+    if (deptSelected == true) { currLocations = currLocations.filter(function(el) { return deptLocations.includes(el); }) }
+    if (categorySelected == true) { currLocations = currLocations.filter(function(el) { return categoryLocations.includes(el); }) }
+    if (searchTextEntered == true) { currLocations = currLocations.filter(function(el) { return searchLocations.includes(el); }) }
+    ec.setOption('resources', currLocations);
+    setCalWidth(currLocations.length);
+    updateiCalFilter(currLocations);
+}
+
 $(function() {
 var $scheduleTable = $('.schedule-table'),
     $scheduleRooms = $('.schedule-rooms');
 
-$('#room_toggle').on('change', '.toggle', function() {
-    var selected = $("[name='room_toggle']:checked");
-    var currLocations;
-    if (selected.length > 0) {
-        console.log(selected.val())
-        switch(selected.val()) {
-            case 'show_music':
-                currLocations = musicLocations;
-                break;
-            case 'show_panels':
-                currLocations = panelLocations;
-                break;
-            case 'show_other':
-                currLocations = otherLocations;
-                break;
-            case 'show_all':
-            default:
-                currLocations = allLocations;
-                break;
-        }
-    }
-    ec.setOption('resources', currLocations);
-    setCalWidth(currLocations.length);
-    updateiCalFilter(currLocations);
-});
 
 var roomTrie = {{ c.ROOM_TRIE|jsonize }};
 $('#room_filter_text').on('keyup', function() {
@@ -162,11 +189,12 @@ $('#room_filter_text').on('keyup', function() {
         rooms = roomTrie;
 
     if (textLength <= 0) {
-        ec.setOption('resources', allLocations);
-        setCalWidth(allLocations.length);
-        updateiCalFilter(allLocations);
+        searchTextEntered = false;
+        updateLocations();
         return;
     }
+
+    searchTextEntered = true;
 
     for (var i = 0; i < textLength; i++) {
         var s = text.charAt(i);
@@ -182,15 +210,11 @@ $('#room_filter_text').on('keyup', function() {
             matchingLocations.push(location);
         });
         
-        var currLocations = allLocations.filter(function(el) { return matchingLocations.includes(el.id.toString()); });
-        ec.setOption('resources', currLocations);
-        setCalWidth(currLocations.length);
-        updateiCalFilter(currLocations);
+        searchLocations = allLocations.filter(function(el) { return matchingLocations.includes(el.id.toString()); });
     } else {
-        ec.setOption('resources', []);
-        setCalWidth(0);
-        updateiCalFilter([]);
+        searchLocations = [];
     }
+    updateLocations();
 });
 
 var delay = (function(){
@@ -202,6 +226,16 @@ var delay = (function(){
 })();
 
 });
+
+let renderLabel = function (info) {
+    let resourceInfo = info.resource;
+
+    html = `<a class="d-none schedule-edit" href="location?id=${resourceInfo.id}"><i class="fa fa-pencil"></i></a>
+            <span class="align-self-center">${resourceInfo.title}</span>`;
+    return {
+      html: html,
+    }
+}
 
 let renderEvent = function (info) {
     let eventInfo = info.event;
@@ -240,7 +274,6 @@ let dateChange = function (info) {
 }
 
 let updateEvent = function (info) {
-    console.log(info.event.start.toString());
     tz_offset = info.event.start.getTimezoneOffset() * 60000;
     if (info.oldEvent.start.toISOString() == info.event.start.toISOString()
         && typeof info.endDelta == 'undefined' && info.oldEvent.resourceIds == info.event.resourceIds) {
@@ -273,7 +306,7 @@ let updateEvent = function (info) {
         }
         },
         error: function () {
-        showErrorMessage('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
 }
@@ -312,8 +345,9 @@ ec = new EventCalendar(document.getElementById('event-schedule'), {
     events: {{ events|safe }},
     eventContent: renderEvent,
     resources: allLocations,
+    resourceLabelContent: renderLabel,
     eventClick: function (info) { window.location = `form?id=${info.event.id}` },
-    dateClick: function (info) { window.location = `form?location=${info.resource.id}&start_time=${info.dateStr}` },
+    dateClick: function (info) { window.location = `form?location_id=${info.resource.id}&start_time=${info.dateStr}` },
     datesSet: dateChange,
     eventDrop: updateEvent,
     eventResize: updateEvent,

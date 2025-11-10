@@ -14,7 +14,7 @@ from uber.models.types import default_relationship as relationship, utcnow, Choi
     MultiChoice, SocialMediaMixin, UniqueList
 
 
-__all__ = ['AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
+__all__ = ['AssignedPanelist', 'Event', 'EventLocation', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
 
 
 # Many to many association table to tie Panel Applicants with Panel Applications
@@ -29,14 +29,38 @@ panel_applicant_application = Table(
 )
 
 
+class EventLocation(MagModel):
+    department_id = Column(UUID, ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
+    category = Column(Choice(c.EVENT_CATEGORY_OPTS), nullable=True)
+    name = Column(UnicodeText)
+    room = Column(UnicodeText)
+    tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
+
+    events = relationship('Event', backref=backref('location', cascade="save-update,merge"),
+                          cascade="save-update,merge")
+    
+    @presave_adjustment
+    def no_category(self):
+        if self.category == 0:
+            self.category = None
+
+    @property
+    def schedule_name(self):
+        if self.room:
+            return f"{self.name} ({self.room})"
+        return self.name
+
+
 class Event(MagModel):
-    location = Column(Choice(c.EVENT_LOCATION_OPTS))
+    location_id = Column(UUID, ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
+    department_id = Column(UUID, ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
+    category = Column(Choice(c.EVENT_CATEGORY_OPTS), nullable=True)
     start_time = Column(UTCDateTime)
     duration = Column(Integer, default=60)
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
     public_description = Column(UnicodeText)
-    track = Column(UnicodeText)
+    tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
 
     assigned_panelists = relationship('AssignedPanelist', backref='event')
     applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"),
@@ -55,6 +79,12 @@ class Event(MagModel):
     @property
     def end_time(self):
         return self.start_time + timedelta(minutes=self.duration)
+    
+    @property
+    def location_name(self):
+        if self.location:
+            return self.location.schedule_name
+        return "No Location"
 
     @property
     def guidebook_data(self):
@@ -69,8 +99,8 @@ class Event(MagModel):
             'start_time': self.start_time_local.strftime('%I:%M %p'),
             'end_date': self.end_time_local.strftime('%m/%d/%Y'),
             'end_time': self.end_time_local.strftime('%I:%M %p'),
-            'location': self.location_label,
-            'track': self.track,
+            'location': self.location_name,
+            'track': '; '.join(self.tracks_labels),
             'description': description,
             }
 
@@ -80,15 +110,8 @@ class Event(MagModel):
 
     @property
     def guidebook_subtitle(self):
-        # Note: not everything on this list is actually exported
-        if self.location in c.PANEL_ROOMS:
-            return 'Panel'
-        if self.location in c.MUSIC_ROOMS:
-            return 'Music'
-        if self.location in c.TABLETOP_LOCATIONS:
-            return 'Tabletop Event'
-        if "Autograph" in self.location_label:
-            return 'Autograph Session'
+        if self.category:
+            return self.category_label
 
     @property
     def guidebook_desc(self):
@@ -145,7 +168,6 @@ class PanelApplication(MagModel):
     confirmed = Column(UTCDateTime, nullable=True)
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
     comments = Column(UnicodeText, admin_only=True)
-    track = Column(UnicodeText, admin_only=True)
     tags = Column(UniqueList, admin_only=True)
 
     applicants = relationship('PanelApplicant', backref='applications',
@@ -161,7 +183,6 @@ class PanelApplication(MagModel):
             self.event.name = self.name
             self.event.description = self.description
             self.event.public_description = self.public_description
-            self.event.track = self.track
             self.event.last_updated = self.last_updated
     
     @presave_adjustment

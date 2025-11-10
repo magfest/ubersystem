@@ -14,8 +14,9 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import ajax, ajax_gettable, all_renderable, cached, csrf_protected, csv_file, render, schedule_view, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AssignedPanelist, Attendee, Event, PanelApplication
-from uber.utils import check, localized_now, normalize_newlines
+from uber.forms import load_forms
+from uber.models import AssignedPanelist, Attendee, Event, EventLocation, PanelApplication
+from uber.utils import check, localized_now, normalize_newlines, validate_model, load_locations_from_config
 
 
 @all_renderable()
@@ -24,7 +25,7 @@ class Root:
     @csv_file
     def time_ordered(self, out, session):
         for event in session.query(Event).order_by('start_time', 'duration', 'location').all():
-            out.writerow([event.timespan(), event.name, event.guidebook_desc, event.location_label])
+            out.writerow([event.timespan(), event.name, event.guidebook_desc, event.location_name])
 
     @site_mappable(download=True)
     @schedule_view
@@ -32,7 +33,8 @@ class Root:
         cherrypy.response.headers['Content-type'] = 'text/xml'
         schedule = defaultdict(list)
         for event in session.query(Event).order_by('start_time').all():
-            schedule[event.location_label].append(event)
+            schedule[event.location_name].append(event)
+        ordered_event_locations = session.query(EventLocation).order_by(EventLocation.name).all()
         return render('schedule/schedule.xml', {
             'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0].location))
         })
@@ -42,14 +44,14 @@ class Root:
         icalendar = ics.Calendar()
 
         if 'locations' not in params or not params['locations']:
-            locations = [id for id, name in c.EVENT_LOCATION_OPTS]
+            locations = [id for id, name in c.SCHEDULE_LOCATION_OPTS]
             calname = "full"
         else:
             locations = json.loads(params['locations'])
             if len(locations) > 3:
                 calname = "partial"
             else:
-                calname = "_".join([name for id, name in c.EVENT_LOCATION_OPTS
+                calname = "_".join([name for id, name in c.SCHEDULE_LOCATION_OPTS
                                     if str(id) in locations])
 
         calname = '{}_{}_schedule'.format(c.EVENT_NAME, calname).lower().replace(' ', '_')
@@ -64,7 +66,7 @@ class Root:
                     end=(event.start_time + timedelta(minutes=event.duration)),
                     description=normalize_newlines(event.public_description or event.description),
                     created=event.created_info.when,
-                    location=event.location_label))
+                    location=event.location_name))
 
         cherrypy.response.headers['Content-Type'] = \
             'text/calendar; charset=utf-8'
@@ -79,8 +81,8 @@ class Root:
     @csv_file
     def panels(self, out, session):
         out.writerow(['Panel', 'Time', 'Duration', 'Room', 'Description', 'Panelists'])
-        for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label]):
-            if 'Panel' in event.location_label or 'Autograph' in event.location_label:
+        for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_name]):
+            if 'Panel' in event.location_name or 'Autograph' in event.location_name:
                 panelist_names = ' / '.join(ap.attendee.full_name for ap in sorted(
                     event.assigned_panelists, key=lambda ap: ap.attendee.full_name))
 
@@ -88,7 +90,7 @@ class Root:
                     event.name,
                     event.start_time_local.strftime('%I%p %a').lstrip('0'),
                     '{} minutes'.format(event.duration),
-                    event.location_label,
+                    event.location_name,
                     event.public_description or event.description,
                     panelist_names])
 
@@ -98,7 +100,7 @@ class Root:
         return json.dumps([
             {
                 'name': event.name,
-                'location': event.location_label,
+                'location': event.location_name,
                 'start': event.start_time_local.strftime('%I%p %a').lstrip('0'),
                 'end': event.end_time_local.strftime('%I%p %a').lstrip('0'),
                 'start_unix': int(mktime(event.start_time.utctimetuple())),
@@ -107,7 +109,7 @@ class Root:
                 'description': event.public_description or event.description,
                 'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
             }
-            for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])
+            for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_name])
         ], indent=4).encode('utf-8')
 
     @schedule_view
@@ -118,7 +120,7 @@ class Root:
             now = c.EVENT_TIMEZONE.localize(datetime.combine(localized_now().date(), time(localized_now().hour)))
 
         current, upcoming = [], []
-        for loc, desc in c.EVENT_LOCATION_OPTS:
+        for loc, desc in c.SCHEDULE_LOCATION_OPTS:
             approx = session.query(Event).filter(Event.location == loc,
                                                  Event.start_time >= now - timedelta(hours=6),
                                                  Event.start_time <= now).all()
@@ -139,26 +141,95 @@ class Root:
             'current': current,
             'upcoming': upcoming
         }
+    
+    def location(self, session, message='', **params):
+        if params.get('id') in [None, '', 'None']:
+            location = EventLocation()
+        else:
+            location = session.event_location(params.get('id'))
+
+        forms = load_forms(params, location, ['EventLocationInfo'])
+
+        if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                form.populate_obj(location)
+                session.add(location)
+            raise HTTPRedirect('edit?message={}',
+                               f"{location.name} location added." if location.is_new else f"{location.name} location updated.")
+
+        return {
+            'location': location,
+            'message': message,
+            'forms': forms,
+        }
+    
+    @ajax
+    def validate_location(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            location = EventLocation()
+        else:
+            location = session.event_location(params.get('id'))
+
+        if not form_list:
+            form_list = ['EventLocationInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, location, form_list)
+        all_errors = validate_model(forms, location, is_admin=True)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
+    
+    @csrf_protected
+    def delete_location(self, session, id):
+        location = session.event_location(id)
+
+        session.delete(location)
+        raise HTTPRedirect('edit?message={}',
+                           "Event location deleted.")
+    
+    @csrf_protected
+    def delete_location_cascade(self, session, id):
+        location = session.event_location(id)
+
+        event_count = len(location.events)
+        for event in location.events:
+            session.delete(event)
+
+        session.delete(location)
+        raise HTTPRedirect('edit?message={}',
+                           f"Event location and {event_count} event(s) deleted.")
 
     def form(self, session, message='', panelists=(), **params):
-        event = session.event(params, allowed=['location', 'start_time'])
-        if 'name' in params:
-            session.add(event)
+        if params.get('id') in [None, '', 'None']:
+            event = Event()
+        else:
+            event = session.event(params.get('id'))
 
-            hours = params.get('duration_hours', 0)
-            minutes = params.get('duration_minutes', 0)
+        if 'location_id' in params and cherrypy.request.method != 'POST':
+            location = session.event_location(params['location_id'])
+            if location.department_id:
+                params['department_id'] = location.department_id
+            if location.category:
+                params['category'] = location.category
+            if location.tracks_ints:
+                params['tracks'] = location.tracks_ints
 
-            try:
-                hours = int(hours)
-            except ValueError:
-                hours = 0
+        forms = load_forms(params, event, ['EventInfo'])
 
-            try:
-                minutes = int(minutes)
-            except ValueError:
-                minutes = 0
+        assigned_panelists = sorted(event.assigned_panelists, reverse=True, key=lambda a: a.attendee.first_name)
 
-            event.duration = hours * 60 + minutes
+        approved_panel_apps = session.query(PanelApplication).filter(
+            PanelApplication.status == c.ACCEPTED,
+            PanelApplication.event_id == None).order_by('applied')  # noqa: E711
+
+        if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                form.populate_obj(event)
+                session.add(event)
 
             # Associate a panel app with this event, and if the event is new, use the panel app's name and title
             if 'panel_id' in params and params['panel_id']:
@@ -174,32 +245,46 @@ class Root:
                             assigned_panelist = AssignedPanelist(attendee_id=pa.attendee.id, event_id=event.id)
                             session.add(assigned_panelist)
 
-            message = check(event)
-            if not message:
-                new_panelist_ids = set(listify(panelists))
-                old_panelist_ids = {ap.attendee_id for ap in event.assigned_panelists}
-                for ap in event.assigned_panelists:
-                    if ap.attendee_id not in new_panelist_ids:
-                        session.delete(ap)
-                for attendee_id in new_panelist_ids:
-                    if attendee_id not in old_panelist_ids:
-                        attendee = session.attendee(id=attendee_id)
-                        session.add(AssignedPanelist(event=event, attendee=attendee))
-                raise HTTPRedirect('edit?view_event={}', event.id)
-
-        assigned_panelists = sorted(event.assigned_panelists, reverse=True, key=lambda a: a.attendee.first_name)
-
-        approved_panel_apps = session.query(PanelApplication).filter(
-            PanelApplication.status == c.ACCEPTED,
-            PanelApplication.event_id == None).order_by('applied')  # noqa: E711
+            new_panelist_ids = set(listify(panelists))
+            old_panelist_ids = {ap.attendee_id for ap in event.assigned_panelists}
+            for ap in event.assigned_panelists:
+                if ap.attendee_id not in new_panelist_ids:
+                    session.delete(ap)
+            for attendee_id in new_panelist_ids:
+                if attendee_id not in old_panelist_ids:
+                    attendee = session.attendee(id=attendee_id)
+                    session.add(AssignedPanelist(event=event, attendee=attendee))
+            raise HTTPRedirect('edit?view_event={}&message={}', event.id,
+                               f"{event.name} added." if event.is_new else f"{event.name} updated.")
 
         return {
             'message': message,
             'event':   event,
+            'forms': forms,
             'assigned': [ap.attendee_id for ap in assigned_panelists],
             'panelists': [(a.id, a.full_name) for a in session.all_panelists()],
             'approved_panel_apps': approved_panel_apps
         }
+    
+    @ajax
+    def validate_event(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            event = Event()
+        else:
+            event = session.event(params.get('id'))
+
+        if not form_list:
+            form_list = ['EventInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, event, form_list)
+        all_errors = validate_model(forms, event, is_admin=True)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     @csrf_protected
     def delete(self, session, id):
@@ -224,7 +309,7 @@ class Root:
         for event in session.query(Event).order_by('start_time').all():
             event_list.append({
                 'id': event.id,
-                'resourceIds': [f"{event.location}"],
+                'resourceIds': [f"{event.location.id}" if event.location else "None"],
                 'start': event.start_time_local.strftime('%Y-%m-%d %H:%M:%S'),
                 'end': event.end_time_local.strftime('%Y-%m-%d %H:%M:%S'),
                 'title': event.name,
@@ -234,31 +319,53 @@ class Root:
                     }
             })
 
-        panel_locations = []
-        music_locations = []
-        other_locations = []
-        for id, title in c.EVENT_LOCATIONS.items():
-            if id in c.PANEL_ROOMS:
-                panel_locations.append({
-                    'id': id,
-                    'title': title,
-                })
-            if id in c.MUSIC_ROOMS:
-                music_locations.append({
-                    'id': id,
-                    'title': title,
-                })
-            if id not in c.PANEL_ROOMS and id not in c.MUSIC_ROOMS:
-                other_locations.append({
-                    'id': id,
-                    'title': title,
-                })
+        locations = []
+
+        event_locations = session.query(EventLocation)
+
+        if not event_locations.first():
+            load_locations_from_config(session)
+
+        location_filters = set()
+
+        for location in event_locations:
+            categories = set()
+            departments = set()
+
+            categories.add(f"{location.category}")
+            departments.add(f"{location.department_id}")
+
+            for event in location.events:
+                categories.add(f"{event.category}")
+                departments.add(f"{event.department_id}")
+
+            locations.append({
+                'id': location.id,
+                'title': location.schedule_name,
+                'extendedProps': {
+                    'categories': list(categories),
+                    'departments': list(departments),
+                }
+            })
+            if location.department:
+                location_filters.add((location.department_id, location.department.name))
+            if location.category:
+                location_filters.add((location.category, location.category_label))
+        
+        if session.query(Event).filter(Event.location_id == None).first():
+            locations.append({
+                'id': "None",
+                'title': "No Location",
+                'extendedProps': {
+                    'categories': ["None"],
+                    'departments': ["None"],
+                }
+            })
 
         return {
             'events': event_list,
-            'panel_locations': panel_locations,
-            'music_locations': music_locations,
-            'other_locations': other_locations,
+            'locations': locations,
+            'filters': location_filters,
             'current_date': f"{view_date}T00:00:00",
             'current_event': view_event,
             'message': message
@@ -271,7 +378,7 @@ class Root:
             return {'success': False, 'message': "Event not found. Try refreshing the page."}
         event.start_time = c.EVENT_TIMEZONE.localize(dateparser.parse(start_time)).astimezone(pytz.UTC)
         event.duration = event.duration + (int(delta_seconds) / 60)
-        event.location = location_id
+        event.location_id = location_id
         session.commit()
         return {'success': True, 'message': f"{event.name} has been updated!"}
 
@@ -334,7 +441,7 @@ class Root:
             raise HTTPRedirect('../accounts/homepage?message={}', "No panels have been scheduled yet!")
 
         curr_time, last_time = min(panels).astimezone(c.EVENT_TIMEZONE), max(panels).astimezone(c.EVENT_TIMEZONE)
-        out.writerow(['Panel Starts'] + [c.EVENT_LOCATIONS[room] for room in c.PANEL_ROOMS])
+        out.writerow(['Panel Starts'] + [c.SCHEDULE_LOCATIONS[room] for room in c.PANEL_ROOMS])
         while curr_time <= last_time:
             row = [curr_time.strftime('%H:%M %a')]
             for room in c.PANEL_ROOMS:

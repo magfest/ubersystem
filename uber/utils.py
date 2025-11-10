@@ -345,6 +345,23 @@ def date_trunc_day(dt):
     return func.date_trunc(literal('day'), dt_correct_time)
 
 
+def load_locations_from_config(session):
+    from uber.models import EventLocation
+
+    existing_location = session.query(EventLocation).first()
+    if existing_location:
+        return
+
+    for _, name in c.EVENT_LOCATION_OPTS:
+        name_room = re.match(r'^(.*) \((.*?)\)$', name)
+        if name_room:
+            new_location = EventLocation(name=name_room[1], room=name_room[2])
+        else:
+            new_location = EventLocation(name=name)
+        session.add(new_location)
+    session.commit()
+
+
 class DateBase:
     _when_dateformat = '%m/%d'
 

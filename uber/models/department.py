@@ -212,6 +212,8 @@ class Department(MagModel):
 
     jobs = relationship('Job', backref='department')
     job_templates = relationship('JobTemplate', backref='department')
+    locations = relationship('EventLocation', backref='department')
+    events = relationship('Event', backref='department')
 
     dept_checklist_items = relationship('DeptChecklistItem', backref='department')
     dept_roles = relationship('DeptRole', backref='department')

@@ -1,0 +1,44 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set event_info = event_info or forms['event_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    location_category
+    name_description
+    time_duration
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block location_category %}
+<div class="col-sm">{{ form_macros.input(event_info.location_id) }}</div>
+<div class="col-sm">{{ form_macros.input(event_info.department_id) }}</div>
+{% if c.EVENT_CATEGORY_OPTS %}
+<div class="col-sm">{{ form_macros.input(event_info.category) }}</div>
+{% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block name_description %}
+<div class="col-sm">{{ form_macros.input(event_info.name) }}</div>
+<div class="col-sm">{{ form_macros.input(event_info.description) }}</div>
+<div class="col-sm">{{ form_macros.input(event_info.public_description) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block time_duration %}
+{% if c.EVENT_TRACK_OPTS %}
+<div class="col-sm">{{ form_macros.input(event_info.tracks) }}</div>
+{% endif %}
+<div class="col-sm">{{ form_macros.input(event_info.start_time) }}</div>
+<div class="col-sm">{{ form_macros.input(event_info.duration) }}</div>
+{% endblock %}
+</div>
+
+</div>

@@ -2,7 +2,7 @@ from wtforms import validators
 from wtforms.validators import ValidationError
 
 from uber.config import c
-from uber.forms.panels import PanelistInfo, PanelInfo, PanelOtherInfo, PanelConsents
+from uber.forms.panels import PanelistInfo, PanelInfo, PanelOtherInfo, PanelConsents, EventLocationInfo, EventInfo
 from uber.model_checks import validation
 from uber.utils import localized_now
 
@@ -80,4 +80,15 @@ PanelConsents.field_validation.required_fields = {
     'verify_tos': "You must accept our Terms of Accommodation.",
     'verify_poc': ("You must agree to being the point of contact for your group.",
                    'other_panelists', lambda x: int(x) != 0)
+}
+
+EventLocationInfo.field_validation.required_fields = {
+    'name': "Please enter a location name."
+}
+
+EventInfo.field_validation.required_fields = {
+    'name': "Please enter a name for this event.",
+    'description': "Please enter an event description.",
+    'start_time': "Please select a start time.",
+    'duration': "Please enter a duration.",
 }

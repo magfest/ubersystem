@@ -1,3 +1,6 @@
+import six
+from dateutil import parser as dateparser
+
 from markupsafe import escape, Markup
 from wtforms.widgets import NumberInput, html_params, CheckboxInput, TextInput, Select, HiddenInput
 from uber.config import c
@@ -165,7 +168,9 @@ class DateMaskInput(TextInput):
 class DateTimePicker(TextInput):
     def __call__(self, field, min_date=c.SHIFTS_EPOCH, max_date=c.SHIFTS_ESCHATON, start_dt=None, **kwargs):
         id = kwargs.pop('id', field.id) or "date-time-picker"
-        start_dt = start_dt or min_date
+        start_dt = field.data or start_dt or c.EPOCH
+        if isinstance(start_dt, six.string_types):
+            start_dt = c.EVENT_TIMEZONE.localize(dateparser.parse(start_dt))
         html = f"""
         <div class="input-group">
             <input id="{id}" name="{field.name}" type="text" class="form-control" value="">

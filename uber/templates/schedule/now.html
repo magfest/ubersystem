@@ -19,7 +19,7 @@
     <table>
     {% for event in current %}
         <tr>
-            <td><b>{{ event.location_label }}:</b></td>
+            <td><b>{{ event.location_name }}:</b></td>
             <td>{{ event.name }}</td>
         </tr>
     {% endfor %}
@@ -30,7 +30,7 @@
     {% for event in upcoming %}
         <tr>
             <td><b>({{ event.start_time|datetime_local("%g:%i%A")|lower }})</b></td>
-            <td><b>{{ event.location_label }}:</b></td>
+            <td><b>{{ event.location_name }}:</b></td>
             <td>{{ event.name }}</td>
         </tr>
     {% endfor %}

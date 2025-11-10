@@ -622,7 +622,7 @@ RE_LOCATION = re.compile(r'(\(.*?\))')
 
 @JinjaEnv.jinja_export
 def location_part(location, index=0):
-    parts = RE_LOCATION.split(c.EVENT_LOCATIONS[location])
+    parts = RE_LOCATION.split(c.SCHEDULE_LOCATIONS[location])
     parts = [escape(s.strip(' ()')) for s in parts if s.strip()]
     return parts[index] if parts else ''
 
@@ -716,7 +716,7 @@ def format_location(location, separator='<br>', spacer='above', text_class='text
         jinja2.Markup: `location` rendered as a markup safe string.
 
     """
-    parts = RE_LOCATION.split(c.EVENT_LOCATIONS[location])
+    parts = RE_LOCATION.split(c.SCHEDULE_LOCATIONS[location])
     parts = [escape(s.strip()) for s in parts if s.strip()]
     if spacer and len(parts) < 2:
         parts.insert(0 if spacer == 'above' else 1, '&nbsp;')

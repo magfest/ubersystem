@@ -8,7 +8,7 @@ from wtforms import (BooleanField, DateField, EmailField,
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup,
+from uber.forms import (SelectDynamicChoices, MultiCheckbox, MagForm, DateTimePicker, SwitchInput, HourMinuteDuration,
                         HiddenBoolField, HiddenIntField, CustomValidation, Ranking)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
@@ -17,7 +17,7 @@ from uber.model_checks import invalid_phone_number
 from uber.utils import get_age_conf_from_birthday
 
 
-__all__ = ['PanelistInfo', 'PanelistCredentials', 'PanelInfo', 'PanelOtherInfo', 'PanelConsents']
+__all__ = ['PanelistInfo', 'PanelistCredentials', 'PanelInfo', 'PanelOtherInfo', 'PanelConsents', 'EventLocationInfo', 'EventInfo']
 
 
 class PanelistInfo(MagForm):
@@ -59,6 +59,7 @@ class PanelistCredentials(MagForm):
 
 class PanelInfo(MagForm):
     dynamic_choices_fields = {'department': lambda: [("", 'Please select an option')] + c.PANELS_DEPT_OPTS}
+
     name = StringField("Panel Name", description="The title that will appear on the event schedule. Max 120 characters.")
     department = SelectField("Department")
     presentation = SelectField("Type of Panel", coerce=int, default=0,
@@ -144,3 +145,37 @@ class PanelConsents(MagForm):
     
     def data_agreement_desc(self):
         return Markup(f"""For more information on our privacy practices please contact us via <a href='{c.CONTACT_URL}'>{c.CONTACT_URL}</a>.""")
+    
+
+class EventLocationInfo(MagForm):
+    admin_desc = True
+    dynamic_choices_fields = {'department_id': lambda: [("", 'No Department')] + c.EVENT_DEPTS_OPTS}
+
+    department_id = SelectField('Department',
+                                description="The default department for events in this location, if any.")
+    category = SelectField('Category', description="The default category for events in this location.",
+                           coerce=int, choices=[(0, 'No Category')] + c.EVENT_CATEGORY_OPTS)
+    tracks = SelectMultipleField('Track(s)', description="The default tracks for events in this location.",
+                                 coerce=int, choices=c.EVENT_TRACK_OPTS, widget=MultiCheckbox())
+    name = StringField('Location Name')
+    room = StringField('Room Name',
+                       description="If set, this is appended to the location name on the schedule, e.g., Location Name (Room Name)")
+
+
+class EventInfo(MagForm):
+    admin_desc = True
+    dynamic_choices_fields = {'location_id': lambda: [("", 'No Location')] + c.SCHEDULE_LOCATION_OPTS,
+                              'department_id': lambda: [("", 'No Department')] + c.EVENT_DEPTS_OPTS}
+
+    location_id = SelectField(
+        'Location',
+        description="If no location is set, this event is not shown on or exported as part of the schedule.")
+    department_id = SelectField('Department',
+                                description="What department is in charge of this event, if any.")
+    category = SelectField('Category', coerce=int, choices=[(0, 'No Category')] + c.EVENT_CATEGORY_OPTS)
+    name = StringField('Event Name')
+    description = TextAreaField('Description')
+    public_description = TextAreaField('Public Description')
+    tracks = SelectMultipleField('Track(s)', coerce=int, choices=c.EVENT_TRACK_OPTS, widget=MultiCheckbox())
+    start_time = StringField('Start Time', widget=DateTimePicker())
+    duration = IntegerField('Duration', widget=HourMinuteDuration())
