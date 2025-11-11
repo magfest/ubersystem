@@ -45,7 +45,7 @@
 {% for app in applications %}
     <tr>
       <td>{{ app.artist_codes }}</td>
-      <td style="text-align:left" data-order="{{ app.display_name }}" data-search="{{ app.attendee.full_name }} {{ app.artist_name }} {{ app.banner_name }} {{ app.banner_name_ad }}"> <a href="form?id={{ app.id }}">{{ app.display_name|default("?????") }}{% if app.banner_name_ad %} ({{ app.banner_name_ad }}){% endif %}</a> </td>
+      <td style="text-align:left" data-order="{{ app.display_name }}" data-search="{{ app.attendee.full_name }} {{ app.artist_name }} {{ app.banner_name }} {{ app.banner_name_ad }}"> <a href="form?id={{ app.id }}">{{ app.display_name|default("?????") }}{% if app.has_mature_space and app.banner_name_ad %} ({{ app.banner_name_ad }}){% endif %}</a> </td>
       <td data-order="{{ app.attendee.last_name }}">{{ app.attendee.full_name }}</td>
       <td>{% if app.delivery_method == c.BRINGING_IN %}Attending
         {% elif app.delivery_method == c.BY_MAIL %}Mailing In

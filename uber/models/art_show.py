@@ -118,6 +118,11 @@ class ArtShowApplication(MagModel):
         if self.status == c.APPROVED and self.has_mature_space and self.banner_name_ad and not self.artist_id_ad:
             self.artist_id_ad = self.generate_artist_id(self.banner_name_ad)
 
+    @presave_adjustment
+    def clear_mature_name(self):
+        if self.banner_name_ad and not self.has_mature_space:
+            self.banner_name_ad = ''
+
     def generate_artist_id(self, banner_name):
         from uber.models import Session
         with Session() as session:

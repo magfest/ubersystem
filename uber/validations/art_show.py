@@ -61,12 +61,21 @@ def num_tables(form, field):
         raise ValidationError('You cannot have fewer than 0 table sections.')
 
 
-@ArtShowInfo.new_or_changed('tables')
+@ArtShowInfo.new_or_changed('tables_ad')
 def num_tables_ad(form, field):
     if field.data > c.MAX_ART_TABLES:
         raise ValidationError(f'You cannot have more than {c.MAX_ART_TABLES} table sections.')
     if field.data < 0:
         raise ValidationError('You cannot have fewer than 0 table sections.')
+    
+
+@ArtShowInfo.field_validation('banner_name_ad')
+def no_mature_name_if_no_space(form, field):
+    if not form.model.is_new and not form.is_admin or hasattr(form, 'separate_ad_banner') and not form.separate_ad_banner.data:
+        return
+
+    if field.data and not form.model.has_mature_space:
+        raise ValidationError('You cannot enter a banner name for the mature gallery without any space in the mature gallery.')
 
 
 @AdminArtShowInfo.field_validation('overridden_price')

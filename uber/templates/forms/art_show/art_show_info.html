@@ -30,7 +30,7 @@ x-data="{ {% block x_data %}
    delivery_method: {{ art_show_info.delivery_method.data|tojson }},
    panels_ad: {{ art_show_info.panels_ad.data|tojson }},
    tables_ad: {{ art_show_info.tables_ad.data|tojson }},
-   separate_ad_banner: {{ app.banner_name_ad|boolean|tojson }},
+   separate_ad_banner: {{ (app.has_mature_space and app.banner_name_ad)|boolean|tojson }},
    get deliveryByMail() { return this.delivery_method == {{ c.BY_MAIL|tojson }} },
 {% endblock %} }">
 
