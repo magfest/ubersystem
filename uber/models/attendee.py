@@ -896,7 +896,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('dealer_admin')
         if self.mits_applicants:
             section_list.append('mits_admin')
-        if self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
+        if c.MIVS in self.ribbon_ints or self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
             section_list.append('showcase_admin')
         if self.art_show_applications or self.art_show_bidder or self.art_show_purchases or self.art_agent_apps:
             section_list.append('art_show_admin')
