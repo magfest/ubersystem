@@ -1567,8 +1567,11 @@ class Session(SessionManager):
                     return
                 attendee.active_badge.unassign()
                 self.add(attendee.active_badge)
-            
-            if needs_badge_num(attendee):
+
+            # If someone has two active badge numbers, we don't want to give them a replacement for the second badge number
+            num_badges = self.query(BadgeInfo).filter(BadgeInfo.attendee_id == attendee.id, BadgeInfo.active == True).count()
+
+            if needs_badge_num(attendee) and num_badges < 2:
                 new_badge = self.get_next_badge_num(badge_type)
 
                 if not new_badge:

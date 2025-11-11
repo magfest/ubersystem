@@ -782,6 +782,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.checked_in:
                 badge.check_in()
             self.session.add(badge)
+            self.active_badge = badge
 
     @property
     def last_badge_num(self):
