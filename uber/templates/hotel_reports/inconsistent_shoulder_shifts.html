@@ -22,7 +22,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for attendee in no_shifts.inconsistent_attendees %}
+        {% for attendee in no_shifts_attendees %}
           <tr>
             <td>{{ attendee|form_link }}</td>
             <td>{{ attendee.email|email_to_link }}</td>
@@ -37,7 +37,7 @@
       </tbody>
     </table>
   </div>
-{% endfor %}
+{% endif %}
 
 {% for department in departments %}
   <div style="margin-bottom: 30px">

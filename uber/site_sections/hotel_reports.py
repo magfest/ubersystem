@@ -180,12 +180,12 @@ class Root:
         departments = []
         no_shifts = shoulder_nights_missing_shifts.pop('none')
         if no_shifts:
-            no_shifts.inconsistent_attendees = []
+            no_shifts_attendees = []
             for attendee in sorted(no_shifts, key=lambda a: a.full_name):
                 nights = no_shifts[attendee]
                 night_names = ' / '.join([c.NIGHTS[n] for n in c.NIGHT_DISPLAY_ORDER if n in nights])
                 attendee.night_names = night_names
-                no_shifts.inconsistent_attendees.append(attendee)
+                no_shifts_attendees.append(attendee)
 
         for dept in sorted(set(shoulder_nights_missing_shifts.keys()), key=lambda d: d.name):
             dept_heads = sorted(dept.dept_heads, key=lambda a: a.full_name)
@@ -202,6 +202,7 @@ class Root:
         return {
             'departments': departments,
             'no_shifts': no_shifts,
+            'no_shifts_attendees': no_shifts_attendees,
         }
 
     @csv_file
