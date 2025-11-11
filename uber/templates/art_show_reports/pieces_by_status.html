@@ -5,6 +5,7 @@
 {% include 'art_show_common/print.html' with context %}
 {% import 'macros.html' as macros with context %}
 
+{% block page %}
 <div class="no-print card-body">
 <strong>{{ message }}</strong>
 <form role="form" method="get" action="pieces_by_status" class="form-horizontal">
@@ -51,3 +52,4 @@
 </table>
 {% endfor %}
 </div>
+{% endblock %}

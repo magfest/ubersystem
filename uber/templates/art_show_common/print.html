@@ -1,3 +1,5 @@
+{{ "js/alpine.3.14.8.min.js"|serve_static_content(defer=true) }}
+
 {% if not no_print %}
   <script type="text/javascript">
     window.self.onload = function() {
@@ -8,8 +10,6 @@
       }, 250);
     };
   </script>
-{% endif %}
-{{ "js/alpine.3.14.8.min.js"|serve_static_content(defer=true) }}
 <style>
   .card-body, .pull-left .pull-right { margin: 0 !important; padding: 0 !important; }
   @page { margin: 1.6cm; }
@@ -24,3 +24,4 @@
     margin: 2px !important;
   }
 </style>
+{% endif %}

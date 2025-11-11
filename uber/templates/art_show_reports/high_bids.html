@@ -5,6 +5,7 @@
 {% include 'art_show_common/print.html' with context %}
 {% import 'macros.html' as macros with context %}
 
+{% block page %}
 <div class="card-body p-0 m-0">
 <style>
   tr td, th{
@@ -46,3 +47,4 @@
   {% endfor %}
 </table>
 </div>
+{% endblock %}
