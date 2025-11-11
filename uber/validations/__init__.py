@@ -36,11 +36,13 @@ def valid_zip_code(form, field):
         raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
 
 
-def which_required_region(field_name, check_placeholder=False):
+def which_required_region(field_name, check_placeholder=False, check_lambda=lambda x: True):
     def region_validation(form, field):
         if getattr(form, 'copy_address', None) and form.copy_address.data:
             return
         if check_placeholder and 'region' in placeholder_unassigned_fields(form):
+            return
+        if not check_lambda(form):
             return
 
         country = form.country.data

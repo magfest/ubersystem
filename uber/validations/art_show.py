@@ -105,18 +105,31 @@ for field_name, message in address_required_validators.items():
 
 for field_name in ['region', 'region_us', 'region_canada']:
     AdminArtistAttendeeInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(
-        field_name, check_placeholder=True)
+        field_name, check_placeholder=True, check_lambda=lambda form: form.model.badge_status != c.NOT_ATTENDING)
 
 
-ArtistMailingInfo.field_validation.required_fields['business_name'] = "Please enter a name or business name for your address."
+AdminArtistAttendeeInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
+
+
+def require_mailing_info(form):
+    if hasattr(form, 'delivery_method'):
+        return form.delivery_method.data == c.BY_MAIL
+    else:
+        return form.model.delivery_method == c.BY_MAIL
+
+
+ArtistMailingInfo.field_validation.required_fields['business_name'] = (
+    "Please enter a name or business name for your address.", 'delivery_method', lambda x: x == c.BY_MAIL)
 
 
 for field_name, message in address_required_validators.items():
-    ArtistMailingInfo.field_validation.required_fields[field_name] = (message, 'copy_address', lambda x: not x or not x.data)
+    ArtistMailingInfo.field_validation.required_fields[field_name] = (
+        message, 'copy_address', lambda x: (not x or not x.data) and require_mailing_info(x.form))
 
 
 for field_name in ['region', 'region_us', 'region_canada']:
-    ArtistMailingInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(field_name)
+    ArtistMailingInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(
+        field_name, check_lambda=require_mailing_info)
 
 
 ArtistMailingInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
