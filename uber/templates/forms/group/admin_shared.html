@@ -13,7 +13,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 <div x-data="{ {% block x_data %}
-badges: {{ group_or_table_info.badges.data|jsonize }},
 get showNewBadgeFields() { return this.is_new || this.badges > {{ group_or_table_info.badges.data|jsonize }} },
 {% endblock %} }">
 
@@ -28,10 +27,10 @@ get showNewBadgeFields() { return this.is_new || this.badges > {{ group_or_table
     </div>
     <div class="col-sm">
         {% call form_macros.input(group_or_table_info.badges,
-                                    choices=int_choices(1, c.MAX_GROUP_SIZE),
+                                    choices=int_choices(0, c.MAX_GROUP_SIZE),
                                     admin_text="[" ~ group.badges_purchased ~ " badge" ~ group.badges_purchased|pluralize ~ " purchased]" if not group.is_new else "",
                                     required=True,
-                                    alpine_model="badges") %}
+                                    **{'x-model.number': "badges"}) %}
             {{ form_macros.input(group_or_table_info.can_add) }}
         {% endcall %}
     </div>
