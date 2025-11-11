@@ -378,7 +378,8 @@ class Root:
 
     @csv_file
     def bidder_csv(self, out, session):
-        out.writerow(["Bidder Number",
+        out.writerow(["Signed Up",
+                      "Bidder Number",
                       "Full Name",
                       "Badge Name",
                       "Email Address",
@@ -389,9 +390,8 @@ class Root:
                       "Postal Code",
                       "Country",
                       "Phone",
-                      "Hotel",
-                      "Room Number",
                       "Admin Notes",
+                      "Email Bids?",
                       ])
 
         for bidder in session.query(ArtShowBidder).join(ArtShowBidder.attendee):
@@ -400,7 +400,8 @@ class Root:
             else:
                 address_model = bidder.attendee
 
-            out.writerow([bidder.bidder_num,
+            out.writerow([bidder.signed_up_local,
+                          bidder.bidder_num,
                           bidder.attendee.full_name,
                           bidder.attendee.badge_printed_name,
                           bidder.attendee.email,
@@ -411,7 +412,6 @@ class Root:
                           address_model.zip_code,
                           address_model.country,
                           bidder.attendee.cellphone,
-                          bidder.hotel_name,
-                          bidder.hotel_room_num,
                           bidder.admin_notes,
+                          bidder.email_won_bids,
                           ])
