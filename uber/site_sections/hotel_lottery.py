@@ -284,7 +284,7 @@ class Root:
     @requires_account(LotteryApplication)
     def reenter_lottery(self, session, id=None, **params):
         application = session.lottery_application(id)
-        _reset_group_member(application)
+        application = _reset_group_member(application)
         session.add(application)
         if application.status == c.COMPLETE:
             body = render('emails/hotel/hotel_lottery_entry.html', {
