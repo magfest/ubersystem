@@ -141,9 +141,9 @@
             {% if application.entry_type == c.GROUP_ENTRY %}
                 <p>
                     If you can no longer attend {{ c.EVENT_NAME }}, you may withdraw from the hotel lottery using the button below.
-                    This is <strong>irreversible</strong> and your group leader will receive an email{% if app_or_parent.booking_url %} instructing them to remove your name from the reservation{% endif %}.
+                    This is <strong>irreversible</strong>{% if application.parent_application %} and your group leader will receive an email{% if app_or_parent.booking_url %} instructing them to remove your name from the reservation{% endif %}{% endif %}.
                 </p>
-                <form method="post" action="leave_group" id="withdraw-lottery">
+                <form method="post" action="{% if application.parent_application %}leave_group{% else %}withdraw_entry{% endif %}" id="withdraw-lottery">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <button class="btn btn-danger">Withdraw From Hotel Lottery</button>

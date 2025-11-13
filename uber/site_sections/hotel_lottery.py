@@ -308,7 +308,7 @@ class Root:
     def withdraw_entry(self, session, id=None, **params):
         application = session.lottery_application(id)
 
-        has_actually_entered = application.status == c.COMPLETE
+        has_actually_entered = application.status == c.COMPLETE or application.finalized
         was_room_group = application.room_group_name
         old_room_group = application.parent_application
 
