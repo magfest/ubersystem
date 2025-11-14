@@ -171,6 +171,8 @@ def send_automated_emails():
         expiration = timedelta(hours=1)
         quantity_sent = 0
         start_time = time()
+        filter_duration = 0
+        refresh_duration = 0
         with Session() as session:
             active_automated_emails = session.query(AutomatedEmail) \
                 .filter(*AutomatedEmail.filters_for_active).all()
@@ -201,27 +203,36 @@ def send_automated_emails():
                         fk_id_list = [email.fk_id for email in automated_email.emails]
 
                     log.debug("  Loading instances for " + automated_email.ident)
-                    start_time = time()
+                    temp_time = time()
                     model_instances = query_func(session)
-                    log.debug(f"  Finished loading instances in {time() - start_time} seconds")
-                    start_time = time()
+                    log.debug(f"  Finished loading instances in {time() - temp_time} seconds")
+                    temp_time = time()
                     instance_count = 0
                     for model_instance in model_instances:
                         instance_count += 1
                         if model_instance.id not in fk_id_list:
+                            filter_start = time()
                             if automated_email.would_send_if_approved(model_instance):
+                                filter_duration += time() - filter_start
                                 if automated_email.approved or not automated_email.needs_approval:
                                     if getattr(model_instance, 'active_receipt', None):
+                                        refresh_start = time()
                                         session.refresh_receipt_and_model(model_instance)
+                                        refresh_duration += time() - refresh_start
                                     automated_email.send_to(model_instance, delay=False)
                                     quantity_sent += 1
                                 else:
                                     unapproved_count += 1
+                            else:
+                                filter_duration += time() - filter_start
                         if datetime.now(pytz.UTC) - last_send_time > (expiration / 2):
                             automated_email.last_send_time = datetime.now(pytz.UTC)
                             session.add(automated_email)
                             session.commit()
-                    log.debug(f"  Finished processing {instance_count} instances at {instance_count / (time() - start_time)} instances per second")
+                    log.debug(f"  Finished processing {instance_count} instances at {instance_count / (time() - temp_time)} instances per second")
+                    log.debug(f"  Total time                    {time() - temp_time}")
+                    log.debug(f"  Time spent evaluating filters {filter_duration}")
+                    log.debug(f"  Time spent refreshing models  {refresh_duration}")
 
                     automated_email.unapproved_count = unapproved_count
                     automated_email.currently_sending = False
