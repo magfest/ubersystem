@@ -35,8 +35,24 @@ class Root:
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
 
     def pending(self, session, message=''):
-        emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
-            AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
+        email_count_subquery = session.query(
+            Email.automated_email_id,
+            func.count(Email.id).label('email_count')
+        ).group_by(Email.automated_email_id).subquery()
+
+        query = session.query(
+            AutomatedEmail,
+            func.coalesce(email_count_subquery.c.email_count, 0)
+        ).outerjoin(
+            email_count_subquery,
+            AutomatedEmail.id == email_count_subquery.c.automated_email_id
+        ).filter(
+            AutomatedEmail.subject != '',
+            AutomatedEmail.sender != ''
+        )
+
+        emails_with_count = query.all()
+
         emails = []
         for email, email_count in sorted(emails_with_count, key=lambda e: e[0].ordinal):
             email.sent_email_count = email_count
