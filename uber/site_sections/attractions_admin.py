@@ -9,10 +9,11 @@ from sqlalchemy.orm import subqueryload
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
+from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup, \
     utcmin
 from uber.site_sections.attractions import _attendee_for_badge_num
-from uber.utils import check, filename_safe
+from uber.utils import check, filename_safe, validate_model
 
 
 @all_renderable()
@@ -58,6 +59,7 @@ class Root:
                 if not attraction.department_id:
                     attraction.department_id = None
                 session.add(attraction)
+                attraction.update_dept_ids(session)
                 raise HTTPRedirect(
                     'form?id={}&message={}',
                     attraction.id,
@@ -226,94 +228,103 @@ class Root:
                     signup.checkin_time_label
                 ])
 
-    def event(
-            self,
-            session,
-            attraction_id=None,
-            feature_id=None,
-            previous_id=None,
-            delay=0,
-            message='',
-            **params):
-
-        if not attraction_id or attraction_id == 'None':
-            attraction_id = None
-        if not feature_id or feature_id == 'None':
-            feature_id = None
+    def event(self, session, previous_id=None, delay=0, message='', **params):
+        if params.get('feature_id', 'None') == 'None':
+            params['feature_id'] = None
         if not previous_id or previous_id == 'None':
             previous_id = None
 
-        if not attraction_id and not feature_id and not previous_id \
-                and (not params.get('id') or params.get('id') == 'None'):
-            raise HTTPRedirect('index')
-
-        event = session.attraction_event(
-            params,
-            bools=AttractionEvent.all_bools,
-            checkgroups=AttractionEvent.all_checkgroups)
-
-        if not event.is_new:
-            attraction_id = event.feature.attraction_id
-
-        previous = None
         feature = None
-        if feature_id:
-            feature = session.query(AttractionFeature).get(feature_id)
-            attraction_id = feature.attraction_id
 
         try:
             delay = int(delay)
         except ValueError:
             delay = 0
 
+        if not params['feature_id'] and not previous_id and params.get('id') in [None, '', 'None']:
+            raise HTTPRedirect('index?message={}', "Could not set up an event as we don't know what feature it should be in.")
+
+        if params.get('id') in [None, '', 'None']:
+            event = AttractionEvent()
+        else:
+            event = session.attraction_event(params.get('id'))
+            feature = event.feature
+
+        if not feature and (params['feature_id'] or params.get('attraction_feature_id', '')):
+            feature = session.query(AttractionFeature).get(params.get('attraction_feature_id', params['feature_id']))
+
+        if cherrypy.request.method != 'POST':
+            last_event = None
+
+            if previous_id:
+                last_event = session.attraction_event(previous_id)
+            elif event.is_new and feature and feature.events:
+                events_by_location = feature.events_by_location
+                location = next(reversed(events_by_location))
+                last_event = events_by_location[location][-1]
+
+            if last_event:
+                feature = last_event.feature
+                params.update({
+                    'attraction_feature_id': last_event.attraction_feature_id,
+                    'event_location_id': last_event.event_location_id,
+                    'start_time': last_event.end_time + timedelta(minutes=delay),
+                    'duration': last_event.duration,
+                    'slots': last_event.slots,
+                })
+
+        params['attraction_id'] = feature.attraction_id
+        params['attraction_feature_id'] = feature.id
+
+        forms = load_forms(params, event, ['AttractionEventInfo'])
+
         if cherrypy.request.method == 'POST':
-            event.attraction_id = attraction_id
-            message = check(event)
-            if not message:
-                is_new = event.is_new
-                session.add(event)
-                session.flush()
-                session.refresh(event)
-                message = 'The event for {} was successfully {}'.format(
-                    event.label, 'created' if is_new else 'updated')
+            is_new = event.is_new
+            for form in forms.values():
+                form.populate_obj(event)
+            session.add(event)
+            session.flush()
+            session.refresh(event)
+            message = 'The event for {} was successfully {}.'.format(event.label, 'created' if is_new else 'updated')
+            
+            event.sync_with_schedule(session)
 
-                for param in params.keys():
-                    if param.startswith('save_another_'):
-                        delay = param[13:]
-                        raise HTTPRedirect(
-                            'event?previous_id={}&delay={}&message={}',
-                            event.id, delay, message)
-                raise HTTPRedirect(
-                    'form?id={}&message={}', attraction_id, message)
-            session.rollback()
-        elif previous_id:
-            previous = session.query(AttractionEvent).get(previous_id)
-            attraction_id = previous.feature.attraction_id
-            event.feature = previous.feature
-            event.attraction_feature_id = previous.attraction_feature_id
-            event.attraction_id = attraction_id
-            event.location = previous.location
-            event.start_time = previous.end_time + timedelta(seconds=delay)
-            event.duration = previous.duration
-            event.slots = previous.slots
-        elif event.is_new and feature and feature.events:
-            events_by_location = feature.events_by_location
-            location = next(reversed(events_by_location))
-            recent = events_by_location[location][-1]
-            event.attraction_id = recent.attraction_id
-            event.location = recent.location
-            event.start_time = recent.end_time + timedelta(seconds=delay)
-            event.duration = recent.duration
-            event.slots = recent.slots
-
-        attraction = session.query(Attraction).get(attraction_id)
+            for param in params.keys():
+                if param.startswith('save_another_'):
+                    delay = param[13:]
+                    raise HTTPRedirect(
+                        'event?previous_id={}&delay={}&message={}',
+                        event.id, delay, message)
+            raise HTTPRedirect(
+                'form?id={}&message={}', feature.attraction_id, message)
 
         return {
-            'attraction': attraction,
-            'feature': feature or event.feature,
+            'attraction': feature.attraction,
+            'feature': feature,
             'event': event,
-            'message': message
+            'forms': forms,
+            'message': message,
         }
+
+    @ajax
+    def validate_event(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            event = AttractionEvent()
+        else:
+            event = session.attraction_event(params.get('id'))
+
+        if not form_list:
+            form_list = ['AttractionEventInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, event, form_list)
+        all_errors = validate_model(forms, event, is_admin=True)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
     
     @csv_file
     def signups_export(self, out, session, id):

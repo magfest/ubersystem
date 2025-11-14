@@ -634,6 +634,7 @@ class DictWrapper(dict):
 from uber.forms.widgets import *  # noqa: F401,E402,F403
 from uber.forms.art_show import *  # noqa: F401,E402,F403
 from uber.forms.attendee import *  # noqa: F401,E402,F403
+from uber.forms.attraction import *  # noqa: F401,E402,F403
 from uber.forms.department import *  # noqa: F401,E402,F403
 from uber.forms.group import *  # noqa: F401,E402,F403
 from uber.forms.artist_marketplace import *  # noqa: F401,E402,F403

@@ -229,7 +229,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             for form in forms.values():
                 form.populate_obj(event)
-                session.add(event)
+            session.add(event)
 
             # Associate a panel app with this event, and if the event is new, use the panel app's name and title
             if 'panel_id' in params and params['panel_id']:
@@ -352,7 +352,7 @@ class Root:
             if location.category:
                 location_filters.add((location.category, location.category_label))
         
-        if session.query(Event).filter(Event.location_id == None).first():
+        if session.query(Event).filter(Event.event_location_id == None).first():
             locations.append({
                 'id': "None",
                 'title': "No Location",
@@ -378,7 +378,7 @@ class Root:
             return {'success': False, 'message': "Event not found. Try refreshing the page."}
         event.start_time = c.EVENT_TIMEZONE.localize(dateparser.parse(start_time)).astimezone(pytz.UTC)
         event.duration = event.duration + (int(delta_seconds) / 60)
-        event.location_id = location_id
+        event.event_location_id = location_id
         session.commit()
         return {'success': True, 'message': f"{event.name} has been updated!"}
 

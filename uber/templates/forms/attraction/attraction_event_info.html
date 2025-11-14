@@ -1,0 +1,72 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set attraction_event_info = attraction_event_info or forms['attraction_event_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    location_category
+    name_description
+    time_duration
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% if event.signups_open_relative or event.is_new %}
+{% set signups_open_type = 'relative' %}
+{% elif event.signups_open_time %}
+{% set signups_open_type = 'absolute' %}
+{% else %}
+{% set signups_open_type = 'not_open' %}
+{% endif %}
+
+{% set used_location_opts = attraction.used_location_opts %}
+{% set event_location_opts = (used_location_opts + [('', '––––––––––')] + attraction.unused_location_opts) if used_location_opts else attraction.unused_location_opts %}
+
+<div x-data="{ {% block x_data %}
+signups_open_type: '{{ signups_open_type }}',
+{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block location_name_desc %}
+<div class="col-sm"><div class="form-text">Feature</div>{{ feature.name }}</div>
+<div class="col-sm">
+    {{ form_macros.input(attraction_event_info.event_location_id, choices=event_location_opts) }}
+</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block slots_time_duration %}
+<div class="col-sm">{{ form_macros.input(attraction_event_info.slots) }}</div>
+<div class="col-sm">{{ form_macros.input(attraction_event_info.start_time) }}</div>
+<div class="col-sm">{{ form_macros.input(attraction_event_info.duration) }}</div>
+{% endblock %}
+</div>
+
+<div class="card card-body bg-light mb-3">
+    <span class="form-text mb-3">These values are set by the {{ feature.name }} feature, but may be overridden here.</span>
+<div class="row g-3 mb-3">
+{% block defaults %}
+    <div class="col-sm">{{ form_macros.input(attraction_event_info.populate_schedule) }}</div>
+    <div class="col-sm">{{ form_macros.input(attraction_event_info.send_emails) }}</div>
+</div><div class="row g-3 mb-3">
+    <div class="col-sm">
+        {% call form_macros.input(attraction_event_info.waitlist_available) %}
+        {{ form_macros.input(attraction_event_info.waitlist_slots) }}
+        {% endcall %}
+    </div>
+    <div class="col-sm">
+        {% call form_macros.input(attraction_event_info.signups_open_type, alpine_model="signups_open_type") %}
+        <div x-show="signups_open_type == 'relative'">
+            {{ form_macros.input(attraction_event_info.signups_open_relative, required_if="signups_open_type == 'relative'") }}
+        </div>
+        <div x-show="signups_open_type == 'absolute'">
+            {{ form_macros.input(attraction_event_info.signups_open_time, required_if="signups_open_type == 'absolute'") }}
+        </div>
+        {% endcall %}
+    </div>
+{% endblock %}
+</div>
+</div>
+
+</div>

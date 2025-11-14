@@ -134,7 +134,7 @@
         <input
             type="number"
             {% if min is not none %}min="{{ min }}"{% endif %}
-            value="{{ 0 if is_class else timedelta_component(seconds=model[field_name], units='hours') }}"
+            value="{{ 0 if is_class else timedelta_component(minutes=model[field_name], units='hours') }}"
             class="form-control {{ field_name ~ '_hours' }}">
         <span class="input-group-text">hours</span>
       </div>
@@ -144,7 +144,7 @@
         <input
             type="number"
             {% if min is not none %}min="{{ min }}"{% endif %}
-            value="{{ 15 if is_class else timedelta_component(seconds=model[field_name], units='minutes') }}"
+            value="{{ 15 if is_class else timedelta_component(minutes=model[field_name], units='minutes') }}"
             class="form-control {{ field_name ~ '_minutes' }}">
         <span class="input-group-text">minutes</span>
       </div>
@@ -207,6 +207,18 @@
       </label>
       <p class="help-block">
         The features in this attraction will require a badge number to sign up by default.
+      </p>
+    </div>
+  </div>
+  <div class="form-group">
+    <div class="col-sm-offset-3 col-sm-9">
+      <label class="checkbox-label">
+        <input type="checkbox" name="populate_schedule" value="1"
+          {%- if not is_class and attraction.populate_schedule %} checked="checked"{% endif %}/>
+          This event should appear on the event schedule.
+      </label>
+      <p class="help-block">
+        Unchecking this will not delete any existing events, if they've already been created.
       </p>
     </div>
   </div>

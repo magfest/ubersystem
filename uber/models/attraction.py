@@ -18,7 +18,7 @@ from uber.custom_tags import humanize_timedelta, location_event_name, location_r
 from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, utcmin
-from uber.utils import evening_datetime, noon_datetime
+from uber.utils import evening_datetime, noon_datetime, localized_now
 
 
 __all__ = [
@@ -26,7 +26,33 @@ __all__ = [
     'AttractionNotification', 'AttractionNotificationReply']
 
 
-class Attraction(MagModel):
+class AttractionMixin():
+    populate_schedule = Column(Boolean, default=True)
+    send_emails = Column(Boolean, default=True)
+    waitlist_available = Column(Boolean, default=True)
+    waitlist_slots = Column(Integer, default=10)
+    signups_open_relative = Column(Integer, default=c.DEFAULT_ATTRACTIONS_SIGNUPS_MINUTES)
+    signups_open_time = Column(UTCDateTime, nullable=True)
+    slots = Column(Integer, default=1)
+
+    @presave_adjustment
+    def null_waitlist_slots(self):
+        if self.waitlist_slots == '':
+            self.waitlist_slots = 0
+
+    @presave_adjustment
+    def set_signups_times(self):
+        signups_open_type = getattr(self, 'signups_open_type', None)
+
+        if not signups_open_type:
+            return
+        
+        if signups_open_type in ['relative', 'not_open']:
+            self.signups_open_time = None
+        if signups_open_type in ['absolute', 'not_open']:
+            self.signups_open_relative = 0
+
+class Attraction(MagModel, AttractionMixin):
     _NONE = 0
     _PER_FEATURE = 1
     _PER_ATTRACTION = 2
@@ -50,23 +76,23 @@ class Attraction(MagModel):
     _ADVANCE_CHECKIN_OPTS = [
         (-1, 'Anytime during event'),
         (0, 'When the event starts'),
-        (300, '5 minutes before'),
-        (600, '10 minutes before'),
-        (900, '15 minutes before'),
-        (1200, '20 minutes before'),
-        (1800, '30 minutes before'),
-        (2700, '45 minutes before'),
-        (3600, '1 hour before')]
+        (5, '5 minutes before'),
+        (10, '10 minutes before'),
+        (15, '15 minutes before'),
+        (20, '20 minutes before'),
+        (30, '30 minutes before'),
+        (45, '45 minutes before'),
+        (60, '1 hour before')]
 
     _ADVANCE_NOTICES_OPTS = [
         ('', 'Never'),
         (0, 'When checkin starts'),
-        (300, '5 minutes before checkin'),
-        (900, '15 minutes before checkin'),
-        (1800, '30 minutes before checkin'),
-        (3600, '1 hour before checkin'),
-        (7200, '2 hours before checkin'),
-        (86400, '1 day before checkin')]
+        (5, '5 minutes before checkin'),
+        (15, '15 minutes before checkin'),
+        (30, '30 minutes before checkin'),
+        (60, '1 hour before checkin'),
+        (120, '2 hours before checkin'),
+        (1440, '1 day before checkin')]
 
     name = Column(UnicodeText, unique=True)
     slug = Column(UnicodeText, unique=True)
@@ -74,7 +100,7 @@ class Attraction(MagModel):
     full_description = Column(UnicodeText)
     is_public = Column(Boolean, default=False)
     advance_notices = Column(JSON, default=[], server_default='[]')
-    advance_checkin = Column(Integer, default=0)  # In seconds
+    advance_checkin = Column(Integer, default=0)
     restriction = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
     badge_num_required = Column(Boolean, default=False)
     department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
@@ -116,7 +142,6 @@ class Attraction(MagModel):
     events = relationship(
         'AttractionEvent',
         backref='attraction',
-        viewonly=True,
         order_by='[AttractionEvent.start_time, AttractionEvent.id]')
     signups = relationship(
         'AttractionSignup',
@@ -138,21 +163,21 @@ class Attraction(MagModel):
 
     @property
     def used_location_opts(self):
-        locs = set(e.location for e in self.events)
-        sorted_locs = sorted(locs, key=lambda l: c.EVENT_LOCATIONS[l])
-        return [(loc, c.EVENT_LOCATIONS[loc]) for loc in sorted_locs]
+        locs = set(e.event_location_id for e in self.events)
+        sorted_locs = sorted(locs, key=lambda l: c.SCHEDULE_LOCATIONS[l])
+        return [(loc, c.SCHEDULE_LOCATIONS[loc]) for loc in sorted_locs]
 
     @property
     def unused_location_opts(self):
-        locs = set(e.location for e in self.events)
-        return sorted([(loc, s) for loc, s in c.EVENT_LOCATION_OPTS if loc not in locs], key=lambda x: x[1])
+        locs = set(e.event_location_id for e in self.events)
+        return sorted([(loc, s) for loc, s in c.SCHEDULE_LOCATION_OPTS if loc not in locs], key=lambda x: x[1])
 
     @property
     def advance_checkin_label(self):
         if self.advance_checkin < 0:
             return 'anytime during the event'
         return humanize_timedelta(
-            seconds=self.advance_checkin,
+            minutes=self.advance_checkin,
             separator=' ',
             now='by the time the event starts',
             prefix='at least ',
@@ -160,7 +185,7 @@ class Attraction(MagModel):
 
     @property
     def location_opts(self):
-        locations = map(lambda e: (e.location, c.EVENT_LOCATIONS[e.location]), self.events)
+        locations = map(lambda e: (e.event_location_id, c.SCHEDULE_LOCATIONS[e.event_location_id]), self.events)
         return [(loc, s) for loc, s in sorted(locations, key=lambda l: l[1])]
 
     @property
@@ -170,6 +195,15 @@ class Attraction(MagModel):
     @property
     def locations_by_feature_id(self):
         return groupify(self.features, 'id', lambda f: f.locations)
+
+    def update_dept_ids(self, session):
+        if self.department_id == self.orig_value_of('department_id'):
+            return
+        
+        for event in self.events:
+            if event.populate_schedule:
+                event.schedule_event.department_id = self.department_id
+                session.add(event.schedule_event)
 
     def signups_requiring_notification(self, session, from_time, to_time, options=None):
         """
@@ -190,7 +224,7 @@ class Attraction(MagModel):
                 notice_param = bindparam('confirm_notice', advance_notice).label('advance_notice')
             else:
                 advance_notice = max(0, advance_notice) + advance_checkin
-                notice_delta = timedelta(seconds=advance_notice)
+                notice_delta = timedelta(minutes=advance_notice)
                 event_filters += [
                     AttractionEvent.start_time >= from_time + notice_delta,
                     AttractionEvent.start_time < to_time + notice_delta]
@@ -215,10 +249,11 @@ class Attraction(MagModel):
         return groupify(query, lambda x: x[0], lambda x: x[1])
 
 
-class AttractionFeature(MagModel):
+class AttractionFeature(MagModel, AttractionMixin):
     name = Column(UnicodeText)
     slug = Column(UnicodeText)
     description = Column(UnicodeText)
+    warn_overlap = Column(Boolean, default=True)
     is_public = Column(Boolean, default=False)
     badge_num_required = Column(Boolean, default=False)
     attraction_id = Column(UUID, ForeignKey('attraction.id'))
@@ -237,7 +272,7 @@ class AttractionFeature(MagModel):
 
     @property
     def location_opts(self):
-        locations = map(lambda e: (e.location, c.EVENT_LOCATIONS[e.location]), self.events)
+        locations = map(lambda e: (e.event_location_id, c.SCHEDULE_LOCATIONS[e.event_location_id]), self.events)
         return [(loc, s) for loc, s in sorted(locations, key=lambda l: l[1])]
 
     @property
@@ -246,12 +281,12 @@ class AttractionFeature(MagModel):
 
     @property
     def events_by_location(self):
-        events = sorted(self.events, key=lambda e: (c.EVENT_LOCATIONS[e.location], e.start_time))
+        events = sorted(self.events, key=lambda e: (c.SCHEDULE_LOCATIONS[e.event_location_id], e.start_time))
         return groupify(events, 'location')
 
     @property
     def events_by_location_by_day(self):
-        events = sorted(self.events, key=lambda e: (c.EVENT_LOCATIONS[e.location], e.start_time))
+        events = sorted(self.events, key=lambda e: (c.SCHEDULE_LOCATIONS[e.event_location_id], e.start_time))
         return groupify(events, ['location', 'start_day_local'])
 
     @property
@@ -292,15 +327,13 @@ class AttractionFeature(MagModel):
 #       panels.models.Event stores its duration as an integer number
 #       of half hours, thus is not usable by Attractions.
 # =====================================================================
-class AttractionEvent(MagModel):
+class AttractionEvent(MagModel, AttractionMixin):
     attraction_feature_id = Column(UUID, ForeignKey('attraction_feature.id'))
     attraction_id = Column(UUID, ForeignKey('attraction.id'), index=True)
+    event_location_id = Column(UUID, ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
 
-    location = Column(Choice(c.EVENT_LOCATION_OPTS))
     start_time = Column(UTCDateTime, default=c.EPOCH)
-    duration = Column(Integer, default=900)  # In seconds
-    slots = Column(Integer, default=1)
-    signups_open = Column(Boolean, default=True)
+    duration = Column(Integer, default=60)
 
     signups = relationship('AttractionSignup', backref='event', order_by='AttractionSignup.checkin_time')
 
@@ -331,11 +364,11 @@ class AttractionEvent(MagModel):
 
     @hybrid_property
     def end_time(self):
-        return self.start_time + timedelta(seconds=self.duration)
+        return self.start_time + timedelta(minutes=self.duration)
 
     @end_time.expression
     def end_time(cls):
-        return cls.start_time + (cls.duration * text("interval '1 second'"))
+        return cls.start_time + (cls.duration * text("interval '1 minute'"))
 
     @property
     def start_day_local(self):
@@ -346,6 +379,14 @@ class AttractionEvent(MagModel):
         if self.start_time:
             return self.start_time_local.strftime('%-I:%M %p %A')
         return 'unknown start time'
+    
+    @property
+    def signups_open(self):
+        if not self.signups_open_time and not self.signups_open_relative:
+            return False
+        if not self.signups_open_relative:
+            return localized_now() > self.signups_open_time
+        return localized_now() > self.start_time - timedelta(minutes=self.signups_open_relative)
 
     @property
     def checkin_start_time(self):
@@ -353,7 +394,7 @@ class AttractionEvent(MagModel):
         if advance_checkin < 0:
             return self.start_time
         else:
-            return self.start_time - timedelta(seconds=advance_checkin)
+            return self.start_time - timedelta(minutes=advance_checkin)
 
     @property
     def checkin_end_time(self):
@@ -390,10 +431,26 @@ class AttractionEvent(MagModel):
     @property
     def is_checkin_over(self):
         return self.checkin_end_time < datetime.now(pytz.UTC)
+    
+    @property
+    def signed_up_attendees(self):
+        return [a for a in self.attendees if not a.on_waitlist]
+    
+    @property
+    def waitlist_attendees(self):
+        return [a for a in self.attendees if a.on_waitlist]
 
     @property
     def is_sold_out(self):
-        return self.slots <= len(self.attendees)
+        return self.slots <= len(self.signed_up_attendees)
+    
+    @property
+    def waitlist_open(self):
+        if not self.waitlist_available:
+            return False
+        elif self.waitlist_slots == 0:
+            return True
+        return self.waitlist_slots <= len(self.waitlist_attendees)
 
     @property
     def is_started(self):
@@ -416,16 +473,16 @@ class AttractionEvent(MagModel):
     @property
     def duration_label(self):
         if self.duration:
-            return humanize_timedelta(seconds=self.duration, separator=' ')
+            return humanize_timedelta(minutes=self.duration, separator=' ')
         return 'unknown duration'
 
     @property
     def location_event_name(self):
-        return location_event_name(self.location)
+        return location_event_name(self.event_location_id)
 
     @property
     def location_room_name(self):
-        return location_room_name(self.location)
+        return location_room_name(self.event_location_id)
 
     @property
     def name(self):
@@ -434,6 +491,30 @@ class AttractionEvent(MagModel):
     @property
     def label(self):
         return '{} at {}'.format(self.name, self.start_time_label)
+    
+    def sync_with_schedule(self, session):
+        from uber.models import Event
+        if not self.populate_schedule:
+            return
+        
+        updated = False
+
+        if not self.schedule_event:
+            event = Event(attraction_event_id=self.id,
+                          department_id=self.attraction.department_id)
+            updated = True
+        else:
+            event = self.schedule_event
+        
+        for key in ['event_location_id', 'start_time', 'duration', 'name', 'description']:
+            current_attr = getattr(self, key, '')
+            if getattr(event, key, '') != current_attr:
+                updated = True
+                setattr(event, key, current_attr)
+        
+        if updated:
+            event.last_updated = self.last_updated
+            session.add(event)
 
     def overlap(self, event):
         if not event:
@@ -457,6 +538,7 @@ class AttractionSignup(MagModel):
 
     signup_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
     checkin_time = Column(UTCDateTime, default=lambda: utcmin.datetime, index=True)
+    on_waitlist = Column(Boolean, default=False)
 
     notifications = relationship(
         'AttractionNotification',

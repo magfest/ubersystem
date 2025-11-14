@@ -15,7 +15,7 @@
 
 <div class="row g-3 mb-3">
 {% block location_category %}
-<div class="col-sm">{{ form_macros.input(event_info.location_id) }}</div>
+<div class="col-sm">{{ form_macros.input(event_info.event_location_id) }}</div>
 <div class="col-sm">{{ form_macros.input(event_info.department_id) }}</div>
 {% if c.EVENT_CATEGORY_OPTS %}
 <div class="col-sm">{{ form_macros.input(event_info.category) }}</div>

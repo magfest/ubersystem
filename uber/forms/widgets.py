@@ -179,9 +179,9 @@ class DateTimePicker(TextInput):
 
         script = f"""
         <script type="text/javascript">
-            const eventTimeZone = "{c.EVENT_TIMEZONE}";
+            window.eventTimeZone = "{c.EVENT_TIMEZONE}";
 
-            let startFlatpickr = flatpickr('#{id}',{{
+            let startFlatpickr{id} = flatpickr('#{id}',{{
                 allowInput: true,
                 enableTime: true,
                 altInput: true,
@@ -192,7 +192,7 @@ class DateTimePicker(TextInput):
                 minDate: '{min_date.isoformat()}',
                 maxDate: '{max_date.isoformat()}',
                 parseDate(dateString, format) {{
-                    let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+                    let eventTimezonedDate = new moment.tz(dateString, format, window.eventTimeZone);
 
                     //Return a date in the *local* timezone that force uses the values as if they were event timezone.
                     return new Date(
@@ -212,7 +212,7 @@ class DateTimePicker(TextInput):
                         date.getHours(),
                         date.getMinutes(),
                         date.getSeconds()
-                    ], eventTimeZone).format(format);
+                    ], window.eventTimeZone).format(format);
                     return formatted;
                 }}
             }});

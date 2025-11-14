@@ -164,10 +164,10 @@ class EventLocationInfo(MagForm):
 
 class EventInfo(MagForm):
     admin_desc = True
-    dynamic_choices_fields = {'location_id': lambda: [("", 'No Location')] + c.SCHEDULE_LOCATION_OPTS,
+    dynamic_choices_fields = {'event_location_id': lambda: [("", 'No Location')] + c.SCHEDULE_LOCATION_OPTS,
                               'department_id': lambda: [("", 'No Department')] + c.EVENT_DEPTS_OPTS}
 
-    location_id = SelectField(
+    event_location_id = SelectField(
         'Location',
         description="If no location is set, this event is not shown on or exported as part of the schedule.")
     department_id = SelectField('Department',

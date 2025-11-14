@@ -117,7 +117,7 @@
       $signup.toggleClass('checked-in', signup.is_checked_in);
       $signup.find('.feature_name').text(signup.event.feature.name);
       $signup.find('.event_time_span_label').text(signup.event.time_span_label);
-      $signup.find('.event_location_label').text(signup.event.location_label);
+      $signup.find('.event_location_label').text(signup.event.location_name);
     };
 
     var resetSignups = function() {

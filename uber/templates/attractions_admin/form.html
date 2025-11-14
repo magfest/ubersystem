@@ -318,7 +318,7 @@
   $(function() {
     var features = {{ attraction.feature_names_by_id|jsonize }};
     var locations = {{ attraction.locations_by_feature_id|jsonize }};
-    var allLocations = {{ c.EVENT_LOCATIONS|jsonize }};
+    var allLocations = {{ c.SCHEDULE_LOCATIONS|jsonize }};
 
     $('#features').on('click', '.event-spacer a', function(event) {
       event.preventDefault();
@@ -693,7 +693,7 @@
   {% if attraction.advance_checkin > -1 -%}
     <p>
       Attendees must check in
-      {{ humanize_timedelta(seconds=attraction.advance_checkin, now='when', prefix='at least ', suffix=' before') }}
+      {{ humanize_timedelta(minutes=attraction.advance_checkin, now='when', prefix='at least ', suffix=' before') }}
       the event starts.
     </p>
   {%- endif %}
@@ -701,12 +701,12 @@
   {% if attraction.advance_notices %}
     {% if attraction.advance_notices|length == 1 %}
       <p>Attendees will be notified about {{ attraction.name }} events
-      {{ humanize_timedelta(seconds=attraction.advance_notices|first, now='when the event starts', suffix=' before') }}.</p>
+      {{ humanize_timedelta(minutes=attraction.advance_notices|first, now='when the event starts', suffix=' before') }}.</p>
     {% else %}
       Attendees will be notified about {{ attraction.name }} events:
       <ul>
         {% for notification in attraction.advance_notices %}
-          <li>{{ humanize_timedelta(seconds=notification, now='when the event starts', suffix=' before') }}</li>
+          <li>{{ humanize_timedelta(minutes=notification, now='when the event starts', suffix=' before') }}</li>
         {% endfor %}
       </ul>
     {% endif %}

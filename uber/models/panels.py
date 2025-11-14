@@ -37,7 +37,9 @@ class EventLocation(MagModel):
     tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
 
     events = relationship('Event', backref=backref('location', cascade="save-update,merge"),
-                          cascade="save-update,merge")
+                          cascade="save-update,merge", single_parent=True)
+    attractions = relationship('AttractionEvent', backref=backref('location', cascade="save-update,merge"),
+                          cascade="save-update,merge", single_parent=True)
     
     @presave_adjustment
     def no_category(self):
@@ -52,8 +54,9 @@ class EventLocation(MagModel):
 
 
 class Event(MagModel):
-    location_id = Column(UUID, ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
+    event_location_id = Column(UUID, ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
     department_id = Column(UUID, ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
+    attraction_event_id = Column(UUID, ForeignKey('attraction_event.id', ondelete='SET NULL'), nullable=True)
     category = Column(Choice(c.EVENT_CATEGORY_OPTS), nullable=True)
     start_time = Column(UTCDateTime)
     duration = Column(Integer, default=60)
@@ -68,6 +71,9 @@ class Event(MagModel):
     panel_feedback = relationship('EventFeedback', backref='event')
     guest = relationship('GuestGroup', backref=backref('event', cascade="save-update,merge"),
                          cascade='save-update,merge')
+    attraction = relationship('AttractionEvent', backref=backref(
+        'schedule_event', cascade="save-update,merge", uselist=False
+        ), cascade='save-update,merge')
 
     @property
     def minutes(self):
@@ -178,11 +184,12 @@ class PanelApplication(MagModel):
 
     @presave_adjustment
     def update_event_info(self):
-        if self.event and any([getattr(self.event, key, '') != getattr(self, key, '') for key in [
-                'name', 'description', 'public_description', 'track']]):
-            self.event.name = self.name
-            self.event.description = self.description
-            self.event.public_description = self.public_description
+        updated = False
+        if self.event:
+            for key in ['name', 'description', 'public_description']:
+                if getattr(self.event, key, '') != getattr(self, key, ''):
+                    setattr(self.event, key)
+        if updated:
             self.event.last_updated = self.last_updated
     
     @presave_adjustment
