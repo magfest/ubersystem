@@ -31,7 +31,6 @@ panel_applicant_application = Table(
 
 class EventLocation(MagModel):
     department_id = Column(UUID, ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
-    category = Column(Choice(c.EVENT_CATEGORY_OPTS), nullable=True)
     name = Column(UnicodeText)
     room = Column(UnicodeText)
     tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
@@ -40,11 +39,6 @@ class EventLocation(MagModel):
                           cascade="save-update,merge", single_parent=True)
     attractions = relationship('AttractionEvent', backref=backref('location', cascade="save-update,merge"),
                           cascade="save-update,merge", single_parent=True)
-    
-    @presave_adjustment
-    def no_category(self):
-        if self.category == 0:
-            self.category = None
 
     @property
     def schedule_name(self):
@@ -57,7 +51,6 @@ class Event(MagModel):
     event_location_id = Column(UUID, ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
     department_id = Column(UUID, ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
     attraction_event_id = Column(UUID, ForeignKey('attraction_event.id', ondelete='SET NULL'), nullable=True)
-    category = Column(Choice(c.EVENT_CATEGORY_OPTS), nullable=True)
     start_time = Column(UTCDateTime)
     duration = Column(Integer, default=60)
     name = Column(UnicodeText, nullable=False)
@@ -113,11 +106,6 @@ class Event(MagModel):
     @property
     def guidebook_name(self):
         return self.name
-
-    @property
-    def guidebook_subtitle(self):
-        if self.category:
-            return self.category_label
 
     @property
     def guidebook_desc(self):

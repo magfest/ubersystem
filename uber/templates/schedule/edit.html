@@ -128,8 +128,8 @@ var setCalWidth = function(roomCount) {
     $('.ec-body').css('width', `${width}px`);
 }
 
-let deptLocations, categoryLocations, searchLocations;
-let deptSelected = false, categorySelected = false, searchTextEntered = false;
+let deptLocations, searchLocations;
+let deptSelected = false, searchTextEntered = false;
 
 let setDepartment = function () {
     let choice = $('#dept_filter').val();
@@ -145,7 +145,6 @@ let setDepartment = function () {
 let updateLocations = function () {
     let currLocations = allLocations;
     if (deptSelected == true) { currLocations = currLocations.filter(function(el) { return deptLocations.includes(el); }) }
-    if (categorySelected == true) { currLocations = currLocations.filter(function(el) { return categoryLocations.includes(el); }) }
     if (searchTextEntered == true) { currLocations = currLocations.filter(function(el) { return searchLocations.includes(el); }) }
     ec.setOption('resources', currLocations);
     setCalWidth(currLocations.length);

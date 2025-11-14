@@ -153,8 +153,6 @@ class EventLocationInfo(MagForm):
 
     department_id = SelectField('Department',
                                 description="The default department for events in this location, if any.")
-    category = SelectField('Category', description="The default category for events in this location.",
-                           coerce=int, choices=[(0, 'No Category')] + c.EVENT_CATEGORY_OPTS)
     tracks = SelectMultipleField('Track(s)', description="The default tracks for events in this location.",
                                  coerce=int, choices=c.EVENT_TRACK_OPTS, widget=MultiCheckbox())
     name = StringField('Location Name')
@@ -172,7 +170,6 @@ class EventInfo(MagForm):
         description="If no location is set, this event is not shown on or exported as part of the schedule.")
     department_id = SelectField('Department',
                                 description="What department is in charge of this event, if any.")
-    category = SelectField('Category', coerce=int, choices=[(0, 'No Category')] + c.EVENT_CATEGORY_OPTS)
     name = StringField('Event Name')
     description = TextAreaField('Description')
     public_description = TextAreaField('Public Description')

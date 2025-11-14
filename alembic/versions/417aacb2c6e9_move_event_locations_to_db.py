@@ -60,7 +60,6 @@ def upgrade():
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('department_id', residue.UUID(), nullable=True),
-    sa.Column('category', sa.Integer(), nullable=True),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('room', sa.Unicode(), server_default='', nullable=False),
     sa.Column('tracks', sa.Unicode(), server_default='', nullable=False),
@@ -68,12 +67,11 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_event_location'))
     )
     op.add_column('event', sa.Column('event_location_id', residue.UUID(), nullable=True))
-    op.add_column('event', sa.Column('category', sa.Integer(), nullable=True))
     op.add_column('event', sa.Column('department_id', residue.UUID(), nullable=True))
     op.add_column('event', sa.Column('tracks', sa.Unicode(), server_default='', nullable=False))
     op.create_foreign_key(op.f('fk_event_department_id_department'), 'event', 'department', ['department_id'], ['id'], ondelete='SET NULL')
     op.create_foreign_key(op.f('fk_event_location_id_event_location'), 'event', 'event_location', ['event_location_id'], ['id'], ondelete='SET NULL')
-    op.drop_column('event', 'location')
+    #op.drop_column('event', 'location')
     op.drop_column('event', 'track')
     op.drop_column('panel_application', 'track')
 
@@ -86,6 +84,5 @@ def downgrade():
     op.drop_constraint(op.f('fk_event_location_id_event_location'), 'event', type_='foreignkey')
     op.drop_column('event', 'tracks')
     op.drop_column('event', 'department_id')
-    op.drop_column('event', 'category')
     op.drop_column('event', 'event_location_id')
     op.drop_table('event_location')

@@ -330,35 +330,28 @@ class Root:
         location_filters = set()
 
         for location in event_locations:
-            categories = set()
             departments = set()
 
-            categories.add(f"{location.category}")
             departments.add(f"{location.department_id}")
 
             for event in location.events:
-                categories.add(f"{event.category}")
                 departments.add(f"{event.department_id}")
 
             locations.append({
                 'id': location.id,
                 'title': location.schedule_name,
                 'extendedProps': {
-                    'categories': list(categories),
                     'departments': list(departments),
                 }
             })
             if location.department:
                 location_filters.add((location.department_id, location.department.name))
-            if location.category:
-                location_filters.add((location.category, location.category_label))
         
         if session.query(Event).filter(Event.event_location_id == None).first():
             locations.append({
                 'id': "None",
                 'title': "No Location",
                 'extendedProps': {
-                    'categories': ["None"],
                     'departments': ["None"],
                 }
             })
