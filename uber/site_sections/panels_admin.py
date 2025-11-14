@@ -390,8 +390,7 @@ class Root:
             events.append([event, feedback[event]])
 
         for event, fb in feedback.items():
-            if event.location not in c.PANEL_ROOMS:
-                events.append([event, fb])
+            events.append([event, fb])
 
         return {'events': events}
 

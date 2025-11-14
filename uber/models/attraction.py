@@ -15,7 +15,7 @@ from sqlalchemy.types import Boolean, Integer
 
 from uber.config import c
 from uber.custom_tags import humanize_timedelta, location_event_name, location_room_name
-from uber.decorators import presave_adjustment
+from uber.decorators import presave_adjustment, render
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, utcmin
 from uber.utils import evening_datetime, noon_datetime, localized_now
@@ -34,6 +34,10 @@ class AttractionMixin():
     signups_open_relative = Column(Integer, default=c.DEFAULT_ATTRACTIONS_SIGNUPS_MINUTES)
     signups_open_time = Column(UTCDateTime, nullable=True)
     slots = Column(Integer, default=1)
+
+    @property
+    def minimum_signups_open(self):
+        return c.EPOCH - timedelta(days=365)
 
     @presave_adjustment
     def null_waitlist_slots(self):
@@ -282,12 +286,12 @@ class AttractionFeature(MagModel, AttractionMixin):
     @property
     def events_by_location(self):
         events = sorted(self.events, key=lambda e: (c.SCHEDULE_LOCATIONS[e.event_location_id], e.start_time))
-        return groupify(events, 'location')
+        return groupify(events, 'event_location_id')
 
     @property
     def events_by_location_by_day(self):
         events = sorted(self.events, key=lambda e: (c.SCHEDULE_LOCATIONS[e.event_location_id], e.start_time))
-        return groupify(events, ['location', 'start_day_local'])
+        return groupify(events, ['event_location_id', 'start_day_local'])
 
     @property
     def available_events(self):
@@ -434,11 +438,15 @@ class AttractionEvent(MagModel, AttractionMixin):
     
     @property
     def signed_up_attendees(self):
-        return [a for a in self.attendees if not a.on_waitlist]
+        return [signup.attendee for signup in self.signups if not signup.on_waitlist]
     
     @property
     def waitlist_attendees(self):
-        return [a for a in self.attendees if a.on_waitlist]
+        return [signup.attendee for signup in self.signups if signup.on_waitlist]
+    
+    @property
+    def waitlist_signups(self):
+        return sorted([signup for signup in self.signups if signup.on_waitlist], key=lambda s: s.signup_time)
 
     @property
     def is_sold_out(self):
@@ -450,7 +458,7 @@ class AttractionEvent(MagModel, AttractionMixin):
             return False
         elif self.waitlist_slots == 0:
             return True
-        return self.waitlist_slots <= len(self.waitlist_attendees)
+        return self.waitlist_slots > len(self.waitlist_attendees)
 
     @property
     def is_started(self):
@@ -458,7 +466,11 @@ class AttractionEvent(MagModel, AttractionMixin):
 
     @property
     def remaining_slots(self):
-        return max(self.slots - len(self.attendees), 0)
+        return max(self.slots - len(self.signed_up_attendees), 0)
+
+    @property
+    def remaining_waitlist_slots(self):
+        return max(self.waitlist_slots - len(self.waitlist_attendees), 0)
 
     @property
     def time_span_label(self):
@@ -491,7 +503,16 @@ class AttractionEvent(MagModel, AttractionMixin):
     @property
     def label(self):
         return '{} at {}'.format(self.name, self.start_time_label)
-    
+
+    def add_next_waitlist(self, session):
+        from uber.tasks.attractions import send_waitlist_notification
+        next_signup = self.waitlist_signups[0] if self.waitlist_signups else None
+        if next_signup:
+            next_signup.on_waitlist = False
+            session.add(next_signup)
+            if self.send_emails:
+                send_waitlist_notification.delay(next_signup.id)
+
     def sync_with_schedule(self, session):
         from uber.models import Event
         if not self.populate_schedule:
@@ -594,6 +615,12 @@ class AttractionSignup(MagModel):
     def email_model_name(self):
         return 'signup'
 
+    @property
+    def waitlist_position(self):
+        for index, signup in enumerate(self.event.waitlist_signups):
+            if signup == self:
+                return index + 1
+
     @hybrid_property
     def is_checked_in(self):
         return self.checkin_time > utcmin.datetime
@@ -609,6 +636,19 @@ class AttractionSignup(MagModel):
     @is_unchecked_in.expression
     def is_unchecked_in(cls):
         return cls.checkin_time <= utcmin.datetime
+    
+    def notify_waitlist(self):
+        from uber.tasks.email import send_email
+        TEXT_TEMPLATE = "You've been signed up from the waitlist for {signup.event.name} in {signup.event.location_room_name}, {signup.event.time_span_label}! Reply N to drop out"
+
+        if self.attendee.notification_pref == Attendee._NOTIFICATION_EMAIL:
+            send_email.delay(
+                c.ATTRACTIONS_EMAIL,
+                self.email,
+                'Signed up from waitlist',
+                render('emails/panels/attractions_waitlist.html', {'signup': self}, encoding=None),
+                model=self.to_dict('id'))
+            # TODO: Handle text notifs too
 
 
 class AttractionNotification(MagModel):

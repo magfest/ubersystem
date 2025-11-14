@@ -497,8 +497,8 @@
       var $select = $(this);
       try {
         var featureId = $select.data('featureId'),
-            oldValue = parseInt($select.data('initialValue')),
-            newValue = parseInt($select.val());
+            oldValue = $select.data('initialValue'),
+            newValue = $select.val();
 
         if(featureId && oldValue && newValue && newValue != oldValue) {
           if(locations[featureId][newValue]) {
@@ -863,7 +863,7 @@
                             {% endif %}
                             <h2 id="{{ feature.id }}_{{ location }}_{{ day }}">{{ day }} 
                                 <button class="btn btn-sm btn-success open-signups" 
-                                        onClick="openSignups('{{ feature.id }}', '{{ location }}', '{{ day }}')"
+                                        onClick="openSignups('{{ feature.id }}', '{{ location }}', '{{ day }}');"
                                         {% if events|rejectattr("signups_open")|list %}{% else %}style="display:none"{% endif %}>
                                         Open Signups for This Day's Events</button>
                                 <button class="btn btn-sm btn-danger close-signups"
@@ -894,7 +894,7 @@
                                   <div>
                                     {% if event.is_sold_out %}
                                       <span class="text-success">
-                                        <b class="slots">FULL</b> all
+                                        <b class="slots">FULL</b> <em class="slots">{{ event.signed_up_attendees|length }}</em> out of
                                         <em class="slots">{{ event.slots }}</em> slot{{ event.slots|pluralize }} taken
                                       </span>
                                     {% else %}

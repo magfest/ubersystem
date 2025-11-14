@@ -217,6 +217,7 @@ class Root:
                 params['category'] = location.category
             if location.tracks_ints:
                 params['tracks'] = location.tracks_ints
+            params['event_location_id'] = location.id
 
         forms = load_forms(params, event, ['EventInfo'])
 
@@ -435,7 +436,7 @@ class Root:
             PanelApplication.event_id == Event.id, Event.location.in_(c.PANEL_ROOMS))
 
         for panel in panel_applications:
-            panels[panel.event.start_time_local][panel.event.location] = panel
+            panels[panel.event.start_time_local][panel.event.event_location_id] = panel
 
         if not panels:
             raise HTTPRedirect('../accounts/homepage?message={}', "No panels have been scheduled yet!")

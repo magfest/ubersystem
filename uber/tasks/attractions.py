@@ -18,10 +18,7 @@ from uber.tasks.sms import get_twilio_client, send_sms_with_client
 from uber.utils import normalize_phone
 
 
-__all__ = ['attractions_check_notification_replies', 'attractions_send_notifications']
-
-
-TEXT_TEMPLATE = 'Checkin for {signup.event.name} {checkin}, {signup.event.location_room_name}. Reply N to drop out'
+__all__ = ['attractions_check_notification_replies', 'send_waitlist_notification', 'attractions_send_notifications']
 
 
 def attractions_check_notification_replies():
@@ -72,9 +69,76 @@ def attractions_check_notification_replies():
                 body=message.body))
             session.commit()
 
+@celery.task
+def send_waitlist_notification(signup_id):
+    twilio_client = get_twilio_client(c.PANELS_TWILIO_SID, c.PANELS_TWILIO_TOKEN)
+    text_template = "You've been signed up from the waitlist for {signup.event.name} in {signup.event.location_room_name}, {signup.event.time_span_label}! Reply N to drop out"
+
+    with Session() as session:
+        signup = session.attraction_signup(signup_id)
+        attendee = signup.attendee
+        event = signup.event
+        if attendee.notification_pref == Attendee._NOTIFICATION_NONE:
+            return
+
+        ident = event.id + "_waitlist"
+        use_text = twilio_client \
+                    and c.PANELS_TWILIO_NUMBER \
+                    and attendee.cellphone \
+                    and attendee.notification_pref == Attendee._NOTIFICATION_TEXT
+        try:
+            if use_text:
+                type_ = Attendee._NOTIFICATION_TEXT
+                type_str = 'TEXT'
+                from_ = c.PANELS_TWILIO_NUMBER
+                to_ = attendee.cellphone
+                body = text_template.format(signup=signup)
+                subject = ''
+                sid = send_sms_with_client(twilio_client, to_, body, from_)
+            else:
+                type_ = Attendee._NOTIFICATION_EMAIL
+                type_str = 'EMAIL'
+                from_ = c.ATTRACTIONS_EMAIL
+                to_ = attendee.email_to_address
+                send_email.delay(
+                    c.ATTRACTIONS_EMAIL,
+                    to_,
+                    'Signed up from waitlist',
+                    render('emails/panels/attractions_waitlist.html', {'signup': signup}, encoding=None),
+                    model=signup.to_dict('id'), ident=ident)
+        except Exception:
+            log.error(
+                'Error sending notification\n'
+                '\tfrom: {}\n'
+                '\tto: {}\n'
+                '\tsubject: {}\n'
+                '\tbody: {}\n'
+                '\ttype: {}\n'
+                '\tattendee: {}\n'
+                '\tident: {}\n'.format(
+                    from_,
+                    to_,
+                    subject,
+                    body,
+                    type_str,
+                    attendee.id,
+                    ident), exc_info=True)
+        else:
+            session.add(AttractionNotification(
+                attraction_event_id=event.id,
+                attraction_id=event.attraction_id,
+                attendee_id=attendee.id,
+                notification_type=type_,
+                ident=ident,
+                sid=sid,
+                sent_time=datetime.now(pytz.UTC),
+                subject=subject,
+                body=body))
+            session.commit()
 
 def attractions_send_notifications():
     twilio_client = get_twilio_client(c.PANELS_TWILIO_SID, c.PANELS_TWILIO_TOKEN)
+    text_template = 'Check-in for {signup.event.name} {checkin}, {signup.event.location_room_name}. Reply N to drop out'
 
     with Session() as session:
         for attraction in session.query(Attraction):
@@ -150,7 +214,7 @@ def attractions_send_notifications():
                         type_str = 'TEXT'
                         from_ = c.PANELS_TWILIO_NUMBER
                         to_ = attendee.cellphone
-                        body = TEXT_TEMPLATE.format(signup=signup, checkin=checkin)
+                        body = text_template.format(signup=signup, checkin=checkin)
                         subject = ''
                         sid = send_sms_with_client(twilio_client, to_, body, from_)
 

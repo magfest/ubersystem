@@ -7,20 +7,6 @@
         <a class="btn btn-success" href="location">Add Location</a>
     </div>
     <div class="d-flex gap-3">
-        {% if c.EVENT_CATEGORY_OPTS %}
-        <div>
-        <div class="form-text">
-            <label for="category">Category</label>
-        </div>
-        <select class="form-select" id="category_filter" onChange="setCategory()">
-            <option selected="true" value="all">Filter By Category...</option>
-            <option value="None">No Category</option>
-            {% for val, label in c.EVENT_CATEGORY_OPTS %}
-            <option value="{{ val }}">{{ label }}</option>
-            {% endfor %}
-        </select>
-        </div>
-        {% endif %}
         <div>
         <div class="form-text">
             <label for="department">Department</label>
@@ -152,17 +138,6 @@ let setDepartment = function () {
     } else {
         deptLocations = allLocations.filter(function(el) { return el.extendedProps.departments.includes(choice); });
         deptSelected = true;
-    }
-    updateLocations();
-  }
-
-let setCategory = function () {
-    let choice = $('#category_filter').val();
-    if (choice == "" || choice == "all") {
-        categorySelected = false;
-    } else {
-        categoryLocations = allLocations.filter(function(el) { return el.extendedProps.categories.includes(choice); });
-        categorySelected = true;
     }
     updateLocations();
   }

@@ -13,6 +13,7 @@ from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup, \
     utcmin
 from uber.site_sections.attractions import _attendee_for_badge_num
+from uber.tasks.attractions import send_waitlist_notification
 from uber.utils import check, filename_safe, validate_model
 
 
@@ -86,8 +87,8 @@ class Root:
         if not feature:
             return {'error': 'Feature not found!'}
 
-        for event in feature.events_by_location_by_day[int(params.get('location'))][params.get('day')]:
-            event.signups_open = True
+        for event in feature.events_by_location_by_day[params.get('location')][params.get('day')]:
+            event.signups_open_time = datetime.now(pytz.UTC)
             session.add(event)
 
         session.commit()
@@ -99,8 +100,8 @@ class Root:
         if not feature:
             return {'error': 'Feature not found!'}
 
-        for event in feature.events_by_location_by_day[int(params.get('location'))][params.get('day')]:
-            event.signups_open = False
+        for event in feature.events_by_location_by_day[params.get('location')][params.get('day')]:
+            event.signups_open_time = None
             session.add(event)
 
         session.commit()
@@ -347,7 +348,7 @@ class Root:
 
         if gap is not None and cherrypy.request.method == 'POST':
             ref_event = session.query(AttractionEvent).get(id)
-            events_for_day = ref_event.feature.events_by_location_by_day[ref_event.location][ref_event.start_day_local]
+            events_for_day = ref_event.feature.events_by_location_by_day[ref_event.event_location_id][ref_event.start_day_local]
             attraction_id = ref_event.feature.attraction_id
 
             delta = None
@@ -372,8 +373,8 @@ class Root:
                 message = "You cannot update rooms for an attraction you don't own"
             else:
                 for event in feature.events:
-                    if event.location == int(old_location):
-                        event.location = int(new_location)
+                    if event.event_location_id == old_location:
+                        event.event_location_id = new_location
                 session.commit()
         if message:
             return {'error': message}
@@ -405,6 +406,8 @@ class Root:
             elif signup.is_checked_in:
                 message = "You cannot cancel a signup that has already checked in"
             else:
+                if not signup.on_waitlist:
+                    signup.event.add_next_waitlist(session)
                 session.delete(signup)
                 session.commit()
         if message:
@@ -453,10 +456,12 @@ class Root:
             read_spec = {
                 'signup_time': True,
                 'checkin_time': True,
+                'on_waitlist': True,
+                'waitlist_position': True,
                 'is_checked_in': True,
                 'event': {
-                    'location': True,
-                    'location_label': True,
+                    'event_location_id': True,
+                    'location_room_name': True,
                     'start_time': True,
                     'start_time_label': True,
                     'duration': True,
@@ -473,12 +478,31 @@ class Root:
             }
 
     @ajax
+    def pull_from_waitlist(self, session, id, email=False):
+        message = ''
+        email = True if email == 'true' else False
+        if cherrypy.request.method == 'POST':
+            signup = session.query(AttractionSignup).get(id)
+            if signup.is_checked_in:
+                message = "This attendee has already checked in."
+            else:
+                signup.on_waitlist = False
+                if email:
+                    send_waitlist_notification.delay(signup.id)
+                session.commit()
+                return {'result': ''}
+        if message:
+            return {'error': message}
+
+    @ajax
     def checkin_signup(self, session, id):
         message = ''
         if cherrypy.request.method == 'POST':
             signup = session.query(AttractionSignup).get(id)
             if signup.is_checked_in:
-                message = "You cannot check in a signup that has already checked in"
+                message = "This attendee has already checked in."
+            elif signup.on_waitlist:
+                message = "This attendee is still on the waitlist for this event."
             else:
                 signup.checkin_time = datetime.now(pytz.UTC)
                 session.commit()

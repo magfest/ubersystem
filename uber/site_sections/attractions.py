@@ -31,8 +31,8 @@ def _attendee_for_badge_num(session, badge_num, options=None):
     return query.first()
 
 
-def _attendee_for_info(session, first_name, last_name, email, zip_code):
-    if not (first_name and last_name and email and zip_code):
+def _attendee_for_info(session, first_name, last_name, email, zip_code=''):
+    if not (first_name and last_name and email):
         return None
 
     try:
@@ -180,13 +180,13 @@ class Root:
             attendee = _attendee_for_info(session, first_name, last_name,
                                           email, zip_code)
             if not attendee:
-                return {'error': 'No attendee is registered with that info'}
+                return {'error': 'We could not find you! Please check your information.'}
 
         if attendee.amount_unpaid:
-            return {'error': 'That attendee is not fully paid up'}
+            return {'error': 'That attendee is not fully paid up.'}
 
         if attendee.attractions_opt_out:
-            return {'error': 'That attendee has disabled attraction signups'}
+            return {'error': 'That attendee has disabled attraction signups.'}
 
         old_remaining_slots = event.remaining_slots
 
@@ -201,13 +201,22 @@ class Root:
                     return {'error': '{} is already signed up for {}'.format(
                             attendee.first_name, event.feature.name)}
 
-            if event.is_sold_out:
-                return {'error': '{} is already sold out'.format(event.label)}
-
             if not event.signups_open:
                 return {'error': '{} is not yet available for signups'.format(event.label)}
 
-            event.attendee_signups.append(attendee)
+            if event.is_sold_out:
+                if event.waitlist_open:
+                    session.add(AttractionSignup(
+                        attraction_event_id=event.id,
+                        attraction_id=event.attraction.id,
+                        attendee_id=attendee.id,
+                        on_waitlist=True
+                    ))
+                else:
+                    return {'error': '{} is already sold out'.format(event.label)}
+            else:
+                event.attendee_signups.append(attendee)
+                session.add(event)
             session.commit()
 
         return {
@@ -230,6 +239,8 @@ class Root:
             elif signup.is_checked_in:
                 message = "You cannot cancel a signup after you've checked in"
             else:
+                if not signup.on_waitlist:
+                    signup.event.add_next_waitlist(session)
                 session.delete(signup)
                 session.commit()
         if message:

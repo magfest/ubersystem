@@ -61,7 +61,7 @@ signups_open_type: '{{ signups_open_type }}',
             {{ form_macros.input(attraction_event_info.signups_open_relative, required_if="signups_open_type == 'relative'") }}
         </div>
         <div x-show="signups_open_type == 'absolute'">
-            {{ form_macros.input(attraction_event_info.signups_open_time, required_if="signups_open_type == 'absolute'") }}
+            {{ form_macros.input(attraction_event_info.signups_open_time, min_date=attraction.minimum_signups_open, required_if="signups_open_type == 'absolute'") }}
         </div>
         {% endcall %}
     </div>

@@ -5,7 +5,7 @@
     <span class="salutation">{{ salutation }}</span>{#- strip -#}
     <span class="ident">{#- strip -#}
       <span class="name">{{ attendee[field] }}</span>
-      <sup class="badge-num">#{{ attendee.badge_num }}</sup>{#- strip -#}
+      <small class="badge-num">#{{ attendee.badge_num }}</small>{#- strip -#}
     </span>{#- strip -#}
   </div>
 {% endmacro %}

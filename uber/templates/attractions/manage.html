@@ -395,7 +395,7 @@
                         {%- if attendee.attractions_opt_out %} checked="checked"{% endif %}>
                     Prevent any more attraction signups
                   </label>
-                  <p class="help-block">
+                  <p class="form-text">
                     This will prevent anyone from signing up for attractions
                     on your behalf. If you see any attraction signups below
                     that you don't recognize, please cancel them.
@@ -481,9 +481,8 @@
 
           <div id="signups">
             {% for signup in signups %}
-              {%- set is_soldout = signup.event.is_sold_out -%}
               <div id="{{ signup.event.id }}"
-                  class="hover-btn{% if signup.is_checked_in %} checked-in{% endif %}{% if is_soldout %} soldout{% endif %}"
+                  class="card border hover-btn{% if signup.is_checked_in %} checked-in{% endif %}{% if signup.event.is_sold_out %} soldout{% endif %}"
                   data-signup-id="{{ signup.id }}"
                   data-event-id="{{ signup.event.id }}"
                   data-event-label="{{ signup.event.feature.attraction.name }} – {{ signup.event.label }}">
@@ -497,7 +496,6 @@
                     <span class="hidden-xs">Sign up </span>Friends
                   </button>
                   <h2>
-                    <span class="bling-icon"></span>
                     {{ signup.event.feature.attraction.name }} – {{ signup.event.feature.name }}
                   </h2>
                 </div>
@@ -507,7 +505,7 @@
                     <em class="text-nowrap text-muted">{{ signup.event.duration_label }}</em>
                   </p>
                   <p class="event-location">
-                    Location: {{ format_location(signup.event.location, separator=' ', spacer='', text_class='') }}
+                    Location: {{ format_location(signup.event.event_location_id, separator=' ', spacer='', text_class='') }}
                   </p>
                   <p>
                     <span class="visible-soldout-inline">
@@ -521,7 +519,11 @@
                       slot{{ signup.event.slots|pluralize }} available
                     </span>
                   </p>
-                  {% if not signup.is_checked_in %}
+                  {% if signup.on_waitlist %}
+                  <p class="checkin_time checkin_time">
+                    Waitlisted (<strong>Position {{ signup.waitlist_position }}</strong>)
+                  </p>
+                  {% elif not signup.is_checked_in %}
                     <p class="checkin_time checkin_time">
                       Checkin is at <b>{{ signup.event.checkin_start_time_label }}</b>
                     </p>

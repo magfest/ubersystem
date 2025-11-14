@@ -541,6 +541,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         d = super().to_dict(*args, **kwargs)
         d.pop('attraction_event_signups', None)
         d.pop('receipt_changes', None)
+        d['badge_num'] = self.badge_num
         return d
 
     @presave_adjustment

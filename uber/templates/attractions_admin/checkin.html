@@ -115,6 +115,9 @@
     var updateSignupTemplate = function($signup, signup) {
       $signup.data('signupId', signup.id);
       $signup.toggleClass('checked-in', signup.is_checked_in);
+      $signup.find('.waitlist-position').text(signup.waitlist_position);
+      $signup.find('.show-waitlist').toggleClass('d-none', signup.on_waitlist == false);
+      $signup.find('.hide-waitlist').toggleClass('d-none', signup.on_waitlist);
       $signup.find('.feature_name').text(signup.event.feature.name);
       $signup.find('.event_time_span_label').text(signup.event.time_span_label);
       $signup.find('.event_location_label').text(signup.event.location_name);
@@ -224,6 +227,20 @@
       });
     });
 
+    $signups.on('click', '.btn-primary', function(event) {
+      event.preventDefault();
+      var $signup = $(this).closest('.signup'),
+          signupId = $signup.data('signupId');
+      pullFromWaitlist(signupId, function(response) {
+        if(response && response['error']) {
+          showErrorMessage(response['error'], '', {timeOut: 3000});
+        } else {
+          $signup.find('.show-waitlist').addClass('d-none');
+          $signup.find('.hide-waitlist').removeClass('d-none');
+        }
+      });
+    });
+
     $signups.on('click', '.btn-warning', function(event) {
       event.preventDefault();
       var $signup = $(this).closest('.signup'),
@@ -281,29 +298,32 @@
     </div>
   </form>
   <div id="signup_template" style="display: none;">
-    <div class="signup row g-3">
-      <div class="col col-sm-6">
-        <div class="signup-body">
-          <button class="btn btn-success btn-lg pull-right checked-in-hidden">
-            <i class="fa fa-check"></i>
-            Check In
-          </button>
-          <button class="btn btn-warning btn-lg pull-right checked-in-visible">
-            <i class="fa fa-check"></i>
-            Undo
-          </button>
-          <h2 class="feature_name"></h2>
-          <div class="event_time_span_label"></div>
-          <div class="event_location_label"></div>
-          <div class="clearfix"></div>
-        </div>
+    <div class="signup card border">
+      <div class="signup-body">
+        <button class="btn btn-primary btn-lg pull-right checked-in-hidden show-waitlist">
+          <i class="fa fa-arrow-right"></i>
+          Move From Waitlist
+        </button>
+        <button class="btn btn-success btn-lg pull-right checked-in-hidden hide-waitlist">
+          <i class="fa fa-check"></i>
+          Check In
+        </button>
+        <button class="btn btn-warning btn-lg pull-right checked-in-visible">
+          <i class="fa fa-check"></i>
+          Undo
+        </button>
+        <h2 class="feature_name"></h2>
+        <div class="event_time_span_label"></div>
+        <div class="event_location_label"></div>
+        <div class="show-waitlist"><em>Waitlist Position <span class="waitlist-position"></span></em></div>
+        <div class="clearfix"></div>
       </div>
     </div>
   </div>
   <div id="attendee" class="attendee text-start">
     <h2 class="ident">
       <span class="name"></span>{#- strip -#}
-      <sup class="badge_num"></sup>
+      <small class="badge_num"></small>
     </h2>
     <div class="email"></div>
     <div class="cellphone"></div>
