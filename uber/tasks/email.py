@@ -173,6 +173,8 @@ def send_automated_emails():
         start_time = time()
         filter_duration = 0
         refresh_duration = 0
+        commit_duration = 0
+        fk_id_list_duration = 0
         with Session() as session:
             active_automated_emails = session.query(AutomatedEmail) \
                 .filter(*AutomatedEmail.filters_for_active).all()
@@ -210,7 +212,9 @@ def send_automated_emails():
                     instance_count = 0
                     for model_instance in model_instances:
                         instance_count += 1
+                        fk_id_list_start = time()
                         if model_instance.id not in fk_id_list:
+                            fk_id_list_duration += time() - fk_id_list_start
                             filter_start = time()
                             if automated_email.would_send_if_approved(model_instance):
                                 filter_duration += time() - filter_start
@@ -225,14 +229,21 @@ def send_automated_emails():
                                     unapproved_count += 1
                             else:
                                 filter_duration += time() - filter_start
+                        else:
+                            fk_id_list_duration += time() - fk_id_list_start
+                        commit_start = time()
                         if datetime.now(pytz.UTC) - last_send_time > (expiration / 2):
                             automated_email.last_send_time = datetime.now(pytz.UTC)
                             session.add(automated_email)
                             session.commit()
+                        commit_duration += time() - commit_start
                     log.debug(f"  Finished processing {instance_count} instances at {instance_count / (time() - temp_time)} instances per second")
-                    log.debug(f"  Total time                    {time() - temp_time}")
-                    log.debug(f"  Time spent evaluating filters {filter_duration}")
-                    log.debug(f"  Time spent refreshing models  {refresh_duration}")
+                    log.debug(f"  Total time                     {time() - temp_time}")
+                    log.debug(f"  Time spent evaluating filters  {filter_duration}")
+                    log.debug(f"  Time spent refreshing models   {refresh_duration}")
+                    log.debug(f"  Time spent searching for fk_id {fk_id_list_duration}")
+                    log.debug(f"  Time spent committing session  {commit_duration}")
+                    log.debug(f"  Other time                     {(time() - temp_time) - (filter_duration + refresh_duration + fk_id_list_duration + commit_duration)}")
 
                     automated_email.unapproved_count = unapproved_count
                     automated_email.currently_sending = False
