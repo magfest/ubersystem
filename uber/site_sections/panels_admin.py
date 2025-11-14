@@ -298,7 +298,7 @@ class Root:
 
         applicants = []
         for pa in session.panel_applicants():
-            if not pa.attendee_id and pa.application.status == c.ACCEPTED:
+            if not pa.attendee_id and any(app.status == c.ACCEPTED for app in pa.applications):
                 applicants.append([pa, set(possibles[pa.email.lower()] + possibles[pa.first_name, pa.last_name])])
 
         return {'applicants': applicants}
