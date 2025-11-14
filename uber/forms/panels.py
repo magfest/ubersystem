@@ -59,6 +59,8 @@ class PanelistCredentials(MagForm):
 
 class PanelInfo(MagForm):
     dynamic_choices_fields = {'department': lambda: [("", 'Please select an option')] + c.PANELS_DEPT_OPTS}
+
+    is_guest = HiddenBoolField()
     name = StringField("Panel Name", description="The title that will appear on the event schedule. Max 120 characters.")
     department = SelectField("Department")
     presentation = SelectField("Type of Panel", coerce=int, default=0,
