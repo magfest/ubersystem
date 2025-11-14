@@ -57,10 +57,10 @@
 
 
 <script>
-    $(setupShiftRatingClickHandler);
+    $(RatingModule.setupShiftRatingClickHandler);
 
     var renderShift = function(shift) {
-        return $id('shift_' + shift.id, '<tr></tr>')
+        return RatingModule.findOrCreateElement('shift_' + shift.id, '<tr></tr>')
             .empty()
             .append(
                 $('<td class="attendee-name"></td>').append(
@@ -77,8 +77,8 @@
                         }, renderJob, 'json');
                     }))
                 )
-            .append($('<td></td>').append(renderShiftStatus(shift, renderShifts)))
-            .append($('<td></td>').append(renderShiftRating(shift)));
+            .append($('<td></td>').append(RatingModule.renderShiftStatus(shift, renderShifts)))
+            .append($('<td></td>').append(RatingModule.renderShiftRating(shift)));
     };
 
     var renderShifts = function(job) {
@@ -90,7 +90,7 @@
         var shifts = job.shifts.sort(function(s1, s2) {
             return s1.attendee_name > s2.attendee_name;
         });
-        return $id('shifts_' + job.id, '<table class="shifts-table"></table>')
+        return RatingModule.findOrCreateElement('shifts_' + job.id, '<table class="shifts-table"></table>')
             .empty()
             .append($.map(shifts, renderShift));
     };
@@ -111,7 +111,7 @@
         } else {
             job_slots_info = 'assignment only'
         }
-        return $id('job_' + job.id, '<tbody></tbody>')
+        return RatingModule.findOrCreateElement('job_' + job.id, '<tbody></tbody>')
             .empty()
             .append(
                 $('<tr></tr>')
