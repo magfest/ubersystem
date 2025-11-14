@@ -171,10 +171,6 @@ def send_automated_emails():
         expiration = timedelta(hours=1)
         quantity_sent = 0
         start_time = time()
-        filter_duration = 0
-        refresh_duration = 0
-        commit_duration = 0
-        fk_id_list_duration = 0
         with Session() as session:
             active_automated_emails = session.query(AutomatedEmail) \
                 .filter(*AutomatedEmail.filters_for_active).all()
@@ -209,6 +205,10 @@ def send_automated_emails():
                     model_instances = query_func(session)
                     log.debug(f"  Finished loading instances in {time() - temp_time} seconds")
                     temp_time = time()
+                    filter_duration = 0
+                    refresh_duration = 0
+                    commit_duration = 0
+                    fk_id_list_duration = 0
                     instance_count = 0
                     for model_instance in model_instances:
                         instance_count += 1
