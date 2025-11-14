@@ -180,7 +180,7 @@ def send_automated_emails():
             for model, query_func in AutomatedEmailFixture.queries.items():
                 log.debug("Sending automated emails for " + model.__name__)
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
-                log.debug("Found " + str(len(automated_emails)) + " emails for " + model.__name__)
+                log.debug("  Found " + str(len(automated_emails)) + " emails for " + model.__name__)
                 for automated_email in automated_emails:
                     if automated_email.currently_sending:
                         log.debug(automated_email.ident + " is marked as currently sending")
@@ -200,11 +200,12 @@ def send_automated_emails():
                     else:
                         fk_id_list = [email.fk_id for email in automated_email.emails]
 
-                    log.debug("Loading instances for " + automated_email.ident)
+                    log.debug("  Loading instances for " + automated_email.ident)
+                    start_time = time()
                     model_instances = query_func(session)
-                    log.trace("Finished loading instances")
+                    log.debug(f"  Finished loading {len(model_instances)} instance(s) in {time() - start_time} seconds")
+                    start_time = time()
                     for model_instance in model_instances:
-                        log.trace("Checking " + str(model_instance.id))
                         if model_instance.id not in fk_id_list:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
@@ -218,6 +219,7 @@ def send_automated_emails():
                             automated_email.last_send_time = datetime.now(pytz.UTC)
                             session.add(automated_email)
                             session.commit()
+                    log.debug(f"  Finished processing at {len(model_instances) / (time() - start_time)} instances per second")
 
                     automated_email.unapproved_count = unapproved_count
                     automated_email.currently_sending = False
