@@ -203,9 +203,11 @@ def send_automated_emails():
                     log.debug("  Loading instances for " + automated_email.ident)
                     start_time = time()
                     model_instances = query_func(session)
-                    log.debug(f"  Finished loading {len(model_instances)} instance(s) in {time() - start_time} seconds")
+                    log.debug(f"  Finished loading instances in {time() - start_time} seconds")
                     start_time = time()
+                    instance_count = 0
                     for model_instance in model_instances:
+                        instance_count += 1
                         if model_instance.id not in fk_id_list:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
@@ -219,7 +221,7 @@ def send_automated_emails():
                             automated_email.last_send_time = datetime.now(pytz.UTC)
                             session.add(automated_email)
                             session.commit()
-                    log.debug(f"  Finished processing at {len(model_instances) / (time() - start_time)} instances per second")
+                    log.debug(f"  Finished processing {instance_count} instances at {instance_count / (time() - start_time)} instances per second")
 
                     automated_email.unapproved_count = unapproved_count
                     automated_email.currently_sending = False
