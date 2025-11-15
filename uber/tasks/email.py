@@ -196,9 +196,9 @@ def send_automated_emails():
                     unapproved_count = 0
                     if getattr(automated_email, 'shared_ident', None):
                         matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
-                        fk_id_list = [id for id, in matching_email_ids]
+                        fk_id_list = {id for id, in matching_email_ids}
                     else:
-                        fk_id_list = [email.fk_id for email in automated_email.emails]
+                        fk_id_list = {email.fk_id for email in automated_email.emails}
 
                     log.debug("  Loading instances for " + automated_email.ident)
                     temp_time = time()
