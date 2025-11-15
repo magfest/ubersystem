@@ -243,13 +243,57 @@ class HourMinuteDuration(HiddenInput):
 
 class UniqueList(TextInput):
     """
-    There are two ways to handle a UniqueList column: a single string field for use with Tagify,
+    There are two ways to handle a UniqueList column: a single string field with Tagify enabled,
     or a set of string fields. This widget handles both.
     """
 
-    def __call__(self, field, num_fields=2, **kwargs):
+    def tagify_js(self, field, choices=None, **kwargs):
+        id = kwargs.pop('id', field.id)
+        enforce = 'false'
+        text_prop = 'value'
+
+        if hasattr(field, 'choices'):
+            choices = choices or field.choices
+            if isinstance(choices[0], tuple):
+                choices = [{'value': choice[0], 'label': choice[1]} for choice in choices]
+                text_prop = 'label'
+            if hasattr(field, 'validate_choice'):
+                enforce = 'true' if field.validate_choice == True else 'false'
+        
+        return f'''
+        <script type="text/javascript">
+        $().ready(function () {{
+            let input{id} = document.getElementById('{id}');
+            tagify{id} = new Tagify(input{id}, {{
+                whitelist: {choices},
+                tagTextProp: '{text_prop}',
+                autoComplete: {{
+                    rightKey: true,
+                    tabKey: true,
+                }},
+                dropdown: {{
+                    enabled: 0,
+                    highlightFirst: true,
+                    mapValueTo: '{text_prop}',
+                    searchKeys: ['value', '{text_prop}'],
+                    enforceWhitelist: {enforce},
+                    maxItems: 20,
+                    classname: 'tagify-tags-{id}-input',
+                    enabled: 0,
+                    closeOnSelect: false
+                }}
+            }})
+        }})
+        </script>'''
+
+    def __call__(self, field, num_fields=2, whitelist=[], **kwargs):
         if num_fields == 1:
-            super().__call__(field, **kwargs)
+            if not whitelist and not getattr(field, 'choices', None):
+                super().__call__(field, value=field.data or '', **kwargs)
+            else:
+                html = super().__call__(field, value=field.data or '', **kwargs)
+                js = Markup(self.tagify_js(field, whitelist, **kwargs))
+                return html + js
 
         choices = field.data.split(',') if field.data else []
         placeholder = kwargs.pop('placeholder', '')

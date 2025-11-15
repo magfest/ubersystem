@@ -10,13 +10,17 @@
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
 <div class="row g-3 mb-3">
 {% block dept_category %}
 <div class="col-sm">{{ form_macros.input(event_location_info.department_id) }}</div>
 {% if c.EVENT_TRACK_OPTS %}
-<div class="col-sm">{{ form_macros.input(event_location_info.tracks) }}</div>
+<div class="col-sm">{{ form_macros.input(event_location_info.tracks, num_fields=1) }}</div>
 {% endif %}
 {% endblock %}
 </div>

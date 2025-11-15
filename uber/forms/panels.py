@@ -8,7 +8,7 @@ from wtforms import (BooleanField, DateField, EmailField,
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import (SelectDynamicChoices, MultiCheckbox, MagForm, DateTimePicker, SwitchInput, HourMinuteDuration,
+from uber.forms import (UniqueList, MultiCheckbox, MagForm, DateTimePicker, SwitchInput, HourMinuteDuration,
                         HiddenBoolField, HiddenIntField, CustomValidation, Ranking)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
@@ -154,7 +154,7 @@ class EventLocationInfo(MagForm):
     department_id = SelectField('Department',
                                 description="The default department for events in this location, if any.")
     tracks = SelectMultipleField('Track(s)', description="The default tracks for events in this location.",
-                                 coerce=int, choices=c.EVENT_TRACK_OPTS, widget=MultiCheckbox())
+                                 coerce=int, choices=c.EVENT_TRACK_OPTS, widget=UniqueList())
     name = StringField('Location Name')
     room = StringField('Room Name',
                        description="If set, this is appended to the location name on the schedule, e.g., Location Name (Room Name)")
@@ -173,6 +173,6 @@ class EventInfo(MagForm):
     name = StringField('Event Name')
     description = TextAreaField('Description')
     public_description = TextAreaField('Public Description')
-    tracks = SelectMultipleField('Track(s)', coerce=int, choices=c.EVENT_TRACK_OPTS, widget=MultiCheckbox())
+    tracks = SelectMultipleField('Track(s)', coerce=int, choices=c.EVENT_TRACK_OPTS, widget=UniqueList())
     start_time = StringField('Start Time', widget=DateTimePicker())
     duration = IntegerField('Duration', widget=HourMinuteDuration())

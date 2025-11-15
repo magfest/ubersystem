@@ -213,8 +213,6 @@ class Root:
             location = session.event_location(params['location_id'])
             if location.department_id:
                 params['department_id'] = location.department_id
-            if location.category:
-                params['category'] = location.category
             if location.tracks_ints:
                 params['tracks'] = location.tracks_ints
             params['event_location_id'] = location.id
