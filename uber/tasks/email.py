@@ -267,10 +267,11 @@ def send_automated_emails():
                     end = time()
                     timing['final_commit'] += end - begin
                     begin = end
+                    
+                    for key, duration in timing:
+                        log.debug(f"    {key} took {duration} seconds")
 
             log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
-            for key, duration in timing:
-                log.debug(f"    {key} took {duration} seconds")
             return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
     except Exception:
         traceback.print_exc()
