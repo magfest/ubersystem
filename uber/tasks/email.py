@@ -194,6 +194,17 @@ def send_automated_emails():
                     session.add(automated_email)
                     session.commit()
                     unapproved_count = 0
+                    timing = {
+                        "instance_loading": 0,
+                        "iteration": 0,
+                        "fk_id_list": 0,
+                        "would_send": 0,
+                        "approved": 0,
+                        "refresh": 0,
+                        "send": 0,
+                        "commit": 0,
+                        "final_commit": 0,
+                    }
                     if getattr(automated_email, 'shared_ident', None):
                         matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
                         fk_id_list = {id for id, in matching_email_ids}
@@ -201,56 +212,65 @@ def send_automated_emails():
                         fk_id_list = {email.fk_id for email in automated_email.emails}
 
                     log.debug("  Loading instances for " + automated_email.ident)
-                    temp_time = time()
+                    begin = time()
                     model_instances = query_func(session)
-                    log.debug(f"  Finished loading instances in {time() - temp_time} seconds")
-                    temp_time = time()
-                    filter_duration = 0
-                    refresh_duration = 0
-                    commit_duration = 0
-                    fk_id_list_duration = 0
-                    instance_count = 0
+                    end = time()
+                    timing['instance_loading'] += end - begin
+                    begin = end
                     for model_instance in model_instances:
-                        instance_count += 1
-                        fk_id_list_start = time()
+                        end = time()
+                        timing['iteration'] += end - begin
+                        begin = end
                         if model_instance.id not in fk_id_list:
-                            fk_id_list_duration += time() - fk_id_list_start
-                            filter_start = time()
+                            end = time()
+                            timing['fk_id_list'] += end - begin
+                            begin = end
                             if automated_email.would_send_if_approved(model_instance):
-                                filter_duration += time() - filter_start
+                                end = time()
+                                timing['would_send'] += end - begin
+                                begin = end
                                 if automated_email.approved or not automated_email.needs_approval:
+                                    end = time()
+                                    timing['approved'] += end - begin
+                                    begin = end
                                     if getattr(model_instance, 'active_receipt', None):
-                                        refresh_start = time()
                                         session.refresh_receipt_and_model(model_instance)
-                                        refresh_duration += time() - refresh_start
+                                    end = time()
+                                    timing['refresh'] += end - begin
+                                    begin = end
                                     automated_email.send_to(model_instance, delay=False)
                                     quantity_sent += 1
+                                    end = time()
+                                    timing['send'] += end - begin
+                                    begin = end
                                 else:
                                     unapproved_count += 1
-                            else:
-                                filter_duration += time() - filter_start
+                                    end = time()
+                                    timing['approved'] += end - begin
+                                    begin = end
                         else:
-                            fk_id_list_duration += time() - fk_id_list_start
-                        commit_start = time()
+                            end = time()
+                            timing['fk_id_list'] += end - begin
+                            begin = end
                         if datetime.now(pytz.UTC) - last_send_time > (expiration / 2):
                             automated_email.last_send_time = datetime.now(pytz.UTC)
                             session.add(automated_email)
                             session.commit()
-                        commit_duration += time() - commit_start
-                    log.debug(f"  Finished processing {instance_count} instances at {instance_count / (time() - temp_time)} instances per second")
-                    log.debug(f"  Total time                     {time() - temp_time}")
-                    log.debug(f"  Time spent evaluating filters  {filter_duration}")
-                    log.debug(f"  Time spent refreshing models   {refresh_duration}")
-                    log.debug(f"  Time spent searching for fk_id {fk_id_list_duration}")
-                    log.debug(f"  Time spent committing session  {commit_duration}")
-                    log.debug(f"  Other time                     {(time() - temp_time) - (filter_duration + refresh_duration + fk_id_list_duration + commit_duration)}")
+                        end = time()
+                        timing['commit'] += end - begin
+                        begin = end
 
                     automated_email.unapproved_count = unapproved_count
                     automated_email.currently_sending = False
                     session.add(automated_email)
                     session.commit()
+                    end = time()
+                    timing['final_commit'] += end - begin
+                    begin = end
 
             log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
+            for key, duration in timing:
+                log.debug(f"    {key} took {duration} seconds")
             return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
     except Exception:
         traceback.print_exc()
