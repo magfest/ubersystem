@@ -2631,7 +2631,8 @@ class AttendeeAccount(MagModel):
 
     @property
     def valid_single_badges(self):
-        return [attendee for attendee in self.valid_attendees if not attendee.group or not attendee.group.is_valid]
+        return [attendee for attendee in self.valid_attendees if (not attendee.group or not attendee.group.is_valid
+                                                                  ) and attendee.paid != c.PENDING]
 
     @property
     def valid_badges_by_group(self):
@@ -2705,6 +2706,14 @@ class BadgePickupGroup(MagModel):
             attendee.badge_status = c.COMPLETED_STATUS
             attendee.badge_pickup_group_id = None
             session.add(attendee)
+    
+    @property
+    def check_in_notes(self):
+        check_in_notes = {}
+        for attendee in self.attendees:
+            if attendee.check_in_notes:
+                check_in_notes[attendee.full_name] = attendee.check_in_notes
+        return check_in_notes
 
     @property
     def fallback_purchaser_id(self):

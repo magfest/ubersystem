@@ -56,7 +56,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     {% endif %}
     {% if c.COLLECT_EXACT_BIRTHDATE and attendee.birthdate %}
         <div class="col-sm">
-            {% form_macros.input(check_in_form.age_group) %}
+            {% call form_macros.input(check_in_form.age_group) %}
             {{ attendee.age_group_conf.desc }}
             {% endcall %}
         </div>
@@ -138,6 +138,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 <div class="alert alert-info mt-3">
     {{ attendee.check_in_notes }}
 </div>
+{{ form_macros.input(check_in_form.instructions_followed) }}
 {% endif %}
 {% endblock %}
 

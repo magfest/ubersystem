@@ -277,10 +277,11 @@ class CheckInForm(MagForm):
     birthdate = PersonalInfo.birthdate
     age_group = HiddenField('Age Group')
     badge_type = HiddenIntField('Badge Type')
-    badge_num = StringField('Badge Number', id="checkin_badge_num", default='')
+    badge_num = BlankOrIntegerField('Badge Number', id="checkin_badge_num", default='')
     badge_printed_name = PersonalInfo.badge_printed_name
     got_merch = AdminBadgeExtras.got_merch
     got_staff_merch = AdminStaffingInfo.got_staff_merch
+    instructions_followed = BooleanField("I have reviewed and complied with the instructions above.")
 
 
 class DietaryRestrictions(MagForm):

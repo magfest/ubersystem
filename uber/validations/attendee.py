@@ -308,7 +308,7 @@ def dupe_badge_num(form, field):
     if c.NUMBERED_BADGES and field.data:
         with Session() as session:
             existing = session.query(BadgeInfo).filter(BadgeInfo.ident == field.data,
-                                                        BadgeInfo.attendee_id != None)
+                                                       BadgeInfo.attendee_id != None)
             if not existing.count():
                 return
             else:
@@ -333,7 +333,13 @@ def not_in_range(form, field):
 
 CheckInForm.field_validation.validations['badge_printed_name'].update(PersonalInfo.field_validation.validations['badge_printed_name'])
 CheckInForm.field_validation.validations['birthdate'].update(PersonalInfo.field_validation.validations['birthdate'])
-CheckInForm.field_validation.validations['badge_num']['dupe_badge_num'] = dupe_badge_num
+CheckInForm.new_or_changed.validations['badge_num']['dupe_badge_num'] = dupe_badge_num
+
+
+@CheckInForm.field_validation('instructions_followed')
+def instructions_were_followed(form, field):
+    if form.model.check_in_notes and not field.data:
+        raise ValidationError(f"Please confirm that you've reviewed and followed the check-in instructions for this attendee.")
 
 
 if c.NUMBERED_BADGES:
