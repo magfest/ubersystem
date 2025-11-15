@@ -268,7 +268,7 @@ def send_automated_emails():
                     timing['final_commit'] += end - begin
                     begin = end
                     
-                    for key, duration in timing:
+                    for key, duration in timing.items():
                         log.debug(f"    {key} took {duration} seconds")
 
             log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
