@@ -181,6 +181,9 @@ def send_automated_emails():
                 log.debug("Sending automated emails for " + model.__name__)
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
                 log.debug("  Found " + str(len(automated_emails)) + " emails for " + model.__name__)
+                load_start = time()
+                model_instances = query_func(session).all()
+                log.debug(f"Loaded {len(model_instances)} {model.__name__} instances in {time() - load_start} seconds")
                 for automated_email in automated_emails:
                     if automated_email.currently_sending:
                         log.debug(automated_email.ident + " is marked as currently sending")
@@ -195,7 +198,6 @@ def send_automated_emails():
                     session.commit()
                     unapproved_count = 0
                     timing = {
-                        "instance_loading": 0,
                         "iteration": 0,
                         "fk_id_list": 0,
                         "would_send": 0,
@@ -213,10 +215,6 @@ def send_automated_emails():
 
                     log.debug("  Loading instances for " + automated_email.ident)
                     begin = time()
-                    model_instances = query_func(session)
-                    end = time()
-                    timing['instance_loading'] += end - begin
-                    begin = end
                     for model_instance in model_instances:
                         end = time()
                         timing['iteration'] += end - begin
