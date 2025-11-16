@@ -111,11 +111,11 @@ def send_email(
             session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
             if session:
                 session.add(email)
-                session.commit()
+                session.commit(expire=False)
             else:
                 with Session() as session:
                     session.add(email)
-                    session.commit()
+                    session.commit(expire=False)
 
 
 @celery.schedule(crontab(hour=6, minute=0, day_of_week=1))
@@ -171,7 +171,7 @@ def send_automated_emails():
     try:
         quantity_sent = 0
         start_time = time()
-        with Session(expire_on_commit=False) as session:
+        with Session() as session:
             active_automated_emails = session.query(AutomatedEmail) \
                 .filter(*AutomatedEmail.filters_for_active).all()
 
