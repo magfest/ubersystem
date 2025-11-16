@@ -7,7 +7,7 @@ import traceback
 from celery.schedules import crontab
 from pockets import groupify, listify
 from pockets.autolog import log
-from sqlalchemy.orm import joinedload, raiseload, Session as SASession
+from sqlalchemy.orm import joinedload, raiseload, sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber import utils
@@ -171,7 +171,9 @@ def send_automated_emails():
     try:
         quantity_sent = 0
         start_time = time()
-        with SASession(Session.engine, expire_on_commit=False, autoflush=False, autocommit=False) as session:
+        Session.session_factory = sessionmaker(bind=Session.engine, expire_on_commit=False, autoflush=False, autocommit=False,
+                                           query_cls=Session.QuerySubclass)
+        with Session() as session:
             active_automated_emails = session.query(AutomatedEmail) \
                 .filter(*AutomatedEmail.filters_for_active).all()
 
