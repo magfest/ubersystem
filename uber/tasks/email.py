@@ -193,71 +193,29 @@ def send_automated_emails():
                     except NoResultFound:
                         log.debug(automated_email.ident + " is currently locked, skipping.")
                         continue
+                    log.debug(f"Checking {automated_email.ident}")
                     unapproved_count = 0
-                    timing = {
-                        "iteration": 0,
-                        "fk_id_retrieve": 0,
-                        "fk_id_list": 0,
-                        "would_send": 0,
-                        "approved": 0,
-                        "refresh": 0,
-                        "send": 0,
-                    }
-                    begin = time()
+
                     if getattr(automated_email, 'shared_ident', None):
                         matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
                         fk_id_list = {id for id, in matching_email_ids}
                     else:
                         fk_id_list = {email.fk_id for email in automated_email.emails}
-                    end = time()
-                    timing['fk_id_retrieve'] += end - begin
-                    begin = end
-                    log.debug("  Loading instances for " + automated_email.ident)
+
                     for model_instance in model_instances:
-                        end = time()
-                        timing['iteration'] += end - begin
-                        begin = end
                         if model_instance.id not in fk_id_list:
-                            end = time()
-                            timing['fk_id_list'] += end - begin
-                            begin = end
                             if automated_email.would_send_if_approved(model_instance):
-                                end = time()
-                                timing['would_send'] += end - begin
-                                begin = end
                                 if automated_email.approved or not automated_email.needs_approval:
-                                    end = time()
-                                    timing['approved'] += end - begin
-                                    begin = end
                                     if getattr(model_instance, 'active_receipt', None):
                                         session.refresh_receipt_and_model(model_instance)
-                                    end = time()
-                                    timing['refresh'] += end - begin
-                                    begin = end
-                                    automated_email.send_to(model_instance, delay=False)
+                                    automated_email.send_to(model_instance, delay=False, session=session)
                                     quantity_sent += 1
-                                    end = time()
-                                    timing['send'] += end - begin
-                                    begin = end
                                 else:
                                     unapproved_count += 1
-                                    end = time()
-                                    timing['approved'] += end - begin
-                                    begin = end
-                            else:
-                                end = time()
-                                timing['would_send'] += end - begin
-                                begin = end
-                        else:
-                            end = time()
-                            timing['fk_id_list'] += end - begin
-                            begin = end
 
                     automated_email.unapproved_count = unapproved_count
                     session.add(automated_email)
                     
-                    for key, duration in timing.items():
-                        log.debug(f"    {key} took {duration} seconds")
                 session.commit()
             log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
             return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
