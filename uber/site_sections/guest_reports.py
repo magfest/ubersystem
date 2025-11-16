@@ -232,7 +232,7 @@ class Root:
                         c.MERCH_TYPES[merch_type],
                         item['name'],
                         '${:.2f}'.format(float(item['price'])),
-                        guest.merch.total_quantity(item),
+                        '1',
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),
                     ])
 

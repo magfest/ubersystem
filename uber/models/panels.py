@@ -295,14 +295,14 @@ class PanelApplicant(SocialMediaMixin, MagModel):
     @property
     def full_name(self):
         return self.first_name + ' ' + self.last_name
-    
+
     @property
     def confirmed_application_names(self):
-        return [app.name for app in self.applications if app.submitter_id == self.id and app.confirmed]
+        return [app.name for app in self.applications if app.confirmed]
     
     @property
     def accepted_applications(self):
-        return [app for app in self.applications if app.submitter_id == self.id and app.status == c.ACCEPTED]
+        return [app for app in self.applications if app.status == c.ACCEPTED]
     
     def check_if_still_submitter(self, app_id):
         for app in self.applications:

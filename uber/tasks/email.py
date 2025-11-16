@@ -7,7 +7,8 @@ import traceback
 from celery.schedules import crontab
 from pockets import groupify, listify
 from pockets.autolog import log
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, raiseload, sessionmaker
+from sqlalchemy.orm.exc import NoResultFound
 
 from uber import utils
 from uber.amazon_ses import email_sender
@@ -168,9 +169,10 @@ def send_automated_emails():
         return None
 
     try:
-        expiration = timedelta(hours=1)
         quantity_sent = 0
         start_time = time()
+        Session.session_factory = sessionmaker(bind=Session.engine, expire_on_commit=False, autoflush=False, autocommit=False,
+                                           query_cls=Session.QuerySubclass)
         with Session() as session:
             active_automated_emails = session.query(AutomatedEmail) \
                 .filter(*AutomatedEmail.filters_for_active).all()
@@ -180,50 +182,83 @@ def send_automated_emails():
             for model, query_func in AutomatedEmailFixture.queries.items():
                 log.debug("Sending automated emails for " + model.__name__)
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
-                log.debug("Found " + str(len(automated_emails)) + " emails for " + model.__name__)
+                log.debug("  Found " + str(len(automated_emails)) + " emails for " + model.__name__)
+                load_start = time()
+                model_instances = query_func(session).all()
+                log.debug(f"Loaded {len(model_instances)} {model.__name__} instances in {time() - load_start} seconds")
                 for automated_email in automated_emails:
-                    if automated_email.currently_sending:
-                        log.debug(automated_email.ident + " is marked as currently sending")
-                        if automated_email.last_send_time:
-                            if (datetime.now(pytz.UTC) - automated_email.last_send_time) < expiration:
-                                # Looks like another thread is still running and hasn't timed out.
-                                continue
-                    automated_email.currently_sending = True
-                    last_send_time = datetime.now(pytz.UTC)
-                    automated_email.last_send_time = last_send_time
-                    session.add(automated_email)
-                    session.commit()
+                    # Lock the current automated email
+                    try:
+                        locked_automated_email = session.query(AutomatedEmail).filter(AutomatedEmail.id == automated_email.id).with_for_update(skip_locked=True).one()
+                    except NoResultFound:
+                        log.debug(automated_email.ident + " is currently locked, skipping.")
+                        continue
                     unapproved_count = 0
+                    timing = {
+                        "iteration": 0,
+                        "fk_id_retrieve": 0,
+                        "fk_id_list": 0,
+                        "would_send": 0,
+                        "approved": 0,
+                        "refresh": 0,
+                        "send": 0,
+                    }
+                    begin = time()
                     if getattr(automated_email, 'shared_ident', None):
                         matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
-                        fk_id_list = [id for id, in matching_email_ids]
+                        fk_id_list = {id for id, in matching_email_ids}
                     else:
-                        fk_id_list = [email.fk_id for email in automated_email.emails]
-
-                    log.debug("Loading instances for " + automated_email.ident)
-                    model_instances = query_func(session)
-                    log.trace("Finished loading instances")
+                        fk_id_list = {email.fk_id for email in automated_email.emails}
+                    end = time()
+                    timing['fk_id_retrieve'] += end - begin
+                    begin = end
+                    log.debug("  Loading instances for " + automated_email.ident)
                     for model_instance in model_instances:
-                        log.trace("Checking " + str(model_instance.id))
+                        end = time()
+                        timing['iteration'] += end - begin
+                        begin = end
                         if model_instance.id not in fk_id_list:
+                            end = time()
+                            timing['fk_id_list'] += end - begin
+                            begin = end
                             if automated_email.would_send_if_approved(model_instance):
+                                end = time()
+                                timing['would_send'] += end - begin
+                                begin = end
                                 if automated_email.approved or not automated_email.needs_approval:
+                                    end = time()
+                                    timing['approved'] += end - begin
+                                    begin = end
                                     if getattr(model_instance, 'active_receipt', None):
                                         session.refresh_receipt_and_model(model_instance)
+                                    end = time()
+                                    timing['refresh'] += end - begin
+                                    begin = end
                                     automated_email.send_to(model_instance, delay=False)
                                     quantity_sent += 1
+                                    end = time()
+                                    timing['send'] += end - begin
+                                    begin = end
                                 else:
                                     unapproved_count += 1
-                        if datetime.now(pytz.UTC) - last_send_time > (expiration / 2):
-                            automated_email.last_send_time = datetime.now(pytz.UTC)
-                            session.add(automated_email)
-                            session.commit()
+                                    end = time()
+                                    timing['approved'] += end - begin
+                                    begin = end
+                            else:
+                                end = time()
+                                timing['would_send'] += end - begin
+                                begin = end
+                        else:
+                            end = time()
+                            timing['fk_id_list'] += end - begin
+                            begin = end
 
                     automated_email.unapproved_count = unapproved_count
-                    automated_email.currently_sending = False
                     session.add(automated_email)
-                    session.commit()
-
+                    
+                    for key, duration in timing.items():
+                        log.debug(f"    {key} took {duration} seconds")
+                session.commit()
             log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
             return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
     except Exception:

@@ -180,7 +180,7 @@ class Root:
                         except ValueError as e:
                             message = str(e)
 
-            if not message and group.is_new and group.leader_first_name:
+            if not message and group.is_new and group.leader_first_name and group.badges > 0:
                 session.commit()
                 leader = group.leader = group.attendees[0]
                 leader.placeholder = True

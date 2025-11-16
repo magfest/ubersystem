@@ -870,9 +870,18 @@ class Session(SessionManager):
                 subqueries.append(self.query(Group).join(
                     GuestGroup, Group.id == GuestGroup.group_id).filter(
                         GuestGroup.group_type.in_([c.BAND, c.ROCK_ISLAND, c.SIDE_STAGE])))
+                subqueries.append(self.query(Group).join(Group.leader).filter(
+                    Attendee.ribbon.contains(c.BAND)))
 
             if 'dealer_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).filter(Group.is_dealer))
+            
+            if 'showcase_admin' in admin.read_or_write_access_set:
+                subqueries.append(self.query(Group).join(
+                    GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        GuestGroup.group_type == c.MIVS))
+                subqueries.append(self.query(Group).join(Group.leader).filter(
+                    Attendee.ribbon.contains(c.MIVS)))
 
             if 'shifts_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).join(Group.leader).filter(
@@ -925,11 +934,14 @@ class Session(SessionManager):
                                                                     Attendee.group_id == Group.id
                                                                     ).filter(Attendee.is_dealer)
             return_dict['mits_admin'] = self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
-            return_dict['showcase_admin'] = (self.query(Attendee).join(Group, Attendee.group_id == Group.id)
-                                         .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
-                                             and_(Group.id == Attendee.group_id,
-                                                  GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)
-                                                  ))
+            return_dict['showcase_admin'] = self.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id).join(
+                GuestGroup, Group.id == GuestGroup.group_id).filter(
+                    or_(Attendee.ribbon.contains(c.MIVS),
+                        and_(
+                            Attendee.group_id != None,
+                            Group.id == Attendee.group_id,
+                            GuestGroup.group_id == Group.id,
+                            GuestGroup.group_type == c.MIVS)))
             return_dict['art_show_admin'] = self.query(Attendee
                                                        ).outerjoin(
                                                            ArtShowApplication,

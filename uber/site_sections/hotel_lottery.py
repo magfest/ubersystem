@@ -89,7 +89,7 @@ def _disband_room_group(session, application):
 
 
 def _reset_group_member(application):
-    if application.guarantee_policy_accepted:
+    if application.guarantee_policy_accepted and not application.finalized:
         if application.suite_type_preference:
             application.entry_type = c.SUITE_ENTRY
         else:
@@ -284,7 +284,7 @@ class Root:
     @requires_account(LotteryApplication)
     def reenter_lottery(self, session, id=None, **params):
         application = session.lottery_application(id)
-        _reset_group_member(application)
+        application = _reset_group_member(application)
         session.add(application)
         if application.status == c.COMPLETE:
             body = render('emails/hotel/hotel_lottery_entry.html', {
@@ -308,7 +308,7 @@ class Root:
     def withdraw_entry(self, session, id=None, **params):
         application = session.lottery_application(id)
 
-        has_actually_entered = application.status == c.COMPLETE
+        has_actually_entered = application.status == c.COMPLETE or application.finalized
         was_room_group = application.room_group_name
         old_room_group = application.parent_application
 

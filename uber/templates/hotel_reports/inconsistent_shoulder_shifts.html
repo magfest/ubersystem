@@ -7,6 +7,38 @@
   <small><a href="inconsistent_shoulder_shifts_csv"><i class="fa fa-download"></i> Download CSV</a></small>
 </h2>
 
+{% if no_shifts %}
+<div style="margin-bottom: 30px">
+    <h3 style="margin-bottom: 10px">
+      No Shifts
+    </h3>
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Attendee</th>
+          <th>Email</th>
+          <th>Assigned Depts</th>
+          <th>Shoulder Nights Without Shifts</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for attendee in no_shifts_attendees %}
+          <tr>
+            <td>{{ attendee|form_link }}</td>
+            <td>{{ attendee.email|email_to_link }}</td>
+            <td>
+              {% for dept in attendee.assigned_depts %}
+              {{ dept.name }}{% if attendee.is_dept_head_of(dept.id) %} (Dept Head){% endif %}{% if not loop.last %} / {% endif %}
+              {% endfor %}
+            </td>
+            <td>{{ attendee.night_names }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
 {% for department in departments %}
   <div style="margin-bottom: 30px">
     <h3 style="margin-bottom: 10px">
@@ -32,7 +64,11 @@
           <tr>
             <td>{{ attendee|form_link }}</td>
             <td>{{ attendee.email|email_to_link }}</td>
-            <td>{{ attendee.depts_where_working|map(attribute="name")|join(" / ") }}</td>
+            <td>
+              {% for dept in attendee.depts_where_working %}
+              {{ dept.name }}{% if attendee.is_dept_head_of(dept.id) %} (Dept Head){% endif %}{% if not loop.last %} / {% endif %}
+              {% endfor %}
+            </td>
             <td>{{ attendee.night_names }}</td>
           </tr>
         {% endfor %}
