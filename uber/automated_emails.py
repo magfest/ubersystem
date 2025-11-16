@@ -40,7 +40,7 @@ class AutomatedEmailFixture:
     queries = {
         Attendee: lambda session: session.all_attendees().options(
             subqueryload(Attendee.admin_account),
-            subqueryload(Attendee.group),
+            subqueryload(Attendee.group).subqueryload(Group.guest),
             subqueryload(Attendee.shifts).subqueryload(Shift.job),
             subqueryload(Attendee.assigned_depts),
             subqueryload(Attendee.dept_membership_requests),
