@@ -212,6 +212,7 @@ def send_automated_emails():
                         fk_id_list = {id for id, in matching_email_ids}
                     else:
                         fk_id_list = {email.fk_id for email in automated_email.emails}
+                    log.debug(str(fk_id_list))
 
                     log.debug("  Loading instances for " + automated_email.ident)
                     begin = time()
@@ -246,6 +247,10 @@ def send_automated_emails():
                                     end = time()
                                     timing['approved'] += end - begin
                                     begin = end
+                            else:
+                                end = time()
+                                timing['would_send'] += end - begin
+                                begin = end
                         else:
                             end = time()
                             timing['fk_id_list'] += end - begin
