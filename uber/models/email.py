@@ -1,4 +1,5 @@
 import re
+import traceback
 from collections import OrderedDict
 from datetime import datetime, date
 from dateutil import parser as dateparser
@@ -334,6 +335,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 automated_email=self.to_dict('id'))
             return True
         except Exception:
+            traceback.print_exc()
             log.error('Error sending {!r} email to {}', self.subject, model_instance.email_to_address, exc_info=True)
             if raise_errors:
                 raise
