@@ -182,7 +182,7 @@ def send_automated_emails():
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
                 log.debug("  Found " + str(len(automated_emails)) + " emails for " + model.__name__)
                 load_start = time()
-                model_instances = query_func(session).options(raiseload("*")).all()
+                model_instances = query_func(session).all()
                 log.debug(f"Loaded {len(model_instances)} {model.__name__} instances in {time() - load_start} seconds")
                 for automated_email in automated_emails:
                     # Lock the current automated email
