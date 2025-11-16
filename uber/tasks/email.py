@@ -171,7 +171,7 @@ def send_automated_emails():
     try:
         quantity_sent = 0
         start_time = time()
-        with Session() as session:
+        with Session(expire_on_commit=False) as session:
             active_automated_emails = session.query(AutomatedEmail) \
                 .filter(*AutomatedEmail.filters_for_active).all()
 
