@@ -336,7 +336,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
             return True
         except Exception:
             traceback.print_exc()
-            log.error('Error sending {!r} email to {}', self.subject, model_instance.email_to_address, exc_info=True)
+            log.error(f'Error sending {self.subject} email to {model_instance.email_to_address}', exc_info=True)
             if raise_errors:
                 raise
         return False
