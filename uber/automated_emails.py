@@ -49,6 +49,7 @@ class AutomatedEmailFixture:
             subqueryload(Attendee.dept_memberships_with_role),
             subqueryload(Attendee.depts_where_working),
             subqueryload(Attendee.hotel_requests),
+            subqueryload(Attendee.promo_code_groups),
             subqueryload(Attendee.assigned_panelists)),
         AttendeeAccount: lambda session: session.query(AttendeeAccount).options(
             subqueryload(AttendeeAccount.attendees)),
