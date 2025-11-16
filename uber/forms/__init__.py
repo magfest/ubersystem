@@ -461,7 +461,7 @@ class MagForm(Form):
             else:
                 try:
                     setattr(obj, name, field.data)
-                except AttributeError:
+                except AttributeError as e:
                     pass  # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
 
         for model_field_name, aliases in self.field_aliases.items():

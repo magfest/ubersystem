@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}{{ attraction.name }}{% endblock %}
 
 {% import 'attractions_macros.html' as attractions_macros with context %}
@@ -415,10 +416,12 @@
     openSignups = function(featureId, location, day) {
       bootbox.confirm({
         backdrop: true,
+        title: 'Open ' + features[featureId] + ' Signups?',
         message: '<p><strong>Open ' + features[featureId] + ' signups in ' + allLocations[location] + ' for ' + day + '?</strong></p>' +
-                 'This will allow attendees to sign up for all the events in this location on this day' +
+                 '<p>This will allow attendees to sign up for all the events in this location on this day' +
                  '{% if not attraction.is_public %} once this attraction is made public and{% endif %}'+ 
-                 ' as long as this feature is open to the public.',
+                 ' as long as this feature is open to the public.</p>'+
+                 '<p>If any events are set to open a certain time before they start, this will override that.</p>',
         buttons: {
           confirm: { label: 'Open Signups', className: 'btn-success' },
           cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
@@ -589,20 +592,21 @@
 {% if can_admin_attraction -%}
   <div id="edit_attraction" class="modal fade" tabindex="-1" role="dialog" style="display: none"
       aria-labelledby="edit_attraction_title">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-xl" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
           <h4 class="modal-title" id="edit_attraction_title">
             <i class="fa fa-cog"></i>
             Edit {{ attraction.name }}
           </h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <form method="post" action="form" class="form-horizontal" role="form">
+        <form novalidate method="post" action="form" id="attraction-form" role="form">
           <div class="modal-body">
-            {{ attractions_macros.attraction_form(attraction) }}
+            {{ form_macros.form_validation('attraction-form', 'validate_attraction') }}
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ attraction.id }}" />
+            {% include 'forms/attraction/attraction_info.html' with context %}
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
@@ -618,13 +622,11 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
           <h4 class="modal-title" id="edit_event_gap_title">
             <i class="fa fa-clock-o"></i>
             Edit Time Between Events
           </h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form id="edit_event_gap_form" method="post" action="edit_event_gap" class="form-horizontal" role="form">
           {{ csrf_token() }}
@@ -698,14 +700,14 @@
     </p>
   {%- endif %}
 
-  {% if attraction.advance_notices %}
-    {% if attraction.advance_notices|length == 1 %}
+  {% if attraction.checkin_reminder %}
+    {% if attraction.checkin_reminder|length == 1 %}
       <p>Attendees will be notified about {{ attraction.name }} events
-      {{ humanize_timedelta(minutes=attraction.advance_notices|first, now='when the event starts', suffix=' before') }}.</p>
+      {{ humanize_timedelta(minutes=attraction.checkin_reminder|first, now='when the event starts', suffix=' before') }}.</p>
     {% else %}
       Attendees will be notified about {{ attraction.name }} events:
       <ul>
-        {% for notification in attraction.advance_notices %}
+        {% for notification in attraction.checkin_reminder %}
           <li>{{ humanize_timedelta(minutes=notification, now='when the event starts', suffix=' before') }}</li>
         {% endfor %}
       </ul>
@@ -749,7 +751,7 @@
   {% set unused_location_opts = attraction.unused_location_opts %}
   <div class="row row-stacked feature-container">
     <div class="col-sm-stacked">
-      <ul class="nav nav-pills nav-sm-stacked">
+      <ul class="nav nav-pills nav-sm-stacked flex-column">
         {% for feature in attraction.features %}
           <li role="presentation" class="nav-item">
             <a class="nav-link{% if loop.index0 == 0 %} active{% endif %}" href="#feature_{{ feature.id }}" data-bs-toggle="pill">
@@ -771,7 +773,7 @@
                         title="Export signup list for {{ feature.name }}"
                         href="export_feature?id={{ feature.id }}"
                         download="download">
-                      <i class="fa fa-download-alt"></i>
+                      <i class="fa fa-download"></i>
                     </a>
                     <a class="btn btn-sm btn-primary btn-fade"
                         title="Edit the {{ feature.name }} feature"

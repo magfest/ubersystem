@@ -288,7 +288,7 @@ let updateEvent = function (info) {
 ec = new EventCalendar(document.getElementById('event-schedule'), {
     view: 'resourceTimeGridDay',
     date: '{{ current_date }}',
-    slotMinTime: '{{ c.PANELS_EPOCH.hour if current_date == (c.PANELS_EPOCH.date() ~ "T00:00:00") else "00:00:00" }}',
+    slotMinTime: '{{ c.PANELS_EPOCH.hour if c.PANELS_EPOCH.date()|string in current_date else "00:00:00" }}',
     allDaySlot: false,
     scrollTime: '{{ c.PANELS_EPOCH.hour }}',
     headerToolbar: {

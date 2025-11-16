@@ -78,7 +78,7 @@ def send_waitlist_notification(signup_id):
         signup = session.attraction_signup(signup_id)
         attendee = signup.attendee
         event = signup.event
-        if attendee.notification_pref == Attendee._NOTIFICATION_NONE:
+        if attendee.notification_pref == Attendee._NOTIFICATION_NONE or event.no_notifications:
             return
 
         ident = event.id + "_waitlist"
@@ -195,7 +195,7 @@ def attractions_send_notifications():
                 # "when checkin starts", we only want to send the notification
                 # for "when checkin starts".
                 advance_notice = min(advance_notices)
-                if advance_notice == -1 or advance_notice > 1800:
+                if advance_notice == -1 or advance_notice > 30:
                     checkin = 'is at {}'.format(event.checkin_start_time_label)
                 else:
                     checkin = humanize_timedelta(

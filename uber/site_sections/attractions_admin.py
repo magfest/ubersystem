@@ -45,26 +45,25 @@ class Root:
         attraction_id = params.get('id')
         if not attraction_id or attraction_id == 'None':
             raise HTTPRedirect('index')
+        
+        attraction = session.attraction(attraction_id)
+        
+        forms = load_forms(params, attraction, ['AttractionInfo'])
 
         if cherrypy.request.method == 'POST':
-            if 'advance_notices' in params:
-                ns = listify(params.get('advance_notices', []))
-                params['advance_notices'] = [int(n) for n in ns if n != '']
+            for form in forms.values():
+                form.populate_obj(attraction)
 
-            attraction = session.attraction(
-                params,
-                bools=Attraction.all_bools,
-                checkgroups=Attraction.all_checkgroups)
-            message = check(attraction)
-            if not message:
-                if not attraction.department_id:
-                    attraction.department_id = None
-                session.add(attraction)
-                attraction.update_dept_ids(session)
-                raise HTTPRedirect(
-                    'form?id={}&message={}',
-                    attraction.id,
-                    '{} updated successfully'.format(attraction.name))
+            if 'signups_open_type' in params:
+                attraction.update_signup_times(params['signups_open_type'])
+
+            attraction.update_dept_ids(session)
+            attraction.cascade_feature_event_attrs(session)
+            
+            raise HTTPRedirect(
+                'form?id={}&message={}',
+                attraction.id,
+                '{} updated successfully.'.format(attraction.name))
         else:
             attraction = session.query(Attraction) \
                 .filter_by(id=attraction_id) \
@@ -78,8 +77,29 @@ class Root:
         return {
             'admin_account': session.current_admin_account(),
             'message': message,
-            'attraction': attraction
+            'attraction': attraction,
+            'forms': forms,
         }
+    
+    @ajax
+    def validate_attraction(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            attraction = Attraction()
+        else:
+            attraction = session.attraction(params.get('id'))
+
+        if not form_list:
+            form_list = ['AttractionInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, attraction, form_list)
+        all_errors = validate_model(forms, attraction, is_admin=True)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     @ajax
     def open_signups(self, session, **params):
@@ -88,6 +108,7 @@ class Root:
             return {'error': 'Feature not found!'}
 
         for event in feature.events_by_location_by_day[params.get('location')][params.get('day')]:
+            event.signups_open_relative = 0
             event.signups_open_time = datetime.now(pytz.UTC)
             session.add(event)
 
@@ -111,28 +132,27 @@ class Root:
         if params.get('id', 'None') != 'None':
             raise HTTPRedirect('form?id={}', params['id'])
 
-        if 'advance_notices' in params:
-            ns = listify(params.get('advance_notices', []))
-            params['advance_notices'] = [int(n) for n in ns if n != '']
-
         admin_account = session.current_admin_account()
-        attraction = session.attraction(
-            params,
-            bools=Attraction.all_bools,
-            checkgroups=Attraction.all_checkgroups)
-        if not attraction.department_id:
-            attraction.department_id = None
+        attraction = Attraction()
+        session.add(attraction)
+
+        forms = load_forms(params, attraction, ['AttractionInfo'])
 
         if cherrypy.request.method == 'POST':
-            message = check(attraction)
-            if not message:
-                attraction.owner = admin_account
-                session.add(attraction)
-                raise HTTPRedirect('form?id={}', attraction.id)
+            for form in forms.values():
+                form.populate_obj(attraction)
+
+            if 'signups_open_type' in params:
+                attraction.update_signup_times(params['signups_open_type'])
+
+            attraction.owner = admin_account
+
+            raise HTTPRedirect('form?id={}', attraction.id)
 
         return {
             'admin_account': admin_account,
             'attraction': attraction,
+            'forms': forms,
             'message': message,
         }
 
@@ -158,39 +178,67 @@ class Root:
         if not attraction_id or attraction_id == 'None':
             attraction_id = None
 
-        if not attraction_id \
-                and (not params.get('id') or params.get('id') == 'None'):
-            raise HTTPRedirect('index')
-
-        feature = session.attraction_feature(
-            params,
-            bools=AttractionFeature.all_bools,
-            checkgroups=AttractionFeature.all_checkgroups)
+        if not params.get('id') or params.get('id') == 'None':
+            if attraction_id:
+                feature = AttractionFeature()
+            else:
+                raise HTTPRedirect('index')
+        else:
+            feature = session.attraction_feature(params.get('id'))
 
         attraction_id = feature.attraction_id or attraction_id
         attraction = session.query(Attraction).filter_by(id=attraction_id) \
             .order_by(Attraction.id).one()
+        
+        feature.attraction = attraction
+        if feature.is_new:
+            params = dict(feature.default_params, **params)
+        
+        forms = load_forms(params, feature, ['AttractionFeatureInfo'])
 
         if cherrypy.request.method == 'POST':
-            if feature.is_new:
-                feature.attraction_id = attraction_id
-            message = check(feature)
+            for form in forms.values():
+                form.populate_obj(feature)
 
-            if not message:
-                session.add(feature)
+            if 'signups_open_type' in params:
+                feature.update_signup_times(params['signups_open_type'])
 
-                raise HTTPRedirect(
-                    'form?id={}&message={}',
-                    attraction_id,
-                    'The {} feature was successfully {}'.format(
-                        feature.name, 'created' if feature.is_new else 'updated'))
-            session.rollback()
+            feature.update_name_desc(session)
+            feature.cascade_event_attrs(session)
+            session.add(feature)
+
+            raise HTTPRedirect(
+                'form?id={}&message={}',
+                attraction_id,
+                'The {} feature was successfully {}.'.format(
+                    feature.name, 'created' if feature.is_new else 'updated'))
 
         return {
             'attraction': attraction,
             'feature': feature,
+            'forms': forms,
             'message': message
         }
+    
+    @ajax
+    def validate_feature(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            feature = AttractionFeature()
+        else:
+            feature = session.attraction_feature(params.get('id'))
+
+        if not form_list:
+            form_list = ['AttractionFeatureInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        forms = load_forms(params, feature, form_list)
+        all_errors = validate_model(forms, feature, is_admin=True)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     @csrf_protected
     def delete_feature(self, session, id):
@@ -271,8 +319,10 @@ class Root:
                     'event_location_id': last_event.event_location_id,
                     'start_time': last_event.end_time + timedelta(minutes=delay),
                     'duration': last_event.duration,
-                    'slots': last_event.slots,
                 })
+            
+            event.feature = feature
+            params = dict(event.default_params, **params)
 
         params['attraction_id'] = feature.attraction_id
         params['attraction_feature_id'] = feature.id
@@ -283,6 +333,10 @@ class Root:
             is_new = event.is_new
             for form in forms.values():
                 form.populate_obj(event)
+            
+            if 'signups_open_type' in params:
+                event.update_signup_times(params['signups_open_type'])
+
             session.add(event)
             session.flush()
             session.refresh(event)

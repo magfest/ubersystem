@@ -68,6 +68,9 @@
             $modals.toggleClass('soldout', response['is_sold_out']);
             $('#' + eventId).toggleClass('soldout', response['is_sold_out']);
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
+            $('#' + eventId).find('.waitlist-remaining-slots').first().text(response['remaining_waitlist_slots']);
+            $('.waitlist-show').toggle(response['on_waitlist']);
+            $('.waitlist-hide').toggle(response['on_waitlist'] == false);
             callback(response);
           } else {
             showErrorMessage(response['error'] || 'Unknown error signing up for event.', 'nonbadge-signup-alert');
@@ -166,21 +169,27 @@
       var $notificationPref = $doneModal.find('.notification_pref'),
           attendeeData = $doneModal.data('attendee');
       if (attendeeData && attendeeData.hasOwnProperty('notification_pref')) {
-        if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_NONE }}) {
+        if (attendeeData.hasOwnProperty('custom_notifications') && attendeeData['custom_notifications']) {
           $notificationPref.html(
-            'You will <b>not</b> be notified because you have <b>disabled</b> event notifications');
+            'This event does not have automated notifications. You may be sent email notifications with further information'
+          )
         } else {
-          var icon = '';
-          if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_EMAIL }}) {
-            icon = '<i class="fa fa-envelope"></i> ';
-          } else if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_TEXT }}) {
-            icon = '<i class="fa fa-phone"></i> ';
+          if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_NONE }}) {
+            $notificationPref.html(
+              'You will <b>not</b> be notified because you have <b>disabled</b> event notifications');
+          } else {
+            var icon = '';
+            if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_EMAIL }}) {
+              icon = '<i class="fa fa-envelope"></i> ';
+            } else if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_TEXT }}) {
+              icon = '<i class="fa fa-phone"></i> ';
+            }
+            $notificationPref.html(
+              'You will be notified at ' +
+              '<span class="text-hilite">' +
+              icon + attendeeData['masked_notification_pref'] +
+              '</span>');
           }
-          $notificationPref.html(
-            'You will be notified at ' +
-            '<span class="text-hilite">' +
-            icon + attendeeData['masked_notification_pref'] +
-            '</span>');
         }
         $notificationPref.css('display', '');
       } else {
@@ -213,11 +222,8 @@
           <br/><strong>Check-In</strong>: You {% if feature.attraction.advance_checkin < 0 %}may{% else %}must{% endif %}
           check in {{ feature.attraction.advance_checkin_label }}.
         </p>
-        {% if not c.AT_THE_CON %}
-        {% if feature.badge_num_required %}
-        <br/>
-        <h4 class="text-center">This event requires a badge number to sign up<span class="visible-soldout-inline"> for the waitlist</span>. You'll be able to sign up after you pick up your badge at registration!</h3>
-        {% endif %}
+        {% if feature.badge_num_required and not c.AT_THE_CON %}
+        <div class="h5 text-center">This event requires a badge number to sign up<span class="visible-soldout-inline"> for the waitlist</span>. You'll be able to sign up after you pick up your badge at registration!</div>
         {% else %}
         {{ attractions_macros.badge_num_form('Type your badge # here after picking up your badge!') }}
         {% endif %}
@@ -316,10 +322,10 @@
         </h4>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body form-horizontal">
+      <div class="modal-body">
         <p>
-          <span class="hidden-soldout">Congratulations, you're signed up for</span>
-          <span class="visible-soldout-inline">You have been added to the waitlist for</span>
+          <span class="waitlist-hide">Congratulations, you're signed up for</span>
+          <span class="waitlist-show">You have been added to the waitlist for</span>
           <span class="text-hilite">{{ feature.attraction.name }} –</span>
           <span class="signup-event-label"></span>!
         </p>
@@ -328,7 +334,7 @@
           <span class="text-hilite signup-event-location"></span>.
           Please check in {{ feature.attraction.advance_checkin_label }}.
         </p>
-        <p><span class="notification_pref"></span><span class="visible-soldout-inline"> if you are moved from the waitlist</span>.</p>
+        <p><span class="notification_pref"></span><span class="waitlist-show"> if you are moved from the waitlist</span>.</p>
         <div class="hidden-soldout">
           <p>Want to go as a group? You can sign up some friends below...</p>
           {{ attractions_macros.badge_num_form('Sign up a friend') }}

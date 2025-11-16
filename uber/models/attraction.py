@@ -2,7 +2,7 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 
 import pytz
-from pockets import groupify, listify, sluggify
+from pockets import groupify, listify, sluggify, classproperty
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, cast, exists, func, not_
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -28,12 +28,17 @@ __all__ = [
 
 class AttractionMixin():
     populate_schedule = Column(Boolean, default=True)
-    send_emails = Column(Boolean, default=True)
+    no_notifications = Column(Boolean, default=False)
     waitlist_available = Column(Boolean, default=True)
     waitlist_slots = Column(Integer, default=10)
     signups_open_relative = Column(Integer, default=c.DEFAULT_ATTRACTIONS_SIGNUPS_MINUTES)
     signups_open_time = Column(UTCDateTime, nullable=True)
     slots = Column(Integer, default=1)
+
+    @classproperty
+    def inherited_cols(cls):
+        return ['populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
+                'signups_open_relative', 'signups_open_time', 'slots']
 
     @property
     def minimum_signups_open(self):
@@ -44,17 +49,50 @@ class AttractionMixin():
         if self.waitlist_slots == '':
             self.waitlist_slots = 0
 
-    @presave_adjustment
-    def set_signups_times(self):
-        signups_open_type = getattr(self, 'signups_open_type', None)
+    @property
+    def signups_open_type(self):
+        if self.signups_open_relative:
+            return 'relative'
+        elif self.signups_open_time:
+            return 'absolute'
+        else:
+            return 'not_open'
 
-        if not signups_open_type:
-            return
-        
-        if signups_open_type in ['relative', 'not_open']:
+    def update_signup_times(self, value):
+        if value in ['relative', 'not_open']:
             self.signups_open_time = None
-        if signups_open_type in ['absolute', 'not_open']:
+        if value in ['absolute', 'not_open']:
             self.signups_open_relative = 0
+    
+    def get_updated_signup_vals(self):
+        old_signups_open_relative = self.orig_value_of('signups_open_relative')
+        old_signups_open_time = self.orig_value_of('signups_open_time')
+
+        if old_signups_open_relative == self.signups_open_relative and old_signups_open_time == self.signups_open_time:
+            return {}, {}
+ 
+        if old_signups_open_relative:
+            same_time_settings = {'signups_open_relative': old_signups_open_relative}
+        elif old_signups_open_time:
+            same_time_settings = {'signups_open_time': old_signups_open_time}
+        else:
+            same_time_settings = {'signups_open_time': None, 'signups_open_relative': 0}
+
+        if self.signups_open_relative:
+            update_attrs = {'signups_open_relative': self.signups_open_relative}
+            if old_signups_open_time:
+                update_attrs['signups_open_time'] = None
+        elif self.signups_open_time:
+            update_attrs = {'signups_open_time': self.signups_open_time}
+            if old_signups_open_relative:
+                update_attrs['signups_open_relative'] = 0
+        else:
+            if old_signups_open_relative:
+                update_attrs = {'signups_open_relative': 0}
+            else:
+                update_attrs = {'signups_open_time': None}
+        
+        return same_time_settings, update_attrs
 
 class Attraction(MagModel, AttractionMixin):
     _NONE = 0
@@ -62,17 +100,14 @@ class Attraction(MagModel, AttractionMixin):
     _PER_ATTRACTION = 2
     _RESTRICTION_OPTS = [(
         _NONE,
-        'None – '
         'Attendees can attend as many events as they wish '
         '(least restrictive)'
     ), (
         _PER_FEATURE,
-        'Once Per Feature – '
-        'Attendees can only attend each feature once'
+        'Attendees can only attend one event in each feature'
     ), (
         _PER_ATTRACTION,
-        'Once Per Attraction – '
-        'Attendees can only attend this attraction once '
+        'Attendees can only attend one event in this attraction '
         '(most restrictive)'
     )]
     _RESTRICTIONS = dict(_RESTRICTION_OPTS)
@@ -103,7 +138,7 @@ class Attraction(MagModel, AttractionMixin):
     description = Column(UnicodeText)
     full_description = Column(UnicodeText)
     is_public = Column(Boolean, default=False)
-    advance_notices = Column(JSON, default=[], server_default='[]')
+    checkin_reminder = Column(Integer, default=None, nullable=True)
     advance_checkin = Column(Integer, default=0)
     restriction = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
     badge_num_required = Column(Boolean, default=False)
@@ -157,6 +192,16 @@ class Attraction(MagModel, AttractionMixin):
     def _sluggify_name(self):
         self.slug = sluggify(self.name)
 
+    @presave_adjustment
+    def null_dept_id(self):
+        if self.department_id == '':
+            self.department_id = None
+
+    @presave_adjustment
+    def null_checkin_reminder(self):
+        if self.checkin_reminder == '':
+            self.checkin_reminder = None
+
     @property
     def feature_opts(self):
         return [(f.id, f.name) for f in self.features]
@@ -200,6 +245,44 @@ class Attraction(MagModel, AttractionMixin):
     def locations_by_feature_id(self):
         return groupify(self.features, 'id', lambda f: f.locations)
 
+    def cascade_feature_event_attrs(self, session):
+        same_time_settings, update_time_settings = self.get_updated_signup_vals()
+
+        attr_changes = {}
+        for attr in AttractionMixin.inherited_cols + ['badge_num_required']:
+            if self.orig_value_of(attr) != getattr(self, attr):
+                attr_changes[attr] = (self.orig_value_of(attr), getattr(self, attr))
+
+        if not same_time_settings and not update_time_settings and not attr_changes:
+            return
+        
+        def update_if_changed(item):
+            item_updated = False
+            if all([getattr(item, col_name) == val for col_name, val in same_time_settings.items()]):
+                item_updated = True
+                for col_name, val in update_time_settings.items():
+                    setattr(item, col_name, val)
+            for attr_name, (old_val, new_val) in attr_changes.items():
+                if attr_name == 'slots':
+                    if isinstance(item, AttractionFeature) or getattr(item, attr_name) < new_val:
+                        setattr(item, attr_name, new_val)
+                        item_updated = True
+                elif hasattr(item, attr_name) and getattr(item, attr_name) == old_val:
+                    setattr(item, attr_name, new_val)
+                    item_updated = True
+            if item_updated:
+                setattr(item, 'last_updated', self.last_updated)
+                session.add(item)
+
+        for feature in self.features:
+            update_if_changed(feature)
+
+        for event in self.events:
+            update_if_changed(event)
+            if 'populate_schedule' in attr_changes and event.populate_schedule == True:
+                event.sync_with_schedule(session)
+
+
     def update_dept_ids(self, session):
         if self.department_id == self.orig_value_of('department_id'):
             return
@@ -207,6 +290,7 @@ class Attraction(MagModel, AttractionMixin):
         for event in self.events:
             if event.populate_schedule:
                 event.schedule_event.department_id = self.department_id
+                event.schedule_event.last_updated = self.last_updated
                 session.add(event.schedule_event)
 
     def signups_requiring_notification(self, session, from_time, to_time, options=None):
@@ -221,8 +305,9 @@ class Attraction(MagModel, AttractionMixin):
         """
         advance_checkin = max(0, self.advance_checkin)
         subqueries = []
-        for advance_notice in sorted(set([-1] + self.advance_notices)):
-            event_filters = [AttractionEvent.attraction_id == self.id]
+        for advance_notice in sorted(set([-1] + self.checkin_reminder)):
+            event_filters = [AttractionEvent.attraction_id == self.id,
+                             AttractionEvent.no_notifications == False]
             if advance_notice == -1:
                 notice_ident = cast(AttractionSignup.attraction_event_id, UnicodeText)
                 notice_param = bindparam('confirm_notice', advance_notice).label('advance_notice')
@@ -257,7 +342,6 @@ class AttractionFeature(MagModel, AttractionMixin):
     name = Column(UnicodeText)
     slug = Column(UnicodeText)
     description = Column(UnicodeText)
-    warn_overlap = Column(Boolean, default=True)
     is_public = Column(Boolean, default=False)
     badge_num_required = Column(Boolean, default=False)
     attraction_id = Column(UUID, ForeignKey('attraction.id'))
@@ -273,6 +357,58 @@ class AttractionFeature(MagModel, AttractionMixin):
     @presave_adjustment
     def _sluggify_name(self):
         self.slug = sluggify(self.name)
+
+    @property
+    def default_params(self):
+        params = {}
+        if not self.is_new:
+            return params
+        for field_name in AttractionMixin.inherited_cols + ['badge_num_required', 'signups_open_type']:
+            if hasattr(self.attraction, field_name):
+                params[field_name] = getattr(self.attraction, field_name)
+
+        return params
+
+    def cascade_event_attrs(self, session):
+        same_time_settings, update_time_settings = self.get_updated_signup_vals()
+
+        attr_changes = {}
+        for attr in AttractionMixin.inherited_cols:
+            if self.orig_value_of(attr) != getattr(self, attr):
+                attr_changes[attr] = (self.orig_value_of(attr), getattr(self, attr))
+
+        if not same_time_settings and not update_time_settings and not attr_changes:
+            return
+
+        for event in self.events:
+            event_updated = False
+            if all([getattr(event, col_name) == val for col_name, val in same_time_settings.items()]):
+                event_updated = True
+                for col_name, val in update_time_settings.items():
+                    setattr(event, col_name, val)
+            for attr_name, (old_val, new_val) in attr_changes.items():
+                if attr_name == 'slots' and event.slots < new_val:
+                    event.slots = new_val
+                    event_updated = True
+                elif hasattr(event, attr_name) and getattr(event, attr_name) == old_val:
+                    setattr(event, attr_name, new_val)
+                    event_updated = True
+            if event_updated:
+                setattr(event, 'last_updated', self.last_updated)
+                session.add(event)
+            if 'populate_schedule' in attr_changes and event.populate_schedule == True:
+                event.sync_with_schedule(session)
+
+    def update_name_desc(self, session):
+        if self.name == self.orig_value_of('name') and self.description == self.orig_value_of('description'):
+            return
+        
+        for event in self.events:
+            if event.populate_schedule:
+                event.schedule_event.name = self.name
+                event.schedule_event.description = self.description
+                event.schedule_event.last_updated = self.last_updated
+                session.add(event.schedule_event)
 
     @property
     def location_opts(self):
@@ -501,8 +637,21 @@ class AttractionEvent(MagModel, AttractionMixin):
         return self.feature.name
 
     @property
+    def description(self):
+        return self.feature.description
+
+    @property
     def label(self):
         return '{} at {}'.format(self.name, self.start_time_label)
+
+    @property
+    def default_params(self):
+        params = {}
+        if not self.is_new:
+            return params
+        for field_name in AttractionMixin.inherited_cols + ['signups_open_type']:
+            params[field_name] = getattr(self.feature, field_name)
+        return params
 
     def add_next_waitlist(self, session):
         from uber.tasks.attractions import send_waitlist_notification
@@ -510,7 +659,7 @@ class AttractionEvent(MagModel, AttractionMixin):
         if next_signup:
             next_signup.on_waitlist = False
             session.add(next_signup)
-            if self.send_emails:
+            if not self.no_notifications:
                 send_waitlist_notification.delay(next_signup.id)
 
     def sync_with_schedule(self, session):

@@ -189,6 +189,7 @@ class Root:
             return {'error': 'That attendee has disabled attraction signups.'}
 
         old_remaining_slots = event.remaining_slots
+        on_waitlist = False
 
         if event not in attendee.attraction_events:
             attraction = event.feature.attraction
@@ -212,6 +213,7 @@ class Root:
                         attendee_id=attendee.id,
                         on_waitlist=True
                     ))
+                    on_waitlist = True
                 else:
                     return {'error': '{} is already sold out'.format(event.label)}
             else:
@@ -223,10 +225,13 @@ class Root:
             'first_name': attendee.first_name,
             'badge_num': attendee.badge_num,
             'notification_pref': attendee.notification_pref,
+            'custom_notifications': event.no_notifications,
             'masked_notification_pref': attendee.masked_notification_pref,
             'event_id': event.id,
             'is_sold_out': event.is_sold_out,
+            'on_waitlist': on_waitlist,
             'remaining_slots': event.remaining_slots,
+            'remaining_waitlist_slots': event.remaining_waitlist_slots,
             'old_remaining_slots': old_remaining_slots}
 
     @ajax
