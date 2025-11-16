@@ -45,6 +45,37 @@ class EventLocation(MagModel):
         if self.room:
             return f"{self.name} ({self.room})"
         return self.name
+    
+    def update_events(self, session):
+        orig_dept_id = self.orig_value_of('department_id')
+        orig_tracks = set([int(i) for i in str(self.orig_value_of('tracks')).split(',') if i])
+        new_tracks = set(self.tracks_ints)
+        
+        if self.department_id == orig_dept_id and new_tracks == orig_tracks:
+            return
+        
+        remove_tracks = orig_tracks - new_tracks
+        add_tracks = new_tracks - orig_tracks
+
+        for event in self.events:
+            event_updated = False
+
+            if event.department_id == orig_dept_id:
+                event.department_id = self.department_id
+                event_updated = True
+            
+            event_old_tracks = set(event.tracks_ints)
+            if remove_tracks:
+                event.tracks = ','.join(map(str, list(set(event.tracks_ints) - remove_tracks)))
+            if add_tracks:
+                event.tracks = ','.join(map(str, event.tracks_ints + list(add_tracks)))
+
+            if set(event.tracks_ints) != event_old_tracks:
+                event_updated = True
+
+            if event_updated:
+                event.last_updated = datetime.now(UTC)
+                session.add(event)
 
 
 class Event(MagModel):
@@ -65,7 +96,7 @@ class Event(MagModel):
     guest = relationship('GuestGroup', backref=backref('event', cascade="save-update,merge"),
                          cascade='save-update,merge')
     attraction = relationship('AttractionEvent', backref=backref(
-        'schedule_event', cascade="save-update,merge", uselist=False
+        'schedule_item', cascade="save-update,merge", uselist=False
         ), cascade='save-update,merge')
 
     @property
@@ -178,7 +209,7 @@ class PanelApplication(MagModel):
                 if getattr(self.event, key, '') != getattr(self, key, ''):
                     setattr(self.event, key)
         if updated:
-            self.event.last_updated = self.last_updated
+            self.event.last_updated = datetime.now(UTC)
     
     @presave_adjustment
     def set_default_dept(self):

@@ -279,7 +279,7 @@ class Attraction(MagModel, AttractionMixin):
 
         for event in self.events:
             update_if_changed(event)
-            if 'populate_schedule' in attr_changes and event.populate_schedule == True:
+            if 'populate_schedule' in attr_changes:
                 event.sync_with_schedule(session)
 
 
@@ -289,9 +289,9 @@ class Attraction(MagModel, AttractionMixin):
         
         for event in self.events:
             if event.populate_schedule:
-                event.schedule_event.department_id = self.department_id
-                event.schedule_event.last_updated = self.last_updated
-                session.add(event.schedule_event)
+                event.schedule_item.department_id = self.department_id
+                event.schedule_item.last_updated = datetime.now(pytz.UTC)
+                session.add(event.schedule_item)
 
     def signups_requiring_notification(self, session, from_time, to_time, options=None):
         """
@@ -396,7 +396,7 @@ class AttractionFeature(MagModel, AttractionMixin):
             if event_updated:
                 setattr(event, 'last_updated', self.last_updated)
                 session.add(event)
-            if 'populate_schedule' in attr_changes and event.populate_schedule == True:
+            if 'populate_schedule' in attr_changes:
                 event.sync_with_schedule(session)
 
     def update_name_desc(self, session):
@@ -405,10 +405,10 @@ class AttractionFeature(MagModel, AttractionMixin):
         
         for event in self.events:
             if event.populate_schedule:
-                event.schedule_event.name = self.name
-                event.schedule_event.description = self.description
-                event.schedule_event.last_updated = self.last_updated
-                session.add(event.schedule_event)
+                event.schedule_item.name = self.name
+                event.schedule_item.description = self.description
+                event.schedule_item.last_updated = datetime.now(pytz.UTC)
+                session.add(event.schedule_item)
 
     @property
     def location_opts(self):
@@ -665,16 +665,19 @@ class AttractionEvent(MagModel, AttractionMixin):
     def sync_with_schedule(self, session):
         from uber.models import Event
         if not self.populate_schedule:
+            if not self.schedule_item:
+                return
+            session.delete(self.schedule_item)
             return
         
         updated = False
 
-        if not self.schedule_event:
+        if not self.schedule_item:
             event = Event(attraction_event_id=self.id,
                           department_id=self.attraction.department_id)
             updated = True
         else:
-            event = self.schedule_event
+            event = self.schedule_item
         
         for key in ['event_location_id', 'start_time', 'duration', 'name', 'description']:
             current_attr = getattr(self, key, '')
@@ -683,7 +686,7 @@ class AttractionEvent(MagModel, AttractionMixin):
                 setattr(event, key, current_attr)
         
         if updated:
-            event.last_updated = self.last_updated
+            event.last_updated = datetime.now(pytz.UTC)
             session.add(event)
 
     def overlap(self, event):

@@ -7,7 +7,7 @@
   {%- if location.is_new -%}
     <i class="fa fa-plus"></i> New Schedule Location
   {%- else -%}
-    <i class="fa fa-cog"></i> Edit Location "{{ location.name }}"
+    <i class="fa fa-cog"></i> Edit Location "{{ location.name }}"{% if location.room %} ({{ location.room }}){% endif %}
   {%- endif -%}
 </h2>
 

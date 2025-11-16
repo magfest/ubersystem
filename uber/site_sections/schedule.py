@@ -145,6 +145,7 @@ class Root:
     def location(self, session, message='', **params):
         if params.get('id') in [None, '', 'None']:
             location = EventLocation()
+            session.add(location)
         else:
             location = session.event_location(params.get('id'))
 
@@ -153,9 +154,12 @@ class Root:
         if cherrypy.request.method == 'POST':
             for form in forms.values():
                 form.populate_obj(location)
-                session.add(location)
+
+            location.update_events(session)
+
             raise HTTPRedirect('edit?message={}',
-                               f"{location.name} location added." if location.is_new else f"{location.name} location updated.")
+                               f"{location.schedule_name} location added." if location.is_new else 
+                               f"{location.schedule_name} location updated.")
 
         return {
             'location': location,

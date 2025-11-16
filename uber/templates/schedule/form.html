@@ -12,6 +12,21 @@
     {% include 'forms/panel/event_info.html' with context %}
 
 <div class="row g-3 mb-3">
+    {% if event.attraction %}
+    <div class="col-sm">
+        <div class="form-text">Attraction</div>
+        <div>
+            {% if c.HAS_ATTRACTIONS_ADMIN_ACCESS %}
+            <a href="../attractions_admin/event?id={{ event.attraction.id }}" target="_blank">
+                {{ event.attraction.feature.name }}
+            </a>
+            (<a href="../attractions_admin/form?id={{ event.attraction.attraction.id }}#feature_{{ event.attraction.feature.id }}" target="_blank">{{ event.attraction.attraction.name }}</a>)
+            {% else %}
+            {{ event.attraction.feature }}
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
     <div class="col-sm">
         <label for="panel_id" class="form-text">Panel Applications</label>
         <select name="panel_id" id="panel_id" class="form-select">
@@ -31,7 +46,7 @@
 </div>
 </form>
 
-<div class="d-flex gap-3 align-items-start mb-3">
+<div class="d-flex gap-1 align-items-start mb-3">
     <div><input type="submit" class="btn btn-primary" form="event-form" value="Upload Event Data" /></div>
     {% if not event.is_new %}
     <div>
@@ -41,7 +56,7 @@
         <input type="submit" value="Delete This Event" class="btn btn-danger" />
         </form>
         {% if c.HAS_PANELS_ADMIN_ACCESS and not event.is_new %}
-    </div><div><a class="btn btn-outline-primary" href="../panels_admin/panel_feedback?event_id={{ event.id }}">Leave panel feedback</a></div>
+    </div><div><a class="btn btn-outline-primary" href="../panels_admin/panel_feedback?event_id={{ event.id }}">Leave Panel Feedback</a></div>
     {% endif %}</div>
     {% endif %}
 </div>

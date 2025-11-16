@@ -42,8 +42,8 @@
               className: 'btn-outline-secondary',
           },
           move: {
-              label: 'Yes, Move From Waitlist',
-              className: 'btn-primary',
+              label: 'Move From Waitlist',
+              className: 'btn-outline-primary',
               callback: function (result) {
                 if(result) {
                   pullWaitlistCall(false)
@@ -52,7 +52,7 @@
           },
           move_and_email: {
             label: 'Move From Waitlist And Notify',
-              className: 'btn-outline-primary',
+              className: 'btn-primary',
               callback: function (result) {
                 if(result) {
                   pullWaitlistCall(true)
@@ -61,6 +61,7 @@
           },
         }
     bootbox.dialog({
+      size: 'large',
       title: 'Move From Waitlist?',
       message: '<p>Are you sure you want to move this signup off the waitlist?</p>' +
           "<p>You will be able to check them in, but signups will be overfilled. " +

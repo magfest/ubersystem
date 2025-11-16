@@ -86,9 +86,13 @@ EventLocationInfo.field_validation.required_fields = {
     'name': "Please enter a location name."
 }
 
+EventLocationInfo.field_validation.validations['tracks']['optional'] = validators.Optional()
+
 EventInfo.field_validation.required_fields = {
     'name': "Please enter a name for this event.",
     'description': "Please enter an event description.",
     'start_time': "Please select a start time.",
     'duration': "Please enter a duration.",
 }
+
+EventInfo.field_validation.validations['tracks']['optional'] = validators.Optional()

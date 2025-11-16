@@ -757,12 +757,14 @@ class JobTemplate(MagModel):
         # Storing these now prevents extra hits to the DB
         old_open_time = self.orig_value_of('open_time')
         old_close_time = self.orig_value_of('close_time')
-        old_days = self.orig_value_of('days')
+        
+        old_days_ints = set([int(i) for i in str(self.orig_value_of('days')).split(',') if i])
 
-        if old_days != self.days:
-            old_days_ints = set([int(i) for i in str(old_days).split(',') if i])
-            delete_days = old_days_ints - self.days_ints
-            add_days = self.days_ints - old_days_ints
+        new_days_ints = set(self.days_ints)
+
+        if old_days_ints != new_days_ints:
+            delete_days = old_days_ints - new_days_ints
+            add_days = new_days_ints - old_days_ints
 
             if delete_days:
                 jobs_by_date = session.query(

@@ -24,7 +24,8 @@ class BaseAttractionInfo(MagForm):
     admin_desc = True
 
     slots = IntegerField('Minimum # Slots')
-    populate_schedule = BooleanField('These events should also appear on the event schedule.')
+    populate_schedule = BooleanField('These events should also appear on the event schedule.',
+                                     description="Unchecking this box will delete the existing schedule event, if there is one.")
     no_notifications = BooleanField(
         'These events should NOT send notifications to attendees.',
         description="Check this box if you plan on sending reminders and information to attendees through other means.")

@@ -153,8 +153,10 @@ class EventLocationInfo(MagForm):
     dynamic_choices_fields = {'department_id': lambda: [("", 'No Department')] + c.EVENT_DEPTS_OPTS}
 
     department_id = SelectField('Department',
-                                description="The default department for events in this location, if any.")
-    tracks = SelectMultipleField('Track(s)', description="The default tracks for events in this location.",
+                                description="The default department for events in this location, if any. \
+                                    Updating this will update any of this location's events that already have the same department.")
+    tracks = SelectMultipleField('Track(s)', description="The default tracks for events in this location. \
+                                 Adding or removing tracks will add/remove those tracks from existing events.",
                                  coerce=int, choices=c.EVENT_TRACK_OPTS, widget=UniqueList())
     name = StringField('Location Name')
     room = StringField('Room Name',

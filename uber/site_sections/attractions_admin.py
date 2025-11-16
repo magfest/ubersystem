@@ -240,27 +240,6 @@ class Root:
 
         return {"success": True}
 
-    @csrf_protected
-    def delete_feature(self, session, id):
-        feature = session.query(AttractionFeature).get(id)
-        attraction_id = feature.attraction_id
-        message = ''
-        if cherrypy.request.method == 'POST':
-            attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
-                message = "You cannot delete a feature from an attraction you don't own"
-            else:
-                session.delete(feature)
-                raise HTTPRedirect(
-                    'form?id={}&message={}',
-                    attraction_id,
-                    'The {} feature was deleted'.format(feature.name))
-
-        if not message:
-            raise HTTPRedirect('form?id={}', attraction_id)
-        else:
-            raise HTTPRedirect('form?id={}&message={}', attraction_id, message)
-
     @csv_file
     def export_feature(self, out, session, id):
         from uber.decorators import _set_response_filename
@@ -441,10 +420,62 @@ class Root:
             attraction_id = event.feature.attraction_id
             attraction = session.query(Attraction).get(attraction_id)
             if not session.admin_attendee().can_admin_attraction(attraction):
-                message = "You cannot delete a event from an attraction you don't own"
+                message = "You cannot delete a event from an attraction you don't own."
             else:
                 session.delete(event)
                 session.commit()
+        if message:
+            return {'error': message}
+        
+    @ajax
+    def delete_event(self, session, id):
+        message = ''
+        if cherrypy.request.method == 'POST':
+            event = session.query(AttractionEvent).get(id)
+            attraction_id = event.feature.attraction_id
+            attraction = session.query(Attraction).get(attraction_id)
+            if not session.admin_attendee().can_admin_attraction(attraction):
+                message = "You cannot delete a event from an attraction you don't own."
+            else:
+                if event.schedule_item:
+                    session.delete(event.schedule_item)
+                session.delete(event)
+                session.commit()
+        if message:
+            return {'error': message}
+    
+    @ajax
+    def delete_feature(self, session, id):
+        feature = session.query(AttractionFeature).get(id)
+        attraction_id = feature.attraction_id
+        message = ''
+        if cherrypy.request.method == 'POST':
+            attraction = session.query(Attraction).get(attraction_id)
+            if not session.admin_attendee().can_admin_attraction(attraction):
+                message = "You cannot delete a feature from an attraction you don't own."
+            else:
+                session.delete(feature)
+                session.commit()
+
+        if message:
+            return {'error': message}
+    
+    @ajax
+    def delete_feature_cascade(self, session, id):
+        feature = session.query(AttractionFeature).get(id)
+        attraction_id = feature.attraction_id
+        message = ''
+        if cherrypy.request.method == 'POST':
+            attraction = session.query(Attraction).get(attraction_id)
+            if not session.admin_attendee().can_admin_attraction(attraction):
+                message = "You cannot delete a feature from an attraction you don't own."
+            else:
+                for event in feature.events:
+                    if event.schedule_item:
+                        session.delete(event.schedule_item)
+                session.delete(feature)
+                session.commit()
+
         if message:
             return {'error': message}
 

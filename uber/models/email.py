@@ -347,7 +347,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
 
 class Email(MagModel, BaseEmailMixin):
     automated_email_id = Column(
-        UUID, ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None)
+        UUID, ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None, index=True)
 
     fk_id = Column(UUID, nullable=True)
     ident = Column(UnicodeText)
