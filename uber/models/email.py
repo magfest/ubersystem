@@ -316,7 +316,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         with request_cached_context(clear_cache_on_start=True):
             return JinjaEnv.env().from_string(text).render(data)
 
-    def send_to(self, model_instance, delay=True, raise_errors=False):
+    def send_to(self, model_instance, delay=True, raise_errors=False, session=None):
         try:
             from uber.tasks.email import send_email
             data = self.renderable_data(model_instance)
@@ -332,7 +332,8 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 bcc=self.bcc or model_instance.bcc_emails_for_ident(self.ident),
                 replyto=self.replyto or model_instance.replyto_emails_for_ident(self.ident),
                 ident=self.ident,
-                automated_email=self.to_dict('id'))
+                automated_email=self.to_dict('id'),
+                session=session)
             return True
         except Exception:
             traceback.print_exc()
