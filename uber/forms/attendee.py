@@ -247,6 +247,7 @@ class AdminBadgeFlags(BadgeFlags):
     dynamic_choices_fields = {'group_membership': lambda: AdminBadgeFlags.get_valid_groups()}
 
     can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
+    transfer_code = StringField('Transfer Code')
     badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)
     badge_type = SelectField('Badge Type', coerce=int, choices=c.BADGE_OPTS)
     badge_num = BlankOrIntegerField('Badge #', default='')

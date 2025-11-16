@@ -8,6 +8,7 @@ last_paid: {{ attendee.paid|tojson }},
 badge_status: {{ badge_flags.badge_status.data|tojson }},
 no_badge_num: {{ (not attendee.badge_num)|tojson }},
 paid: {{ badge_flags.paid.data|tojson }},
+can_transfer: {{ badge_flags.can_transfer.data|tojson if not attendee.is_inherently_transferable else 'true' }},
 preassignedBadge() { return {{ c.PREASSIGNED_BADGE_TYPES|tojson }}.includes(this.badge_type) },
 setPaidStatus() {
     if (this.badge_status == {{ c.REFUNDED_STATUS|tojson }}) {
@@ -136,8 +137,11 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
                 {% elif attendee.cannot_transfer_reason %}
                     This attendee cannot transfer their badge under any circumstances because {{ attendee.cannot_transfer_reason|readable_join }}.
                 {% else %}
-                    {{ form_macros.input(badge_flags.can_transfer, admin_text=transfer_admin_text) }}
+                    {{ form_macros.input(badge_flags.can_transfer, admin_text=transfer_admin_text, alpine_model="can_transfer") }}
                 {% endif %}
+                <div x-show="can_transfer">
+                    {{ form_macros.input(badge_flags.transfer_code, show_label=False, admin_text="Set or unset a code above for use in badge transfers.") }}
+                </div>
             </div>
         </div>
     {% endif %}
@@ -156,7 +160,6 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
     </div>
 {% endif %}
 {% endblock %}
-
 
 
 {% block badge_info %}
