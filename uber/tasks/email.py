@@ -194,21 +194,23 @@ def send_automated_emails():
                     unapproved_count = 0
                     timing = {
                         "iteration": 0,
+                        "fk_id_retrieve": 0,
                         "fk_id_list": 0,
                         "would_send": 0,
                         "approved": 0,
                         "refresh": 0,
                         "send": 0,
                     }
+                    begin = time()
                     if getattr(automated_email, 'shared_ident', None):
                         matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
                         fk_id_list = {id for id, in matching_email_ids}
                     else:
                         fk_id_list = {email.fk_id for email in automated_email.emails}
-                    log.debug(str(fk_id_list))
-
+                    end = time()
+                    timing['fk_id_retrieve'] += end - begin
+                    begin = end
                     log.debug("  Loading instances for " + automated_email.ident)
-                    begin = time()
                     for model_instance in model_instances:
                         end = time()
                         timing['iteration'] += end - begin
