@@ -7,7 +7,7 @@ import traceback
 from celery.schedules import crontab
 from pockets import groupify, listify
 from pockets.autolog import log
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, raiseload
 
 from uber import utils
 from uber.amazon_ses import email_sender
@@ -182,7 +182,7 @@ def send_automated_emails():
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
                 log.debug("  Found " + str(len(automated_emails)) + " emails for " + model.__name__)
                 load_start = time()
-                model_instances = query_func(session).all()
+                model_instances = query_func(session).options(raiseload("*")).all()
                 log.debug(f"Loaded {len(model_instances)} {model.__name__} instances in {time() - load_start} seconds")
                 for automated_email in automated_emails:
                     if automated_email.currently_sending:
