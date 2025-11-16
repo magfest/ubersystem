@@ -111,11 +111,10 @@ def send_email(
             session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
             if session:
                 session.add(email)
-                session.commit(expire=False)
             else:
                 with Session() as session:
                     session.add(email)
-                    session.commit(expire=False)
+                    session.commit()
 
 
 @celery.schedule(crontab(hour=6, minute=0, day_of_week=1))
