@@ -312,7 +312,7 @@ class Root:
         if params.get('id') == 'None' and cherrypy.request.method != 'POST':
             defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['department_id']]
             # Fix for sessions in the wild before fixed on default set below.
-            if defaults['slots'] is None:
+            if defaults.get('slots', '') is None:
                 defaults['slots'] = 0
             params.update(defaults)
 
