@@ -2,7 +2,7 @@
 
 Thanks again for applying to be in the Artist Marketplace at {{ c.EVENT_NAME_AND_YEAR }}!
 
-In order to complete your application, you must pay the {{ amount_unpaid|format_currency }} marketplace fee: {{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}. Payment is expected by {{ c.MARKETPLACE_PAYMENT_DUE|datetime_local }} or your application may be removed and your space filled by another applicant.
+In order to complete your application, you must pay the {{ app.amount_unpaid|format_currency }} marketplace fee: {{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}. Payment is expected by {{ c.MARKETPLACE_PAYMENT_DUE|datetime_local }} or your application may be removed and your space filled by another applicant.
 
 If your plans have changed, you can instead use the "Cancel Application" button at the link above to let us know that you do not need your space anymore.
 
