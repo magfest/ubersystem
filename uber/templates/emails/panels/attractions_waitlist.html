@@ -1,9 +1,10 @@
 <html>
 <head></head>
 <body>
-<p>
-    {{ signup.attendee.first_name }},
-    <br/>Checkin for {{ signup.event.name }} {{ checkin }} in {{ signup.event.location_room_name }}.
+
+<p>{{ signup.attendee.first_name }},
+    <br>
+    Congratulations, you've been signed up from the waitlist for {{ signup.event.name }} in {{ signup.event.location_room_name }}, {{ signup.event.time_span_label }}!
 </p>
 <p>
     You can <a href="{{ c.URL_BASE }}/attractions/manage?id={{ signup.attendee.id }}">view and manage your signups or change your notification preferences here</a>.

@@ -1,0 +1,76 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set attraction_info = attraction_info or forms['attraction_info'] %}
+
+{# BLOCK NAMES in this form:
+    x_data
+    location_category
+    name_description
+    time_duration
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<div x-data="{ {% block x_data %}
+signups_open_type: '{{ attraction_info.signups_open_type.data }}',
+waitlist_available: {{ attraction_info.waitlist_available.data|boolean|tojson }},
+{% endblock %} }">
+
+<div class="row g-3 mb-3">
+{% block dept_slots %}
+<div class="col-sm">{{ form_macros.input(attraction_info.department_id) }}</div>
+<div class="col-sm">{{ form_macros.input(attraction_info.slots) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block name_desc %}
+<div class="col-sm">{{ form_macros.input(attraction_info.name) }}</div>
+<div class="col-sm">{{ form_macros.input(attraction_info.description) }}</div>
+<div class="col-sm">{{ form_macros.input(attraction_info.full_description) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block public_badge_num %}
+<div class="col-sm">{{ form_macros.input(attraction_info.is_public) }}</div>
+<div class="col-sm">{{ form_macros.input(attraction_info.badge_num_required) }}</div>
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block restriction %}
+<div class="col-sm">{{ form_macros.input(attraction_info.restriction) }}</div>
+<div class="col-sm">{{ form_macros.input(attraction_info.advance_checkin) }}</div>
+<div class="col-sm">{{ form_macros.input(attraction_info.checkin_reminder) }}</div>
+{% endblock %}
+</div>
+
+<div class="card card-body bg-light mb-3">
+<span class="form-text mb-3">
+    Synced Settings <a href="#" data-bs-toggle="tooltip" title="These settings apply to all new events in this attraction. They can be overridden per-feature and per-event. Updating one of these settings will update existing features and events UNLESS that setting has been overridden."><i class="fa fa-question-circle" aria-hidden="true"></i> What's this?</a>
+</span>
+<div class="row g-3 mb-3">
+{% block defaults %}
+    <div class="col-sm">{{ form_macros.input(attraction_info.populate_schedule) }}</div>
+    <div class="col-sm">{{ form_macros.input(attraction_info.no_notifications) }}</div>
+</div><div class="row g-3 mb-3">
+    <div class="col-sm">
+        {{ form_macros.input(attraction_info.waitlist_available, alpine_model="waitlist_available") }}
+        <div x-show="waitlist_available">{{ form_macros.input(attraction_info.waitlist_slots, required_if="waitlist_available") }}</div>
+    </div>
+    <div class="col-sm">
+        {% call form_macros.input(attraction_info.signups_open_type, alpine_model="signups_open_type") %}
+        <div x-show="signups_open_type == 'relative'">
+            {{ form_macros.input(attraction_info.signups_open_relative, required_if="signups_open_type == 'relative'") }}
+        </div>
+        <div x-show="signups_open_type == 'absolute'">
+            {{ form_macros.input(attraction_info.signups_open_time, min_date=attraction.minimum_signups_open, required_if="signups_open_type == 'absolute'") }}
+        </div>
+        {% endcall %}
+    </div>
+{% endblock %}
+</div>
+</div>
+
+</div>

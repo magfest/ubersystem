@@ -124,7 +124,7 @@ def import_attendees(session):
 
 
 def import_events(session):
-    event_locs, _ = zip(*c.EVENT_LOCATION_OPTS)
+    event_locs, _ = zip(*c.SCHEDULE_LOCATION_OPTS)
     for e in dump['events']:
         if e['location'] in event_locs:
             e['start_time'] = offset_to_datetime(e['start_time'])

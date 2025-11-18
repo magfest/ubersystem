@@ -7,48 +7,6 @@
 {% include 'attractions/attractions_common.html' %}
 {% include 'attractions_badge_num.html' %}
 
-<style type="text/css">
-  .hover-btn + .hover-btn {
-    margin-top: 0;
-  }
-
-  .hover-btn-title h2 {
-    font-size: 1.125em;
-  }
-
-  .hover-btn-body p {
-    margin: 0;
-  }
-
-  .slots {
-    font-size: 1.2em;
-    vertical-align: middle;
-  }
-
-  .filter-bar {
-    margin-bottom: 20px;
-    text-align: right;
-  }
-
-  .modal .text-hilite {
-    color: #555;
-    font-weight: bold;
-  }
-
-  .modal .text-hilite .glyphicon {
-    margin: 0 0.25em 0 0.375em;
-  }
-
-  .modal-body {
-    font-weight: normal;
-    padding-left: 2em;
-  }
-
-  .modal-title .attendee {
-    display: inline-block;
-  }
-</style>
-
 <script>
   $(function() {
     var $modals = $('.modal'),
@@ -65,9 +23,9 @@
     $('#nonbadge-signup-alert').hide();
 
     $btnShowSoldout.on('click', function(event) {
-      var isShowing = $btnShowSoldout.hasClass('btn-plain');
+      var isShowing = $btnShowSoldout.hasClass('btn-secondary');
       $btnShowSoldout.toggleClass('btn-outline-secondary', isShowing);
-      $btnShowSoldout.toggleClass('btn-plain', !isShowing);
+      $btnShowSoldout.toggleClass('btn-secondary', !isShowing);
       $('body').toggleClass('show-soldout', !isShowing);
     });
 
@@ -77,7 +35,7 @@
           eventId = $event.data('eventId'),
           isSoldout = $event.hasClass('soldout');
 
-      if (isSoldout || $event.hasClass('unavailable')) {
+      if ((isSoldout && $event.hasClass('waitlist-soldout')) || $event.hasClass('unavailable')) {
         return;
       }
 
@@ -110,6 +68,9 @@
             $modals.toggleClass('soldout', response['is_sold_out']);
             $('#' + eventId).toggleClass('soldout', response['is_sold_out']);
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
+            $('#' + eventId).find('.waitlist-remaining-slots').first().text(response['remaining_waitlist_slots']);
+            $('.waitlist-show').toggle(response['on_waitlist']);
+            $('.waitlist-hide').toggle(response['on_waitlist'] == false);
             callback(response);
           } else {
             showErrorMessage(response['error'] || 'Unknown error signing up for event.', 'nonbadge-signup-alert');
@@ -208,21 +169,27 @@
       var $notificationPref = $doneModal.find('.notification_pref'),
           attendeeData = $doneModal.data('attendee');
       if (attendeeData && attendeeData.hasOwnProperty('notification_pref')) {
-        if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_NONE }}) {
+        if (attendeeData.hasOwnProperty('custom_notifications') && attendeeData['custom_notifications']) {
           $notificationPref.html(
-            'You will <b>not</b> be notified because you have <b>disabled</b> event notifications.');
+            'This event does not have automated notifications. You may be sent email notifications with further information'
+          )
         } else {
-          var icon = '';
-          if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_EMAIL }}) {
-            icon = '<i class="fa fa-envelope"></i> ';
-          } else if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_TEXT }}) {
-            icon = '<i class="fa fa-phone"></i> ';
+          if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_NONE }}) {
+            $notificationPref.html(
+              'You will <b>not</b> be notified because you have <b>disabled</b> event notifications');
+          } else {
+            var icon = '';
+            if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_EMAIL }}) {
+              icon = '<i class="fa fa-envelope"></i> ';
+            } else if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_TEXT }}) {
+              icon = '<i class="fa fa-phone"></i> ';
+            }
+            $notificationPref.html(
+              'You will be notified at ' +
+              '<span class="text-hilite">' +
+              icon + attendeeData['masked_notification_pref'] +
+              '</span>');
           }
-          $notificationPref.html(
-            'You will be notified at ' +
-            '<span class="text-hilite">' +
-            icon + attendeeData['masked_notification_pref'] +
-            '</span>.');
         }
         $notificationPref.css('display', '');
       } else {
@@ -243,39 +210,29 @@
     <div class="modal-content">
       <div class="modal-header">
         <h4 class="modal-title">
-          <span class="bling-icon"></span> <span class="signup-event-label"></span>
+          <span class="signup-event-label"></span>
         </h4>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <div class="alert alert-dismissible" role="alert" id="badge-signup-alert"><span></span>{% if bootstrap5 %}<button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button>{% else %}<button type="button" class="close" onClick="hideMessageBox()" aria-label="Close"><span aria-hidden="true">&times;</span></button>{% endif %}</div>
         <p>
-          Sign up for
-          <span class="text-hilite">{{ feature.attraction.name }} –</span>
-          <span class="signup-event-label"></span>?
-        </p>
-        <p>
-          The event will be held in
-          <span class="text-hilite signup-event-location"></span>.
-        </p>
-        <p>
-          You {% if feature.attraction.advance_checkin < 0 %}may{% else %}must{% endif %}
+          <strong>Event Name & Time</strong>: <span class="signup-event-label"></span>
+          <br/><strong>Location</strong>: <span class="text-hilite signup-event-location"></span>
+          <br/><strong>Check-In</strong>: You {% if feature.attraction.advance_checkin < 0 %}may{% else %}must{% endif %}
           check in {{ feature.attraction.advance_checkin_label }}.
         </p>
-        {% if not c.AT_THE_CON %}
-        {% if feature.badge_num_required %}
-        <br/>
-        <h4 class="text-center">This event requires a badge number to sign up. You'll be able to sign up after you pick up your badge at registration!</h3>
-        {% endif %}
+        {% if feature.badge_num_required and not c.AT_THE_CON %}
+        <div class="h5 text-center">This event requires a badge number to sign up<span class="visible-soldout-inline"> for the waitlist</span>. You'll be able to sign up after you pick up your badge at registration!</div>
         {% else %}
         {{ attractions_macros.badge_num_form('Type your badge # here after picking up your badge!') }}
         {% endif %}
       </div>
       <div class="modal-footer">
         {% if not feature.badge_num_required %}
-          <button class="btn btn-outline-secondary btn-lg btn-xl modal-form-switch">Sign up without badge #</button>
+          <button class="btn btn-secondary modal-form-switch">Sign up without badge #</button>
         {% endif %}
-        <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">Nevermind</button>
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Nevermind</button>
       </div>
     </div>
   </div>
@@ -287,14 +244,24 @@
     <div class="modal-content">
       <div class="modal-header">
         <h4 class="modal-title">
-          <span class="bling-icon"></span> <span class="signup-event-label"></span>
+          <span class="signup-event-label"></span>
         </h4>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="alt_signup_form" method="post" action="sign" role="form">
         <div class="modal-body">
           <div class="alert alert-dismissible" role="alert" id="nonbadge-signup-alert"><span></span>{% if bootstrap5 %}<button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button>{% else %}<button type="button" class="close" onClick="hideMessageBox()" aria-label="Close"><span aria-hidden="true">&times;</span></button>{% endif %}</div>
-          <p>Enter your personal information to sign up. You must already be registered to sign up for this event.</p>
+          <p class="hidden-soldout">Enter your personal information below to sign up. You must already be registered to sign up for this event.</p>
+          <p class="visible-soldout-block">
+            Enter your personal information below to add yourself to the waitlist for this event.
+            <br/><br/>Attendees on the waitlist are automatically signed up if someone cancels on a first-come first-serve basis.
+          </p>
+          <p>
+            <strong>Event Name & Time</strong>: <span class="signup-event-label"></span>
+            <br/><strong>Location</strong>: <span class="text-hilite signup-event-location"></span>
+            <br/><strong>Check-In</strong>: You {% if feature.attraction.advance_checkin < 0 %}may{% else %}must{% endif %}
+            check in {{ feature.attraction.advance_checkin_label }}.
+          </p>
           <div class="row g-3">
             <div class="col-12 col-sm-6">
               <label class="form-text">First Name</label>
@@ -306,7 +273,7 @@
             </div>
             <div class="col-12 col-sm-6">
               <label class="form-text">Last Name</label>
-              <input class="form-control input-lg info-field"
+              <input class="form-control info-field"
                   type="text"
                   name="last_name"
                   placeholder="Smith"
@@ -316,7 +283,7 @@
             <div class="row g-3">
               <div class="col-12 col-sm-6">
                 <label class="form-text">Email Address</label>
-                <input class="form-control input-lg info-field"
+                <input class="form-control info-field"
                     type="email"
                     name="email"
                     placeholder="email@example.com"
@@ -324,20 +291,21 @@
               </div>
               <div class="col-12 col-sm-6">
                 <label class="form-text">Zip Code</label>
-                <input class="form-control input-lg info-field"
-                    pattern="[0-9]*"
+                <input class="form-control info-field"
                     name="zip_code"
                     placeholder="12345"
-                    required="required" />
+                    />
               </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-success btn-lg btn-xl">
-              <i class="fa fa-check"></i> Sign up
+          <button class="btn btn-success">
+              <i class="fa fa-check"></i>
+              <span class="hidden-soldout">Sign Up</span>
+              <span class="visible-soldout-inline">Sign up for waitlist</span>
           </button>
-          <button type="button" class="btn btn-secondary btn-lg btn-xl modal-switch-back">Use Badge #</button>
-          <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">Nevermind</button>
+          <button type="button" class="btn btn-secondary modal-switch-back">Use badge #</button>
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Nevermind</button>
         </div>
       </form>
     </div>
@@ -350,13 +318,14 @@
     <div class="modal-content">
       <div class="modal-header">
         <h4 class="modal-title">
-          <span class="bling-icon"></span> {{ attractions_macros.attendee_name() }}
+          {{ attractions_macros.attendee_name() }}
         </h4>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body form-horizontal">
+      <div class="modal-body">
         <p>
-          Congratulations, you're signed up for
+          <span class="waitlist-hide">Congratulations, you're signed up for</span>
+          <span class="waitlist-show">You have been added to the waitlist for</span>
           <span class="text-hilite">{{ feature.attraction.name }} –</span>
           <span class="signup-event-label"></span>!
         </p>
@@ -365,7 +334,7 @@
           <span class="text-hilite signup-event-location"></span>.
           Please check in {{ feature.attraction.advance_checkin_label }}.
         </p>
-        <p class="notification_pref"></p>
+        <p><span class="notification_pref"></span><span class="waitlist-show"> if you are moved from the waitlist</span>.</p>
         <div class="hidden-soldout">
           <p>Want to go as a group? You can sign up some friends below...</p>
           {{ attractions_macros.badge_num_form('Sign up a friend') }}
@@ -375,8 +344,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">
-          All Done!
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Close
         </button>
       </div>
     </div>
@@ -388,8 +357,8 @@
     {% block body %}
       <a class="btn btn-success btn-back" href="{{ feature.attraction.slug }}">
         <i class="fa fa-chevron-left"></i>
-        <span class="hidden-xxs">{{ feature.attraction.name }}</span>
-        <span class="visible-xxs-inline">Back</span>
+        <span class="d-none d-sm-inline">{{ feature.attraction.name }}</span>
+        <span class="d-inline d-sm-none">Back</span>
       </a>
       <h1 class="text-center">Schedule for {{ feature.name }}</h1>
       <p class="text-center">
@@ -399,8 +368,8 @@
       {%- set available_events_by_day = feature.available_events_by_day -%}
       {%- set is_multi_day = available_events_by_day|length > 1 -%}
       {% if available_events_by_day %}
-        <div class="filter-bar">
-          <button id="btn_show_soldout" class="btn btn-outline-secondary btn-xs">
+        <div class="filter-bar text-end">
+          <button id="btn_show_soldout" class="btn btn-outline-secondary btn-sm">
             <i class="fa fa-filter"></i>
             Include sold out
           </button>
@@ -422,21 +391,23 @@
           {% endif %}
           <h2 id="{{ day }}">{{ day }}</h2>
           {% for event in events %}
-            {%- set is_soldout = event.is_sold_out -%}
-            {%- set is_unavailable = not event.signups_open -%}
-            <div class="event hover-btn{% if is_soldout %} soldout{% endif %}{% if is_unavailable %} unavailable{% endif %}{% if feature.badge_num_required %} badge-num-required{% endif %}"
+            <div class="event card border hover-btn{% if event.is_sold_out %} soldout{% endif %}{% if not event.signups_open %} unavailable{% endif %}{% if not event.waitlist_open %} waitlist-soldout{% endif %}{% if feature.badge_num_required %} badge-num-required{% endif %}"
                 id="{{ event.id }}"
                 data-event-id="{{ event.id }}"
                 data-event-name="{{ event.name }}"
                 data-event-slots="{{ event.slots }}"
-                data-event-location="{{ event.location }}"
+                data-event-location="{{ event.event_location_id }}"
                 data-event-start-time="{{ event.start_time_label }}">
               <div class="hover-btn-title">
-                <button class="btn btn-success btn-next btn-next-sm pull-right">
+                <button class="btn btn-success btn-next btn-next-sm pull-right hidden-soldout">
                   <i class="fa fa-check"></i>
                 </button>
-                <h2><span class="bling-icon"></span> {{ event.time_span_label }}</h2>
-                <em class="text-nowrap">{{ event.duration_label }}</em>
+                <div class="d-flex gap-2 align-items-end">
+                  <h3 class="h5 mb-0 text-muted">
+                    {{ event.time_span_label }}
+                    <small><em>{{ event.duration_label }}</em></small>
+                  </h3>
+                </div>
               </div>
               <div class="hover-btn-body">
                 <p class="event-label" style="display: none">
@@ -444,14 +415,28 @@
                   <span class="text-hilite">{{ event.start_time_label }}</span>{#- strip -#}
                 </p>
                 <p class="event-location">
-                  {{ format_location(event.location, separator=' ', spacer='', text_class='') }}{#- strip -#}
+                  {{ format_location(event.event_location_id, separator=' ', spacer='', text_class='') }}{#- strip -#}
                 </p>
-                <p>
+                <div class="d-flex gap-2 justify-content-between mb-0">
                   <span class="visible-soldout-inline text-danger">
                     <b class="slots">SOLD OUT</b> all
                     <em class="slots">{{ event.slots }}</em>
                     slot{{ event.slots|pluralize }} taken
+                    {% if event.waitlist_available and event.waitlist_slots %}
+                      <br/>
+                      <span class="text-body">
+                      <em class="slots waitlist-remaining-slots">{{ event.remaining_waitlist_slots }}</em> out of
+                      <em class="slots waitlist-total-slots">{{ event.waitlist_slots }}</em> waitlist slot{{ event.waitlist_slots|pluralize }} available
+                      </span>
+                    {% endif %}
                   </span>
+                  {% if event.waitlist_open %}
+                  <div class="visible-soldout-inline">
+                      <button class="btn btn-secondary">
+                        Sign up for waitlist
+                      </button>
+                  </div>
+                  {% endif %}
                   {% if event.signups_open %}
                   <span class="hidden-soldout">
                     <em class="slots remaining-slots">{{ event.remaining_slots }}</em> out of
@@ -462,7 +447,7 @@
                     <em>This event is not open for signups right now.</em>
                   </span>
                   {% endif %}
-                </p>
+                </div>
                 <p class="visible-signedup-inline"><em class="text-success">You are signed up for this event!</em></p>
               </div>
             </div>

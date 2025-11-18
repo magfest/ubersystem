@@ -1359,6 +1359,66 @@ class Config(_Overridable):
 
     @request_cached_property
     @dynamic
+    def SCHEDULE_LOCATION_OPTS(self):
+        from uber.models import Session, EventLocation
+        opt_list = []
+
+        with Session() as session:
+            event_locations = session.query(EventLocation)
+
+            if not event_locations.count():
+                return opt_list
+
+            for location in event_locations:
+                opt_list.append((location.id, location.schedule_name))
+        
+        return opt_list
+    
+    @request_cached_property
+    @dynamic
+    def SCHEDULE_LOCATIONS(self):
+        return {key: name for key, name in self.SCHEDULE_LOCATION_OPTS}
+    
+    @request_cached_property
+    @dynamic
+    def ROOM_TRIE(self):
+        def make_room_trie(rooms):
+            root = nesteddefaultdict()
+            for index, (location, description) in enumerate(rooms):
+                for word in filter(lambda s: s, re.split(r'\W+', description)):
+                    current_dict = root
+                    current_dict['__rooms__'][location] = index
+                    for letter in word:
+                        current_dict = current_dict.setdefault(letter.lower(), nesteddefaultdict())
+                        current_dict['__rooms__'][location] = index
+            return root
+
+        return make_room_trie(c.SCHEDULE_LOCATION_OPTS)
+
+    @request_cached_property
+    @dynamic
+    def EVENT_DEPTS_OPTS(self):
+        from uber.models import Session, Department
+        opt_list = []
+
+        with Session() as session:
+            event_depts = session.query(Department)
+
+            if not event_depts.count():
+                return opt_list
+
+            for dept in event_depts:
+                opt_list.append((dept.id, dept.name))
+        
+        return opt_list
+    
+    @request_cached_property
+    @dynamic
+    def EVENT_DEPTS(self):
+        return {key: name for key, name in self.EVENT_DEPTS_OPTS}
+
+    @request_cached_property
+    @dynamic
     def PANELS_DEPT_OPTS_WITH_DESC(self):
         from uber.models import Session, Department
         opt_list = []
@@ -2094,27 +2154,10 @@ c.PANEL_SCHEDULE_LENGTH = int((c.PANELS_ESCHATON - c.PANELS_EPOCH).total_seconds
 c.EVENT_START_TIME_OPTS = [(dt, dt.strftime('%I %p %a') if not dt.minute else dt.strftime('%I:%M %a'))
                            for dt in [c.EPOCH + timedelta(minutes=i * 30) for i in range(c.PANEL_SCHEDULE_LENGTH)]]
 c.EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i in range(1, 19)]
-
-c.ORDERED_EVENT_LOCS = [loc for loc, desc in c.EVENT_LOCATION_OPTS]
 c.EVENT_BOOKED = {'colspan': 0}
 c.EVENT_OPEN = {'colspan': 1}
 
 c.PRESENTATION_OPTS.sort(key=lambda tup: 'zzz' if tup[0] == c.OTHER else tup[1])
-
-
-def _make_room_trie(rooms):
-    root = nesteddefaultdict()
-    for index, (location, description) in enumerate(rooms):
-        for word in filter(lambda s: s, re.split(r'\W+', description)):
-            current_dict = root
-            current_dict['__rooms__'][location] = index
-            for letter in word:
-                current_dict = current_dict.setdefault(letter.lower(), nesteddefaultdict())
-                current_dict['__rooms__'][location] = index
-    return root
-
-
-c.ROOM_TRIE = _make_room_trie(c.EVENT_LOCATION_OPTS)
 
 invalid_rooms = [room for room in (c.PANEL_ROOMS + c.MUSIC_ROOMS) if not getattr(c, room.upper(), None)]
 

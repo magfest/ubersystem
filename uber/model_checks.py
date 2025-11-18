@@ -547,12 +547,6 @@ def slug_not_existing(feature):
                 Please make sure this feature's name is different from others, not including punctuation."
 
 
-@validation.AttractionEvent
-def at_least_one_slot(event):
-    if event.slots < 1:
-        return 'Events must have at least one slot.'
-
-
 # =============================
 # guests
 # =============================

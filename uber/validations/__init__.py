@@ -68,6 +68,7 @@ address_required_validators = {
 from uber.validations.artist_marketplace import *
 from uber.validations.art_show import *
 from uber.validations.attendee import *
+from uber.validations.attraction import *
 from uber.validations.department import *
 from uber.validations.group import *
 from uber.validations.hotel_lottery import *

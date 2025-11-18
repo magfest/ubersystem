@@ -1,27 +1,21 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}New Attraction{% endblock %}
 
 {% import 'attractions_macros.html' as attractions_macros with context %}
 
 {% block content %}
-<style type="text/css">
-  form {
-    max-width: 738px;
-  }
-</style>
-
 <h1>
   <i class="fa fa-plus"></i>
   New Attraction
 </h1>
 
-<form method="post" action="new" class="form-horizontal" role="form">
-  {{ attractions_macros.attraction_form(Attraction) }}
-  <div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
-      <button type="submit" class="btn btn-primary">Save</button>
-      <a href="index" type="button" class="btn btn-outline-secondary">Cancel</a>
-    </div>
-  </div>
+{{ form_macros.form_validation('attraction-form', 'validate_attraction') }}
+<form novalidate method="post" action="new" id="attraction-form" role="form">
+    {{ csrf_token() }}
+    {% include 'forms/attraction/attraction_info.html' with context %}
+  
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="index" type="button" class="btn btn-outline-secondary">Cancel</a>
 </form>
 {% endblock %}

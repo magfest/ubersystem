@@ -1089,7 +1089,7 @@ class Session(SessionManager):
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
 
-        def lookup_attendee(self, first_name, last_name, email, zip_code):
+        def lookup_attendee(self, first_name, last_name, email, zip_code=''):
             attendees = self.query(Attendee).iexact(
                 first_name=first_name,
                 last_name=last_name,
@@ -1097,7 +1097,7 @@ class Session(SessionManager):
             ).filter(
                 Attendee.normalized_email == normalize_email_legacy(email),
                 Attendee.is_valid == True  # noqa: E712
-            ).limit(10).all()
+            )
 
             if attendees:
                 statuses = defaultdict(lambda: six.MAXSIZE, {

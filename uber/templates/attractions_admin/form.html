@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}{{ attraction.name }}{% endblock %}
 
 {% import 'attractions_macros.html' as attractions_macros with context %}
@@ -318,7 +319,7 @@
   $(function() {
     var features = {{ attraction.feature_names_by_id|jsonize }};
     var locations = {{ attraction.locations_by_feature_id|jsonize }};
-    var allLocations = {{ c.EVENT_LOCATIONS|jsonize }};
+    var allLocations = {{ c.SCHEDULE_LOCATIONS|jsonize }};
 
     $('#features').on('click', '.event-spacer a', function(event) {
       event.preventDefault();
@@ -340,13 +341,13 @@
       $('#attractionevent input.gap_minutes').focus();
     });
 
-    var deleteEvent = function(eventId, callback) {
+    var deleteEventOrFeature = function(eventOrFeatureId, callback, url='delete_event') {
       callback = callback || function() {}
       $.ajax({
         method: 'POST',
-        url: 'delete_event',
+        url: url,
         data: {
-          id: eventId,
+          id: eventOrFeatureId,
           csrf_token: csrf_token
         },
         success: function(response, status) {
@@ -358,11 +359,61 @@
       });
     };
 
+    $('.feature-title').on('click', '.delete-feature', function(event) {
+      event.preventDefault();
+      var $button = $(this);
+          featureId = $button.data('featureId'),
+          featureLabel = $button.data('featureLabel');
+      
+      var callback = function(response) {
+        if(response && response['error']) {
+          showErrorMessage(response['error'], '', {timeOut: 3000});
+        } else {
+          window.location.reload();
+        }
+      };
+
+      var bootboxBtns = {
+        cancel: {
+            label: 'Nevermind',
+            className: 'btn-outline-secondary',
+        },
+        delete: {
+            label: 'Delete Feature',
+            className: 'btn-outline-danger',
+            callback: function (result) {
+              if(result) {
+                deleteEventOrFeature(featureId, callback, 'delete_feature');
+              }
+            }
+        },
+        delete_cascade: {
+          label: 'Delete Feature and Any Schedule Items',
+            className: 'btn-danger',
+            callback: function (result) {
+              if(result) {
+                deleteEventOrFeature(featureId, callback, 'delete_feature_cascade');
+              }
+            }
+        }
+      }
+
+      bootbox.dialog({
+        size: 'large',
+        backdrop: true,
+        title: "Delete this feature?",
+        message: '<p>Are you sure you want to delete ' + featureLabel + '?</p>' +
+          '<p>This cannot be undone.</p>',
+        buttons: bootboxBtns
+      });
+    })
+
     $('.room-col').on('click', '.delete-event', function(event) {
       event.preventDefault();
       var $button = $(this);
           eventId = $button.data('eventId'),
-          eventLabel = $button.data('eventLabel');
+          eventLabel = $button.data('eventLabel'),
+          eventCascade = $button.data('eventCascade');
 
       var callback = function(response) {
         if(response && response['error']) {
@@ -376,19 +427,41 @@
         }
       };
 
-      bootbox.confirm({
+      var bootboxBtns = {
+        cancel: {
+            label: 'Nevermind',
+            className: 'btn-outline-secondary',
+        },
+        delete: {
+            label: 'Delete Event',
+            className: 'btn-outline-danger',
+            callback: function (result) {
+              if(result) {
+                deleteEventOrFeature(eventId, callback, 'delete_event');
+              }
+            }
+        }
+      }
+
+      if (eventCascade) {
+        bootboxBtns.delete_cascade = {
+          label: 'Delete Event and Schedule Item',
+            className: 'btn-danger',
+            callback: function (result) {
+              if(result) {
+                deleteEventOrFeature(eventId, callback, 'delete_event_cascade');
+              }
+            }
+        }
+      }
+
+      bootbox.dialog({
+        size: 'large',
         backdrop: true,
+        title: "Delete this event?",
         message: '<p>Are you sure you want to delete ' + eventLabel + '?</p>' +
           '<p>This cannot be undone.</p>',
-        buttons: {
-          confirm: { label: 'Delete Event', className: 'btn-danger' },
-          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
-        },
-        callback: function (result) {
-          if (result) {
-            deleteEvent(eventId, callback);
-          }
-        }
+        buttons: bootboxBtns
       });
     });
 
@@ -415,10 +488,12 @@
     openSignups = function(featureId, location, day) {
       bootbox.confirm({
         backdrop: true,
+        title: 'Open ' + features[featureId] + ' Signups?',
         message: '<p><strong>Open ' + features[featureId] + ' signups in ' + allLocations[location] + ' for ' + day + '?</strong></p>' +
-                 'This will allow attendees to sign up for all the events in this location on this day' +
+                 '<p>This will allow attendees to sign up for all the events in this location on this day' +
                  '{% if not attraction.is_public %} once this attraction is made public and{% endif %}'+ 
-                 ' as long as this feature is open to the public.',
+                 ' as long as this feature is open to the public.</p>'+
+                 '<p>If any events are set to open a certain time before they start, this will override that.</p>',
         buttons: {
           confirm: { label: 'Open Signups', className: 'btn-success' },
           cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
@@ -497,8 +572,8 @@
       var $select = $(this);
       try {
         var featureId = $select.data('featureId'),
-            oldValue = parseInt($select.data('initialValue')),
-            newValue = parseInt($select.val());
+            oldValue = $select.data('initialValue'),
+            newValue = $select.val();
 
         if(featureId && oldValue && newValue && newValue != oldValue) {
           if(locations[featureId][newValue]) {
@@ -589,20 +664,21 @@
 {% if can_admin_attraction -%}
   <div id="edit_attraction" class="modal fade" tabindex="-1" role="dialog" style="display: none"
       aria-labelledby="edit_attraction_title">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-xl" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
           <h4 class="modal-title" id="edit_attraction_title">
             <i class="fa fa-cog"></i>
             Edit {{ attraction.name }}
           </h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <form method="post" action="form" class="form-horizontal" role="form">
+        <form novalidate method="post" action="form" id="attraction-form" role="form">
           <div class="modal-body">
-            {{ attractions_macros.attraction_form(attraction) }}
+            {{ form_macros.form_validation('attraction-form', 'validate_attraction') }}
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ attraction.id }}" />
+            {% include 'forms/attraction/attraction_info.html' with context %}
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
@@ -618,13 +694,11 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
           <h4 class="modal-title" id="edit_event_gap_title">
             <i class="fa fa-clock-o"></i>
             Edit Time Between Events
           </h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form id="edit_event_gap_form" method="post" action="edit_event_gap" class="form-horizontal" role="form">
           {{ csrf_token() }}
@@ -693,20 +767,20 @@
   {% if attraction.advance_checkin > -1 -%}
     <p>
       Attendees must check in
-      {{ humanize_timedelta(seconds=attraction.advance_checkin, now='when', prefix='at least ', suffix=' before') }}
+      {{ humanize_timedelta(minutes=attraction.advance_checkin, now='when', prefix='at least ', suffix=' before') }}
       the event starts.
     </p>
   {%- endif %}
 
-  {% if attraction.advance_notices %}
-    {% if attraction.advance_notices|length == 1 %}
+  {% if attraction.checkin_reminder %}
+    {% if attraction.checkin_reminder|length == 1 %}
       <p>Attendees will be notified about {{ attraction.name }} events
-      {{ humanize_timedelta(seconds=attraction.advance_notices|first, now='when the event starts', suffix=' before') }}.</p>
+      {{ humanize_timedelta(minutes=attraction.checkin_reminder|first, now='when the event starts', suffix=' before') }}.</p>
     {% else %}
       Attendees will be notified about {{ attraction.name }} events:
       <ul>
-        {% for notification in attraction.advance_notices %}
-          <li>{{ humanize_timedelta(seconds=notification, now='when the event starts', suffix=' before') }}</li>
+        {% for notification in attraction.checkin_reminder %}
+          <li>{{ humanize_timedelta(minutes=notification, now='when the event starts', suffix=' before') }}</li>
         {% endfor %}
       </ul>
     {% endif %}
@@ -749,7 +823,7 @@
   {% set unused_location_opts = attraction.unused_location_opts %}
   <div class="row row-stacked feature-container">
     <div class="col-sm-stacked">
-      <ul class="nav nav-pills nav-sm-stacked">
+      <ul class="nav nav-pills nav-sm-stacked flex-column">
         {% for feature in attraction.features %}
           <li role="presentation" class="nav-item">
             <a class="nav-link{% if loop.index0 == 0 %} active{% endif %}" href="#feature_{{ feature.id }}" data-bs-toggle="pill">
@@ -771,7 +845,7 @@
                         title="Export signup list for {{ feature.name }}"
                         href="export_feature?id={{ feature.id }}"
                         download="download">
-                      <i class="fa fa-download-alt"></i>
+                      <i class="fa fa-download"></i>
                     </a>
                     <a class="btn btn-sm btn-primary btn-fade"
                         title="Edit the {{ feature.name }} feature"
@@ -782,11 +856,8 @@
                         method="post"
                         action="delete_feature"
                         role="form"
-                        onsubmit="return confirm('Are you sure you want to delete this feature? This will also delete any associated events.');"
                         title="Delete the {{ feature.name }} feature">
-                      {{ csrf_token() }}
-                      <input type="hidden" name="id" value="{{ feature.id }}">
-                      <button type="submit" class="btn btn-sm btn-danger btn-fade">
+                      <button type="submit" class="btn btn-sm btn-danger btn-fade delete-feature" data-feature-id="{{ feature.id }}" data-feature-label="{{ feature.name }}">
                         <i class="fa fa-remove"></i>
                       </button>
                     </form>
@@ -863,7 +934,7 @@
                             {% endif %}
                             <h2 id="{{ feature.id }}_{{ location }}_{{ day }}">{{ day }} 
                                 <button class="btn btn-sm btn-success open-signups" 
-                                        onClick="openSignups('{{ feature.id }}', '{{ location }}', '{{ day }}')"
+                                        onClick="openSignups('{{ feature.id }}', '{{ location }}', '{{ day }}');"
                                         {% if events|rejectattr("signups_open")|list %}{% else %}style="display:none"{% endif %}>
                                         Open Signups for This Day's Events</button>
                                 <button class="btn btn-sm btn-danger close-signups"
@@ -881,7 +952,7 @@
                                         href="event?id={{ event.id }}">
                                       <i class="fa fa-cog"></i>
                                     </a>
-                                    <button type="submit" class="btn btn-sm btn-danger btn-fade delete-event" data-event-id="{{ event.id }}" data-event-label="{{ feature.name }} at {{ event.start_time_label }}">
+                                    <button type="submit" class="btn btn-sm btn-danger btn-fade delete-event" data-event-cascade="{{ event.populate_schedule|tojson }}" data-event-id="{{ event.id }}" data-event-label="{{ feature.name }} at {{ event.start_time_label }}">
                                       <i class="fa fa-remove"></i>
                                     </button>
                                   </div>
@@ -894,7 +965,7 @@
                                   <div>
                                     {% if event.is_sold_out %}
                                       <span class="text-success">
-                                        <b class="slots">FULL</b> all
+                                        <b class="slots">FULL</b> <em class="slots">{{ event.signed_up_attendees|length }}</em> out of
                                         <em class="slots">{{ event.slots }}</em> slot{{ event.slots|pluralize }} taken
                                       </span>
                                     {% else %}

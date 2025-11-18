@@ -124,21 +124,20 @@ def check_placeholder_registrations():
         emails = [[
             'Staff',
             c.STAFF_EMAIL,
-            Attendee.staffing == True,  # noqa: E712
-            Attendee.is_valid == True  # noqa: E712
+            (Attendee.staffing == True, Attendee.is_valid == True)  # noqa: E712
         ], [
             'Panelist',
             c.PANELS_EMAIL,
-            or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON)),
-            Attendee.is_valid == True  # noqa: E712
+            (or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON)),
+            Attendee.is_valid == True)  # noqa: E712
         ], [
             'Attendee',
             c.REGDESK_EMAIL,
-            not_(or_(
+            (not_(or_(
                 Attendee.staffing == True,  # noqa: E712
                 Attendee.badge_type == c.GUEST_BADGE,
                 Attendee.ribbon.contains(c.PANELIST_RIBBON))),
-            Attendee.is_valid == True  # noqa: E712
+            Attendee.is_valid == True)  # noqa: E712
         ]]
 
         with Session() as session:
