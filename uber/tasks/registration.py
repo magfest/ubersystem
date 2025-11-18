@@ -151,7 +151,7 @@ def check_placeholder_registrations():
                                            .filter(Attendee.placeholder == True,  # noqa: E712
                                                    Attendee.registered < localized_now() - timedelta(days=3),
                                                    Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                                                   per_email_filter)
+                                                   *per_email_filter)
                                            .options(joinedload(Attendee.group))
                                            .order_by(Attendee.registered, Attendee.full_name).all())
                     if placeholders:
