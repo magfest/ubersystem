@@ -35,6 +35,14 @@ placeholder_check = lambda x: x.name not in placeholder_unassigned_fields(x.form
 # PersonalInfo
 # =============================
 
+def prereg_must_confirm_email(form):
+    if c.PREREG_CONFIRM_EMAIL_ENABLED and (
+            not hasattr(form, 'copy_email') or not form.copy_email.data
+            ) and not form.is_admin and (
+                form.model.needs_pii_consent or form.model.badge_status == c.PENDING_STATUS):
+        return True
+
+
 PersonalInfo.field_validation.required_fields = {
     'first_name': ("Please provide your first name.", 'first_name', placeholder_check),
     'last_name': ("Please provide your last name.", 'last_name', placeholder_check),
@@ -42,6 +50,7 @@ PersonalInfo.field_validation.required_fields = {
         "Please enter a name for your custom-printed badge.", 'badge_printed_name',
         lambda x: x.form.model.has_personalized_badge and 'badge_printed_name' not in placeholder_unassigned_fields(x.form)),
     'email': ("Please enter an email address.", 'copy_email', lambda x: not x.data and 'email' not in placeholder_unassigned_fields(x.form)),
+    'confirm_email': ("Please confirm your email address.", 'confirm_email', lambda x: prereg_must_confirm_email(x.form)),
     'ec_name': ("Please tell us the name of your emergency contact.", 'ec_name', placeholder_check),
     'ec_phone': ("Please give us an emergency contact phone number.", 'ec_phone', placeholder_check),
 }
@@ -75,6 +84,7 @@ PersonalInfo.field_validation.validations['badge_printed_name'].update({
                                 characters. Please use only alphanumeric characters and symbols."""),
 })
 PersonalInfo.field_validation.validations['email']['optional'] = validators.Optional()
+PersonalInfo.field_validation.validations['confirm_email']['optional'] = validators.Optional()
 PersonalInfo.field_validation.validations['onsite_contact'].update({
     'length': validators.Length(max=500, message="""You have entered over 500 characters of onsite contact information. 
                                 Please provide contact information for fewer friends.""")
@@ -92,16 +102,6 @@ def cellphone_required(form, field):
     if not field.data and (not hasattr(form, 'copy_phone') or not form.copy_phone.data
             ) and not form.no_cellphone.data and (form.model.is_dealer or form.model.staffing_or_will_be):
         raise ValidationError("Please provide a phone number.")
-
-
-@PersonalInfo.field_validation('confirm_email')
-@ignore_unassigned_and_placeholders
-def confirm_email_required(form, field):
-    if c.PREREG_CONFIRM_EMAIL_ENABLED and (
-            not hasattr(form, 'copy_email') or not form.copy_email.data
-            ) and not form.is_admin and not field.data and (
-                form.model.needs_pii_consent or form.model.badge_status == c.PENDING_STATUS):
-        raise ValidationError("Please confirm your email address.")
 
 
 @PersonalInfo.field_validation('confirm_email')
