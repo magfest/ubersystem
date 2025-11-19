@@ -48,7 +48,6 @@
 </style>
 
 <script type="text/javascript" src="../static_views/ratings.js"></script>
-{% include 'shifts_admin/shift_comment_modal.html'%}
 
 <div class="table-responsive">
   <table id="jobs"></table>
@@ -60,7 +59,7 @@
     $(RatingModule.setupShiftRatingClickHandler);
 
     var renderShift = function(shift) {
-        return RatingModule.findOrCreateElement('shift_' + shift.id, '<tr></tr>')
+        let mainRow =  RatingModule.findOrCreateElement('shift_' + shift.id, '<tr></tr>')
             .empty()
             .append(
                 $('<td class="attendee-name"></td>').append(
@@ -79,6 +78,40 @@
                 )
             .append($('<td></td>').append(RatingModule.renderShiftStatus(shift, renderShifts)))
             .append($('<td></td>').append(RatingModule.renderShiftRating(shift)));
+
+        // Create comment row
+        let commentRow = RatingModule.findOrCreateElement(
+            'shift_comment_' + shift.id,
+            `<tr id="shift_comment_${shift.id}" style="display:none;"></tr>`
+        );
+
+        // Render with a single <td> and nested flex container
+        commentRow.html(`
+            <td colspan="4">
+                <div class="d-flex align-items-center gap-2">
+                    <label for="shift_comment_${shift.id}_input" class="mb-0">
+                        Shift Comment
+                        <span class="required-indicator text-danger" style="display:none;"> *</span>
+                    </label>
+                    <input type="text"
+                           id="shift_comment_${shift.id}_input"
+                           name="shift_comment"
+                           value="${shift.comment || ''}"
+                           class="flex-grow-1 form-control">
+                    <button type="button"
+                            id="shift_comment_${shift.id}_submit"
+                            class="btn btn-primary"
+                            onclick="RatingModule.commentSubmit('${shift.id}')">
+                        Save
+                    </button>
+                </div>
+                <div class="invalid-feedback justify-content-center w-100" style="display:none;">
+                    <span>Please enter a shift comment.</span>
+                </div>
+            </td>
+        `);
+
+        return [mainRow, commentRow];
     };
 
     var renderShifts = function(job) {
@@ -90,9 +123,15 @@
         var shifts = job.shifts.sort(function(s1, s2) {
             return s1.attendee_name > s2.attendee_name;
         });
-        return RatingModule.findOrCreateElement('shifts_' + job.id, '<table class="shifts-table"></table>')
-            .empty()
-            .append($.map(shifts, renderShift));
+
+
+        const $table = RatingModule.findOrCreateElement('shifts_' + job.id, '<table class="shifts-table"></table>').empty();
+
+        shifts.forEach(shift => {
+            $table.append(renderShift(shift)); // jQuery handles arrays of elements
+        });
+
+        return $table;
     };
 
     var renderJob = function(job) {

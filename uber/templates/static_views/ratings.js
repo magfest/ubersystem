@@ -30,16 +30,17 @@
             let $btn = $(event.target);
             let $container = $btn.parent();
             let shift = $container.data('shift');
-            //Launch the comment modal.
-            let $modal = $("#shiftCommentModal");
-            $modal.data("shift", shift);
-            $modal.data("rating", shift.rating);
-            $modal.find("#shiftCommentText").val(shift.comment || '');
-            $modal.modal("show");
-            //See commentSubmit for next step on modal submit.
+            //show the comment row
+            let $shiftRatingRow = $(`#shift_comment_${shift.id}`);
+            $shiftRatingRow.data("shift", shift);
+            $shiftRatingRow.data("rating", shift.rating);
+            $shiftRatingRow.find('input[type="text"]').val(shift.comment || '');
+            $shiftRatingRow.show();
+            //See commentSubmit for next step on submit of comment
         });
 
         $(document.body).on('click', '.rating img', function (event) {
+            console.log("HMD rating image clicked!");
             let $img = $(event.target);
             let $container = $img.parent();
             let shift = $container.data('shift');
@@ -67,14 +68,14 @@
                     shift.comment = '';
                 }, 'json');
             } else {
-                //Launch the comment modal.
-                let $modal = $("#shiftCommentModal");
-                $modal.data("shift", shift);
-                $modal.data("rating", rating);
-                $modal.find("#shiftCommentText").val(shift.comment || '');
-                $modal.find("#shiftCommentRequired").show();
-                $modal.modal("show");
-                //See commentSubmit for next step on modal submit.
+                //Show the comment row
+                let $shiftRatingRow = $(`#shift_comment_${shift.id}`);
+                $shiftRatingRow.data("shift", shift);
+                $shiftRatingRow.data("rating", rating);
+                $shiftRatingRow.find('input[type="text"]').val(shift.comment || '');
+                $shiftRatingRow.find('.required-indicator').show();
+                $shiftRatingRow.show();
+                //See commentSubmit for next step on comment submit;
             }
         });
     };
@@ -93,18 +94,20 @@
         }
     }
 
-    let commentSubmit = function () {
-        let $modal = $("#shiftCommentModal");
-        let shift = $modal.data("shift"); //Points to same object as container!
-        let rating = $modal.data("rating");
-        let $textarea = $modal.find("#shiftCommentText");
-        let comment = $textarea.val().trim();
+    let commentSubmit = function (shiftId) {
+        //Get the comment row
+        let $commentRow = $(`#shift_comment_${shiftId}`);
+        let shift = $commentRow.data("shift"); //Points to same object as container!
+        let rating = $commentRow.data("rating");
+        let $commentInput = $commentRow.find('input[name="shift_comment"]');
+        let $commentInvalid = $commentRow.find('.invalid-feedback');
+        let comment = $commentInput.val().trim();
 
         if (!comment && rating !== UNRATED) {
             // show Bootstrap invalid feedback
-            $textarea.addClass("is-invalid");
-            $modal.find("#invalidShiftComment").show();
-            return; // stop submission
+             $commentInput.addClass("is-invalid");
+             $commentInvalid.css('display', 'flex');
+             return; // stop submission
         }
 
         let $container = $('#rating_' + shift.id); //find the right rating object.
@@ -129,12 +132,7 @@
                     .attr('src', RATINGS[r][r == rating]);
             });
             updateCommentIcon($container, shift.comment);
-            $modal.modal("hide");
-            //Reset the modal state for the next launch
-            $modal.find("#invalidShiftComment").hide();
-            $modal.find("#shiftCommentRequired").hide();
-            $textarea.removeClass("is-invalid");
-            $modal.data("shift", undefined);
+            hideShiftComment($commentRow);
 
          }, 'json');
     };
@@ -170,6 +168,25 @@
             );
     };
 
+    const findShiftComment = function(shiftId){
+        return $(`#shift_comment_${shiftId}`);
+    }
+
+    const hideShiftComment = function (commentRow){
+        let commentInput = commentRow.find('input[name="shift_comment"]');
+        //Hide the row and reset the state
+        commentRow.hide();
+
+        // reset validation state
+        commentRow.find('.invalid-feedback').hide();
+        commentRow.find(".required-indicator").hide();
+        commentInput.removeClass("is-invalid");
+
+        // clear stored data
+        commentRow.data("shift", undefined);
+        commentRow.data("rating", undefined);
+    }
+
     const renderShiftStatus = function(shift, onUpdateShiftStatus) {
         shift = typeof shift === 'string' ? SHIFTS[shift] : shift;
         if (shift.worked === {{ c.SHIFT_UNMARKED }}) {
@@ -186,6 +203,8 @@
             $('<a href="#">Undo</a>').click(function(event) {
                 event.preventDefault();
                 updateShiftStatus(shift, {{ c.SHIFT_UNMARKED }}, onUpdateShiftStatus);
+
+                hideShiftComment(findShiftComment(shift.id));
             }));
     };
 
