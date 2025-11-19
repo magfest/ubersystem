@@ -58,6 +58,7 @@
         };
 
         $.each(SHIFTS, function(id, shift) {
+            RatingModule.renderCommentRow(shift, 9);
             onShiftStatusChanged({}, shift);
         });
     });
@@ -145,28 +146,6 @@
             </td>
           </tr>
             <tr id="shift_comment_{{ shift.id }}" style="display:none;">
-                <td colspan="9">
-                    <div class="d-flex align-items-center gap-2">
-                        <label for="shift_comment_${shift.id}_input" class="mb-0">
-                            Shift Comment
-                            <span class="required-indicator text-danger" style="display:none;"> *</span>
-                        </label>
-                        <input type="text"
-                               id="shift_comment_{{ shift.id }}_input"
-                               name="shift_comment"
-                               value="{{ shift.comment }}"
-                               class="flex-grow-1 form-control">
-                        <button type="button"
-                                id="shift_comment_{{ shift.id }}_submit"
-                                 class="btn btn-sm btn-primary"
-                                onclick="RatingModule.commentSubmit('{{ shift.id }}')">
-                            Save
-                        </button>
-                    </div>
-                    <div class="invalid-feedback justify-content-center w-100" style="display:none;">
-                        <span>Please enter a shift comment.</span>
-                    </div>
-                </td>
             </tr>
         {% endfor %}
       </tbody>

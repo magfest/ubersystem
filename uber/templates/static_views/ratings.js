@@ -40,7 +40,6 @@
         });
 
         $(document.body).on('click', '.rating img', function (event) {
-            console.log("HMD rating image clicked!");
             let $img = $(event.target);
             let $container = $img.parent();
             let shift = $container.data('shift');
@@ -168,6 +167,38 @@
             );
     };
 
+    const renderCommentRow = function(shift, colspan){
+        let commentRow = RatingModule.findOrCreateElement(
+            'shift_comment_' + shift.id,
+            `<tr id="shift_comment_${shift.id}" style="display:none;"></tr>`
+         ).empty();
+         commentRow.html(`
+            <td colspan="${colspan}">
+                <div class="d-flex align-items-center gap-2">
+                    <label for="shift_comment_${shift.id}_input" class="mb-0">
+                        Shift Comment
+                        <span class="required-indicator text-danger" style="display:none;"> *</span>
+                    </label>
+                    <input type="text"
+                           id="shift_comment_${shift.id}_input"
+                           name="shift_comment"
+                           value="${shift.comment || ''}"
+                           class="flex-grow-1 form-control">
+                    <button type="button"
+                            id="shift_comment_${shift.id}_submit"
+                            class="btn btn-primary"
+                            onclick="RatingModule.commentSubmit('${shift.id}')">
+                        Save
+                    </button>
+                </div>
+                <div class="invalid-feedback justify-content-center w-100" style="display:none;">
+                    <span>Please enter a shift comment.</span>
+                </div>
+            </td>
+        `);
+         return commentRow;
+    }
+
     const findShiftComment = function(shiftId){
         return $(`#shift_comment_${shiftId}`);
     }
@@ -203,7 +234,6 @@
             $('<a href="#">Undo</a>').click(function(event) {
                 event.preventDefault();
                 updateShiftStatus(shift, {{ c.SHIFT_UNMARKED }}, onUpdateShiftStatus);
-
                 hideShiftComment(findShiftComment(shift.id));
             }));
     };
@@ -231,6 +261,7 @@
         setupShiftRatingClickHandler,
         renderShiftRating,
         renderShiftStatus,
+        renderCommentRow,
         commentSubmit
     };
 
