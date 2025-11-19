@@ -1,63 +1,33 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Schedule{% endblock %}
 {% block content %}
 <h2>{% if event.is_new %}Add{% else %}Edit{% endif %} Event</h2>
-<form method="post" action="form" id="save-event">
-{{ csrf_token() }}
-<input type="hidden" name="id" value="{{ event.db_id }}" />
+{{ form_macros.form_validation('event-form', 'validate_event') }}
+  <form novalidate method="post" action="form" id="event-form">
+    <input type="hidden" name="id" value="{{ event.db_id }}" />
+
+    {{ csrf_token() }}
+
+    {% include 'forms/panel/event_info.html' with context %}
 
 <div class="row g-3 mb-3">
-    <div class="col-12 col-sm-6">
-        <label for="location" class="form-text">Location</label>
-        <select name="location" class="form-select">
-            {{ options(c.EVENT_LOCATION_OPTS,event.location) }}
-        </select>
-    </div>
-    <div class="col-12 col-sm-6">
-        <label for="location" class="form-text">Event Name</label>
-        <div><input class="form-control" type="text" name="name" value="{{ event.name }}" /></div>
-    </div>
-</div>
-
-<div class="row g-3 mb-3">
-    <div class="col-12 col-sm-6">
-        <label for="description" class="form-text">Description</label>
-        <div><textarea rows="6" cols="40" class="form-control" name="description">{{ event.description }}</textarea></div>
-    </div>
-    <div class="col-12 col-sm-6">
-        <label for="description" class="form-text">Public Description</label>
-        <div><textarea rows="6" cols="40" class="form-control" name="public_description">{{ event.public_description }}</textarea></div>
-    </div>
-</div>
-
-<div class="row g-3 mb-3">
-    <div class="col-12 col-sm-6">
-        <label for="start_time" class="form-text">Start Time</label>
-        <div class="input-group">
-            <input
-            id="start-time"
-            name="start_time"
-            type="text"
-            class="form-control"
-            value="">
-            <span class="input-group-text">
-              <i class="fa fa-calendar"></i>
-            </span>
+    {% if event.attraction %}
+    <div class="col-sm">
+        <div class="form-text">Attraction</div>
+        <div>
+            {% if c.HAS_ATTRACTIONS_ADMIN_ACCESS %}
+            <a href="../attractions_admin/event?id={{ event.attraction.id }}" target="_blank">
+                {{ event.attraction.feature.name }}
+            </a>
+            (<a href="../attractions_admin/form?id={{ event.attraction.attraction.id }}#feature_{{ event.attraction.feature.id }}" target="_blank">{{ event.attraction.attraction.name }}</a>)
+            {% else %}
+            {{ event.attraction.feature }}
+            {% endif %}
         </div>
     </div>
-    <div class="col-12 col-sm-6">
-        <label for="duration" class="form-text">Duration</label>
-        <div class="input-group">
-            <input type="text" class="form-control" onfocus="this.select();" name="duration_hours" placeholder="# hours" value="{{ ((event.duration or 0) / 60)|int }}" />
-            <span class="input-group-text">hours,</span>
-            <input type="text" class="form-control" onfocus="this.select();" name="duration_minutes" placeholder="# minutes" value="{{ (event.duration or 0) % 60 }}" />
-            <span class="input-group-text">minutes</span>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 mb-3">
-    <div class="col-12 col-sm-6">
+    {% endif %}
+    <div class="col-sm">
         <label for="panel_id" class="form-text">Panel Applications</label>
         <select name="panel_id" id="panel_id" class="form-select">
             <option selected="true" value="">Associate a panel application with this event</option>
@@ -69,15 +39,15 @@
         <br/> (<a href="../panels_admin/app?id={{ app.id }}">view application for {{ app.name }}</a>)
         {% endfor %}
     </div>
-    <div class="col-12 col-sm-6">
+    <div class="col-sm">
         <label for="panel_id" class="form-text">Panelists</label>
         <div><a class="btn btn-primary" id="add" href="#" onClick="addPanelist(); return false">Add a Panelist</a></div>
     </div>
 </div>
 </form>
 
-<div class="d-flex gap-3 align-items-start mb-3">
-    <div><input type="submit" class="btn btn-primary" form="save-event" value="Upload Event Data" /></div>
+<div class="d-flex gap-1 align-items-start mb-3">
+    <div><input type="submit" class="btn btn-primary" form="event-form" value="Upload Event Data" /></div>
     {% if not event.is_new %}
     <div>
         <form method="post" action="delete" onSubmit="return confirm('Are you sure you want to delete this event?');">
@@ -86,59 +56,15 @@
         <input type="submit" value="Delete This Event" class="btn btn-danger" />
         </form>
         {% if c.HAS_PANELS_ADMIN_ACCESS and not event.is_new %}
-    </div><div><a class="btn btn-outline-primary" href="../panels_admin/panel_feedback?event_id={{ event.id }}">Leave panel feedback</a></div>
+    </div><div><a class="btn btn-outline-primary" href="../panels_admin/panel_feedback?event_id={{ event.id }}">Leave Panel Feedback</a></div>
     {% endif %}</div>
     {% endif %}
 </div>
 
 <script type="text/javascript">
-    const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
-
-    let startFlatpickr = flatpickr('#start-time',{
-        allowInput: true,
-        enableTime: true,
-        altInput: true,
-        altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
-        dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
-        disableMobile: true, //Do not let mobile native datepicker take over.
-        defaultDate: '{{ event.start_time.astimezone(c.EVENT_TIMEZONE).isoformat() if event.start_time else c.PANELS_EPOCH.isoformat()}}',
-        minDate: '{{ c.PANELS_EPOCH.isoformat() }}',
-        maxDate: '{{ c.PANELS_ESCHATON.isoformat() }}',
-        parseDate(dateString, format) {
-            //Flatpickr uses JS native Dates. These are always in local time zone for the client or UTC under the hood.
-            //We need times shown as if they are in the c.EVENT_TIMEZONE.
-            //See: https://github.com/flatpickr/flatpickr/issues/930
-            //Parse the date in the event's timezone
-            //Parses on the way into the internals.
-            let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
-
-            //Return a date in the *local* timezone that force uses the values as if they were event timezone.
-            return new Date(
-                eventTimezonedDate.year(),
-                eventTimezonedDate.month(),
-                eventTimezonedDate.date(),
-                eventTimezonedDate.hour(),
-                eventTimezonedDate.minute(),
-                eventTimezonedDate.second()
-            );
-        },
-        formatDate(date, format) {
-            //Format on the way *out* from the internal storage.
-             let formatted =  moment.tz([
-                date.getFullYear(),
-                date.getMonth(),
-                date.getDate(),
-                date.getHours(),
-                date.getMinutes(),
-                date.getSeconds()
-            ], eventTimeZone).format(format);
-            return formatted;
-        }
-    });
-
     var panelists = {{ panelists|jsonize }};
     
-    var $panelists = $("<select/>").attr("name", "panelists").css("margin-right", "10px");
+    var $panelists = $("<select/>").attr("name", "panelists").attr("class", "form-select").css("margin-right", "10px");
     $.each(panelists, function(i,p) {
         $panelists.append( $("<option/>").attr("value", p[0]).text(p[1]) );
     });
@@ -149,12 +75,12 @@
     };
     var addPanelist = function(id) {
         $("#add").after(
-            $("<div/>").css("padding-top", "5px")
+            $("<div/>").css("padding-top", "5px").attr("class", "d-flex gap-3 align-items-center")
                        .append(
                             $panelists.clone()
                                       .val(id || $panelists.val()))
                        .append(
-                            $("<a/>").attr("href", "#")
+                            $("<a/>").attr("href", "#").attr("class", "btn btn-sm btn-danger")
                                      .text("Remove Panelist")
                                      .click(removePanelist)));
     };

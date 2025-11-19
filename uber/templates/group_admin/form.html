@@ -83,9 +83,11 @@
   {% endif %}
   {{ form_macros.form_validation('group-form', 'validate_group') }}
   <form novalidate method="post" id="group-form" action="form" enctype="multipart/form-data" x-data="{
-    guest_group_type: {{ group.guest_group_type|jsonize }},
+    guest_group_type: {{ (group.guest_group_type or 0)|jsonize }},
     is_dealer: {{ group.is_dealer|jsonize }},
     is_new: {{ group.is_new|jsonize }},
+    badges: {{ 1 if group.is_new else group.badges }}, 
+    get showLeaderInfo() { return this.badges != 0 },
   }">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ group.db_id }}" />
@@ -105,9 +107,11 @@
     {% endif %}
 
     {% if group.is_new %}
+    <div x-show="showLeaderInfo">
     <hr/>
       <div class="form-text">Group Leader's Info</div>
       {% include "forms/group/leader_info.html" %}
+    </div>
     {% endif %}
     
     <div class="form-group">

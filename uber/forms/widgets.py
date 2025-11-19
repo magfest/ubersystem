@@ -1,3 +1,6 @@
+import six
+from dateutil import parser as dateparser
+
 from markupsafe import escape, Markup
 from wtforms.widgets import NumberInput, html_params, CheckboxInput, TextInput, Select, HiddenInput
 from uber.config import c
@@ -165,7 +168,9 @@ class DateMaskInput(TextInput):
 class DateTimePicker(TextInput):
     def __call__(self, field, min_date=c.SHIFTS_EPOCH, max_date=c.SHIFTS_ESCHATON, start_dt=None, **kwargs):
         id = kwargs.pop('id', field.id) or "date-time-picker"
-        start_dt = start_dt or min_date
+        start_dt = field.data or start_dt or c.EPOCH
+        if isinstance(start_dt, six.string_types):
+            start_dt = c.EVENT_TIMEZONE.localize(dateparser.parse(start_dt))
         html = f"""
         <div class="input-group">
             <input id="{id}" name="{field.name}" type="text" class="form-control" value="">
@@ -174,9 +179,9 @@ class DateTimePicker(TextInput):
 
         script = f"""
         <script type="text/javascript">
-            const eventTimeZone = "{c.EVENT_TIMEZONE}";
+            window.eventTimeZone = "{c.EVENT_TIMEZONE}";
 
-            let startFlatpickr = flatpickr('#{id}',{{
+            let startFlatpickr{id} = flatpickr('#{id}',{{
                 allowInput: true,
                 enableTime: true,
                 altInput: true,
@@ -187,7 +192,7 @@ class DateTimePicker(TextInput):
                 minDate: '{min_date.isoformat()}',
                 maxDate: '{max_date.isoformat()}',
                 parseDate(dateString, format) {{
-                    let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+                    let eventTimezonedDate = new moment.tz(dateString, format, window.eventTimeZone);
 
                     //Return a date in the *local* timezone that force uses the values as if they were event timezone.
                     return new Date(
@@ -207,7 +212,7 @@ class DateTimePicker(TextInput):
                         date.getHours(),
                         date.getMinutes(),
                         date.getSeconds()
-                    ], eventTimeZone).format(format);
+                    ], window.eventTimeZone).format(format);
                     return formatted;
                 }}
             }});
@@ -238,13 +243,57 @@ class HourMinuteDuration(HiddenInput):
 
 class UniqueList(TextInput):
     """
-    There are two ways to handle a UniqueList column: a single string field for use with Tagify,
+    There are two ways to handle a UniqueList column: a single string field with Tagify enabled,
     or a set of string fields. This widget handles both.
     """
 
-    def __call__(self, field, num_fields=2, **kwargs):
+    def tagify_js(self, field, choices=None, **kwargs):
+        id = kwargs.pop('id', field.id)
+        enforce = 'false'
+        text_prop = 'value'
+
+        if hasattr(field, 'choices'):
+            choices = choices or field.choices
+            if isinstance(choices[0], tuple):
+                choices = [{'value': choice[0], 'label': choice[1]} for choice in choices]
+                text_prop = 'label'
+            if hasattr(field, 'validate_choice'):
+                enforce = 'true' if field.validate_choice == True else 'false'
+        
+        return f'''
+        <script type="text/javascript">
+        $().ready(function () {{
+            let input{id} = document.getElementById('{id}');
+            tagify{id} = new Tagify(input{id}, {{
+                whitelist: {choices},
+                tagTextProp: '{text_prop}',
+                autoComplete: {{
+                    rightKey: true,
+                    tabKey: true,
+                }},
+                dropdown: {{
+                    enabled: 0,
+                    highlightFirst: true,
+                    mapValueTo: '{text_prop}',
+                    searchKeys: ['value', '{text_prop}'],
+                    enforceWhitelist: {enforce},
+                    maxItems: 20,
+                    classname: 'tagify-tags-{id}-input',
+                    enabled: 0,
+                    closeOnSelect: false
+                }}
+            }})
+        }})
+        </script>'''
+
+    def __call__(self, field, num_fields=2, whitelist=[], **kwargs):
         if num_fields == 1:
-            super().__call__(field, **kwargs)
+            if not whitelist and not getattr(field, 'choices', None):
+                super().__call__(field, value=field.data or '', **kwargs)
+            else:
+                html = super().__call__(field, value=field.data or '', **kwargs)
+                js = Markup(self.tagify_js(field, whitelist, **kwargs))
+                return html + js
 
         choices = field.data.split(',') if field.data else []
         placeholder = kwargs.pop('placeholder', '')

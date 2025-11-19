@@ -1,0 +1,107 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% block title %}Event Location Form{% endblock %}
+{% block content %}
+
+<h2>
+  {%- if location.is_new -%}
+    <i class="fa fa-plus"></i> New Schedule Location
+  {%- else -%}
+    <i class="fa fa-cog"></i> Edit Location "{{ location.name }}"{% if location.room %} ({{ location.room }}){% endif %}
+  {%- endif -%}
+</h2>
+
+<div class="card card-body">
+<script type="text/javascript">
+    {% if not location.is_new %}
+      $(function() {
+          $("form[action='delete_location']").submit(function(event){
+              var formToSubmit = this;
+              event.preventDefault();
+              bootbox.confirm({
+                  message: 'This will permanently delete this location. Any events in this location will be moved to "No Location". Are you sure?',
+                  buttons: {
+                      confirm: {
+                          label: 'Delete Location',
+                          className: 'btn-danger'
+                      },
+                      cancel: {
+                          label: 'Nevermind',
+                          className: 'btn-outline-secondary'
+                      }
+                  },
+                  callback: function (result) {
+                      if(result) {
+                          formToSubmit.submit();
+                      }
+                  }
+              });
+          });
+          $("form[action='delete_location_cascade']").submit(function(event){
+              var formToSubmit = this;
+              event.preventDefault();
+              bootbox.confirm({
+                  message: "This will permanently delete this location AND any events taking place in this location. Are you sure?",
+                  buttons: {
+                      confirm: {
+                          label: 'Delete Location and Events',
+                          className: 'btn-danger'
+                      },
+                      cancel: {
+                          label: 'Nevermind',
+                          className: 'btn-outline-secondary'
+                      }
+                  },
+                  callback: function (result) {
+                      if(result) {
+                          formToSubmit.submit();
+                      }
+                  }
+              });
+          });
+      });
+    {% endif %}
+</script>
+
+  {{ form_macros.form_validation('location-form', 'validate_location') }}
+  <form novalidate method="post" action="location" id="location-form">
+    <input type="hidden" name="id" value="{{ location.db_id }}" />
+
+    {{ csrf_token() }}
+
+    {% include 'forms/panel/event_location_info.html' with context %}
+  </form>
+
+<div class="d-flex gap-2 justify-content-between">
+  <button type="submit" form="location-form" class="btn btn-primary">{{ 'Create' if location.is_new else 'Update' }} Location</button>
+  {% if not location.is_new %}
+    <div class="d-flex gap-2">
+    <form method="post" action="delete_location" class="form-delete">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ location.id }}" />
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <input type="submit" class="btn btn-danger" value="Delete Location" />
+        </div>
+      </div>
+    </form>
+    {% if location.jobs %}
+    <form method="post" action="delete_location_cascade" class="form-delete-cascade">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ location.id }}" />
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <input type="submit" class="btn btn-danger" value="Delete Location AND All Events" />
+        </div>
+      </div>
+    </form>
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}{% endblock %}
+

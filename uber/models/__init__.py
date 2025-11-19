@@ -870,9 +870,18 @@ class Session(SessionManager):
                 subqueries.append(self.query(Group).join(
                     GuestGroup, Group.id == GuestGroup.group_id).filter(
                         GuestGroup.group_type.in_([c.BAND, c.ROCK_ISLAND, c.SIDE_STAGE])))
+                subqueries.append(self.query(Group).join(Group.leader).filter(
+                    Attendee.ribbon.contains(c.BAND)))
 
             if 'dealer_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).filter(Group.is_dealer))
+            
+            if 'showcase_admin' in admin.read_or_write_access_set:
+                subqueries.append(self.query(Group).join(
+                    GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        GuestGroup.group_type == c.MIVS))
+                subqueries.append(self.query(Group).join(Group.leader).filter(
+                    Attendee.ribbon.contains(c.MIVS)))
 
             if 'shifts_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).join(Group.leader).filter(
@@ -925,11 +934,14 @@ class Session(SessionManager):
                                                                     Attendee.group_id == Group.id
                                                                     ).filter(Attendee.is_dealer)
             return_dict['mits_admin'] = self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
-            return_dict['showcase_admin'] = (self.query(Attendee).join(Group, Attendee.group_id == Group.id)
-                                         .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
-                                             and_(Group.id == Attendee.group_id,
-                                                  GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)
-                                                  ))
+            return_dict['showcase_admin'] = self.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id).join(
+                GuestGroup, Group.id == GuestGroup.group_id).filter(
+                    or_(Attendee.ribbon.contains(c.MIVS),
+                        and_(
+                            Attendee.group_id != None,
+                            Group.id == Attendee.group_id,
+                            GuestGroup.group_id == Group.id,
+                            GuestGroup.group_type == c.MIVS)))
             return_dict['art_show_admin'] = self.query(Attendee
                                                        ).outerjoin(
                                                            ArtShowApplication,
@@ -1077,7 +1089,7 @@ class Session(SessionManager):
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
 
-        def lookup_attendee(self, first_name, last_name, email, zip_code):
+        def lookup_attendee(self, first_name, last_name, email, zip_code=''):
             attendees = self.query(Attendee).iexact(
                 first_name=first_name,
                 last_name=last_name,
@@ -1085,7 +1097,7 @@ class Session(SessionManager):
             ).filter(
                 Attendee.normalized_email == normalize_email_legacy(email),
                 Attendee.is_valid == True  # noqa: E712
-            ).limit(10).all()
+            )
 
             if attendees:
                 statuses = defaultdict(lambda: six.MAXSIZE, {
@@ -1567,8 +1579,11 @@ class Session(SessionManager):
                     return
                 attendee.active_badge.unassign()
                 self.add(attendee.active_badge)
-            
-            if needs_badge_num(attendee):
+
+            # If someone has two active badge numbers, we don't want to give them a replacement for the second badge number
+            num_badges = self.query(BadgeInfo).filter(BadgeInfo.attendee_id == attendee.id, BadgeInfo.active == True).count()
+
+            if needs_badge_num(attendee) and num_badges < 2:
                 new_badge = self.get_next_badge_num(badge_type)
 
                 if not new_badge:

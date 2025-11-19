@@ -27,7 +27,6 @@ class PersonalInfo(AddressForm):
     last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
     same_legal_name = BooleanField('The above name is exactly what appears on my Legal Photo ID.')
     legal_name = StringField('Name as appears on Legal Photo ID',
-                             description=popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?'),
                              render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID'})
     badge_printed_name = StringField('Name Printed on Badge', description="Badge names have a maximum of 20 characters.")
     email = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
@@ -62,6 +61,9 @@ class PersonalInfo(AddressForm):
             return locked_fields
 
         return locked_fields + ['first_name', 'last_name', 'legal_name', 'same_legal_name']
+    
+    def legal_name_label(self):
+        return Markup('Name as appears on Legal Photo ID <span class="popup"><a href="../static_views/legal_name.html" target="_blank"><i class="fa fa-question-circle" aria-hidden="true"></i></a></span>')
 
 
 class BadgeExtras(MagForm):
@@ -245,6 +247,7 @@ class AdminBadgeFlags(BadgeFlags):
     dynamic_choices_fields = {'group_membership': lambda: AdminBadgeFlags.get_valid_groups()}
 
     can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
+    transfer_code = StringField('Transfer Code')
     badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)
     badge_type = SelectField('Badge Type', coerce=int, choices=c.BADGE_OPTS)
     badge_num = BlankOrIntegerField('Badge #', default='')

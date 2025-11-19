@@ -541,6 +541,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         d = super().to_dict(*args, **kwargs)
         d.pop('attraction_event_signups', None)
         d.pop('receipt_changes', None)
+        d['badge_num'] = self.badge_num
         return d
 
     @presave_adjustment
@@ -782,6 +783,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.checked_in:
                 badge.check_in()
             self.session.add(badge)
+            self.active_badge = badge
 
     @property
     def last_badge_num(self):
@@ -895,7 +897,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('dealer_admin')
         if self.mits_applicants:
             section_list.append('mits_admin')
-        if self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
+        if c.MIVS in self.ribbon_ints or self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
             section_list.append('showcase_admin')
         if self.art_show_applications or self.art_show_bidder or self.art_show_purchases or self.art_agent_apps:
             section_list.append('art_show_admin')

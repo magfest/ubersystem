@@ -1485,7 +1485,7 @@ class ScheduleLookup:
             return [
                 {
                     'name': event.name,
-                    'location': event.location_label,
+                    'location': event.location_name,
                     'start': event.start_time_local.strftime('%I%p %a').lstrip('0'),
                     'end': event.end_time_local.strftime('%I%p %a').lstrip('0'),
                     'start_unix': int(mktime(event.start_time.utctimetuple())),
@@ -1494,7 +1494,7 @@ class ScheduleLookup:
                     'description': event.public_description or event.description,
                     'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
                 }
-                for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])
+                for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_name])
             ]
 
 

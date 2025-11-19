@@ -1,17 +1,8 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Attraction Feature{% endblock %}
 
 {% block content %}
-<style type="text/css">
-  form {
-    max-width: 738px;
-  }
-
-  .info-block {
-    margin-bottom: 30px;
-  }
-</style>
-
 <h2>
   {%- if feature.is_new -%}
     <i class="fa fa-plus"></i> New Feature for the {{ attraction|form_link }} Attraction
@@ -20,47 +11,16 @@
   {%- endif -%}
 </h2>
 
-<div class="help-block info-block">
-  <em>Features can be people, activities, performances, or anything else attendees might need to wait in line for.</em>
-</div>
+<em>Features can be people, activities, performances, or anything else attendees might need to wait in line for.</em>
 
-<form method="post" action="feature" class="form-horizontal" role="form">
+{{ form_macros.form_validation('attraction-feature-form', 'validate_feature') }}
+<form novalidate method="post" id="attraction-feature-form" action="feature" role="form">
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ 'None' if feature.is_new else feature.id }}" />
   <input type="hidden" name="attraction_id" value="{{ attraction.id }}">
-  {{ macros.form_group(feature, 'name', is_focused=True, is_required=True) }}
-  {{ macros.form_group(
-      feature,
-      'description',
-      type='textarea',
-      is_required=True,
-      help="This description will be displayed to attendees when they're signing up.") }}
-  <div class="form-group">
-    <div class="col-sm-offset-3 col-sm-9">
-      <label class="checkbox-label">
-        <input type="checkbox" name="is_public" value="1"
-            {%- if not is_class and feature.is_public %} checked="checked"{% endif %}/>
-        Open to the public
-      </label>
-      <p class="help-block">
-        This feature will not be visible to attendees for signup until it is opened to the public.
-      </p>
-    </div>
-  </div>
-  <div class="form-group">
-    <div class="col-sm-offset-3 col-sm-9">
-      <label class="checkbox-label">
-        <input type="checkbox" name="badge_num_required" value="1"
-            {%- if (not is_class and feature.badge_num_required) or attraction.badge_num_required %} checked="checked"{% endif %}/>
-        Require badge number for signups
-      </label>
-      <p class="help-block">
-        The events in this feature will require a badge number to sign up.
-      </p>
-    </div>
-  </div>
-  <div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
+  {% include 'forms/attraction/attraction_feature_info.html' with context %}
+  <div class="row g-3 mb-3">
+    <div class="col-sm">
       <input type="submit" name="save" class="btn btn-primary" value="Save">
       <a href="form?id={{ attraction.id }}" type="button" class="btn btn-outline-secondary">Cancel</a>
     </div>

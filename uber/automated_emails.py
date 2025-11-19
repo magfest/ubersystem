@@ -25,7 +25,7 @@ from uber import decorators
 from uber.jinja import JinjaEnv
 from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, ArtShowBidder, AutomatedEmail, Department,
                          Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, ArtistMarketplaceApplication, MITSTeam,
-                         MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, Room, RoomAssignment, LotteryApplication, Shift)
+                         MITSApplicant, ModelReceipt, PanelApplication, PanelApplicant, PromoCodeGroup, Room, RoomAssignment, LotteryApplication, Shift)
 from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 
@@ -40,7 +40,7 @@ class AutomatedEmailFixture:
     queries = {
         Attendee: lambda session: session.all_attendees().options(
             subqueryload(Attendee.admin_account),
-            subqueryload(Attendee.group),
+            subqueryload(Attendee.group).subqueryload(Group.guest),
             subqueryload(Attendee.shifts).subqueryload(Shift.job),
             subqueryload(Attendee.assigned_depts),
             subqueryload(Attendee.dept_membership_requests),
@@ -49,6 +49,8 @@ class AutomatedEmailFixture:
             subqueryload(Attendee.dept_memberships_with_role),
             subqueryload(Attendee.depts_where_working),
             subqueryload(Attendee.hotel_requests),
+            subqueryload(Attendee.promo_code_groups),
+            subqueryload(Attendee.promo_code),
             subqueryload(Attendee.assigned_panelists)),
         AttendeeAccount: lambda session: session.query(AttendeeAccount).options(
             subqueryload(AttendeeAccount.attendees)),

@@ -30,7 +30,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div class="row g-3 mb-3">
 {% block start_duration %}
-<div class="col-sm">{{ form_macros.input(job_or_template_info.start_time, start_dt=job_or_template.start_time.astimezone(c.EVENT_TIMEZONE) if job_or_template.start_time else c.SHIFTS_EPOCH) }}</div>
+<div class="col-sm">{{ form_macros.input(job_or_template_info.start_time) }}</div>
 <div class="col-sm">
     {% call form_macros.input(job_or_template_info.duration) %}
     {{ form_macros.input(job_or_template_info.extra15) }}

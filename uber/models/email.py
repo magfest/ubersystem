@@ -1,4 +1,5 @@
 import re
+import traceback
 from collections import OrderedDict
 from datetime import datetime, date
 from dateutil import parser as dateparser
@@ -315,7 +316,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         with request_cached_context(clear_cache_on_start=True):
             return JinjaEnv.env().from_string(text).render(data)
 
-    def send_to(self, model_instance, delay=True, raise_errors=False):
+    def send_to(self, model_instance, delay=True, raise_errors=False, session=None):
         try:
             from uber.tasks.email import send_email
             data = self.renderable_data(model_instance)
@@ -331,10 +332,12 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 bcc=self.bcc or model_instance.bcc_emails_for_ident(self.ident),
                 replyto=self.replyto or model_instance.replyto_emails_for_ident(self.ident),
                 ident=self.ident,
-                automated_email=self.to_dict('id'))
+                automated_email=self.to_dict('id'),
+                session=session)
             return True
         except Exception:
-            log.error('Error sending {!r} email to {}', self.subject, model_instance.email_to_address, exc_info=True)
+            traceback.print_exc()
+            log.error(f'Error sending {self.subject} email to {model_instance.email_to_address}', exc_info=True)
             if raise_errors:
                 raise
         return False
@@ -345,7 +348,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
 
 class Email(MagModel, BaseEmailMixin):
     automated_email_id = Column(
-        UUID, ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None)
+        UUID, ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None, index=True)
 
     fk_id = Column(UUID, nullable=True)
     ident = Column(UnicodeText)

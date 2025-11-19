@@ -390,8 +390,7 @@ class Root:
             events.append([event, feedback[event]])
 
         for event, fb in feedback.items():
-            if event.location not in c.PANEL_ROOMS:
-                events.append([event, fb])
+            events.append([event, fb])
 
         return {'events': events}
 
@@ -404,7 +403,7 @@ class Root:
             out.writerow([
                 getattr(app.event, 'status', app.status_label),
                 getattr(app.event, 'name', app.name),
-                getattr(app.event, 'location_label', '(not scheduled)'),
+                getattr(app.event, 'location_name', '(not scheduled)'),
                 app.event.timespan() if app.event else '(not scheduled)',
                 '\n'.join([
                     '{} ({}) {}'.format(
@@ -456,7 +455,7 @@ class Root:
         event_times = defaultdict(lambda: defaultdict(lambda: (1, '')))
         for app in attendee.panel_applications:
             if app.event is not None:
-                event_times[app.event.start_time][app.event.location_label] = (app.event.duration, app.event.name)
+                event_times[app.event.start_time][app.event.location_name] = (app.event.duration, app.event.name)
 
         schedule = []
         locations = sorted(set(sum([list(locations) for locations in event_times.values()], [])))

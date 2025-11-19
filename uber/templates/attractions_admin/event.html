@@ -1,14 +1,11 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Attraction Event{% endblock %}
 
 {% import 'attractions_macros.html' as attractions_macros with context %}
 
 {% block content %}
 <style type="text/css">
-  form {
-    max-width: 738px;
-  }
-
   .event-title {
     margin-bottom: 30px;
   }
@@ -68,6 +65,25 @@
       });
     });
 
+    $attendeesTable.on('click', '.btn-primary', function(event) {
+      event.preventDefault();
+      var $button = $(this),
+          signupId = $button.data('signupId');
+      pullFromWaitlist(signupId, function(response) {
+        if(response && response['error']) {
+          showErrorMessage(response['error'], '', {timeOut: 3000});
+        } else {
+          var $checkinTd = $button.closest('td'),
+              $cancelButton = $checkinTd.closest('tr').find('.controls button'),
+              $waitlistBtn = $checkinTd.children('.waitlist-btn'),
+              $checkInItems = $checkinTd.children('.checked-in-hidden');
+          $cancelButton.prop('disabled', true);
+          $waitlistBtn.hide();
+          $checkInItems.removeClass('d-none');
+        }
+      });
+    });
+
     $attendeesTable.on('click', '.btn-warning', function(event) {
       event.preventDefault();
       var $button = $(this),
@@ -121,74 +137,21 @@
 
 <h2 class="event-title">
   {%- if event.is_new -%}
-    <i class="fa fa-plus"></i> New event for the {{ attraction|form_link }} attraction
+    <i class="fa fa-plus"></i> New {{ feature.name }} event for the {{ attraction|form_link }} attraction
   {%- else -%}
-    <i class="fa fa-cog"></i> Edit the {{ event.feature.name }} event for the {{ attraction|form_link }} attraction
+    <i class="fa fa-cog"></i> Edit the {{ event.feature.name }} event for the {{ attraction.name }} attraction
   {%- endif -%}
 </h2>
 
-<form method="post" action="event" class="form-horizontal" role="form">
+{{ form_macros.form_validation('attraction-event-form', 'validate_event') }}
+<form novalidate method="post" id="attraction-event-form" action="event" role="form">
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ 'None' if event.is_new else event.id }}" />
-  <input type="hidden" name="attraction_id" value="{{ attraction.id }}">
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Feature</label>
-    <div class="col-sm-6">
-      {% if feature %}
-        <div class="form-control-static">{{ feature.name }}</div>
-        <input type="hidden" name="attraction_feature_id" value="{{ feature.id }}">
-      {% else %}
-        <select name="attraction_feature_id" class="form-control">
-          {{ options(attraction.feature_opts, event.attraction_feature_id) }}
-        </select>
-      {% endif %}
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label optional-field">Signups Open</label>
-    <div class="checkbox col-sm-6">
-        <label class="checkbox-label">
-        {{ macros.checkbox(event, 'signups_open', is_readonly=read_only, clientside_bool=clientside_bool) }}
-        Attendees can currently sign up for this event.
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Location</label>
-    <div class="col-sm-6">
-      <select name="location" class="form-control">
-        {% set used_location_opts = attraction.used_location_opts %}
-        {% if used_location_opts %}
-          {{ options(used_location_opts, event.location) }}
-          <option disabled="disabled">––––––––––</option>
-        {% endif %}
-        {{ options(attraction.unused_location_opts, event.location) }}
-      </select>
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Start Time</label>
-    <div class="col-sm-6">
-      {{ attractions_macros.form_datetime(event, 'start_time') }}
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Duration</label>
-    <div class="col-sm-6">
-      {{ attractions_macros.form_duration(event, 'duration') }}
-    </div>
-  </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Slots</label>
-    <div class="col-sm-6">
-      <input name="slots" value="{{ event.slots }}" class="form-control" type="number" required="required" min="1">
-    </div>
-    <div class="clearfix"></div>
-    <div class="col-sm-offset-3 col-sm-9 help-block">
-      How many attendees can participate in this event at the same time?
-    </div>
-  </div>
-  <div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
+  <input type="hidden" name="feature_id" value="{{ feature.id }}">
+  {% include 'forms/attraction/attraction_event_info.html' with context %}
+  
+  <div class="row g-3 mb-3">
+    <div class="col-sm">
       <input type="submit" name="save" class="btn btn-primary" value="Save">
       <div class="btn-group save_another">
         <button type="submit" name="save_another_0" class="btn btn-primary">Save & Add Another</button>
@@ -197,13 +160,13 @@
           <span class="visually-hidden">Toggle Dropdown</span>
         </button>
         <ul class="dropdown-menu">
-          <li><a href="#"><input type="submit" name="save_another_300" value="After 5 minute break"></a></li>
-          <li><a href="#"><input type="submit" name="save_another_600" value="After 10 minute break"></a></li>
-          <li><a href="#"><input type="submit" name="save_another_900" value="After 15 minute break"></a></li>
-          <li><a href="#"><input type="submit" name="save_another_1200" value="After 20 minute break"></a></li>
-          <li><a href="#"><input type="submit" name="save_another_1800" value="After 30 minute break"></a></li>
-          <li><a href="#"><input type="submit" name="save_another_2700" value="After 45 minute break"></a></li>
-          <li><a href="#"><input type="submit" name="save_another_3600" value="After 1 hour break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_5" value="After 5 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_10" value="After 10 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_15" value="After 15 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_20" value="After 20 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_30" value="After 30 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_45" value="After 45 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_60" value="After 1 hour break"></a></li>
         </ul>
       </div>
       <a href="form?id={{ attraction.id }}" type="button" class="btn btn-outline-secondary">Cancel</a>
@@ -242,7 +205,15 @@
             <span class="checkin_time checked-in-visible">
               {{ signup.checkin_time_local|datetime('%A, %b %-e at %-I:%M%p') }}
             </span>
-            <button class="btn btn-success btn-sm checked-in-hidden" data-signup-id="{{ signup.id }}">
+            {% if signup.on_waitlist %}
+            <span class="waitlist-btn">
+            <button class="btn btn-primary btn-sm" data-signup-id="{{ signup.id }}">
+              <i class="fa fa-arrow-right"></i> Move From Waitlist
+            </button>&nbsp;
+            <em>Position {{ signup.waitlist_position }}</em>
+            </span>
+            {% endif %}
+            <button class="btn btn-success btn-sm checked-in-hidden{% if signup.on_waitlist %} d-none{% endif %}" data-signup-id="{{ signup.id }}">
               <i class="fa fa-check"></i>
               Check In Now
             </button>

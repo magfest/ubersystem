@@ -51,11 +51,11 @@
 
     var SHIFTS = {{ shifts|jsonize }};
     $(function() {
-        setupShiftRatingClickHandler();
+        RatingModule.setupShiftRatingClickHandler();
 
         var onShiftStatusChanged = function(job, shift) {
-            $('#shift_status_' + shift.id).empty().append(renderShiftStatus(shift, onShiftStatusChanged));
-            $('#shift_rating_' + shift.id).empty().append(renderShiftRating(shift.id));
+            $('#shift_status_' + shift.id).empty().append(RatingModule.renderShiftStatus(shift, onShiftStatusChanged));
+            $('#shift_rating_' + shift.id).empty().append(RatingModule.renderShiftRating(shift.id));
         };
 
         $.each(SHIFTS, function(id, shift) {

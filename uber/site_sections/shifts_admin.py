@@ -337,10 +337,10 @@ class Root:
 
             if params.get('id') == 'None':
                 defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
-                defaults[params['department_id']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
+                defaults[params['department_id']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS if getattr(job, field) is not None}
                 cherrypy.session['job_defaults'] = defaults
             tgt_start_time = job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z")
-            raise HTTPRedirect('index?department_id={}&time={}', job.department_id, tgt_start_time)
+            raise HTTPRedirect('index?department_id={}&time={}', job.department.id, tgt_start_time)
 
         return {
             'job': job,

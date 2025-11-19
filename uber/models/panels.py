@@ -14,7 +14,7 @@ from uber.models.types import default_relationship as relationship, utcnow, Choi
     MultiChoice, SocialMediaMixin, UniqueList
 
 
-__all__ = ['AssignedPanelist', 'Event', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
+__all__ = ['AssignedPanelist', 'Event', 'EventLocation', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
 
 
 # Many to many association table to tie Panel Applicants with Panel Applications
@@ -29,14 +29,65 @@ panel_applicant_application = Table(
 )
 
 
+class EventLocation(MagModel):
+    department_id = Column(UUID, ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
+    name = Column(UnicodeText)
+    room = Column(UnicodeText)
+    tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
+
+    events = relationship('Event', backref=backref('location', cascade="save-update,merge"),
+                          cascade="save-update,merge", single_parent=True)
+    attractions = relationship('AttractionEvent', backref=backref('location', cascade="save-update,merge"),
+                          cascade="save-update,merge", single_parent=True)
+
+    @property
+    def schedule_name(self):
+        if self.room:
+            return f"{self.name} ({self.room})"
+        return self.name
+    
+    def update_events(self, session):
+        orig_dept_id = self.orig_value_of('department_id')
+        orig_tracks = set([int(i) for i in str(self.orig_value_of('tracks')).split(',') if i])
+        new_tracks = set(self.tracks_ints)
+        
+        if self.department_id == orig_dept_id and new_tracks == orig_tracks:
+            return
+        
+        remove_tracks = orig_tracks - new_tracks
+        add_tracks = new_tracks - orig_tracks
+
+        for event in self.events:
+            event_updated = False
+
+            if event.department_id == orig_dept_id:
+                event.department_id = self.department_id
+                event_updated = True
+            
+            event_old_tracks = set(event.tracks_ints)
+            if remove_tracks:
+                event.tracks = ','.join(map(str, list(set(event.tracks_ints) - remove_tracks)))
+            if add_tracks:
+                event.tracks = ','.join(map(str, event.tracks_ints + list(add_tracks)))
+
+            if set(event.tracks_ints) != event_old_tracks:
+                event_updated = True
+
+            if event_updated:
+                event.last_updated = datetime.now(UTC)
+                session.add(event)
+
+
 class Event(MagModel):
-    location = Column(Choice(c.EVENT_LOCATION_OPTS))
+    event_location_id = Column(UUID, ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
+    department_id = Column(UUID, ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
+    attraction_event_id = Column(UUID, ForeignKey('attraction_event.id', ondelete='SET NULL'), nullable=True)
     start_time = Column(UTCDateTime)
     duration = Column(Integer, default=60)
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText)
     public_description = Column(UnicodeText)
-    track = Column(UnicodeText)
+    tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
 
     assigned_panelists = relationship('AssignedPanelist', backref='event')
     applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"),
@@ -44,6 +95,9 @@ class Event(MagModel):
     panel_feedback = relationship('EventFeedback', backref='event')
     guest = relationship('GuestGroup', backref=backref('event', cascade="save-update,merge"),
                          cascade='save-update,merge')
+    attraction = relationship('AttractionEvent', backref=backref(
+        'schedule_item', cascade="save-update,merge", uselist=False
+        ), cascade='save-update,merge')
 
     @property
     def minutes(self):
@@ -55,6 +109,12 @@ class Event(MagModel):
     @property
     def end_time(self):
         return self.start_time + timedelta(minutes=self.duration)
+    
+    @property
+    def location_name(self):
+        if self.location:
+            return self.location.schedule_name
+        return "No Location"
 
     @property
     def guidebook_data(self):
@@ -69,26 +129,14 @@ class Event(MagModel):
             'start_time': self.start_time_local.strftime('%I:%M %p'),
             'end_date': self.end_time_local.strftime('%m/%d/%Y'),
             'end_time': self.end_time_local.strftime('%I:%M %p'),
-            'location': self.location_label,
-            'track': self.track,
+            'location': self.location_name,
+            'track': '; '.join(self.tracks_labels),
             'description': description,
             }
 
     @property
     def guidebook_name(self):
         return self.name
-
-    @property
-    def guidebook_subtitle(self):
-        # Note: not everything on this list is actually exported
-        if self.location in c.PANEL_ROOMS:
-            return 'Panel'
-        if self.location in c.MUSIC_ROOMS:
-            return 'Music'
-        if self.location in c.TABLETOP_LOCATIONS:
-            return 'Tabletop Event'
-        if "Autograph" in self.location_label:
-            return 'Autograph Session'
 
     @property
     def guidebook_desc(self):
@@ -145,7 +193,6 @@ class PanelApplication(MagModel):
     confirmed = Column(UTCDateTime, nullable=True)
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
     comments = Column(UnicodeText, admin_only=True)
-    track = Column(UnicodeText, admin_only=True)
     tags = Column(UniqueList, admin_only=True)
 
     applicants = relationship('PanelApplicant', backref='applications',
@@ -156,13 +203,13 @@ class PanelApplication(MagModel):
 
     @presave_adjustment
     def update_event_info(self):
-        if self.event and any([getattr(self.event, key, '') != getattr(self, key, '') for key in [
-                'name', 'description', 'public_description', 'track']]):
-            self.event.name = self.name
-            self.event.description = self.description
-            self.event.public_description = self.public_description
-            self.event.track = self.track
-            self.event.last_updated = self.last_updated
+        updated = False
+        if self.event:
+            for key in ['name', 'description', 'public_description']:
+                if getattr(self.event, key, '') != getattr(self, key, ''):
+                    setattr(self.event, key)
+        if updated:
+            self.event.last_updated = datetime.now(UTC)
     
     @presave_adjustment
     def set_default_dept(self):
@@ -279,14 +326,14 @@ class PanelApplicant(SocialMediaMixin, MagModel):
     @property
     def full_name(self):
         return self.first_name + ' ' + self.last_name
-    
+
     @property
     def confirmed_application_names(self):
-        return [app.name for app in self.applications if app.submitter_id == self.id and app.confirmed]
+        return [app.name for app in self.applications if app.confirmed]
     
     @property
     def accepted_applications(self):
-        return [app for app in self.applications if app.submitter_id == self.id and app.status == c.ACCEPTED]
+        return [app for app in self.applications if app.status == c.ACCEPTED]
     
     def check_if_still_submitter(self, app_id):
         for app in self.applications:

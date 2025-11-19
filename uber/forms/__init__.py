@@ -1,4 +1,5 @@
 import inspect
+import json
 import re
 import six
 import cherrypy
@@ -420,8 +421,16 @@ class MagForm(Form):
                         formdata[prefixed_name] = getattr(obj, name)
             elif isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
                 formdata[prefixed_name] = getattr(obj, name).strftime('%m/%d/%Y')
-            elif isinstance(field.widget, UniqueList) and field_in_formdata and isinstance(formdata[prefixed_name], list):
-                formdata[prefixed_name] = ','.join(formdata[prefixed_name])
+            elif isinstance(field.widget, UniqueList) and field_in_formdata and cherrypy.request.method == 'POST':
+                if isinstance(formdata[prefixed_name], list): # submitted as multiple fields
+                    formdata[prefixed_name] = ','.join([val for val in formdata[prefixed_name] if val])
+                else: # submitted as a single Tagify field
+                    try:
+                        formdata_dict = json.loads(formdata[prefixed_name])
+                        # TODO: Also make this work with Tagify flat lists
+                        formdata[prefixed_name] = [item['value'] for item in formdata_dict]
+                    except json.decoder.JSONDecodeError:
+                        log.error(f"Couldn't process data for {prefixed_name}: {formdata[prefixed_name]}")
 
         super().process(formdata, None if force_defaults else obj, data, extra_filters, **kwargs)
 
@@ -452,7 +461,7 @@ class MagForm(Form):
             else:
                 try:
                     setattr(obj, name, field.data)
-                except AttributeError:
+                except AttributeError as e:
                     pass  # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
 
         for model_field_name, aliases in self.field_aliases.items():
@@ -634,6 +643,7 @@ class DictWrapper(dict):
 from uber.forms.widgets import *  # noqa: F401,E402,F403
 from uber.forms.art_show import *  # noqa: F401,E402,F403
 from uber.forms.attendee import *  # noqa: F401,E402,F403
+from uber.forms.attraction import *  # noqa: F401,E402,F403
 from uber.forms.department import *  # noqa: F401,E402,F403
 from uber.forms.group import *  # noqa: F401,E402,F403
 from uber.forms.artist_marketplace import *  # noqa: F401,E402,F403

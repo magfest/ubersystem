@@ -93,7 +93,7 @@ class Root:
                         f"{app.event.duration} minutes" if app.event else f"{app.length_label} (expected)",
                         app.department_label,
                         app.other_presentation if app.presentation == c.OTHER else app.presentation_label,
-                        getattr(app.event, 'location_label', '(not scheduled)'),
+                        getattr(app.event, 'location_name', '(not scheduled)'),
                         app.event.timespan() if app.event else '(not scheduled)',
                     ])
 
@@ -232,7 +232,7 @@ class Root:
                         c.MERCH_TYPES[merch_type],
                         item['name'],
                         '${:.2f}'.format(float(item['price'])),
-                        guest.merch.total_quantity(item),
+                        '1',
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),
                     ])
 

@@ -183,10 +183,10 @@
     <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
     <div>
         {% if application.entry_type == c.GROUP_ENTRY and app_editable %}
-        <form method="post" action="leave_group" id="leave-group">
+        <form method="post" action="{% if application.parent_application %}leave_group{% else %}withdraw_entry{% endif %}" id="leave-group">
             <input type="hidden" name="id" value="{{ application.id }}">
             {{ csrf_token() }}
-            {% if application.guarantee_policy_accepted %}
+            {% if application.guarantee_policy_accepted and application.parent_application %}
             <button class="btn btn-warning">Leave Group</button>
             {% else %}
             <button class="btn btn-danger">Withdraw From Hotel Lottery</button>

@@ -48,20 +48,32 @@
 <div class="row g-3 mb-3">
 {% block name %}
   {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
+  {% set can_change_name = attendee.is_new or attendee.placeholder or attendee.is_unassigned or admin_area %}
   <div class="col-sm">{{ form_macros.input(personal_info.first_name, alpine_model="first_name", required_if="!unassignedBadge") }}</div>
   <div class="col-sm">{{ form_macros.input(personal_info.last_name, value=attendee_last_name, alpine_model="last_name", required_if="!unassignedBadge") }}</div>
+  {% if not admin_area %}
+  <div class="col-12 form-text">
+    This is the name you go by and will appear on automated emails and other pages in our system.
+  </div>
+  {% endif %}
 
-  {% if attendee.legal_name or attendee.is_new or attendee.placeholder or attendee.is_unassigned or admin_area %}
+  
+  {% if attendee.legal_name or can_change_name %}
   </div>
   <div class="row g-3 mb-3">
-    <div class="col-sm">
-        {{ form_macros.input(personal_info.same_legal_name, alpine_model='same_legal_name') }}
+    <div class="col-sm" x-show="{{ can_change_name|boolean|tojson }}">
+        {{ form_macros.input(personal_info.same_legal_name, alpine_model='same_legal_name', disabled=not can_change_name) }}
     </div>
     <div class="col-sm">
       {{ form_macros.input(personal_info.legal_name, required_if="legalNameRequired", **{':disabled':'same_legal_name'}) }}
     </div>
   {% else %}
   <input type="hidden" id="same_legal_name" name="same_legal_name"{% if attendee.first_name != '' and attendee.legal_name == '' %} value="1"{% endif %}/>
+  {% endif %}
+  {% if not can_change_name %}
+  <div class="col-12 form-text">
+    Please contact us at {% if attendee.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] %}{{ c.STAFF_EMAIL|email_only|email_to_link }}{% else %}{{ c.REGDESK_EMAIL|email_only|email_to_link }}{% endif %} to {% if attendee.legal_name %}change your legal name or{% else %}set your legal name or change your{% endif %} first/last name.
+  </div>
   {% endif %}
 
   {% if admin_area or attendee.has_personalized_badge %}

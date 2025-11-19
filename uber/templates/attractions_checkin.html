@@ -17,6 +17,60 @@
     });
   };
 
+  var pullFromWaitlist = function(signupId, callback) {
+    callback = callback || function() {}
+    var pullWaitlistCall = function(email) {
+      $.ajax({
+            method: 'POST',
+            url: 'pull_from_waitlist',
+            data: {
+              id: signupId,
+              email: email,
+              csrf_token: csrf_token
+            },
+            success: function(response, status) {
+              callback(response);
+            },
+            error: function(response, status, statusText) {
+              callback({'error': 'There was an error pulling from the waitlist: ' + statusText});
+            }
+          });
+        }
+    var bootboxBtns = {
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary',
+          },
+          move: {
+              label: 'Move From Waitlist',
+              className: 'btn-outline-primary',
+              callback: function (result) {
+                if(result) {
+                  pullWaitlistCall(false)
+                }
+              }
+          },
+          move_and_email: {
+            label: 'Move From Waitlist And Notify',
+              className: 'btn-primary',
+              callback: function (result) {
+                if(result) {
+                  pullWaitlistCall(true)
+                }
+              }
+          },
+        }
+    bootbox.dialog({
+      size: 'large',
+      title: 'Move From Waitlist?',
+      message: '<p>Are you sure you want to move this signup off the waitlist?</p>' +
+          "<p>You will be able to check them in, but signups will be overfilled. " +
+          "No one else on the waitlist will be added to this event until there are fewer signups than the number of slots.</p>" +
+          "<p>If you choose to also notify them, they'll receive a text or email <strong>if</strong> they have notifications enabled.</p>",
+      buttons: bootboxBtns,
+    });
+  };
+
   var checkinSignup = function(signupId, callback) {
     callback = callback || function() {}
     $.ajax({

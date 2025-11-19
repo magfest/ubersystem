@@ -1,4 +1,5 @@
 import json
+import re
 
 from collections import defaultdict
 from datetime import timedelta, datetime
@@ -9,7 +10,7 @@ from sqlalchemy import or_
 from uber.automated_emails import AutomatedEmailFixture, PanelAppEmailFixture
 from uber.config import c
 from uber.decorators import render
-from uber.models import Email, Session, Tracking, Department, Attendee, AutomatedEmail
+from uber.models import Email, Session, Tracking, Department, EventLocation, AutomatedEmail
 from uber.tasks import celery
 from uber.tasks.email import send_email
 from uber.utils import GuidebookUtils, localized_now

@@ -15,7 +15,7 @@ UTC20DAYSLATER = UTCNOW + timedelta(days=20)
 @pytest.fixture()
 def create_events():
     with Session() as session:
-        for index, (loc, desc) in enumerate(c.EVENT_LOCATION_OPTS):
+        for index, (loc, desc) in enumerate(c.SCHEDULE_LOCATION_OPTS):
             session.add(Event(
                 location=loc,
                 start_time=UTC20DAYSLATER,

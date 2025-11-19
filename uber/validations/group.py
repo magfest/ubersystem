@@ -68,7 +68,8 @@ TableInfo.field_validation.validations['name']['length'] = validators.Length(
 
 
 def group_requires_leader(form):
-    return form.model.is_dealer or form.model.guest or getattr(form.model, 'guest_group_type', None)
+    if form.model.is_new and form.model.badges != 0:
+        return form.model.is_dealer or form.model.guest or getattr(form.model, 'guest_group_type', None)
 
 
 LeaderInfo.field_validation.required_fields = {
@@ -77,7 +78,7 @@ LeaderInfo.field_validation.required_fields = {
     'leader_last_name': ("Please provide the group leader's last name.", 'leader_last_name',
                          lambda x: group_requires_leader(x.form)),
     'leader_email': ("Please enter an email address.", 'leader_email', lambda x: group_requires_leader(x.form)),
-    'leader_cellphone': ("Please provide a phone number.", 'leader_cellphone', lambda x: x.form.model.is_dealer),
+    'leader_cellphone': ("Please provide a phone number.", 'leader_cellphone', lambda x: group_requires_leader(x.form) and x.form.model.is_dealer),
 }
 
 

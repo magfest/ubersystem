@@ -282,9 +282,11 @@
                   <tr>
                     <td>
                       {%- set quantity_attr = 'quantity-' ~ variety_value ~ '-' ~ cut_value ~ '-' ~ size_value -%}
-                      {%- set has_quantity = item[quantity_attr] if item and quantity_attr in item else False -%}
-                      {% if cut_label|trim %}{{ cut_label }} - {% endif %}{{ size_label }}
-                      <input type="number" name="inventory_{{ quantity_attr }}{{ suffix }}" {% if has_quantity %}value="{{ item[quantity_attr] }}"{% endif %} min="0"/>
+                      {%- set has_quantity = True if item and quantity_attr in item else False -%}
+                      <label class="form-check-label">
+                      <input type="checkbox" class="form-check-input" value="1" name="inventory_{{ quantity_attr }}{{ suffix }}"{% if has_quantity %} checked{% endif %} />
+                        {% if cut_label|trim %}{{ cut_label }} - {% endif %}{{ size_label }}
+                      </label>
                     </td>
                   </tr>
                 {% endfor %}
@@ -327,7 +329,6 @@
 
 {% macro inventory_table_data_apparel_custom(item) -%}
   {%- set varieties_opts, cuts_opts, sizes_opts = guest_merch.item_subcategories_opts(item.type) -%}
-  {%- set total_quantity = guest_merch.total_quantity(item) -%}
   {%- set line_items = guest_merch.line_items(item) -%}
   {%- set is_multi = line_items|length > 1 -%}
   <td class="inventory-item-custom inventory-item-apparel-custom">
@@ -344,7 +345,7 @@
       <hr>
       <div class="line-item data-item">
         <dt>Total</dt>
-        <dd>{{ total_quantity }}</dd>
+        <dd></dd>
       </div>
       </dl>
     {%- endif %}
@@ -371,7 +372,6 @@
 
 {% macro inventory_table_row(item, show_controls=False, suppress_preview=False) -%}
   {%- set type = item.type|int -%}
-  {%- set quantity = guest_merch.total_quantity(item) if type in [c.TSHIRT, c.APPAREL] else item.quantity -%}
   <tr id="inventory_row_{{ item.id }}" class="inventory-row" data-item_id="{{ item.id }}">
     <th class="inventory-item-type">{{ c.MERCH_TYPES[type] }}</th>
     <td class="inventory-item-details" data-order="{{ item.name }}">
