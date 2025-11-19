@@ -31,7 +31,7 @@ class PersonalInfo(AddressForm):
                              render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID'})
     badge_printed_name = StringField('Name Printed on Badge', description="Badge names have a maximum of 20 characters.")
     email = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
-    confirm_email = StringField('Confirm Email Address')
+    confirm_email = EmailField('Confirm Email Address')
     cellphone = TelField('Phone Number', render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     birthdate = StringField('Date of Birth', widget=DateMaskInput())
     age_group = SelectField('Age Group', choices=c.AGE_GROUP_OPTS)

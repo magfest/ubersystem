@@ -15,7 +15,7 @@ from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableFiel
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
 from uber.models import Attendee, Session, PromoCodeGroup, BadgeInfo
-from uber.utils import get_age_conf_from_birthday
+from uber.utils import get_age_conf_from_birthday, normalize_email_legacy
 from uber.forms.attendee import *
 from uber.validations import address_required_validators, valid_zip_code, placeholder_unassigned_fields, which_required_region
 
@@ -107,7 +107,8 @@ def confirm_email_required(form, field):
 @PersonalInfo.field_validation('confirm_email')
 @ignore_unassigned_and_placeholders
 def match_email(form, field):
-    if c.PREREG_CONFIRM_EMAIL_ENABLED and field.data and field.data != form.email.data:
+    if c.PREREG_CONFIRM_EMAIL_ENABLED and field.data and \
+            normalize_email_legacy(field.data) != normalize_email_legacy(form.email.data):
         raise ValidationError("Your email address and email confirmation do not match.")
 
 
