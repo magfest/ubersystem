@@ -18,10 +18,11 @@ from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.types import Integer, Boolean
-from sqlalchemy.schema import ForeignKey
+from sqlalchemy.schema import ForeignKey, UniqueConstraint, Index
 
 
-__all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPayment', 'ArtShowReceipt', 'ArtShowBidder']
+__all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPayment', 'ArtShowReceipt', 'ArtShowBidder',
+           'ArtShowPanel', 'ArtPanelAssignment']
 
 
 class ArtShowAgentCode(MagModel):
@@ -98,6 +99,8 @@ class ArtShowApplication(MagModel):
         'ModelReceipt.closed == None)',
         uselist=False)
     default_cost = Column(Integer, nullable=True)
+
+    assignments = relationship('ArtPanelAssignment', backref='app')
 
     email_model_name = 'app'
 
@@ -306,6 +309,18 @@ class ArtShowApplication(MagModel):
     def has_mature_space(self):
         return self.panels_ad or self.tables_ad
 
+    @property
+    def locations_or_assignments(self):
+        return [a.label for a in self.assignments] if c.USE_ASSIGNMENT_MAP else [self.locations]
+
+    @property
+    def general_assignments(self):
+        return [a for a in self.assignments if a.panel.gallery == c.GENERAL]
+    
+    @property
+    def mature_assignments(self):
+        return [a for a in self.assignments if a.panel.gallery == c.MATURE]
+
     def checked_in_out_str(self, val):
         if not val:
             return ''
@@ -478,6 +493,78 @@ class ArtShowPiece(MagModel):
         pdf.set_xy(242 + xplus, 116 + yplus)
         pdf.cell(
             53, 14, txt=('${:,.2f}'.format(self.quick_sale_price)) if self.valid_quick_sale else 'NFS', ln=1)
+
+
+class ArtShowPanel(MagModel):
+    gallery = Column(Choice(c.ART_PIECE_GALLERY_OPTS), default=c.GENERAL)
+    origin_x = Column(Integer, default=0)
+    origin_y = Column(Integer, default=0)
+    terminus_x = Column(Integer, default=0)
+    terminus_y = Column(Integer, default=0)
+    assignable_sides = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.BOTH)
+    start_label = Column(UnicodeText)
+    end_label = Column(UnicodeText)
+
+    assignments = relationship('ArtPanelAssignment', backref='panel')
+
+    __table_args__ = (
+        UniqueConstraint('gallery', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'),
+    )
+
+    @property
+    def panel_json(self):
+        origin = {'x': self.origin_x, 'y': self.origin_y}
+        terminus = {'x': self.terminus_x, 'y': self.terminus_y}
+        if self.origin_x == self.terminus_x:
+            labels = {'l': self.start_label, 'r': self.end_label}
+        elif self.origin_y == self.terminus_y:
+            labels = {'u': self.start_label, 'd': self.end_label}
+        
+        return {'origin': origin, 'terminus': terminus,
+                'usability': self.directional_usability, 'labels': labels}
+    
+    @property
+    def directional_usability(self):
+        if self.assignable_sides == c.BOTH:
+            return 'b'
+        if self.assignable_sides == c.NEITHER:
+            return 'n'
+        if self.origin_x == self.terminus_x:
+            return 'l' if self.assignable_sides == c.START else 'r'
+        elif self.origin_y == self.terminus_y:
+            return 'u' if self.assignable_sides == c.START else 'd'
+    
+
+class ArtPanelAssignment(MagModel):
+    panel_id = Column(UUID, ForeignKey('art_show_panel.id'))
+    app_id = Column(UUID, ForeignKey('art_show_application.id'))
+    manual = Column(Boolean, default=False)
+    assigned_side = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.START)
+
+    __table_args__ = (
+        UniqueConstraint('panel_id', 'assigned_side'),
+        Index('ix_art_panel_assignment_panel_id', 'panel_id'),
+        Index('ix_art_panel_assignment_assigned_side', 'assigned_side'),
+    )
+
+    @property
+    def label(self):
+        default_label = f"{self.panel.origin_x}x{self.panel.origin_y}-{self.panel.terminus_x}x{self.panel.terminus_y} ({self.assigned_side_label})"
+        if self.assigned_side == c.START:
+            return self.panel.start_label or default_label
+        else:
+            return self.panel.end_label or default_label
+
+    @property
+    def directional_assigned_side(self):
+        if self.panel.origin_x == self.panel.terminus_x:
+            return 'l' if self.assigned_side == c.START else 'r'
+        elif self.panel.origin_y == self.panel.terminus_y:
+            return 'u' if self.assigned_side == c.START else 'd'
+
+    @property
+    def assignment_str(self):
+        return f"{self.panel.origin_x}_{self.panel.origin_y}|{self.panel.terminus_x}_{self.panel.terminus_y}|{self.directional_assigned_side}"
 
 
 class ArtShowPayment(MagModel):

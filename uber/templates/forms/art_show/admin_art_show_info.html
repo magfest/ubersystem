@@ -26,7 +26,14 @@ get showDeclineReason() { return this.status == {{ c.DECLINED|tojson }} },
         <div class="col-sm" x-show="separate_ad_banner">{{ form_macros.input(art_show_info.artist_id_ad) }}</div>
     </div>
 </div>
-<div class="col-sm">{{ form_macros.input(art_show_info.locations) }}</div>
+<div class="col-sm">
+    {% if c.USE_ASSIGNMENT_MAP %}
+    <div class="form-text">Locations</div>
+    {{ app.locations_or_assignments|join(' / ') }}
+    {% else %}
+    {{ form_macros.input(art_show_info.locations) }}
+    {% endif %}
+</div>
 {% endblock %}
 
 {% block money_info %}

@@ -68,7 +68,11 @@
   });
 </script>
 
-<h2>Assign Locations</h2>
+<h2>Artist Locations</h2>
+<p>
+  <a href="assignment_map" class="btn btn-primary">General Gallery Assignment Map</a>
+  <a href="assignment_map?gallery={{ c.MATURE }}" class="btn btn-primary">Mature Gallery Assignment Map</a>
+</p>
 <div class="card card-body">
   <table class="table table-hover datatable">
     <thead><tr>
@@ -79,7 +83,7 @@
         <th>General Tables</th>
         <th>Mature Tables</th>
         <th>Locations</th>
-        <th></th>
+        {% if not c.USE_ASSIGNMENT_MAP %}<th></th>{% endif %}
     </tr></thead>
     {% for app in apps %}
         <tr {% if app.amount_unpaid %}class="invalid-row"{% endif %}>
@@ -89,6 +93,9 @@
             <td>{{ app.panels_ad }}</td>
             <td>{{ app.tables }}</td>
             <td>{{ app.tables_ad }}</td>
+            {% if c.USE_ASSIGNMENT_MAP %}
+            <td>{{ app.locations_or_assignments|join(' / ') }}</td>
+            {% else %}
             <td>
               <input type="text" class="form-control" form="update_location_{{ app.id }}" name="locations" value="{{ app.locations }}" />
             </td>
@@ -101,15 +108,18 @@
                 </button>
               </form>
             </td>
+            {% endif %}
         </tr>
     {% endfor %}
     </table>
+    {% if not c.USE_ASSIGNMENT_MAP %}
     <div class="d-flex justify-content-end mt-3">
       <div class="flex-grow-1"></div>
       <div>
         <button type="button" class="btn btn-primary" onClick="updateAll()">Update All</button>
       </div>
     </div>
+    {% endif %}
 </div>
 
 {% endblock content %}

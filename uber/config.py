@@ -2159,15 +2159,6 @@ c.EVENT_OPEN = {'colspan': 1}
 
 c.PRESENTATION_OPTS.sort(key=lambda tup: 'zzz' if tup[0] == c.OTHER else tup[1])
 
-invalid_rooms = [room for room in (c.PANEL_ROOMS + c.MUSIC_ROOMS) if not getattr(c, room.upper(), None)]
-
-for room in invalid_rooms:
-    log.warning('config: panels_room config problem: '
-                'Ignoring {!r} because it was not also found in [[event_location]] section.'.format(room.upper()))
-
-c.PANEL_ROOMS = [getattr(c, room.upper()) for room in c.PANEL_ROOMS if room not in invalid_rooms]
-c.MUSIC_ROOMS = [getattr(c, room.upper()) for room in c.MUSIC_ROOMS if room not in invalid_rooms]
-
 
 # =============================
 # tabletop

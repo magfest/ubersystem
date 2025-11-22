@@ -1,15 +1,18 @@
 import cherrypy
 from barcode import Code39
 from barcode.writer import ImageWriter
+from collections import defaultdict
+from copy import deepcopy
 import re
 import math
+import json
 import six
 
 from datetime import datetime
 from decimal import Decimal
 from pockets.autolog import log
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, contains_eager
 from sqlalchemy.orm.exc import NoResultFound
 from io import BytesIO
 
@@ -18,8 +21,9 @@ from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
-                        Attendee, BadgeInfo, Email, Tracking, PageViewTracking, ReceiptItem, ReceiptTransaction, WorkstationAssignment
+from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, ArtShowPanel, \
+                        ArtPanelAssignment, Attendee, BadgeInfo, Email, Tracking, PageViewTracking, ReceiptItem, ReceiptTransaction, \
+                        WorkstationAssignment
 from uber.utils import check, get_static_file_path, localized_now, Order, validate_model
 from uber.payments import TransactionRequest, ReceiptManager
 
@@ -502,6 +506,149 @@ class Root:
             'apps': valid_apps,
             'message': message,
         }
+
+    def assignment_map(self, session, message='', gallery=c.GENERAL, **params):
+        gallery = int(gallery)
+
+        valid_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED)
+        panels = session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery).all()
+        panels_json = [panel.panel_json for panel in panels]
+        artists_json = []
+
+        def build_artist_json(artist, display_name, panels, assignments):
+            json = {'id': artist.id, 'name': display_name, 'needed': panels}
+            if assignments:
+                json['assignments'] = []
+                json['manual'] = []
+                for assignment in assignments:
+                    a_json = assignment.assignment_str
+                    json['assignments'].append(a_json)
+                    if assignment.manual:
+                        json['manual'].append(a_json)
+            return json
+
+        if gallery == c.GENERAL:
+            artists = valid_apps.filter(ArtShowApplication.panels > 0)
+            for artist in artists:
+                artists_json.append(build_artist_json(artist, artist.display_name,
+                                                      artist.panels, artist.general_assignments))
+        else:
+            artists = valid_apps.filter(ArtShowApplication.panels_ad > 0)
+            for artist in artists:
+                artists_json.append(build_artist_json(artist, artist.mature_display_name,
+                                                      artist.panels_ad, artist.mature_assignments))
+        
+        if cherrypy.request.method == 'POST':
+            pass
+
+        return {
+            'apps': valid_apps,
+            'panels_json': panels_json,
+            'artists_json': artists_json,
+            'message': message,
+            'gallery': gallery,
+        }
+    
+    @ajax
+    def save_map(self, session, gallery, panels, assignments):
+        panels = json.loads(panels)
+        assignments = json.loads(assignments)
+        assignments_by_panel = {}
+        gallery = int(gallery)
+
+        def translate_usability(usability_str):
+            if usability_str == 'b':
+                return c.BOTH
+            elif usability_str == 'n':
+                return c.NEITHER
+            else:
+                return c.START if usability_str in ['u', 'l'] else c.END
+
+        for artist_id, assignment_info in assignments.items():
+            for panel_str in assignment_info['panels'] + assignment_info['manual']:
+                origin, terminus, usability = panel_str.split('|')
+                db_usability = translate_usability(usability)
+                assignments_by_panel[f"{origin}|{terminus}|{db_usability}"] = {
+                    'app_id': artist_id,
+                    'assigned_side': db_usability,
+                    'manual': panel_str in assignment_info['manual']
+                }
+            
+        def check_new_assignments(origin, terminus, panel):
+            start_side_json = f"{origin}|{terminus}|{c.START}"
+            end_side_json = f"{origin}|{terminus}|{c.END}"
+            for json_str in [start_side_json, end_side_json]:
+                if json_str in assignments_by_panel:
+                    new_assignment_info = assignments_by_panel.pop(json_str)
+                    new_assignment = ArtPanelAssignment(
+                        panel_id=panel.id, app_id=new_assignment_info['app_id'],
+                        assigned_side=new_assignment_info['assigned_side'], manual=new_assignment_info['manual'])
+                    session.add(new_assignment)
+
+        # Update/remove existing panel assignments
+        for assignment in session.query(ArtPanelAssignment).join(ArtPanelAssignment.panel
+                                        ).filter(ArtShowPanel.gallery == gallery).options(contains_eager(ArtPanelAssignment.panel)):
+            panel_json_str = f"{assignment.panel.origin_x}_{assignment.panel.origin_y}|{assignment.panel.terminus_x}_{assignment.panel.terminus_y}"
+            json_str = f"{panel_json_str}|{assignment.assigned_side}"
+            # We might have assignments uploaded with no corresponding panels
+            # In that case we want to pop the assignment out of the dict first so we don't re-add it later
+            if json_str in assignments_by_panel:
+                updated_assignment_info = assignments_by_panel.pop(json_str)
+                if panel_json_str in panels:
+                    was_changed = False
+                    for attr in updated_assignment_info.keys():
+                        if getattr(assignment, attr) != updated_assignment_info[attr]:
+                            setattr(assignment, attr, updated_assignment_info[attr])
+                            was_changed = True
+                    if was_changed:
+                        session.add(assignment)
+                else:
+                    session.delete(assignment)
+            else:
+                session.delete(assignment)
+
+        # Update/remove panels
+        for panel in session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery):
+            json_str = f"{panel.origin_x}_{panel.origin_y}|{panel.terminus_x}_{panel.terminus_y}"
+            if json_str in panels:
+                existing_panel_info = panels.pop(json_str)
+                updated_panel_info = {
+                    'assignable_sides': translate_usability(existing_panel_info['u']),
+                    'start_label': existing_panel_info['labels'].get('u', existing_panel_info['labels'].get('l', '')),
+                    'end_label': existing_panel_info['labels'].get('d', existing_panel_info['labels'].get('r', '')),
+                }
+                was_changed = False
+                for attr in updated_panel_info.keys():
+                    if getattr(panel, attr) != updated_panel_info[attr]:
+                        setattr(panel, attr, updated_panel_info[attr])
+                        was_changed = True
+                if was_changed:
+                    session.add(panel)
+
+                # We already went over existing assignments
+                origin, terminus = json_str.split('|')
+                check_new_assignments(origin, terminus, panel)
+            else:
+                session.delete(panel)
+
+        # Since we used pop() above, we are now left only with new panels and assignments
+        for key, panel_info in panels.items():
+            origin, terminus = key.split('|')
+            origin_x, origin_y = origin.split('_')
+            terminus_x, terminus_y = terminus.split('_')
+            usability = translate_usability(panel_info['u'])
+            
+            start_label = panel_info['labels'].get('u', panel_info['labels'].get('l', ''))
+            end_label = panel_info['labels'].get('d', panel_info['labels'].get('r', ''))
+            new_panel = ArtShowPanel(gallery=gallery, origin_x=origin_x, origin_y=origin_y,
+                                     terminus_x=terminus_x, terminus_y=terminus_y,
+                                     assignable_sides=usability, start_label=start_label, end_label=end_label)
+            session.add(new_panel)
+            check_new_assignments(origin, terminus, new_panel)
+
+        session.commit()
+        return {'success': True, 'message': f"{c.ART_PIECE_GALLERYS[gallery]} assignments updated."}
+
 
     @public
     def bid_sheet_barcode_generator(self, data):
