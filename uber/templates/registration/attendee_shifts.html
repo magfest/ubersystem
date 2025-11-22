@@ -12,7 +12,6 @@
 </style>
 
 <script type="text/javascript" src="../static_views/ratings.js"></script>
-{% include 'shifts_admin/shift_comment_modal.html'%}
 
 <script type="text/javascript">
     $(function () {
@@ -59,6 +58,7 @@
         };
 
         $.each(SHIFTS, function(id, shift) {
+            RatingModule.renderCommentRow(shift, 9);
             onShiftStatusChanged({}, shift);
         });
     });
@@ -145,6 +145,8 @@
               </form>
             </td>
           </tr>
+            <tr id="shift_comment_{{ shift.id }}" style="display:none;">
+            </tr>
         {% endfor %}
       </tbody>
     </table>
