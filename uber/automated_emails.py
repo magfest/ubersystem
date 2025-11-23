@@ -1569,7 +1569,7 @@ class BandEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda b: b.group_type == c.BAND and filter(b),
+            lambda b: b.group_type in [c.BAND, c.SIDE_STAGE] and filter(b),
             ident,
             sender=c.BAND_EMAIL,
             **kwargs)

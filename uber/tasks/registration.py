@@ -109,8 +109,6 @@ def check_duplicate_registrations():
                         for a in unpaid:
                             session.delete(a)
                         del dupes[who]
-                    for a in paid:
-                        a.badge_status = c.NEW_STATUS
 
                 if dupes and session.no_email(subject):
                     body = render('emails/daily_checks/duplicates.html',

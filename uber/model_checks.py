@@ -184,6 +184,8 @@ def time_conflicts(job):
 
 @validation.Job
 def no_negative_hours(job):
+    if not job.duration:
+        return 'Please enter a job duration.'
     if job.duration < 0:
         return 'You cannot create a job with negative hours.'
 

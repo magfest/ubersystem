@@ -141,8 +141,8 @@ def panels_waitlist_unaccepted_panels():
                     'app': app,
                 }, encoding=None)
                 send_email.delay(c.PANELS_EMAIL, app.email,
-                                 "Your {EVENT_NAME} Panel Application Has Been Automatically Waitlisted: "
-                                 "{{ app.name }}",
+                                 f"Your {EVENT_NAME} Panel Application Has Been Automatically Waitlisted: "
+                                 f"{app.name}",
                                  body, ident="panel_waitlisted"
                                  )
 
