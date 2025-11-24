@@ -263,8 +263,11 @@ class IndieStudio(MagModel):
     def checklist_items_due_soon_grouped(self):
         due_soon = []
         overdue = []
+        if not self.group or not self.group.guest:
+            return [], []
+
         for key, val in c.MIVS_CHECKLIST.items():
-            if not getattr(self, key + "_status", None):
+            if self.group.guest.matches_showcases(val['showcases']) and not getattr(self, key + "_status", None):
                 if localized_now() >= self.checklist_deadline(key):
                     overdue.append((key, val['name']))
                 elif (localized_now() + timedelta(days=3)) >= self.checklist_deadline(key):
