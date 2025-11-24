@@ -583,19 +583,19 @@ class Job(MagModel):
     def hotel_night(self):
         # Determines what hotel night this job qualifies a staffer for
         start_time = self.start_time_local
-        day_before = start_time - timedelta(days=1)
+        start_day_before = start_time - timedelta(days=1)
+        end_day_before = self.end_time_local - timedelta(days=1)
         hotel_night = getattr(c, start_time.strftime('%A').upper())
-        hotel_night_before = getattr(c, day_before.strftime('%A').upper())
 
         if start_time.date() < c.EPOCH.date():
             return hotel_night if hotel_night in c.SETUP_NIGHTS else 0
-        elif start_time.date() > c.ESCHATON.date():
-            return hotel_night_before
+        elif self.end_time_local.date() > c.ESCHATON.date():
+            return getattr(c, end_day_before.strftime('%A').upper())
         else:
             if start_time.date() == c.EPOCH.date() and start_time.hour < 9:
-                return hotel_night_before
+                return getattr(c, start_day_before.strftime('%A').upper())
             elif start_time.date() == c.ESCHATON.date():
-                return hotel_night if self.end_time_local.hour >= 5 else hotel_night_before
+                return hotel_night if self.end_time_local.hour >= 5 else getattr(c, end_day_before.strftime('%A').upper())
             return hotel_night
 
     @property
