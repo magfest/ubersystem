@@ -241,7 +241,7 @@ class PanelApplication(MagModel):
         for panelist in [a for a in self.other_panelists if a.display_name]:
             panelist_creds.append(generate_creds(panelist))
         
-        description += f"\n\nPanelists: {' '.join(panelist_creds)}"
+        description += f"\n\nPanelists: {' | '.join(panelist_creds)}"
         self.public_description = description
     
     @presave_adjustment
