@@ -594,7 +594,7 @@ class Job(MagModel):
         else:
             if start_time.date() == c.EPOCH.date() and start_time.hour < 9:
                 return hotel_night_before
-            elif start_time.date() == c.ESCHATON.date() and start_time.hour >= 5:
+            elif start_time.date() == c.ESCHATON.date() and self.end_time_local.hour >= 5:
                 return hotel_night_before
             return hotel_night
 
