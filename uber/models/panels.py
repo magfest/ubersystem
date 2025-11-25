@@ -207,7 +207,7 @@ class PanelApplication(MagModel):
         if self.event:
             for key in ['name', 'description', 'public_description']:
                 if getattr(self.event, key, '') != getattr(self, key, ''):
-                    setattr(self.event, key)
+                    setattr(self.event, key, getattr(self, key, ''))
         if updated:
             self.event.last_updated = datetime.now(UTC)
     
@@ -222,7 +222,7 @@ class PanelApplication(MagModel):
             self.record = c.OPT_OUT
     
     def add_credentials_to_desc(self):
-        description = self.description or self.public_description
+        description = self.public_description or self.description
         panelist_creds = []
 
         def generate_creds(p):
@@ -241,7 +241,7 @@ class PanelApplication(MagModel):
         for panelist in [a for a in self.other_panelists if a.display_name]:
             panelist_creds.append(generate_creds(panelist))
         
-        description += f"\n\nPanelists: {' '.join(panelist_creds)}"
+        description += f"\n\nPanelists: {' | '.join(panelist_creds)}"
         self.public_description = description
     
     @presave_adjustment

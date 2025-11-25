@@ -48,7 +48,6 @@
 </style>
 
 <script type="text/javascript" src="../static_views/ratings.js"></script>
-{% include 'shifts_admin/shift_comment_modal.html'%}
 
 <div class="table-responsive">
   <table id="jobs"></table>
@@ -59,8 +58,9 @@
 <script>
     $(RatingModule.setupShiftRatingClickHandler);
 
-    var renderShift = function(shift) {
-        return RatingModule.findOrCreateElement('shift_' + shift.id, '<tr></tr>')
+    //Unused first param to allow callback to only rerender the specific row
+    var renderShift = function(_, shift) {
+        let mainRow =  RatingModule.findOrCreateElement('shift_' + shift.id, '<tr></tr>')
             .empty()
             .append(
                 $('<td class="attendee-name"></td>').append(
@@ -77,8 +77,12 @@
                         }, renderJob, 'json');
                     }))
                 )
-            .append($('<td></td>').append(RatingModule.renderShiftStatus(shift, renderShifts)))
+            .append($('<td></td>').append(RatingModule.renderShiftStatus(shift, renderShift)))
             .append($('<td></td>').append(RatingModule.renderShiftRating(shift)));
+
+        // Create comment row
+        let commentRow = RatingModule.renderCommentRow(shift, 4);
+        return [mainRow, commentRow];
     };
 
     var renderShifts = function(job) {
@@ -90,9 +94,15 @@
         var shifts = job.shifts.sort(function(s1, s2) {
             return s1.attendee_name > s2.attendee_name;
         });
-        return RatingModule.findOrCreateElement('shifts_' + job.id, '<table class="shifts-table"></table>')
-            .empty()
-            .append($.map(shifts, renderShift));
+
+
+        const $table = RatingModule.findOrCreateElement('shifts_' + job.id, '<table class="shifts-table"></table>').empty();
+
+        shifts.forEach(shift => {
+            $table.append(renderShift(undefined,shift)); // jQuery handles arrays of elements
+        });
+
+        return $table;
     };
 
     var renderJob = function(job) {

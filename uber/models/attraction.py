@@ -260,8 +260,8 @@ class Attraction(MagModel, AttractionMixin):
             item_updated = False
             if all([getattr(item, col_name) == val for col_name, val in same_time_settings.items()]):
                 item_updated = True
-                for col_name, val in update_time_settings.items():
-                    setattr(item, col_name, val)
+                for col_name, new_val in update_time_settings.items():
+                    setattr(item, col_name, new_val)
             for attr_name, (old_val, new_val) in attr_changes.items():
                 if attr_name == 'slots':
                     if isinstance(item, AttractionFeature) or getattr(item, attr_name) < new_val:
@@ -384,8 +384,8 @@ class AttractionFeature(MagModel, AttractionMixin):
             event_updated = False
             if all([getattr(event, col_name) == val for col_name, val in same_time_settings.items()]):
                 event_updated = True
-                for col_name, val in update_time_settings.items():
-                    setattr(event, col_name, val)
+                for col_name, new_val in update_time_settings.items():
+                    setattr(event, col_name, new_val)
             for attr_name, (old_val, new_val) in attr_changes.items():
                 if attr_name == 'slots' and event.slots < new_val:
                     event.slots = new_val

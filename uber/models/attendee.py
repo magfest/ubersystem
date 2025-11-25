@@ -764,7 +764,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @badge_num.setter
     def badge_num(self, value):
-        if self.badge_num and self.badge_num == value:
+        try:
+            value = int(value)
+        except TypeError:
+            pass
+
+        if self.badge_num and self.badge_num == value or not self.session:
             return
         elif value == '' or value is None:
             if self.badge_num:
