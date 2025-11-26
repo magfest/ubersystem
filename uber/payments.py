@@ -1661,6 +1661,17 @@ class ReceiptManager:
 
         receipt_items = []
         new_model = model.__class__(**model.to_dict())
+        params = model.auto_update_receipt(params)
+
+        # First load the new model with all the changes, since these are checked during calculations
+        changed_params = []
+        for key, val in params.items():
+            column = model.__table__.columns.get(key)
+            if column is not None:
+                coerced_val = model.coerce_column_data(column, val)
+                if coerced_val != getattr(model, key, None):
+                    changed_params.append(key)
+                    setattr(new_model, key, coerced_val)
 
         model_overridden_price = getattr(model, 'overridden_price', None)
         overridden_unset = model_overridden_price and (params.get('no_override') or 
@@ -1719,26 +1730,16 @@ class ReceiptManager:
             params.pop('power')
             params.pop('power_fee')
 
-        params = model.auto_update_receipt(params)
-
-        changed_params = []
-        for key, val in params.items():
-            column = model.__table__.columns.get(key)
-            if column is not None:
-                coerced_val = model.coerce_column_data(column, val)
-                if coerced_val != getattr(model, key, None):
-                    changed_params.append(key)
-                    setattr(new_model, key, coerced_val)
-            if key in ['promo_code_code']:
-                if val != getattr(model, key, None):
-                    setattr(new_model, 'promo_code', None)
-                    with Session() as session:
-                        session.add_promo_code_to_attendee(new_model, val)
-                        items = self.process_receipt_change(model, key, new_model, receipt, who=who)
-                        if items:
-                            for receipt_item in items:
-                                if receipt_item.amount != 0:
-                                    receipt_items += [receipt_item]
+        if 'promo_code_code' in params:
+            if val != getattr(model, key, None):
+                setattr(new_model, 'promo_code', None)
+                with Session() as session:
+                    session.add_promo_code_to_attendee(new_model, val)
+                    items = self.process_receipt_change(model, key, new_model, receipt, who=who)
+                    if items:
+                        for receipt_item in items:
+                            if receipt_item.amount != 0:
+                                receipt_items += [receipt_item]
 
         if isinstance(model, Group):
             # "badges" is a property and not a column, so we have to include it explicitly

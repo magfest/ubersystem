@@ -773,7 +773,7 @@
   {%- endif %}
 
   {% if attraction.checkin_reminder %}
-    {% if attraction.checkin_reminder|length == 1 %}
+    {% if attraction.checkin_reminder == 1 %}
       <p>Attendees will be notified about {{ attraction.name }} events
       {{ humanize_timedelta(minutes=attraction.checkin_reminder|first, now='when the event starts', suffix=' before') }}.</p>
     {% else %}
