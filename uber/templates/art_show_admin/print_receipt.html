@@ -3,6 +3,13 @@
 
 {% include 'art_show_common/print.html' with context %}
 
+{% block page %}
 <div class="card-body p-0 m-0">
   {{ print_macros.print_receipt(receipt) }}
 </div>
+{% if two_copies %}
+<div class="card-body p-0 m-0 pagebreak">
+  {{ print_macros.print_receipt(receipt) }}
+</div>
+{% endif %}
+{% endblock %}

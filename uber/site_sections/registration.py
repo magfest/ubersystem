@@ -341,6 +341,7 @@ class Root:
         raise HTTPRedirect('../reg_admin/manage_workstations?message={}', message)
 
     @ajax
+    @any_admin_access
     def check_terminal_payment(self, session, model_id, model_name, **params):
         error, terminal_id = session.get_assigned_terminal_id()
         if error:
@@ -409,6 +410,7 @@ class Root:
         return {'success': True}
 
     @ajax
+    @any_admin_access
     def poll_terminal_payment(self, session, **params):
         import uber.spin_rest_utils as spin_rest_utils
         error, terminal_id = session.get_assigned_terminal_id()

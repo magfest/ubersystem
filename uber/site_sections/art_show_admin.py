@@ -1032,6 +1032,10 @@ class Root:
         receipt = session.art_show_receipt(id)
         piece = session.art_show_piece(piece_id)
 
+        if receipt.closed:
+            raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id,
+                               "This receipt is closed and cannot be altered.")
+
         if piece.receipt != receipt:
             raise HTTPRedirect('pieces_bought?id={}&message={}',
                                receipt.id,
@@ -1049,6 +1053,10 @@ class Root:
 
     def record_payment(self, session, id, amount='', type=c.CASH):
         receipt = session.art_show_receipt(id)
+
+        if receipt.closed:
+            raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id,
+                               "This receipt is closed and cannot be altered.")
 
         if amount:
             amount = int(Decimal(amount) * 100)
@@ -1068,10 +1076,13 @@ class Root:
             type=type,
         ))
 
-        raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.attendee.id, message)
+        raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id, message)
 
     def undo_payment(self, session, id, **params):
         payment = session.art_show_payment(id)
+        if payment.receipt.closed:
+            raise HTTPRedirect('pieces_bought?id={}&message={}', payment.receipt.id,
+                               "This receipt is closed and cannot be altered.")
 
         payment_or_refund = "Refund" if payment.amount < 0 else "Payment"
 
@@ -1080,10 +1091,41 @@ class Root:
         raise HTTPRedirect('pieces_bought?id={}&message={}', payment.receipt.attendee.id,
                            payment_or_refund + " deleted")
 
+    def reopen_receipt(self, session, id, **parmas):
+        receipt = session.art_show_receipt(id)
+        receipt.closed = None
+        for piece in receipt.pieces:
+            if piece.winning_bid:
+                piece.status = c.SOLD
+            elif piece.quick_sale_price:
+                piece.status = c.QUICK_SALE
+            session.add(piece)
+        session.add(receipt)
+
+        attendee_receipt = session.get_receipt_by_model(receipt.attendee)
+        if attendee_receipt:
+            total_cash = receipt.cash_total
+            cash_txn = session.query(ReceiptTransaction).filter(
+                ReceiptTransaction.receipt_id == attendee_receipt.id,
+                ReceiptTransaction.desc == "{} Art Show Invoice #{}".format(
+                    "Payment for" if total_cash > 0 else "Refund for", receipt.invoice_num)).first()
+            if cash_txn:
+                session.delete(cash_txn)
+
+            sales_item = session.query(ReceiptItem).filter(
+                ReceiptItem.receipt_id == attendee_receipt.id,
+                ReceiptItem.fk_id == receipt.id,
+                ReceiptItem.fk_model == "ArtShowReceipt").first()
+            if sales_item:
+                session.delete(sales_item)
+        
+        raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id, "Receipt re-opened.")
+
+
     def print_receipt(self, session, id, close=False, **params):
         receipt = session.art_show_receipt(id)
 
-        if close and True:
+        if close and not receipt.closed:
             receipt.closed = localized_now()
             for piece in receipt.pieces:
                 piece.status = c.PAID
@@ -1148,6 +1190,7 @@ class Root:
 
         return {
             'receipt': receipt,
+            'two_copies': close,
         }
 
     @ajax
