@@ -10,18 +10,20 @@
       }, 250);
     };
   </script>
+{% endif %}
 <style>
-  .card-body, .pull-left .pull-right { margin: 0 !important; padding: 0 !important; }
-  @page { margin: 1.6cm; }
-  .col-sm-3, .col-sm-6, .col-sm-9 { float: left; } .control-label { text-align: right; }
-  .col-sm-9 { width: 75%; } .col-sm-6 { width: 50%; } .col-sm-3 { width: 30%; }
-  .no-print, .no-print * { display: none !important; }
-  .pagebreak { page-break-before: always; }
-  ::-webkit-scrollbar { height: 0 !important }
-  * { -ms-overflow-style: none; overflow: -moz-scrollbars-none; }
-  tr td, th{
-    padding: 2px !important;
-    margin: 2px !important;
+  @media print
+  {
+    .card-body, .pull-left .pull-right { margin: 0 !important; padding: 0 !important; }
+    .col-sm-3, .col-sm-6, .col-sm-9 { float: left; } .control-label { text-align: right; }
+    .col-sm-9 { width: 75%; } .col-sm-6 { width: 50%; } .col-sm-3 { width: 30%; }
+    .pagebreak { page-break-before: always; }
+    ::-webkit-scrollbar { height: 0 !important }
+    * { -ms-overflow-style: none; overflow: -moz-scrollbars-none; }
+    tr td, th{
+      padding: 2px !important;
+      margin: 2px !important;
+    }
+    @page { margin: 0.5cm; }
   }
 </style>
-{% endif %}

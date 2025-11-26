@@ -2,7 +2,7 @@
 {% extends "base.html" %}
 {% block title %}Add-on Cost Summary{% endblock %}
 {% block content %}
-<h3 class="text-center">Add-on Cost Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<h3 class="text-center">Add-on Cost Report -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
 <table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
   
   <tr>

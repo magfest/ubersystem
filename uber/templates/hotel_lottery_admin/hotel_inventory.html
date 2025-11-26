@@ -37,7 +37,7 @@
 {% endmacro %}
 
 <h2 class="mb-3">
-    Hotel Lottery Inventory -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}
+    Hotel Lottery Inventory -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}
     <small><a href="index">Back to Lottery Entries</a></small>
 </h2>
 

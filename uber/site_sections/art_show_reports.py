@@ -2,7 +2,8 @@ from uber.config import c
 from uber.decorators import all_renderable, csv_file, log_pageview
 
 from collections import defaultdict
-from sqlalchemy import or_, and_
+from sqlalchemy import func, or_, and_
+from sqlalchemy.orm import joinedload
 
 from uber.custom_tags import format_currency
 from uber.models import ArtShowApplication, ArtShowBidder, ArtShowPiece, ArtShowReceipt, Attendee, ModelReceipt
@@ -91,6 +92,70 @@ class Root:
             'apps': apps,
             'yes_status': yes_status if 'yes_status' in params else None,
             'no_status': no_status if 'no_status' in params else None,
+        }
+
+    def artists_by_payout(self, session, message='', **params):
+        filters = []
+        if 'yes_methods' in params:
+            try:
+                yes_methods = [int(params['yes_methods'])]
+            except Exception:
+                yes_methods = list(params['yes_methods'])
+            filters.append(ArtShowApplication.payout_method.in_(yes_methods))
+        if 'no_methods' in params:
+            try:
+                no_methods = [int(params['no_methods'])]
+            except Exception:
+                no_methods = list(params['no_methods'])
+            filters.append(ArtShowApplication.payout_method.in_(no_methods))
+
+        winning_bids_by_method = session.query(
+            ArtShowApplication.payout_method, func.sum(ArtShowPiece.winning_bid)).join(
+                ArtShowApplication.art_show_pieces).filter(
+                    ArtShowPiece.status.in_([c.SOLD, c.PAID]), ArtShowPiece.winning_bid > 0).group_by(ArtShowApplication.payout_method).all()
+        
+        paid_qs_by_method = session.query(
+            ArtShowApplication.payout_method, func.sum(ArtShowPiece.quick_sale_price)).join(
+                ArtShowApplication.art_show_pieces).filter(
+                    ArtShowPiece.status == c.PAID, ArtShowPiece.winning_bid <= 0).group_by(ArtShowApplication.payout_method).all()
+        
+        totals_by_method = defaultdict(int)
+
+        for method, total in winning_bids_by_method + paid_qs_by_method:
+            totals_by_method[method] += total
+
+        apps = session.query(ArtShowApplication).filter(*filters).options(joinedload(ArtShowApplication.art_show_pieces)).all()
+
+        won_bids = defaultdict(int)
+        total_money = defaultdict(int)
+        qs_num = defaultdict(int)
+        qs_total = defaultdict(int)
+
+        for app in apps:
+            for piece in app.art_show_pieces:
+                if piece.status in [c.SOLD, c.PAID]:
+                    if piece.winning_bid:
+                        total_money[app.id] += piece.winning_bid
+                        won_bids[app.id] += piece.winning_bid
+                    elif piece.status == c.PAID:
+                        total_money[app.id] += piece.quick_sale_price
+                elif piece.status == c.QUICK_SALE:
+                    qs_num[app.id] += 1
+                    qs_total[app.id] += piece.quick_sale_price
+
+        if not apps:
+            message = 'No artists found!'
+        
+        return {
+            'message': message,
+            'apps': apps,
+            'totals_by_method': totals_by_method,
+            'won_bids': won_bids,
+            'total_money': total_money,
+            'qs_num': qs_num,
+            'qs_total': qs_total,
+            'yes_methods': yes_methods if 'yes_methods' in params else None,
+            'no_methods': no_methods if 'no_methods' in params else None,
         }
 
     def summary(self, session, message=''):

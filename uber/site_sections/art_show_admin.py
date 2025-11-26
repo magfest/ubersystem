@@ -188,6 +188,8 @@ class Root:
                 found_piece.status = c.VOICE_AUCTION
                 session.add(found_piece)
             elif action == 'no_bids':
+                found_piece.winning_bid = 0
+                found_piece.winning_bidder_id = None
                 if found_piece.valid_quick_sale:
                     found_piece.status = c.QUICK_SALE
                     message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for {format_currency(found_piece.quick_sale_price)}."

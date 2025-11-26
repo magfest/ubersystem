@@ -13,7 +13,7 @@
   margin: 2px !important;
 }
 </style>
-<h3 class="text-center">{% if not admin_report %}High Bids Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}{% else %}Bidder Report{% endif %}</h3>
+<h3 class="text-center">{% if not admin_report %}High Bids Report -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}{% else %}Bidder Report{% endif %}</h3>
 <table class="table table-bordered table-striped ms-auto me-auto" style="max-width: 600px;">
   <tr>
     <th>Bidder Number</th>

@@ -12,7 +12,7 @@
 </div>
 <div class="text-center">
     <div class="form-text">Artist ID</div>
-    <span style="font-size: 2em;">{{ app.artist_id }}</span>
+    <span style="font-size: 2em;">{{ app.artist_id }}{% if app.artist_id_ad %}/{{ app.artist_id_ad }}{% endif %}</span>
 </div>
 {% else %}
 <div class="col-sm">

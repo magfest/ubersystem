@@ -6,7 +6,7 @@
 
 {% block page %}
 <div class="card-body p-0 m-0">
-<h3 align="center">Grand Summary Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<h3 align="center">Grand Summary Report -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
     <td colspan="2"><strong>Total Sales</strong></td><td width="75%">{{ (general_sales_sum + mature_sales_sum)|format_currency }}</td>
