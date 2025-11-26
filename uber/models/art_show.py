@@ -701,6 +701,7 @@ class ArtShowBidder(MagModel):
     admin_notes = Column(UnicodeText)
     signed_up = Column(UTCDateTime, nullable=True)
     email_won_bids = Column(Boolean, default=False)
+    contact_type = Column(Choice(c.ART_SHOW_CONTACT_TYPE_OPTS), default=c.EMAIL)
 
     email_model_name = 'bidder'
 

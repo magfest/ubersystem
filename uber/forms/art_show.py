@@ -140,6 +140,8 @@ class BidderAttendeeInfo(AddressForm):
 
 
 class BidderSignup(MagForm):
+    contact_type = SelectField('Best Way to Contact?', coerce=int,
+                               choices=c.ART_SHOW_CONTACT_TYPE_OPTS, widget=SelectButtonGroup())
     email_won_bids = BooleanField('Yes, please email me about pieces I won in the art show.')
 
 

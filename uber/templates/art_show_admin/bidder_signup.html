@@ -54,10 +54,10 @@
   {% if c.INDEPENDENT_ART_SHOW %}
     Search by badge number or name to finish the bidder signup process. If an artist needs a bidder number, search for them by their name.
   {% else %}
-    Search by bidder number, badge number, or badge name to add a new bidder.
+    Search by badge number or badge name below to add a new bidder.
   {% endif %}
 </p>
-<div class="row justify-content-start mb-3">
+<div class="row justify-content-start align-items-center mb-3">
   <div class="col-sm-6 col-md-4">
     <form role="form" method="get" action="bidder_signup">
       <div class="input-group">
@@ -73,12 +73,68 @@
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bidder-modal-new">Add New Bidder</button>
   </div>
   {% endif %}
-  {% if search_text %}
-  <div class="col col-sm-auto"><a href="bidder_signup">View all attendees with bidder numbers</a></div>
-  {% endif %}
 </div>
+<p>
+  {% if search_text %}Or, <a href="bidder_signup">view all attendees with bidder numbers</a> to search only existing bidders.{% else %}
+  Or, use the search bar in the table below to search existing bidders only.{% endif %}
+</p>
 {% endblock admin_controls %}
 {% block table %}
+{% if not search_text %}
+<div class="card card-body">
+  <table class="table table-hover datatable">
+    <thead>
+    <tr>
+      <th>Bidder Number</th>
+      <th>Full Name</th>
+      <th>Name on ID</th>
+      {% if c.PREASSIGNED_BADGE_TYPES %}<th>Badge Name</th>{% endif %}
+      {% if c.NUMBERED_BADGES %}<th>Badge #</th> {% endif %}
+      <th>Art Show {{ c.ART_SHOW_APP_TERM|title }}</th>
+      <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for attendee in attendees %}
+    <tr class="attendee-row" data-attendee_id="{{ attendee.id }}"{% if attendee.badge_status == c.INVALID_STATUS %} bgcolor="#FFE4E1"{% endif %}>
+      <td id="group_{{ attendee.id }}">
+        {% if attendee.art_show_bidder %}
+        {{ attendee.art_show_bidder.bidder_num }}
+        {% endif %}
+      </td>
+      <td>
+        {{ attendee.full_name }}
+      </td>
+      <td>
+        {{ attendee.legal_name }}
+      </td>
+      {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
+      {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}
+      <td{% if attendee.art_show_applications %} data-order="{{ attendee.art_show_applications[0].display_name }}" data-search="{{ attendee.art_show_applications[0].display_name }}"{% endif %}>
+        {% for app in attendee.art_show_applications %}
+        <a href="form?id={{ app.id }}">{{ app.display_name }}</a>
+        {% else %}
+        N/A
+        {% endfor %}
+      </td>
+      <td>
+        {% set show_edit_btn = attendee.art_show_bidder and attendee.art_show_bidder.signed_up %}
+        <span id="bidder-signup-btn-{{ attendee.id }}"{% if show_edit_btn %} style="display:none;"{% endif %}>
+          <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bidder-modal-{{ attendee.id }}">{% if attendee.art_show_bidder %}Complete {% endif %}Sign Up</button>
+        </span>
+        <span id="edit-btn-{{ attendee.id }}"{% if not show_edit_btn %} style="display:none;"{% endif %}>
+            <span id="bidder-signup-text-{{ attendee.id }}">
+              <em>Signed up {{ attendee.art_show_bidder.signed_up_local|datetime("%-I:%M%p")|lower }} {{ attendee.art_show_bidder.signed_up_local|datetime("%a") }}
+            </span>
+            (<a href="#bidder-modal-{{ attendee.id }}" data-bs-toggle="modal">View/Edit Bidder Info</a>)</em>
+          </span>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
 <ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
   {% for pagenum in pages %}
   {% if pagenum == page %}
@@ -94,7 +150,7 @@
 </ul>
 <div class="card">
   {% if page %}
-  <table class="table table-striped" data-page-size="9999999">
+  <table class="table table-hover" data-page-size="9999999">
     <thead>
     <tr>
       {% block tableheadings %}
@@ -169,6 +225,7 @@
   </li>
   {% endfor %}
 </ul>
+{% endif %}
 {% endif %}
 {% endblock table %}
 <div id="bidder_modals">

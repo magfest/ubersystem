@@ -31,6 +31,9 @@
 {% block email_phone %}
 <div class="col-sm">{{ form_macros.input(bidder_attendee_info.email) }}</div>
 <div class="col-sm">{{ form_macros.input(bidder_attendee_info.cellphone, readonly=printable|boolean) }}</div>
+{% if bidder_signup %}
+<div class="col-sm">{{ form_macros.input(bidder_signup.contact_type, readonly=printable|boolean) }}</div>
+{% endif %}
 {% endblock %}
 </div>
 

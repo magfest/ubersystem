@@ -5,7 +5,8 @@
     <div class="form-text">Badge Name</div>
     {{ attendee.badge_printed_name }}
 </div>
-<div class="col-sm">{{ form_macros.input(bidder_signup.bidder_num) }}</div>
+{% set bidder_num = bidder_signup.bidder_num.data or attendee.last_name[0] ~ "-" %}
+<div class="col-sm">{{ form_macros.input(bidder_signup.bidder_num, value=bidder_num) }}</div>
 {% endblock %}
 
 {% block admin_notes %}
