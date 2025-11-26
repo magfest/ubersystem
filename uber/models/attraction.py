@@ -189,8 +189,9 @@ class Attraction(MagModel, AttractionMixin):
         order_by='[AttractionSignup.checkin_time, AttractionSignup.id]')
 
     @presave_adjustment
-    def _sluggify_name(self):
-        self.slug = sluggify(self.name)
+    def sluggify_name(self):
+        if not self.slug:
+            self.slug = sluggify(self.name)
 
     @presave_adjustment
     def null_dept_id(self):
@@ -355,8 +356,9 @@ class AttractionFeature(MagModel, AttractionMixin):
     )
 
     @presave_adjustment
-    def _sluggify_name(self):
-        self.slug = sluggify(self.name)
+    def sluggify_name(self):
+        if not self.slug:
+            self.slug = sluggify(self.name)
 
     @property
     def default_params(self):
