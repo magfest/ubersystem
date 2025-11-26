@@ -251,8 +251,9 @@ def overridden_badge_cost(attendee, new_attendee=None):
     if attendee.paid == c.PAID_BY_GROUP and new_attendee.paid == c.PAID_BY_GROUP:
         return
 
-    old_cost = attendee.calculate_badge_cost() * 100
-    new_cost = new_attendee.calculate_badge_cost() * 100
+    # Check paid by group for converting dealer badges
+    old_cost = 0 if attendee.paid == c.PAID_BY_GROUP else attendee.calculate_badge_cost() * 100
+    new_cost = 0 if new_attendee.paid == c.PAID_BY_GROUP else new_attendee.calculate_badge_cost() * 100
 
     if old_cost == new_cost:
         return
