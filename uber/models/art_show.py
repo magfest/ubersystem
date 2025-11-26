@@ -1,4 +1,5 @@
 import random
+import re
 import string
 
 from collections import defaultdict
@@ -313,6 +314,51 @@ class ArtShowApplication(MagModel):
     def locations_or_assignments(self):
         return [a.label for a in self.assignments] if c.USE_ASSIGNMENT_MAP else [self.locations]
 
+    def get_printable_locations(self, gallery=None):
+        if not c.USE_ASSIGNMENT_MAP:
+            return self.locations
+        if not gallery:
+            assignments = self.assignments
+        else:
+            assignments = self.general_assignments if gallery == c.GENERAL else self.mature_assignments
+
+        printable_locations = []
+        locations_by_letter = defaultdict(list)
+        for assignment in assignments:
+            letter_num = re.match(r'^([a-zA-Z]+)(\d+)$', assignment.label)
+            if letter_num:
+                locations_by_letter[letter_num[1]].append(int(letter_num[2]))
+            else:
+                printable_locations.append(assignment.label)
+
+        for letter, numbers in locations_by_letter.items():
+            if len(numbers) == 1:
+                printable_locations.append(f"{letter}{numbers[0]}")
+            else:
+                numbers.sort()
+                start_num = numbers[0]
+                last_num = start_num
+                next_num = start_num + 1
+                for num in numbers[1:]:
+                    if num != next_num:
+                        if last_num == start_num:
+                            printable_locations.append(f"{letter}{last_num}")
+                        else:
+                            printable_locations.append(f"{letter}{start_num}-{last_num}")
+                        start_num = num
+                        last_num = num
+                        next_num = last_num + 1
+                    else:
+                        next_num += 1
+                        last_num = num
+                    if num == numbers[-1]:
+                        if num == start_num:
+                            printable_locations.append(f"{letter}{num}")
+                        else:
+                            printable_locations.append(f"{letter}{start_num}-{num}")
+        return ', '.join(printable_locations)
+
+
     @property
     def general_assignments(self):
         return [a for a in self.assignments if a.panel.gallery == c.GENERAL]
@@ -442,6 +488,16 @@ class ArtShowPiece(MagModel):
     @property
     def winning_bidder_num(self):
         return self.receipt.attendee.art_show_bidder.bidder_num
+
+    @property
+    def locations(self):
+        if not self.app:
+            return ''
+        if not c.USE_ASSIGNMENT_MAP:
+            return self.app.locations
+        
+        return self.app.get_printable_locations(self.gallery)
+
     
     def print_bidsheet(self, pdf, sheet_num, normal_font_name, bold_font_name, set_fitted_font_size):
         xplus = yplus = 0

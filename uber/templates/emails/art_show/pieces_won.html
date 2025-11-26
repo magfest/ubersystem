@@ -12,7 +12,7 @@
         <ul>
             {% for piece in pieces %}
             <li>
-                <strong>{{ piece.name }}</strong> by {{ piece.app.display_name if piece.gallery == c.GENERAL else piece.app.mature_display_name }}:
+                <strong>{{ piece.name }}</strong> ({{ piece.locations }}) by {{ piece.app.display_name if piece.gallery == c.GENERAL else piece.app.mature_display_name }}:
                 {{ piece.winning_bid|format_currency }}
             </li>
             {% endfor %}

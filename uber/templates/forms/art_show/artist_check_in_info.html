@@ -7,7 +7,7 @@
 <div class="text-center ms-1">
     <div class="form-text">Locations</div>
     <div style="outline: 1px solid black; width: 6em; height: 3em;" class="d-flex pt-0 justify-content-center align-items-center">
-        <span class="locations-text">{{ app.locations_or_assignments|join(' / ') }}</span>
+        <span class="locations-text">{{ app.get_printable_locations() }}</span>
     </div>
 </div>
 <div class="text-center">
