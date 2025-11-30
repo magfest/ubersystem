@@ -56,8 +56,8 @@ def load_attendee(session, params):
 
 def save_attendee(session, attendee, params):
     if cherrypy.request.method == 'POST':
-        receipt_items = ReceiptManager.auto_update_receipt(attendee,
-                                                           session.get_receipt_by_model(attendee), params.copy())
+        receipt_items = ReceiptManager.auto_update_receipt(
+            attendee, session.get_receipt_by_model(attendee), params.copy(), who=AdminAccount.admin_name() or 'non-admin')
         session.add_all(receipt_items)
 
     forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
