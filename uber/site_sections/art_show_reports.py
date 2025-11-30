@@ -175,13 +175,15 @@ class Root:
 
         approved_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED)
 
-        panels, tables = {}, {}
+        panels, tables, mailin = {}, {}, defaultdict(int)
         for key in 'general', 'mature', 'fee':
             panels[key] = defaultdict(int)
             tables[key] = defaultdict(int)
 
         for app in approved_apps:
             if app.overridden_price == 0:
+                if app.delivery_method == c.BY_MAIL:
+                    mailin['free'] += 1
                 panels['general']['free'] += app.panels
                 panels['mature']['free'] += app.panels_ad
                 tables['general']['free'] += app.tables
@@ -196,6 +198,11 @@ class Root:
                 panels['fee']['mature'] += app.panels_ad * c.COST_PER_PANEL
                 tables['fee']['general'] += app.tables * c.COST_PER_TABLE
                 tables['fee']['mature'] += app.tables_ad * c.COST_PER_TABLE
+                if app.delivery_method == c.BY_MAIL:
+                    mailin['base'] += c.BASE_ART_MAILING_FEE
+                    extra_fee = max(0, app.mailing_fee - c.BASE_ART_MAILING_FEE)
+                    mailin['extra'] += extra_fee
+
 
         return {
             'message': message,
@@ -214,7 +221,7 @@ class Root:
             'tables': tables,
             'total_tables': sum([count for key, count in tables['general'].items()]) + sum(
                 [count for key, count in tables['mature'].items()]),
-            'now': localized_now(),
+            'mailin': mailin,
         }
 
     def auction_report(self, session, message='', mature=None):

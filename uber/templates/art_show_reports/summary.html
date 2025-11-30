@@ -111,6 +111,24 @@
   <tr>
     <td></td><td>Mature</td><td>{{ tables['fee']['mature']|format_currency }}</td>
   </tr>
+  <tr>
+    <td colspan="2"><strong>Mail-In Fee</strong></td>
+    <td>{{ c.BASE_ART_MAILING_FEE|format_currency }}{% if c.EXTRA_ART_MAILING_FEE %} up to {{ c.BASE_ART_MAILING_SPACES }} spaces{% endif %}</td>
+  </tr>
+  {% if c.EXTRA_ART_MAILING_FEE %}
+  <tr>
+    <td colspan="2"><strong>Extra Mail-In Fee</strong></td>
+    <td>{{ c.EXTRA_ART_MAILING_FEE|format_currency }} every {{ c.EXTRA_ART_MAILING_INCREMENT }} spaces</td>
+  </tr>
+  {% endif %}
+  <tr>
+    <td></td><td>Base Fees</td><td>{{ mailin['base']|format_currency }}</td>
+  </tr>
+  {% if c.EXTRA_ART_MAILING_FEE %}
+  <tr>
+    <td></td><td>Extra Fees</td><td>{{ mailin['extra']|format_currency }}</td>
+  </tr>
+  {% endif %}
 </table>
 </div>
 {% endblock %}
