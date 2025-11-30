@@ -61,12 +61,21 @@ def num_tables(form, field):
         raise ValidationError('You cannot have fewer than 0 table sections.')
 
 
-@ArtShowInfo.new_or_changed('tables')
+@ArtShowInfo.new_or_changed('tables_ad')
 def num_tables_ad(form, field):
     if field.data > c.MAX_ART_TABLES:
         raise ValidationError(f'You cannot have more than {c.MAX_ART_TABLES} table sections.')
     if field.data < 0:
         raise ValidationError('You cannot have fewer than 0 table sections.')
+    
+
+@ArtShowInfo.field_validation('banner_name_ad')
+def no_mature_name_if_no_space(form, field):
+    if not form.model.is_new and not form.is_admin or hasattr(form, 'separate_ad_banner') and not form.separate_ad_banner.data:
+        return
+
+    if field.data and not form.model.has_mature_space:
+        raise ValidationError('You cannot enter a banner name for the mature gallery without any space in the mature gallery.')
 
 
 @AdminArtShowInfo.field_validation('overridden_price')
@@ -96,18 +105,31 @@ for field_name, message in address_required_validators.items():
 
 for field_name in ['region', 'region_us', 'region_canada']:
     AdminArtistAttendeeInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(
-        field_name, check_placeholder=True)
+        field_name, check_placeholder=True, check_lambda=lambda form: form.model.badge_status != c.NOT_ATTENDING)
 
 
-ArtistMailingInfo.field_validation.required_fields['business_name'] = "Please enter a name or business name for your address."
+AdminArtistAttendeeInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code
+
+
+def require_mailing_info(form):
+    if hasattr(form, 'delivery_method'):
+        return form.delivery_method.data == c.BY_MAIL
+    else:
+        return form.model.delivery_method == c.BY_MAIL
+
+
+ArtistMailingInfo.field_validation.required_fields['business_name'] = (
+    "Please enter a name or business name for your address.", 'delivery_method', lambda x: x == c.BY_MAIL)
 
 
 for field_name, message in address_required_validators.items():
-    ArtistMailingInfo.field_validation.required_fields[field_name] = (message, 'copy_address', lambda x: not x or not x.data)
+    ArtistMailingInfo.field_validation.required_fields[field_name] = (
+        message, 'copy_address', lambda x: (not x or not x.data) and require_mailing_info(x.form))
 
 
 for field_name in ['region', 'region_us', 'region_canada']:
-    ArtistMailingInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(field_name)
+    ArtistMailingInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(
+        field_name, check_lambda=require_mailing_info)
 
 
 ArtistMailingInfo.field_validation.validations['zip_code']['valid'] = valid_zip_code

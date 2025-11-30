@@ -5,17 +5,24 @@
 </div>
 <div class="d-flex justify-content-between mb-3">
 <div class="text-center ms-1">
-    <div class="form-text">Location</div>
+    <div class="form-text">Locations</div>
     <div style="outline: 1px solid black; width: 6em; height: 3em;" class="d-flex pt-0 justify-content-center align-items-center">
-        <span class="locations-text">{{ app.locations }}</span>
+        <span class="locations-text">{{ app.get_printable_locations() }}</span>
     </div>
 </div>
 <div class="text-center">
     <div class="form-text">Artist ID</div>
-    <span style="font-size: 2em;">{{ app.artist_id }}</span>
+    <span style="font-size: 2em;">{{ app.artist_id }}{% if app.artist_id_ad %}/{{ app.artist_id_ad }}{% endif %}</span>
 </div>
 {% else %}
-<div class="col-sm">{{ form_macros.input(artist_check_in_out_info.locations) }}</div>
+<div class="col-sm">
+    {% if c.USE_ASSIGNMENT_MAP %}
+    <div class="form-text">Locations</div>
+    {{ app.locations_or_assignments|join(' / ') }}
+    {% else %}
+    {{ form_macros.input(artist_check_in_out_info.locations) }}
+    {% endif %}
+</div>
 <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id) }}</div>
 {% if artist_check_in_out_info.artist_id_ad.data %}
 <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id_ad) }}</div>
@@ -26,7 +33,7 @@
 {% block artist_names %}
 <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_name, placeholder=app.artist_or_full_name) }}</div>
 <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.banner_name, placeholder=app.display_name) }}</div>
-{% if artist_check_in_out_info.banner_name_ad.data %}
+{% if app.has_mature_space and artist_check_in_out_info.banner_name_ad.data %}
 <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.banner_name_ad, placeholder=app.mature_display_name) }}</div>
 {% endif %}
 {% endblock %}

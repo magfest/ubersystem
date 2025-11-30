@@ -38,9 +38,8 @@
             {# TODO: Will need to account for cart for this stripe form #}
             {{ stripe_form('manual_reg_charge', pickup_group) }}
         {% endif %}
+    </div>
     {% endif %}
-
-    <br/><div class="alert" role="alert" id="form-validations"><span></span></div>
 
     {% if checked_in_names %}
     <p>
@@ -111,7 +110,7 @@
     <div class="d-flex gap-3 justify-content-end">
         <div><button type="button" class="btn btn-primary" onClick="updateAll()">Update All</button></div>
     </div>
-    {% if c.BADGE_PRINTING_ENABLED %}
+    
     <div class="d-flex gap-3 text-start">
         <div class="flex-fill">
             <div class="form-text">&nbsp;</div>
@@ -119,6 +118,7 @@
                 <p><a href="#" class="btn btn-warning" data-bs-toggle="collapse" data-bs-target=".escalate-ticket" aria-expanded="false" aria-controls="escalate-ticket">Escalate to Manager</a></p>
             </div>
         </div>
+        {% if c.BADGE_PRINTING_ENABLED %}
         <div class="flex-fill">
             <label for="printer_id" class="form-text">Printer ID</label>
             <div class="mb-3"><input type="text" class="form-control" name="printer_id" value="{{ workstation_assignment.printer_id if workstation_assignment else '' }}" /></div>
@@ -129,8 +129,9 @@
             <div class="mb-3"><input type="text" class="form-control" name="minor_printer_id" value="{{ workstation_assignment.minor_or_adult_printer_id if workstation_assignment else '' }}"/></div>
         </div>
         {% endif %}
+        {% endif %}
     </div>
-    {% endif %}
+    
     </form>
     <div class="row g-3 text-start">
         <div class="escalate-ticket col-12 collapse bg-light card card-body">
@@ -150,7 +151,23 @@
             </div>
         </div>
     </div>
-</div></div>
+    {% for name, note in check_in_notes.items() %}
+    <div class="alert alert-info mt-3">
+        <strong class="alert-heading">Check-in Note for {{ name }}</strong>
+        <hr/>
+        {{ note }}
+    </div>
+    {% if loop.last %}
+    <div class="form-check">
+        <input class="form-check-input" id="notes_confirmation" form="check_in_form_{{ pickup_group.id }}" name="notes_confirmation" type="checkbox" value="1">
+        <label for="notes_confirmation">
+            I have reviewed and complied with the instructions above.
+        </label>
+    </div>
+    {% endif %}
+    {% endfor %}
+    <br/><div class="alert" role="alert" id="form-validations"><span></span></div>
+</div>
 <div class="modal-footer">
     {% set print_and_checkin = c.BADGE_PRINTING_ENABLED %}
     <div class="d-flex gap-1 w-100">

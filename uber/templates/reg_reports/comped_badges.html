@@ -2,7 +2,7 @@
 {% set title_text = "Comped Badges Report" %}
 {% block content %}
 
-<h2>Comped Badges -- {{ now()|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
+<h2>Comped Badges -- {{ now_localized()|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
 
 <div class="row mt-3 justify-content-between align-items-end">
     <div class="col col-auto">

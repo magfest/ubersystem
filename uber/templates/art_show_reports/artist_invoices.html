@@ -1,7 +1,13 @@
 {% extends 'static_views/static_base.html' %}
 {% import 'art_show_common/print_macros.html' as print_macros with context %}
 
+{% set no_print = True %}
 {% include 'art_show_common/print.html' with context %}
+
+{% block page %}
+<div class="no-print card-body">
+<strong>{{ message }}</strong>
+</div>
 
 <div class="card-body p-0 m-0">
 {% for app in apps %}
@@ -9,3 +15,4 @@
 <div class="pagebreak"></div>
 {% endfor %}
 </div>
+{% endblock %}

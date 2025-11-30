@@ -686,13 +686,6 @@ def validate_phone(travel_plan):
 # art show
 # =============================
 
-@prereg_validation.ArtShowApplication
-def invalid_mature_banner(app):
-    if app.banner_name_ad and not app.has_mature_space:
-        return ('banner_name_ad',
-                "You cannot enter a banner name for the mature gallery without any space in the mature gallery.")
-
-
 @validation.ArtShowApplication
 def artist_id_dupe(app):
     if app.artist_id and (app.is_new or app.artist_id != app.orig_value_of('artist_id')):

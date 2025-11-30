@@ -1,0 +1,349 @@
+{% extends "uber/templates/base.html" %}{% set admin_area=True %}
+{% block title %}{{ c.ART_PIECE_GALLERYS[gallery] }} Assignment Map{% endblock %}
+{% block content %}
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1.0, width=device-width" />
+<script type="text/javascript">
+{% include 'art_show_admin/assignments.js' %}
+</script>
+<style type="text/css">
+    :root {
+        --cell-width: 6rem;
+        --df-accordion-width: 24rem; /* 2 less than cell-width */
+        --df-expandable-height: calc(100vh - 28rem);
+        --df-cell-right-offset: -2rem;
+        --border-width: .3rem;
+        --fixed-color: #89d9c1;
+        --guessed-color: #d7fbf0;
+        --border-color: #83928d;
+        --inner-border-color: #72817d44;
+        --text-color: #424a48;
+        --selected-border: #37a8ff;
+        --available-border: rgb(77, 136, 255);
+        --created-border: rgb(55, 255, 242);
+        --unused-border: rgba(0, 0, 0,0.0 );
+        --section-border: rgb(0, 179, 89);
+        --selected-artist: rgb(230, 0, 172); /*rgb(0, 153, 77);*/
+    }
+    div {
+        user-select: none;
+    }
+    body {
+        font-family:Arial, Helvetica, sans-serif;
+        box-sizing: border-box;
+        margin: 0rem;
+        padding: 0rem;
+        width: 100%;
+        height: 100%;
+    }
+    .show_map {
+        position: absolute;
+        top: 0rem;
+        left: 0rem;
+    }
+    .show_map_container {
+        position: absolute;
+        border: .2rem solid black;
+        overflow: hidden;
+        left: 1rem;
+        top: 1rem;
+    }
+    .allocator {
+        left: 1rem;
+        top: 1rem;
+        display: flex;
+        flex-direction: column;
+        right: 1rem;
+        bottom: 1rem;
+    }
+    .allocator_top {
+        position: relative;
+        display: flex;
+        flex-direction: row;
+    }
+    .allocator_map_container {
+        display: flex;
+        flex-direction: column;
+        border: .2rem solid black;
+        overflow: hidden;
+        flex: 2 1 60%;
+        min-width: 500px;
+    }
+    .allocator_map {
+        position: relative;
+        left: 0rem;
+        top: 0rem;
+    }
+
+    /*
+    
+    Side panel, now with Flex
+    
+    */
+
+    .allocator_side {
+        display: flex;
+        flex-direction: column;
+        flex: 2 2 35%;
+        padding-left: 1rem;
+        overflow-y:scroll;
+    }
+
+    .node {
+        position: absolute;
+        border-radius: 50%;
+        background-color: var(--inner-border-color);
+        border-width: 0px;
+        height: 6px;
+        width: 6px;
+        left: -3px;
+        top: -3px;
+        z-index: 60;
+    }
+    .node_ring {
+        position: absolute;
+        border-radius: 50%;
+        border-color: var(--selected-border);
+        border-style: solid;
+        border-width: 4px;
+        height: 14px;
+        width: 14px;
+        left: -7px;
+        top: -7px;
+        z-index: 55;
+    }
+    .node_parent {
+        position: absolute;
+
+    }
+    .panel {
+        position: absolute;
+        background-color: #000000;
+        box-sizing:border-box;
+        z-index:15;
+    }
+    .panel_usage {
+        position: absolute;
+        /*box-sizing: border-box;*/
+        z-index:10;
+    }
+    .panel_selector {
+        position: absolute;
+        box-sizing: border-box;
+        border: 0.5px solid rgba(0,0,0,0.0);
+        z-index: 100;
+    }
+    .face_selector {
+        position: absolute;
+        box-sizing: border-box;
+        border: 0.5px solid rgba(0,0,0,0.0);
+        z-index: 100;
+    }
+    .face_selector_a {
+        position: absolute;
+        box-sizing: border-box;
+        border: 0.5px solid rgba(0,0,0,0.0);
+        z-index: 100;
+    }
+    .controls {
+        position: absolute;
+        left: 0.3rem;
+        top: 0.3rem;
+        display: flex;
+        flex-direction: row;
+    }
+    .button {
+        display: flex;
+        flex-basis: auto;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        padding-top: .2rem;
+        padding-bottom: .2rem;
+        margin-right: 1rem;
+        background-color: var(--available-border);
+        position: relative;
+        z-index: 600;
+        color: #ffffff;
+        width: fit-content;
+    }
+    .load_button {
+        background-color: var(--border-color);
+    }
+    .artist_panel {
+        position: absolute;
+        right: 1rem;
+        top: 2rem;
+        height: 65%;
+        overflow-y:scroll;
+        width: 240px;
+        font-size: 10pt;
+        background-color: #ffffff;
+    }
+    .section_list {
+        position: absolute;
+        left: 2rem;
+        right: 2rem;
+        bottom: 3rem;
+        width: 90%;
+    }
+    .section_selector {
+        font-size:8pt;
+        padding: .5rem;
+        margin: .5rem;
+        display: inline-block;
+        border: 1px solid black;
+    }
+    .zoom {
+        position: absolute;
+        width: 2rem;
+        height: 2rem;
+        line-height: 2rem;
+        text-align: center;
+        font-weight: bold;
+        z-index: 500;
+        border-radius: .25rem;
+    }
+    .button_disabled {
+        opacity: 0.3;
+    }
+    .face_label {
+        position: absolute;
+        left: 1rem;
+        font-size: 80%;
+        padding: .3rem;
+        background-color: #ffffff;
+        border: 1px solid black;
+        z-index: 500;
+    }
+    .label_maker {
+        width: 3rem;
+    }
+    .load_area {
+        width: 90%;
+        height: 90%;
+    }
+    .map_key {
+        display:flex;
+        flex-direction: row;
+        margin-top:2rem;
+        font-size: 80%;
+    }
+    .key_pair {
+        display: flex;
+        flex-direction: row;
+        flex: 0 1 20%;
+    }
+    .key_color {
+        display: flex;
+        flex-direction: column;
+        flex: 0 0 2rem;
+        width: 1rem;
+        height: 1rem;
+        border: .1px solid black;
+    }
+    .key_explanation {
+        display: flex;
+        flex-direction: column;
+        padding-left: 1rem;
+        flex: 2 1 auto;
+    }
+    
+</style>
+<script type="text/javascript">
+    let map;
+    const mapDisplay = new allocator();
+
+    async function setup() {
+        map = new showMap({{ c.ART_SHOW_GRID_WIDTH }}, {{ c.ART_SHOW_GRID_HEIGHT }});
+        logic = new panelLogic();
+        pan_handler = new panHandler({map:map});
+        mapDisplay.map = map;
+        mapDisplay.logic = logic;
+        mapDisplay.container = document.getElementById("allocator-display");
+
+        map.logic = logic;
+        logic.map = map;
+        map.interactor = pan_handler;
+        map.allocator = mapDisplay;
+
+        document.addEventListener("drag",function(e) { console.log(e)});
+        document.addEventListener("keydown",function(e) {
+            if(e.key==="Shift") { pan_handler.shiftHandler(e); }
+        });
+        document.addEventListener("keyup",function(e) { 
+            if(e.key==="Shift") { pan_handler.shiftHandler(e); }; 
+        });
+        
+        logic.map = map;
+
+        if(await mapDisplay.createVisualStructure() === true) { map.createMap(); }
+        artistHandler = new serialize({parent: logic, type: "artist"});
+        layoutHandler = new serialize({parent: logic, type: "layout"});
+        mapDisplay.serializer = artistHandler;
+        mapDisplay.layout_serializer = layoutHandler;
+        mapDisplay.serializer.input = mapDisplay.file_loader;
+        map.logic = logic;
+        loadFromServer();
+        logic.buildSections(true);
+    }
+
+    function loadFromServer() {
+        const serverPanels = {{ panels_json|tojson }};
+        const serverArtists = {{ artists_json|tojson }};
+
+        serverPanels.forEach(function(panelInfo) {
+            map.addPanel(panelInfo['origin'], panelInfo['terminus'], panelInfo['usability'], panelInfo['labels']);
+        })
+
+        mapDisplay.serializer.parent.assignees = [];
+        mapDisplay.serializer.parent.assignments = {};
+        serverArtists.forEach(function(artistInfo) {
+            mapDisplay.serializer.parent.assignees.push({0: artistInfo['id'], 1: artistInfo['needed']});
+            mapDisplay.serializer.parent.assignments[artistInfo['id']] = {'name': artistInfo['name'], 'needed': artistInfo['needed'],
+                'panels': new Set(artistInfo['assignments']), 'manual': new Set(artistInfo['manual']), 'wide': false}
+        })
+    }
+
+    $(window).load(function() { setup(); })
+</script>
+<h2>{{ c.ART_PIECE_GALLERYS[gallery] }} Gallery Assignment Map <small><a href="assign_locations">Back to Overview</a></small></h2>
+<div class="card card-body">
+    <div class="d-flex mb-3">
+    <a class="btn btn-primary" data-bs-toggle="collapse" href="#instructions" role="button" aria-expanded="false" aria-controls="instructions">
+        Show instructions
+    </a>
+    </div>
+    <div class="collapse" id="instructions">
+    Creating the map and assigning artists:
+    <ol>
+        <li>Click "Modify Layout" to enable the panel-drawing grid.</li>
+        <li>To draw panels, click a starting and then ending node or hold shift and drag between nodes. Each line between two nodes is a single panel.</li>
+        <li>Selecting start/end nodes for existing panels will delete that panel.</li>
+        <li>Clicking on a panel will cycle its useable sides in this order: both, neither, up/left, down/right.</li>
+        <li>Click "Done Modifying", then "Recalculate Free Space". Manually assign artists by clicking their name, then clicking each panel to assign or unassign it.</li>
+        <li>Click "Recalculate Free Space" again to enable auto-assignment, then click "Assign All Artists". You can then view or edit each artist's assigned panels by clicking on their name.</li>
+        <li>Automatically assigned spaces will be removed every time "Recalculate Free Space" is selected after, e.g., changing the layout. Manually assigned spaces are preserved, even if a panel is deleted.</li>
+        <li>To add labels to panels, click "Modify Label", then click each panel. Type the label into the input box that appears on the left-hand side. The label is saved as soon as you type it.</li>
+    </ol>
+    Saving/loading layouts:
+    <ol>
+        <li>Click "Save/Load" to bring up the saving/loading options.</li>
+        <li>"Export Layout as JSON" will download a file, but unfortunately layouts cannot be dynamically loaded in this interface at this time.</li>
+        <li>"Upload" will save the current layout and all assignments to the server.</li>
+        <li>"Save Current Assignment" will load all assignments, not including the panel layout, to the text box as a set of strings.</li>
+        <li>"Load Assignments" will replace the current assignments with the set of strings in the text box.</li>
+        <li>Please note that assignments on deleted panels will NOT be uploaded to the server.</li>
+    </ol>
+    </div>
+    <div class="allocator" id="allocator-display">
+
+    </div>
+</div>
+
+<div class="artist_panel" id="artist_load_panel" style="display:none">
+    <div class="button" id="load_artists" style="margin-bottom:1rem;">Load Artists</div>
+    <div class="button" id="save_artists" style="margin-bottom:1rem;">Save Assignments</div>
+    
+</div>
+<div class="section_list" id="section_list"></div>
+{% endblock %}

@@ -97,7 +97,7 @@ class SelectButtonGroup(Select):
                 'name': field.name,
                 **self.default_opt_kwargs
                 }
-            if 'readonly' in kwargs:
+            if 'readonly' in kwargs and kwargs['readonly']:
                 options['disabled'] = True
             options.update(render_kw)
             for opt, val in kwargs.items():

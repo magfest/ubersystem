@@ -3,7 +3,7 @@
 {% set art_show_info = art_show_info or forms['art_show_info'] %}
 
 <div x-data="{ {% block x_data %}
-separate_ad_banner: {{ app.banner_name_ad|boolean|tojson }},
+separate_ad_banner: {{ (app.has_mature_space and app.banner_name_ad)|boolean|tojson }},
 {% endblock %} }">
 
 <div class="row g-3 mb-3">

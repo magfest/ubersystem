@@ -5,32 +5,38 @@
 {% include 'art_show_common/print.html' with context %}
 {% import 'macros.html' as macros with context %}
 
-<div class="no-print card-body">
+{% block page %}
+<h3 align="center">Pieces by Status Report -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<div class="d-print-none card-body">
 <strong>{{ message }}</strong>
-<form role="form" method="get" action="pieces_by_status" class="form-horizontal">
-  <div class="form-group">
-    <label class="control-label">Pieces in Status of</label>
+<form role="form" method="get" action="pieces_by_status">
+  <div class="row g-3 mb-3">
+    <div class="col-sm">
+      <div class="form-text">Pieces in Status of</div>
       {{ macros.checkgroup_opts('yes_status', c.ART_PIECE_STATUS_OPTS, defaults=[] if not yes_status else yes_status|join(',')) }}
-  </div>
-  <div class="form-group">
-    <label class="control-label">Pieces NOT in Status of</label>
+    </div>
+    <div class="col-sm">
+      <div class="form-text">Pieces NOT in Status of</div>
       {{ macros.checkgroup_opts('no_status', c.ART_PIECE_STATUS_OPTS, defaults=[] if not no_status else no_status|join(',')) }}
+    </div>
   </div>
-  <div class="form-group">
-    <button type="submit" class="btn btn-primary">Load Pieces by Status</button>
+  <div class="d-flex gap-2">
+    <div>
+      <button type="submit" class="btn btn-primary">Load Pieces by Status</button>
+    </div>
+    <div><a href="javascript:window.print()" class="btn btn-success">Print Pieces</a></div>
   </div>
 </form>
-<a href="javascript:window.print()" class="btn btn-success">Print Pieces</a>
 </div>
 
 <div class="card-body p-0 m-0">
 {% for app in apps %}
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
-    <td><strong>Artist ID</strong></td><td colspan="2">{{ app.artist_id }}</td>
+    <td><strong>Artist ID</strong></td><td colspan="3">{{ app.artist_id }}{% if app.artist_id_ad %} ({{ app.artist_id_ad }}){% endif %}</td>
   </tr>
   <tr>
-    <td><strong>Artist Name</strong></td><td colspan="2">{{ app.display_name }}</td>
+    <td><strong>Artist Name</strong></td><td colspan="3">{{ app.display_name }}{% if app.banner_name_ad %} ({{ app.mature_display_name }}){% endif %}</td>
   </tr>
   <tr>
     <th>Piece ID</th>
@@ -51,3 +57,4 @@
 </table>
 {% endfor %}
 </div>
+{% endblock %}

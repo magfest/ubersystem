@@ -3,6 +3,8 @@
 
 {% include 'art_show_common/print.html' with context %}
 
+{% block page %}
 <div class="card-body p-0 m-0">
 {{ print_macros.print_artist_invoice(app) }}
 </div>
+{% endblock %}

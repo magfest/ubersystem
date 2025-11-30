@@ -1663,7 +1663,23 @@ class ReceiptManager:
         new_model = model.__class__(**model.to_dict())
         params = model.auto_update_receipt(params)
 
-        # First load the new model with all the changes, since these are checked during calculations
+        # First do pre-processing for params that we only use based on other params
+        if params.get('no_override'):
+            params.pop('overridden_price', None)
+
+        if params.get('auto_recalc') or not isinstance(model, Group):
+            params.pop('cost', None)
+
+        if params.get('power_fee', None) is not None and c.POWER_PRICES.get(int(params.get('power'), 0),
+                                                                            None) is None:
+            new_model.power_fee = int(params.get('power_fee') or 0)
+            new_model.power = int(params.get('power') or 0)
+            items = self.process_receipt_change(model, 'power_fee', new_model, receipt, who=who)
+            receipt_items += items if items else []
+            params.pop('power')
+            params.pop('power_fee')
+
+        # Then load the new model with all the changes, since these are checked during calculations
         changed_params = []
         for key, val in params.items():
             column = model.__table__.columns.get(key)
@@ -1710,25 +1726,12 @@ class ReceiptManager:
             new_model.overridden_price = int(params.get('overridden_price') or 0)
             items = self.process_receipt_change(model, 'overridden_price', new_model, receipt, who=who)
             return items if items else []
-        elif params.get('no_override'):
-            params.pop('overridden_price')
 
         if not params.get('auto_recalc') and isinstance(model, Group):
             new_model.cost = int(params.get('cost') or 0)
             new_model.auto_recalc = False
             items = self.process_receipt_change(model, 'cost', new_model, receipt, who=who)
             return items if items else []
-        else:
-            params.pop('cost', None)
-
-        if params.get('power_fee', None) is not None and c.POWER_PRICES.get(int(params.get('power'), 0),
-                                                                            None) is None:
-            new_model.power_fee = int(params.get('power_fee') or 0)
-            new_model.power = int(params.get('power') or 0)
-            items = self.process_receipt_change(model, 'power_fee', new_model, receipt, who=who)
-            receipt_items += items if items else []
-            params.pop('power')
-            params.pop('power_fee')
 
         if 'promo_code_code' in params:
             if val != getattr(model, key, None):

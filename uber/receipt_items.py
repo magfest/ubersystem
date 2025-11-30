@@ -419,7 +419,8 @@ def age_discount_credit(attendee, new_attendee=None):
             diff = attendee.age_discount * 100
         return ("Age Discount", diff, c.BADGE_DISCOUNT)
     
-    if needs_badge_change_calc(attendee) or needs_badge_change_calc(new_attendee):
+    if attendee.badge_type != new_attendee.badge_type and (needs_badge_change_calc(attendee) or
+                                                           needs_badge_change_calc(new_attendee)):
         # Age discount is included in the badge upgrade/downgrade function
         return
     

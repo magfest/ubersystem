@@ -89,7 +89,7 @@
 </script>
 {% set now = now() %}
 <div class="d-flex justify-content-between">
-  <h2>Guidebook Exports and Updates -- {{ now|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
+  <h2>Guidebook Exports and Updates -- {{ now_localized()|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
   <div>
   <a href="schedule_guidebook_xlsx" class="btn btn-primary">Download Schedule XLSX</a>
   <a href="schedule_guidebook_xlsx?new_only=true" class="btn btn-primary">New Schedule Items XLSX</a>

@@ -138,6 +138,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 <div class="alert alert-info mt-3">
     {{ attendee.check_in_notes }}
 </div>
+{{ form_macros.input(check_in_form.instructions_followed) }}
 {% endif %}
 {% endblock %}
 

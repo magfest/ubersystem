@@ -71,7 +71,7 @@ def upgrade():
     op.add_column('event', sa.Column('tracks', sa.Unicode(), server_default='', nullable=False))
     op.create_foreign_key(op.f('fk_event_department_id_department'), 'event', 'department', ['department_id'], ['id'], ondelete='SET NULL')
     op.create_foreign_key(op.f('fk_event_location_id_event_location'), 'event', 'event_location', ['event_location_id'], ['id'], ondelete='SET NULL')
-    #op.drop_column('event', 'location')
+    op.drop_column('event', 'location')
     op.drop_column('event', 'track')
     op.drop_column('panel_application', 'track')
 

@@ -4,8 +4,9 @@
 {% set no_print = True %}
 {% include 'art_show_common/print.html' with context %}
 
+{% block page %}
 <div class="card-body p-0 m-0">
-<h3 align="center">Grand Summary Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<h3 align="center">Grand Summary Report -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
     <td colspan="2"><strong>Total Sales</strong></td><td width="75%">{{ (general_sales_sum + mature_sales_sum)|format_currency }}</td>
@@ -110,5 +111,24 @@
   <tr>
     <td></td><td>Mature</td><td>{{ tables['fee']['mature']|format_currency }}</td>
   </tr>
+  <tr>
+    <td colspan="2"><strong>Mail-In Fee</strong></td>
+    <td>{{ c.BASE_ART_MAILING_FEE|format_currency }}{% if c.EXTRA_ART_MAILING_FEE %} up to {{ c.BASE_ART_MAILING_SPACES }} spaces{% endif %}</td>
+  </tr>
+  {% if c.EXTRA_ART_MAILING_FEE %}
+  <tr>
+    <td colspan="2"><strong>Extra Mail-In Fee</strong></td>
+    <td>{{ c.EXTRA_ART_MAILING_FEE|format_currency }} every {{ c.EXTRA_ART_MAILING_INCREMENT }} spaces</td>
+  </tr>
+  {% endif %}
+  <tr>
+    <td></td><td>Base Fees</td><td>{{ mailin['base']|format_currency }}</td>
+  </tr>
+  {% if c.EXTRA_ART_MAILING_FEE %}
+  <tr>
+    <td></td><td>Extra Fees</td><td>{{ mailin['extra']|format_currency }}</td>
+  </tr>
+  {% endif %}
 </table>
 </div>
+{% endblock %}

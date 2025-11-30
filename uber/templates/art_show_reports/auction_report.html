@@ -4,8 +4,9 @@
 {% set no_print = True %}
 {% include 'art_show_common/print.html' with context %}
 
+{% block page %}
 <div class="card-body p-0 m-0">
-<h3 align="center">{{ "Mature" if mature else "General" }} Auction -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<h3 align="center">{{ "Mature" if mature else "General" }} Auction -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
     <th>Piece ID</th>
@@ -25,3 +26,4 @@
   {% endfor %}
 </table>
 </div>
+{% endblock %}

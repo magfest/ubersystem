@@ -13,9 +13,9 @@
 <body>
 
 {% if not current and not upciming %}
-    <h3> No events are happening now ({{ now|datetime_local("%g:%i %A")|lower }}) or within the next 4 hours. </h3>
+    <h3> No events are happening now ({{ now_localized()|datetime_local("%g:%i %A")|lower }}) or within the next 4 hours. </h3>
 {% else %}
-    <h3> Currently Happening (as of {{ now|datetime_local("%g:%i%A")|lower }}) </h3>
+    <h3> Currently Happening (as of {{ now_localized()|datetime_local("%g:%i%A")|lower }}) </h3>
     <table>
     {% for event in current %}
         <tr>

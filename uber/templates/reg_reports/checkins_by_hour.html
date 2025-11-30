@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% set title_text = "Checkins By Hour" %}
 {% block content %}
-<h2>Checkins By Hour -- {{ now()|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
+<h2>Checkins By Hour -- {{ now_localized()|datetime_local("%m/%d/%Y, %-I:%M%p") }}</h2>
 
 <div class="row mt-3 justify-content-between">
     <div class="col col-auto">

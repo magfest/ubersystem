@@ -1,4 +1,5 @@
 import random
+import re
 import string
 
 from collections import defaultdict
@@ -18,10 +19,11 @@ from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.types import Integer, Boolean
-from sqlalchemy.schema import ForeignKey
+from sqlalchemy.schema import ForeignKey, UniqueConstraint, Index
 
 
-__all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPayment', 'ArtShowReceipt', 'ArtShowBidder']
+__all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPayment', 'ArtShowReceipt', 'ArtShowBidder',
+           'ArtShowPanel', 'ArtPanelAssignment']
 
 
 class ArtShowAgentCode(MagModel):
@@ -99,6 +101,8 @@ class ArtShowApplication(MagModel):
         uselist=False)
     default_cost = Column(Integer, nullable=True)
 
+    assignments = relationship('ArtPanelAssignment', backref='app')
+
     email_model_name = 'app'
 
     @presave_adjustment
@@ -117,6 +121,11 @@ class ArtShowApplication(MagModel):
     def add_artist_id_ad(self):
         if self.status == c.APPROVED and self.has_mature_space and self.banner_name_ad and not self.artist_id_ad:
             self.artist_id_ad = self.generate_artist_id(self.banner_name_ad)
+
+    @presave_adjustment
+    def clear_mature_name(self):
+        if self.banner_name_ad and not self.has_mature_space:
+            self.banner_name_ad = ''
 
     def generate_artist_id(self, banner_name):
         from uber.models import Session
@@ -301,6 +310,63 @@ class ArtShowApplication(MagModel):
     def has_mature_space(self):
         return self.panels_ad or self.tables_ad
 
+    @property
+    def locations_or_assignments(self):
+        return [a.label for a in self.assignments] if c.USE_ASSIGNMENT_MAP else [self.locations]
+
+    def get_printable_locations(self, gallery=None):
+        if not c.USE_ASSIGNMENT_MAP:
+            return self.locations
+        if not gallery:
+            assignments = self.assignments
+        else:
+            assignments = self.general_assignments if gallery == c.GENERAL else self.mature_assignments
+
+        printable_locations = []
+        locations_by_letter = defaultdict(list)
+        for assignment in assignments:
+            letter_num = re.match(r'^([a-zA-Z]+)(\d+)$', assignment.label)
+            if letter_num:
+                locations_by_letter[letter_num[1]].append(int(letter_num[2]))
+            else:
+                printable_locations.append(assignment.label)
+
+        for letter, numbers in locations_by_letter.items():
+            if len(numbers) == 1:
+                printable_locations.append(f"{letter}{numbers[0]}")
+            else:
+                numbers.sort()
+                start_num = numbers[0]
+                last_num = start_num
+                next_num = start_num + 1
+                for num in numbers[1:]:
+                    if num != next_num:
+                        if last_num == start_num:
+                            printable_locations.append(f"{letter}{last_num}")
+                        else:
+                            printable_locations.append(f"{letter}{start_num}-{last_num}")
+                        start_num = num
+                        last_num = num
+                        next_num = last_num + 1
+                    else:
+                        next_num += 1
+                        last_num = num
+                    if num == numbers[-1]:
+                        if num == start_num:
+                            printable_locations.append(f"{letter}{num}")
+                        else:
+                            printable_locations.append(f"{letter}{start_num}-{num}")
+        return ', '.join(printable_locations)
+
+
+    @property
+    def general_assignments(self):
+        return [a for a in self.assignments if a.panel.gallery == c.GENERAL]
+    
+    @property
+    def mature_assignments(self):
+        return [a for a in self.assignments if a.panel.gallery == c.MATURE]
+
     def checked_in_out_str(self, val):
         if not val:
             return ''
@@ -422,6 +488,16 @@ class ArtShowPiece(MagModel):
     @property
     def winning_bidder_num(self):
         return self.receipt.attendee.art_show_bidder.bidder_num
+
+    @property
+    def locations(self):
+        if not self.app:
+            return ''
+        if not c.USE_ASSIGNMENT_MAP:
+            return self.app.locations
+        
+        return self.app.get_printable_locations(self.gallery)
+
     
     def print_bidsheet(self, pdf, sheet_num, normal_font_name, bold_font_name, set_fitted_font_size):
         xplus = yplus = 0
@@ -473,6 +549,78 @@ class ArtShowPiece(MagModel):
         pdf.set_xy(242 + xplus, 116 + yplus)
         pdf.cell(
             53, 14, txt=('${:,.2f}'.format(self.quick_sale_price)) if self.valid_quick_sale else 'NFS', ln=1)
+
+
+class ArtShowPanel(MagModel):
+    gallery = Column(Choice(c.ART_PIECE_GALLERY_OPTS), default=c.GENERAL)
+    origin_x = Column(Integer, default=0)
+    origin_y = Column(Integer, default=0)
+    terminus_x = Column(Integer, default=0)
+    terminus_y = Column(Integer, default=0)
+    assignable_sides = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.BOTH)
+    start_label = Column(UnicodeText)
+    end_label = Column(UnicodeText)
+
+    assignments = relationship('ArtPanelAssignment', backref='panel')
+
+    __table_args__ = (
+        UniqueConstraint('gallery', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'),
+    )
+
+    @property
+    def panel_json(self):
+        origin = {'x': self.origin_x, 'y': self.origin_y}
+        terminus = {'x': self.terminus_x, 'y': self.terminus_y}
+        if self.origin_x == self.terminus_x:
+            labels = {'l': self.start_label, 'r': self.end_label}
+        elif self.origin_y == self.terminus_y:
+            labels = {'u': self.start_label, 'd': self.end_label}
+        
+        return {'origin': origin, 'terminus': terminus,
+                'usability': self.directional_usability, 'labels': labels}
+    
+    @property
+    def directional_usability(self):
+        if self.assignable_sides == c.BOTH:
+            return 'b'
+        if self.assignable_sides == c.NEITHER:
+            return 'n'
+        if self.origin_x == self.terminus_x:
+            return 'l' if self.assignable_sides == c.START else 'r'
+        elif self.origin_y == self.terminus_y:
+            return 'u' if self.assignable_sides == c.START else 'd'
+    
+
+class ArtPanelAssignment(MagModel):
+    panel_id = Column(UUID, ForeignKey('art_show_panel.id'))
+    app_id = Column(UUID, ForeignKey('art_show_application.id'))
+    manual = Column(Boolean, default=False)
+    assigned_side = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.START)
+
+    __table_args__ = (
+        UniqueConstraint('panel_id', 'assigned_side'),
+        Index('ix_art_panel_assignment_panel_id', 'panel_id'),
+        Index('ix_art_panel_assignment_assigned_side', 'assigned_side'),
+    )
+
+    @property
+    def label(self):
+        default_label = f"{self.panel.origin_x}x{self.panel.origin_y}-{self.panel.terminus_x}x{self.panel.terminus_y} ({self.assigned_side_label})"
+        if self.assigned_side == c.START:
+            return self.panel.start_label or default_label
+        else:
+            return self.panel.end_label or default_label
+
+    @property
+    def directional_assigned_side(self):
+        if self.panel.origin_x == self.panel.terminus_x:
+            return 'l' if self.assigned_side == c.START else 'r'
+        elif self.panel.origin_y == self.panel.terminus_y:
+            return 'u' if self.assigned_side == c.START else 'd'
+
+    @property
+    def assignment_str(self):
+        return f"{self.panel.origin_x}_{self.panel.origin_y}|{self.panel.terminus_x}_{self.panel.terminus_y}|{self.directional_assigned_side}"
 
 
 class ArtShowPayment(MagModel):
@@ -553,6 +701,7 @@ class ArtShowBidder(MagModel):
     admin_notes = Column(UnicodeText)
     signed_up = Column(UTCDateTime, nullable=True)
     email_won_bids = Column(Boolean, default=False)
+    contact_type = Column(Choice(c.ART_SHOW_CONTACT_TYPE_OPTS), default=c.EMAIL)
 
     email_model_name = 'bidder'
 

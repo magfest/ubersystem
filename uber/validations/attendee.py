@@ -15,7 +15,7 @@ from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectAvailableFiel
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
 from uber.models import Attendee, Session, PromoCodeGroup, BadgeInfo
-from uber.utils import get_age_conf_from_birthday
+from uber.utils import get_age_conf_from_birthday, normalize_email_legacy
 from uber.forms.attendee import *
 from uber.validations import address_required_validators, valid_zip_code, placeholder_unassigned_fields, which_required_region
 
@@ -35,6 +35,14 @@ placeholder_check = lambda x: x.name not in placeholder_unassigned_fields(x.form
 # PersonalInfo
 # =============================
 
+def prereg_must_confirm_email(form):
+    if c.PREREG_CONFIRM_EMAIL_ENABLED and (
+            not hasattr(form, 'copy_email') or not form.copy_email.data
+            ) and not form.is_admin and (
+                form.model.needs_pii_consent or form.model.badge_status == c.PENDING_STATUS):
+        return True
+
+
 PersonalInfo.field_validation.required_fields = {
     'first_name': ("Please provide your first name.", 'first_name', placeholder_check),
     'last_name': ("Please provide your last name.", 'last_name', placeholder_check),
@@ -42,6 +50,7 @@ PersonalInfo.field_validation.required_fields = {
         "Please enter a name for your custom-printed badge.", 'badge_printed_name',
         lambda x: x.form.model.has_personalized_badge and 'badge_printed_name' not in placeholder_unassigned_fields(x.form)),
     'email': ("Please enter an email address.", 'copy_email', lambda x: not x.data and 'email' not in placeholder_unassigned_fields(x.form)),
+    'confirm_email': ("Please confirm your email address.", 'confirm_email', lambda x: prereg_must_confirm_email(x.form)),
     'ec_name': ("Please tell us the name of your emergency contact.", 'ec_name', placeholder_check),
     'ec_phone': ("Please give us an emergency contact phone number.", 'ec_phone', placeholder_check),
 }
@@ -75,6 +84,7 @@ PersonalInfo.field_validation.validations['badge_printed_name'].update({
                                 characters. Please use only alphanumeric characters and symbols."""),
 })
 PersonalInfo.field_validation.validations['email']['optional'] = validators.Optional()
+PersonalInfo.field_validation.validations['confirm_email']['optional'] = validators.Optional()
 PersonalInfo.field_validation.validations['onsite_contact'].update({
     'length': validators.Length(max=500, message="""You have entered over 500 characters of onsite contact information. 
                                 Please provide contact information for fewer friends.""")
@@ -96,18 +106,9 @@ def cellphone_required(form, field):
 
 @PersonalInfo.field_validation('confirm_email')
 @ignore_unassigned_and_placeholders
-def confirm_email_required(form, field):
-    if c.PREREG_CONFIRM_EMAIL_ENABLED and (
-            not hasattr(form, 'copy_email') or not form.copy_email.data
-            ) and not form.is_admin and not field.data and (
-                form.model.needs_pii_consent or form.model.badge_status == c.PENDING_STATUS):
-        raise ValidationError("Please confirm your email address.")
-
-
-@PersonalInfo.field_validation('confirm_email')
-@ignore_unassigned_and_placeholders
 def match_email(form, field):
-    if c.PREREG_CONFIRM_EMAIL_ENABLED and field.data and field.data != form.email.data:
+    if c.PREREG_CONFIRM_EMAIL_ENABLED and field.data and \
+            normalize_email_legacy(field.data) != normalize_email_legacy(form.email.data):
         raise ValidationError("Your email address and email confirmation do not match.")
 
 
@@ -308,7 +309,7 @@ def dupe_badge_num(form, field):
     if c.NUMBERED_BADGES and field.data:
         with Session() as session:
             existing = session.query(BadgeInfo).filter(BadgeInfo.ident == field.data,
-                                                        BadgeInfo.attendee_id != None)
+                                                       BadgeInfo.attendee_id != None)
             if not existing.count():
                 return
             else:
@@ -333,7 +334,13 @@ def not_in_range(form, field):
 
 CheckInForm.field_validation.validations['badge_printed_name'].update(PersonalInfo.field_validation.validations['badge_printed_name'])
 CheckInForm.field_validation.validations['birthdate'].update(PersonalInfo.field_validation.validations['birthdate'])
-CheckInForm.field_validation.validations['badge_num']['dupe_badge_num'] = dupe_badge_num
+CheckInForm.new_or_changed.validations['badge_num']['dupe_badge_num'] = dupe_badge_num
+
+
+@CheckInForm.field_validation('instructions_followed')
+def instructions_were_followed(form, field):
+    if form.model.check_in_notes and not field.data:
+        raise ValidationError(f"Please confirm that you've reviewed and followed the check-in instructions for this attendee.")
 
 
 if c.NUMBERED_BADGES:

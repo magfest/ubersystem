@@ -2,7 +2,7 @@
 {% extends "base.html" %}
 {% block title %}Badge Cost Summary{% endblock %}
 {% block content %}
-<h3 class="text-center">Badge Cost Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<h3 class="text-center">Badge Cost Report -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
 <p>Please note that 
   {% if c.HAS_REG_REPORTS_ACCESS %}
   <a href="../reg_reports/attendee_receipt_discrepancies" target="_blank">receipt discrepancies</a>

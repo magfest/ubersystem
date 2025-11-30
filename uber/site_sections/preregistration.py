@@ -2094,7 +2094,7 @@ class Root:
         if c.PREREG_CONFIRM_EMAIL_ENABLED:
             if not params.get('confirm_email'):
                 return {'success': False, 'message': "Please confirm your email address."}
-            elif email != params.get('confirm_email'):
+            elif normalize_email_legacy(email) != normalize_email_legacy(params.get('confirm_email')):
                 return {'success': False, 'message': "Your email address and email confirmation do not match."}
         account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).first()
         if account:

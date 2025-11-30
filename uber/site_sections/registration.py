@@ -56,8 +56,8 @@ def load_attendee(session, params):
 
 def save_attendee(session, attendee, params):
     if cherrypy.request.method == 'POST':
-        receipt_items = ReceiptManager.auto_update_receipt(attendee,
-                                                           session.get_receipt_by_model(attendee), params.copy())
+        receipt_items = ReceiptManager.auto_update_receipt(
+            attendee, session.get_receipt_by_model(attendee), params.copy(), who=AdminAccount.admin_name() or 'non-admin')
         session.add_all(receipt_items)
 
     forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
@@ -341,6 +341,7 @@ class Root:
         raise HTTPRedirect('../reg_admin/manage_workstations?message={}', message)
 
     @ajax
+    @any_admin_access
     def check_terminal_payment(self, session, model_id, model_name, **params):
         error, terminal_id = session.get_assigned_terminal_id()
         if error:
@@ -409,6 +410,7 @@ class Root:
         return {'success': True}
 
     @ajax
+    @any_admin_access
     def poll_terminal_payment(self, session, **params):
         import uber.spin_rest_utils as spin_rest_utils
         error, terminal_id = session.get_assigned_terminal_id()
@@ -683,6 +685,10 @@ class Root:
         if len(pickup_group.under_18_badges) != len(pickup_group.check_inable_attendees) and not printer_id:
             return {'success': False,
                     'message': 'You must set a printer ID for the adult badges that are being checked in.'}
+        
+        if pickup_group.check_in_notes and not params.get('notes_confirmation', ''):
+            return {'success': False,
+                    'message': "You must confirm that you've reviewed and followed the instructions on all check-in notes."}
 
         minor_check_badges = False
         attendee_names_list = []
@@ -822,13 +828,14 @@ class Root:
         workstation_assignment = session.query(WorkstationAssignment).filter_by(
             reg_station_id=reg_station_id or -1).first()
         total_cost = 0
-        for attendee in pickup_group.pending_paid_attendees:
+        for attendee in pickup_group.check_inable_attendees:
             receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             total_cost += receipt.current_amount_owed
 
         return {
             'pickup_group': pickup_group,
             'checked_in_names': [attendee.full_name for attendee in pickup_group.checked_in_attendees],
+            'check_in_notes': pickup_group.check_in_notes,
             'total_cost': total_cost,
             'workstation_assignment': workstation_assignment,
         }
@@ -1194,7 +1201,7 @@ class Root:
             pickup_group = session.badge_pickup_group(id)
 
         if pickup_group:
-            attendees = pickup_group.pending_paid_attendees
+            attendees = pickup_group.check_inable_attendees
 
         for attendee in attendees:
             receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
@@ -1213,10 +1220,9 @@ class Root:
                     session.rollback()
                     return {'success': False, 'message': error}
                 session.add_all(receipt_manager.items_to_add)
-
                 attendee.reg_station = cherrypy.session.get('reg_station')
-        session.commit()
-        session.check_receipt_closed(receipt)
+                session.commit()
+                session.check_receipt_closed(receipt)
         return {
             'success': True,
             'message': 'Attendee{} marked as paid.'.format('s' if pickup_group else ''),

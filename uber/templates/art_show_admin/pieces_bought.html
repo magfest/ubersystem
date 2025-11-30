@@ -2,7 +2,12 @@
 {% block title %}Art Show Pieces Bought - {{ receipt.attendee.full_name }}{% endblock %}
 {% block content %}
 <div class="row g-sm-2 row-cols-auto">
-  <div class="col me-auto"><h3>Art Show Purchases for {{ receipt.attendee|form_link }}</h3></div>
+  <div class="col me-auto">
+    <h3>
+      Art Show Purchases for {{ receipt.attendee|form_link }}
+      {% if receipt.attendee.art_show_bidder %}({{ receipt.attendee.art_show_bidder.bidder_num }}){% endif %}
+    </h3>
+  </div>
   <div class="col">
     <form method="post" action="../registration/set_reg_station">
       <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
@@ -171,6 +176,7 @@
       </div>
       </td></tr>
       {% endif %}
+      {% if receipt_open %}
       <tr><td colspan="9" class="text-end">
         <form role="form" method="post" action="record_payment">
           <div class="row g-3 row-cols-auto justify-content-end">
@@ -185,12 +191,23 @@
           </div>
         </form>
       </td></tr>
+      {% endif %}
       {% if not receipt.owed %}
-      <tr><td colspan="9" class="text-end">
-        <button class="btn btn-info" id="print_receipt">Print Receipt</button>
+      <tr><td colspan="9">
+        <div class="d-flex gap-2 justify-content-end">
         {% if receipt_open %}
-        <button class="btn btn-primary" id="print_close_receipt">Print & Close Out Receipt</button>
+        <div><button class="btn btn-primary" id="print_close_receipt">Print & Close Out Receipt</button></div>
+        {% else %}
+        <div><button class="btn btn-info" id="print_receipt">Reprint Receipt</button></div>
+        <div>
+          <form role="form" method="post" action="reopen_receipt">
+            <input type="hidden" name="id" value="{{ receipt.id }}" />
+            {{ csrf_token() }}
+            <button class="btn btn-warning">Reopen Receipt</button>
+          </form>
+        </div>
         {% endif %}
+        </div>
       </td></tr>
       {% endif %}
       {% for payment in receipt.art_show_payments %}
@@ -207,9 +224,11 @@
           &nbsp;
           <input type="hidden" name="id" value="{{ payment.id }}" />
           {{ csrf_token() }}
+          {% if receipt_open and payment.type in [c.CASH, c.REFUND] %}
           <button type="submit" 
           class="undo_payment btn btn-sm btn-danger fa fa-remove" 
           data-desc="{{ payment_desc }}"></button>
+          {% endif %}
         </form>
       </td></tr>
       {% endfor %}

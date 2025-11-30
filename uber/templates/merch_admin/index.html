@@ -1,8 +1,9 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% set title_text = "Merch Booth Ops" %}
 {% block content %}
-
+{% if c.REG_USES_BARCODES %}
 {% include 'barcode_client.html' %}
+{% endif %}
 {% block adminheader %}
 
 <script type="text/javascript">
@@ -266,11 +267,13 @@
     }
 
     $(function() {
+        {% if c.REG_USES_BARCODES %}
         $('body').barcodeField({
           targetField: '#badge_num_or_qr_code',
           blurOnKeys: ['~', '\\'],
           detectBadgeNum: true
         });
+        {% endif %}
 
         $('input[type=text],input[type=number]').on('focus', function(event){
             var field = event.target;
