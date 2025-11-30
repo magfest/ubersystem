@@ -623,38 +623,42 @@ class Config(_Overridable):
     @dynamic
     def FORMATTED_SINGLE_BADGES(self):
         badge_types = []
-        if self.ONE_DAYS_ENABLED:
-            if self.PRESELL_ONE_DAYS and c.BEFORE_PREREG_TAKEDOWN:
-                for day_name in ["Friday", "Saturday", "Sunday"]:
-                    new_opt = self.single_day_opt(day_name)
-                    badge_types += [new_opt] if new_opt is not None else []
-            elif self.PRESELL_ONE_DAYS and uber.utils.localized_now().date() >= self.EPOCH.date():
-                after_today = False
-                today_name = uber.utils.localized_now().strftime('%A')
-                for day_name in ["Friday", "Saturday", "Sunday"]:
-                    if after_today or day_name == today_name:
-                        new_opt = self.single_day_opt(day_name)
-                        badge_types += [new_opt] if new_opt is not None else []
-                        after_today = True
-            elif self.ONE_DAY_BADGE_AVAILABLE:
+        if self.ONE_DAYS_ENABLED and self.PRESELL_ONE_DAYS:
+            if "One Day" in self.PRESELL_ONE_DAYS:
                 badge_types.append({
                     'name': 'Single Day',
                     'desc': "Can be upgraded to an Attendee badge later.",
                     'value': c.ONE_DAY_BADGE,
                     'price': self.DEFAULT_SINGLE_DAY
                 })
+            else:
+                badge_types.extend(self.build_presold_one_days())
+        return badge_types
+    
+    def build_presold_one_days(self):
+        badge_types = []
+        day = max(uber.utils.localized_now(), self.EPOCH)
+        while day.date() <= self.ESCHATON.date():
+            day_name = day.strftime('%A')
+            if day_name in self.PRESELL_ONE_DAYS:
+                new_opt = self.single_day_opt(day_name)
+                badge_types += [new_opt] if new_opt is not None else []
+            day += timedelta(days=1)
         return badge_types
 
     @property
     def FORMATTED_BADGE_TYPES(self):
         badge_types = []
-        if c.AT_THE_CON and self.ONE_DAYS_ENABLED and self.ONE_DAY_BADGE_AVAILABLE:
-            badge_types.append({
-                'name': 'Single Day',
-                'desc': 'Can be upgraded to a weekend badge later.',
-                'value': c.ONE_DAY_BADGE,
-                'price': c.ONEDAY_BADGE_PRICE
-            })
+        if c.AT_THE_CON and self.ONE_DAYS_ENABLED:
+            if self.PRESELL_ONE_DAYS:
+                badge_types.extend(self.build_presold_one_days())
+            elif self.ONE_DAY_BADGE_AVAILABLE:
+                badge_types.append({
+                    'name': 'Single Day',
+                    'desc': 'Can be upgraded to an Attendee badge later.',
+                    'value': c.ONE_DAY_BADGE,
+                    'price': c.ONEDAY_BADGE_PRICE
+                })
         badge_types.append({
             'name': 'Attendee',
             'desc': 'Allows access to the convention for its duration.',
