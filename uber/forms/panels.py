@@ -168,6 +168,7 @@ class EventInfo(MagForm):
     dynamic_choices_fields = {'event_location_id': lambda: [("", 'No Location')] + c.SCHEDULE_LOCATION_OPTS,
                               'department_id': lambda: [("", 'No Department')] + c.EVENT_DEPTS_OPTS}
 
+    panel_id = HiddenField()  # Not actually used for rendering but we need to check the field for validations
     event_location_id = SelectField(
         'Location',
         description="If no location is set, this event is not shown on or exported as part of the schedule.")
