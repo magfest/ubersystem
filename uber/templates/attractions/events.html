@@ -444,7 +444,11 @@
                   </span>
                   {% else %}
                   <span class="hidden-soldout">
+                    {% if event.signup_time_str %}
+                    <em>Signups will open {{ event.signup_time_str }}.</em>
+                    {% else %}
                     <em>This event is not open for signups right now.</em>
+                    {% endif %}
                   </span>
                   {% endif %}
                 </div>

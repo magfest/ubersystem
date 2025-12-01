@@ -247,6 +247,7 @@ class Attraction(MagModel, AttractionMixin):
         return groupify(self.features, 'id', lambda f: f.locations)
 
     def cascade_feature_event_attrs(self, session):
+        schedule_synced = False
         same_time_settings, update_time_settings = self.get_updated_signup_vals()
 
         attr_changes = {}
@@ -263,6 +264,9 @@ class Attraction(MagModel, AttractionMixin):
                 item_updated = True
                 for col_name, new_val in update_time_settings.items():
                     setattr(item, col_name, new_val)
+                if isinstance(item, AttractionEvent):
+                    event.sync_with_schedule(session, update_desc=True)
+                    schedule_synced = True
             for attr_name, (old_val, new_val) in attr_changes.items():
                 if attr_name == 'slots':
                     if isinstance(item, AttractionFeature) or getattr(item, attr_name) < new_val:
@@ -280,7 +284,7 @@ class Attraction(MagModel, AttractionMixin):
 
         for event in self.events:
             update_if_changed(event)
-            if 'populate_schedule' in attr_changes:
+            if 'populate_schedule' in attr_changes and not schedule_synced:
                 event.sync_with_schedule(session)
 
 
@@ -373,6 +377,7 @@ class AttractionFeature(MagModel, AttractionMixin):
 
     def cascade_event_attrs(self, session):
         same_time_settings, update_time_settings = self.get_updated_signup_vals()
+        schedule_synced = False
 
         attr_changes = {}
         for attr in AttractionMixin.inherited_cols:
@@ -388,6 +393,8 @@ class AttractionFeature(MagModel, AttractionMixin):
                 event_updated = True
                 for col_name, new_val in update_time_settings.items():
                     setattr(event, col_name, new_val)
+                event.sync_with_schedule(session, update_desc=True)
+                schedule_synced = True
             for attr_name, (old_val, new_val) in attr_changes.items():
                 if attr_name == 'slots' and event.slots < new_val:
                     event.slots = new_val
@@ -398,7 +405,7 @@ class AttractionFeature(MagModel, AttractionMixin):
             if event_updated:
                 setattr(event, 'last_updated', self.last_updated)
                 session.add(event)
-            if 'populate_schedule' in attr_changes:
+            if 'populate_schedule' in attr_changes and not schedule_synced:
                 event.sync_with_schedule(session)
 
     def update_name_desc(self, session):
@@ -408,7 +415,7 @@ class AttractionFeature(MagModel, AttractionMixin):
         for event in self.events:
             if event.populate_schedule:
                 event.schedule_item.name = self.name
-                event.schedule_item.description = self.description
+                event.schedule_item.description = event.schedule_description
                 event.schedule_item.last_updated = datetime.now(pytz.UTC)
                 session.add(event.schedule_item)
 
@@ -497,6 +504,16 @@ class AttractionEvent(MagModel, AttractionMixin):
     def _fix_attraction_id(self):
         if not self.attraction_id and self.feature:
             self.attraction_id = self.feature.attraction_id
+
+    @presave_adjustment
+    def update_signups_open_time(self):
+        if self.populate_schedule and self.schedule_item and self.session and (
+                self.orig_value_of('signups_open_relative') != self.signups_open_relative or
+                self.orig_value_of('signups_open_time') != self.signups_open_time):
+            self.schedule_item.description = self.schedule_description
+            self.schedule_item.last_updated = datetime.now(pytz.UTC)
+            self.session.add(self.schedule_item)
+
 
     @classmethod
     def get_ident(cls, id, advance_notice):
@@ -647,6 +664,10 @@ class AttractionEvent(MagModel, AttractionMixin):
         return '{} at {}'.format(self.name, self.start_time_label)
 
     @property
+    def sign_up_link(self):
+        return f"{c.URL_BASE}/attractions/{self.attraction.slug}?feature={self.feature.slug}#{self.id}"
+
+    @property
     def default_params(self):
         params = {}
         if not self.is_new:
@@ -664,7 +685,28 @@ class AttractionEvent(MagModel, AttractionMixin):
             if not self.no_notifications:
                 send_waitlist_notification.delay(next_signup.id)
 
-    def sync_with_schedule(self, session):
+    @property
+    def signup_time_str(self):
+        signups_open = ""
+        if self.signups_open_time:
+            lowercase_time = self.signups_open_time_local.strftime('%-I:%M%p').lower()
+            signups_open = f"{lowercase_time} {self.signups_open_time_local.strftime('%Z on %A, %B %-d')}"
+        elif self.signups_open_relative:
+            if self.signups_open_relative:
+                signups_open += f"{self.signups_open_relative // 60} hour{'s' if self.signups_open_relative // 60 > 1 else ''}"
+                if self.signups_open_relative // 60 * 60 != self.signups_open_relative:
+                    signups_open += f"and {self.signups_open_relative % 60} minutes{'s' if self.signups_open_relative % 60 > 1 else ''}"
+                signups_open += " before the event starts"
+        return signups_open
+
+    @property
+    def schedule_description(self):
+        if self.signup_time_str:
+            signups_open = f" Signups open {self.signup_time_str}."
+        return self.description + \
+            f"""\n\n<a href="{self.sign_up_link}" target="_blank">View details and sign up here!</a>{signups_open}"""
+
+    def sync_with_schedule(self, session, update_desc=False):
         from uber.models import Event
         if not self.populate_schedule:
             if not self.schedule_item:
@@ -681,11 +723,15 @@ class AttractionEvent(MagModel, AttractionMixin):
         else:
             event = self.schedule_item
         
-        for key in ['event_location_id', 'start_time', 'duration', 'name', 'description']:
+        for key in ['event_location_id', 'start_time', 'duration', 'name']:
             current_attr = getattr(self, key, '')
             if getattr(event, key, '') != current_attr:
                 updated = True
                 setattr(event, key, current_attr)
+        
+        if update_desc or self.description not in event.description:
+            event.description = self.schedule_description
+            updated = True
         
         if updated:
             event.last_updated = datetime.now(pytz.UTC)
