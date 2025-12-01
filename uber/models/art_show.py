@@ -364,8 +364,24 @@ class ArtShowApplication(MagModel):
         return [a for a in self.assignments if a.panel.gallery == c.GENERAL]
     
     @property
+    def general_panel_assignments(self):
+        return [a for a in self.general_assignments if a.panel.panel_type == c.PANEL]
+    
+    @property
+    def general_table_assignments(self):
+        return [a for a in self.general_assignments if a.panel.panel_type == c.TABLE]
+    
+    @property
     def mature_assignments(self):
         return [a for a in self.assignments if a.panel.gallery == c.MATURE]
+    
+    @property
+    def mature_panel_assignments(self):
+        return [a for a in self.mature_assignments if a.panel.panel_type == c.PANEL]
+    
+    @property
+    def mature_table_assignments(self):
+        return [a for a in self.mature_assignments if a.panel.panel_type == c.TABLE]
 
     def checked_in_out_str(self, val):
         if not val:
@@ -553,6 +569,7 @@ class ArtShowPiece(MagModel):
 
 class ArtShowPanel(MagModel):
     gallery = Column(Choice(c.ART_PIECE_GALLERY_OPTS), default=c.GENERAL)
+    panel_type = Column(Choice(c.ART_SHOW_PANEL_TYPE_OPTS), default=c.PANEL)
     origin_x = Column(Integer, default=0)
     origin_y = Column(Integer, default=0)
     terminus_x = Column(Integer, default=0)
@@ -564,7 +581,7 @@ class ArtShowPanel(MagModel):
     assignments = relationship('ArtPanelAssignment', backref='panel')
 
     __table_args__ = (
-        UniqueConstraint('gallery', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'),
+        UniqueConstraint('gallery', 'panel_type', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'),
     )
 
     @property

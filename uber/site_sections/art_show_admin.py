@@ -509,11 +509,12 @@ class Root:
             'message': message,
         }
 
-    def assignment_map(self, session, message='', gallery=c.GENERAL, **params):
+    def assignment_map(self, session, message='', gallery=c.GENERAL, panel_type=c.PANEL, **params):
         gallery = int(gallery)
+        panel_type = int(panel_type)
 
         valid_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED)
-        panels = session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery).all()
+        panels = session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.panel_type == panel_type).all()
         panels_json = [panel.panel_json for panel in panels]
         artists_json = []
 
@@ -530,15 +531,32 @@ class Root:
             return json
 
         if gallery == c.GENERAL:
-            artists = valid_apps.filter(ArtShowApplication.panels > 0)
+            if panel_type == c.PANEL:
+                artists = valid_apps.filter(ArtShowApplication.panels > 0)
+                panels_or_tables = 'panels'
+                assignments = 'general_panel_assignments'
+            else:
+                artists = valid_apps.filter(ArtShowApplication.tables > 0)
+                panels_or_tables = 'tables'
+                assignments = 'general_table_assignments'
+
             for artist in artists:
                 artists_json.append(build_artist_json(artist, artist.display_name,
-                                                      artist.panels, artist.general_assignments))
+                                                      getattr(artist, panels_or_tables, 0), getattr(artist, assignments, [])))
         else:
+            if panel_type == c.PANEL:
+                artists = valid_apps.filter(ArtShowApplication.panels_ad > 0)
+                panels_or_tables = 'panels_ad'
+                assignments = 'mature_panel_assignments'
+            else:
+                artists = valid_apps.filter(ArtShowApplication.tables_ad > 0)
+                panels_or_tables = 'tables_ad'
+                assignments = 'mature_table_assignments'
+
             artists = valid_apps.filter(ArtShowApplication.panels_ad > 0)
             for artist in artists:
                 artists_json.append(build_artist_json(artist, artist.mature_display_name,
-                                                      artist.panels_ad, artist.mature_assignments))
+                                                      getattr(artist, panels_or_tables, 0), getattr(artist, assignments, [])))
         
         if cherrypy.request.method == 'POST':
             pass
@@ -547,16 +565,19 @@ class Root:
             'apps': valid_apps,
             'panels_json': panels_json,
             'artists_json': artists_json,
+            'panels_or_tables': "panel" if panel_type == c.PANEL else "table",
             'message': message,
             'gallery': gallery,
+            'panel_type': panel_type,
         }
     
     @ajax
-    def save_map(self, session, gallery, panels, assignments):
+    def save_map(self, session, gallery, panel_type, panels, assignments):
         panels = json.loads(panels)
         assignments = json.loads(assignments)
         assignments_by_panel = {}
         gallery = int(gallery)
+        panel_type = int(panel_type)
 
         def translate_usability(usability_str):
             if usability_str == 'b':
@@ -589,7 +610,8 @@ class Root:
 
         # Update/remove existing panel assignments
         for assignment in session.query(ArtPanelAssignment).join(ArtPanelAssignment.panel
-                                        ).filter(ArtShowPanel.gallery == gallery).options(contains_eager(ArtPanelAssignment.panel)):
+                                        ).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.panel_type == panel_type
+                                                 ).options(contains_eager(ArtPanelAssignment.panel)):
             panel_json_str = f"{assignment.panel.origin_x}_{assignment.panel.origin_y}|{assignment.panel.terminus_x}_{assignment.panel.terminus_y}"
             json_str = f"{panel_json_str}|{assignment.assigned_side}"
             # We might have assignments uploaded with no corresponding panels
@@ -610,7 +632,7 @@ class Root:
                 session.delete(assignment)
 
         # Update/remove panels
-        for panel in session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery):
+        for panel in session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.panel_type == panel_type):
             json_str = f"{panel.origin_x}_{panel.origin_y}|{panel.terminus_x}_{panel.terminus_y}"
             if json_str in panels:
                 existing_panel_info = panels.pop(json_str)
@@ -642,14 +664,14 @@ class Root:
             
             start_label = panel_info['labels'].get('u', panel_info['labels'].get('l', ''))
             end_label = panel_info['labels'].get('d', panel_info['labels'].get('r', ''))
-            new_panel = ArtShowPanel(gallery=gallery, origin_x=origin_x, origin_y=origin_y,
+            new_panel = ArtShowPanel(gallery=gallery, panel_type=panel_type, origin_x=origin_x, origin_y=origin_y,
                                      terminus_x=terminus_x, terminus_y=terminus_y,
                                      assignable_sides=usability, start_label=start_label, end_label=end_label)
             session.add(new_panel)
             check_new_assignments(origin, terminus, new_panel)
 
         session.commit()
-        return {'success': True, 'message': f"{c.ART_PIECE_GALLERYS[gallery]} assignments updated."}
+        return {'success': True, 'message': f"{c.ART_PIECE_GALLERYS[gallery]} {c.ART_SHOW_PANEL_TYPES[panel_type]} assignments updated."}
 
 
     @public

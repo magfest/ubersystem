@@ -700,18 +700,18 @@ class panelLogic {
             let artist_unassigned = artist.needed - artist_assigned;
             if (artist_assigned > 0) {
                 if(artist_assigned === 1) {
-                    assigned.push([k,artist_name + " ("+artist_assigned+" panel)"]);
+                    assigned.push([k,artist_name + " ("+artist_assigned+" {{ panels_or_tables }})"]);
                 }
                 else {
-                    assigned.push([k,artist_name + " ("+artist_assigned+" panels)"]);
+                    assigned.push([k,artist_name + " ("+artist_assigned+" {{ panels_or_tables }}s)"]);
                 }
             }
             if (artist_unassigned>0) {
                 if(artist_unassigned===1) {
-                    unassigned.push([k,artist_name + " ("+artist_unassigned+" panel)"]);
+                    unassigned.push([k,artist_name + " ("+artist_unassigned+" {{ panels_or_tables }})"]);
                 }
                 else {
-                    unassigned.push([k,artist_name + " ("+artist_unassigned+" panels)"]);
+                    unassigned.push([k,artist_name + " ("+artist_unassigned+" {{ panels_or_tables }}s)"]);
                 }
             }
         }
@@ -1671,6 +1671,7 @@ class serialize {
                 dataType: 'json',
                 data: {
                     gallery: {{ gallery }},
+                    panel_type: {{ panel_type }},
                     csrf_token: csrf_token,
                     panels: JSON.stringify(panel_layout),
                     assignments: JSON.stringify(serializableArtists),
