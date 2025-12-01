@@ -701,6 +701,7 @@ class AttractionEvent(MagModel, AttractionMixin):
 
     @property
     def schedule_description(self):
+        signups_open = ""
         if self.signup_time_str:
             signups_open = f" Signups open {self.signup_time_str}."
         return self.description + \
