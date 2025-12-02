@@ -919,39 +919,50 @@ class RefundRequest(TransactionRequest):
         @wraps(f)
         def spin_refund(self, *args, **kwargs):
             error = f(self, *args, **kwargs)
-            if error:
+            if error and "successful" not in error:
                 # Unsuccessful refund, so toss the receipt transaction object
                 # Unlike normal refunds, we can't wait until after a successful refund to create it for Reasons:tm:
                 for txn in self.txns:
-                    _, refund = self.managers_and_refunds_by_txn[txn.id]
+                    manager, refund = self.managers_and_refunds_by_txn[txn.id]
                     self.items_to_add.discard(refund)
+                    for item in manager.items_to_add:
+                        self.items_to_add.discard(item)
+            return error
 
         return spin_refund
 
-    def update_txn_receipt_info(self, txn, response_json):
+    def update_txn_receipt_info(self, txn, response_json, voided=False):
         manager, refund_txn = self.managers_and_refunds_by_txn[txn.id]
 
-        refund_txn.amount = txn.txn_total * -1
+        if voided:
+            # Record a full refund instead of the original refund amount
+            refund_txn.amount = txn.txn_total * -1
+            txn.refunded = txn.txn_total
+            manager.items_to_add.add(txn)
+        else:
+            manager.update_transaction_refund(txn, self.amount)
+
         refund_txn.receipt_info = self.spin_request.create_receipt_info(
             txn.receipt_info.fk_email_model, txn.receipt_info.fk_email_id, response_json
         )
-        manager.update_transaction_refund(txn, self.amount)
+
         self.items_to_add.update(manager.items_to_add)
         self.items_to_add.add(refund_txn.receipt_info)
 
     @spin_refund_cleanup
-    def process_spin_refund(self, txns, department=None):
+    def process_spin_refund(self, department=None):
         from uber.models import TxnRequestTracking, AdminAccount, Session
         from uber.tasks.registration import process_terminal_sale
 
-        terminal_id = txns[0].receipt_info.terminal_id
+        terminal_id = self.txns[0].receipt_info.terminal_id
         txn_total = self.txns[0].txn_total
         self.managers_and_refunds_by_txn = defaultdict(tuple)
-        self.spin_request.ref_id = txns[0].intent_id
+        self.spin_request.ref_id = self.txns[0].intent_id
+        self.spin_request.terminal_id = terminal_id
 
         if len(self.txns) == 1:
             with Session() as session:
-                model = session.get_model_by_receipt(txns[0].receipt)
+                model = session.get_model_by_receipt(self.txns[0].receipt)
                 model_id = model.id
         else:
             model_id = None
@@ -965,12 +976,12 @@ class RefundRequest(TransactionRequest):
         self.items_to_add.add(self.tracker)
         refund_ref_id = SpinTerminalRequest.intent_id_from_txn_tracker(self.tracker)
 
-        for txn in txns:
+        for txn in self.txns:
             manager = ReceiptManager(txn.receipt, who=self.who)
             refund_txn = manager.create_refund_transaction(txn, "Automatic refund of transaction " + txn.stripe_id,
                                                            refund_ref_id, self.amount,
-                                                           method=self.method, department=department)
-            self.items_to_add.add(manager.items_to_add)
+                                                           method=txn.method, department=department)
+            self.items_to_add.update(manager.items_to_add)
             self.managers_and_refunds_by_txn[txn.id] = (manager, refund_txn)
 
         status_response = self.spin_request.check_txn_status()
@@ -995,7 +1006,7 @@ class RefundRequest(TransactionRequest):
                 for txn in self.txns:
                     txn.receipt_info.voided = datetime.now()
                     self.items_to_add.add(txn)
-                    self.update_txn_receipt_info(txn, void_response_json)
+                    self.update_txn_receipt_info(txn, void_response_json, voided=True)
 
                 self.tracker.success = True
 
@@ -1015,8 +1026,9 @@ class RefundRequest(TransactionRequest):
                     c.REDIS_STORE.delete(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id)
 
                     process_terminal_sale(reg_station_id, terminal_id, model_id,
-                                            description=f"Payment for partial refund of transaction {self.charge_id}",
-                                            amount=self.total_refundable - self.amount)
+                                          description=f"Payment for partial refund of transaction {self.charge_id}",
+                                          amount=self.total_refundable - self.amount,
+                                          who=self.who)
 
                     payment_error = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id,
                                                         'last_error')
@@ -1026,7 +1038,7 @@ class RefundRequest(TransactionRequest):
             else:
                 return ("Error while voiding transaction: "
                         f"{self.spin_request.error_message_from_response(void_response_json)}")
-        elif status_error_message not in ['Not found', 'No open batch']:
+        elif 'Not found' not in status_error_message and 'No open batch' not in status_error_message:
             self.tracker.response = status_response_json
             return f"Error while looking up transaction: {status_error_message}"
         else:
@@ -1196,10 +1208,13 @@ class SpinTerminalRequest(TransactionRequest):
         from uber.models import ReceiptTransaction
         from uber.tasks.registration import send_receipt_email
         from decimal import Decimal
+        from pockets.autolog import log
 
         self.tracker.success = True
 
         approval_amount = Decimal(str(spin_rest_utils.approved_amount(response_json))) * 100  # don't @ me
+        log.error(response_json)
+        log.error(approval_amount)
         if approval_amount != self.amount and abs(approval_amount - self.amount) > 5:
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
                                'last_error', "Partial approval")
@@ -1312,6 +1327,9 @@ class SpinTerminalRequest(TransactionRequest):
 
     @handle_api_call
     def check_txn_status(self):
+        from pockets.autolog import log
+        log.error(dict(
+            spin_rest_utils.txn_status_request_dict(self.payment_type, self.ref_id), **self.base_request))
         return requests.post(spin_rest_utils.get_call_url(self.api_url, 'status'), data=dict(
             spin_rest_utils.txn_status_request_dict(self.payment_type, self.ref_id), **self.base_request))
 

@@ -1289,7 +1289,8 @@ class Root:
                                     model_id=model_id,
                                     description=description,
                                     use_account_info=False,
-                                    amount=amount)
+                                    amount=amount,
+                                    who=AdminAccount.admin_name())
         return {'success': True}
 
     @ajax

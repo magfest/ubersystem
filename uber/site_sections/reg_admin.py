@@ -465,7 +465,8 @@ class Root:
         if item.receipt_txn and item.receipt_txn.amount_left:
             refund_amount = min(item.amount * item.count, item.receipt_txn.amount_left)
             try:
-                refund = RefundRequest(item.receipt_txn, refund_amount)
+                refund = RefundRequest(item.receipt_txn, amount=refund_amount,
+                                       method=item.receipt_txn.method, who=AdminAccount.admin_name())
             except ValueError as e:
                 return {'error': e}
 
@@ -477,6 +478,8 @@ class Root:
 
             error = refund.process_refund(department=item.receipt_txn.department)
             if error:
+                session.rollback()
+                session.add_all(refund.items_to_add)
                 return {'error': error}
 
             model = session.get_model_by_receipt(item.receipt)
@@ -545,12 +548,15 @@ class Root:
                 refund_amount -= processing_fees
 
             try:
-                refund = RefundRequest(item.receipt_txn, refund_amount)
+                refund = RefundRequest(item.receipt_txn, amount=refund_amount,
+                                       method=item.receipt_txn.method, who=AdminAccount.admin_name())
             except ValueError as e:
                 return {'error': e}
 
             error = refund.process_refund(department=item.receipt_txn.department)
             if error:
+                session.rollback()
+                session.add_all(refund.items_to_add)
                 return {'error': error}
 
             model = session.get_model_by_receipt(item.receipt)
@@ -718,13 +724,16 @@ class Root:
 
         error = ''
         try:
-            refund = RefundRequest(txn, amount=refund_amount)
+            refund = RefundRequest(txn, amount=refund_amount,
+                                   method=txn.method, who=AdminAccount.admin_name())
         except ValueError as e:
             error = e
 
         if not error:
             error = refund.process_refund(department=txn.department)
         if error:
+            session.rollback()
+            session.add_all(refund.items_to_add)
             raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
                                session.get_model_by_receipt(receipt).id, error)
 
@@ -813,13 +822,15 @@ class Root:
 
             error = ''
             try:
-                refund = RefundRequest(txn, amount=group_refund_amount)
+                refund = RefundRequest(txn, amount=group_refund_amount, who=AdminAccount.admin_name())
             except ValueError as e:
                 error = e
 
             if not error:
                 error = refund.process_refund(department=txn.department)
             if error:
+                session.rollback()
+                session.add_all(refund.items_to_add)
                 message = f"{error_start} group leader could not be refunded: {error}"
                 raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, message)
             session.add_all(refund.items_to_add)
@@ -928,7 +939,7 @@ class Root:
                 receipt_managers[attendee] = receipt_manager
 
         for charge_id, (refund_amount, txns) in all_refunds.items():
-            refund = RefundRequest(txns, refund_amount, skip_errors=True)
+            refund = RefundRequest(txns, refund_amount, skip_errors=True, who=AdminAccount.admin_name())
 
             error = refund.process_refund()
             if error:
