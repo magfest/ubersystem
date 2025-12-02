@@ -853,7 +853,7 @@ class panelLogic {
             if(pm.panels.hasOwnProperty(p_id)) {
                 let kv = $(pm.panels[p_id].use_obj);
                 let rmid = pm.panels[p_id].u;
-                if(rmid==="b") {
+                if(rmid === "b") {
                     if(pm.panels[p_id].t==="v") {
                         // Vertical, so "b" means both left and right
                         $(kv).css("border-left-color","var(--created-border)");
@@ -864,7 +864,7 @@ class panelLogic {
                         $(kv).css("border-bottom-color","var(--created-border)");
                     }
                 }
-                else {
+                else if(rmid !== "n") {
                     rmid = rm[rmid];
                     $(kv).css(rmid,"var(--created-border)");
                 }
