@@ -1671,7 +1671,7 @@ class serialize {
                 dataType: 'json',
                 data: {
                     gallery: {{ gallery }},
-                    panel_type: {{ panel_type }},
+                    surface_type: {{ surface_type }},
                     csrf_token: csrf_token,
                     panels: JSON.stringify(panel_layout),
                     assignments: JSON.stringify(serializableArtists),

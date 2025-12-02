@@ -52,12 +52,12 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('art_show_panel', sa.Column('panel_type', sa.Integer(), server_default='117119638', nullable=False))
+    op.add_column('art_show_panel', sa.Column('surface_type', sa.Integer(), server_default='117119638', nullable=False))
     op.drop_constraint(op.f('uq_art_show_panel_gallery'), 'art_show_panel', type_='unique')
-    op.create_unique_constraint(op.f('uq_art_show_panel_gallery'), 'art_show_panel', ['gallery', 'panel_type', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'])
+    op.create_unique_constraint(op.f('uq_art_show_panel_gallery'), 'art_show_panel', ['gallery', 'surface_type', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'])
 
 
 def downgrade():
     op.drop_constraint(op.f('uq_art_show_panel_gallery'), 'art_show_panel', type_='unique')
     op.create_unique_constraint(op.f('uq_art_show_panel_gallery'), 'art_show_panel', ['gallery', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'])
-    op.drop_column('art_show_panel', 'panel_type')
+    op.drop_column('art_show_panel', 'surface_type')
