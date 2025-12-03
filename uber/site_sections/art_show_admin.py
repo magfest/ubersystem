@@ -243,6 +243,7 @@ class Root:
 
             if not message:
                 session.commit()
+                piece_code, bidder_num, winning_bid = '', '', ''
                 message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label}."
 
         return {
