@@ -311,8 +311,20 @@ class ArtShowApplication(MagModel):
         return self.panels_ad or self.tables_ad
 
     @property
-    def locations_or_assignments(self):
-        return [a.label for a in self.assignments] if c.USE_ASSIGNMENT_MAP else [self.locations]
+    def sorted_assignments(self):
+        locations_by_letter = defaultdict(list)
+        locations_list = []
+
+        for assignment in sorted(self.assignments, key=lambda x: x.label):
+            letter_num = re.match(r'^([a-zA-Z]+)(\d+)$', assignment.label)
+            if letter_num:
+                locations_by_letter[letter_num[1]].append((assignment.id, int(letter_num[2])))
+            else:
+                locations_list.append((assignment.id, assignment.label))
+        for letter, ids_numbers in locations_by_letter.items():
+            ids_numbers.sort(key=lambda x: x[1])
+            locations_list.extend([(id, f"{letter}{number}") for id, number in ids_numbers])
+        return locations_list
 
     def get_printable_locations(self, gallery=None):
         if not c.USE_ASSIGNMENT_MAP:

@@ -538,6 +538,14 @@ class Root:
             'apps': valid_apps,
             'message': message,
         }
+    
+    @ajax
+    def unassign_location(self, session, id, message='', **params):
+        assignment = session.art_panel_assignment(id)
+        label = assignment.label
+        session.delete(assignment)
+        session.commit()
+        return {'success': True, 'message': f"Location {label} unassigned."}
 
     def assignment_map(self, session, message='', gallery=c.GENERAL, surface_type=c.PANEL, **params):
         gallery = int(gallery)

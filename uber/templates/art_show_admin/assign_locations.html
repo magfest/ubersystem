@@ -43,6 +43,43 @@
       }
     });
   }
+  var unassignLocation = function(id, label) {
+      bootbox.confirm({
+      backdrop: true,
+      title: 'Unassign Location?',
+      message: 'Are you sure you want to unassign location ' + label + ' from this artist?',
+      buttons: {
+      confirm: { label: 'Yes, Unassign', className: 'btn-danger' },
+      cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+      },
+      callback: function (result) {
+      if (result) {
+          $.ajax({
+              method: 'POST',
+              url: 'unassign_location',
+              dataType: 'json',
+              data: {
+                  id: id,
+                  csrf_token: csrf_token,
+              },
+              success: function (json) {
+                  hideMessageBox();
+                  var message = json.message;
+                  if (json.success) {
+                  $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                  window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                  } else {
+                  showErrorMessage(message);
+                  }
+              },
+              error: function () {
+                  showErrorMessage('Unable to connect to server, please try again.');
+              }
+              });
+      }
+      }
+  });
+  }
   $().ready(function () {
     $('form[action="update_location"]').on('submit', function(event) {
       event.preventDefault();
@@ -96,7 +133,11 @@
             <td>{{ app.tables }}</td>
             <td>{{ app.tables_ad }}</td>
             {% if c.USE_ASSIGNMENT_MAP %}
-            <td>{{ app.locations_or_assignments|join(' / ') }}</td>
+            <td>
+              {% for id, label in app.sorted_assignments %}
+              {{ label }} <button type="button" class="btn btn-sm btn-danger" onClick="unassignLocation('{{ id }}', '{{ label }}')"><i class="fa fa-remove"></i></button> {% if not loop.last %} / {% endif %}
+              {% endfor %}
+            </td>
             {% else %}
             <td>
               <input type="text" class="form-control" form="update_location_{{ app.id }}" name="locations" value="{{ app.locations }}" />

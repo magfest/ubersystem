@@ -17,10 +17,12 @@
 {% else %}
 <div class="col-sm">
     {% if c.USE_ASSIGNMENT_MAP %}
-    <div class="form-text">Locations</div>
-    {{ app.locations_or_assignments|join(' / ') }}
+        <div class="form-text">Locations</div>
+        {% for id, label in app.sorted_assignments %}
+        {{ label }} {% if not loop.last %} / {% endif %}
+        {% endfor %}
     {% else %}
-    {{ form_macros.input(artist_check_in_out_info.locations) }}
+        {{ form_macros.input(artist_check_in_out_info.locations) }}
     {% endif %}
 </div>
 <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id) }}</div>
