@@ -283,7 +283,8 @@ class Root:
             'piece': found_piece if params.get('action', '') == 'get_info' else None,
         }
 
-    def artist_check_in_out(self, session, checkout=False, hanging=False, message='', page=1, search_text='', order='first_name'):
+    def artist_check_in_out(self, session, checkout=False, hanging=False, mailin=False,
+                            message='', page=1, search_text='', order='first_name'):
         filters = [ArtShowApplication.status == c.APPROVED]
         if checkout:
             filters.append(ArtShowApplication.checked_in != None)  # noqa: E711
@@ -292,6 +293,8 @@ class Root:
 
         if hanging:
             filters.append(ArtShowApplication.art_show_pieces.any(ArtShowPiece.status == c.HANGING))
+        if mailin:
+            filters.append(ArtShowApplication.delivery_method == c.BY_MAIL)
 
         search_text = search_text.strip()
         search_filters = []
@@ -348,6 +351,7 @@ class Root:
             'order': Order(order),
             'checkout': checkout,
             'hanging': hanging,
+            'mailin': mailin,
         }
 
     @public

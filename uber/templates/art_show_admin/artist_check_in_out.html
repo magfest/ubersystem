@@ -19,6 +19,7 @@
       <form role="form" class="col-12 col-sm-4" method="get" action="artist_check_in_out">
         {% if checkout %}<input type="hidden" name="checkout" value="1" />
         {% elif hanging %}<input type="hidden" name="hanging" value="1" />{% endif %}
+        {% if mailin %}<input type="hidden" name="mailin" value="1" />{% endif %}
         <div class="input-group">
           <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
           <button class="btn btn-outline-secondary" type="submit">
@@ -31,10 +32,16 @@
       {% endif %}
       {% if not checkout %}
         {% if hanging %}
-        <a class="btn btn-info" href="artist_check_in_out?search_text={{ search_text }}">Show All Artists</a>
+        <a class="btn btn-info" href="artist_check_in_out?search_text={{ search_text }}&mailin={{ mailin or '' }}">Showing Artists Hanging Art</a>
         {% else %}
-        <a class="btn btn-outline-info" href="artist_check_in_out?search_text={{ search_text }}&hanging=true">Show Artists Hanging Art</a>
+        <a class="btn btn-outline-info" href="artist_check_in_out?search_text={{ search_text }}&mailin={{ mailin or '' }}&hanging=true">Show Artists Hanging Art</a>
         {% endif %}
+      {% endif %}
+
+      {% if mailin %}
+        <a class="btn btn-info" href="artist_check_in_out?search_text={{ search_text }}&hanging={{ hanging or '' }}">Showing Mail-In Artists</a>
+        {% else %}
+        <a class="btn btn-outline-info" href="artist_check_in_out?search_text={{ search_text }}&hanging={{ hanging or '' }}&mailin=True">Show Mail-In Artists</a>
       {% endif %}
       {% set new_app_link = '../art_show_applications/' if c.INDEPENDENT_ART_SHOW else 'form?new_app=True' %}
       <a class="btn btn-outline-secondary" href="{{ new_app_link }}" target="_blank">Add a new {{ c.ART_SHOW_APP_TERM }}</a>
