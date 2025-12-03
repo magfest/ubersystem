@@ -70,28 +70,35 @@ class Root:
 
     def pieces_by_status(self, session, message='', **params):
         filters = []
+        count_filters = []
         if 'yes_status' in params:
             try:
                 yes_status = [int(params['yes_status'])]
             except Exception:
                 yes_status = list(params['yes_status'])
             filters.append(ArtShowApplication.art_show_pieces.any(ArtShowPiece.status.in_(yes_status)))
+            count_filters.append(ArtShowPiece.status.in_(yes_status))
         if 'no_status' in params:
             try:
                 no_status = [int(params['no_status'])]
             except Exception:
                 no_status = list(params['no_status'])
             filters.append(ArtShowApplication.art_show_pieces.any(~ArtShowPiece.status.in_(no_status)))
+            count_filters.append(~ArtShowPiece.status.in_(no_status))
 
         apps = session.query(ArtShowApplication).join(ArtShowApplication.art_show_pieces).filter(*filters).all()
+        num_pieces = session.query(ArtShowPiece).filter(*filters).count()
 
         if not apps:
             message = 'No pieces found!'
         return {
             'message': message,
             'apps': apps,
+            'num_pieces': num_pieces,
             'yes_status': yes_status if 'yes_status' in params else None,
+            'yes_status_labels': '/'.join([c.ART_PIECE_STATUS[status] for status in yes_status]) if 'yes_status' in params else '',
             'no_status': no_status if 'no_status' in params else None,
+            'no_status_labels': '/'.join([c.ART_PIECE_STATUS[status] for status in no_status]) if 'no_status' in params else '',
         }
 
     def artists_by_payout(self, session, message='', **params):
