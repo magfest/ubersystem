@@ -198,10 +198,18 @@
           }
         });
 
-        $('#app_modals').find('form').submit(function(e) {
+        $('#app-modals').find('form').submit(function(e) {
             $(this).find('button[type=submit]').prop('disabled', true);
             return true;
         });
+
+        {% if not checkout %}
+        {% include 'art_show_admin/unassign_locations.js' %}
+
+        $('#app-modals').find('.unassign-location').on('click', function() {
+          confirmUnassignLocation($(this).data('id'), $(this).data('label'), 'form-validations-check-in-out-' + $(this).data('app-id'))
+        });
+        {% endif %}
 
         $('.check-in-out-form').on('submit', function(event) {
           event.preventDefault();

@@ -540,12 +540,31 @@ class Root:
         }
     
     @ajax
-    def unassign_location(self, session, id, message='', **params):
+    def unassign_location(self, session, id, remove_space='', message='', **params):
         assignment = session.art_panel_assignment(id)
-        label = assignment.label
+        message = f"Location {assignment.label} unassigned"
+
+        if assignment.panel.gallery == c.MATURE:
+            message += f" from artist {assignment.app.mature_display_name}"
+        else:
+            message += f" from artist {assignment.app.display_name}"
+
+        if remove_space:
+            attr = 'panels' if assignment.panel.surface_type == c.PANEL else 'tables'
+            if assignment.panel.gallery == c.MATURE:
+                attr += '_ad'
+            app = assignment.app
+            requested_space = getattr(app, attr, 0)
+            if requested_space > 0:
+                setattr(app, attr, requested_space - 1)
+                message += f" and requested {assignment.panel.gallery_label.lower()} {assignment.panel.surface_type_label.lower()} space removed"
+                session.add(app)
+            else:
+                message += f" but the artist did not have any {assignment.panel.gallery_label.lower()} {assignment.panel.surface_type_label.lower()} spaces to remove"
+
         session.delete(assignment)
         session.commit()
-        return {'success': True, 'message': f"Location {label} unassigned."}
+        return {'success': True, 'message': f"{message}."}
 
     def assignment_map(self, session, message='', gallery=c.GENERAL, surface_type=c.PANEL, **params):
         gallery = int(gallery)

@@ -19,7 +19,7 @@
     {% if c.USE_ASSIGNMENT_MAP %}
         <div class="form-text">Locations</div>
         {% for id, label in app.sorted_assignments %}
-        {{ label }} {% if not loop.last %} / {% endif %}
+        {{ label }} <a href="#" class="text-danger unassign-location" data-app-id="{{ app.id }}" data-id="{{ id }}" data-label="{{ label }}"><i class="fa fa-remove"></i></a> {% if not loop.last %} / {% endif %}
         {% endfor %}
     {% else %}
         {{ form_macros.input(artist_check_in_out_info.locations) }}

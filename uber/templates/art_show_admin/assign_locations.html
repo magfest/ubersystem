@@ -43,44 +43,14 @@
       }
     });
   }
-  var unassignLocation = function(id, label) {
-      bootbox.confirm({
-      backdrop: true,
-      title: 'Unassign Location?',
-      message: 'Are you sure you want to unassign location ' + label + ' from this artist?',
-      buttons: {
-      confirm: { label: 'Yes, Unassign', className: 'btn-danger' },
-      cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
-      },
-      callback: function (result) {
-      if (result) {
-          $.ajax({
-              method: 'POST',
-              url: 'unassign_location',
-              dataType: 'json',
-              data: {
-                  id: id,
-                  csrf_token: csrf_token,
-              },
-              success: function (json) {
-                  hideMessageBox();
-                  var message = json.message;
-                  if (json.success) {
-                  $("#message-alert").addClass("alert-info").show().children('span').html(message);
-                  window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
-                  } else {
-                  showErrorMessage(message);
-                  }
-              },
-              error: function () {
-                  showErrorMessage('Unable to connect to server, please try again.');
-              }
-              });
-      }
-      }
-  });
-  }
+
+  {% include 'art_show_admin/unassign_locations.js' %}
+
   $().ready(function () {
+    $('#assign-location-table').on('click', '.unassign-location', function() {
+      confirmUnassignLocation($(this).data('id'), $(this).data('label'))
+    });
+
     $('form[action="update_location"]').on('submit', function(event) {
       event.preventDefault();
       $.ajax({
@@ -113,7 +83,7 @@
   <a href="assignment_map?gallery={{ c.MATURE }}&panel_type={{ c.TABLE }}" class="btn btn-info">Mature Table Assignment Map</a>
 </p>
 <div class="card card-body">
-  <table class="table table-hover datatable">
+  <table class="table table-hover datatable" id="assign-location-table">
     <thead><tr>
         <th>Artist Name</th>
         <th>Real Name</th>
@@ -135,7 +105,7 @@
             {% if c.USE_ASSIGNMENT_MAP %}
             <td>
               {% for id, label in app.sorted_assignments %}
-              {{ label }} <button type="button" class="btn btn-sm btn-danger" onClick="unassignLocation('{{ id }}', '{{ label }}')"><i class="fa fa-remove"></i></button> {% if not loop.last %} / {% endif %}
+              {{ label }} <a href="#" class="text-danger unassign-location" data-id="{{ id }}" data-label="{{ label }}"><i class="fa fa-remove"></i></a> {% if not loop.last %} / {% endif %}
               {% endfor %}
             </td>
             {% else %}
