@@ -52,10 +52,11 @@
             <div class="modal-body">
               {{ form_macros.form_validation('check-in-out-' ~ app.id, 'validate_check_in_out') }}
               <div class="d-flex gap-2 justify-content-end mb-3">
-                {% if check_out %}
-                <button type="button" onClick="$('#check-in-out-{{ app.id }}').submit()" class="btn btn-warning undo-btn"{% if not app.checked_out %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkout" value="1">Undo Check-Out</button>
+                <input type="hidden" id="undo-toggle-{{ app.id }}" value="1" />
+                {% if checkout %}
+                <button type="button" onClick="undoCheckInOut('undo_checkout', '{{ app.id }}')" class="btn btn-warning undo-btn"{% if not app.checked_out %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkout" value="1">Undo Check-Out</button>
                 {% else %}
-                <button type="button" onClick="$('#check-in-out-{{ app.id }}').submit()" class="btn btn-warning undo-btn"{% if not app.checked_in %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkin" value="1">Undo Check-In</button>
+                <button type="button" onClick="undoCheckInOut('undo_checkin', '{{ app.id }}')" class="btn btn-warning undo-btn"{% if not app.checked_in %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkin" value="1">Undo Check-In</button>
                 {% endif %}
                 <a href="form?id={{ app.id }}" class="btn btn-secondary" target="_blank">Open Full Application&nbsp;<i class="fa fa-external-link"></i></a>
               </div>
@@ -178,6 +179,11 @@
       </caption>
     </table>
     <script type="text/javascript">
+      var undoCheckInOut = function(inputName, appId) {
+        $('#undo-toggle-' + appId).attr('name', inputName);
+        $('#check-in-out-' + appId).submit();
+      }
+
       $(document).ready(function() {
         $('.check-in-out-datatable').each(function() {
           if (! $.fn.DataTable.isDataTable($(this))) {
@@ -196,7 +202,6 @@
             $(this).find('button[type=submit]').prop('disabled', true);
             return true;
         });
-
 
         $('.check-in-out-form').on('submit', function(event) {
           event.preventDefault();
@@ -220,6 +225,7 @@
               dataType: 'json',
               data: data,
               success: function (json) {
+                  $('#undo-toggle-' + app_id).attr('name', '');
                   hideMessageBox('form-validations-check-in-out-' + app_id);
                   hideMessageBox();
                   if (json.success) {
