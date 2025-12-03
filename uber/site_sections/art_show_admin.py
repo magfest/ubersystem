@@ -212,10 +212,29 @@ class Root:
                     message = f'ERROR: The winning bid ({format_currency(winning_bid)}) cannot be less than the minimum bid ({format_currency(found_piece.opening_bid)}).'
                 else:
                     bidder_num = bidder_num.strip()
-                    bidder = session.query(ArtShowBidder).filter(ArtShowBidder.bidder_num.ilike(bidder_num))
-                    if not bidder.count():
-                        bidder = session.query(ArtShowBidder).filter(
-                            ArtShowBidder.bidder_num_stripped == ArtShowBidder.strip_bidder_num(bidder_num))
+                    if re.match(r'^[a-zA-Z]-[0-9]+', bidder_num):
+                        bidder = session.query(ArtShowBidder).filter(ArtShowBidder.bidder_num.ilike(bidder_num))
+                        if not bidder.count():
+                            bidder = session.query(ArtShowBidder).filter(
+                                ArtShowBidder.bidder_num_stripped == ArtShowBidder.strip_bidder_num(bidder_num))
+                    else:
+                        try:
+                            badge_num = int(bidder_num)
+                        except Exception:
+                            message = "ERROR: Please enter a bidder number (X-###) or badge number."
+                        else:
+                            attendee = session.query(Attendee).join(BadgeInfo).filter(
+                                BadgeInfo.ident == badge_num)
+                        if not message:
+                            if not attendee.count():
+                                message = f'ERROR: Could not find attendee with badge number {badge_num}.'
+                            elif attendee.count() > 1:
+                                message = f'ERROR: Somehow we found multiple attendees with badge number {badge_num}.'
+                            else:
+                                found_bidder = attendee.one().art_show_bidder
+                                if not found_bidder:
+                                    message = f'ERROR: Attendee with badge number {badge_num} did not sign up for bidding.'
+                if not message and not found_bidder:
                     if not bidder.count():
                         message = 'ERROR: Could not find bidder with number {}.'.format(bidder_num)
                     elif bidder.count() > 1:
