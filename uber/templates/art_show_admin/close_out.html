@@ -10,14 +10,16 @@
   }
   
   $(function() {
-    $('#winning-bidder-info').hide();
     $(window).keydown(function(event){
     if(event.keyCode == 13) {
       event.preventDefault();
       showErrorMessage('Please select an option.')
       return false;
     }
-  });
+    });
+    {% if not bidder_num and not winning_bid %}
+    $('#winning-bidder-info').hide();
+    {% endif %}
   });
 </script>
 {% endblock adminheader %}
@@ -97,7 +99,7 @@
       <div class="col">
         <div class="form-text">Artist Location(s)</div>
         <div class="mb-3">
-          {{ piece.app.locations_or_assignments }}
+          {{ piece.app.get_printable_locations() or "None" }}
         </div>
       </div>
       <div class="col">
@@ -127,7 +129,7 @@
       </div>
     </div>
     <div id="history-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="history-title">
-      <div class="modal-dialog modal-xl" role="document">
+      <div class="modal-dialog modal-xl modal-fullscreen-lg-down" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <h4 class="modal-title" id="history-title">
@@ -136,6 +138,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
+            <div class="table-responsive">
             <table class="table table-striped table-bordered table-sm">
               <thead><tr>
                   <th>What</th>
@@ -152,6 +155,7 @@
                   </tr>
               {% endfor %}
               </table>
+              </div>
           </div>
         </div>
       </div>

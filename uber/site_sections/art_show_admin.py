@@ -156,14 +156,15 @@ class Root:
         found_piece, found_bidder = None, None
 
         if piece_code:
+            piece_code = piece_code.strip()
             if len(piece_code.split('-')) != 2:
-                message = 'Please enter just one piece code.'
+                message = 'ERROR: Please enter just one piece code.'
             else:
                 artist_id, piece_id = piece_code.split('-')
                 try:
                     piece_id = int(piece_id)
                 except Exception:
-                    message = 'Please use the format XXX-# for the piece code.'
+                    message = 'ERROR: Please use the format XXX-# for the piece code.'
 
             if not message:
                 piece = session.query(ArtShowPiece).join(ArtShowPiece.app).filter(
@@ -172,18 +173,18 @@ class Root:
                     ArtShowPiece.piece_id == piece_id
                 )
                 if not piece.count():
-                    message = 'Could not find piece with code {}.'.format(piece_code)
+                    message = 'ERROR: Could not find piece with code {}.'.format(piece_code)
                 elif piece.count() > 1:
-                    message = 'Multiple pieces matched the code you entered for some reason.'
+                    message = 'ERROR: Multiple pieces matched the code you entered for some reason.'
                 else:
                     found_piece = piece.one()
 
         if found_piece and cherrypy.request.method == 'POST':
             action = params.get('action', '')
             if action in ['set_winner', 'voice_auction'] and not found_piece.valid_for_sale:
-                message = "This piece is not for sale and cannot have any bids."
+                message = "ERROR: This piece is not for sale and cannot have any bids."
             elif action != 'get_info' and found_piece.status in [c.PAID, c.RETURN]:
-                message = "You cannot close out a piece that has been marked as paid for or returned to artist."
+                message = "ERROR: You cannot close out a piece that has been marked as paid for or returned to artist."
             elif action == 'voice_auction':
                 found_piece.status = c.VOICE_AUCTION
                 session.add(found_piece)
@@ -192,33 +193,40 @@ class Root:
                 found_piece.winning_bidder_id = None
                 if found_piece.valid_quick_sale:
                     found_piece.status = c.QUICK_SALE
-                    message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for {format_currency(found_piece.quick_sale_price)}."
+                    message = f"ERROR: Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for {format_currency(found_piece.quick_sale_price)}."
                 else:
                     found_piece.status = c.RETURN
                 session.add(found_piece)
                 session.commit()
             elif action == 'get_info':
-                message = f"Piece {found_piece.artist_and_piece_id} information retrieved."
+                message = f"ERROR: Piece {found_piece.artist_and_piece_id} information retrieved."
                 found_piece.history = session.query(Tracking).filter_by(fk_id=found_piece.id)
             elif action == 'set_winner':
                 if not bidder_num:
-                    message = "Please enter the winning bidder number."
+                    message = "ERROR: Please enter the winning bidder number."
                 elif not winning_bid:
-                    message = "Please enter a winning bid."
+                    message = "ERROR: Please enter a winning bid."
                 elif not winning_bid.isdigit():
-                    message = "Please enter only numbers for the winning bid."
+                    message = "ERROR: Please enter only numbers for the winning bid."
                 elif int(winning_bid) < found_piece.opening_bid:
-                    message = f'The winning bid ({format_currency(winning_bid)}) cannot be less than the minimum bid ({format_currency(found_piece.opening_bid)}).'
+                    message = f'ERROR: The winning bid ({format_currency(winning_bid)}) cannot be less than the minimum bid ({format_currency(found_piece.opening_bid)}).'
                 else:
+                    bidder_num = bidder_num.strip()
                     bidder = session.query(ArtShowBidder).filter(ArtShowBidder.bidder_num.ilike(bidder_num))
                     if not bidder.count():
-                        message = 'Could not find bidder with number {}.'.format(bidder_num)
+                        bidder = session.query(ArtShowBidder).filter(
+                            ArtShowBidder.bidder_num_stripped == ArtShowBidder.strip_bidder_num(bidder_num))
+                    if not bidder.count():
+                        message = 'ERROR: Could not find bidder with number {}.'.format(bidder_num)
                     elif bidder.count() > 1:
-                        message = 'Multiple bidders matched the number you entered for some reason.'
+                        message = 'ERROR: Multiple bidders matched the number you entered for some reason.'
                     else:
                         found_bidder = bidder.one()
+                        if found_bidder.bidder_num[:1] != bidder_num[:1]:
+                            message = f"ERROR: Bidder number {ArtShowBidder.strip_bidder_num(bidder_num)} belongs to bidder {found_bidder.bidder_num}, \
+                                but you entered {bidder_num}. Re-enter the correct bidder number if you're sure this is the right bidder."
                         if not found_bidder.attendee:
-                            message = "This bidder number does not have an attendee attached so we cannot sell anything to them."
+                            message = "ERROR: This bidder number does not have an attendee attached so we cannot sell anything to them."
 
                 if found_bidder and not message:
                     if not found_bidder.attendee.art_show_receipt:
@@ -238,7 +246,9 @@ class Root:
                             bidder_name = f"{found_bidder.attendee.badge_printed_name} ({found_bidder.attendee.full_name})"
                         else:
                             bidder_name = f"{found_bidder.attendee.full_name}"
-                        message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for {format_currency(winning_bid)} to {bidder_num}, {bidder_name}."
+                        message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for \
+                            {format_currency(winning_bid)} to {found_bidder.bidder_num}, {bidder_name}."
+                        piece_code, bidder_num, winning_bid = '', '', ''
                         session.commit()
 
             if not message:
