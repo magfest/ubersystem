@@ -205,10 +205,12 @@
           }
         });
 
+        /*
         $('#app-modals').find('form').submit(function(e) {
             $(this).find('button[type=submit]').prop('disabled', true);
             return true;
         });
+        */
 
         {% if not checkout %}
         {% include 'art_show_admin/unassign_locations.js' %}
