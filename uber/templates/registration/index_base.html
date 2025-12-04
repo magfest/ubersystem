@@ -299,7 +299,7 @@
                             <td>
                                 {% if not attendee.active_badge and attendee.lost_badges %}
                                     <strong>Badge reported as lost!</strong>
-                                {% elif attendee.active_badge %}
+                                {% elif attendee.active_badge and not c.BADGE_PRINTING_ENABLED %}
                                     {{ hour_day_local(attendee.checked_in) }} <br/>
                                     <form method="post" action="lost_badge">
                                         <input type="hidden" name="id" value="{{ attendee.id }}" />

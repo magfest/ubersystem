@@ -33,7 +33,7 @@
             <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
             {% endif %}
 
-            {% if attendee.active_badge %}
+            {% if attendee.active_badge and not c.BADGE_PRINTING_ENABLED %}
                 <form method="post" action="lost_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
                     <input type="submit" class="btn btn-outline-danger" value="Report Lost Badge">

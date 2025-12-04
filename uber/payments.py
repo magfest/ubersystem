@@ -1828,6 +1828,10 @@ class ReceiptManager:
 
             for item in txn.receipt_items:
                 item.closed = txn.added
+                if item.fk_model == 'PrintJob':
+                    print_job = session.print_job(item.fk_id)
+                    print_job.ready = True
+                    session.add(print_job)
                 session.add(item)
 
             session.commit()
