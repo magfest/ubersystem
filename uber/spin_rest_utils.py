@@ -1,7 +1,10 @@
 import os
 import json
 import re
-secrets = json.loads(os.environ.get("SPIN_REST_SECRETS", "{}"))
+
+from uber.config import c
+
+secrets = json.loads(c.SPIN_REST_SECRETS)
 strings = secrets.get("strings", {})
 templates = secrets.get("templates", {})
 

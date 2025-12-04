@@ -1737,6 +1737,8 @@ for conf, val in _config['secret'].items():
     else:
         setattr(c, conf.upper(), val)
 
+c.SPIN_REST_SECRETS = _config['secret'].get('spin_rest_secrets', '{}')
+
 if c.AWS_SECRET_SERVICE_NAME:
     AWSSecretFetcher().get_all_secrets()
 
