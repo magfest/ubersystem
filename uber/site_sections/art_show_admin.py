@@ -18,7 +18,7 @@ from io import BytesIO
 
 from uber.config import c
 from uber.custom_tags import format_currency, readable_join
-from uber.decorators import ajax, all_renderable, credit_card, public
+from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, ArtShowPanel, \
@@ -631,8 +631,8 @@ class Root:
             'surface_type': surface_type,
         }
     
-    @ajax
-    def save_map(self, session, gallery, surface_type, panels, assignments):
+    @ajax_gettable
+    def save_map(self, session, gallery, surface_type, panels, assignments, **params):
         panels = json.loads(panels)
         assignments = json.loads(assignments)
         assignments_by_panel = {}
