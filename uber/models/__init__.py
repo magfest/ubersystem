@@ -1734,8 +1734,6 @@ class Session(SessionManager):
                                                        ).outerjoin(BadgePickupGroup
                                                        ).outerjoin(PromoCode
                                                                    ).outerjoin(PromoCodeGroup)
-            if c.ATTENDEE_ACCOUNTS_ENABLED:
-                attendees = attendees.outerjoin(AttendeeAccount, Attendee.managers, aliased=True)
             if c.NUMBERED_BADGES:
                 attendees = attendees.outerjoin(BadgeInfo, Attendee.active_badge)
             return attendees
@@ -1743,18 +1741,7 @@ class Session(SessionManager):
         def search(self, text, *filters):
             attendees = self.index_attendees()
             attendees = attendees.filter(*filters)
-
-            id_list = [
-                Attendee.id,
-                Attendee.public_id,
-                PromoCodeGroup.id,
-                Group.id,
-                Group.public_id,
-                BadgePickupGroup.id,
-                BadgePickupGroup.public_id]
-
-            if c.ATTENDEE_ACCOUNTS_ENABLED:
-                id_list.extend([AttendeeAccount.id, AttendeeAccount.public_id])
+            id_search = None
 
             terms = text.split()
             if len(terms) == 2:
@@ -1785,11 +1772,26 @@ class Session(SessionManager):
 
             elif len(terms) == 1 \
                     and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
-                return attendees.filter(or_(*map(lambda x: x == terms[0], id_list))), ''
+                id_search = terms[0]
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
                 if re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', search_uuid):
-                    return attendees.filter(or_(*map(lambda x: x == search_uuid, id_list))), ''
+                    id_search = search_uuid
+                
+            if id_search:
+                id_list = [
+                    Attendee.id,
+                    Attendee.public_id,
+                    PromoCodeGroup.id,
+                    Group.id,
+                    Group.public_id,
+                    BadgePickupGroup.id,
+                    BadgePickupGroup.public_id]
+                filters = [*map(lambda x: x == id_search, id_list)]
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    account_filter = or_(AttendeeAccount.id == id_search, AttendeeAccount.public_id == id_search)
+                    return attendees.filter(*filters).join(Attendee.managers).filter(account_filter), ''
+                return attendees.filter(*filters), ''
 
             or_checks = []
             and_checks = []
