@@ -1789,9 +1789,9 @@ class Session(SessionManager):
                     BadgePickupGroup.public_id]
                 filters = [*map(lambda x: x == id_search, id_list)]
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    account_filter = or_(AttendeeAccount.id == id_search, AttendeeAccount.public_id == id_search)
-                    return attendees.filter(*filters).join(Attendee.managers).filter(account_filter), ''
-                return attendees.filter(*filters), ''
+                    filters.extend([AttendeeAccount.id == id_search, AttendeeAccount.public_id == id_search])
+                    return attendees.outerjoin(Attendee.managers).filter(or_(*filters)), ''
+                return attendees.filter(or_(*filters)), ''
 
             or_checks = []
             and_checks = []
