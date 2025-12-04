@@ -614,7 +614,6 @@ class Root:
                 panels_or_tables = 'tables_ad'
                 assignments = 'mature_table_assignments'
 
-            artists = valid_apps.filter(ArtShowApplication.panels_ad > 0)
             for artist in artists:
                 artists_json.append(build_artist_json(artist, artist.mature_display_name,
                                                       getattr(artist, panels_or_tables, 0), getattr(artist, assignments, [])))
