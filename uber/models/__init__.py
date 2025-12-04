@@ -1802,8 +1802,9 @@ class Session(SessionManager):
                     Attendee.promo_code_group_name.ilike('%' + search_text + '%'),
                 ]
 
-                if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    check_list.append(Attendee.primary_account_email.ilike('%' + search_text + '%'))
+                # We no longer join AttendeeAccount and I do not want to deal with that right now
+                #if c.ATTENDEE_ACCOUNTS_ENABLED:
+                #    check_list.append(Attendee.primary_account_email.ilike('%' + search_text + '%'))
 
                 for attr in Attendee.searchable_fields:
                     check_list.append(getattr(Attendee, attr).ilike('%' + search_text + '%'))
@@ -1883,8 +1884,6 @@ class Session(SessionManager):
             if or_checks and and_checks:
                 return attendees.filter(or_(*or_checks), and_(*and_checks)), ''
             elif or_checks:
-                log.error(attendees.count())
-                log.error(attendees.filter(or_(*or_checks)).count())
                 return attendees.filter(or_(*or_checks)), ''
             elif and_checks:
                 return attendees.filter(and_(*and_checks)), ''
