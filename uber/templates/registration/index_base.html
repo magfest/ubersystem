@@ -299,12 +299,12 @@
                             <td>
                                 {% if not attendee.active_badge and attendee.lost_badges %}
                                     <strong>Badge reported as lost!</strong>
-                                {% elif attendee.active_badge and not c.BADGE_PRINTING_ENABLED %}
-                                    {{ hour_day_local(attendee.checked_in) }} <br/>
+                                {% elif attendee.active_badge %}
+                                    {{ hour_day_local(attendee.checked_in) }}{% if not c.BADGE_PRINTING_ENABLED %} <br/>
                                     <form method="post" action="lost_badge">
                                         <input type="hidden" name="id" value="{{ attendee.id }}" />
                                         <input type="submit" class="btn btn-sm btn-warning" value="Report Lost Badge">
-                                    </form>
+                                    </form>{% endif %}
                                 {% endif %}
                             </td>
                     {% elif attendee.cannot_check_in_reason %}
