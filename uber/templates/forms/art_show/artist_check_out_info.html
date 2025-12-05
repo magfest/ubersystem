@@ -90,8 +90,8 @@
         {% for piece in app.art_show_pieces|sort(attribute='piece_id')|sort(attribute='gallery_label') %}
         {% set piece_check_in_out = piece_forms[piece.id]['piece_check_in_out'] %}
         <tr class="piece-row" data-piece_id="{{ piece.piece_id }}" x-data="{
-            opening_bid: {{ piece_check_in_out.opening_bid.data|tojson }},
-            quick_sale_price: {{ piece_check_in_out.quick_sale_price.data|tojson }},
+            opening_bid: {{ piece_check_in_out.opening_bid.data|tojson if piece.for_sale else 0 }},
+            quick_sale_price: {{ piece_check_in_out.quick_sale_price.data|tojson if not piece.no_quick_sale else 0 }},
             get forSale() { return Boolean(parseInt(this.opening_bid)); },
             get forQS() { return Boolean(parseInt(this.quick_sale_price)); },
         }">
