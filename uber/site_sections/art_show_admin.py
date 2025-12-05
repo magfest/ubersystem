@@ -574,17 +574,21 @@ class Root:
         gallery = int(gallery)
         surface_type = int(surface_type)
         desired_count = 0
+        panels_count = 0
         panels_json = []
         artists_json = []
         valid_panel_ids = []
 
         valid_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED)
         panels = session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.surface_type == surface_type)
-        panels_count = panels.count()
 
         for panel in panels:
             panels_json.append(panel.panel_json)
             valid_panel_ids.append(panel.id)
+            if panel.assignable_sides == c.BOTH:
+                panels_count += 2
+            elif panel.assignable_sides != c.NEITHER:
+                panels_count += 1
 
         assigned_count = session.query(ArtPanelAssignment.id).filter(ArtPanelAssignment.panel_id.in_(valid_panel_ids)).count()
 
