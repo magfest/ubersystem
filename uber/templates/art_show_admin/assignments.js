@@ -799,8 +799,56 @@ class panelLogic {
         }
         
     }
+	shadeLabels() {
+		/*
+
+		1. Go over all panels.
+		2. Check to see which sides they have.
+		3. Check whether those sides have a valid label and shade accordingly.
+		
+		*/ 
+        let pm = this.map.panels;
+        let rm = {
+            "l":"border-left-color",
+            "r":"border-right-color",
+            "u":"border-top-color",
+            "d":"border-bottom-color"
+        }
+        let labels = {
+            "v":{
+                "b":["l","r"],
+                "l":["l"],
+                "r":["r"]
+            },
+            "h":{
+                "b":["u","d"],
+                "u":["u"],
+                "d":["d"]
+            }
+        }
+        for(let k in pm) {
+            let pnl = pm[k];
+            let use_obj = pnl.use_obj;
+            let potential_labels = labels[pnl.t][pnl.u];
+            for(let l of potential_labels) {
+                let rmid = ""+rm[l];
+                let color = "var(--inner-border-color)";
+                if(pnl.labels.hasOwnProperty(l)) {
+                    if(pnl.labels[l]!=="") {
+                        color = "var(--section-border)";
+                    }
+                }
+                $(use_obj).css(rmid,color);
+            }
+        }
+    }
     shadeByUse(artist_id=false) {
         //console.log("shade by use")
+		if(this.map.labels===true) {
+			// if in labels mode, skip this means of assigning colors
+			this.shadeLabels();
+			return;
+		}
         this.face_assignments = {}; // Reset the face assignment chart.
         let rm = {
             "l":"border-left-color",
