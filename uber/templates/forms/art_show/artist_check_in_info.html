@@ -29,6 +29,11 @@
 {% if artist_check_in_out_info.artist_id_ad.data %}
 <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.artist_id_ad) }}</div>
 {% endif %}
+</div><div class="row g-3 mb-3">
+    <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.panels, choices=int_choices(0, 30)) }}</div>
+    <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.tables, choices=int_choices(0, 30)) }}</div>
+    <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.panels_ad, choices=int_choices(0, 30)) }}</div>
+    <div class="col-sm">{{ form_macros.input(artist_check_in_out_info.tables_ad, choices=int_choices(0, 30)) }}</div>
 {% endif %}
 {% endblock %}
 

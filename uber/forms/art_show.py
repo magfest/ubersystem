@@ -69,6 +69,18 @@ class AdminArtShowInfo(ArtShowInfo):
 
     def badge_status_label(self):
         return "Attendee Badge Status"
+    
+    def panels_label(self):
+        return Markup(f'General Panels <a href="../art_show_admin/assignment_map?gallery={c.GENERAL}&surface_type={c.PANEL}" target="_blank">Map <i class="fa fa-external-link"></i></a>')
+    
+    def tables_label(self):
+        return Markup(f'General Table Sections <a href="../art_show_admin/assignment_map?gallery={c.GENERAL}&surface_type={c.TABLE}" target="_blank">Map <i class="fa fa-external-link"></i></a>')
+    
+    def panels_ad_label(self):
+        return Markup(f'Mature Panels <a href="../art_show_admin/assignment_map?gallery={c.MATURE}&surface_type={c.PANEL}" target="_blank">Map <i class="fa fa-external-link"></i></a>')
+    
+    def tables_ad_label(self):
+        return Markup(f'Mature Table Sections <a href="../art_show_admin/assignment_map?gallery={c.MATURE}&surface_type={c.TABLE}" target="_blank">Map <i class="fa fa-external-link"></i></a>')
 
 
 class ArtistAttendeeInfo(MagForm):
@@ -105,19 +117,35 @@ class ArtShowPieceInfo(MagForm):
 
 
 class ArtistCheckOutInfo(MagForm):
-    artist_name = ArtShowInfo.artist_name
+    artist_name = AdminArtShowInfo.artist_name
     artist_id = AdminArtShowInfo.artist_id
     artist_id_ad = AdminArtShowInfo.artist_id_ad
-    payout_method = ArtShowInfo.payout_method
-    check_payable = ArtShowInfo.check_payable
+    payout_method = AdminArtShowInfo.payout_method
+    check_payable = AdminArtShowInfo.check_payable
 
 
 class ArtistCheckInInfo(ArtistCheckOutInfo):
     locations = AdminArtShowInfo.locations
-    banner_name = ArtShowInfo.banner_name
-    banner_name_ad = ArtShowInfo.banner_name_ad
-    delivery_method = ArtShowInfo.delivery_method
+    banner_name = AdminArtShowInfo.banner_name
+    banner_name_ad = AdminArtShowInfo.banner_name_ad
+    delivery_method = AdminArtShowInfo.delivery_method
     check_in_notes = AdminArtShowInfo.check_in_notes
+    panels = AdminArtShowInfo.panels
+    panels_ad = AdminArtShowInfo.panels_ad
+    tables = AdminArtShowInfo.tables
+    tables_ad = AdminArtShowInfo.tables_ad
+
+    def panels_label(self):
+        return Markup(f'General Panels <a href="../art_show_admin/assignment_map?gallery={c.GENERAL}&surface_type={c.PANEL}" target="_blank">Map <i class="fa fa-external-link"></i></a>')
+    
+    def tables_label(self):
+        return Markup(f'General Table Sections <a href="../art_show_admin/assignment_map?gallery={c.GENERAL}&surface_type={c.TABLE}" target="_blank">Map <i class="fa fa-external-link"></i></a>')
+    
+    def panels_ad_label(self):
+        return Markup(f'Mature Panels <a href="../art_show_admin/assignment_map?gallery={c.MATURE}&surface_type={c.PANEL}" target="_blank">Map <i class="fa fa-external-link"></i></a>')
+    
+    def tables_ad_label(self):
+        return Markup(f'Mature Table Sections <a href="../art_show_admin/assignment_map?gallery={c.MATURE}&surface_type={c.TABLE}" target="_blank">Map <i class="fa fa-external-link"></i></a>')
 
 
 class PieceCheckInOut(MagForm):
