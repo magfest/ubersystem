@@ -573,11 +573,20 @@ class Root:
     def assignment_map(self, session, message='', gallery=c.GENERAL, surface_type=c.PANEL, **params):
         gallery = int(gallery)
         surface_type = int(surface_type)
+        desired_count = 0
+        panels_json = []
+        artists_json = []
+        valid_panel_ids = []
 
         valid_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED)
-        panels = session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.surface_type == surface_type).all()
-        panels_json = [panel.panel_json for panel in panels]
-        artists_json = []
+        panels = session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.surface_type == surface_type)
+        panels_count = panels.count()
+
+        for panel in panels:
+            panels_json.append(panel.panel_json)
+            valid_panel_ids.append(panel.id)
+
+        assigned_count = session.query(ArtPanelAssignment.id).filter(ArtPanelAssignment.panel_id.in_(valid_panel_ids)).count()
 
         def build_artist_json(artist, display_name, panels, assignments):
             json = {'id': artist.id, 'name': display_name, 'needed': panels}
@@ -587,11 +596,11 @@ class Root:
                 for assignment in assignments:
                     a_json = assignment.assignment_str
                     json['assignments'].append(a_json)
-                    if assignment.manual:
-                        json['manual'].append(a_json)
+                    json['manual'].append(a_json)
             return json
 
         if gallery == c.GENERAL:
+            display_name = 'display_name'
             if surface_type == c.PANEL:
                 artists = valid_apps.filter(ArtShowApplication.panels > 0)
                 panels_or_tables = 'panels'
@@ -600,11 +609,8 @@ class Root:
                 artists = valid_apps.filter(ArtShowApplication.tables > 0)
                 panels_or_tables = 'tables'
                 assignments = 'general_table_assignments'
-
-            for artist in artists:
-                artists_json.append(build_artist_json(artist, artist.display_name,
-                                                      getattr(artist, panels_or_tables, 0), getattr(artist, assignments, [])))
         else:
+            display_name = 'mature_display_name'
             if surface_type == c.PANEL:
                 artists = valid_apps.filter(ArtShowApplication.panels_ad > 0)
                 panels_or_tables = 'panels_ad'
@@ -614,12 +620,11 @@ class Root:
                 panels_or_tables = 'tables_ad'
                 assignments = 'mature_table_assignments'
 
-            for artist in artists:
-                artists_json.append(build_artist_json(artist, artist.mature_display_name,
-                                                      getattr(artist, panels_or_tables, 0), getattr(artist, assignments, [])))
-        
-        if cherrypy.request.method == 'POST':
-            pass
+        for artist in artists:
+            requested_space = getattr(artist, panels_or_tables, 0)
+            current_assignments = getattr(artist, assignments, [])
+            desired_count += max(0, (requested_space - len(current_assignments)))
+            artists_json.append(build_artist_json(artist, getattr(artist, display_name, ''), requested_space, current_assignments))
 
         return {
             'apps': valid_apps,
@@ -629,6 +634,9 @@ class Root:
             'message': message,
             'gallery': gallery,
             'surface_type': surface_type,
+            'panels_count': panels_count,
+            'assigned_count': assigned_count,
+            'desired_count': desired_count,
         }
     
     @ajax_gettable

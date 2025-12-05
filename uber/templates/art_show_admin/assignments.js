@@ -494,8 +494,8 @@ class showMap {
         }
 
         // Hide the face selectors that will be used to manually assign artists.
-        $(face_selectoorigin).hide();
-        $(face_selectoterminus).hide();
+        //$(face_selectoorigin).hide();
+        //$(face_selectoterminus).hide();
 
         if(this.panels.hasOwnProperty(p_id)) {
             // Panel exists. So instead of adding it, delete it.
@@ -1901,7 +1901,7 @@ class panHandler {
     }
     move(pos) {
         let m = this.map.allocator.map_dom;
-        if(this.start !== false && this.map.zoom > 1) {
+        if(this.start !== false) {
             // Determine the offsets from the original event.
             let dx = pos.x - this.start.x;// - pos.x;
             let dy = pos.y - this.start.y;// - pos.y;
