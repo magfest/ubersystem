@@ -593,7 +593,15 @@ class Root:
         assigned_count = session.query(ArtPanelAssignment.id).filter(ArtPanelAssignment.panel_id.in_(valid_panel_ids)).count()
 
         def build_artist_json(artist, display_name, panels, assignments):
-            json = {'id': artist.id, 'name': display_name, 'needed': panels}
+            extra_info = ""
+            if artist.checked_in:
+                extra_info += " - Checked In"
+            elif any([piece for piece in artist.art_show_pieces if piece.status == c.HANGING]):
+                extra_info += " - Hanging"
+            if artist.get_printable_locations(gallery):
+                extra_info += f" - {artist.get_printable_locations(gallery)}"
+
+            json = {'id': artist.id, 'name': display_name, 'needed': panels, 'extra_info': extra_info}
             if assignments:
                 json['assignments'] = []
                 json['manual'] = []

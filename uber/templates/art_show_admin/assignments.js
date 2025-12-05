@@ -700,18 +700,18 @@ class panelLogic {
             let artist_unassigned = artist.needed - artist_assigned;
             if (artist_assigned > 0) {
                 if(artist_assigned === 1) {
-                    assigned.push([k,artist_name + " ("+artist_assigned+" {{ panels_or_tables }})"]);
+                    assigned.push([k,artist_name + " ("+artist_assigned+" {{ panels_or_tables }})"+artist.extra_info]);
                 }
                 else {
-                    assigned.push([k,artist_name + " ("+artist_assigned+" {{ panels_or_tables }}s)"]);
+                    assigned.push([k,artist_name + " ("+artist_assigned+" {{ panels_or_tables }}s)"+artist.extra_info]);
                 }
             }
             if (artist_unassigned>0) {
                 if(artist_unassigned===1) {
-                    unassigned.push([k,artist_name + " ("+artist_unassigned+" {{ panels_or_tables }})"]);
+                    unassigned.push([k,artist_name + " ("+artist_unassigned+" {{ panels_or_tables }})"+artist.extra_info]);
                 }
                 else {
-                    unassigned.push([k,artist_name + " ("+artist_unassigned+" {{ panels_or_tables }}s)"]);
+                    unassigned.push([k,artist_name + " ("+artist_unassigned+" {{ panels_or_tables }}s)"+artist.extra_info]);
                 }
             }
         }

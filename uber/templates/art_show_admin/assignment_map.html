@@ -300,7 +300,7 @@
         serverArtists.forEach(function(artistInfo) {
             mapDisplay.serializer.parent.assignees.push({0: artistInfo['id'], 1: artistInfo['needed']});
             mapDisplay.serializer.parent.assignments[artistInfo['id']] = {'name': artistInfo['name'], 'needed': artistInfo['needed'],
-                'panels': new Set(artistInfo['assignments']), 'manual': new Set(artistInfo['manual']), 'wide': false}
+                'panels': new Set(artistInfo['assignments']), 'manual': new Set(artistInfo['manual']), 'wide': false, 'extra_info': artistInfo['extra_info']}
             if(artistInfo['manual']) {
                 artistInfo['manual'].forEach(function(assignmentId) { mapDisplay.serializer.parent.manual.add(assignmentId); })
             }
