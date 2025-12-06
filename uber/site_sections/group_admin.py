@@ -267,7 +267,7 @@ class Root:
 
     def paid_with_cash(self, session, id):
         if not cherrypy.session.get('reg_station'):
-            return {'success': False, 'message': 'You must set a workstation ID to take payments.'}
+            raise HTTPRedirect('form?id={}&message={}', id, 'You must set a workstation ID to take payments.')
 
         group = session.group(id)
         receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
