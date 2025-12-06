@@ -1005,7 +1005,7 @@ class Root:
                     raise HTTPRedirect('sales_search?message={}', 'Please search by bidder number or badge number.')
                 else:
                     filters.append(or_(BadgeInfo.ident == badge_num))
-                attendees = session.query(Attendee).join(BadgeInfo).filter(*filters)
+                attendees = session.query(Attendee).filter(*filters)
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_receipts)
 
