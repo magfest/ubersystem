@@ -511,7 +511,7 @@ class ArtShowPiece(MagModel):
 
     @property
     def sale_price(self):
-        return self.winning_bid or self.quick_sale_price if self.valid_quick_sale else self.winning_bid
+        return (self.winning_bid or self.quick_sale_price) if self.valid_quick_sale else self.winning_bid
 
     @property
     def winning_bidder_num(self):

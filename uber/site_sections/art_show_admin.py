@@ -1087,7 +1087,7 @@ class Root:
                     msg_piece = pieces.one()
                     if msg_piece.receipt == receipt:
                         message = "That piece ({}) is already on this receipt.".format(msg_piece.artist_and_piece_id)
-                    elif msg_piece.sale_price <= 0:
+                    elif not msg_piece.sale_price or msg_piece.sale_price <= 0:
                         message = "That piece ({}) doesn't have a valid sale price." \
                             .format(msg_piece.artist_and_piece_id)
                     elif msg_piece.status == c.RETURN:
