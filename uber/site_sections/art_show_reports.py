@@ -96,9 +96,9 @@ class Root:
             'apps': apps,
             'num_pieces': num_pieces,
             'yes_status': yes_status if 'yes_status' in params else None,
-            'yes_status_labels': '/'.join([c.ART_PIECE_STATUS[status] for status in yes_status]) if 'yes_status' in params else '',
+            'yes_status_labels': '/'.join([c.ART_PIECE_STATUS[int(status)] for status in yes_status]) if 'yes_status' in params else '',
             'no_status': no_status if 'no_status' in params else None,
-            'no_status_labels': '/'.join([c.ART_PIECE_STATUS[status] for status in no_status]) if 'no_status' in params else '',
+            'no_status_labels': '/'.join([c.ART_PIECE_STATUS[int(status)] for status in no_status]) if 'no_status' in params else '',
         }
 
     def artists_by_payout(self, session, message='', **params):
