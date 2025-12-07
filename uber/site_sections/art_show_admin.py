@@ -881,7 +881,8 @@ class Root:
             message = 'No matches found'
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
-        attendees = attendees[-100 + 100*page: 100*page]
+        if search_text:
+            attendees = attendees[-100 + 100*page: 100*page]
 
         return {
             'message':        message,
