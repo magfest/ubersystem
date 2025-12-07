@@ -241,10 +241,10 @@ class Root:
                         message = 'ERROR: Multiple bidders matched the number you entered for some reason.'
                     else:
                         found_bidder = bidder.one()
-                        if found_bidder.bidder_num[:1] != bidder_num[:1]:
+                        if found_bidder.bidder_num[:1].lower() != bidder_num[:1].lower():
                             message = f"ERROR: Bidder number {ArtShowBidder.strip_bidder_num(bidder_num)} belongs to bidder {found_bidder.bidder_num}, \
                                 but you entered {bidder_num}. Re-enter the correct bidder number if you're sure this is the right bidder."
-                        if not found_bidder.attendee:
+                        elif not found_bidder.attendee:
                             message = "ERROR: This bidder number does not have an attendee attached so we cannot sell anything to them."
 
                 if found_bidder and not message:
