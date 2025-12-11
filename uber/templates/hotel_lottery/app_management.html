@@ -2,7 +2,7 @@
 <div id="select-action" class="collapse">
     <p>
         Welcome {% if application.status != c.PARTIAL %}back {% endif %} to the {{ c.EVENT_NAME }} hotel lottery!
-        {% if c.HOTEL_LOTTERY_FORM_WAITLIST and not (c.STAFF_HOTEL_LOTTERY_OPEN and app_or_parent.qualifies_for_staff_lottery) %}
+        {% if c.BEFORE_HOTEL_LOTTERY_DEADLINE and c.HOTEL_LOTTERY_FORM_WAITLIST and not (c.STAFF_HOTEL_LOTTERY_OPEN and app_or_parent.qualifies_for_staff_lottery) %}
             The initial deadline for the first round of the lottery {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}was {{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}{% else %}is <strong>{{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}</strong>{% endif %}.
             {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST and not application.qualifies_for_first_round %}Your lottery entry will still be considered when allocating cancelled rooms.{% endif %}
         </p><p>
@@ -12,9 +12,11 @@
         {% endif %}
     </p>
 
+    {% if not application.current_lottery_closed %}
     <p class="h4 mb-3 text-{% if app_or_parent.complete_or_processed %}success{% else %}danger{% endif %}">
         You are currently {{ application.application_status_str }}.
     </p>
+    {% endif %}
     {% if application.qualifies_for_first_round and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}
         <p>
             Your{% if application.parent_application %} {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% endif %} lottery entry is being considered in the first round of the lottery{% if not application.parent_application %}, so your entry details{% if application.room_group_name %} and {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}{% endif %} are locked{% endif %}.

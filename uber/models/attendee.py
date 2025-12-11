@@ -1399,7 +1399,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "Please ask the artist you're agenting for to {} first.".format(
                 "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
             )
-        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+        if self.lottery_application and self.lottery_application.status in self.dq_lottery_statuses:
             if self.lottery_application.status == c.COMPLETE or self.lottery_application.entry_type == c.GROUP_ENTRY:
                 return "Please withdraw from the hotel lottery first."
             elif self.lottery_application.valid_group_members:
@@ -1603,6 +1603,14 @@ class Attendee(MagModel, TakesPaymentMixin):
         return badge
 
     @property
+    def dq_lottery_statuses(self):
+        lottery_statuses = [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]
+        if self.lottery_application:
+            if self.lottery_application.current_lottery_closed:
+                lottery_statuses = [c.AWARDED, c.SECURED]
+        return lottery_statuses
+
+    @property
     def is_inherently_transferable(self):
         return self.badge_status == c.COMPLETED_STATUS \
             and not self.checked_in \
@@ -1613,8 +1621,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             and not self.dept_memberships_with_inherent_role \
             and (not self.art_show_applications or not self.art_show_applications[0].is_valid) \
             and (not self.art_agent_apps or not any(app.is_valid for app in self.art_agent_apps)) \
-            and (not self.lottery_application or self.lottery_application.status not in [
-                c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED])
+            and (not self.lottery_application or self.lottery_application.status not in self.dq_lottery_statuses)
 
     @property
     def transferable_actions(self):
@@ -1649,7 +1656,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             reasons.append("they are a department head, checklist admin, \
                            or point of contact for the following departments: {}".format(
                                readable_join(self.get_labels_for_memberships('dept_memberships_with_role'))))
-        if self.lottery_application and self.lottery_application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
+        if self.lottery_application and self.lottery_application.status in self.dq_lottery_statuses:
             reasons.append(f"they have a {self.lottery_application.status_label.lower()} hotel lottery application")
         return reasons
 
