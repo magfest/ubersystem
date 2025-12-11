@@ -277,7 +277,7 @@ class GuestGroup(MagModel):
 
         header = self.guidebook_header
         thumbnail = self.guidebook_thumbnail
-        prepend = sluggify(self.title) + '_'
+        prepend = sluggify(self.group.name if self.group else self.id) + '_'
 
         header_name = (prepend + header.filename) if header else ''
         thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
