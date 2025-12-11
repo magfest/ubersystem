@@ -353,9 +353,7 @@ class Root:
             if not message:
                 raise HTTPRedirect('index?message={}{}', guest.group.name, ' data uploaded')
 
-        events = session.query(Event).filter_by(location=c.CONCERTS).order_by(Event.start_time).all()
         return {
             'guest': guest,
             'message': message,
-            'events': [(event.id, event.name) for event in events]
         }
