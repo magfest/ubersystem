@@ -1031,6 +1031,15 @@ if c.ENABLED_INDIES_STR:
         sender=c.INDIE_SHOWCASE_EMAIL,
     )
 
+    AutomatedEmailFixture(
+        IndieGame,
+        'MAGFest Indies December Update',
+        'mivs/2022/december_update.txt',
+        lambda game: game.confirmed,
+        ident='indies_december_update',
+        sender=c.INDIE_SHOWCASE_EMAIL,
+    )
+
 
 class RetroEmailFixture(AutomatedEmailFixture):
     def __init__(self, *args, **kwargs):
@@ -1361,13 +1370,13 @@ if c.MIVS_START:
     )
 
     # start year specific MIVS Emails
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS December Update',
-        'mivs/2022/december_update.txt',
-        lambda game: game.confirmed and game.showcase_type == c.MIVS,
-        ident='mivs_december_update.txt'
-    )
+    #MIVSEmailFixture(
+    #    IndieGame,
+    #    'MIVS December Update',
+    #    'mivs/2022/december_update.txt',
+    #    lambda game: game.confirmed and game.showcase_type == c.MIVS,
+    #    ident='mivs_december_update.txt'
+    #)
 
     # post con emails
     MIVSEmailFixture(
