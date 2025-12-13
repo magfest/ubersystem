@@ -5,7 +5,7 @@ Here is a December update with general reminders and new information for the upc
 
 ### Communication - Discord Server
 
-Reminder that we have a private Discord server which helps us disseminate quick communications, reminders, etc. Please use this link to join: (https://discord.gg/WwPmHYs3qM)
+Reminder that we have a private Discord server which helps us disseminate quick communications, reminders, etc. Please use this link to join: https://discord.gg/eVQAcu5g5v
 
 Follow the instructions on the #getting-started page to get set up as a dev for 2026! After joining, please be sure you change your name in the server to the following format: Your Name (The Name of Your Game) 
 
@@ -20,12 +20,12 @@ You should have already completed the Selling section of your checklist. You can
 
 If you are selling items at your own booth, please complete the forms under the Selling at MAGFest section of your checklist no later than Sunday, December 14th. this is a hard deadline we can not change. After completing the forms online, you will want to submit them to the MAGFest portal as well as bring a copy of your temporary license to the event to display at your booth.
 
-If you are selling through the Indie Item Shoppe, please fill out the [Inventory Form](https://docs.google.com/forms/d/13qGlQgBhSLw-vtKcYL_wIjs3KmDIqJW_QS757PNU5Q8/viewform?edit_requested=true) no later than Sunday, December 14th.
+If you are selling through the Indie Item Shoppe, please fill out the Inventory Form: https://docs.google.com/forms/d/13qGlQgBhSLw-vtKcYL_wIjs3KmDIqJW_QS757PNU5Q8/viewform?edit_requested=true no later than Sunday, December 14th.
 
 
 ### Layout
 
-For MIVS devsv, we had an issue with the booth placement form and unfortunately need those who have strong preferences about their placement to fill out the form again. If you don't have any strong preferences, don't worry about filling it out. Please fill this out ASAP. Ideally, by Sunday, December 14th. [Booth Placement Form](https://forms.gle/QJJjcd4tWofFVLeX7)
+For MIVS devs, we had an issue with the booth placement form and unfortunately need those who have strong preferences about their placement to fill out the form again. If you don't have any strong preferences, don't worry about filling it out. Please fill this out ASAP. Ideally, by Sunday, December 14th. Booth Placement Form: https://forms.gle/QJJjcd4tWofFVLeX7
 
 
 ### Cancellations
@@ -39,6 +39,12 @@ If you simply need to switch out team members, your group leader can manage your
 
 This is the final week to request a badge for additional team members you did not add to your studio before the event sold out. If you need an extra badge, please email indies@magfest ASAP.
 
+### Indie Arcade Maintenance Instructions
+
+The Indie Arcade keeps a document of simple repair steps for all of your games to help our staff help you keep everything up and running during the event. For example, if there are easy ways to reset or restart your game in case of freezes/crashes/gets stuck in a state you may not anticipate, we'd love to know how. This does not mean MAGFest staff will be opening your build or soldering stuff for you - we both want to respect your games and also can't commit to more skilled repair tasks.
+If you could respond to the form below with a step by step set of instructions to access an easy fix to your game in clear simple language. Where is a hard reset button located? Is there a PC that can just be power cycled? Are there ritualistic candles that must stay lit? Other such common solutions.
+https://forms.gle/T7bZtZKa1cSJ7j3ZA
+
 
 ### Indie Green Room, Discussion Groups, and Press
 
@@ -46,7 +52,7 @@ After last year's success, we will once again have an indie green room suite out
 
 If you're interested in using the suite, we'd love to put your event on our schedule! Some examples of how the space has been used in the past: An accessibility in alt.ctrl hardware discussion; a work-in-progress games show and tell; interviews for game dev academic research; press/podcast interviews; etc. 
 
-If you are interested in leading a discussion or event in the suite, please would like us to reach out to, please fill out the [Suite Content Form](https://forms.gle/k41vRSF2QSpwkrG87). Additionally, if you would like to put any press in contact with us, please email (or have them email) indies@magfest.org. 
+If you are interested in leading a discussion or event in the suite, please would like us to reach out to, please fill out the Suite Content Form: https://forms.gle/k41vRSF2QSpwkrG87. Additionally, if you would like to put any press in contact with us, please email (or have them email) indies@magfest.org. 
 
 We'll be building out the schedule of events over the next month! Can't wait to see what you all dream up.
 
