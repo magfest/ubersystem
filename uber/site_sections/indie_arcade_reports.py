@@ -23,10 +23,11 @@ class Root:
             'Photo Links', 'Average Score', 'Individual Scores'
         ])
         for game in session.indie_games().filter(IndieGame.showcase_type == c.INDIE_ARCADE):
+            full_name = game.primary_contact.full_name if game.primary_contact else 'No Primary Contact'
+            email = game.primary_contact.email if game.primary_contact else 'N/A'
             out.writerow([
                 game.title, game.studio.name, '{}/showcase/index?id={}'.format(c.PATH, game.studio.id),
-                game.studio.website, game.studio.other_links,
-                game.primary_contact.full_name, game.primary_contact.email,
+                game.studio.website, game.studio.other_links, full_name, email,
                 game.description, game.link_to_video,
                 game.game_hours +(f': {game.game_hours_text}' if game.game_hours == 'Other' else ''),
                 game.game_end_time, game.player_count,

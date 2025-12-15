@@ -24,10 +24,11 @@ class Root:
             'Screenshot Links', 'Average Score', 'Individual Scores'
         ])
         for game in session.indie_games().filter(IndieGame.showcase_type == c.INDIE_RETRO):
+            full_name = game.primary_contact.full_name if game.primary_contact else 'No Primary Contact'
+            email = game.primary_contact.email if game.primary_contact else 'N/A'
             out.writerow([
                 game.title, game.studio.name, '{}/showcase/index?id={}'.format(c.PATH, game.studio.id),
-                game.studio.website, game.studio.other_links,
-                game.primary_contact.full_name, game.primary_contact.email,
+                game.studio.website, game.studio.other_links, full_name, email,
                 game.brief_description, game.publisher_name,
                 ' / '.join(game.genres_labels) + (f'{' / ' if game.genres else ''}Other: {game.genres_text}' if game.genres_text else ''),
                 ' / '.join(game.platforms_labels) + (f'{' / ' if game.platforms else ''}Other: {game.platforms_text}' if game.platforms_text else ''),
