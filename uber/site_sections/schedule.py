@@ -58,7 +58,7 @@ class Root:
 
         for location in locations:
             for event in session.query(Event)\
-                    .filter_by(location_id=location.id)\
+                    .filter_by(event_location_id=location)\
                     .order_by('start_time').all():
                 icalendar.events.add(ics.Event(
                     name=event.name,
