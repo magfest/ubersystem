@@ -220,7 +220,7 @@ class IndieStudio(MagModel):
     def training_status(self):
         if self.training_password:
             return "Completed" if self.training_password.lower() == c.MIVS_TRAINING_PASSWORD.lower()\
-                else "Entered the wrong phrase!"
+                else f"Entered the wrong phrase! ({self.training_password})"
 
     @property
     def selling_at_event_status(self):

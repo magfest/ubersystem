@@ -67,7 +67,7 @@ class Root:
 
     @csv_file
     def checklist_info_csv(self, out, session):
-        header_row = ['Studio']
+        header_row = ['Studio', 'Showcase(s)']
         for key, val in c.MIVS_CHECKLIST.items():
             header_row.append(val['name'])
             header_row.append('Past Due?')
@@ -75,15 +75,43 @@ class Root:
 
         for studio in session.query(IndieStudio).join(IndieStudio.group
                                                       ).join(Group.guest).filter(GuestGroup.group_type == c.MIVS):
-            row = [studio.name]
+            showcases = set([game.showcase_type_label for game in studio.games])
+            row = [studio.name, ' / '.join(showcases)]
             for key, val in c.MIVS_CHECKLIST.items():
+                not_complete = getattr(studio, key + "_status", None) is None
                 row.extend([
-                    'Not Completed' if getattr(studio, key + "_status", None) is None
+                    'Not Completed' if not_complete
                     else getattr(studio, key + "_status"),
-                    'No' if localized_now() <= studio.checklist_deadline(key)
+                    'No' if localized_now() <= studio.checklist_deadline(key) or not not_complete
                     else humanize_timedelta(studio.past_checklist_deadline(key), granularity='hours'),
                 ])
             out.writerow(row)
+
+    @csv_file
+    def show_info_csv(self, out, session):
+        out.writerow(['Studio', 'Game', 'Showcase', 'Promo Image 1', 'Promo Image 2', 'Guidebook Header', 'Guidebook Thumbnail',
+                      'Brief Description', 'Full Description', 'Gameplay Video', 'Website', 'Steam Page',
+                      'Other Social Media', 'Studio Contact Phone #'])
+        for studio in session.query(IndieStudio).join(IndieStudio.group
+                                                      ).join(Group.guest).filter(GuestGroup.group_type == c.MIVS):
+            for game in studio.confirmed_games:
+                promo_1_url, promo_2_url, header_url, thumbnail_url = '', '', '', '',
+                image_url = c.URL_BASE + "/showcase/view_image?id={}"
+                promo_images = game.best_images
+                if promo_images:
+                    promo_1_url = image_url.format(promo_images[0].id)
+                    if len(promo_images) > 1:
+                        promo_2_url = image_url.format(promo_images[1].id)
+                if game.guidebook_header:
+                    header_url = image_url.format(game.guidebook_header.id)
+                if game.guidebook_thumbnail:
+                    thumbnail_url = image_url.format(game.guidebook_thumbnail.id)
+
+                out.writerow([
+                    studio.name, game.title, game.showcase_type_label, promo_1_url, promo_2_url, header_url, thumbnail_url,
+                    game.brief_description, game.description, game.link_to_promo_video, game.link_to_webpage,
+                    game.link_to_store, game.other_social_media, studio.contact_phone
+                ])
 
     @csv_file
     def discussion_group_emails(self, out, session):
@@ -108,7 +136,7 @@ class Root:
                                                     IndieGame.status == c.ACCEPTED):
             screenshots = game.accepted_image_download_filenames()
             rows.append([
-                game.studio.name, game.studio.website, game.studio.other_links,
+                game.studio.name, game.studio.website, ' / '.join(game.studio.other_links.split(',')),
                 game.title, game.brief_description,
                 game.link_to_video, game.link_to_game,
                 screenshots[0], screenshots[1]
@@ -116,8 +144,8 @@ class Root:
 
         header_row = [
             'Studio', 'Studio Website', 'Other Links',
-            'Game Title', 'Description', 'Website',
-            'Link to Promo Video', 'Link to Video for Judging', 'Link to Game',
+            'Game Title', 'Description',
+            'Link to Promo Video', 'Link to Game',
             'Screenshot 1', 'Screenshot 2']
         out.writerows(header_row, rows)
 
