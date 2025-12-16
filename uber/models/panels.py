@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 
 from pytz import UTC
@@ -122,6 +123,16 @@ class Event(MagModel):
         from uber.utils import normalize_newlines
 
         description = self.public_description or self.description
+        tracks = self.tracks_labels
+        panel_tracks = set()
+        for app in self.applications:
+            potential_tracks = app.granular_rating_ints + [app.noise_level] + [app.presentation]
+            for track in potential_tracks:
+                label = c.EVENT_TRACKS.get(track, None)
+                if label:
+                    panel_tracks.add(label)
+        
+        tracks = list(set(tracks) | panel_tracks)
 
         return {
             'name': self.name,
@@ -130,8 +141,8 @@ class Event(MagModel):
             'end_date': self.end_time_local.strftime('%m/%d/%Y'),
             'end_time': self.end_time_local.strftime('%I:%M %p'),
             'location': self.location_name,
-            'track': '; '.join(self.tracks_labels),
-            'description': description,
+            'track': '; '.join(tracks),
+            'description': normalize_newlines(description),
             }
 
     @property
@@ -225,6 +236,10 @@ class PanelApplication(MagModel):
         description = self.public_description or self.description
         panelist_creds = []
 
+        existing_panelist_creds = re.search('\\nPanelists: .*$', description)
+        if existing_panelist_creds:
+            return
+
         def generate_creds(p):
             text = p.display_name
             if p.occupation or p.website:
@@ -241,8 +256,9 @@ class PanelApplication(MagModel):
         for panelist in [a for a in self.other_panelists if a.display_name]:
             panelist_creds.append(generate_creds(panelist))
         
-        description += f"\n\nPanelists: {' | '.join(panelist_creds)}"
-        self.public_description = description
+        if panelist_creds:
+            description += f"\n\nPanelists: {' | '.join(panelist_creds)}"
+            self.public_description = description
     
     @presave_adjustment
     def set_dept_name(self):
