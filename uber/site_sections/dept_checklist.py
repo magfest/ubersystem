@@ -336,6 +336,23 @@ class Root:
 
         return {"success": True}
     
+    @csv_file
+    def bulk_print_jobs_csv(self, out, session):
+        requests = session.query(BulkPrintingRequest, Department.name).join(
+            Department, BulkPrintingRequest.department_id == Department.id).order_by(Department.name)
+        out.writerow([
+            "Department", "Document Link", "# Copies", "Print Orientation", "Cut Orientation", "Color/B&W",
+            "Paper Type", "Print Size", "Double-Sided?", "Stapled?", "Required?", "Notes"
+        ])
+        for request, dept_name in requests:
+            paper_type = f"Custom: {request.paper_type_text}" if request.paper_type == c.CUSTOM else request.paper_type_label
+            print_size = f"Custom: {request.size_text}" if request.size == c.CUSTOM else request.size_label
+            out.writerow([
+                dept_name, request.link, request.copies, request.print_orientation_label, request.cut_orientation_label,
+                request.color_label, paper_type, print_size, request.double_sided, request.stapled, request.required,
+                request.notes
+            ])
+    
     @department_id_adapter
     def delete_print_request(self, session, id, department_id=None, **params):
         request = session.bulk_printing_request(id)

@@ -3,7 +3,14 @@
 {% block content %}
 
 <h2>Department Checklist: {{ conf.name }}
-  <a class="btn btn-info" href="item_csv?slug={{ conf.slug }}"><i class="fa fa-download"></i> Download CSV</a>
+<small>
+{% if conf.export_path %}
+  <a href="{{ conf.export_path }}"><i class="fa fa-download"></i> Download CSV</a> |
+  <a href="item_csv?slug={{ conf.slug }}"><i class="fa fa-download"></i> Download Status Overview</a>
+  {% else %}
+  <a href="item_csv?slug={{ conf.slug }}"><i class="fa fa-download"></i> Download CSV</a>
+{% endif %}
+</small>
 </h2>
 
 {{ conf.description }}

@@ -1091,7 +1091,7 @@ class DeptChecklistConf(Registry):
     instances = OrderedDict()
 
     def __init__(self, slug, description, deadline, full_description='', name=None, path=None,
-                 email_post_con=False, external_form_url='', **kwargs):
+                 email_post_con=False, external_form_url='', export_path='', **kwargs):
         assert re.match('^[a-z0-9_]+$', slug), \
             'Dept Head checklist item sections must have separated_by_underscore names'
 
@@ -1099,6 +1099,7 @@ class DeptChecklistConf(Registry):
         self.full_description, self.external_form_url = full_description, external_form_url
         self.name = name or slug.replace('_', ' ').title()
         self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
+        self.export_path = export_path or ''
         self.email_post_con = bool(email_post_con)
         self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
