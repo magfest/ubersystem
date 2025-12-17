@@ -220,7 +220,7 @@ class Root:
             sample_tracks = params.get('sample_tracks', [])
             if isinstance(sample_tracks, cherrypy._cpreqbody.Part):
                 sample_tracks = [sample_tracks]
-            if len(guest.sample_tracks) + len(sample_tracks) > 8:
+            if len(guest.tracks) + len(sample_tracks) > 8:
                 message = "Please upload no more than eight sample tracks total."
             else:
                 try:
