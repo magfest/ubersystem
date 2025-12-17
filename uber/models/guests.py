@@ -261,8 +261,13 @@ class GuestGroup(MagModel):
     
     @property
     def guidebook_data(self):
+        name = self.group.name if self.group else ''
+        brackets = re.match(r'^\[.*\] ', name)
+        if brackets:
+            name = name[len(brackets[0]):]
+
         return {
-            'guidebook_name': self.group.name if self.group else '',
+            'guidebook_name': name,
             'guidebook_subtitle': self.group_type_label,
             'guidebook_desc': self.bio.desc if self.bio else '',
             'guidebook_location': '',

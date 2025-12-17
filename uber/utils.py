@@ -688,6 +688,12 @@ class GuidebookUtils():
         elif '_guest' in selected_model:
             model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.images)
             stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+        elif '_arena' in selected_model:
+            model_query = model_query.filter_by(group_type=c.ARENA).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+        elif '_sidestage' in selected_model:
+            model_query = model_query.filter_by(group_type=c.SIDE_STAGE).outerjoin(model_cls.images)
+            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
         elif '_dealer' in selected_model:
             model_query = model_query.filter(model_cls.status.in_([c.APPROVED])).filter_by(is_dealer=True)
         elif 'IndieGame' in selected_model:

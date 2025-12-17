@@ -2049,7 +2049,9 @@ c.DEALER_ACCEPTED_STATUSES = [c.APPROVED, c.SHARED] if c.ALLOW_SHARED_TABLES els
 # A list of models that have properties defined for exporting for Guidebook
 c.GUIDEBOOK_MODELS = [
     ('GuestGroup_guest', 'Guest'),
+    ('GuestGroup_arena', 'Arena'),
     ('GuestGroup_band', 'Band'),
+    ('GuestGroup_sidestage', 'Side Stage'),
     ('MITSGame', 'MITS'),
     ('IndieGame', 'MIVS'),
     ('Group_dealer', 'Marketplace'),
