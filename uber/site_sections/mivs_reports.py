@@ -6,7 +6,7 @@ from uber.config import c
 from uber.custom_tags import humanize_timedelta
 from uber.decorators import all_renderable, csv_file, multifile_zipfile, xlsx_file
 from uber.models import Group, IndieGame, IndieJudge, IndieStudio, GuestGroup
-from uber.utils import localized_now
+from uber.utils import localized_now, normalize_newlines
 
 
 @all_renderable()
@@ -109,7 +109,7 @@ class Root:
 
                 out.writerow([
                     studio.name, game.title, game.showcase_type_label, promo_1_url, promo_2_url, header_url, thumbnail_url,
-                    game.brief_description, game.description, game.link_to_promo_video, game.link_to_webpage,
+                    game.brief_description, normalize_newlines(game.description), game.link_to_promo_video, game.link_to_webpage,
                     game.link_to_store, game.other_social_media, studio.contact_phone
                 ])
 
