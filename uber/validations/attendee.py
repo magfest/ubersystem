@@ -212,7 +212,7 @@ def shirt_size_sold_out(form, field):
 
 @BadgeExtras.new_or_changed('amount_extra')
 def upgrade_sold_out(form, field):
-    if form.is_admin and not c.AT_THE_CON: # Temp
+    if form.is_admin:
         return
 
     if field.data and field.data in c.SOLD_OUT_MERCH_TIERS:
