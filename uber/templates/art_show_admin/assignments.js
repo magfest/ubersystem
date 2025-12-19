@@ -494,8 +494,8 @@ class showMap {
         }
 
         // Hide the face selectors that will be used to manually assign artists.
-        $(face_selectoorigin).hide();
-        $(face_selectoterminus).hide();
+        //$(face_selectoorigin).hide();
+        //$(face_selectoterminus).hide();
 
         if(this.panels.hasOwnProperty(p_id)) {
             // Panel exists. So instead of adding it, delete it.
@@ -700,18 +700,18 @@ class panelLogic {
             let artist_unassigned = artist.needed - artist_assigned;
             if (artist_assigned > 0) {
                 if(artist_assigned === 1) {
-                    assigned.push([k,artist_name + " ("+artist_assigned+" panel)"]);
+                    assigned.push([k,artist_name + " ("+artist_assigned+" {{ panels_or_tables }})"+artist.extra_info]);
                 }
                 else {
-                    assigned.push([k,artist_name + " ("+artist_assigned+" panels)"]);
+                    assigned.push([k,artist_name + " ("+artist_assigned+" {{ panels_or_tables }}s)"+artist.extra_info]);
                 }
             }
             if (artist_unassigned>0) {
                 if(artist_unassigned===1) {
-                    unassigned.push([k,artist_name + " ("+artist_unassigned+" panel)"]);
+                    unassigned.push([k,artist_name + " ("+artist_unassigned+" {{ panels_or_tables }})"+artist.extra_info]);
                 }
                 else {
-                    unassigned.push([k,artist_name + " ("+artist_unassigned+" panels)"]);
+                    unassigned.push([k,artist_name + " ("+artist_unassigned+" {{ panels_or_tables }}s)"+artist.extra_info]);
                 }
             }
         }
@@ -750,6 +750,12 @@ class panelLogic {
     }
     shadeSection(id,type="section") {
         // Type could also be artist or face
+        if(this.map.labels===true) {
+            this.shadeLabels(id);
+            return;
+        }
+
+
         let rm = {
             "l":"border-left-color",
             "r":"border-right-color",
@@ -799,8 +805,61 @@ class panelLogic {
         }
         
     }
+	shadeLabels(id="") {
+		/*
+
+		1. Go over all panels.
+		2. Check to see which sides they have.
+		3. Check whether those sides have a valid label and shade accordingly.
+        4. Shade the selected label, if any, in particular
+		
+		*/ 
+        console.log(id);
+        let pm = this.map.panels;
+        let rm = {
+            "l":"border-left-color",
+            "r":"border-right-color",
+            "u":"border-top-color",
+            "d":"border-bottom-color"
+        }
+        let labels = {
+            "v":{
+                "b":["l","r"],
+                "l":["l"],
+                "r":["r"]
+            },
+            "h":{
+                "b":["u","d"],
+                "u":["u"],
+                "d":["d"]
+            }
+        }
+        for(let k in pm) {
+            let pnl = pm[k];
+            let use_obj = pnl.use_obj;
+            let potential_labels = labels[pnl.t][pnl.u];
+            for(let l of potential_labels) {
+                let rmid = ""+rm[l];
+                let color = "var(--inner-border-color)";
+                if(pnl.labels.hasOwnProperty(l)) {
+                    if(pnl.labels[l]!=="") {
+                        color = "var(--section-border)";
+                    }
+                }
+                if(id===k+"|"+l) {
+                    color = "var(--selected-artist)";
+                }
+                $(use_obj).css(rmid,color);
+            }
+        }
+    }
     shadeByUse(artist_id=false) {
         //console.log("shade by use")
+		if(this.map.labels===true) {
+			// if in labels mode, skip this means of assigning colors
+			this.shadeLabels();
+			return;
+		}
         this.face_assignments = {}; // Reset the face assignment chart.
         let rm = {
             "l":"border-left-color",
@@ -853,7 +912,7 @@ class panelLogic {
             if(pm.panels.hasOwnProperty(p_id)) {
                 let kv = $(pm.panels[p_id].use_obj);
                 let rmid = pm.panels[p_id].u;
-                if(rmid==="b") {
+                if(rmid === "b") {
                     if(pm.panels[p_id].t==="v") {
                         // Vertical, so "b" means both left and right
                         $(kv).css("border-left-color","var(--created-border)");
@@ -864,7 +923,7 @@ class panelLogic {
                         $(kv).css("border-bottom-color","var(--created-border)");
                     }
                 }
-                else {
+                else if(rmid !== "n") {
                     rmid = rm[rmid];
                     $(kv).css(rmid,"var(--created-border)");
                 }
@@ -1671,6 +1730,7 @@ class serialize {
                 dataType: 'json',
                 data: {
                     gallery: {{ gallery }},
+                    surface_type: {{ surface_type }},
                     csrf_token: csrf_token,
                     panels: JSON.stringify(panel_layout),
                     assignments: JSON.stringify(serializableArtists),
@@ -1900,7 +1960,7 @@ class panHandler {
     }
     move(pos) {
         let m = this.map.allocator.map_dom;
-        if(this.start !== false && this.map.zoom > 1) {
+        if(this.start !== false) {
             // Determine the offsets from the original event.
             let dx = pos.x - this.start.x;// - pos.x;
             let dy = pos.y - this.start.y;// - pos.y;

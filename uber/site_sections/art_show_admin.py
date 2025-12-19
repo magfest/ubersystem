@@ -18,7 +18,7 @@ from io import BytesIO
 
 from uber.config import c
 from uber.custom_tags import format_currency, readable_join
-from uber.decorators import ajax, all_renderable, credit_card, public
+from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, ArtShowPanel, \
@@ -156,14 +156,15 @@ class Root:
         found_piece, found_bidder = None, None
 
         if piece_code:
+            piece_code = piece_code.strip()
             if len(piece_code.split('-')) != 2:
-                message = 'Please enter just one piece code.'
+                message = 'ERROR: Please enter just one piece code.'
             else:
                 artist_id, piece_id = piece_code.split('-')
                 try:
                     piece_id = int(piece_id)
                 except Exception:
-                    message = 'Please use the format XXX-# for the piece code.'
+                    message = 'ERROR: Please use the format XXX-# for the piece code.'
 
             if not message:
                 piece = session.query(ArtShowPiece).join(ArtShowPiece.app).filter(
@@ -172,18 +173,18 @@ class Root:
                     ArtShowPiece.piece_id == piece_id
                 )
                 if not piece.count():
-                    message = 'Could not find piece with code {}.'.format(piece_code)
+                    message = 'ERROR: Could not find piece with code {}.'.format(piece_code)
                 elif piece.count() > 1:
-                    message = 'Multiple pieces matched the code you entered for some reason.'
+                    message = 'ERROR: Multiple pieces matched the code you entered for some reason.'
                 else:
                     found_piece = piece.one()
 
         if found_piece and cherrypy.request.method == 'POST':
             action = params.get('action', '')
             if action in ['set_winner', 'voice_auction'] and not found_piece.valid_for_sale:
-                message = "This piece is not for sale and cannot have any bids."
+                message = "ERROR: This piece is not for sale and cannot have any bids."
             elif action != 'get_info' and found_piece.status in [c.PAID, c.RETURN]:
-                message = "You cannot close out a piece that has been marked as paid for or returned to artist."
+                message = "ERROR: You cannot close out a piece that has been marked as paid for or returned to artist."
             elif action == 'voice_auction':
                 found_piece.status = c.VOICE_AUCTION
                 session.add(found_piece)
@@ -192,7 +193,7 @@ class Root:
                 found_piece.winning_bidder_id = None
                 if found_piece.valid_quick_sale:
                     found_piece.status = c.QUICK_SALE
-                    message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for {format_currency(found_piece.quick_sale_price)}."
+                    message = f"ERROR: Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for {format_currency(found_piece.quick_sale_price)}."
                 else:
                     found_piece.status = c.RETURN
                 session.add(found_piece)
@@ -202,23 +203,49 @@ class Root:
                 found_piece.history = session.query(Tracking).filter_by(fk_id=found_piece.id)
             elif action == 'set_winner':
                 if not bidder_num:
-                    message = "Please enter the winning bidder number."
+                    message = "ERROR: Please enter the winning bidder number."
                 elif not winning_bid:
-                    message = "Please enter a winning bid."
+                    message = "ERROR: Please enter a winning bid."
                 elif not winning_bid.isdigit():
-                    message = "Please enter only numbers for the winning bid."
+                    message = "ERROR: Please enter only numbers for the winning bid."
                 elif int(winning_bid) < found_piece.opening_bid:
-                    message = f'The winning bid ({format_currency(winning_bid)}) cannot be less than the minimum bid ({format_currency(found_piece.opening_bid)}).'
+                    message = f'ERROR: The winning bid ({format_currency(winning_bid)}) cannot be less than the minimum bid ({format_currency(found_piece.opening_bid)}).'
                 else:
-                    bidder = session.query(ArtShowBidder).filter(ArtShowBidder.bidder_num.ilike(bidder_num))
+                    bidder_num = bidder_num.strip()
+                    if re.match(r'^[a-zA-Z]-[0-9]+', bidder_num):
+                        bidder = session.query(ArtShowBidder).filter(ArtShowBidder.bidder_num.ilike(bidder_num))
+                        if not bidder.count():
+                            bidder = session.query(ArtShowBidder).filter(
+                                ArtShowBidder.bidder_num_stripped == ArtShowBidder.strip_bidder_num(bidder_num))
+                    else:
+                        try:
+                            badge_num = int(bidder_num)
+                        except Exception:
+                            message = "ERROR: Please enter a bidder number (X-###) or badge number."
+                        else:
+                            attendee = session.query(Attendee).join(BadgeInfo).filter(
+                                BadgeInfo.ident == badge_num)
+                        if not message:
+                            if not attendee.count():
+                                message = f'ERROR: Could not find attendee with badge number {badge_num}.'
+                            elif attendee.count() > 1:
+                                message = f'ERROR: Somehow we found multiple attendees with badge number {badge_num}.'
+                            else:
+                                found_bidder = attendee.one().art_show_bidder
+                                if not found_bidder:
+                                    message = f'ERROR: Attendee with badge number {badge_num} did not sign up for bidding.'
+                if not message and not found_bidder:
                     if not bidder.count():
-                        message = 'Could not find bidder with number {}.'.format(bidder_num)
+                        message = 'ERROR: Could not find bidder with number {}.'.format(bidder_num)
                     elif bidder.count() > 1:
-                        message = 'Multiple bidders matched the number you entered for some reason.'
+                        message = 'ERROR: Multiple bidders matched the number you entered for some reason.'
                     else:
                         found_bidder = bidder.one()
-                        if not found_bidder.attendee:
-                            message = "This bidder number does not have an attendee attached so we cannot sell anything to them."
+                        if found_bidder.bidder_num[:1].lower() != bidder_num[:1].lower():
+                            message = f"ERROR: Bidder number {ArtShowBidder.strip_bidder_num(bidder_num)} belongs to bidder {found_bidder.bidder_num}, \
+                                but you entered {bidder_num}. Re-enter the correct bidder number if you're sure this is the right bidder."
+                        elif not found_bidder.attendee:
+                            message = "ERROR: This bidder number does not have an attendee attached so we cannot sell anything to them."
 
                 if found_bidder and not message:
                     if not found_bidder.attendee.art_show_receipt:
@@ -238,11 +265,14 @@ class Root:
                             bidder_name = f"{found_bidder.attendee.badge_printed_name} ({found_bidder.attendee.full_name})"
                         else:
                             bidder_name = f"{found_bidder.attendee.full_name}"
-                        message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for {format_currency(winning_bid)} to {bidder_num}, {bidder_name}."
+                        message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label} for \
+                            {format_currency(winning_bid)} to {found_bidder.bidder_num}, {bidder_name}."
+                        piece_code, bidder_num, winning_bid = '', '', ''
                         session.commit()
 
             if not message:
                 session.commit()
+                piece_code, bidder_num, winning_bid = '', '', ''
                 message = f"Piece {found_piece.artist_and_piece_id} set to {found_piece.status_label}."
 
         return {
@@ -253,7 +283,8 @@ class Root:
             'piece': found_piece if params.get('action', '') == 'get_info' else None,
         }
 
-    def artist_check_in_out(self, session, checkout=False, hanging=False, message='', page=1, search_text='', order='first_name'):
+    def artist_check_in_out(self, session, checkout=False, hanging=False, mailin=False,
+                            message='', page=1, search_text='', order='first_name'):
         filters = [ArtShowApplication.status == c.APPROVED]
         if checkout:
             filters.append(ArtShowApplication.checked_in != None)  # noqa: E711
@@ -262,6 +293,8 @@ class Root:
 
         if hanging:
             filters.append(ArtShowApplication.art_show_pieces.any(ArtShowPiece.status == c.HANGING))
+        if mailin:
+            filters.append(ArtShowApplication.delivery_method == c.BY_MAIL)
 
         search_text = search_text.strip()
         search_filters = []
@@ -318,6 +351,7 @@ class Root:
             'order': Order(order),
             'checkout': checkout,
             'hanging': hanging,
+            'mailin': mailin,
         }
 
     @public
@@ -508,55 +542,122 @@ class Root:
             'apps': valid_apps,
             'message': message,
         }
+    
+    @ajax
+    def unassign_location(self, session, id, remove_space='', message='', **params):
+        assignment = session.art_panel_assignment(id)
+        message = f"Location {assignment.label} unassigned"
 
-    def assignment_map(self, session, message='', gallery=c.GENERAL, **params):
+        if assignment.panel.gallery == c.MATURE:
+            message += f" from artist {assignment.app.mature_display_name}"
+        else:
+            message += f" from artist {assignment.app.display_name}"
+
+        if remove_space:
+            attr = 'panels' if assignment.panel.surface_type == c.PANEL else 'tables'
+            if assignment.panel.gallery == c.MATURE:
+                attr += '_ad'
+            app = assignment.app
+            requested_space = getattr(app, attr, 0)
+            if requested_space > 0:
+                setattr(app, attr, requested_space - 1)
+                message += f" and requested {assignment.panel.gallery_label.lower()} {assignment.panel.surface_type_label.lower()} space removed"
+                session.add(app)
+            else:
+                message += f" but the artist did not have any {assignment.panel.gallery_label.lower()} {assignment.panel.surface_type_label.lower()} spaces to remove"
+
+        session.delete(assignment)
+        session.commit()
+        return {'success': True, 'message': f"{message}."}
+
+    def assignment_map(self, session, message='', gallery=c.GENERAL, surface_type=c.PANEL, **params):
         gallery = int(gallery)
+        surface_type = int(surface_type)
+        desired_count = 0
+        panels_count = 0
+        panels_json = []
+        artists_json = []
+        valid_panel_ids = []
 
         valid_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED)
-        panels = session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery).all()
-        panels_json = [panel.panel_json for panel in panels]
-        artists_json = []
+        panels = session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.surface_type == surface_type)
+
+        for panel in panels:
+            panels_json.append(panel.panel_json)
+            valid_panel_ids.append(panel.id)
+            if panel.assignable_sides == c.BOTH:
+                panels_count += 2
+            elif panel.assignable_sides != c.NEITHER:
+                panels_count += 1
+
+        assigned_count = session.query(ArtPanelAssignment.id).filter(ArtPanelAssignment.panel_id.in_(valid_panel_ids)).count()
 
         def build_artist_json(artist, display_name, panels, assignments):
-            json = {'id': artist.id, 'name': display_name, 'needed': panels}
+            extra_info = ""
+            if artist.checked_in:
+                extra_info += " - Checked In"
+            elif any([piece for piece in artist.art_show_pieces if piece.status == c.HANGING]):
+                extra_info += " - Hanging"
+            if artist.get_printable_locations(gallery):
+                extra_info += f" - {artist.get_printable_locations(gallery)}"
+
+            json = {'id': artist.id, 'name': display_name, 'needed': panels, 'extra_info': extra_info}
             if assignments:
                 json['assignments'] = []
                 json['manual'] = []
                 for assignment in assignments:
                     a_json = assignment.assignment_str
                     json['assignments'].append(a_json)
-                    if assignment.manual:
-                        json['manual'].append(a_json)
+                    json['manual'].append(a_json)
             return json
 
         if gallery == c.GENERAL:
-            artists = valid_apps.filter(ArtShowApplication.panels > 0)
-            for artist in artists:
-                artists_json.append(build_artist_json(artist, artist.display_name,
-                                                      artist.panels, artist.general_assignments))
+            display_name = 'display_name'
+            if surface_type == c.PANEL:
+                artists = valid_apps.filter(ArtShowApplication.panels > 0)
+                panels_or_tables = 'panels'
+                assignments = 'general_panel_assignments'
+            else:
+                artists = valid_apps.filter(ArtShowApplication.tables > 0)
+                panels_or_tables = 'tables'
+                assignments = 'general_table_assignments'
         else:
-            artists = valid_apps.filter(ArtShowApplication.panels_ad > 0)
-            for artist in artists:
-                artists_json.append(build_artist_json(artist, artist.mature_display_name,
-                                                      artist.panels_ad, artist.mature_assignments))
-        
-        if cherrypy.request.method == 'POST':
-            pass
+            display_name = 'mature_display_name'
+            if surface_type == c.PANEL:
+                artists = valid_apps.filter(ArtShowApplication.panels_ad > 0)
+                panels_or_tables = 'panels_ad'
+                assignments = 'mature_panel_assignments'
+            else:
+                artists = valid_apps.filter(ArtShowApplication.tables_ad > 0)
+                panels_or_tables = 'tables_ad'
+                assignments = 'mature_table_assignments'
+
+        for artist in artists:
+            requested_space = getattr(artist, panels_or_tables, 0)
+            current_assignments = getattr(artist, assignments, [])
+            desired_count += max(0, (requested_space - len(current_assignments)))
+            artists_json.append(build_artist_json(artist, getattr(artist, display_name, ''), requested_space, current_assignments))
 
         return {
             'apps': valid_apps,
             'panels_json': panels_json,
             'artists_json': artists_json,
+            'panels_or_tables': "panel" if surface_type == c.PANEL else "table",
             'message': message,
             'gallery': gallery,
+            'surface_type': surface_type,
+            'panels_count': panels_count,
+            'assigned_count': assigned_count,
+            'desired_count': desired_count,
         }
     
-    @ajax
-    def save_map(self, session, gallery, panels, assignments):
+    @ajax_gettable
+    def save_map(self, session, gallery, surface_type, panels, assignments, **params):
         panels = json.loads(panels)
         assignments = json.loads(assignments)
         assignments_by_panel = {}
         gallery = int(gallery)
+        surface_type = int(surface_type)
 
         def translate_usability(usability_str):
             if usability_str == 'b':
@@ -589,7 +690,8 @@ class Root:
 
         # Update/remove existing panel assignments
         for assignment in session.query(ArtPanelAssignment).join(ArtPanelAssignment.panel
-                                        ).filter(ArtShowPanel.gallery == gallery).options(contains_eager(ArtPanelAssignment.panel)):
+                                        ).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.surface_type == surface_type
+                                                 ).options(contains_eager(ArtPanelAssignment.panel)):
             panel_json_str = f"{assignment.panel.origin_x}_{assignment.panel.origin_y}|{assignment.panel.terminus_x}_{assignment.panel.terminus_y}"
             json_str = f"{panel_json_str}|{assignment.assigned_side}"
             # We might have assignments uploaded with no corresponding panels
@@ -610,7 +712,7 @@ class Root:
                 session.delete(assignment)
 
         # Update/remove panels
-        for panel in session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery):
+        for panel in session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.surface_type == surface_type):
             json_str = f"{panel.origin_x}_{panel.origin_y}|{panel.terminus_x}_{panel.terminus_y}"
             if json_str in panels:
                 existing_panel_info = panels.pop(json_str)
@@ -642,14 +744,14 @@ class Root:
             
             start_label = panel_info['labels'].get('u', panel_info['labels'].get('l', ''))
             end_label = panel_info['labels'].get('d', panel_info['labels'].get('r', ''))
-            new_panel = ArtShowPanel(gallery=gallery, origin_x=origin_x, origin_y=origin_y,
+            new_panel = ArtShowPanel(gallery=gallery, surface_type=surface_type, origin_x=origin_x, origin_y=origin_y,
                                      terminus_x=terminus_x, terminus_y=terminus_y,
                                      assignable_sides=usability, start_label=start_label, end_label=end_label)
             session.add(new_panel)
             check_new_assignments(origin, terminus, new_panel)
 
         session.commit()
-        return {'success': True, 'message': f"{c.ART_PIECE_GALLERYS[gallery]} assignments updated."}
+        return {'success': True, 'message': f"{c.ART_PIECE_GALLERYS[gallery]} {c.ART_SHOW_PANEL_TYPES[surface_type]} assignments updated."}
 
 
     @public
@@ -779,7 +881,8 @@ class Root:
             message = 'No matches found'
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
-        attendees = attendees[-100 + 100*page: 100*page]
+        if search_text:
+            attendees = attendees[-100 + 100*page: 100*page]
 
         return {
             'message':        message,
@@ -903,7 +1006,7 @@ class Root:
                     raise HTTPRedirect('sales_search?message={}', 'Please search by bidder number or badge number.')
                 else:
                     filters.append(or_(BadgeInfo.ident == badge_num))
-                attendees = session.query(Attendee).join(BadgeInfo).filter(*filters)
+                attendees = session.query(Attendee).filter(*filters)
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_receipts)
 
@@ -961,7 +1064,7 @@ class Root:
             .filter_by(reg_station_id=reg_station_id or -1).first()
 
         if search_text:
-            if re.match(r'^[a-zA-Z]-[0-9]+', search_text):
+            if re.match(r'^[a-zA-Z]+-[0-9]+', search_text):
                 artist_id, piece_id = search_text.split('-')
                 pieces = session.query(ArtShowPiece).join(ArtShowPiece.app).filter(
                     ArtShowPiece.piece_id == int(piece_id),
@@ -985,7 +1088,7 @@ class Root:
                     msg_piece = pieces.one()
                     if msg_piece.receipt == receipt:
                         message = "That piece ({}) is already on this receipt.".format(msg_piece.artist_and_piece_id)
-                    elif msg_piece.sale_price <= 0:
+                    elif not msg_piece.sale_price or msg_piece.sale_price <= 0:
                         message = "That piece ({}) doesn't have a valid sale price." \
                             .format(msg_piece.artist_and_piece_id)
                     elif msg_piece.status == c.RETURN:
@@ -1267,7 +1370,8 @@ class Root:
                                     model_id=model_id,
                                     description=description,
                                     use_account_info=False,
-                                    amount=amount)
+                                    amount=amount,
+                                    who=AdminAccount.admin_name())
         return {'success': True}
 
     @ajax
@@ -1293,7 +1397,7 @@ class Root:
 
     def paid_with_cash(self, session, id):
         if not cherrypy.session.get('reg_station'):
-            return {'success': False, 'message': 'You must set a workstation ID to take payments.'}
+            raise HTTPRedirect('form?id={}&message={}', id, 'You must set a workstation ID to take payments.')
 
         app = session.art_show_application(id)
         receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")

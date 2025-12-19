@@ -1,6 +1,10 @@
 import os
 import json
-secrets = json.loads(os.environ.get("SPIN_REST_SECRETS", "{}"))
+import re
+
+from uber.config import c
+
+secrets = json.loads(c.SPIN_REST_SECRETS)
 strings = secrets.get("strings", {})
 templates = secrets.get("templates", {})
 
@@ -29,7 +33,9 @@ def txn_status_request_dict(payment_type, ref_id):
         }
 
 def error_message_from_response(response_json):
-    return response_json[strings.get("gen_resp")].get(strings.get("det_msg"), response_json[strings.get("gen_resp")].get(strings.get("msg"), 'Unknown error.'))
+    status_code = response_json[strings.get("gen_resp")].get(strings.get("sts_code"), "")
+    detailed_message = response_json[strings.get("gen_resp")].get(strings.get("det_msg"), response_json[strings.get("gen_resp")].get(strings.get("msg"), 'Unknown error.'))
+    return f"{status_code}: {detailed_message}"
 
 def api_response_successful(response_json):
     return response_json[strings.get("gen_resp")].get(strings.get("res"), -1) == strings.get("res_success")
@@ -72,16 +78,24 @@ def no_retry_error(response_json):
     return error_message and error_message != strings.get("duplicate_error")
 
 def better_error_message(error_message, response, terminal_id, format_currency):
-    if error_message == strings.get("error_busy"):
+    status_code_message = re.match(r'^(\d+): (.*)$', error_message)
+    if status_code_message:
+        status_code = status_code_message[1]
+        message = status_code_message[2]
+    else:
+        status_code = None
+        message = error_message
+
+    if message == strings.get("error_busy"):
         return {'message': "The terminal is currently busy. Clear any prompts and try again."}
-    if error_message == strings.get("error_service"):
+    if message == strings.get("error_service"):
         return {'message': "The terminal is currently in bypass mode. Press the circle with an arrow curving around it to take it out of bypass mode."}
-    if error_message == strings.get("error_cancel"):
+    if message == strings.get("error_cancel") or str(status_code) == strings.get("sts_cancelled"):
         return {'message': "The transaction was cancelled on the terminal."}
-    if error_message == strings.get("error_partial"):
+    if message == strings.get("error_partial"):
         return {'message': f"{format_currency(response['Amounts']['TotalAmount'])} has been paid. Retry the payment to charge the remaining balance."}
-    if error_message == strings.get("error_register"):
-        return {'error': f'Register {terminal_id} not found'}
+    if message == strings.get("error_register"):
+        return {'error': f'Register {terminal_id} not found.'}
 
 def get_call_url(base_url, type=''):
     if type in secrets.get("lists", {}).get("call_url_types", []):

@@ -316,7 +316,8 @@ class Root:
                                     terminal_id=terminal_id,
                                     model_id=model_id,
                                     pickup_group_id=pickup_group_id,
-                                    description=description)
+                                    description=description,
+                                    who=AdminAccount.admin_name())
         return {'success': True}
 
     def check_txn_status(self, session, intent_id='', **params):

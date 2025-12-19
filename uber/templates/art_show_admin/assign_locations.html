@@ -43,7 +43,14 @@
       }
     });
   }
+
+  {% include 'art_show_admin/unassign_locations.js' %}
+
   $().ready(function () {
+    $('#assign-location-table').on('click', '.unassign-location', function() {
+      confirmUnassignLocation($(this).data('id'), $(this).data('label'))
+    });
+
     $('form[action="update_location"]').on('submit', function(event) {
       event.preventDefault();
       $.ajax({
@@ -70,11 +77,13 @@
 
 <h2>Artist Locations</h2>
 <p>
-  <a href="assignment_map" class="btn btn-primary">General Gallery Assignment Map</a>
-  <a href="assignment_map?gallery={{ c.MATURE }}" class="btn btn-primary">Mature Gallery Assignment Map</a>
+  <a href="assignment_map?gallery={{ c.GENERAL}}&surface_type={{ c.PANEL }}" class="btn btn-primary">General Panel Assignment Map</a>
+  <a href="assignment_map?gallery={{ c.GENERAL}}&surface_type={{ c.TABLE }}" class="btn btn-info">General Table Assignment Map</a>
+  <a href="assignment_map?gallery={{ c.MATURE }}&surface_type={{ c.PANEL }}" class="btn btn-primary">Mature Panel Assignment Map</a>
+  <a href="assignment_map?gallery={{ c.MATURE }}&surface_type={{ c.TABLE }}" class="btn btn-info">Mature Table Assignment Map</a>
 </p>
 <div class="card card-body">
-  <table class="table table-hover datatable">
+  <table class="table table-hover datatable" id="assign-location-table">
     <thead><tr>
         <th>Artist Name</th>
         <th>Real Name</th>
@@ -94,7 +103,11 @@
             <td>{{ app.tables }}</td>
             <td>{{ app.tables_ad }}</td>
             {% if c.USE_ASSIGNMENT_MAP %}
-            <td>{{ app.locations_or_assignments|join(' / ') }}</td>
+            <td>
+              {% for id, label in app.sorted_assignments %}
+              {{ label }} <a href="#" class="text-danger unassign-location" data-id="{{ id }}" data-label="{{ label }}"><i class="fa fa-remove"></i></a> {% if not loop.last %} / {% endif %}
+              {% endfor %}
+            </td>
             {% else %}
             <td>
               <input type="text" class="form-control" form="update_location_{{ app.id }}" name="locations" value="{{ app.locations }}" />

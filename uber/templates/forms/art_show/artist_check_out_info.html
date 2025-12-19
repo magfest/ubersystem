@@ -90,15 +90,15 @@
         {% for piece in app.art_show_pieces|sort(attribute='piece_id')|sort(attribute='gallery_label') %}
         {% set piece_check_in_out = piece_forms[piece.id]['piece_check_in_out'] %}
         <tr class="piece-row" data-piece_id="{{ piece.piece_id }}" x-data="{
-            opening_bid: {{ piece_check_in_out.opening_bid.data|tojson }},
-            quick_sale_price: {{ piece_check_in_out.quick_sale_price.data|tojson }},
-            get forSale() { return Boolean(parseInt(this.opening_bid)); },
-            get forQS() { return Boolean(parseInt(this.quick_sale_price)); },
+            opening_bid: {{ (piece_check_in_out.opening_bid.data or 0)|tojson if piece.for_sale else 0 }},
+            quick_sale_price: {{ (piece_check_in_out.quick_sale_price.data or 0)|tojson if not piece.no_quick_sale else 0 }},
+            get forSale() { return this.opening_bid == '' ? false : Boolean(parseInt(this.opening_bid)); },
+            get forQS() { return this.quick_sale_price == '' ? false : Boolean(parseInt(this.quick_sale_price)); },
         }">
         <td class="text-nowrap" data-order="{{ piece.piece_id }}">
             {{ piece.artist_and_piece_id }}
             <input type="hidden" id="{{ piece_check_in_out.for_sale.id }}" name="{{ piece_check_in_out.for_sale.name }}" x-model="forSale" />
-            <input type="hidden" id="{{ piece_check_in_out.no_quick_sale.name }}" name="{{ piece_check_in_out.no_quick_sale.name }}" x-model="forQS" />
+            <input type="hidden" id="{{ piece_check_in_out.no_quick_sale.name }}" name="{{ piece_check_in_out.no_quick_sale.name }}" x-model="!forQS" />
         </td>
         <td data-order="{{ piece.status_label }}">{{ form_macros.input(piece_check_in_out.status, show_label=False) }}</td>
         <td data-order="{{ piece.gallery_label }}">{{ form_macros.input(piece_check_in_out.gallery, show_label=False) }}</td>

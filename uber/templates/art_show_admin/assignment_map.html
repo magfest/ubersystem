@@ -1,5 +1,5 @@
 {% extends "uber/templates/base.html" %}{% set admin_area=True %}
-{% block title %}{{ c.ART_PIECE_GALLERYS[gallery] }} Assignment Map{% endblock %}
+{% block title %}{{ c.ART_PIECE_GALLERYS[gallery] }} {{ panels_or_tables|title }} Assignment Map{% endblock %}
 {% block content %}
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="initial-scale=1.0, width=device-width" />
@@ -300,18 +300,22 @@
         serverArtists.forEach(function(artistInfo) {
             mapDisplay.serializer.parent.assignees.push({0: artistInfo['id'], 1: artistInfo['needed']});
             mapDisplay.serializer.parent.assignments[artistInfo['id']] = {'name': artistInfo['name'], 'needed': artistInfo['needed'],
-                'panels': new Set(artistInfo['assignments']), 'manual': new Set(artistInfo['manual']), 'wide': false}
+                'panels': new Set(artistInfo['assignments']), 'manual': new Set(artistInfo['manual']), 'wide': false, 'extra_info': artistInfo['extra_info']}
+            if(artistInfo['manual']) {
+                artistInfo['manual'].forEach(function(assignmentId) { mapDisplay.serializer.parent.manual.add(assignmentId); })
+            }
         })
     }
 
     $(window).load(function() { setup(); })
 </script>
-<h2>{{ c.ART_PIECE_GALLERYS[gallery] }} Gallery Assignment Map <small><a href="assign_locations">Back to Overview</a></small></h2>
+<h2>{{ c.ART_PIECE_GALLERYS[gallery] }} {{ panels_or_tables|title }} Assignment Map <small><a href="assign_locations">Back to Overview</a></small></h2>
 <div class="card card-body">
-    <div class="d-flex mb-3">
-    <a class="btn btn-primary" data-bs-toggle="collapse" href="#instructions" role="button" aria-expanded="false" aria-controls="instructions">
+    <div class="d-flex align-items-end mb-3">
+        <a class="btn btn-primary" data-bs-toggle="collapse" href="#instructions" role="button" aria-expanded="false" aria-controls="instructions">
         Show instructions
-    </a>
+        </a>
+        <div>&nbsp; {{ panels_count }} {{ panels_or_tables }}{{ panels_count|pluralize }} total | {{ assigned_count }} {{ panels_or_tables }}{{ assigned_count|pluralize }} assigned | {{ desired_count }} {{ panels_or_tables }}{{ desired_count|pluralize }} requested</div>
     </div>
     <div class="collapse" id="instructions">
     Creating the map and assigning artists:

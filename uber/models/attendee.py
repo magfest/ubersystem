@@ -1504,7 +1504,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         aliased_account = aliased(AttendeeAccount)
         return select([aliased_account.email]
                       ).where(aliased_account.id == attendee_attendee_account.c.attendee_account_id
-                              ).where(attendee_attendee_account.c.attendee_id == cls.id).label('primary_account_email')
+                              ).where(attendee_attendee_account.c.attendee_id == cls.id).limit(1).label('primary_account_email')
 
     @hybrid_property
     def group_name(self):

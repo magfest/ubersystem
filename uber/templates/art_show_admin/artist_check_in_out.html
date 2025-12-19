@@ -19,6 +19,7 @@
       <form role="form" class="col-12 col-sm-4" method="get" action="artist_check_in_out">
         {% if checkout %}<input type="hidden" name="checkout" value="1" />
         {% elif hanging %}<input type="hidden" name="hanging" value="1" />{% endif %}
+        {% if mailin %}<input type="hidden" name="mailin" value="1" />{% endif %}
         <div class="input-group">
           <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
           <button class="btn btn-outline-secondary" type="submit">
@@ -31,10 +32,16 @@
       {% endif %}
       {% if not checkout %}
         {% if hanging %}
-        <a class="btn btn-info" href="artist_check_in_out?search_text={{ search_text }}">Show All Artists</a>
+        <a class="btn btn-info" href="artist_check_in_out?search_text={{ search_text }}&mailin={{ mailin or '' }}">Showing Artists Hanging Art</a>
         {% else %}
-        <a class="btn btn-outline-info" href="artist_check_in_out?search_text={{ search_text }}&hanging=true">Show Artists Hanging Art</a>
+        <a class="btn btn-outline-info" href="artist_check_in_out?search_text={{ search_text }}&mailin={{ mailin or '' }}&hanging=true">Show Artists Hanging Art</a>
         {% endif %}
+      {% endif %}
+
+      {% if mailin %}
+        <a class="btn btn-info" href="artist_check_in_out?search_text={{ search_text }}&hanging={{ hanging or '' }}">Showing Mail-In Artists</a>
+        {% else %}
+        <a class="btn btn-outline-info" href="artist_check_in_out?search_text={{ search_text }}&hanging={{ hanging or '' }}&mailin=True">Show Mail-In Artists</a>
       {% endif %}
       {% set new_app_link = '../art_show_applications/' if c.INDEPENDENT_ART_SHOW else 'form?new_app=True' %}
       <a class="btn btn-outline-secondary" href="{{ new_app_link }}" target="_blank">Add a new {{ c.ART_SHOW_APP_TERM }}</a>
@@ -52,10 +59,11 @@
             <div class="modal-body">
               {{ form_macros.form_validation('check-in-out-' ~ app.id, 'validate_check_in_out') }}
               <div class="d-flex gap-2 justify-content-end mb-3">
-                {% if check_out %}
-                <button type="button" onClick="$('#check-in-out-{{ app.id }}').submit()" class="btn btn-warning undo-btn"{% if not app.checked_out %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkout" value="1">Undo Check-Out</button>
+                <input type="hidden" id="undo-toggle-{{ app.id }}" value="1" />
+                {% if checkout %}
+                <button type="button" onClick="undoCheckInOut('undo_checkout', '{{ app.id }}')" class="btn btn-warning undo-btn"{% if not app.checked_out %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkout" value="1">Undo Check-Out</button>
                 {% else %}
-                <button type="button" onClick="$('#check-in-out-{{ app.id }}').submit()" class="btn btn-warning undo-btn"{% if not app.checked_in %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkin" value="1">Undo Check-In</button>
+                <button type="button" onClick="undoCheckInOut('undo_checkin', '{{ app.id }}')" class="btn btn-warning undo-btn"{% if not app.checked_in %} disabled="disabled" style="display:none;"{% endif %} name="undo_checkin" value="1">Undo Check-In</button>
                 {% endif %}
                 <a href="form?id={{ app.id }}" class="btn btn-secondary" target="_blank">Open Full Application&nbsp;<i class="fa fa-external-link"></i></a>
               </div>
@@ -178,6 +186,11 @@
       </caption>
     </table>
     <script type="text/javascript">
+      var undoCheckInOut = function(inputName, appId) {
+        $('#undo-toggle-' + appId).attr('name', inputName);
+        $('#check-in-out-' + appId).submit();
+      }
+
       $(document).ready(function() {
         $('.check-in-out-datatable').each(function() {
           if (! $.fn.DataTable.isDataTable($(this))) {
@@ -192,11 +205,20 @@
           }
         });
 
-        $('#app_modals').find('form').submit(function(e) {
+        /*
+        $('#app-modals').find('form').submit(function(e) {
             $(this).find('button[type=submit]').prop('disabled', true);
             return true;
         });
+        */
 
+        {% if not checkout %}
+        {% include 'art_show_admin/unassign_locations.js' %}
+
+        $('#app-modals').find('.unassign-location').on('click', function() {
+          confirmUnassignLocation($(this).data('id'), $(this).data('label'), 'form-validations-check-in-out-' + $(this).data('app-id'))
+        });
+        {% endif %}
 
         $('.check-in-out-form').on('submit', function(event) {
           event.preventDefault();
@@ -220,6 +242,7 @@
               dataType: 'json',
               data: data,
               success: function (json) {
+                  $('#undo-toggle-' + app_id).attr('name', '');
                   hideMessageBox('form-validations-check-in-out-' + app_id);
                   hideMessageBox();
                   if (json.success) {

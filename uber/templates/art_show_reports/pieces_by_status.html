@@ -29,6 +29,12 @@
 </form>
 </div>
 
+<p style="margin: 20px; width: calc(100% - 40px);">
+  <strong>Total</strong>: {{ num_pieces }} pieces{% if yes_status or no_status %} that
+  {% if yes_status %}ARE {{ yes_status_labels }}{% if no_status %} and {% endif %}{% endif %}
+  {% if no_status %}ARE NOT {{ no_status_labels }}{% endif %}
+  {% endif %}
+</p>
 <div class="card-body p-0 m-0">
 {% for app in apps %}
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
