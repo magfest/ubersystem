@@ -421,6 +421,8 @@ class MagForm(Form):
                         formdata[prefixed_name] = getattr(obj, name)
             elif isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
                 formdata[prefixed_name] = getattr(obj, name).strftime('%m/%d/%Y')
+            elif isinstance(field, DateField) and not field_in_formdata and getattr(obj, name, None):
+                formdata[prefixed_name] = str(getattr(obj, name))
             elif isinstance(field.widget, UniqueList) and field_in_formdata and cherrypy.request.method == 'POST':
                 if isinstance(formdata[prefixed_name], list): # submitted as multiple fields
                     formdata[prefixed_name] = ','.join([val for val in formdata[prefixed_name] if val])

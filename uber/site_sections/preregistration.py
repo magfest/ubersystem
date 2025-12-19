@@ -326,6 +326,8 @@ class Root:
         errors = check_if_can_reg(is_dealer_reg=True)
         if errors:
             return errors
+        
+        force_form_defaults = True
 
         if c.DEALER_INVITE_CODE and not edit_id:
             if not params.get('invite_code'):
@@ -340,15 +342,17 @@ class Root:
         if edit_id is not None:
             group = self._get_unsaved(edit_id, PreregCart.pending_dealers)
             params['badges'] = params.get('badges', getattr(group, 'badge_count', 0))
+            force_form_defaults = False
 
         badges = params.get('badges', 0)
         attendee = group.attendees[0] if group.attendees else None
 
-        forms = load_forms(params, group, ['ContactInfo', 'TableInfo'])
-        for form in forms.values():
-            form.populate_obj(group)
+        forms = load_forms(params, group, ['ContactInfo', 'TableInfo'], force_form_defaults=force_form_defaults)
 
         if cherrypy.request.method == 'POST':
+            for form in forms.values():
+                form.populate_obj(group)
+
             message = check(group, prereg=True)
             if not message:
                 track_type = c.UNPAID_PREREG
@@ -668,14 +672,16 @@ class Root:
         if errors:
             return errors
 
+        force_form_defaults = False if editing else True
+
         attendee, group = self._get_attendee_or_group(params)
 
-        forms = load_forms(params, attendee, ['PreregOtherInfo'], truncate_prefix="prereg")
-
-        for form in forms.values():
-            form.populate_obj(attendee)
+        forms = load_forms(params, attendee, ['PreregOtherInfo'], truncate_prefix="prereg", force_form_defaults=force_form_defaults)
 
         if cherrypy.request.method == "POST":
+            for form in forms.values():
+                form.populate_obj(attendee)
+
             _add_promo_code(session, attendee, params.get('promo_code_code'))
 
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
