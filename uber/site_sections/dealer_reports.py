@@ -176,11 +176,13 @@ class Root:
         rows = []
         for group in dealer_groups:
             if group.status in c.DEALER_ACCEPTED_STATUSES and group.is_dealer:
+                name = (group.leader.legal_name or group.leader.full_name) if group.leader else ''
+                phone = group.phone or (group.leader.cellphone if group.leader else '')
                 rows.append([
                     group.name,
                     group.email,
-                    group.leader.legal_name or group.leader.full_name,
-                    group.phone if group.phone else group.leader.cellphone,
+                    name,
+                    phone,
                     group.address1,
                     group.address2,
                     group.city,
@@ -248,13 +250,15 @@ class Root:
         approved_groups = session.query(Group).filter(Group.status.in_(c.DEALER_ACCEPTED_STATUSES)).all()
         rows = []
         for group in approved_groups:
+            name = group.leader.full_name if group.leader else ''
+            phone = group.phone or (group.leader.cellphone if group.leader else '')
             if group.is_dealer:
                 rows.append([
                     group.name,
-                    group.leader.full_name,
+                    name,
                     group.email,
                     group.physical_address,
-                    group.phone if group.phone else group.leader.cellphone,
+                    phone,
                     group.special_needs,
                     group.admin_notes,
                     group.wares,
