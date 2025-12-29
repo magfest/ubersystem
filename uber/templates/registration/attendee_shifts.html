@@ -131,8 +131,8 @@
                 {{ shift.job.department|form_link(new_window=True) }}
                 (<a href="../shifts_admin/index?department_id={{ shift.job.department_id }}" target="_blank">Jobs in dept</a>)
             </td>
-            <td>{{ hour_day_local(shift.job.start_time) }}</td>
-            <td>{{ hour_day_local(shift.job.end_time) }}</td>
+            <td>{{ shift.job.start_time|time_day_local }}</td>
+            <td>{{ shift.job.end_time|time_day_local }}</td>
             <td>{{ shift.job.duration / 60 }} (x{{ shift.job.weight }})</td>
             <td>{{ shift.job.weighted_hours }}</td>
             <td id="shift_status_{{ shift.id }}"></td>
