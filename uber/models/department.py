@@ -7,6 +7,7 @@ from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
+from sqlalchemy.sql import text
 from sqlalchemy.types import Boolean, Float, Integer, Time
 
 from uber.config import c
@@ -484,9 +485,13 @@ class Job(MagModel):
             minutes.add(self.start_time + timedelta(minutes=i))
         return minutes
 
-    @property
+    @hybrid_property
     def end_time(self):
         return self.start_time + timedelta(minutes=self.duration)
+    
+    @end_time.expression
+    def end_time(cls):
+        return cls.start_time + (cls.duration * text("interval '1 minute'"))
 
     def working_limit_ok(self, attendee):
         """

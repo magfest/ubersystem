@@ -1,0 +1,132 @@
+{% extends "uber/templates/base.html" %}{% set admin_area=True %}
+{% block title %}Volunteers Needing Food{% endblock %}
+{% block content %}
+
+<h2>Volunteer Food by Time</h2>
+
+<p>Select start/end times to see a list of all volunteers working during those times, along with their food restrictions.</p>
+
+<form method="post" action="volunteer_food" class="d-flex gap-3 mb-3">
+    <div>
+        <div class="form-text">Department</div>
+        <select class="form-select" name="department_id">
+            <option value="All"{% if department_id == 'All' %} selected {% endif %}>All Departments</option>
+            {{ options(c.DEPARTMENT_OPTS, department_id) }}
+        </select>
+    </div>
+    <div>
+        <div class="form-text">Start Time</div>
+        <input type="text" class="form-control" name="start_time" id="start_time" placeholder="N/A" />
+    </div>
+    <div>
+        <div class="form-text">End Time</div>
+        <input type="text" class="form-control" name="end_time" id="end_time" placeholder="N/A" />
+    </div>
+    <div><div class="form-text">&nbsp;</div><button class="btn btn-primary" type="submit">Show Volunteers</button></div>
+</form>
+
+{% if staffers %}
+    <table class="table datatable" data-page-length="-1">
+        <thead>
+            <tr>
+                <th>Volunteer</th>
+                <th>Badge Number</th>
+                <th>Sandwich Preferences</th>
+                <th>Dietary Restrictions</th>
+                <th>Other Food Restrictions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for attendee in staffers %}
+            <tr>
+                <td><nobr>{{ attendee|form_link }}</nobr></td>
+                <td>{{ attendee.badge_num }}</td>
+                <td>{{ attendee.food_restrictions.sandwich_pref_labels|join(', ') }}</td>
+                <td>{{ attendee.food_restrictions.standard_labels|join(', ') }}</td>
+                <td>{{ attendee.food_restrictions.freeform|linebreaksbr }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+<script type="text/javascript">
+    const eventTimeZone = "{{ c.EVENT_TIMEZONE }}";
+    const dateFormat = 'YYYY-MM-DD\\\\THH:mm:ssZ'
+    
+    var default_start = new Date('{{ start_time }}');
+    var default_end = new Date('{{ end_time }}');
+    let startFlatpickr = flatpickr('#start_time',{
+        allowInput: true,
+        enableTime: true,
+        altInput: true,
+        altFormat: 'M/D/YYYY hh:mm A dddd',
+        disableMobile: true, //Do not let mobile native datepicker take over.
+        dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+        defaultDate: 'null',
+        parseDate(dateString, format) {
+            //Parses on the way into the internals.
+            let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+            //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+            return new Date(
+                eventTimezonedDate.year(),
+                eventTimezonedDate.month(),
+                eventTimezonedDate.date(),
+                eventTimezonedDate.hour(),
+                eventTimezonedDate.minute(),
+                eventTimezonedDate.second()
+            );
+        },
+        formatDate(date, format) {
+            //Format on the way *out* from the internal storage.
+                let formatted =  moment.tz([
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate(),
+                date.getHours(),
+                date.getMinutes(),
+                date.getSeconds()
+            ], eventTimeZone).format(format);
+            return formatted;
+        }
+    });
+    let endFlatpickr = flatpickr('#end_time',{
+        allowInput: true,
+        enableTime: true,
+        altInput: true,
+        altFormat: 'M/D/YYYY hh:mm A dddd',
+        disableMobile: true, //Do not let mobile native datepicker take over.
+        dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
+        defaultDate: 'null',
+        parseDate(dateString, format) {
+            //Parses on the way into the internals.
+            let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
+
+            //Return a date in the *local* timezone that force uses the values as if they were event timezone.
+            return new Date(
+                eventTimezonedDate.year(),
+                eventTimezonedDate.month(),
+                eventTimezonedDate.date(),
+                eventTimezonedDate.hour(),
+                eventTimezonedDate.minute(),
+                eventTimezonedDate.second()
+            );
+        },
+        formatDate(date, format) {
+            //Format on the way *out* from the internal storage.
+                let formatted =  moment.tz([
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate(),
+                date.getHours(),
+                date.getMinutes(),
+                date.getSeconds()
+            ], eventTimeZone).format(format);
+            return formatted;
+        }
+    });
+    $('#start_time').val('');
+    $('#end_time').val('');
+</script>
+{% endblock %}

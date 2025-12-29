@@ -1,13 +1,17 @@
+import cherrypy
 import os
 import re
+
 from collections import defaultdict, OrderedDict
 from datetime import timedelta
+from dateutil import parser as dateparser
 
+from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import all_renderable, csv_file, render
-from uber.models import Attendee, Department
+from uber.decorators import all_renderable, csv_file, render, department_id_adapter
+from uber.models import Attendee, Department, Job
 
 
 def volunteer_checklists(session):
@@ -102,6 +106,47 @@ class Root:
         return {
             'volunteers': attendees,
             'message': message,
+        }
+    
+    @department_id_adapter
+    def volunteer_food(self, session, message='', department_id=None, start_time=None, end_time=None):
+        staffers = set()
+        if cherrypy.request.method == 'POST':
+            if department_id == 'All':
+                department_id = None
+
+            if not start_time or not end_time:
+                potential = session.query(Attendee).filter(Attendee.badge_type != c.CONTRACTOR_BADGE, Attendee.shifts)
+                for attendee in potential:
+                    if attendee.badge_type == c.STAFF_BADGE or attendee.weighted_hours >= c.HOURS_FOR_FOOD:
+                        staffers.add(attendee)
+            else:
+                start = dateparser.parse(start_time)
+                end = dateparser.parse(end_time)
+                if end < start:
+                    message = 'Start must come before end: {} {}'.format(start, end)
+                else:
+                    filters = [Job.start_time < end, Job.end_time > start]
+                    if department_id:
+                        filters.append(Job.department_id == department_id)
+                    minutes = set()
+                    minute = start
+                    while minute < end:
+                        minutes.add(minute)
+                        minute += timedelta(minutes=1)
+                    for job in session.query(Job).filter(*filters):
+                        if minutes.intersection(job.minutes):
+                            for shift in job.shifts:
+                                if shift.attendee.badge_type != c.CONTRACTOR_BADGE and (
+                                        shift.attendee.badge_type == c.STAFF_BADGE or shift.attendee.weighted_hours >= c.HOURS_FOR_FOOD):
+                                    staffers.add(shift.attendee)
+
+        return {
+            'message': message,
+            'start_time': start_time,
+            'end_time': end_time,
+            'department_id': department_id,
+            'staffers': sorted(staffers, key=lambda a: a.full_name)
         }
 
     @csv_file
