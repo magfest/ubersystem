@@ -2,6 +2,10 @@
 {% set title_text = "Guidebook Updates" %}
 {% block content %}
 
+<style type="text/css">
+  .changed { color: red; font-style: italic; }
+</style>
+
 <script type="text/javascript">
   let confirmSyncAll = function(btn, label) {
     form = $(btn).closest('form');
@@ -159,7 +163,7 @@
           <input type="hidden" name="sync_time" value="{{ now }}" />
           <button type="button" class="btn btn-success" onClick="confirmSyncAll(this, 'schedule')">Mark All Synced</button>
         </form>
-        <p>Items in <em>italics</em> has been changed since the last sync.</p>
+        <p>Items in <span class="changed">red italics</span> has been changed since the last sync.</p>
       </div>
       <table class="table table-hover datatable" id="schedule-table">
         <thead>
@@ -183,15 +187,15 @@
             {% for key in ['name', 'description', 'start_', 'end_', 'location', 'track'] %}
             <td class="align-middle">
               {% if key.endswith('_') %}
-                {% if current_data[key + 'date'] != synced_data[key + 'date'] %}<em>{% endif %}
+                {% if current_data[key + 'date'] != synced_data[key + 'date'] %}<span class="changed">{% endif %}
                 {{ current_data[key + 'date'] }}
-                {% if current_data[key + 'date'] != synced_data[key + 'date'] %}</em>{% endif %}
-                {% if current_data[key + 'time'] != synced_data[key + 'time'] %}<em>{% endif %}
+                {% if current_data[key + 'date'] != synced_data[key + 'date'] %}</span>{% endif %}
+                {% if current_data[key + 'time'] != synced_data[key + 'time'] %}<span class="changed">{% endif %}
                   {{ current_data[key + 'time'] }}
-                  {% if current_data[key + 'time'] != synced_data[key + 'time'] %}</em>{% endif %}
+                  {% if current_data[key + 'time'] != synced_data[key + 'time'] %}</span>{% endif %}
               {% else %}
                 {% if current_data[key] != synced_data[key] %}
-                  <em>{{ current_data[key]|linebreaksbr }}</em>
+                  <span class="changed">{{ current_data[key]|linebreaksbr }}</span>
                   {% if key == 'name' and synced_data[key] %}<br/>(Previously: {{ synced_data[key]|linebreaksbr }}){% endif %}
                 {% else %}
                 {{ current_data[key]|linebreaksbr }}
@@ -235,7 +239,7 @@
           <input type="hidden" name="sync_time" value="{{ now }}" />
           <button type="button" class="btn btn-success" onClick="confirmSyncAll(this, '{{ label|lower }}')">Mark All Synced</button>
         </form>
-        <p>Items in <em>italics</em> has been changed since the last sync.</p>
+        <p>Items in <span class="changed">red italics</span> has been changed since the last sync.</p>
       </div>
       <table class="table table-hover datatable" id="{{ model }}-table">
         <thead>
@@ -257,13 +261,13 @@
             <td class="align-middle">
               {% if key in ['guidebook_header', 'guidebook_thumbnail'] and current_data[key] %}
                 {% if current_data[key] != synced_data[key] or (not result[key].guest_id and result[key].last_updated > result.last_synced_dt('guidebook')) %}
-                <em><a href="{{ result[key].url or result[key].pic_url }}" target="_blank">{{ current_data[key] }}</a></em>
+                <span class="changed"><a href="{{ result[key].url or result[key].pic_url }}" target="_blank">{{ current_data[key] }}</a></span>
                 {% else %}
                 <a href="{{ result[key].url or result[key].pic_url }}" target="_blank">{{ current_data[key] }}</a>
                 {% endif %}
               {% else %}
                 {% if current_data[key] != synced_data[key] %}
-                  <em>{{ current_data[key]|linebreaksbr }}</em>
+                  <span class="changed">{{ current_data[key]|linebreaksbr }}</span>
                   {% if key == 'name' and synced_data[key] %}<br/>(Previously: {{ synced_data[key]|linebreaksbr }}){% endif %}
                 {% else %}
                   {{ current_data[key]|linebreaksbr }}
