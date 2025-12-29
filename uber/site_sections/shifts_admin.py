@@ -313,7 +313,8 @@ class Root:
             defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['department_id']]
             params.update(defaults)
 
-        department = session.admin_attendee().depts_where_can_admin[0]
+        default_depts = session.admin_attendee().depts_where_can_admin
+        department = default_depts[0] if default_depts else None
 
         if params.get('id') in [None, '', 'None']:
             job = Job()
@@ -322,7 +323,10 @@ class Root:
             department = job.department
         
         if params.get('department_id'):
-                department = session.department(params['department_id'])
+            department = session.department(params['department_id'])
+
+        if not department:
+            raise HTTPRedirect('index?message={}', "Please select a department.")
 
         forms = load_forms(params, job, ['JobInfo'])
 
@@ -372,7 +376,8 @@ class Root:
     
     @requires_shifts_admin
     def template(self, session, message='', **params):
-        department = session.admin_attendee().depts_where_can_admin[0]
+        default_depts = session.admin_attendee().depts_where_can_admin
+        department = default_depts[0] if default_depts else None
 
         if params.get('id') in [None, '', 'None']:
             job_template = JobTemplate()
@@ -382,6 +387,9 @@ class Root:
 
         if params.get('department_id'):
             department = session.department(params['department_id'])
+
+        if not department:
+            raise HTTPRedirect('index?message={}', "Please select a department.")
 
         forms = load_forms(params, job_template, ['JobTemplateInfo'])
 
