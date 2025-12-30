@@ -51,7 +51,7 @@ def _get_deleted_models(session, deleted_since=None):
             else:
                 item_name = f"{guidebook_data['name']} on {start_day} {guidebook_data['start_time']} to {guidebook_data['end_time']}"
         else:
-            model_names[model]
+            model_name = model_names[model]
             item_name = guidebook_data.get('name', '???')
 
         deleted_models[model_name].append(item_name)
