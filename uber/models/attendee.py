@@ -1586,7 +1586,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def banned(self):
-        return listify(self.watch_list or self.watchlist_guess)
+        if self.watch_list:
+            return listify(self.watch_list)
+
+        if self.is_new or self.badge_status not in [c.COMPLETED_STATUS, c.UNAPPROVED_DEALER_STATUS]:
+            return listify(self.watchlist_guess)
 
     @property
     def badge(self):

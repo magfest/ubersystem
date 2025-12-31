@@ -33,7 +33,7 @@
         <td>{{ entry.expiration }}</td>
         <td data-order="{{ entry.attendees_and_guesses|length }}">
           {% for attendee in entry.attendees_and_guesses %}
-          {{ attendee|form_link(true) }}{% if attendee in entry.attendees %} (Confirmed){% endif %}
+          {{ attendee|form_link(true) }}{% if attendee in entry.attendees %} (Confirmed){% elif attendee.badge_status in [c.COMPLETED_STATUS, c.UNAPPROVED_DEALER_STATUS] %} (Cleared){% endif %}
           {% else %}N/A{% endfor %}
         </td>
         <td>{{ entry.first_names }}</td>
