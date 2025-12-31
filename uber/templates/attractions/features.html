@@ -20,12 +20,19 @@
 
 <div class="card">
   <div class="card-body">
+    {% if attendee %}
+      {% include 'confirm_tabs.html' with context %}
+    {% endif %}
     {% block body %}
-      {% if show_all %}
-        <a class="btn btn-success btn-back" href="index">
-          <i class="fa fa-chevron-left"></i>
-          <span class="hidden-xxs">All Attractions</span>
-          <span class="visible-xxs-inline">Back</span>
+      <a class="btn btn-success btn-back mb-2" href="index?attendee_id={{ attendee_id }}">
+        <i class="fa fa-chevron-left"></i>
+        <span class="hidden-xxs">All Attractions</span>
+        <span class="visible-xxs-inline">Back</span>
+      </a>
+      {% if attendee_id %}
+        <a class="btn btn-primary pull-right" href="manage?id={{ attendee_id }}">
+          <i class="fa fa-chevron-up"></i>
+          My Signups
         </a>
       {% endif %}
       <h1 class="text-center">{{ attraction.name }}</h1>
@@ -39,7 +46,7 @@
               data-feature-id="{{ feature.id }}"
               data-feature-name="{{ feature.name }}">
             <div class="hover-btn-title">
-              <a class="btn btn-success btn-next pull-right" href="{{ attraction.slug }}?feature={{ feature.slug }}">
+              <a class="btn btn-success btn-next pull-right" href="{{ attraction.slug }}?feature={{ feature.slug }}&attendee_id={{ attendee_id }}">
                 <i class="fa fa-chevron-right"></i>
               </a>
               <h2><span class="bling-icon"></span> {{ feature.name }}</h2>

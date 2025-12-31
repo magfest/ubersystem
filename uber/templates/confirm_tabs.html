@@ -58,9 +58,9 @@
     </a>
   </li>
 {% endif %}
-{% if c.ATTRACTIONS_ENABLED and attractions %}
+{% if c.ATTRACTIONS_ENABLED and (attractions or 'attractions' in c.PAGE_PATH) %}
   <li class="nav-item" role="presentation">
-    <a href="../attractions/manage?id={{ attendee.id }}" class="nav-link{% if 'manage' in c.PAGE_PATH %} active{% endif %}">
+    <a href="../attractions/manage?id={{ attendee.id }}" class="nav-link{% if 'attractions' in c.PAGE_PATH %} active{% endif %}">
       <span class="bling-icon"></span> Attraction Signups
     </a>
   </li>

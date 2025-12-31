@@ -4,6 +4,7 @@ from datetime import datetime
 import cherrypy
 from pytz import UTC
 from pockets import sluggify
+from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
 from uber.decorators import ajax, all_renderable
@@ -50,7 +51,10 @@ def _model_for_id(session, model, id, options=None, filters=[]):
     except Exception:
         return None
 
-    query = session.query(model).filter(model.id == id, *filters)
+    if model == Attendee:
+        query = session.query(model).filter(or_(model.id == id, model.public_id == id), *filters)
+    else:
+        query = session.query(model).filter(model.id == id, *filters)
     if options:
         query = query.options(options)
     return query.first()
@@ -65,19 +69,29 @@ class Root:
             if kwargs.get('feature', None):
                 return self.events(
                     slug=sluggify(args[0]),
-                    feature=sluggify(kwargs['feature']))
+                    feature=sluggify(kwargs['feature']),
+                    attendee_id=kwargs.get('attendee_id', None))
             else:
-                return self.features(slug=sluggify(args[0]))
+                return self.features(slug=sluggify(args[0]),
+                                     attendee_id=kwargs.get('attendee_id', None))
         else:
-            raise HTTPRedirect('index')
+            raise HTTPRedirect('index?attendee_id={}', kwargs.get('attendee_id', ''))
 
     def index(self, session, **params):
+        attendee = _model_for_id(session, Attendee, params.get('attendee_id', None))
+
         attractions = session.query(Attraction).filter_by(is_public=True) \
             .options(subqueryload(Attraction.public_features)) \
             .order_by(Attraction.name).all()
-        return {'attractions': attractions}
+        return {
+            'attractions': attractions,
+            'attendee': attendee,
+            'attendee_id': params.get('attendee_id'),
+            }
 
     def features(self, session, id=None, slug=None, **params):
+        attendee = _model_for_id(session, Attendee, params.get('attendee_id', None))
+
         filters = [Attraction.is_public == True]  # noqa: E712
         options = subqueryload(Attraction.public_features) \
             .subqueryload(AttractionFeature.events).subqueryload(AttractionEvent.attendees)
@@ -91,16 +105,20 @@ class Root:
                 session, Attraction, id, options, filters)
 
         if not attraction:
-            raise HTTPRedirect('index')
+            raise HTTPRedirect('index?attendee_id={}', params.get('attendee_id', ''))
 
         no_events = datetime.max.replace(tzinfo=UTC)  # features with no events should sort to the end
         features = attraction.public_features
         return {
             'attraction': attraction,
             'features': sorted(features, key=lambda f: f.events[0].start_time if f.events else no_events),
-            'show_all': params.get('show_all')}
+            'attendee': attendee,
+            'attendee_id': params.get('attendee_id'),
+        }
 
     def events(self, session, id=None, slug=None, feature=None, **params):
+        attendee = _model_for_id(session, Attendee, params.get('attendee_id', None))
+        
         filters = [AttractionFeature.is_public == True]  # noqa: E712
         options = subqueryload(AttractionFeature.events) \
             .subqueryload(AttractionEvent.attendees)
@@ -122,10 +140,14 @@ class Root:
 
         if not feature:
             if attraction:
-                raise HTTPRedirect(attraction.slug)
+                raise HTTPRedirect(attraction.slug + '?attendee_id={}', params.get('attendee_id', ''))
             else:
-                raise HTTPRedirect('index')
-        return {'feature': feature}
+                raise HTTPRedirect('index?attendee_id={}', params.get('attendee_id', ''))
+        return {
+            'feature': feature,
+            'attendee': attendee,
+            'attendee_id': params.get('attendee_id'),
+        }
 
     def manage(self, session, id=None, **params):
         attendee = _model_for_id(session, Attendee, id, subqueryload(

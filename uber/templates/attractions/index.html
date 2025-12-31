@@ -13,13 +13,22 @@
 
 <div class="card">
   <div class="card-body">
+    {% if attendee %}
+      {% include 'confirm_tabs.html' with context %}
+    {% endif %}
     {% block body %}
+      {% if attendee_id %}
+        <a class="btn btn-primary mb-2" href="manage?id={{ attendee_id }}">
+          <i class="fa fa-chevron-left"></i>
+          My Signups
+        </a>
+      {% endif %}
       <h1 class="text-center">Sign up for {{ c.EVENT_NAME }} Attractions</h1>
       <hr>
       <div id="attractions">
         {% for attraction in attractions %}
           <div class="attraction hover-btn">
-            <a class="btn btn-success btn-next pull-right" href="{{ attraction.slug }}">
+            <a class="btn btn-success btn-next pull-right" href="{{ attraction.slug }}?attendee_id={{ attendee_id }}">
               <i class="fa fa-chevron-right"></i>
             </a>
             <div class="hover-btn-title">
