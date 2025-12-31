@@ -5,7 +5,7 @@ from pytz import UTC
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
-from uber.custom_tags import linebreaksbr
+from uber.custom_tags import linebreaksbr, short_datetime_local
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
@@ -342,7 +342,7 @@ class Root:
             Department, BulkPrintingRequest.department_id == Department.id).order_by(Department.name)
         out.writerow([
             "Department", "Document Link", "# Copies", "Print Orientation", "Cut Orientation", "Color/B&W",
-            "Paper Type", "Print Size", "Double-Sided?", "Stapled?", "Required?", "Notes"
+            "Paper Type", "Print Size", "Double-Sided?", "Stapled?", "Required?", "Notes", "Last Updated"
         ])
         for request, dept_name in requests:
             paper_type = f"Custom: {request.paper_type_text}" if request.paper_type == c.CUSTOM else request.paper_type_label
@@ -350,7 +350,7 @@ class Root:
             out.writerow([
                 dept_name, request.link, request.copies, request.print_orientation_label, request.cut_orientation_label,
                 request.color_label, paper_type, print_size, request.double_sided, request.stapled, request.required,
-                request.notes
+                request.notes, short_datetime_local(request.last_updated)
             ])
     
     @department_id_adapter
