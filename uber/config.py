@@ -1866,6 +1866,7 @@ c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.DEFAULT_COMPED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DEFAULT_COMPED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
+c.ONSITE_CONTACTLESS_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.ONSITE_CONTACTLESS_BADGE_TYPES]
 
 c.MIVS_CHECKLIST = _config['mivs_checklist']
 for key, val in c.MIVS_CHECKLIST.items():

@@ -130,8 +130,7 @@ def legal_name_required(form, field):
 @PersonalInfo.field_validation('onsite_contact')
 @ignore_unassigned_and_placeholders
 def require_onsite_contact(form, field):
-    if not field.data and not form.no_onsite_contact.data and form.model.badge_type not in [c.STAFF_BADGE,
-                                                                                            c.CONTRACTOR_BADGE]:
+    if not field.data and not form.no_onsite_contact.data and form.model.badge_type not in c.ONSITE_CONTACTLESS_BADGE_TYPES:
         raise ValidationError("Please enter contact information for at least one trusted friend onsite, "
                               "or indicate that we should use your emergency contact information instead.")
 
