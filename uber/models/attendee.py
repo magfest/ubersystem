@@ -938,7 +938,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             full_reg_admin = bool(session.current_admin_account().full_registration_admin)
         if c.ADMIN_BADGES_NEED_APPROVAL and not full_reg_admin and self.badge_status == c.PENDING_STATUS:
             return "This badge must be approved by an admin."
-        if self.badge_status == c.WATCHED_STATUS:
+        if self.badge_status == c.WATCHED_STATUS and self.banned:
             if not c.HAS_SECURITY_ADMIN_ACCESS:
                 return "Please escalate this case to someone with access to the watchlist."
             else:
