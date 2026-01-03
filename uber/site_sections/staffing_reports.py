@@ -111,18 +111,19 @@ class Root:
     @department_id_adapter
     def volunteer_food(self, session, message='', department_id=None, start_time=None, end_time=None):
         staffers = set()
-        if cherrypy.request.method == 'POST':
+        start = dateparser.parse(start_time) if start_time else None
+        end = dateparser.parse(end_time) if end_time else None
+
+        if cherrypy.request.method == 'POST' or department_id or start_time or end_time:
             if department_id == 'All':
                 department_id = None
 
-            if not start_time or not end_time:
+            if not start or not end:
                 potential = session.query(Attendee).filter(Attendee.badge_type != c.CONTRACTOR_BADGE, Attendee.shifts)
                 for attendee in potential:
                     if attendee.badge_type == c.STAFF_BADGE or attendee.weighted_hours >= c.HOURS_FOR_FOOD:
                         staffers.add(attendee)
             else:
-                start = dateparser.parse(start_time)
-                end = dateparser.parse(end_time)
                 if end < start:
                     message = 'Start must come before end: {} {}'.format(start, end)
                 else:
@@ -143,8 +144,8 @@ class Root:
 
         return {
             'message': message,
-            'start_time': start_time,
-            'end_time': end_time,
+            'start_time': start.isoformat() if start else '',
+            'end_time': end.isoformat() if end else '',
             'department_id': department_id,
             'staffers': sorted(staffers, key=lambda a: a.full_name)
         }
