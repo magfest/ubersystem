@@ -153,6 +153,9 @@
       <img src="{{ inventory_url }}"/>
     {%- endif -%}
   </a>
+  {% if admin_area %}
+  <br/><a href="{{ guest_merch.inventory_url(item.id, name, True) }}"><i class="fa fa-download"></i> Download</a>
+  {% endif %}
 {%- endmacro %}
 
 

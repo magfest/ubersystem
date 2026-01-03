@@ -1,12 +1,14 @@
+import os
+
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.custom_tags import time_day_local
-from uber.decorators import all_renderable, csv_file, site_mappable, xlsx_file
+from uber.decorators import all_renderable, csv_file, site_mappable, multifile_zipfile, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import Group, GuestAutograph, GuestGroup, GuestMerch, GuestTravelPlans
-from uber.utils import convert_to_absolute_url
+from uber.utils import convert_to_absolute_url, filename_extension
 
 
 @all_renderable()
@@ -235,6 +237,39 @@ class Root:
                         '1',
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),
                     ])
+
+    @multifile_zipfile
+    def rock_island_image_zip(self, zip_file, session, id=None, **params):
+        query = session.query(GuestGroup).options(
+                subqueryload(GuestGroup.group)).options(
+                subqueryload(GuestGroup.merch))
+        if id:
+            guest_groups = [query.get(id)]
+        else:
+            guest_groups = query.filter(
+                GuestGroup.id == GuestMerch.guest_id,
+                GuestMerch.selling_merch == c.ROCK_ISLAND,
+                GuestGroup.group_id == Group.id).order_by(
+                Group.name).all()
+            
+        def _inventory_sort_key(item):
+            return ' '.join([
+                c.MERCH_TYPES[int(item['type'])],
+                item['name']
+            ])
+
+        for guest in guest_groups:
+            for item in sorted(guest.merch.inventory.values(), key=_inventory_sort_key):
+                filename = item.get('image_filename')
+                content_type = item.get('image_content_type')
+                filepath = guest.merch.inventory_path(filename)
+                if filename and content_type and os.path.exists(filepath):
+                    extension = filename_extension(item.get('image_download_filename', filename))
+                    normalized_name = item.get('name', '???').strip().lower()
+                    normalized_name = ''.join(s for s in normalized_name if s.isalnum() or s == ' ')
+
+                    download_filename = f"{guest.normalized_group_name}_{' '.join(normalized_name.split()).replace(' ', '_')}.{extension}"
+                    zip_file.write(filepath, download_filename)
 
     @csv_file
     def rock_island_info_csv(self, out, session):

@@ -11,7 +11,7 @@ from uber.decorators import ajax, all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel, GuestTrack
 from uber.model_checks import mivs_show_info_required_fields
-from uber.utils import check
+from uber.utils import check, filename_extension
 from uber.tasks.email import send_email
 
 
@@ -675,7 +675,7 @@ class Root:
             'message': message,
         }
 
-    def view_inventory_file(self, session, id, item_id, name):
+    def view_inventory_file(self, session, id, item_id, name, disposition='inline'):
         guest_merch = session.guest_merch(id)
         if guest_merch:
             item = guest_merch.inventory.get(item_id)
@@ -686,11 +686,17 @@ class Root:
                 filepath = guest_merch.inventory_path(filename)
                 if filename and download_filename and content_type and os.path.exists(filepath):
                     filesize = os.path.getsize(filepath)
+                    if disposition == 'attachment':
+                        extension = filename_extension(item.get('image_download_filename', filename))
+                        normalized_name = item.get('name', '???').strip().lower()
+                        normalized_name = ''.join(s for s in normalized_name if s.isalnum() or s == ' ')
+
+                        download_filename = f"{guest_merch.guest.normalized_group_name}_{' '.join(normalized_name.split()).replace(' ', '_')}.{extension}"
                     cherrypy.response.headers['Accept-Ranges'] = 'bytes'
                     cherrypy.response.headers['Content-Length'] = filesize
                     cherrypy.response.headers['Content-Range'] = 'bytes 0-{}'.format(filesize)
                     cherrypy.response.headers['Cache-Control'] = 'no-store'
-                    return serve_file(filepath, disposition='inline', name=download_filename, content_type=content_type)
+                    return serve_file(filepath, disposition=disposition, name=download_filename, content_type=content_type)
                 else:
                     raise cherrypy.HTTPError(404, "File not found")
 

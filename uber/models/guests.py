@@ -521,6 +521,10 @@ class GuestMerch(MagModel):
     @property
     def rock_island_square_export_url(self):
         return f'../guest_reports/rock_island_square_xlsx?id={self.guest_id}'
+    
+    @property
+    def rock_island_image_zip_url(self):
+        return f'../guest_reports/rock_island_image_zip?id={self.guest_id}'
 
     @property
     def status(self):
@@ -690,8 +694,10 @@ class GuestMerch(MagModel):
     def inventory_path(cls, file):
         return os.path.join(c.GUESTS_INVENTORY_DIR, file)
 
-    def inventory_url(self, item_id, name):
-        return '../guests/view_inventory_file?id={}&item_id={}&name={}'.format(self.id, item_id, name)
+    def inventory_url(self, item_id, name, download=False):
+        disposition = 'inline' if not download else 'attachment'
+        return '../guests/view_inventory_file?id={}&item_id={}&name={}&disposition={}'.format(
+            self.id, item_id, name, disposition)
 
     def remove_inventory_item(self, item_id, *, persist_files=True):
         item = None

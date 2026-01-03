@@ -171,8 +171,7 @@
             <span>Inventory for <a href="../guest_reports/rock_island?id={{ guest.id }}">{{ guest.group.name }}</a></span>
             {% if guest_merch.inventory -%}
               <small>
-                Download <a href="{{ guest_merch.rock_island_csv_url }}">CSV</a> or <a href="{{ guest_merch.rock_island_square_export_url }}">Square Export</a>
-                for {{ guest.group.name }}
+                <a href="{{ guest_merch.rock_island_csv_url }}"><i class="fa fa-download"></i> CSV</a> | <a href="{{ guest_merch.rock_island_square_export_url }}"><i class="fa fa-download"></i> Square Export</a> | <a href="{{ guest_merch.rock_island_image_zip_url }}"><i class="fa fa-download"></i> Image ZIP</a>
               </small>
             {%- endif %}
             <div class="clearfix"></div>
@@ -191,8 +190,7 @@
       <span>Rock Island Inventory for <a href="../guest_reports/rock_island?id={{ guest.id }}">{{ guest.group.name }}</a></span>
       {% if guest_merch.inventory -%}
       <small>
-        Download <a href="{{ guest_merch.rock_island_csv_url }}">CSV</a> or <a href="{{ guest_merch.rock_island_square_export_url }}">Square Export</a>
-        for {{ guest.group.name }}
+        <a href="{{ guest_merch.rock_island_csv_url }}"><i class="fa fa-download"></i> CSV</a> | <a href="{{ guest_merch.rock_island_square_export_url }}"><i class="fa fa-download"></i> Square Export</a> | <a href="{{ guest_merch.rock_island_image_zip_url }}"><i class="fa fa-download"></i> Image ZIP</a>
       </small>
       {%- endif %}
       <div class="clearfix"></div>
