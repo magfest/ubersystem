@@ -107,7 +107,7 @@
 {% endif %}
 
 {% if checklist.relevant and checklist.completed %}
-    You've already indicated that this list is complete; emails STOPS if you completed this in error.
+    You've already indicated that this list is complete but you can update your requests if needed.
 {% elif checklist.relevant %}
 <form method="post" action="../dept_checklist/mark_item_complete">
     {{ csrf_token() }}
