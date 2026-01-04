@@ -127,11 +127,14 @@ class Root:
     @xlsx_file
     def rock_island_square_xlsx(self, out, session, id=None, **params):
         header_row = [
-            'Token', 'Item Name', 'Variation Name', 'Unit and Precision', 'SKU', 'Description', 'Category',
-            'SEO Title', 'SEO Description', 'Permalink', 'Square Online Item Visibility', 'Weight (lb)', 'Shipping Enabled',
-            'Self-serve Ordering Enabled', 'Delivery Enabled', 'Pickup Enabled', 'Price', 'Sellable', 'Stockable',
-            'Skip Detail Screen in POS', 'Option Name 1', 'Option Value 1', 'Current Quantity MAGFest Rock Island',
-            'New Quantity MAGFest Rock Island'
+            'Reference Handle', 'Token', 'Item Name', 'Customer-facing Name', 'Variation Name',
+            'Unit and Precision', 'SKU', 'Description', 'Categories', 'Reporting Category',
+            'SEO Title', 'SEO Description', 'Permalink', 'GTIN', 'Square Online Item Visibility', 'Item Type',
+            'Weight (lb)', 'Social Media Link Title', 'Social Media Link Description',
+            'Shipping Enabled', 'Self-serve Ordering Enabled', 'Delivery Enabled', 'Pickup Enabled', 'Price',
+            'Online Sale Price', 'Archived', 'Sellable', 'Contains Alcohol', 'Stockable', 'Skip Detail Screen in POS',
+            'Option Name 1', 'Option Value 1', 'Current Quantity MAGFest Rock Island', 'New Quantity MAGFest Rock Island',
+            'Stock Alert Enabled MAGFest Rock Island', 'Stock Alert Count MAGFest Rock Island', 'Tax - Sales Tax (6%)'
             ]
         
         query = session.query(GuestGroup).options(
@@ -175,9 +178,9 @@ class Root:
                 item_name = f'{item_name} T-shirt'
 
             return [
-                '', item_name, variation_name, '', '', '', guest.group.name, '', '', '',
-                'hidden', '', 'N', '', 'N', 'N', '{:.2f}'.format(float(item['price'])),
-                '', '', 'N', '', '', '', ''
+                '', '', item_name, '', variation_name, '', '', '', guest.group.name, guest.group.name,
+                '', '', '', '', 'unavailable', 'Physical good', '', '', '', 'N', 'N', 'N', 'N', '{:.2f}'.format(float(item['price'])),
+                '', 'N', '', 'N', '', 'N', '', '', '', '', 'Y', '1', 'Y'
             ]
 
         for guest in guest_groups:

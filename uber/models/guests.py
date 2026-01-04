@@ -654,6 +654,11 @@ class GuestMerch(MagModel):
     @classmethod
     def line_items(cls, item):
         line_items = []
+
+        for attr in filter(lambda s: s.startswith('quantity-'), item.keys()):
+            if (item[attr] if item[attr] else 'off') in ['on', '1']:
+                line_items.append(attr)
+
         varieties, cuts, sizes = [
             [v for (v, _) in x]
             for x in cls.item_subcategories_opts(item['type'])]
