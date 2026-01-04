@@ -904,13 +904,14 @@ class Root:
         else:
             attendee = session.attendee(id)
 
+        pre_badge = attendee.badge_num
+
         forms = load_forms(params, attendee, ['CheckInForm'])
 
         for form in forms.values():
             form.populate_obj(attendee, is_admin=True)
         
         session.commit()
-        pre_badge = attendee.badge_num
         success, increment = False, False
 
         attendee.check_in()

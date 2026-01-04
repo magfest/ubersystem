@@ -336,6 +336,18 @@ CheckInForm.field_validation.validations['birthdate'].update(PersonalInfo.field_
 CheckInForm.new_or_changed.validations['badge_num']['dupe_badge_num'] = dupe_badge_num
 
 
+@CheckInForm.field_validation('badge_num')
+def not_in_range(form, field):
+    if not field.data:
+        return
+
+    badge_type = get_real_badge_type(form.model.badge_type)
+    lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
+    if not (lower_bound <= int(field.data) <= upper_bound):
+        raise ValidationError(f'Badge number {field.data} is out of range for badge type \
+                              {c.BADGES[form.model.badge_type]} ({lower_bound} - {upper_bound})')
+
+
 @CheckInForm.field_validation('instructions_followed')
 def instructions_were_followed(form, field):
     if form.model.check_in_notes and not field.data:
