@@ -188,47 +188,39 @@ def send_automated_emails():
                 load_start = time()
                 model_instances = query_func(session).all()
                 log.debug(f"Loaded {len(model_instances)} {model.__name__} instances in {time() - load_start} seconds")
-                for automated_email in automated_emails:
-                    # Convert the automated_email UUID into a 64-bit int as a lock key
-                    # Collisions are possible, but the only side effect is both automated_emails won't run in parallel
-                    lock_key = uuid.UUID(str(automated_email.id)).int & ((1<<63)-1)
-                    is_lock_owner = False
-                    try:
+                with Session.engine.connect() as guard_conn:
+                    for automated_email in automated_emails:
+                        # Convert the automated_email UUID into a 64-bit int as a lock key
+                        # Collisions are possible, but the only side effect is both automated_emails won't run in parallel
+                        lock_key = uuid.UUID(str(automated_email.id)).int & ((1<<63)-1)
                         log.debug(f"Attempting to lock {automated_email.ident}")
-                        is_locked = session.execute(select(func.pg_try_advisory_lock(lock_key))).scalar()
-                        if is_locked:
-                            is_lock_owner = True
-                            log.debug(f"Checking {automated_email.ident}")
-                            sleep(5)
-                            unapproved_count = 0
+                    
+                        with guard_conn.begin():
+                            if guard_conn.execute(select(func.pg_try_advisory_lock(lock_key))).scalar():
+                                log.debug(f"Locked {automated_email.ident}")
+                                unapproved_count = 0
 
-                            if getattr(automated_email, 'shared_ident', None):
-                                matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
-                                fk_id_list = {id for id, in matching_email_ids}
+                                if getattr(automated_email, 'shared_ident', None):
+                                    matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
+                                    fk_id_list = {id for id, in matching_email_ids}
+                                else:
+                                    fk_id_list = {email.fk_id for email in automated_email.emails}
+
+                                for model_instance in model_instances:
+                                    if model_instance.id not in fk_id_list:
+                                        if automated_email.would_send_if_approved(model_instance):
+                                            if automated_email.approved or not automated_email.needs_approval:
+                                                if getattr(model_instance, 'active_receipt', None):
+                                                    session.refresh_receipt_and_model(model_instance)
+                                                automated_email.send_to(model_instance, delay=False, session=session)
+                                                quantity_sent += 1
+                                            else:
+                                                unapproved_count += 1
+
+                                automated_email.unapproved_count = unapproved_count
+                                session.add(automated_email)
                             else:
-                                fk_id_list = {email.fk_id for email in automated_email.emails}
-
-                            for model_instance in model_instances:
-                                if model_instance.id not in fk_id_list:
-                                    if automated_email.would_send_if_approved(model_instance):
-                                        if automated_email.approved or not automated_email.needs_approval:
-                                            if getattr(model_instance, 'active_receipt', None):
-                                                session.refresh_receipt_and_model(model_instance)
-                                            automated_email.send_to(model_instance, delay=False, session=session)
-                                            quantity_sent += 1
-                                        else:
-                                            unapproved_count += 1
-
-                            automated_email.unapproved_count = unapproved_count
-                            session.add(automated_email)
-                        else:
-                            log.debug(f"Skipping {automated_email.ident} as it is being worked by another thread.")
-                    finally:
-                        if is_lock_owner:
-                            log.debug(f"Unlocking {automated_email.ident}")
-                            session.execute(func.pg_advisory_unlock(lock_key))
-                        else:
-                            log.debug(f"Not unlocking {automated_email.ident} as someone else has it.")
+                                log.debug(f"Skipping {automated_email.ident} as it is being worked by another thread.")
                     
                 session.commit()
             log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
