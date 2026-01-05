@@ -943,7 +943,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 return "Please escalate this case to someone with access to the watchlist."
             else:
                 return "Please view this person's watchlist entry to clear them for check-in."
-        if (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and not c.HAS_REG_ADMIN_ACCESS:
+        if c.AT_THE_CON and not c.HAS_REG_ADMIN_ACCESS:
             return "Altering the badge status is disabled during the event. The system will update it automatically."
         return ''
 

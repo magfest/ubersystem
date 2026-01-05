@@ -65,7 +65,7 @@
     <p>This attendee cannot check in because they have at least one outstanding escalation ticket. Please ask them to go to the manager station.</p>
     {% endif %}
 </div>
-{% elif (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and receipt and receipt.current_amount_owed and not attendee.is_new %}
+{% elif c.AT_THE_CON and receipt and receipt.current_amount_owed and not attendee.is_new %}
     <div class="alert alert-warning center" role="alert">
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>
     {% if payment_enabled %}

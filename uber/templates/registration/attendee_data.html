@@ -114,7 +114,7 @@ if($.field('return_to')) {
 {{ save_buttons }}
 </div>
 {% endif %}
-{% if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED %}
+{% if c.AT_THE_CON %}
 {% include 'registration/attendee_pending_warning.html' %}
 {% endif %}
 {% if attendee.regdesk_info %}
