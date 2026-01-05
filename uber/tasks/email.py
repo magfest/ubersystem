@@ -192,11 +192,14 @@ def send_automated_emails():
                     # Convert the automated_email UUID into a 64-bit int as a lock key
                     # Collisions are possible, but the only side effect is both automated_emails won't run in parallel
                     lock_key = uuid.UUID(str(automated_email.id)).int & ((1<<63)-1)
+                    is_lock_owner = False
                     try:
                         log.debug(f"Attempting to lock {automated_email.ident}")
                         is_locked = session.execute(select(func.pg_try_advisory_lock(lock_key))).scalar()
                         if is_locked:
+                            is_lock_owner = True
                             log.debug(f"Checking {automated_email.ident}")
+                            sleep(5)
                             unapproved_count = 0
 
                             if getattr(automated_email, 'shared_ident', None):
@@ -221,8 +224,11 @@ def send_automated_emails():
                         else:
                             log.debug(f"Skipping {automated_email.ident} as it is being worked by another thread.")
                     finally:
-                        log.debug(f"Unlocking {automated_email.ident}")
-                        session.execute(func.pg_advisory_unlock(lock_key))
+                        if is_lock_owner:
+                            log.debug(f"Unlocking {automated_email.ident}")
+                            session.execute(func.pg_advisory_unlock(lock_key))
+                        else:
+                            log.debug(f"Not unlocking {automated_email.ident} as someone else has it.")
                     
                 session.commit()
             log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
