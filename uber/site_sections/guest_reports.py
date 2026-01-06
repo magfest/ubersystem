@@ -197,7 +197,7 @@ class Root:
     @csv_file
     def rock_island_csv(self, out, session, id=None, **params):
         out.writerow([
-            'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Quantity', 'Promo Picture URL',
+            'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Media', 'Quantity', 'Promo Picture URL',
         ])
         query = session.query(GuestGroup).options(
                 subqueryload(GuestGroup.group)).options(
@@ -228,7 +228,8 @@ class Root:
                             c.MERCH_TYPES[merch_type],
                             '{} - {}'.format(item['name'], guest.merch.line_item_to_string(item, line_item)),
                             '${:.2f}'.format(float(item['price'])),
-                            item[line_item],
+                            '',
+                            '1',
                             convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image'))
                         ])
                 else:
@@ -237,6 +238,7 @@ class Root:
                         c.MERCH_TYPES[merch_type],
                         item['name'],
                         '${:.2f}'.format(float(item['price'])),
+                        c.ALBUM_MEDIAS[int(item['media'])] if item.get('media', '') else '',
                         '1',
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),
                     ])
