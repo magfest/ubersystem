@@ -166,6 +166,7 @@
     });
 
     $doneModal.on('show.bs.modal', function () {
+      $(this).find('input[name=badge_num]').val('');
       var $notificationPref = $doneModal.find('.notification_pref'),
           attendeeData = $doneModal.data('attendee');
       if (attendeeData && attendeeData.hasOwnProperty('notification_pref')) {

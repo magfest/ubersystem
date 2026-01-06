@@ -253,6 +253,7 @@
 
     $signupModal.on('show.bs.modal', function (event) {
       resetBadgeNum($(this));
+      $(this).find('input[name=badge_num]').val('');
     });
 
     $signupModal.on('shown.bs.modal', function (event) {
@@ -352,12 +353,10 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
         <h4 class="modal-title">
           <span class="bling-icon"></span> <span class="signup-event-label"></span>
         </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body form-horizontal">
         <div class="hidden-soldout">
