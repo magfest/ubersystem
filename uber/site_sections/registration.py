@@ -598,15 +598,16 @@ class Root:
                 message = 'Unassigned badge removed.'
             else:
                 replacement_attendee = Attendee(**{attr: getattr(attendee, attr) for attr in [
-                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_extra'
+                    'group', 'registered', 'badge_type', 'paid', 'amount_extra'
                 ]})
                 if replacement_attendee.group and replacement_attendee.group.is_dealer:
                     replacement_attendee.ribbon = add_opt(replacement_attendee.ribbon_ints, c.DEALER_RIBBON)
+                if attendee.active_badge:
+                    attendee.active_badge.attendee_id = replacement_attendee.id
+                    session.add(attendee.active_badge)
                 session.add(replacement_attendee)
-                attendee._skip_badge_shift_on_delete = True
                 session.delete_from_group(attendee, attendee.group)
-                message = 'Attendee deleted, but this badge is still ' \
-                    'available to be assigned to someone else in the same group'
+                message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group.'
         else:
             session.delete(attendee)
             message = 'Attendee deleted'
