@@ -148,7 +148,7 @@
             {% if attendee.is_transferable %}
             <a href="transfer_badge?id={{ attendee.id }}" class="btn btn-outline-primary">Transfer My Badge</a>
             {% else %}
-            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="This badge is not transferable. Please{% if attendee.transferable_actions %} {{ attendee.transferable_actions|readable_join }} first, or{% endif %} contact us at {{ c.CONTACT_EMAIL|email_only }} if you have any questions.">
+            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="This badge is not transferable. Please{% if attendee.transferable_actions %} {{ attendee.transferable_actions|readable_join }} first, or{% endif %} contact us at {{ c.REGDESK_EMAIL|email_only }} if you have any questions.">
             <a class="btn btn-outline-primary disabled" aria-disabled="true">Transfer My Badge</a>
             </span>
             {% endif %}
