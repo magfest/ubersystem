@@ -466,13 +466,15 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="account-dropdown">
                             {% if 'admin_account' in c.CURRENT_ADMIN %}
-                            {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-                            <li><a class="dropdown-item" href="../preregistration/homepage">My Homepage</a></li>
-                            {% else %}
-                            <li><a class="dropdown-item" href="../preregistration/confirm?id={{ c.CURRENT_ADMIN.id }}">View My Badge</a></li>
-                            {% if c.HAS_SHIFTS_ADMIN_ACCESS %}<li><a class="dropdown-item" href="../shifts_admin/goto_volunteer_checklist?id={{ c.CURRENT_ADMIN.id }}">My Shifts</a></li>{% endif %}
-                            {% endif %}
+                              {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+                              <li><a class="dropdown-item" href="../preregistration/homepage">My Homepage</a></li>
+                              {% else %}
+                              <li><a class="dropdown-item" href="../preregistration/confirm?id={{ c.CURRENT_ADMIN.id }}">View My Badge</a></li>
+                              {% if c.HAS_SHIFTS_ADMIN_ACCESS %}<li><a class="dropdown-item" href="../shifts_admin/goto_volunteer_checklist?id={{ c.CURRENT_ADMIN.id }}">My Shifts</a></li>{% endif %}
+                              {% endif %}
+                              {% if c.ADMIN_ACCESS_SET %}
                               <li><a class="dropdown-item" href="#attendee_form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
+                              {% endif %}
                               {% if c.HAS_DEPT_ADMIN_ACCESS and c.CURRENT_ADMIN.assigned_depts %}
                                 <li><a class="dropdown-item" href="../dept_admin/?filtered=1">My Departments</a></li>
                                 {% for dept in c.CURRENT_ADMIN.assigned_depts %}
