@@ -25,13 +25,11 @@
     border-color: #b0b0b0;
   }
 
-  .signup-body .btn-success {
-    margin: 0 0 4px 4px;
-  }
-
   .attendee,
   .badge-num-form,
   #filter,
+  #same-dept,
+  #all-events,
   .signup {
     margin-bottom: 24px;
   }
@@ -50,6 +48,14 @@
     font-style: italic;
   }
 
+  .same-dept { display: none; }
+  .same-dept-force-visible,
+  .show-same-dept .same-dept { display: block; }
+
+  .all-events { display: none; }
+  .all-events-force-visible,
+  .show-all-events .all-events { display: block; }
+
   .checked-in { display: none; }
   .checked-in-force-visible,
   .show-checked-in .checked-in { display: block; }
@@ -61,12 +67,16 @@
   .checked-in .checked-in-hidden { display: none; }
 
   .attendee,
-  #filter {
+  #filter,
+  #same-dept,
+  #all-events {
     display: none;
   }
 
   .has-attendee .attendee,
-  .has-attendee #filter {
+  .has-attendee #filter,
+  .has-attendee #same-dept,
+  .has-attendee #all-events {
     display: inline-block;
   }
 
@@ -91,11 +101,14 @@
         $badgeNum = $('input[name=badge_num]'),
         $signups = $('#signups'),
         $showCheckedInButton = $('#filter'),
+        $showSameDeptButton = $('#same-dept'),
+        $showAllEventsButton = $('#all-events'),
         $attendee = $('#attendee');
 
     var updateAttendee = function(attendee) {
       $container.toggleClass('has-attendee', !!attendee);
       if(attendee) {
+        $attendee.data('attendeeId', attendee.id);
         $attendee.find('.name').text(attendee.first_name + ' ' + attendee.last_name);
         $attendee.find('.badge_num').text('#' + attendee.badge_num);
         $attendee.find('.email').text(attendee.email);
@@ -103,6 +116,7 @@
         $attendee.find('.birthdate').text(attendee.birthdate ? moment(attendee.birthdate).format('MMMM D, YYYY') : '');
         $attendee.find('.zip_code').text(attendee.zip_code);
       } else {
+        $attendee.data('attendeeId', '');
         $attendee.find('.name').text('');
         $attendee.find('.badge_num').text('');
         $attendee.find('.email').text('');
@@ -112,15 +126,34 @@
       }
     };
 
-    var updateSignupTemplate = function($signup, signup) {
-      $signup.data('signupId', signup.id);
+    var updateSignupTemplate = function($signup, signup, message='') {
+      if (signup.attraction_id != '{{ attraction.id }}') {
+        $signup.addClass('same-dept');
+        $signup.find('.attraction_name').text(signup.attraction.name);
+      }
+
+      if (signup.is_signed_up == false) {
+        $signup.addClass('all-events');
+        $signup.data('signupId', signup.event.id);
+        $signup.find('.show-signed-up').addClass('d-none');
+        $signup.find('.hide-signed-up').removeClass('d-none');
+        $signup.find('.show-waitlist').addClass('d-none')
+      } else {
+        $signup.data('signupId', signup.id);
+        $signup.find('.show-signed-up').removeClass('d-none');
+        $signup.find('.show-waitlist').toggleClass('d-none', signup.on_waitlist == false);
+        $signup.find('.hide-waitlist').toggleClass('d-none', signup.on_waitlist);
+        $signup.find('.hide-signed-up').addClass('d-none');
+      }
+
+      $signup.find('.extra-message').text(message)
+      $signup.find('.extra-message').toggleClass('d-none', message == '');
       $signup.toggleClass('checked-in', signup.is_checked_in);
       $signup.find('.waitlist-position').text(signup.waitlist_position);
-      $signup.find('.show-waitlist').toggleClass('d-none', signup.on_waitlist == false);
-      $signup.find('.hide-waitlist').toggleClass('d-none', signup.on_waitlist);
       $signup.find('.feature_name').text(signup.event.feature.name);
       $signup.find('.event_time_span_label').text(signup.event.time_span_label);
       $signup.find('.event_location_label').text(signup.event.location_name);
+      $signup.find('.event-link').attr('href', "event?id=" + signup.event.id);
     };
 
     var resetSignups = function() {
@@ -157,8 +190,8 @@
             $('.form-control-feedback').show();
             updateAttendee(response['result']['attendee']);
 
-            if(response['result']['signups'].length) {
-              var signups = response['result']['signups'],
+            if(response['result']['signups_and_events'].length) {
+              var signups = response['result']['signups_and_events'],
                   len = signups.length,
                   $template = $('#signup_template > .signup');
 
@@ -185,21 +218,44 @@
           $badgeNum.focus();
         },
         error: function(response, status, statusText) {
-          showErrorMessage('Error searching badge number: ' + statusText, '', {timeOut: 3000});
+          showErrorMessage('Error searching badge number: ' + statusText);
+          setTimeout(function(){ hideMessageBox() }, 3000);
           $badgeNum.focus();
         }
       });
     };
 
     var toggleShowCheckedIn = function(isShowing) {
-      $showCheckedInButton.toggleClass('btn-outline-secondary', !isShowing);
+      $showCheckedInButton.toggleClass('btn-secondary', !isShowing);
       $showCheckedInButton.toggleClass('btn-outline-secondary', isShowing);
       $container.toggleClass('show-checked-in', !isShowing);
     };
 
     $showCheckedInButton.on('click', function(event) {
       event.preventDefault();
-      toggleShowCheckedIn($showCheckedInButton.hasClass('btn-outline-secondary'));
+      toggleShowCheckedIn($showCheckedInButton.hasClass('btn-secondary'));
+    });
+
+    var toggleShowSameDept = function(isShowing) {
+      $showSameDeptButton.toggleClass('btn-secondary', !isShowing);
+      $showSameDeptButton.toggleClass('btn-outline-secondary', isShowing);
+      $container.toggleClass('show-same-dept', !isShowing);
+    };
+
+    $showSameDeptButton.on('click', function(event) {
+      event.preventDefault();
+      toggleShowSameDept($showSameDeptButton.hasClass('btn-secondary'));
+    });
+
+    var toggleShowAllEvents = function(isShowing) {
+      $showAllEventsButton.toggleClass('btn-secondary', !isShowing);
+      $showAllEventsButton.toggleClass('btn-outline-secondary', isShowing);
+      $container.toggleClass('show-all-events', !isShowing);
+    };
+
+    $showAllEventsButton.on('click', function(event) {
+      event.preventDefault();
+      toggleShowAllEvents($showAllEventsButton.hasClass('btn-secondary'));
     });
 
     $('.form-control-feedback').on('click', function(event) {
@@ -208,6 +264,21 @@
       getSignups('');
       $badgeNum.focus();
       $('.form-control-feedback').hide();
+    });
+
+    $signups.on('click', '.btn-outline-primary', function(event) {
+      event.preventDefault();
+      var $signup = $(this).closest('.signup'),
+          eventId = $signup.data('signupId'),
+          attendeeId = $attendee.data('attendeeId');
+      addSignup(eventId, attendeeId, function(response) {
+        if(response && response['error']) {
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
+        } else {
+          updateSignupTemplate($signup, response['signup'], response['message']);
+        }
+      });
     });
 
     $signups.on('click', '.btn-success', function(event) {
@@ -233,7 +304,8 @@
           signupId = $signup.data('signupId');
       pullFromWaitlist(signupId, function(response) {
         if(response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           $signup.find('.show-waitlist').addClass('d-none');
           $signup.find('.hide-waitlist').removeClass('d-none');
@@ -251,6 +323,20 @@
           setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           $signup.removeClass('checked-in').removeClass('checked-in-force-visible');
+        }
+      });
+    });
+
+    $signups.on('click', '.btn-danger', function(event) {
+      event.preventDefault();
+      var $signup = $(this).closest('.signup'),
+          signupId = $signup.data('signupId');
+      cancelSignup(signupId, function(response) {
+        if(response && response['error']) {
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
+        } else {
+          updateSignupTemplate($signup, response['event']);
         }
       });
     });
@@ -300,23 +386,37 @@
   <div id="signup_template" style="display: none;">
     <div class="signup card border">
       <div class="signup-body">
-        <button class="btn btn-primary btn-lg pull-right checked-in-hidden show-waitlist">
-          <i class="fa fa-arrow-right"></i>
-          Move From Waitlist
-        </button>
-        <button class="btn btn-success btn-lg pull-right checked-in-hidden hide-waitlist">
-          <i class="fa fa-check"></i>
-          Check In
-        </button>
-        <button class="btn btn-warning btn-lg pull-right checked-in-visible">
-          <i class="fa fa-check"></i>
-          Undo
-        </button>
-        <h2 class="feature_name"></h2>
-        <div class="event_time_span_label"></div>
-        <div class="event_location_label"></div>
-        <div class="show-waitlist"><em>Waitlist Position <span class="waitlist-position"></span></em></div>
-        <div class="clearfix"></div>
+        <div class="d-flex gap-2 justify-content-between align-items-center">
+          <div>
+          <h2><span class="feature_name"></span><span class="text-muted attraction_name ms-2"></span><a class="text-decoration-none btn-secondary btn-sm ms-2 event-link" target="_blank">Manage Event <i class="fa fa-external-link"></i></a></h2>
+          <div class="event_time_span_label"></div>
+          <div class="event_location_label"></div>
+          <div class="show-waitlist"><em>Waitlist Position <span class="waitlist-position"></span></em></div>
+          <span class="extra-message fw-bold fst-italic"></span>
+          </div>
+          <div>
+          <button class="btn btn-outline-primary btn-lg checked-in-hidden hide-signed-up">
+            <i class="fa fa-plus"></i>
+            Sign Up
+          </button>
+          <button class="btn btn-primary btn-lg checked-in-hidden show-waitlist show-signed-up">
+            <i class="fa fa-arrow-right"></i>
+            Move From Waitlist
+          </button>
+          <button class="btn btn-success btn-lg checked-in-hidden hide-waitlist show-signed-up">
+            <i class="fa fa-check"></i>
+            Check In
+          </button>
+          <button class="btn btn-warning btn-lg checked-in-visible">
+            <i class="fa fa-check"></i>
+            Undo Check-In
+          </button>
+          <button class="btn btn-danger btn-lg checked-in-hidden show-signed-up">
+            <i class="fa fa-check"></i>
+            Cancel Signup
+          </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -337,10 +437,22 @@
     </div>
   </div>
   <br/>
+  <div class="d-flex gap-2">
   <button id="filter" class="btn btn-sm btn-sm btn-outline-secondary">
     <i class="fa fa-filter"></i>
     Show Already Checked In
   </button>
+  {% if dept_name %}
+  <button id="same-dept" class="btn btn-sm btn-sm btn-outline-secondary">
+    <i class="fa fa-filter"></i>
+    Show Other {{ dept_name }} Signups
+  </button>
+  {% endif %}
+  <button id="all-events" class="btn btn-sm btn-sm btn-outline-secondary">
+    <i class="fa fa-filter"></i>
+    Show All Current {{ attraction.name }} Events
+  </button>
+  </div>
   <div id="signups"></div>
 </div>
 

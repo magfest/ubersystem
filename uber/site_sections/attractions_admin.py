@@ -14,8 +14,41 @@ from uber.models import AdminAccount, Attendee, Attraction, AttractionFeature, A
     utcmin
 from uber.site_sections.attractions import _attendee_for_badge_num
 from uber.tasks.attractions import send_waitlist_notification
-from uber.utils import check, filename_safe, validate_model
+from uber.utils import localized_now, filename_safe, validate_model
 
+
+event_spec = {
+    'id': True,
+    'event_location_id': True,
+    'location_room_name': True,
+    'start_time': True,
+    'start_time_label': True,
+    'duration': True,
+    'time_span_label': True,
+    'slots': True,
+    'feature': True}
+
+
+signup_spec = {
+    'attraction_id': True,
+    'signup_time': True,
+    'checkin_time': True,
+    'on_waitlist': True,
+    'waitlist_position': True,
+    'is_checked_in': True,
+    'attraction': {
+        'name': True,
+    },
+    'event': event_spec}
+
+
+dummy_signup = {
+    'is_signed_up': False,
+    'signup_time': None,
+    'checkin_time': None,
+    'on_waitlist': False,
+    'waitlist_position': None,
+    'is_checked_in': False}
 
 @all_renderable()
 class Root:
@@ -481,22 +514,35 @@ class Root:
 
     @ajax
     def cancel_signup(self, session, id):
+        # TODO: make this return the event for the admin checkin page
         message = ''
+        event = {}
         if cherrypy.request.method == 'POST':
             signup = session.query(AttractionSignup).get(id)
             attraction_id = signup.event.feature.attraction_id
             attraction = session.query(Attraction).get(attraction_id)
             if not session.admin_attendee().can_admin_attraction(attraction):
-                message = "You cannot cancel a signup for an attraction you don't own"
+                message = "You cannot cancel a signup for an attraction you don't own."
             elif signup.is_checked_in:
-                message = "You cannot cancel a signup that has already checked in"
+                message = "You cannot cancel a signup that has already checked in."
             else:
+                event = signup.event
+                event_dict = {
+                        'attraction_id': event.attraction_id,
+                        'attraction': {
+                            'name': event.attraction.name,
+                        },
+                        'event': event.to_dict(event_spec)
+                    }
+                event_dict.update(dummy_signup)
+
                 if not signup.on_waitlist:
                     signup.event.add_next_waitlist(session)
                 session.delete(signup)
                 session.commit()
         if message:
             return {'error': message}
+        return {'event': event_dict}
 
     def checkin(self, session, message='', **params):
         id = params.get('id')
@@ -512,8 +558,16 @@ class Root:
         attraction = session.query(Attraction).filter(*filters).first()
         if not attraction:
             raise HTTPRedirect('index')
+        
+        dept_name = ''
+        if attraction.department and len(attraction.department.attractions) > 1:
+            dept_name = attraction.department.name
 
-        return {'attraction': attraction, 'message': message}
+        return {
+            'attraction': attraction,
+            'dept_name': dept_name,
+            'message': message,
+            }
 
     @ajax
     def get_signups(self, session, badge_num, attraction_id=None):
@@ -535,32 +589,94 @@ class Root:
                 return {'error': 'Unrecognized badge number: {}'.format(badge_num)}
 
             signups = attendee.attraction_signups
+            other_events = []
             if attraction_id:
-                signups = [s for s in signups if s.event.feature.attraction_id == attraction_id]
+                min_time = localized_now() - timedelta(hours=4)
+                max_time = localized_now() + timedelta(hours=4)
+                attraction = session.attraction(attraction_id)
+                if attraction.department and len(attraction.department.attractions) > 1:
+                    attraction_ids = [a.id for a in attraction.department.attractions]
+                    signups = [s for s in signups if s.event.feature.attraction_id in attraction_ids]
+                else:
+                    signups = [s for s in signups if s.event.feature.attraction_id == attraction_id]
 
-            read_spec = {
-                'signup_time': True,
-                'checkin_time': True,
-                'on_waitlist': True,
-                'waitlist_position': True,
-                'is_checked_in': True,
-                'event': {
-                    'event_location_id': True,
-                    'location_room_name': True,
-                    'start_time': True,
-                    'start_time_label': True,
-                    'duration': True,
-                    'time_span_label': True,
-                    'slots': True,
-                    'feature': True}}
+                exclude_ids = [s.attraction_event_id for s in signups]
+                other_events = session.query(AttractionEvent).filter(
+                    AttractionEvent.attraction_id == attraction_id,
+                    ~AttractionEvent.id.in_(exclude_ids),
+                    AttractionEvent.start_time > min_time,
+                    AttractionEvent.start_time < max_time).all()
+
+            signups_and_events = []
+            for s_or_e in sorted(signups + other_events,
+                                 key=lambda se: se.event.start_time if getattr(se, 'event', None) else se.start_time):
+                if isinstance(s_or_e, AttractionSignup):
+                    signup_dict = s_or_e.to_dict(signup_spec)
+                    signup_dict['is_signed_up'] = True
+                    signups_and_events.append(signup_dict)
+                elif isinstance(s_or_e, AttractionEvent):
+                    event_dict = {
+                        'attraction_id': s_or_e.attraction_id,
+                        'attraction': {
+                            'name': s_or_e.attraction.name,
+                        },
+                        'event': s_or_e.to_dict(event_spec)
+                    }
+                    event_dict.update(dummy_signup)
+                    signups_and_events.append(event_dict)
 
             signups = sorted(signups, key=lambda s: s.event.start_time)
             return {
                 'result': {
-                    'signups': [s.to_dict(read_spec) for s in signups],
-                    'attendee': attendee.to_dict()
+                    'signups_and_events': signups_and_events,
+                    'attendee': attendee.to_dict(),
                 }
             }
+        
+    @ajax
+    def sign_up(self, session, id, attendee_id):
+        message = ''
+        overfilled = False
+        
+        if cherrypy.request.method == 'POST':
+            if not id:
+                return {'error': "Event ID is blank."}
+            if not attendee_id:
+                return {'error': "Attendee ID is blank."}
+            
+            event = session.query(AttractionEvent).get(id)
+            attendee = session.query(Attendee).get(attendee_id)
+            if not event:
+                return {'error': "Could not find event."}
+            if not attendee:
+                return {'error': "Could not find attendee."}
+            
+            if attendee in event.attendee_signups:
+                return {'error': f"{attendee.full_name} is already signed up for this event!"}
+            
+            if event.is_sold_out:
+                overfilled = True
+            
+            event.attendee_signups.append(attendee)
+            session.add(event)
+            session.commit()
+            session.refresh(event)
+
+            signup = session.query(AttractionSignup).filter(AttractionSignup.attendee_id == attendee.id,
+                                                            AttractionSignup.attraction_event_id == event.id).first()
+            if not signup:
+                return {'error': "Signup failed. Try refreshing the page."}
+            
+            if overfilled:
+                message = "This event is now over capacity."
+            elif event.is_sold_out:
+                message = "This event is now full."
+            
+            signup_dict = signup.to_dict(signup_spec)
+            signup_dict['is_signed_up'] = True
+
+            return {'signup': signup_dict, 'message': message}
+
 
     @ajax
     def pull_from_waitlist(self, session, id, email=False):

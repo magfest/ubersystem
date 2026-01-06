@@ -181,7 +181,7 @@ class DateTimePicker(TextInput):
         <script type="text/javascript">
             window.eventTimeZone = "{c.EVENT_TIMEZONE}";
 
-            let startFlatpickr{id} = flatpickr('#{id}',{{
+            let flatpickrInput{id} = flatpickr('#{id}',{{
                 allowInput: true,
                 enableTime: true,
                 altInput: true,

@@ -71,6 +71,25 @@
     });
   };
 
+  var addSignup = function(eventId, attendeeId, callback) {
+    callback = callback || function() {}
+    $.ajax({
+      method: 'POST',
+      url: 'sign_up',
+      data: {
+        id: eventId,
+        attendee_id: attendeeId,
+        csrf_token: csrf_token
+      },
+      success: function(response, status) {
+        callback(response);
+      },
+      error: function(response, status, statusText) {
+        callback({'error': 'There was an error signing this attendee up for this event: ' + statusText});
+      }
+    });
+  };
+
   var checkinSignup = function(signupId, callback) {
     callback = callback || function() {}
     $.ajax({

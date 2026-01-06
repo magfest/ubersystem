@@ -197,15 +197,12 @@ get otherCategory() { return this.categories.includes('{{ c.OTHER }}') },
 {% endblock %}
 </div>
 
-{% set extra_fields = '' %}
-
 <div class="row g-3 mb-3">
 {% block textareas %}
     <div class="col">{{ form_macros.input(table_info.wares, required_if="is_dealer") }}</div>
 </div>
 <div class="row g-3 mb-3">
     <div class="col">{{ form_macros.input(table_info.special_needs) }}</div>
-    {{ extra_fields }}
 {% endblock %}
 </div>
 
