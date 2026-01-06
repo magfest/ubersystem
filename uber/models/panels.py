@@ -218,6 +218,7 @@ class PanelApplication(MagModel):
         if self.event:
             for key in ['name', 'description', 'public_description']:
                 if getattr(self.event, key, '') != getattr(self, key, ''):
+                    updated = True
                     setattr(self.event, key, getattr(self, key, ''))
         if updated:
             self.event.last_updated = datetime.now(UTC)
