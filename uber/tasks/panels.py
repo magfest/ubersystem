@@ -99,7 +99,7 @@ def check_deleted_guidebook_models():
 
 @celery.schedule(timedelta(minutes=15))
 def check_stale_guidebook_models():
-    if not c.AT_THE_CON or not c.GUIDEBOOK_UPDATES_EMAIL:
+    if not c.AT_THE_CON or not c.GUIDEBOOK_UPDATES_EMAIL or True:
         return
 
     with Session() as session:
