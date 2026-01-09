@@ -161,6 +161,9 @@ class BadgeInfo(MagModel):
         Index('ix_badge_info_attendee_id', attendee_id.desc()),
     )
 
+    def __repr__(self):
+        return f"<BadgeInfo ident='{self.ident}'>"
+
     def assign(self, attendee_id):
         if self.attendee_id:
             if self.attendee_id == attendee_id:
