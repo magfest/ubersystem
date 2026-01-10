@@ -310,7 +310,8 @@ class Attraction(MagModel, AttractionMixin):
         """
         advance_checkin = max(0, self.advance_checkin)
         subqueries = []
-        for advance_notice in sorted(set([-1] + self.checkin_reminder)):
+        checkin_reminder = self.checkin_reminder or []
+        for advance_notice in sorted(set([-1] + checkin_reminder)):
             event_filters = [AttractionEvent.attraction_id == self.id,
                              AttractionEvent.no_notifications == False]
             if advance_notice == -1:
