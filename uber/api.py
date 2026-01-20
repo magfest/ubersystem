@@ -31,7 +31,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Badg
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
-from uber.utils import check, check_csrf, normalize_email, normalize_newlines
+from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines
 
 
 __version__ = '1.0'
@@ -276,14 +276,14 @@ def _query_to_names_emails_ids(query, split_names=True):
             match = _re_name_email.match(q)
             if match:
                 name = match.group(1)
-                email = normalize_email(match.group(2))
+                email = normalize_email_legacy(match.group(2))
                 if name:
                     first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
                     names_and_emails[(first, last, email)] = q
                 else:
                     emails[email] = q
             else:
-                emails[normalize_email(q)] = q
+                emails[normalize_email_legacy(q)] = q
         elif q:
             try:
                 ids.add(str(uuid.UUID(q)))
