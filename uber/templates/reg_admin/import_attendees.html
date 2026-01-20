@@ -66,14 +66,14 @@
 <h3>Attendee, Account, and Group Importer</h3>
 
 <form id="attendees" action="import_attendees" method="post" x-data="{
-  import_model: '',
+  import_model: '{{ which_import or '' }}',
 }">
   <div class="row g-3 mb-3">
     <div class="col-sm">
       <label class="form-text">What Are You Importing?</label>
       <select name="which_import" class="form-select" x-model="import_model">
         <option value="">Select a model to import</option>
-        {{ options([('groups', 'Groups'), ('accounts', 'Attendee Accounts'), ('attendees', 'Attendees')], which_import) }}
+        {{ options([('attendees', 'Attendees'), ('groups', 'Groups'), ('accounts', 'Attendee Accounts')], which_import) }}
       </select>
       <p class="form-text">
         Importing attendee accounts will also import their attendees.
@@ -102,28 +102,25 @@
       <p class="form-text">Leave blank to try using system API token</p>
     </div>
   </div>
-  <div class="d-flex gap-3 align-items-center mb-3" x-show="import_model == 'groups'">
-    <div>
-      <select name="dealer_status" class="form-select">
-      <option value="" selected="selected">Any Status</option>
-      {{ options(c.DEALER_STATUS_OPTS) }}
-      </select>
+  <div x-show="import_model == 'groups'">
+    <div class="d-flex gap-3 align-items-center mb-3">
+      <div>
+        <select name="dealer_status" class="form-select">
+        <option value="" selected="selected">Any Status</option>
+        {{ options(c.DEALER_STATUS_OPTS) }}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" name="dealers" value="1">Import Dealers</button>
+      OR
     </div>
-    <button type="submit" class="btn btn-primary" name="dealers" value="1">Import Dealers</button>
-    OR
   </div>
-  <div class="d-flex gap-3 align-items-center mb-3" x-show="import_model == 'groups'"></div>
-  <div class="form-group" id="all_accounts">
-    <input class="btn btn-primary" name="all" type="submit" value="Import All Attendee Accounts" />
-    <br/><br/>OR
+  <div x-show="import_model == 'accounts'">
+    <div class="d-flex gap-3 align-items-center mb-3">
+      <input class="btn btn-primary" name="all" type="submit" value="Import All Attendee Accounts" />
+      OR
+    </div>
   </div>
-  <div class="form-group" id="all_dealers">
-    
-    
-    <div class="clearfix"></div>
-    <br/><br/>OR
-  </div>
-  <div class="form-group">
+  <div class="form-group mb-3">
     <label class="control-label">
       Comma or newline separated emails, "First Last" names, or "First Last &lt;email&gt;" combos.
     </label>
@@ -145,6 +142,7 @@
     (unknown_names_and_emails, 'Unrecognized Names and Emails'),
 ] %}
   {% if unknown_items %}
+  <hr/>
     <h3>{{ title }}</h3>
     {% for item in unknown_items %}
       <div>{{ item }}</div>
@@ -155,8 +153,6 @@
 <script type="text/javascript">
   var updateFormForModel = function() {
     var which_import = $.field('which_import').val();
-    setVisible($('#all_accounts'), which_import == 'accounts');
-    setVisible($('#all_dealers'), which_import == 'groups');
 
     if(which_import == 'accounts' || which_import == 'groups') {
       $('#query').prop('required', false);
@@ -173,6 +169,7 @@
 </script>
 
 {% if existing_attendees %}
+<hr/>
   <h3>Existing Attendees</h3>
   <table id="existing_attendees" class="table table-hover form">
     <thead>
@@ -193,6 +190,7 @@
 {% endif %}
 
 {% if attendees %}
+<hr/>
   <h2>Matching Attendees</h2>
   <form id="confirm_attendees" action="confirm_import_attendees" method="post" class="form">
     <input type="hidden" name="target_server" value="{{ target_server }}">
@@ -257,6 +255,7 @@
 {% endif %}
 
 {% if existing_accounts %}
+<hr/>
   <h3>Existing Attendee Accounts</h3>
   <table id="existing_accounts" class="table table-hover form">
     <thead>
@@ -279,6 +278,7 @@
 {% endif %}
 
 {% if accounts %}
+<hr/>
   <h2>Attendee Accounts Queued for Import</h2>
   <form id="confirm_accounts" action="confirm_import_attendee_accounts" method="post" class="form">
     <input type="hidden" name="target_server" value="{{ target_server }}">
@@ -305,6 +305,7 @@
 {% endif %}
 
 {% if existing_groups %}
+<hr/>
   <h3>Existing Groups</h3>
   <table id="existing_groups" class="table table-hover form">
     <thead>
@@ -329,6 +330,7 @@
 {% endif %}
 
 {% if groups %}
+<hr/>
   <h2>Groups to Import</h2>
   <form id="confirm_groups" action="confirm_import_groups" method="post" class="form">
     <input type="hidden" name="target_server" value="{{ target_server }}">
