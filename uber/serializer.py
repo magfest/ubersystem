@@ -45,4 +45,5 @@ class serializer(json.JSONEncoder):
 
 serializer.register(datetime.date, lambda d: d.strftime('%Y-%m-%d'))
 serializer.register(datetime.datetime, lambda dt: dt.strftime(serializer._datetime_format))
+serializer.register(datetime.time, lambda t: t.strftime(serializer._datetime_format.split(' ')[1]))
 serializer.register(set, lambda s: sorted(list(s)))

@@ -1317,7 +1317,6 @@ class DepartmentLookup:
                 'panels_desc': True,
                 'jobs': {
                     'id': True,
-                    'type': True,
                     'name': True,
                     'description': True,
                     'start_time': True,
@@ -1326,13 +1325,33 @@ class DepartmentLookup:
                     'slots': True,
                     'extra15': True,
                     'visibility': True,
+                    'all_roles_required': True,
                     'required_roles': {'id': True},
+                    'job_template_id': True,
                 },
                 'dept_roles': {
                     'id': True,
                     'name': True,
                     'description': True,
                 },
+                'job_templates': {
+                    'id': True,
+                    'template_name': True,
+                    'type': True,
+                    'name': True,
+                    'description': True,
+                    'duration': True,
+                    'weight': True,
+                    'extra15': True,
+                    'visibility': True,
+                    'all_roles_required': True,
+                    'min_slots': True,
+                    'days': True,
+                    'open_time': True,
+                    'close_time': True,
+                    'interval': True,
+                    'required_roles': {'id': True},
+                }
             })
 
 
