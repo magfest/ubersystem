@@ -392,11 +392,11 @@ class Department(MagModel):
     
     @property
     def job_templates_by_id(self):
-        return groupify(self.dept_roles, 'id')
+        return groupify(self.job_templates, 'id')
 
     @property
     def job_templates_by_name(self):
-        return groupify(self.dept_roles, 'template_name')
+        return groupify(self.job_templates, 'template_name')
 
 
 class Job(MagModel):
