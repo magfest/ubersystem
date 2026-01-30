@@ -1074,16 +1074,15 @@ class Config(_Overridable):
     def DEPARTMENT_OPTS(self):
         from uber.models import Session, Department
         with Session() as session:
-            query = session.query(Department).order_by(Department.name)
-            return [(d.id, d.name) for d in query]
+            return [(id, name) for id, name in session.query(Department.id, Department.name).order_by(Department.name).all()]
 
     @request_cached_property
     @dynamic
     def DEPARTMENT_OPTS_WITH_DESC(self):
         from uber.models import Session, Department
         with Session() as session:
-            query = session.query(Department).order_by(Department.name)
-            return [(d.id, d.name, d.description) for d in query]
+            return [(id, name, desc) for id, name, desc in
+                    session.query(Department.id, Department.name, Department.description).order_by(Department.name).all()]
 
     @request_cached_property
     @dynamic

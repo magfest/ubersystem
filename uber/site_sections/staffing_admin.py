@@ -2,12 +2,13 @@ from datetime import datetime
 
 import cherrypy
 from dateutil import parser as dateparser
+from pockets import sluggify
 from pytz import UTC
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax, ajax_gettable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, DeptRole, Job
+from uber.models import Attendee, Attraction, Department, DeptRole, Job, JobTemplate
 from uber.utils import get_api_service_from_server
 
 
@@ -42,10 +43,29 @@ def _copy_department_roles(to_department, from_department):
     return dept_role_map
 
 
-def _copy_department_shifts(service, to_department, from_department, dept_role_map):
+def _copy_department_templates(to_department, from_department):
+    to_dept_templates_by_id = to_department.job_templates_by_id
+    to_dept_templates_by_name = to_department.job_templates_by_name
+    dept_template_map = {}
+    for from_dept_template in from_department['job_templates']:
+        to_dept_template = to_dept_templates_by_id.get(from_dept_template['id'], [None])[0]
+        if not to_dept_template:
+            to_dept_template = to_dept_templates_by_name.get(from_dept_template['template_name'], [None])[0]
+        if not to_dept_template:
+            to_dept_template = JobTemplate(department_id=to_department.id)
+            for attr in ['template_name', 'type', 'name', 'description', 'duration', 'weight', 'extra15', 'visibility',
+                         'all_roles_required', 'min_slots', 'days', 'open_time', 'close_time', 'interval']:
+                setattr(to_dept_template, attr, from_dept_template.get(attr, None))
+            to_department.job_templates.append(to_dept_template)
+        dept_template_map[from_dept_template['id']] = to_dept_template
+
+    return dept_template_map
+
+
+def _copy_department_shifts(service, to_department, from_department, dept_role_map, dept_template_map):
     from_config = service.config.info()
-    FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
-    EPOCH_DELTA = c.EPOCH - FROM_EPOCH
+    FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['SHIFTS_EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
+    EPOCH_DELTA = c.SHIFTS_EPOCH - FROM_EPOCH
 
     for from_job in from_department['jobs']:
         to_job = Job(
@@ -60,6 +80,8 @@ def _copy_department_shifts(service, to_department, from_department, dept_role_m
             department_id=to_department.id)
         for from_required_role in from_job['required_roles']:
             to_job.required_roles.append(dept_role_map[from_required_role['id']])
+        if from_job['job_template_id']:
+            to_job.template = dept_template_map[from_job['job_template_id']]
         to_department.jobs.append(to_job)
 
 
@@ -92,8 +114,11 @@ class Root:
             message='',
             **kwargs):
 
-        service, message, target_url = get_api_service_from_server(target_server, api_token)
-        uri = '{}/jsonrpc/'.format(target_url)
+        if message:
+            service, uri = None, ''
+        else:
+            service, message, target_url = get_api_service_from_server(target_server, api_token)
+            uri = '{}/jsonrpc/'.format(target_url)
 
         department = {}
         from_departments = []
@@ -116,9 +141,10 @@ class Root:
                     to_department = session.query(Department).get(to_department_id)
 
                 dept_role_map = _copy_department_roles(to_department, from_department)
+                dept_template_map = _copy_department_templates(to_department, from_department)
 
                 if shifts_text:
-                    _copy_department_shifts(service, to_department, from_department, dept_role_map)
+                    _copy_department_shifts(service, to_department, from_department, dept_role_map, dept_template_map)
 
                 message = '{}{}successfully imported from {}'.format(to_department.name, shifts_text, uri)
                 raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
@@ -178,7 +204,21 @@ class Root:
                     session.add(to_department)
 
                 _copy_department_roles(to_department, from_department)
+                _copy_department_templates(to_department, from_department)
 
-            message = 'Successfully imported all departments and roles from {}'.format(uri)
+                to_dept_attractions = {attraction.slug: attraction for attraction in to_department.attractions}
+                for from_dept_attraction in from_department['attractions']:
+                    from_slug = sluggify(from_dept_attraction['name'])
+                    to_dept_attraction = to_dept_attractions.get(from_slug, None)
+                    if not to_dept_attraction:
+                        to_dept_attraction = Attraction(department_id=to_department.id)
+                        for attr in ['name', 'description', 'full_description', 'checkin_reminder',
+                                     'advance_checkin', 'restriction', 'badge_num_required',
+                                     'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
+                                     'signups_open_relative', 'signups_open_time', 'slots']:
+                            setattr(to_dept_attraction, attr, from_dept_attraction.get(attr, None))
+                        to_department.attractions.append(to_dept_attraction)
+
+            message = 'Successfully imported all departments, roles, job templates, and department attractions from {}'.format(uri)
             raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
                                target_server, api_token, message)

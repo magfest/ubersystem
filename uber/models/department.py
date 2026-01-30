@@ -389,6 +389,14 @@ class Department(MagModel):
     @property
     def job_templates_choices(self):
         return [(template.id, template.template_name) for template in self.job_templates]
+    
+    @property
+    def job_templates_by_id(self):
+        return groupify(self.dept_roles, 'id')
+
+    @property
+    def job_templates_by_name(self):
+        return groupify(self.dept_roles, 'template_name')
 
 
 class Job(MagModel):

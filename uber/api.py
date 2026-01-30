@@ -26,12 +26,13 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, BadgeInfo, Department, DeptMembership,
+from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attraction, AttractionFeature, AttractionEvent,
+                         BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
-from uber.utils import check, check_csrf, normalize_email, normalize_newlines
+from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines
 
 
 __version__ = '1.0'
@@ -276,14 +277,14 @@ def _query_to_names_emails_ids(query, split_names=True):
             match = _re_name_email.match(q)
             if match:
                 name = match.group(1)
-                email = normalize_email(match.group(2))
+                email = normalize_email_legacy(match.group(2))
                 if name:
                     first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
                     names_and_emails[(first, last, email)] = q
                 else:
                     emails[email] = q
             else:
-                emails[normalize_email(q)] = q
+                emails[normalize_email_legacy(q)] = q
         elif q:
             try:
                 ids.add(str(uuid.UUID(q)))
@@ -942,6 +943,81 @@ class AttendeeAccountLookup:
             }
 
 
+@all_api_auth('api_read')
+class AttractionLookup:
+    def list(self):
+        """
+        Returns a list of all attractions
+        """
+        with Session() as session:
+            return [(id, name) for id, name in session.query(Attraction.id, Attraction.name).order_by(Attraction.name).all()]
+
+    @department_id_adapter
+    @api_auth('api_read')
+    def features_events(self, attraction_id):
+        """
+        Returns a list of all features and events for the given attraction.
+
+        Takes the attraction id as the first parameter. For a list of all
+        attraction ids call the "attraction.list" method.
+        """
+        with Session() as session:
+            attraction = session.query(Attraction).filter_by(id=attraction_id).first()
+            if not attraction:
+                raise HTTPError(404, 'Attraction id not found: {}'.format(attraction_id))
+            return attraction.to_dict({
+                'id': True,
+                'name': True,
+                'description': True,
+                'full_description': True,
+                'checkin_reminder': True,
+                'advance_checkin': True,
+                'restriction': True,
+                'badge_num_required': True,
+                'populate_schedule': True,
+                'no_notifications': True,
+                'waitlist_available': True,
+                'waitlist_slots': True,
+                'signups_open_relative': True,
+                'signups_open_time': True,
+                'slots': True,
+                'department': {
+                    'id': True,
+                    'name': True,
+                },
+                'features': {
+                    'id': True,
+                    'name': True,
+                    'description': True,
+                    'badge_num_required': True,
+                    'populate_schedule': True,
+                    'no_notifications': True,
+                    'waitlist_available': True,
+                    'waitlist_slots': True,
+                    'signups_open_relative': True,
+                    'signups_open_time': True,
+                    'slots': True,
+                    'events': {
+                        'id': True,
+                        'start_time': True,
+                        'duration': True,
+                        'populate_schedule': True,
+                        'no_notifications': True,
+                        'waitlist_available': True,
+                        'waitlist_slots': True,
+                        'signups_open_relative': True,
+                        'signups_open_time': True,
+                        'slots': True,
+                        'location': {
+                            'id': True,
+                            'name': True,
+                            'room': True,
+                        }
+                    }
+                }
+            })
+
+
 @all_api_auth('api_update')
 class JobLookup:
     fields = {
@@ -1317,7 +1393,6 @@ class DepartmentLookup:
                 'panels_desc': True,
                 'jobs': {
                     'id': True,
-                    'type': True,
                     'name': True,
                     'description': True,
                     'start_time': True,
@@ -1326,13 +1401,50 @@ class DepartmentLookup:
                     'slots': True,
                     'extra15': True,
                     'visibility': True,
+                    'all_roles_required': True,
                     'required_roles': {'id': True},
+                    'job_template_id': True,
                 },
                 'dept_roles': {
                     'id': True,
                     'name': True,
                     'description': True,
                 },
+                'job_templates': {
+                    'id': True,
+                    'template_name': True,
+                    'type': True,
+                    'name': True,
+                    'description': True,
+                    'duration': True,
+                    'weight': True,
+                    'extra15': True,
+                    'visibility': True,
+                    'all_roles_required': True,
+                    'min_slots': True,
+                    'days': True,
+                    'open_time': True,
+                    'close_time': True,
+                    'interval': True,
+                    'required_roles': {'id': True},
+                },
+                'attractions': {
+                    'id': True,
+                    'name': True,
+                    'description': True,
+                    'full_description': True,
+                    'checkin_reminder': True,
+                    'advance_checkin': True,
+                    'restriction': True,
+                    'badge_num_required': True,
+                    'populate_schedule': True,
+                    'no_notifications': True,
+                    'waitlist_available': True,
+                    'waitlist_slots': True,
+                    'signups_open_relative': True,
+                    'signups_open_time': True,
+                    'slots': True,
+                }
             })
 
 
@@ -1344,6 +1456,10 @@ class ConfigLookup:
         'EVENT_YEAR',
         'EPOCH',
         'ESCHATON',
+        'SHIFTS_EPOCH',
+        'SHIFTS_ESCHATON',
+        'PANELS_EPOCH',
+        'PANELS_ESCHATON',
         'EVENT_VENUE',
         'EVENT_VENUE_ADDRESS',
         'EVENT_TIMEZONE',
@@ -1739,6 +1855,7 @@ class PrintJobLookup:
 if c.API_ENABLED:
     register_jsonrpc(AttendeeLookup(), 'attendee')
     register_jsonrpc(AttendeeAccountLookup(), 'attendee_account')
+    register_jsonrpc(AttractionLookup(), 'attraction')
     register_jsonrpc(GroupLookup(), 'group')
     register_jsonrpc(JobLookup(), 'shifts')
     register_jsonrpc(DepartmentLookup(), 'dept')

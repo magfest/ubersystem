@@ -1,0 +1,85 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Import Attractions{% endblock %}
+{% block content %}
+
+<h3>Attractions Importer</h3>
+
+<form id="attractions" action="import_attractions" method="post">
+  <div class="row g-3 mb-3">
+    <div class="col-sm">
+      <label class="form-text">Hostname</label>
+      <input
+          class="form-control"
+          type="text"
+          name="target_server"
+          value="{{ target_server }}"
+          placeholder="event.uber.magfest.org/uber"
+          required>
+    </div>
+    <div class="col-sm">
+      <label class="form-text">API Token</label>
+      <input
+          class="form-control"
+          type="text"
+          name="api_token"
+          value="{{ api_token }}"
+          placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
+      <p class="form-text">Leave blank to try using system API token</p>
+    </div>
+  </div>
+  <input class="btn btn-primary" id="search-btn" type="submit" value="List Attractions" />
+</form>
+
+{% if existing_attractions or attractions %}
+<form id="confirm_attractions" action="import_attractions" method="post" class="form">
+<input type="hidden" name="target_server" value="{{ target_server }}">
+<input type="hidden" name="api_token" value="{{ api_token }}">
+{% if existing_attractions %}
+    <hr/>
+    <h3>Existing Attractions</h3>
+    <p>
+        If selected for import, any NEW features and events (including events inside existing features) will be imported.
+        Attraction settings, existing feature settings, and existing events will not be altered.
+    </p>
+    
+    <ul class="list-group list-group-flush d-inline-block mb-3">
+        {% for id, name in existing_attractions %}
+          <li class="list-group-item">
+            <label>
+            <input
+                type="checkbox"
+                name="attraction_ids"
+                value="{{ id }}"
+                checked>&nbsp;
+            {{ name }}
+            </label>
+          </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+{% if attractions %}
+<hr/>
+  <h3>New Attractions</h3>
+    <ul class="list-group list-group-flush d-inline-block mb-3">
+        {% for id, name in attractions %}
+          <li class="list-group-item">
+            <label>
+            <input
+                type="checkbox"
+                name="attraction_ids"
+                value="{{ id }}"
+                checked>&nbsp;
+            {{ name }}
+            </label>
+          </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+<p><input type="submit" class="btn btn-primary" value="Import Attractions"></p>
+</form>
+{% elif api_token and not message %}
+<p>No attractions found!</p>
+{% endif %}
+
+{% endblock %}
