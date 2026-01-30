@@ -52,6 +52,15 @@ dummy_signup = {
     'waitlist_position': None,
     'is_checked_in': False}
 
+
+def import_signups_open_time(attraction_feature_event, old_signups_open_time):
+    if not old_signups_open_time:
+        attraction_feature_event.signups_open_time = None
+        return
+    signups_open_time = pytz.UTC.localize(dateparser.parse(old_signups_open_time))
+    attraction_feature_event.signups_open_time = signups_open_time.replace(year=signups_open_time.year + 1)
+
+
 @all_renderable()
 class Root:
     @site_mappable
@@ -123,8 +132,9 @@ class Root:
                         for attr in ['name', 'description', 'full_description', 'checkin_reminder',
                                      'advance_checkin', 'restriction', 'badge_num_required',
                                      'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
-                                     'signups_open_relative', 'signups_open_time', 'slots']:
+                                     'signups_open_relative', 'slots']:
                             setattr(to_attraction, attr, from_attraction.get(attr, None))
+                        import_signups_open_time(to_attraction, from_attraction.get('signups_open_time', None))
                     
                     for from_feature in from_attraction['features']:
                         new_feature = False
@@ -138,8 +148,9 @@ class Root:
                             to_feature = AttractionFeature(attraction_id=to_attraction.id)
                             for attr in ['name', 'description', 'badge_num_required',
                                          'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
-                                         'signups_open_relative', 'signups_open_time', 'slots']:
+                                         'signups_open_relative', 'slots']:
                                 setattr(to_feature, attr, from_feature.get(attr, None))
+                            import_signups_open_time(to_feature, from_feature.get('signups_open_time', None))
                             
                             from_dept = from_feature.get('department', {})
                             if from_dept:
@@ -158,8 +169,9 @@ class Root:
 
                             to_event = AttractionEvent(attraction_feature_id=to_feature.id, start_time=start_time)
                             for attr in ['duration', 'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
-                                         'signups_open_relative', 'signups_open_time', 'slots']:
+                                         'signups_open_relative', 'slots']:
                                 setattr(to_event, attr, from_event.get(attr, None))
+                            import_signups_open_time(to_event, from_event.get('signups_open_time', None))
                             
                             event_location = session.query(EventLocation).filter(EventLocation.name == from_event['location']['name'])
                             if event_location.count() == 1:

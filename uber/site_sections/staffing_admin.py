@@ -210,14 +210,25 @@ class Root:
                 for from_dept_attraction in from_department['attractions']:
                     from_slug = sluggify(from_dept_attraction['name'])
                     to_dept_attraction = to_dept_attractions.get(from_slug, None)
+
                     if not to_dept_attraction:
-                        to_dept_attraction = Attraction(department_id=to_department.id)
-                        for attr in ['name', 'description', 'full_description', 'checkin_reminder',
-                                     'advance_checkin', 'restriction', 'badge_num_required',
-                                     'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
-                                     'signups_open_relative', 'signups_open_time', 'slots']:
-                            setattr(to_dept_attraction, attr, from_dept_attraction.get(attr, None))
-                        to_department.attractions.append(to_dept_attraction)
+                        existing_attraction = session.query(Attraction).filter(Attraction.slug == from_slug).first()
+
+                        if existing_attraction:
+                            if not existing_attraction.department:
+                                to_department.attractions.append(existing_attraction)
+                        else:
+                            to_dept_attraction = Attraction(department_id=to_department.id)
+                            for attr in ['name', 'description', 'full_description', 'checkin_reminder',
+                                        'advance_checkin', 'restriction', 'badge_num_required',
+                                        'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
+                                        'signups_open_relative', 'slots']:
+                                setattr(to_dept_attraction, attr, from_dept_attraction.get(attr, None))
+                            old_signups_open_time = from_dept_attraction.get('signups_open_time', None)
+                            if old_signups_open_time:
+                                signups_open_time = UTC.localize(dateparser.parse(old_signups_open_time))
+                                to_dept_attraction.signups_open_time = signups_open_time.replace(year=signups_open_time.year + 1)
+                            to_department.attractions.append(to_dept_attraction)
 
             message = 'Successfully imported all departments, roles, job templates, and department attractions from {}'.format(uri)
             raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
