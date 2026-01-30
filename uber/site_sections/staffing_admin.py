@@ -219,6 +219,6 @@ class Root:
                             setattr(to_dept_attraction, attr, from_dept_attraction.get(attr, None))
                         to_department.attractions.append(to_dept_attraction)
 
-            message = 'Successfully imported all departments, roles, and department attractions from {}'.format(uri)
+            message = 'Successfully imported all departments, roles, job templates, and department attractions from {}'.format(uri)
             raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
                                target_server, api_token, message)
