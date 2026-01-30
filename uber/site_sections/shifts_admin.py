@@ -4,14 +4,15 @@ from datetime import datetime, timedelta, time
 import cherrypy
 from sqlalchemy import select, func, literal
 from sqlalchemy.orm import subqueryload
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, \
-    check_can_edit_dept, requires_shifts_admin
+    check_can_edit_dept, requires_shifts_admin, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, Department, Job, JobTemplate
+from uber.models import Attendee, Department, DeptRole, Job, JobTemplate
 from uber.utils import check, localized_now, redirect_to_allowed_dept, validate_model, date_trunc_day
 
 
@@ -563,6 +564,7 @@ class Root:
             'depts': [(d.name, d.jobs) for d in departments]
         }
 
+    @site_mappable
     @csv_file
     def shift_schedule_csv(self, out, session, department_id, day='all', **params):
         filters = []
@@ -581,3 +583,19 @@ class Root:
                 duration_str += f" {job.duration % 60} minutes"
             out.writerow([job.name, job.description, job.start_time_local.strftime('%Y-%m-%d %-I:%M %p'),
                           duration_str, job.extra15, job.slots, job.weight, job.required_roles_labels])
+
+    @site_mappable
+    @csv_file
+    def unique_jobs_csv(self, out, session, department_id='All', **params):
+        unique_jobs_query = session.query(Job.department_name, Job.name, Job.description,
+                                          func.string_agg(DeptRole.name, aggregate_order_by(' / ', DeptRole.name)).label('required_roles')
+                                          ).outerjoin(Job.required_roles).group_by(Job.id).distinct()
+        out.writerow(['Department', 'Job Name', 'Description', 'Required Roles'])
+
+        if department_id and department_id != 'All':
+            unique_jobs_query = unique_jobs_query.filter(Job.department_id == department_id)
+        
+        for dept_name, job_name, desc, roles in unique_jobs_query.all():
+            out.writerow([dept_name, job_name, desc, roles])
+
+
