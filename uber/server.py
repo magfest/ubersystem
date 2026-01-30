@@ -12,15 +12,17 @@ from pprint import pformat
 import cherrypy
 import sentry_sdk
 import jinja2
+import logging
 from cherrypy import HTTPError
 from pockets import is_listy
-from pockets.autolog import log
 
 from uber.config import c, Config
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.utils import mount_site_sections, static_overrides
 from uber.redis_session import RedisSession
+
+log = logging.getLogger(__name__)
 
 cherrypy.lib.sessions.RedisSession = RedisSession
 

@@ -1,8 +1,10 @@
+import logging
 from uber.barcode import generate_barcode_from_badge_num
 from uber.config import c
 from uber.models import Attendee, BadgeInfo
 
-from pockets.autolog import log
+log = logging.getLogger(__name__)
+
 
 __all__ = ['PersonalizedBadgeReport', 'PrintedBadgeReport', 'ReportBase']
 

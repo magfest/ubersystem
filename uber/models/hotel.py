@@ -1,10 +1,10 @@
+import logging
 import random
 
 import checkdigit.verhoeff as verhoeff
 from datetime import timedelta, datetime
 from pytz import UTC
 from markupsafe import Markup
-from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import Sequence, case
 from sqlalchemy.dialects.postgresql.json import JSONB
@@ -20,6 +20,8 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import Choice, default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
 from uber.utils import RegistrationCode
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['NightsMixin', 'HotelRequests', 'Room', 'RoomAssignment', 'LotteryApplication']

@@ -2,14 +2,13 @@ from datetime import datetime
 
 import cherrypy
 from dateutil import parser as dateparser
-from pockets import sluggify
 from pytz import UTC
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax, ajax_gettable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Attraction, Department, DeptRole, Job, JobTemplate
-from uber.utils import get_api_service_from_server
+from uber.utils import get_api_service_from_server, sluggify
 
 
 def _create_copy_department(from_department):

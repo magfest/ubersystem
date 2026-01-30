@@ -1,6 +1,7 @@
 import json
 import six
 import uuid
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from uber.models.admin import PasswordReset
@@ -9,7 +10,6 @@ import bcrypt
 import cherrypy
 from collections import defaultdict
 from pockets import listify
-from pockets.autolog import log
 from sqlalchemy import func, or_
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -25,6 +25,8 @@ from uber.tasks.email import send_email
 from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
+
+log = logging.getLogger(__name__)
 
 
 def check_if_can_reg(is_dealer_reg=False):

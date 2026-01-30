@@ -1,13 +1,13 @@
 import base64
 import pycountry
 import cherrypy
+import logging
 import random
 import math
 from copy import deepcopy
 from collections import defaultdict
 from datetime import datetime, timedelta
 from dateutil import parser as dateparser
-from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
@@ -21,6 +21,8 @@ from uber.forms import load_forms
 from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, PageViewTracking
 from uber.tasks.email import send_email
 from uber.utils import Order, get_page, localized_now, validate_model, get_age_from_birthday, normalize_email_legacy
+
+log = logging.getLogger(__name__)
 
 def _search(session, text):
     applications = session.query(LotteryApplication)

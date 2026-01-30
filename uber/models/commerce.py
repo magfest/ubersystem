@@ -1,9 +1,9 @@
 from datetime import datetime
 import stripe
+import logging
 
 from pytz import UTC
 from pockets import classproperty
-from pockets.autolog import log
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, or_
 
@@ -21,6 +21,8 @@ from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
 from uber.payments import ReceiptManager
+
+log = logging.getLogger(__name__)
 
 
 __all__ = [

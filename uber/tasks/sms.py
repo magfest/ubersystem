@@ -1,7 +1,7 @@
+import logging
 from time import sleep
 
 from pockets import readable_join
-from pockets.autolog import log
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client as TwilioRestClient
 
@@ -9,6 +9,7 @@ from uber.config import c
 from uber.tasks import celery
 from uber.utils import normalize_phone
 
+log = logging.getLogger(__name__)
 
 __all__ = ['get_twilio_client', 'send_sms', 'send_sms_with_client']
 

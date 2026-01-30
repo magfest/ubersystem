@@ -1,7 +1,6 @@
 import os
 import cherrypy
 from functools import wraps
-from pockets import sluggify
 from datetime import datetime
 
 from pytz import UTC
@@ -15,6 +14,7 @@ from uber.config import c
 from uber.models import MagModel
 from uber.models.types import (default_relationship as relationship, utcnow, Choice, DefaultColumn as Column,
                                MultiChoice, GuidebookImageMixin)
+from uber.utils import sluggify
 
 
 __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument', 'MITSTimes']

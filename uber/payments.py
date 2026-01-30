@@ -6,18 +6,20 @@ from datetime import datetime, timedelta
 from dateutil.parser import parse
 from uuid import uuid4
 
+import logging
 import cherrypy
 import requests
 import stripe
 
 from pockets import cached_property, classproperty, is_listy, listify
-from pockets.autolog import log
 
 import uber
 from uber.config import c
 from uber.custom_tags import format_currency, email_only
 from uber.utils import report_critical_exception
 import uber.spin_rest_utils as spin_rest_utils
+
+log = logging.getLogger(__name__)
 
 if c.AUTHORIZENET_LOGIN_ID:
     # Importing this library takes ~150MB ram, so we only do it if we need it.
@@ -1208,7 +1210,6 @@ class SpinTerminalRequest(TransactionRequest):
         from uber.models import ReceiptTransaction
         from uber.tasks.registration import send_receipt_email
         from decimal import Decimal
-        from pockets.autolog import log
 
         self.tracker.success = True
 
@@ -1327,7 +1328,6 @@ class SpinTerminalRequest(TransactionRequest):
 
     @handle_api_call
     def check_txn_status(self):
-        from pockets.autolog import log
         log.error(dict(
             spin_rest_utils.txn_status_request_dict(self.payment_type, self.ref_id), **self.base_request))
         return requests.post(spin_rest_utils.get_call_url(self.api_url, 'status'), data=dict(

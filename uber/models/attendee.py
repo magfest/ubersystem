@@ -3,10 +3,10 @@ import math
 import re
 from datetime import datetime, timedelta
 from uuid import uuid4
+import logging
 
 from sqlalchemy.sql.elements import not_
 from pockets import cached_property, classproperty, groupify, listify, is_listy, readable_join
-from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, case, exists, func, or_, select
@@ -27,6 +27,8 @@ from uber.models.types import default_relationship as relationship, utcnow, Choi
     MultiChoice, TakesPaymentMixin
 from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, \
     localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['Attendee', 'AttendeeAccount', 'BadgeInfo', 'BadgePickupGroup', 'FoodRestrictions']
@@ -1493,7 +1495,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @full_name.expression
     def full_name(cls):
         return case(
-            [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz'),  # noqa: E711
             else_=func.lower(cls.first_name + ' ' + cls.last_name))
 
     @hybrid_property

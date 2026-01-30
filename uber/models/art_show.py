@@ -1,10 +1,10 @@
 import random
 import re
 import string
+import logging
 
 from collections import defaultdict
 from pockets import classproperty
-from pockets.autolog import log
 from sqlalchemy import func, case
 from datetime import datetime
 from pytz import UTC
@@ -20,6 +20,8 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.types import Integer, Boolean
 from sqlalchemy.schema import ForeignKey, UniqueConstraint, Index
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPayment', 'ArtShowReceipt', 'ArtShowBidder',

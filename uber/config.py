@@ -29,11 +29,12 @@ from itertools import chain
 import cherrypy
 import signnow_python_sdk
 from pockets import nesteddefaultdict, unwrap, cached_property
-from pockets.autolog import log
 from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload, subqueryload
 
 import uber
+
+log = logging.getLogger(__name__)
 
 plugins_dir = pathlib.Path(__file__).parents[1] / "plugins"
 

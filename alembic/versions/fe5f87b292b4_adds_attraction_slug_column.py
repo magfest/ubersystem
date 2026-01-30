@@ -18,7 +18,7 @@ from alembic import op
 import sqlalchemy as sa
 import residue
 from sqlalchemy.sql import table
-from pockets import sluggify
+from uber.utils import sluggify
 
 
 try:

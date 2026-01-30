@@ -7,10 +7,10 @@ import re
 import math
 import json
 import six
+import logging
 
 from datetime import datetime
 from decimal import Decimal
-from pockets.autolog import log
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload, contains_eager
 from sqlalchemy.orm.exc import NoResultFound
@@ -26,6 +26,8 @@ from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShow
                         WorkstationAssignment
 from uber.utils import check, get_static_file_path, localized_now, Order, validate_model
 from uber.payments import TransactionRequest, ReceiptManager
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable()

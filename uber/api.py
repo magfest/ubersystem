@@ -4,13 +4,13 @@ from collections import defaultdict
 from datetime import datetime
 from functools import wraps
 from pockets import is_listy
-from pockets.autolog import log
 
 import cherrypy
 import pytz
 import json
 import six
 import traceback
+import logging
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
 from pockets import unwrap
@@ -34,6 +34,7 @@ from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines
 
+log = logging.getLogger(__name__)
 
 __version__ = '1.0'
 

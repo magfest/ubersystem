@@ -4,10 +4,10 @@ import pytz
 import uuid
 from time import sleep, time
 import traceback
+import logging
 
 from celery.schedules import crontab
 from pockets import groupify, listify
-from pockets.autolog import log
 from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload, raiseload, sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
@@ -19,6 +19,8 @@ from uber.config import c
 from uber.decorators import render
 from uber.models import AutomatedEmail, Email, MagModel, Session
 from uber.tasks import celery
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email']

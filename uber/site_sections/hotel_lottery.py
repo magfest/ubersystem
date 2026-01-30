@@ -1,8 +1,8 @@
 import base64
 import uuid
 import cherrypy
+import logging
 from datetime import datetime, timedelta
-from pockets.autolog import log
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -13,6 +13,8 @@ from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication
 from uber.tasks.email import send_email
 from uber.utils import RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
+
+log = logging.getLogger(__name__)
 
 
 def _join_room_group(session, application, group_id):

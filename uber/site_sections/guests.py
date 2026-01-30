@@ -1,7 +1,6 @@
 import os
 import shutil
-
-from pockets.autolog import log
+import logging
 import cherrypy
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
@@ -13,6 +12,8 @@ from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, G
 from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check, filename_extension
 from uber.tasks.email import send_email
+
+log = logging.getLogger(__name__)
 
 
 def compile_travel_plans_from_params(session, **params):

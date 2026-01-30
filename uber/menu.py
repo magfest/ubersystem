@@ -1,7 +1,10 @@
+
+import logging
+log = logging.getLogger(__name__)
+
 from urllib.parse import urlparse
 
 from pockets import listify
-from pockets.autolog import log
 
 from uber.config import c
 

@@ -1,11 +1,13 @@
 import six
+import logging
 from dateutil import parser as dateparser
 
 from markupsafe import escape, Markup
 from wtforms.widgets import NumberInput, html_params, CheckboxInput, TextInput, Select, HiddenInput
 from uber.config import c
 from uber.custom_tags import linebreaksbr
-from pockets.autolog import log
+
+log = logging.getLogger(__name__)
 
 
 class MultiCheckbox():

@@ -1,5 +1,6 @@
 import json
 import sys
+import logging
 from datetime import datetime
 from markupsafe import Markup
 from threading import current_thread
@@ -9,7 +10,6 @@ import cherrypy
 from pytz import UTC
 from sqlalchemy.ext import associationproxy
 
-from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import Sequence
 from sqlalchemy.types import Boolean, Integer
@@ -24,6 +24,8 @@ from uber.models import MagModel
 from uber.models.admin import AdminAccount
 from uber.models.email import Email
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
+
+log = logging.getLogger(__name__)
 
 __all__ = ['PageViewTracking', 'ReportTracking', 'Tracking', 'TxnRequestTracking']
 

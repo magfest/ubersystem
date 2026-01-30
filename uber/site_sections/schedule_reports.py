@@ -1,6 +1,5 @@
 import json
-
-from pockets.autolog import log
+import logging
 from datetime import datetime
 
 from uber.config import c
@@ -8,6 +7,8 @@ from uber.decorators import all_renderable, ajax, multifile_zipfile, xlsx_file, 
 from uber.models import Event
 from uber.utils import filename_safe, localized_now, GuidebookUtils
 from uber.tasks.panels import sync_guidebook_models
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable()

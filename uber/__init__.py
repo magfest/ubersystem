@@ -2,7 +2,9 @@ import os
 from decimal import Decimal
 import cherrypy
 
-from pockets.autolog import log
+import logging
+log = logging.getLogger(__name__)
+
 
 from uber._version import __version__  # noqa: F401
 

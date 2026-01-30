@@ -1,12 +1,11 @@
 import os
 import re
 import cherrypy
+import logging
 
 from datetime import datetime, timedelta
 from functools import wraps
 from markupsafe import Markup
-from pockets import sluggify
-from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, case, or_
@@ -20,7 +19,9 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, utcnow, \
     Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin, UniqueList
-from uber.utils import localized_now, make_url, remove_opt
+from uber.utils import localized_now, make_url, remove_opt, sluggify
+
+log = logging.getLogger(__name__)
 
 
 __all__ = [

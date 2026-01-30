@@ -1,9 +1,9 @@
 import cherrypy
+import logging
 
 from collections import defaultdict
 from datetime import datetime
 from pockets import readable_join
-from pockets.autolog import log
 from pytz import UTC
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
@@ -16,6 +16,8 @@ from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Email, Event, Group, GuestGroup, PageViewTracking, Tracking
 from uber.utils import check, validate_model, add_opt, SignNowRequest
 from uber.payments import ReceiptManager
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable()

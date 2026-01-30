@@ -1,11 +1,11 @@
 import shutil
 from datetime import datetime, timedelta
 from PIL import Image
+import logging
 
 import cherrypy
 from cherrypy.lib.static import serve_file
 from pockets import listify
-from pockets.autolog import log
 from pytz import UTC
 
 from uber.config import c
@@ -15,6 +15,8 @@ from uber.errors import HTTPRedirect
 from uber.models import Email, MITSDocument, MITSPicture, MITSTeam
 from uber.tasks.email import send_email
 from uber.utils import check, localized_now, GuidebookUtils
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable(public=True)

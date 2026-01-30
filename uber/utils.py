@@ -11,6 +11,7 @@ import textwrap
 import traceback
 import uber
 import urllib
+import logging
 
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
@@ -21,12 +22,13 @@ from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
 from pockets import floor_datetime, listify
-from pockets.autolog import log
 from pytz import UTC
 from sqlalchemy import func, or_, cast, literal
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
+
+log = logging.getLogger(__name__)
 
 
 # ======================================================================
@@ -243,6 +245,30 @@ def normalize_phone(phone_number, country='US'):
         phonenumbers.parse(phone_number, country),
         PhoneNumberFormat.E164)
 
+RE_NONWORD = re.compile('[\W_]+')
+def sluggify(s, sep='-'):
+    """
+    Convert a string into a "slug" suitable for use in a URL.
+
+    Converts `s` to lower case, and replaces all spaces and non-word
+    characters with `sep`:
+
+    >>> sluggify('The ANGRY Wizard Shouted, "HEY..."')
+    'the-angry-wizard-shouted-hey'
+
+    Args:
+        s (str): The string to convert into a slug.
+
+        sep (str): The string to use as a word separator in the slug.
+            Defaults to '-'.
+
+    Returns:
+        str: The sluggify version of `s`.
+
+    """
+    if not s:
+        return ''
+    return RE_NONWORD.sub(sep, s).lower().strip(sep)
 
 # ======================================================================
 # Datetime functions

@@ -5,9 +5,9 @@ from pockets import groupify
 
 import stripe
 import time
+import logging
 import pytz
 from celery.schedules import crontab
-from pockets.autolog import log
 from sqlalchemy import not_, or_, insert
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
@@ -21,6 +21,8 @@ from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils, normalize_email
 from uber.payments import ReceiptManager, TransactionRequest
+
+log = logging.getLogger(__name__)
 
 
 if c.AUTHORIZENET_LOGIN_ID:

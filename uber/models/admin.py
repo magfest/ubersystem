@@ -46,7 +46,8 @@ class AdminAccount(MagModel):
         'ApiToken',
         primaryjoin='and_('
                     'AdminAccount.id == ApiToken.admin_account_id, '
-                    'ApiToken.revoked_time == None)')
+                    'ApiToken.revoked_time == None)',
+        overlaps="admin_account,api_tokens")
 
     judge = relationship('IndieJudge', uselist=False, backref='admin_account')
     print_requests = relationship('PrintJob', backref='admin_account',

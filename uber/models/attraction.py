@@ -2,7 +2,7 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 
 import pytz
-from pockets import groupify, listify, sluggify, classproperty
+from pockets import groupify, listify, classproperty
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, cast, exists, func, not_
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -18,7 +18,7 @@ from uber.custom_tags import humanize_timedelta, location_event_name, location_r
 from uber.decorators import presave_adjustment, render
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, utcmin
-from uber.utils import evening_datetime, noon_datetime, localized_now
+from uber.utils import evening_datetime, noon_datetime, localized_now, sluggify
 
 
 __all__ = [

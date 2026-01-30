@@ -12,14 +12,13 @@ To perform these validations, call the "check" method on the instance you're val
 on success and a string error message on validation failure.
 """
 import re
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.request import urlopen
 
 import cherrypy
 import phonenumbers
-from pockets.autolog import log
-from pockets import sluggify
 from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
@@ -31,9 +30,10 @@ from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowA
                          GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
                          Job, ArtistMarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
                          PromoCode, PromoCodeGroup, Sale, Session, WatchList)
-from uber.utils import localized_now, valid_email, get_age_from_birthday
+from uber.utils import localized_now, valid_email, get_age_from_birthday, sluggify
 from uber.payments import PreregCart
 
+log = logging.getLogger(__name__)
 
 AccessGroup.required = [('name', 'Name')]
 

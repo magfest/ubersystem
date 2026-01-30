@@ -1,6 +1,5 @@
 from datetime import timedelta
-
-from pockets.autolog import log
+import logging
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
@@ -8,6 +7,8 @@ from uber.decorators import render
 from uber.models import Email, Session, GuestGroup, Group, IndieStudio, IndieJudge, IndieGame, IndieGameReview
 from uber.tasks import celery
 from uber.tasks.email import send_email
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['assign_all_games_showcases', 'mivs_assign_game_codes_to_judges', 'send_mivs_checklist_reminders']

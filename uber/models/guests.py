@@ -2,12 +2,12 @@ import os
 import re
 import shutil
 import uuid
+import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 from markupsafe import Markup
 
-from pockets import uniquify, classproperty, sluggify
-from pockets.autolog import log
+from pockets import classproperty
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
@@ -19,7 +19,9 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column,
                                MultiChoice, GuidebookImageMixin)
-from uber.utils import filename_extension
+from uber.utils import filename_extension, sluggify
+
+log = logging.getLogger(__name__)
 
 
 __all__ = [
@@ -595,7 +597,7 @@ class GuestMerch(MagModel):
                     if extensions and ext not in extensions:
                         messages.append('{} files must be one of {}'.format(file_type.title(), ', '.join(extensions)))
 
-        return '. '.join(uniquify([s.strip() for s in messages if s.strip()]))
+        return '. '.join(dict.fromkeys([s.strip() for s in messages if s.strip()]))
 
     def _prune_inventory_file(self, item, new_inventory, *, prune_missing=False):
 

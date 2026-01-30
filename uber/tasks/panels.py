@@ -4,7 +4,6 @@ import re
 from collections import defaultdict
 from datetime import timedelta, datetime
 from dateutil import parser as dateparser
-from pockets import sluggify
 from sqlalchemy import or_
 
 from uber.automated_emails import AutomatedEmailFixture, PanelAppEmailFixture
@@ -13,7 +12,7 @@ from uber.decorators import render
 from uber.models import Email, Session, Tracking, Department, EventLocation, AutomatedEmail
 from uber.tasks import celery
 from uber.tasks.email import send_email
-from uber.utils import GuidebookUtils, localized_now
+from uber.utils import GuidebookUtils, localized_now, sluggify
 
 
 __all__ = ['panels_waitlist_unaccepted_panels', 'sync_guidebook_models',

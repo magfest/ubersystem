@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import cherrypy
 from dateutil import parser as dateparser
 import pytz
-from pockets import listify, sluggify
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
@@ -16,7 +15,7 @@ from uber.models import AdminAccount, Attendee, Attraction, AttractionFeature, A
     utcmin, EventLocation, Department
 from uber.site_sections.attractions import _attendee_for_badge_num
 from uber.tasks.attractions import send_waitlist_notification
-from uber.utils import localized_now, filename_safe, validate_model, get_api_service_from_server
+from uber.utils import localized_now, filename_safe, validate_model, get_api_service_from_server, sluggify
 
 
 event_spec = {

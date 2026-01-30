@@ -1,10 +1,9 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-
+import logging
 import cherrypy
 import json
 from pockets import groupify
-from pockets.autolog import log
 from sqlalchemy import func, literal_column
 from sqlalchemy.orm import joinedload
 
@@ -16,6 +15,8 @@ from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, Event
 from uber.utils import add_opt, check, localized_now, validate_model
 from uber.forms import load_forms
 from uber.tasks.email import send_email
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable()

@@ -5,6 +5,7 @@ import re
 import uuid
 import time
 import traceback
+import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
@@ -17,19 +18,18 @@ import six
 import sqlalchemy
 from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
-from pockets.autolog import log
 from pytz import UTC
-from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
-from sqlalchemy import and_, func, or_
+from residue import check_constraint_naming_convention, JSON, SessionManager, UTCDateTime, UUID
+from sqlalchemy import and_, func, or_, MetaData
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Query, joinedload, subqueryload
+from sqlalchemy.orm import Query, joinedload, subqueryload, DeclarativeBase, declared_attr
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
-from sqlalchemy.util import immutabledict
+from sqlalchemy.util import immutabledict, _uncamel
 
 import uber
 from uber.config import c, create_namespace_uuid
@@ -39,6 +39,8 @@ from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcn
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     RegistrationCode, valid_email, valid_password
 from uber.payments import ReceiptManager
+
+log = logging.getLogger(__name__)
 
 
 def _make_getter(model):
@@ -84,9 +86,26 @@ if not c.SQLALCHEMY_URL.startswith('sqlite'):
 
 metadata = MetaData(naming_convention=immutabledict(naming_convention))
 
+naming_convention = {
+    "ix": 'ix_%(column_0_label)s',
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s", # Residue had a custom UUID here
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+}
 
-@declarative_base(metadata=metadata)
-class MagModel:
+# 2. Define the Base Class
+class Base(DeclarativeBase):
+    metadata = MetaData(naming_convention=naming_convention)
+
+    # 3. Replicate Residue's automatic snake_case table names
+    @declared_attr.directive
+    def __tablename__(cls) -> str:
+        # _uncamel is the built-in SQLAlchemy version of what pockets.uncamel did
+        return _uncamel(cls.__name__)
+    
+    
+class MagModel(Base):
     id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
     created = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
     last_updated = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))

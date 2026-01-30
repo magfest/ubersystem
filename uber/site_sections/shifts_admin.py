@@ -2,9 +2,9 @@ from collections import defaultdict
 from datetime import datetime, timedelta, time
 
 import cherrypy
+import logging
 from sqlalchemy import select, func, literal
 from sqlalchemy.orm import subqueryload
-from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, \
@@ -13,6 +13,8 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Department, Job, JobTemplate
 from uber.utils import check, localized_now, redirect_to_allowed_dept, validate_model, date_trunc_day
+
+log = logging.getLogger(__name__)
 
 
 def job_dict(job, shifts=None):

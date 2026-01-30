@@ -1,11 +1,11 @@
 import re
 import traceback
+import logging
 from collections import OrderedDict
 from datetime import datetime, date
 from dateutil import parser as dateparser
 
 from pockets import cached_property, classproperty, groupify
-from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, or_, select, update
@@ -23,6 +23,8 @@ from uber.jinja import JinjaEnv
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column
 from uber.utils import normalize_newlines, request_cached_context
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['AutomatedEmail', 'Email']

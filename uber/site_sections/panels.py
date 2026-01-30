@@ -1,8 +1,8 @@
+import logging
 import cherrypy
 
 from datetime import datetime
 from sqlalchemy.orm.exc import NoResultFound
-from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax
@@ -10,6 +10,8 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import PanelApplicant, PanelApplication
 from uber.utils import add_opt, check, localized_now, validate_model
+
+log = logging.getLogger(__name__)
 
 
 def get_other_panelists_forms(num, submitter=None, **params):

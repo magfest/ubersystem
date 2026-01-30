@@ -5,6 +5,7 @@ import inspect
 import json
 import os
 import re
+import logging
 import sqlalchemy
 import threading
 import traceback
@@ -24,7 +25,6 @@ from cherrypy.lib.static import serve_file
 import six
 import xlsxwriter
 from pockets import argmod, unwrap
-from pockets.autolog import log
 
 import uber
 from uber.serializer import serializer
@@ -33,6 +33,8 @@ from uber.config import c
 from uber.errors import CSRFException, HTTPRedirect
 from uber.jinja import JinjaEnv
 from uber.utils import check_csrf, report_critical_exception, ExcelWorksheetStreamWriter
+
+log = logging.getLogger(__name__)
 
 
 def swallow_exceptions(func):
