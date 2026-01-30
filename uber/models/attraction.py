@@ -143,14 +143,14 @@ class Attraction(MagModel, AttractionMixin):
     restriction = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
     badge_num_required = Column(Boolean, default=False)
     department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
-    owner_id = Column(UUID, ForeignKey('admin_account.id'))
+    owner_id = Column(UUID, ForeignKey('admin_account.id'), nullable=True)
 
     owner = relationship(
         'AdminAccount',
         cascade='save-update,merge',
         backref=backref(
             'attractions',
-            cascade='all,delete-orphan',
+            cascade='save-update,merge,refresh-expire,expunge',
             uselist=True,
             order_by='Attraction.name'))
     owner_attendee = relationship(

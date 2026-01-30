@@ -32,7 +32,6 @@
             <th>Description</th>
             <th>Public</th>
             <th>Department</th>
-            <th>Owner</th>
           </tr>
         </thead>
         <tbody>
@@ -55,7 +54,6 @@
                 {% endif %}
               </td>
               <td>{{ attraction.department|form_link }}</td>
-              <td>{{ attraction.owner.attendee|form_link }}</td>
             </tr>
           {%- endfor -%}
         </tbody>

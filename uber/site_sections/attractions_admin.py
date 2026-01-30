@@ -2,19 +2,21 @@ import uuid
 from datetime import datetime, timedelta
 
 import cherrypy
+from dateutil import parser as dateparser
 import pytz
 from pockets import listify, sluggify
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
+from uber.custom_tags import readable_join
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup, \
-    utcmin
+    utcmin, EventLocation, Department
 from uber.site_sections.attractions import _attendee_for_badge_num
 from uber.tasks.attractions import send_waitlist_notification
-from uber.utils import localized_now, filename_safe, validate_model
+from uber.utils import localized_now, filename_safe, validate_model, get_api_service_from_server
 
 
 event_spec = {
@@ -72,6 +74,130 @@ class Root:
             'filtered': filtered,
             'message': message,
             'attractions': attractions
+        }
+    
+    @site_mappable
+    def import_attractions(
+            self,
+            session,
+            target_server='',
+            api_token='',
+            message='',
+            attraction_ids=[],
+            **kwargs):
+        
+        attractions, existing_attractions, existing_attractions_by_id = [], [], {}
+        attraction_count, feature_count, event_count = 0, 0, 0
+        
+        if message:
+            service, uri = None, ''
+        else:
+            service, message, target_url = get_api_service_from_server(target_server, api_token)
+            uri = '{}/jsonrpc/'.format(target_url)
+
+        if not message and service:
+            existing_attractions_by_slug = {attraction.slug: attraction for attraction in session.query(Attraction)}
+
+            for id, name in sorted(service.attraction.list(), key=lambda t: t[1]):
+                from_slug = sluggify(name)
+                existing_attraction = existing_attractions_by_slug.get(from_slug, None)
+                if existing_attraction:
+                    existing_attractions.append((id, existing_attraction.name))
+                    existing_attractions_by_id[id] = existing_attraction.id
+                else:
+                    attractions.append((id, name))
+
+            if attraction_ids and not message:
+                from_config = service.config.info()
+                FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['PANELS_EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
+                EPOCH_DELTA = c.PANELS_EPOCH - FROM_EPOCH
+
+                for from_attraction_id in attraction_ids:
+                    from_attraction = service.attraction.features_events(attraction_id=from_attraction_id)
+                    to_attraction_id = existing_attractions_by_id.get(from_attraction_id, None)
+                    if to_attraction_id:
+                        to_attraction = session.query(Attraction).filter(Attraction.id == to_attraction_id).first()
+                    else:
+                        attraction_count += 1
+                        to_attraction = Attraction()
+                        for attr in ['name', 'description', 'full_description', 'checkin_reminder',
+                                     'advance_checkin', 'restriction', 'badge_num_required',
+                                     'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
+                                     'signups_open_relative', 'signups_open_time', 'slots']:
+                            setattr(to_attraction, attr, from_attraction.get(attr, None))
+                    
+                    for from_feature in from_attraction['features']:
+                        new_feature = False
+
+                        from_slug = sluggify(from_feature['name'])
+                        to_feature = session.query(AttractionFeature).filter(AttractionFeature.slug == from_slug).first()
+                        if not to_feature:
+                            new_feature = True
+                            feature_count += 1
+
+                            to_feature = AttractionFeature(attraction_id=to_attraction.id)
+                            for attr in ['name', 'description', 'badge_num_required',
+                                         'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
+                                         'signups_open_relative', 'signups_open_time', 'slots']:
+                                setattr(to_feature, attr, from_feature.get(attr, None))
+                            
+                            from_dept = from_feature['department']
+                            if from_dept:
+                                to_dept = session.query(Department).filter(Department.name == from_feature['department']['name']).first()
+                                if to_dept:
+                                    to_feature.department_id = to_dept.id
+
+                        for from_event in from_feature['events']:
+                            start_time = pytz.UTC.localize(dateparser.parse(from_event['start_time'])) + EPOCH_DELTA
+                            if not new_feature:
+                                existing_event = session.query(AttractionEvent).join(AttractionFeature).filter(
+                                    AttractionFeature.id == to_feature.id,
+                                    AttractionEvent.start_time == start_time).first()
+                                if existing_event:
+                                    continue
+
+                            to_event = AttractionEvent(attraction_feature_id=to_feature.id, start_time=start_time)
+                            for attr in ['duration', 'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
+                                         'signups_open_relative', 'signups_open_time', 'slots']:
+                                setattr(to_event, attr, from_event.get(attr, None))
+                            
+                            event_location = session.query(EventLocation).filter(EventLocation.name == from_event['location']['name'])
+                            if event_location.count() == 1:
+                                to_event.event_location_id = event_location.first().id
+                            elif event_location.count() > 1:
+                                event_location_with_room = event_location.filter(EventLocation.room == from_event['location']['room'])
+                                if event_location_with_room.count() == 1:
+                                    to_event.event_location_id = event_location_with_room.first().id
+                            # We couldn't find a single matching room, so just give up
+
+                            to_feature.events.append(to_event)
+                            event_count += 1
+                            
+                        to_attraction.features.append(to_feature)
+                    session.add(to_attraction)
+
+                import_list = []
+                if attraction_count:
+                    import_list.append(f"{attraction_count} attraction(s)")
+                if feature_count:
+                    import_list.append(f"{feature_count} features(s)")
+                if event_count:
+                    import_list.append(f"{event_count} event(s)")
+                
+                if not import_list:
+                    message = "No new attractions, features, or events found to import!"
+                else:
+                    message = 'Successfully imported {} from {}'.format(readable_join(import_list), uri)
+                raise HTTPRedirect('import_attractions?target_server={}&api_token={}&message={}',
+                                   target_server, api_token, message)
+
+        return {
+            'target_server': target_server,
+            'target_url': uri,
+            'api_token': api_token,
+            'attractions': attractions,
+            'existing_attractions': existing_attractions,
+            'message': message,
         }
 
     def form(self, session, message='', **params):

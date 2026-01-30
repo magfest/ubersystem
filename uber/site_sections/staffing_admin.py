@@ -2,12 +2,13 @@ from datetime import datetime
 
 import cherrypy
 from dateutil import parser as dateparser
+from pockets import sluggify
 from pytz import UTC
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax, ajax_gettable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, DeptRole, Job, JobTemplate
+from uber.models import Attendee, Attraction, Department, DeptRole, Job, JobTemplate
 from uber.utils import get_api_service_from_server
 
 
@@ -113,8 +114,11 @@ class Root:
             message='',
             **kwargs):
 
-        service, message, target_url = get_api_service_from_server(target_server, api_token)
-        uri = '{}/jsonrpc/'.format(target_url)
+        if message:
+            service, uri = None, ''
+        else:
+            service, message, target_url = get_api_service_from_server(target_server, api_token)
+            uri = '{}/jsonrpc/'.format(target_url)
 
         department = {}
         from_departments = []
@@ -202,6 +206,19 @@ class Root:
                 _copy_department_roles(to_department, from_department)
                 _copy_department_templates(to_department, from_department)
 
-            message = 'Successfully imported all departments and roles from {}'.format(uri)
+                to_dept_attractions = {attraction.slug: attraction for attraction in to_department.attractions}
+                for from_dept_attraction in from_department['attractions']:
+                    from_slug = sluggify(from_dept_attraction['name'])
+                    to_dept_attraction = to_dept_attractions.get(from_slug, None)
+                    if not to_dept_attraction:
+                        to_dept_attraction = Attraction(department_id=to_department.id)
+                        for attr in ['name', 'description', 'full_description', 'checkin_reminder',
+                                     'advance_checkin', 'restriction', 'badge_num_required',
+                                     'populate_schedule', 'no_notifications', 'waitlist_available', 'waitlist_slots',
+                                     'signups_open_relative', 'signups_open_time', 'slots']:
+                            setattr(to_dept_attraction, attr, from_dept_attraction.get(attr, None))
+                        to_department.attractions.append(to_dept_attraction)
+
+            message = 'Successfully imported all departments, roles, and department attractions from {}'.format(uri)
             raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
                                target_server, api_token, message)
