@@ -141,7 +141,7 @@ class Root:
                                          'signups_open_relative', 'signups_open_time', 'slots']:
                                 setattr(to_feature, attr, from_feature.get(attr, None))
                             
-                            from_dept = from_feature['department']
+                            from_dept = from_feature.get('department', {})
                             if from_dept:
                                 to_dept = session.query(Department).filter(Department.name == from_feature['department']['name']).first()
                                 if to_dept:
