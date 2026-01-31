@@ -1,9 +1,9 @@
 import re
 import uuid
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime
 from functools import wraps
-from pockets import is_listy
 
 import cherrypy
 import pytz
@@ -13,7 +13,6 @@ import traceback
 import logging
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
-from pockets import unwrap
 from time import mktime
 from residue import UTCDateTime
 from sqlalchemy import and_, func, or_
@@ -32,7 +31,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
-from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines
+from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, unwrap
 
 log = logging.getLogger(__name__)
 
@@ -80,7 +79,7 @@ def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
         def success(result):
             response = {'jsonrpc': '2.0', 'id': id, 'result': result}
             log.debug('Returning success message: {}', {
-                'jsonrpc': '2.0', 'id': id, 'result': len(result) if is_listy(result) else str(result).encode('utf-8')})
+                'jsonrpc': '2.0', 'id': id, 'result': len(result) if isinstance(result, Iterable) and not isinstance(result, str) else str(result).encode('utf-8')})
             cherrypy.response.status = 200
             return response
 

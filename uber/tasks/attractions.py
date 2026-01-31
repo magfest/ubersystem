@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 
 import pytz
 import logging
-from pockets import groupify
 from sqlalchemy.orm import subqueryload
 
 from uber.custom_tags import humanize_timedelta
@@ -15,7 +14,7 @@ from uber.models.attraction import Attraction, AttractionEvent, AttractionNotifi
 from uber.tasks import celery
 from uber.tasks.email import send_email
 from uber.tasks.sms import get_twilio_client, send_sms_with_client
-from uber.utils import normalize_phone
+from uber.utils import normalize_phone, groupify
 
 log = logging.getLogger(__name__)
 

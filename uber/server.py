@@ -14,7 +14,6 @@ import sentry_sdk
 import jinja2
 import logging
 from cherrypy import HTTPError
-from pockets import is_listy
 
 from uber.config import c, Config
 from uber.decorators import all_renderable, render

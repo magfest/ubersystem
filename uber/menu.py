@@ -4,7 +4,7 @@ log = logging.getLogger(__name__)
 
 from urllib.parse import urlparse
 
-from pockets import listify
+from uber.utils import listify
 
 from uber.config import c
 

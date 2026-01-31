@@ -12,6 +12,7 @@ import traceback
 import uber
 import urllib
 import logging
+import warning
 
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
@@ -21,13 +22,13 @@ from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
-from pockets import floor_datetime, listify
 from pytz import UTC
 from sqlalchemy import func, or_, cast, literal
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
-
+from uber.utils import listify
+from uber.custom_tags import readable_join
 log = logging.getLogger(__name__)
 
 
@@ -271,6 +272,204 @@ def sluggify(s, sep='-'):
     return RE_NONWORD.sub(sep, s).lower().strip(sep)
 
 # ======================================================================
+# Collection functions
+# ======================================================================
+    
+# We probably shouldn't do this ever. We should type inputs more strongly.
+# This is here to maintain compatibility with pockets.listify
+def listify(x):
+    """
+    Wraps `x` in a list if it isn't one already. 
+    Preserves None as an empty list.
+    """
+    warning.warn("ensure_list is deprecated.")
+    if x is None:
+        return []
+    
+    if isinstance(x, list):
+        return x
+    
+    # Handle other common sequences (tuples, sets) by converting them
+    if isinstance(x, (tuple, set)):
+        return list(x)
+    
+    # Treat strings, dicts, and scalars as single items
+    return [x]
+
+def groupify(items, keys, val_key=None):
+    """
+    Groups a list of items into nested OrderedDicts based on the given keys.
+
+    Note:
+        On Python 2.6 the return value will use regular dicts instead of
+        OrderedDicts.
+
+    >>> from json import dumps
+    >>>
+    >>> class Reminder:
+    ...   def __init__(self, when, where, what):
+    ...     self.when = when
+    ...     self.where = where
+    ...     self.what = what
+    ...   def __repr__(self):
+    ...     return 'Reminder({0.when}, {0.where}, {0.what})'.format(self)
+    ...
+    >>> reminders = [
+    ...   Reminder('Fri', 'Home', 'Eat cereal'),
+    ...   Reminder('Fri', 'Work', 'Feed Ivan'),
+    ...   Reminder('Sat', 'Home', 'Sleep in'),
+    ...   Reminder('Sat', 'Home', 'Play Zelda'),
+    ...   Reminder('Sun', 'Home', 'Sleep in'),
+    ...   Reminder('Sun', 'Work', 'Reset database')]
+    >>>
+    >>> print(dumps(groupify(reminders, None),
+    ...             indent=2,
+    ...             sort_keys=True,
+    ...             default=repr)) # doctest: +NORMALIZE_WHITESPACE
+    [
+      "Reminder(Fri, Home, Eat cereal)",
+      "Reminder(Fri, Work, Feed Ivan)",
+      "Reminder(Sat, Home, Sleep in)",
+      "Reminder(Sat, Home, Play Zelda)",
+      "Reminder(Sun, Home, Sleep in)",
+      "Reminder(Sun, Work, Reset database)"
+    ]
+    >>>
+    >>> print(dumps(groupify(reminders, 'when'),
+    ...             indent=2,
+    ...             sort_keys=True,
+    ...             default=repr)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri": [
+        "Reminder(Fri, Home, Eat cereal)",
+        "Reminder(Fri, Work, Feed Ivan)"
+      ],
+      "Sat": [
+        "Reminder(Sat, Home, Sleep in)",
+        "Reminder(Sat, Home, Play Zelda)"
+      ],
+      "Sun": [
+        "Reminder(Sun, Home, Sleep in)",
+        "Reminder(Sun, Work, Reset database)"
+      ]
+    }
+    >>>
+    >>> print(dumps(groupify(reminders, ['when', 'where']),
+    ...             indent=2,
+    ...             sort_keys=True,
+    ...             default=repr)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri": {
+        "Home": [
+          "Reminder(Fri, Home, Eat cereal)"
+        ],
+        "Work": [
+          "Reminder(Fri, Work, Feed Ivan)"
+        ]
+      },
+      "Sat": {
+        "Home": [
+          "Reminder(Sat, Home, Sleep in)",
+          "Reminder(Sat, Home, Play Zelda)"
+        ]
+      },
+      "Sun": {
+        "Home": [
+          "Reminder(Sun, Home, Sleep in)"
+        ],
+        "Work": [
+          "Reminder(Sun, Work, Reset database)"
+        ]
+      }
+    }
+    >>>
+    >>> print(dumps(groupify(reminders, ['when', 'where'], 'what'),
+    ...             indent=2,
+    ...             sort_keys=True)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri": {
+        "Home": [
+          "Eat cereal"
+        ],
+        "Work": [
+          "Feed Ivan"
+        ]
+      },
+      "Sat": {
+        "Home": [
+          "Sleep in",
+          "Play Zelda"
+        ]
+      },
+      "Sun": {
+        "Home": [
+          "Sleep in"
+        ],
+        "Work": [
+          "Reset database"
+        ]
+      }
+    }
+    >>>
+    >>> print(dumps(groupify(reminders,
+    ...                      lambda r: '{0.when} - {0.where}'.format(r),
+    ...                      'what'),
+    ...             indent=2,
+    ...             sort_keys=True)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri - Home": [
+        "Eat cereal"
+      ],
+      "Fri - Work": [
+        "Feed Ivan"
+      ],
+      "Sat - Home": [
+        "Sleep in",
+        "Play Zelda"
+      ],
+      "Sun - Home": [
+        "Sleep in"
+      ],
+      "Sun - Work": [
+        "Reset database"
+      ]
+    }
+
+    Args:
+        items (list): The list of items to arrange in groups.
+        keys (str|callable|list): The key or keys that should be used to group
+            `items`. If multiple keys are given, then each will correspond to
+            an additional level of nesting in the order they are given.
+        val_key (str|callable): A key or callable used to generate the leaf
+            values in the nested OrderedDicts. If `val_key` is `None`, then
+            the item itself is used. Defaults to `None`.
+
+    Returns:
+        OrderedDict: Nested OrderedDicts with `items` grouped by `keys`.
+
+    """
+    warning.warn("groupify is deprecated.")
+    if not keys:
+        return items
+    keys = listify(keys)
+    last_key = keys[-1]
+    is_callable = callable(val_key)
+    groupified = dict()
+    for item in items:
+        current = groupified
+        for key in keys:
+            attr = key(item) if callable(key) else getattr(item, key)
+            if attr not in current:
+                current[attr] = [] if key is last_key else dict()
+            current = current[attr]
+        if val_key:
+            value = val_key(item) if is_callable else getattr(item, val_key)
+        else:
+            value = item
+        current.append(value)
+    return groupified
+
+# ======================================================================
 # Datetime functions
 # ======================================================================
 
@@ -302,14 +501,28 @@ def evening_datetime(dt):
     """
     Returns a datetime object for 5pm on the day specified by `dt`.
     """
-    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=17)
+    dt = dt.replace(microsecond=0)
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    secs = (dt - dt_min).total_seconds()
+    nearest_secs = timedelta(days=1).total_seconds()
+    total_delta_secs = secs % nearest_secs
+    delta_days = total_delta_secs // 86400  # (60 * 60 * 24)
+    delta_secs = total_delta_secs % 86400.0  # (60 * 60 * 24)
+    return dt - timedelta(days=delta_days, seconds=delta_secs)  + timedelta(hours=17)
 
 
 def noon_datetime(dt):
     """
     Returns a datetime object for noon on the day given by `dt`.
     """
-    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=12)
+    dt = dt.replace(microsecond=0)
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    secs = (dt - dt_min).total_seconds()
+    nearest_secs = timedelta(days=1).total_seconds()
+    total_delta_secs = secs % nearest_secs
+    delta_days = total_delta_secs // 86400  # (60 * 60 * 24)
+    delta_secs = total_delta_secs % 86400.0  # (60 * 60 * 24)
+    return dt - timedelta(days=delta_days, seconds=delta_secs)  + timedelta(hours=12)
 
 
 def get_age_from_birthday(birthdate, today=None):
@@ -683,8 +896,6 @@ def check_pii_consent(params, attendee=None):
 class GuidebookUtils():
     @classmethod
     def check_guidebook_image_filetype(cls, pic):
-        from uber.custom_tags import readable_join
-
         if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
             return f'Image {pic.filename} is not one of the allowed extensions: '\
                 f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
@@ -873,6 +1084,37 @@ def create_new_hash(password):
 # ======================================================================
 # Miscellaneous helpers
 # ======================================================================
+
+def unwrap(func):
+    """
+    Finds the innermost function that has been wrapped using `functools.wrap`.
+
+    Note:
+        This function relies on the existence of the `__wrapped__` attribute,
+        which was not automatically added until Python 3.2. If you are using
+        an older version of Python, you'll have to manually add the
+        `__wrapped__` attribute in order to use `unwrap`::
+
+            def my_decorator(func):
+                @wraps(func)
+                def with_my_decorator(*args, **kwargs):
+                    return func(*args, **kwargs)
+
+                if not hasattr(with_my_decorator, '__wrapped__'):
+                    with_my_decorator.__wrapped__ = func
+
+                return with_my_decorator
+
+    Args:
+        func (function): A function that may or may not have been wrapped
+            using `functools.wrap`.
+
+    Returns:
+        function: The original function before it was wrapped using
+            `functools.wrap`. `func` is returned directly, if it was never
+            wrapped using `functools.wrap`.
+    """
+    return unwrap(func.__wrapped__) if hasattr(func, '__wrapped__') else func
 
 def redirect_to_allowed_dept(session, department_id, page):
     error_msg = ('You have been given admin access to this page, but you are not in any departments '

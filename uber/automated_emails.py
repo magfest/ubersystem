@@ -16,7 +16,6 @@ import jinja2
 from datetime import datetime, timedelta
 import pathlib
 
-from pockets import listify
 from pytz import UTC
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -26,7 +25,7 @@ from uber.jinja import JinjaEnv
 from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, ArtShowBidder, AutomatedEmail, Department,
                          Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, ArtistMarketplaceApplication, MITSTeam,
                          MITSApplicant, ModelReceipt, PanelApplication, PanelApplicant, PromoCodeGroup, Room, RoomAssignment, LotteryApplication, Shift)
-from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
+from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf, listify
 
 
 class AutomatedEmailFixture:

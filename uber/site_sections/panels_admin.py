@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import logging
 import cherrypy
 import json
-from pockets import groupify
 from sqlalchemy import func, literal_column
 from sqlalchemy.orm import joinedload
 
@@ -12,7 +11,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, rend
 from uber.errors import HTTPRedirect
 from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
     PanelApplicant, PanelApplication, GuestGroup
-from uber.utils import add_opt, check, localized_now, validate_model
+from uber.utils import add_opt, check, localized_now, validate_model, groupify
 from uber.forms import load_forms
 from uber.tasks.email import send_email
 

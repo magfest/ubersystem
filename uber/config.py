@@ -28,11 +28,12 @@ from itertools import chain
 
 import cherrypy
 import signnow_python_sdk
-from pockets import nesteddefaultdict, unwrap, cached_property
 from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload, subqueryload
 
 import uber
+from uber.decorators import cached_property
+from uber.utils import unwrap
 
 log = logging.getLogger(__name__)
 
@@ -1387,13 +1388,13 @@ class Config(_Overridable):
     @dynamic
     def ROOM_TRIE(self):
         def make_room_trie(rooms):
-            root = nesteddefaultdict()
+            root = defaultdict(defaultdict)
             for index, (location, description) in enumerate(rooms):
                 for word in filter(lambda s: s, re.split(r'\W+', description)):
                     current_dict = root
                     current_dict['__rooms__'][location] = index
                     for letter in word:
-                        current_dict = current_dict.setdefault(letter.lower(), nesteddefaultdict())
+                        current_dict = current_dict.setdefault(letter.lower(), defaultdict(defaultdict))
                         current_dict['__rooms__'][location] = index
             return root
 

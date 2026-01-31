@@ -4,14 +4,13 @@ import string
 import logging
 
 from collections import defaultdict
-from pockets import classproperty
 from sqlalchemy import func, case
 from datetime import datetime
 from pytz import UTC
 
 from uber.config import c
 from uber.models import MagModel
-from uber.decorators import presave_adjustment
+from uber.decorators import presave_adjustment, classproperty
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship
 from uber.utils import RegistrationCode, get_static_file_path
 

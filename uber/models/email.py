@@ -5,7 +5,6 @@ from collections import OrderedDict
 from datetime import datetime, date
 from dateutil import parser as dateparser
 
-from pockets import cached_property, classproperty, groupify
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, or_, select, update
@@ -18,11 +17,11 @@ from sqlalchemy.types import Boolean, Integer
 
 from uber import utils
 from uber.config import c
-from uber.decorators import presave_adjustment, renderable_data
+from uber.decorators import presave_adjustment, renderable_data, cached_property, classproperty
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column
-from uber.utils import normalize_newlines, request_cached_context
+from uber.utils import normalize_newlines, request_cached_context, groupify
 
 log = logging.getLogger(__name__)
 

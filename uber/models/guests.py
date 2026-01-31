@@ -7,7 +7,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from markupsafe import Markup
 
-from pockets import classproperty
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
@@ -15,7 +14,7 @@ from sqlalchemy.types import Boolean, Integer
 
 from uber.config import c
 from uber.custom_tags import yesno
-from uber.decorators import presave_adjustment
+from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
 from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column,
                                MultiChoice, GuidebookImageMixin)

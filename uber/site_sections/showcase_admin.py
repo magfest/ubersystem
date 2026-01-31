@@ -1,5 +1,4 @@
 import cherrypy
-from pockets import listify
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -9,7 +8,7 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, IndieJudge, IndieGameReview, IndieStudio, IndieGame
 from uber.tasks.email import send_email
-from uber.utils import check, get_api_service_from_server, normalize_email_legacy, validate_model
+from uber.utils import check, get_api_service_from_server, normalize_email_legacy, validate_model, listify
 
 
 def _process_showcase_type(showcase_type, message=''):

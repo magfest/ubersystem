@@ -1,7 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import chain
-from pockets import groupify
 
 import stripe
 import time
@@ -19,7 +18,7 @@ from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePick
                          ReceiptInfo, ReceiptItem, ReceiptTransaction, Session, TerminalSettlement)
 from uber.tasks.email import send_email
 from uber.tasks import celery
-from uber.utils import localized_now, TaskUtils, normalize_email
+from uber.utils import localized_now, TaskUtils, normalize_email, groupify
 from uber.payments import ReceiptManager, TransactionRequest
 
 log = logging.getLogger(__name__)

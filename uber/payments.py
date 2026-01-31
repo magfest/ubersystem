@@ -11,13 +11,12 @@ import cherrypy
 import requests
 import stripe
 
-from pockets import cached_property, classproperty, is_listy, listify
-
 import uber
 from uber.config import c
 from uber.custom_tags import format_currency, email_only
-from uber.utils import report_critical_exception
+from uber.utils import report_critical_exception, listify
 import uber.spin_rest_utils as spin_rest_utils
+from uber.decorators import cached_property, classproperty
 
 log = logging.getLogger(__name__)
 
@@ -120,7 +119,7 @@ class PreregCart:
     @classmethod
     def to_sessionized(cls, m, **params):
         from uber.models import Attendee, Group
-        if is_listy(m):
+        if isinstance(m, Iterable):
             return [cls.to_sessionized(t) for t in m]
         elif isinstance(m, dict):
             return m
@@ -148,7 +147,7 @@ class PreregCart:
 
     @classmethod
     def from_sessionized(cls, d):
-        if is_listy(d):
+        if isinstance(d, Iterable):
             return [cls.from_sessionized(t) for t in d]
         elif isinstance(d, dict):
             assert d['_model'] in {'Attendee', 'Group'}

@@ -8,7 +8,6 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta
 from dateutil import parser as dateparser
 from time import mktime
-from pockets import listify
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
@@ -16,7 +15,7 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, cached, csrf_pr
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AssignedPanelist, Attendee, Event, EventLocation, PanelApplication
-from uber.utils import check, localized_now, normalize_newlines, validate_model, load_locations_from_config
+from uber.utils import check, localized_now, normalize_newlines, validate_model, load_locations_from_config, listify
 
 log = logging.getLogger(__name__)
 

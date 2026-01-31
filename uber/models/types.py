@@ -6,7 +6,6 @@ import re
 import shutil
 
 import pytz
-from pockets import camel, fieldify, listify
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import relationship
@@ -16,8 +15,8 @@ from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.types import Boolean, Integer, TypeDecorator
 
 from uber.config import c, _config as config
-from uber.utils import url_domain
-
+from uber.utils import url_domain, listify
+from uber.custom_tags import camel, fieldify
 
 __all__ = [
     'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',

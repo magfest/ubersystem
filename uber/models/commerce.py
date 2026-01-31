@@ -3,7 +3,6 @@ import stripe
 import logging
 
 from pytz import UTC
-from pockets import classproperty
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, or_
 
@@ -16,7 +15,7 @@ from sqlalchemy.orm import backref
 
 from uber.config import c
 from uber.custom_tags import format_currency
-from uber.decorators import presave_adjustment
+from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column

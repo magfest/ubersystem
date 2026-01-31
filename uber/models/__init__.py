@@ -17,7 +17,6 @@ import cherrypy
 import six
 import sqlalchemy
 from dateutil import parser as dateparser
-from pockets import cached_classproperty, classproperty, listify
 from pytz import UTC
 from residue import check_constraint_naming_convention, JSON, SessionManager, UTCDateTime, UUID
 from sqlalchemy import and_, func, or_, MetaData
@@ -34,10 +33,10 @@ from sqlalchemy.util import immutabledict, _uncamel
 import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
-from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
+from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property, cached_classproperty, classproperty
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow, UniqueList
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
-    RegistrationCode, valid_email, valid_password
+    RegistrationCode, valid_email, valid_password, listify
 from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)

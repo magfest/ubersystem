@@ -6,7 +6,6 @@ from uuid import uuid4
 import logging
 
 from sqlalchemy.sql.elements import not_
-from pockets import cached_property, classproperty, groupify, listify, is_listy, readable_join
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, case, exists, func, or_, select
@@ -18,15 +17,15 @@ from sqlalchemy.types import Boolean, Date, Integer
 
 import uber
 from uber.config import c
-from uber.custom_tags import safe_string, time_day_local
+from uber.custom_tags import safe_string, time_day_local, readable_join
 from uber.decorators import department_id_adapter, predelete_adjustment, presave_adjustment, \
-    render
+    render, cached_property, classproperty
 from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
 from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, \
-    localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode
+    localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode, listify, groupify
 
 log = logging.getLogger(__name__)
 
@@ -1654,8 +1653,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def cannot_transfer_reason(self):
-        from uber.custom_tags import readable_join
-
         reasons = []
         if self.admin_account:
             reasons.append("they have an admin account")
@@ -1830,7 +1827,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         e.g. saying that someone gets a 'Supporter Pack' without listing each
         individual item in the pack.
         """
-        return readable_join([item for item in self.merch_items if not is_listy(item)]) if self.merch_items else 'N/A'
+        return readable_join([item for item in self.merch_items if isinstance(item, str)]) if self.merch_items else 'N/A'
 
     @property
     def staff_merch_items(self):

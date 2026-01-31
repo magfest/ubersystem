@@ -3,13 +3,12 @@ import logging
 
 from collections import defaultdict
 from datetime import datetime
-from pockets import readable_join
 from pytz import UTC
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, any_admin_access, all_renderable, csrf_protected, log_pageview
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms

@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 
 import cherrypy
-from pockets import classproperty, listify
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import Sequence
@@ -12,9 +11,10 @@ from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date, Integer
 
 from uber.config import c
-from uber.decorators import presave_adjustment
+from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column
+from uber.utils import listify
 
 
 __all__ = ['AccessGroup', 'AdminAccount', 'EscalationTicket', 'PasswordReset', 'WatchList', 'WorkstationAssignment']

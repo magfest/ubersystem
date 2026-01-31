@@ -23,13 +23,12 @@ import phonenumbers
 from dateutil.relativedelta import relativedelta
 from markupsafe import Markup, escape
 from phonenumbers import PhoneNumberFormat
-from pockets import fieldify, unfieldify, listify, readable_join
 from uber.serializer import serializer
 
 from uber.config import c
 from uber.decorators import render
 from uber.jinja import JinjaEnv
-from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines
+from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines, listify
 
 # This used to be available as markupsafe.text_type, but that was removed in version 1.1.0
 text_type = str
@@ -54,9 +53,94 @@ def is_class(value):
     return inspect.isclass(value)
 
 
-fieldify = JinjaEnv.jinja_filter(fieldify)
-unfieldify = JinjaEnv.jinja_filter(unfieldify)
-readable_join = JinjaEnv.jinja_filter(readable_join)
+RE_NONWORD = re.compile('[\W_]+')
+RE_UNCAMEL = re.compile(
+    '('  # The whole expression is in a single group
+    # Clause 1
+    '(?<=[^\sA-Z])'  # Preceded by neither a space nor a capital letter
+    '[A-Z]+[^a-z\s]*'  # All non-lowercase beginning with a capital letter
+    '(?=[A-Z][^A-Z\s]*?[a-z]|\s|$)'  # Followed by a capitalized word
+    '|'
+    # Clause 2
+    '(?<=[^\s])'  # Preceded by a character that is not a space
+    '[A-Z][^A-Z\s]*?[a-z]+[^A-Z\s]*'  # Capitalized word
+    ')', re.M | re.U)
+
+@JinjaEnv.jinja_filter
+def fieldify(s, sep='_'):
+    """
+    Convert a string into a valid "field-like" variable name.
+
+    Converts `s` from camel case to underscores, and replaces all spaces and
+    non-word characters with `sep`:
+
+    >>> fieldify('The XmlHTTPRequest Contained, "DATA..."')
+    'the_xml_http_request_contained_data'
+
+    Args:
+        s (str): The string to fieldify.
+
+        sep (str): The string to use as a word separator in the returned field.
+            Defaults to '_'.
+
+    Returns:
+        str: The field version of `s`.
+
+    """
+    if not s:
+        return ''
+    return RE_NONWORD.sub(sep, RE_UNCAMEL.sub(r'{0}\1'.format(sep), s).lower()).strip(sep)
+
+
+@JinjaEnv.jinja_filter
+def unfieldify(s, sep='_'):
+    """
+    Makes a best effort to reverse the algorithm from `fieldify`.
+
+    Replaces instances of `sep` in `s` with a space and converts the result to
+    title case:
+
+    >>> unfieldify('the_xml_http_request_contained_data')
+    'The Xml Http Request Contained Data'
+
+    Args:
+        s (str): The string to fieldify.
+
+        sep (str): The string to consider a word separator in `s`.
+            Defaults to '_'.
+
+    Returns:
+        str: The unfieldified version of `s`.
+
+    """
+    if not s:
+        return ''
+    s = s.strip(r'{0} '.format(sep))
+    return (' '.join([w for w in s.split(sep) if w])).title()
+
+
+@JinjaEnv.jinja_filter
+def readable_join(xs, conjunction='and', sep=','):
+    """
+    Accepts a list of strings and separates them with commas as grammatically
+    appropriate with a conjunction before the final entry. For example:
+
+    >>> readable_join(['foo'])
+    'foo'
+    >>> readable_join(['foo', 'bar'])
+    'foo and bar'
+    >>> readable_join(['foo', 'bar', 'baz'])
+    'foo, bar, and baz'
+    >>> readable_join(['foo', 'bar', 'baz'], 'or')
+    'foo, bar, or baz'
+    >>> readable_join(['foo', 'bar', 'baz'], 'but never')
+    'foo, bar, but never baz'
+
+    """
+    if len(xs) > 1:
+        xs = list(xs)
+        xs[-1] = conjunction + ' ' + xs[-1]
+    return (sep + ' ' if len(xs) > 2 else ' ').join(xs)
 
 
 @JinjaEnv.jinja_filter(name='datetime')

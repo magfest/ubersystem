@@ -6,7 +6,6 @@ import math
 import re
 from collections import defaultdict
 from datetime import datetime
-from pockets import groupify
 from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import or_, func, and_
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
@@ -20,7 +19,7 @@ from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Grou
     ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment, EscalationTicket
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
-    TaskUtils, Order
+    TaskUtils, Order, groupify
 from uber.payments import ReceiptManager, RefundRequest
 
 
