@@ -12,7 +12,7 @@ from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, WorkstationAssignment
 from uber.tasks.email import send_email
 from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
-                        create_new_hash, department_id_adapter)
+                        create_new_hash)
 
 
 def valid_password(password, account):
@@ -109,7 +109,6 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
     @site_mappable
-    @department_id_adapter
     def bulk(self, session, department_id=None, **params):
         department_id = None if department_id == 'All' else department_id
         attendee_filters = [Attendee.dept_memberships.any(department_id=department_id)] if department_id else []

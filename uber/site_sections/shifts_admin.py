@@ -12,7 +12,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, \
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Department, Job, JobTemplate
-from uber.utils import check, localized_now, redirect_to_allowed_dept, validate_model, date_trunc_day, department_id_adapter
+from uber.utils import check, localized_now, redirect_to_allowed_dept, validate_model, date_trunc_day
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +70,6 @@ def update_counts(job, counts):
 
 @all_renderable()
 class Root:
-    @department_id_adapter
     @requires_shifts_admin
     def index(self, session, department_id=None, message='', time=None):
         redirect_to_allowed_dept(session, department_id, 'index')
@@ -116,7 +115,6 @@ class Root:
             'dept_shifts_days': dept_shifts_days,
         }
 
-    @department_id_adapter
     @requires_shifts_admin
     def signups(self, session, department_id=None, message='', toggle_filter=''):
         if not toggle_filter:
@@ -172,7 +170,6 @@ class Root:
             'checklist': department_id and checklist
         }
 
-    @department_id_adapter
     @requires_shifts_admin
     def unfilled_shifts(self, session, department_id=None, message='', toggle_filter=''):
         """
@@ -224,7 +221,6 @@ class Root:
             'jobs': [job_dict(job) for job in jobs],
         }
 
-    @department_id_adapter
     @requires_shifts_admin
     def staffers(self, session, department_id=None, message=''):
         redirect_to_allowed_dept(session, department_id, 'staffers')

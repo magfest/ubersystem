@@ -9,7 +9,7 @@ from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protect
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Department, DeptMembership, DeptRole, Shift
-from uber.utils import check, validate_model, department_id_adapter
+from uber.utils import check, validate_model
 
 
 @all_renderable()
@@ -173,7 +173,6 @@ class Root:
                 'value': value
             }
 
-    @department_id_adapter
     def requests(self, session, department_id=None, requested_any=False, message='', **params):
         if not department_id:
             raise HTTPRedirect('index')
@@ -202,7 +201,6 @@ class Root:
             'requested_any': requested_any
         }
 
-    @department_id_adapter
     @csv_file
     def dept_requests_export(self, out, session, department_id, requested_any=False, message='', **params):
         department = session.query(Department).get(department_id)
@@ -223,7 +221,6 @@ class Root:
 
                 out.writerow(row)
 
-    @department_id_adapter
     @csv_file
     def dept_members_export(self, out, session, department_id, message='', **params):
         department = session.query(Department).get(department_id)
@@ -278,7 +275,6 @@ class Root:
                 if start_minute - timedelta(minutes=1) not in minute_map:
                     single_sequence(attendee, start_minute, minute_map)
 
-    @department_id_adapter
     def role(self, session, department_id=None, message='', **params):
         if not department_id or department_id == 'None':
             department_id = None

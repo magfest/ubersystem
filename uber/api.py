@@ -28,7 +28,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
-from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, unwrap, department_id_adapter
+from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, unwrap
 
 log = logging.getLogger(__name__)
 

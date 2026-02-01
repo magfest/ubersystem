@@ -23,7 +23,7 @@ from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
 from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, \
-    localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode, listify, groupify, department_id_adapter
+    localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode, listify, groupify
 
 log = logging.getLogger(__name__)
 
@@ -2080,13 +2080,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         unweighted_hours = sum(s.job.real_duration for s in self.shifts) / 60
         return unweighted_hours + self.nonshift_minutes / 60
 
-    @department_id_adapter
     def weighted_hours_in(self, department_id):
         if not department_id:
             return self.weighted_hours
         return sum(s.job.weighted_hours for s in self.shifts if s.job.department_id == department_id)
 
-    @department_id_adapter
     def unweighted_hours_in(self, department_id):
         if not department_id:
             return self.unweighted_hours
@@ -2102,19 +2100,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         unweighted_hours = sum(s.job.real_duration / 60 for s in self.worked_shifts)
         return unweighted_hours + self.nonshift_minutes / 60
 
-    @department_id_adapter
     def worked_hours_in(self, department_id):
         if not department_id:
             return self.worked_hours
         return sum(s.job.weighted_hours for s in self.worked_shifts if s.job.department_id == department_id)
 
-    @department_id_adapter
     def unweighted_worked_hours_in(self, department_id):
         if not department_id:
             return self.unweighted_worked_hours
         return sum(s.job.real_duration / 60 for s in self.worked_shifts if s.job.department_id == department_id)
 
-    @department_id_adapter
     def dept_membership_for(self, department_id):
         if not department_id:
             return None
@@ -2123,13 +2118,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                 return m
         return None
 
-    @department_id_adapter
     def requested(self, department_id):
         if not department_id or department_id == 'All':
             department_id = None
         return any(m.department_id == department_id for m in self.dept_membership_requests)
 
-    @department_id_adapter
     def assigned_to(self, department_id):
         if not department_id:
             return False
@@ -2146,7 +2139,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return (self.admin_account and self.admin_account.full_dept_admin) \
             or self.is_dept_head_of(department)
 
-    @department_id_adapter
     def can_admin_shifts_for(self, department_id):
         if not department_id:
             return False
@@ -2158,26 +2150,22 @@ class Attendee(MagModel, TakesPaymentMixin):
         return (self.admin_account and self.admin_account.full_dept_checklist_admin) \
             or bool(self.dept_memberships_where_can_admin_checklist)
 
-    @department_id_adapter
     def can_admin_checklist_for(self, department_id):
         if not department_id:
             return False
         return (self.admin_account and self.admin_account.full_dept_checklist_admin) \
             or any(m.department_id == department_id for m in self.dept_memberships_where_can_admin_checklist)
 
-    @department_id_adapter
     def is_checklist_admin_of(self, department_id):
         if not department_id:
             return False
         return any(m.department_id == department_id and m.is_checklist_admin for m in self.dept_memberships)
 
-    @department_id_adapter
     def is_dept_head_of(self, department_id):
         if not department_id:
             return False
         return any(m.department_id == department_id and m.is_dept_head for m in self.dept_memberships)
 
-    @department_id_adapter
     def is_poc_of(self, department_id):
         if not department_id:
             return False
@@ -2199,13 +2187,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     def has_role(self, role):
         return any(r.id == role.id for r in self.dept_roles)
 
-    @department_id_adapter
     def has_inherent_role_in(self, department_id):
         if not department_id:
             return False
         return any(m.department_id == department_id for m in self.dept_memberships_with_inherent_role)
 
-    @department_id_adapter
     def has_role_in(self, department_id):
         if not department_id:
             return False

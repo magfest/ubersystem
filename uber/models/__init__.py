@@ -34,7 +34,7 @@ from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, presave_adjustment, suffix_property, cached_classproperty, classproperty
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow, UniqueList
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
-    RegistrationCode, listify, camel, department_id_adapter
+    RegistrationCode, listify
 from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)
@@ -1667,7 +1667,6 @@ class UberSession(sqlalchemy.orm.Session):
                 Attendee.ribbon.contains(c.PANELIST_RIBBON),
                 Attendee.badge_type == c.GUEST_BADGE)).order_by(Attendee.full_name).all()
 
-        @department_id_adapter
         def jobs(self, department_id=None):
             job_filter = {'department_id': department_id} if department_id else {}
 
@@ -1684,7 +1683,6 @@ class UberSession(sqlalchemy.orm.Session):
                 {'id': id, 'full_name': full_name.title()}
                 for id, full_name in query.filter_by(staffing=True).order_by(Attendee.full_name)]
 
-        @department_id_adapter
         def dept_heads(self, department_id=None):
             if department_id:
                 return self.query(Department).get(department_id).dept_heads

@@ -31,7 +31,7 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.errors import CSRFException, HTTPRedirect
 from uber.jinja import JinjaEnv
-from uber.utils import check_csrf, report_critical_exception, ExcelWorksheetStreamWriter, unwrap, department_id_adapter
+from uber.utils import check_csrf, report_critical_exception, ExcelWorksheetStreamWriter, unwrap
 
 log = logging.getLogger(__name__)
 
@@ -127,7 +127,6 @@ def _suffix_property_check(inst, name):
 suffix_property.check = _suffix_property_check
 
 
-@department_id_adapter
 def check_can_edit_dept(session, department_id=None, inherent_role=None, override_access=None):
     from uber.models import AdminAccount, DeptMembership, Department
     account_id = cherrypy.session.get('account_id')
