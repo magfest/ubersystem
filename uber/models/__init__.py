@@ -74,14 +74,6 @@ engine = create_engine(
     pool_recycle=c.SQLALCHEMY_POOL_RECYCLE
 )
 
-
-SessionFactory = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False, 
-    expire_on_commit=False
-)
-
 RE_UNCAMEL = re.compile(
     r'('  # The whole expression is in a single group
     # Clause 1
