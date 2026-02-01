@@ -30,7 +30,7 @@ requests==2.32.4
 rpctools @ git+https://github.com/appliedsec/rpctools.git@4e4108c3b7b4b6c482e515b1eeea2d79568cf065
 sentry-sdk==2.32.0
 signnow_python_sdk==2.0.1
-SQLAlchemy==1.4.54
+SQLAlchemy==2.0.46
 stripe==9.1.0
 twilio==9.6.5
 uszipcode==1.0.1
