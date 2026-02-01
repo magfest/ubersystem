@@ -2272,16 +2272,13 @@ class HybridSessionProxy:
     """
     def __getattr__(self, name):
         """
-        Scenario A: Static Access (e.g., Session.query, Session.add)
-        Forward these to the thread-local scoped session (Shared State).
+        Return thread-scoped session as expected by modern sqlalchemy usage on 'Session.query()'
         """
         return getattr(_ScopedSession, name)
 
     def __call__(self, *args, **kwargs):
         """
-        Scenario B: Instantiation (e.g., with Session() as s:)
-        Create and return a BRAND NEW session (Isolated State).
-        This ensures 'with' blocks don't close the main request session.
+        Create isolated session, to match old behavior on 'with Session() as session'
         """
         return SessionFactory(*args, **kwargs)
 
