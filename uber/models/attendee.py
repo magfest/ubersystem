@@ -2523,11 +2523,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.masked_cellphone or self.masked_email
         return ''
 
-    @property
-    def signups_by_attraction_by_feature(self):
-        signups = sorted(self.attraction_signups, key=lambda s: (s.event.feature.attraction.name, s.event.feature.name))
-        return groupify(signups, [lambda s: s.event.feature.attraction, lambda s: s.event.feature])
-
     def is_signed_up_for_attraction(self, attraction):
         return attraction in self.attractions
 
