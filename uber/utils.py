@@ -4,6 +4,7 @@ import importlib
 import math
 import os
 import phonenumbers
+import unicodedata
 import random
 import re
 import string
@@ -268,30 +269,15 @@ def normalize_phone(phone_number, country='US'):
         phonenumbers.parse(phone_number, country),
         PhoneNumberFormat.E164)
 
+
 RE_NONWORD = re.compile(r'[\W_]+')
-def sluggify(s, sep='-'):
-    """
-    Convert a string into a "slug" suitable for use in a URL.
-
-    Converts `s` to lower case, and replaces all spaces and non-word
-    characters with `sep`:
-
-    >>> sluggify('The ANGRY Wizard Shouted, "HEY..."')
-    'the-angry-wizard-shouted-hey'
-
-    Args:
-        s (str): The string to convert into a slug.
-
-        sep (str): The string to use as a word separator in the slug.
-            Defaults to '-'.
-
-    Returns:
-        str: The sluggify version of `s`.
-
-    """
-    if not s:
-        return ''
-    return RE_NONWORD.sub(sep, s).lower().strip(sep)
+def slugify(s):
+    """Convert a string into a URL-friendly slug."""
+    if not s: return ''
+    
+    # Normalize to decompose unicode characters (e.g., 'ñ' -> 'n' + '~')
+    s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
+    return RE_NONWORD.sub('-', s).lower().strip('-')
     
     
 RE_WHITESPACE_GROUP = re.compile(r'(\s+)', re.M | re.U)

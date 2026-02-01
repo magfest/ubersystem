@@ -16,7 +16,7 @@ from uber.custom_tags import humanize_timedelta, location_event_name, location_r
 from uber.decorators import presave_adjustment, render, classproperty
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, utcmin
-from uber.utils import evening_datetime, noon_datetime, localized_now, sluggify, listify, groupify
+from uber.utils import evening_datetime, noon_datetime, localized_now, slugify, listify, groupify
 
 
 __all__ = [
@@ -187,9 +187,9 @@ class Attraction(MagModel, AttractionMixin):
         order_by='[AttractionSignup.checkin_time, AttractionSignup.id]')
 
     @presave_adjustment
-    def sluggify_name(self):
+    def slugify_name(self):
         if not self.slug:
-            self.slug = sluggify(self.name)
+            self.slug = slugify(self.name)
 
     @presave_adjustment
     def null_dept_id(self):
@@ -359,9 +359,9 @@ class AttractionFeature(MagModel, AttractionMixin):
     )
 
     @presave_adjustment
-    def sluggify_name(self):
+    def slugify_name(self):
         if not self.slug:
-            self.slug = sluggify(self.name)
+            self.slug = slugify(self.name)
 
     @property
     def default_params(self):

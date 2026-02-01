@@ -17,7 +17,7 @@ from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
 from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column,
                                MultiChoice, GuidebookImageMixin)
-from uber.utils import filename_extension, sluggify
+from uber.utils import filename_extension, slugify
 
 log = logging.getLogger(__name__)
 
@@ -282,7 +282,7 @@ class GuestGroup(MagModel):
 
         header = self.guidebook_header
         thumbnail = self.guidebook_thumbnail
-        prepend = sluggify(self.group.name if self.group else self.id) + '_'
+        prepend = slugify(self.group.name if self.group else self.id) + '_'
 
         header_name = (prepend + header.filename) if header else ''
         thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''

@@ -13,7 +13,7 @@ from uber.config import c
 from uber.models import MagModel
 from uber.models.types import (default_relationship as relationship, utcnow, Choice, DefaultColumn as Column,
                                MultiChoice, GuidebookImageMixin)
-from uber.utils import sluggify
+from uber.utils import slugify
 
 
 __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument', 'MITSTimes']
@@ -222,7 +222,7 @@ class MITSGame(MagModel):
 
         header = self.guidebook_header
         thumbnail = self.guidebook_thumbnail
-        prepend = sluggify(self.name) + '_'
+        prepend = slugify(self.name) + '_'
 
         header_name = (prepend + header.filename) if header else ''
         thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''

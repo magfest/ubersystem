@@ -18,7 +18,7 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
 from uber.models.types import default_relationship as relationship, utcnow, \
     Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin, UniqueList
-from uber.utils import localized_now, make_url, remove_opt, sluggify
+from uber.utils import localized_now, make_url, remove_opt, slugify
 
 log = logging.getLogger(__name__)
 
@@ -647,7 +647,7 @@ class IndieGame(MagModel, ReviewMixin):
 
         header = self.guidebook_header
         thumbnail = self.guidebook_thumbnail
-        prepend = sluggify(self.title) + '_'
+        prepend = slugify(self.title) + '_'
 
         header_name = (prepend + header.filename) if header else ''
         thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''

@@ -17,7 +17,7 @@ import re
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import table
-from uber.utils import sluggify
+from uber.utils import slugify
 
 
 try:
@@ -85,7 +85,7 @@ def upgrade():
             attraction_table.update().where(
                 attraction_table.c.id == attraction.id
             ).values(
-                slug=sluggify(attraction.name)
+                slug=slugify(attraction.name)
             )
         )
 
@@ -94,7 +94,7 @@ def upgrade():
             attraction_feature_table.update().where(
                 attraction_feature_table.c.id == feature.id
             ).values(
-                slug=sluggify(feature.name)
+                slug=slugify(feature.name)
             )
         )
 

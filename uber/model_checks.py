@@ -30,7 +30,7 @@ from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowA
                          GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
                          Job, ArtistMarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
                          PromoCode, PromoCodeGroup, Sale, Session, WatchList)
-from uber.utils import localized_now, valid_email, get_age_from_birthday, sluggify
+from uber.utils import localized_now, valid_email, get_age_from_birthday, slugify
 from uber.payments import PreregCart
 
 log = logging.getLogger(__name__)
@@ -527,7 +527,7 @@ Attraction.required = [
 @validation.Attraction
 def slug_not_existing(attraction):
     with Session() as session:
-        slug = sluggify(attraction.name)
+        slug = slugify(attraction.name)
         if session.query(Attraction).filter(Attraction.id != attraction.id,
                                             Attraction.slug == slug).first():
             return f"Another attraction has an identical URL to this one ({slug}). \
@@ -542,7 +542,7 @@ AttractionFeature.required = [
 @validation.AttractionFeature
 def slug_not_existing(feature):
     with Session() as session:
-        slug = sluggify(feature.name)
+        slug = slugify(feature.name)
         if session.query(AttractionFeature).filter(AttractionFeature.id != feature.id,
                                                    AttractionFeature.slug == slug).first():
             return f"Another attraction feature has an identical URL to this one ({slug}). \

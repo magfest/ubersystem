@@ -10,7 +10,7 @@ from uber.decorators import ajax, all_renderable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup, BadgeInfo
 from uber.site_sections.preregistration import check_post_con
-from uber.utils import sluggify
+from uber.utils import slugify
 
 def _attendee_for_badge_num(session, badge_num, options=None):
     from uber.barcode import get_badge_num_from_barcode
@@ -67,11 +67,11 @@ class Root:
         if args:
             if kwargs.get('feature', None):
                 return self.events(
-                    slug=sluggify(args[0]),
-                    feature=sluggify(kwargs['feature']),
+                    slug=slugify(args[0]),
+                    feature=slugify(kwargs['feature']),
                     attendee_id=kwargs.get('attendee_id', None))
             else:
-                return self.features(slug=sluggify(args[0]),
+                return self.features(slug=slugify(args[0]),
                                      attendee_id=kwargs.get('attendee_id', None))
         else:
             raise HTTPRedirect('index?attendee_id={}', kwargs.get('attendee_id', ''))

@@ -15,7 +15,7 @@ from uber.models import AdminAccount, Attendee, Attraction, AttractionFeature, A
     utcmin, EventLocation, Department
 from uber.site_sections.attractions import _attendee_for_badge_num
 from uber.tasks.attractions import send_waitlist_notification
-from uber.utils import localized_now, filename_safe, validate_model, get_api_service_from_server, sluggify
+from uber.utils import localized_now, filename_safe, validate_model, get_api_service_from_server, slugify
 
 
 event_spec = {
@@ -98,7 +98,7 @@ class Root:
             existing_attractions_by_slug = {attraction.slug: attraction for attraction in session.query(Attraction)}
 
             for id, name in sorted(service.attraction.list(), key=lambda t: t[1]):
-                from_slug = sluggify(name)
+                from_slug = slugify(name)
                 existing_attraction = existing_attractions_by_slug.get(from_slug, None)
                 if existing_attraction:
                     existing_attractions.append((id, existing_attraction.name))
@@ -128,7 +128,7 @@ class Root:
                     for from_feature in from_attraction['features']:
                         new_feature = False
 
-                        from_slug = sluggify(from_feature['name'])
+                        from_slug = slugify(from_feature['name'])
                         to_feature = session.query(AttractionFeature).filter(AttractionFeature.slug == from_slug).first()
                         if not to_feature:
                             new_feature = True
@@ -678,7 +678,7 @@ class Root:
             uuid.UUID(id)
             filters = [Attraction.id == id]
         except Exception:
-            filters = [Attraction.slug.startswith(sluggify(id))]
+            filters = [Attraction.slug.startswith(slugify(id))]
 
         attraction = session.query(Attraction).filter(*filters).first()
         if not attraction:
