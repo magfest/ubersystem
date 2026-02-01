@@ -8,9 +8,9 @@ from copy import deepcopy
 from collections import defaultdict
 from datetime import datetime, timedelta
 from dateutil import parser as dateparser
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.types import String
 from ortools.linear_solver import pywraplp
 
 from uber.config import c
@@ -33,7 +33,7 @@ def _search(session, text):
             return applications.filter(or_(LotteryApplication.confirmation_num == terms[0])), ''
     
     check_list = []
-    for attr in [col for col in LotteryApplication().__table__.columns if isinstance(col.type, UnicodeText)]:
+    for attr in [col for col in LotteryApplication().__table__.columns if isinstance(col.type, String)]:
         check_list.append(attr.ilike('%' + text + '%'))
 
     for col_name in ['assigned_hotel', 'assigned_room_type', 'assigned_suite_type']:

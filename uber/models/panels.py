@@ -2,10 +2,9 @@ import re
 from datetime import datetime, timedelta
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
@@ -22,8 +21,8 @@ __all__ = ['AssignedPanelist', 'Event', 'EventLocation', 'EventFeedback', 'Panel
 panel_applicant_application = Table(
     'panel_applicant_application',
     MagModel.metadata,
-    Column('panel_applicant_id', UUID, ForeignKey('panel_applicant.id')),
-    Column('panel_application_id', UUID, ForeignKey('panel_application.id')),
+    Column('panel_applicant_id', Uuid(as_uuid=False), ForeignKey('panel_applicant.id')),
+    Column('panel_application_id', Uuid(as_uuid=False), ForeignKey('panel_application.id')),
     UniqueConstraint('panel_applicant_id', 'panel_application_id'),
     Index('ix_admin_panel_application_panel_applicant_id', 'panel_applicant_id'),
     Index('ix_admin_panel_application_panel_application_id', 'panel_application_id'),
@@ -31,9 +30,9 @@ panel_applicant_application = Table(
 
 
 class EventLocation(MagModel):
-    department_id = Column(UUID, ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
-    name = Column(UnicodeText)
-    room = Column(UnicodeText)
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
+    name = Column(String)
+    room = Column(String)
     tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
 
     events = relationship('Event', backref=backref('location', cascade="save-update,merge"),
@@ -80,14 +79,14 @@ class EventLocation(MagModel):
 
 
 class Event(MagModel):
-    event_location_id = Column(UUID, ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
-    department_id = Column(UUID, ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
-    attraction_event_id = Column(UUID, ForeignKey('attraction_event.id', ondelete='SET NULL'), nullable=True)
-    start_time = Column(UTCDateTime)
+    event_location_id = Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
+    attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id', ondelete='SET NULL'), nullable=True)
+    start_time = Column(DateTime(timezone=True))
     duration = Column(Integer, default=60)
-    name = Column(UnicodeText, nullable=False)
-    description = Column(UnicodeText)
-    public_description = Column(UnicodeText)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    public_description = Column(String)
     tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
 
     assigned_panelists = relationship('AssignedPanelist', backref='event')
@@ -155,8 +154,8 @@ class Event(MagModel):
 
 
 class AssignedPanelist(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
-    event_id = Column(UUID, ForeignKey('event.id', ondelete='cascade'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade'))
+    event_id = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='cascade'))
 
     def __repr__(self):
         if self.attendee:
@@ -167,43 +166,43 @@ class AssignedPanelist(MagModel):
 
 
 class PanelApplication(MagModel):
-    event_id = Column(UUID, ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
-    poc_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
-    submitter_id = Column(UUID, ForeignKey('panel_applicant.id', ondelete='SET NULL'), nullable=True)
-    name = Column(UnicodeText)
+    event_id = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
+    poc_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    submitter_id = Column(Uuid(as_uuid=False), ForeignKey('panel_applicant.id', ondelete='SET NULL'), nullable=True)
+    name = Column(String)
     length = Column(Choice(c.PANEL_LENGTH_OPTS), default=c.SIXTY_MIN)
-    length_text = Column(UnicodeText)
-    length_reason = Column(UnicodeText)
-    description = Column(UnicodeText)
-    public_description = Column(UnicodeText)
-    unavailable = Column(UnicodeText)
-    available = Column(UnicodeText)
-    affiliations = Column(UnicodeText)
-    past_attendance = Column(UnicodeText)
+    length_text = Column(String)
+    length_reason = Column(String)
+    description = Column(String)
+    public_description = Column(String)
+    unavailable = Column(String)
+    available = Column(String)
+    affiliations = Column(String)
+    past_attendance = Column(String)
     department = Column(UniqueList)
-    department_name = Column(UnicodeText)
+    department_name = Column(String)
     rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
     granular_rating = Column(MultiChoice(c.PANEL_CONTENT_OPTS))
     presentation = Column(Choice(c.PRESENTATION_OPTS))
-    other_presentation = Column(UnicodeText)
+    other_presentation = Column(String)
     noise_level = Column(Choice(c.NOISE_LEVEL_OPTS))
     tech_needs = Column(MultiChoice(c.TECH_NEED_OPTS))
-    other_tech_needs = Column(UnicodeText)
+    other_tech_needs = Column(String)
     need_tables = Column(Boolean, default=False)
-    tables_desc = Column(UnicodeText)
+    tables_desc = Column(String)
     has_cost = Column(Boolean, default=False)
     is_loud = Column(Boolean, default=False)
     tabletop = Column(Boolean, default=False)
-    cost_desc = Column(UnicodeText)
+    cost_desc = Column(String)
     livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
     record = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
-    panelist_bringing = Column(UnicodeText)
-    extra_info = Column(UnicodeText)
-    applied = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    accepted = Column(UTCDateTime, nullable=True)
-    confirmed = Column(UTCDateTime, nullable=True)
+    panelist_bringing = Column(String)
+    extra_info = Column(String)
+    applied = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    accepted = Column(DateTime(timezone=True), nullable=True)
+    confirmed = Column(DateTime(timezone=True), nullable=True)
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
-    comments = Column(UnicodeText, admin_only=True)
+    comments = Column(String, admin_only=True)
     tags = Column(UniqueList, admin_only=True)
 
     applicants = relationship('PanelApplicant', backref='applications',
@@ -319,22 +318,22 @@ class PanelApplication(MagModel):
 
 
 class PanelApplicant(SocialMediaMixin, MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     submitter = Column(Boolean, default=False)
-    first_name = Column(UnicodeText)
-    last_name = Column(UnicodeText)
-    email = Column(UnicodeText)
-    cellphone = Column(UnicodeText)
+    first_name = Column(String)
+    last_name = Column(String)
+    email = Column(String)
+    cellphone = Column(String)
     communication_pref = Column(MultiChoice(c.COMMUNICATION_PREF_OPTS))
-    other_communication_pref = Column(UnicodeText)
+    other_communication_pref = Column(String)
     requested_accessibility_services = Column(Boolean, default=False)
     pronouns = Column(MultiChoice(c.PRONOUN_OPTS))
-    other_pronouns = Column(UnicodeText)
-    occupation = Column(UnicodeText)
-    website = Column(UnicodeText)
-    other_credentials = Column(UnicodeText)
-    guidebook_bio = Column(UnicodeText)
-    display_name = Column(UnicodeText)
+    other_pronouns = Column(String)
+    occupation = Column(String)
+    website = Column(String)
+    other_credentials = Column(String)
+    guidebook_bio = Column(String)
+    display_name = Column(String)
 
     @property
     def has_credentials(self):
@@ -360,9 +359,9 @@ class PanelApplicant(SocialMediaMixin, MagModel):
 
 
 class EventFeedback(MagModel):
-    event_id = Column(UUID, ForeignKey('event.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
+    event_id = Column(Uuid(as_uuid=False), ForeignKey('event.id'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade'))
     headcount_starting = Column(Integer, default=0)
     headcount_during = Column(Integer, default=0)
-    comments = Column(UnicodeText)
+    comments = Column(String)
     rating = Column(Choice(c.PANEL_FEEDBACK_OPTS), default=c.UNRATED)

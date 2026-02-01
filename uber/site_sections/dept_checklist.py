@@ -6,11 +6,11 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber.custom_tags import linebreaksbr, short_datetime_local
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, xlsx_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Department, DeptChecklistItem, BulkPrintingRequest, HotelRequests, RoomAssignment, Shift
-from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept, validate_model
+from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept, validate_model, department_id_adapter
 
 
 def _submit_checklist_item(session, department_id, submitted, csrf_token, slug, custom_message=''):

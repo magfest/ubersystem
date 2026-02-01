@@ -14,10 +14,9 @@ from uber.decorators import presave_adjustment, classproperty
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship
 from uber.utils import RegistrationCode, get_static_file_path
 
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
-from sqlalchemy.types import Integer, Boolean
+from sqlalchemy.types import Integer, Boolean, String, Uuid, DateTime
 from sqlalchemy.schema import ForeignKey, UniqueConstraint, Index
 
 log = logging.getLogger(__name__)
@@ -28,19 +27,19 @@ __all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPay
 
 
 class ArtShowAgentCode(MagModel):
-    app_id = Column(UUID, ForeignKey('art_show_application.id'))
+    app_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id'))
     app = relationship('ArtShowApplication',
                        backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
                        foreign_keys=app_id,
                        cascade='merge,refresh-expire,expunge')
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'),
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
                          nullable=True)
     attendee = relationship('Attendee',
                             backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
                             foreign_keys=attendee_id,
                             cascade='merge,refresh-expire,expunge')
-    code = Column(UnicodeText)
-    cancelled = Column(UTCDateTime, nullable=True)
+    code = Column(String)
+    cancelled = Column(DateTime(timezone=True), nullable=True)
 
     @hybrid_property
     def normalized_code(self):
@@ -56,42 +55,42 @@ class ArtShowAgentCode(MagModel):
 
 
 class ArtShowApplication(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'),
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
                          nullable=True)
     attendee = relationship('Attendee', foreign_keys=attendee_id, cascade='save-update, merge',
                             backref=backref('art_show_applications', cascade='save-update, merge'))
-    checked_in = Column(UTCDateTime, nullable=True)
-    checked_out = Column(UTCDateTime, nullable=True)
-    locations = Column(UnicodeText)
-    artist_name = Column(UnicodeText)
-    artist_id = Column(UnicodeText, admin_only=True)
+    checked_in = Column(DateTime(timezone=True), nullable=True)
+    checked_out = Column(DateTime(timezone=True), nullable=True)
+    locations = Column(String)
+    artist_name = Column(String)
+    artist_id = Column(String, admin_only=True)
     payout_method = Column(Choice(c.ARTIST_PAYOUT_METHOD_OPTS), default=c.CHECK)
-    banner_name = Column(UnicodeText)
-    banner_name_ad = Column(UnicodeText)
-    artist_id_ad = Column(UnicodeText, admin_only=True)
-    check_payable = Column(UnicodeText)
-    contact_at_con = Column(UnicodeText)
+    banner_name = Column(String)
+    banner_name_ad = Column(String)
+    artist_id_ad = Column(String, admin_only=True)
+    check_payable = Column(String)
+    contact_at_con = Column(String)
     panels = Column(Integer, default=0)
     panels_ad = Column(Integer, default=0)
     tables = Column(Integer, default=0)
     tables_ad = Column(Integer, default=0)
-    description = Column(UnicodeText)
-    business_name = Column(UnicodeText)
-    zip_code = Column(UnicodeText)
-    address1 = Column(UnicodeText)
-    address2 = Column(UnicodeText)
-    city = Column(UnicodeText)
-    region = Column(UnicodeText)
-    country = Column(UnicodeText)
-    paypal_address = Column(UnicodeText) # TODO: Move to AC plugin
-    website = Column(UnicodeText)
-    special_needs = Column(UnicodeText)
+    description = Column(String)
+    business_name = Column(String)
+    zip_code = Column(String)
+    address1 = Column(String)
+    address2 = Column(String)
+    city = Column(String)
+    region = Column(String)
+    country = Column(String)
+    paypal_address = Column(String) # TODO: Move to AC plugin
+    website = Column(String)
+    special_needs = Column(String)
     status = Column(Choice(c.ART_SHOW_STATUS_OPTS), default=c.UNAPPROVED)
-    decline_reason = Column(UnicodeText)
+    decline_reason = Column(String)
     delivery_method = Column(Choice(c.ART_SHOW_DELIVERY_OPTS), default=c.BRINGING_IN)
     us_only = Column(Boolean, default=False)
-    admin_notes = Column(UnicodeText, admin_only=True)
-    check_in_notes = Column(UnicodeText)
+    admin_notes = Column(String, admin_only=True)
+    check_in_notes = Column(String)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
     active_receipt = relationship(
         'ModelReceipt',
@@ -223,7 +222,7 @@ class ArtShowApplication(MagModel):
     @true_default_cost.expression
     def true_default_cost(cls):
         return case(
-            [(cls.overridden_price == None, cls.default_cost)],  # noqa: E711
+            (cls.overridden_price == None, cls.default_cost),  # noqa: E711
             else_=cls.overridden_price)
 
     @hybrid_property
@@ -437,27 +436,27 @@ class ArtShowApplication(MagModel):
 
 
 class ArtShowPiece(MagModel):
-    app_id = Column(UUID, ForeignKey('art_show_application.id', ondelete='SET NULL'), nullable=True)
+    app_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id', ondelete='SET NULL'), nullable=True)
     app = relationship('ArtShowApplication', foreign_keys=app_id,
                        cascade='save-update, merge',
                        backref=backref('art_show_pieces',
                                        cascade='save-update, merge'))
-    receipt_id = Column(UUID, ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
+    receipt_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ArtShowReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
-                           backref=backref('pieces',
-                                           cascade='save-update, merge'))
-    winning_bidder_id = Column(UUID, ForeignKey('art_show_bidder.id', ondelete='SET NULL'), nullable=True)
+                           overlaps="art_show_purchases,buyer",
+                           backref=backref('pieces', cascade='save-update, merge', overlaps="art_show_purchases,buyer"))
+    winning_bidder_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_bidder.id', ondelete='SET NULL'), nullable=True)
     winning_bidder = relationship('ArtShowBidder', foreign_keys=winning_bidder_id,
                                   cascade='save-update, merge',
                                   backref=backref('art_show_pieces',
                                                   cascade='save-update, merge'))
     piece_id = Column(Integer)
-    name = Column(UnicodeText)
+    name = Column(String)
     for_sale = Column(Boolean, default=False)
     type = Column(Choice(c.ART_PIECE_TYPE_OPTS), default=c.PRINT)
     gallery = Column(Choice(c.ART_PIECE_GALLERY_OPTS), default=c.GENERAL)
-    media = Column(UnicodeText)
+    media = Column(String)
     print_run_num = Column(Integer, default=0, nullable=True)
     print_run_total = Column(Integer, default=0, nullable=True)
     opening_bid = Column(Integer, default=0, nullable=True)
@@ -588,8 +587,8 @@ class ArtShowPanel(MagModel):
     terminus_x = Column(Integer, default=0)
     terminus_y = Column(Integer, default=0)
     assignable_sides = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.BOTH)
-    start_label = Column(UnicodeText)
-    end_label = Column(UnicodeText)
+    start_label = Column(String)
+    end_label = Column(String)
 
     assignments = relationship('ArtPanelAssignment', backref='panel')
 
@@ -622,8 +621,8 @@ class ArtShowPanel(MagModel):
     
 
 class ArtPanelAssignment(MagModel):
-    panel_id = Column(UUID, ForeignKey('art_show_panel.id'))
-    app_id = Column(UUID, ForeignKey('art_show_application.id'))
+    panel_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_panel.id'))
+    app_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id'))
     manual = Column(Boolean, default=False)
     assigned_side = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.START)
 
@@ -654,24 +653,26 @@ class ArtPanelAssignment(MagModel):
 
 
 class ArtShowPayment(MagModel):
-    receipt_id = Column(UUID, ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
+    receipt_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ArtShowReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
                            backref=backref('art_show_payments',
                                            cascade='save-update, merge'))
     amount = Column(Integer, default=0)
     type = Column(Choice(c.ART_SHOW_PAYMENT_OPTS), default=c.STRIPE, admin_only=True)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    when = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
 class ArtShowReceipt(MagModel):
     invoice_num = Column(Integer, default=0)
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     attendee = relationship('Attendee', foreign_keys=attendee_id,
                             cascade='save-update, merge',
+                            overlaps="art_show_purchases,buyer",
                             backref=backref('art_show_receipts',
-                                            cascade='save-update, merge'))
-    closed = Column(UTCDateTime, nullable=True)
+                                            cascade='save-update, merge',
+                                            overlaps="art_show_purchases,buyer"))
+    closed = Column(DateTime(timezone=True), nullable=True)
 
     @presave_adjustment
     def add_invoice_num(self):
@@ -726,10 +727,10 @@ class ArtShowReceipt(MagModel):
 
 
 class ArtShowBidder(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
-    bidder_num = Column(UnicodeText)
-    admin_notes = Column(UnicodeText)
-    signed_up = Column(UTCDateTime, nullable=True)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    bidder_num = Column(String)
+    admin_notes = Column(String)
+    signed_up = Column(DateTime(timezone=True), nullable=True)
     email_won_bids = Column(Boolean, default=False)
     contact_type = Column(Choice(c.ART_SHOW_CONTACT_TYPE_OPTS), default=c.EMAIL)
 

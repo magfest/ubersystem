@@ -1,13 +1,12 @@
 from datetime import datetime, timedelta, time
 
 import six
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.sql import text
-from sqlalchemy.types import Boolean, Float, Integer, Time
+from sqlalchemy.types import Boolean, Float, Integer, Time, Uuid, String, DateTime
 
 from uber.config import c
 from uber.custom_tags import readable_join
@@ -29,8 +28,8 @@ __all__ = [
 dept_membership_dept_role = Table(
     'dept_membership_dept_role',
     MagModel.metadata,
-    Column('dept_membership_id', UUID, ForeignKey('dept_membership.id')),
-    Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
+    Column('dept_membership_id', Uuid(as_uuid=False), ForeignKey('dept_membership.id')),
+    Column('dept_role_id', Uuid(as_uuid=False), ForeignKey('dept_role.id')),
     UniqueConstraint('dept_membership_id', 'dept_role_id'),
     Index('ix_dept_membership_dept_role_dept_role_id', 'dept_role_id'),
     Index('ix_dept_membership_dept_role_dept_membership_id', 'dept_membership_id'),
@@ -42,8 +41,8 @@ dept_membership_dept_role = Table(
 job_required_role = Table(
     'job_required_role',
     MagModel.metadata,
-    Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
-    Column('job_id', UUID, ForeignKey('job.id')),
+    Column('dept_role_id', Uuid(as_uuid=False), ForeignKey('dept_role.id')),
+    Column('job_id', Uuid(as_uuid=False), ForeignKey('job.id')),
     UniqueConstraint('dept_role_id', 'job_id'),
     Index('ix_job_required_role_dept_role_id', 'dept_role_id'),
     Index('ix_job_required_role_job_id', 'job_id'),
@@ -54,8 +53,8 @@ job_required_role = Table(
 job_template_required_role = Table(
     'job_template_required_role',
     MagModel.metadata,
-    Column('dept_role_id', UUID, ForeignKey('dept_role.id')),
-    Column('job_template_id', UUID, ForeignKey('job_template.id')),
+    Column('dept_role_id', Uuid(as_uuid=False), ForeignKey('dept_role.id')),
+    Column('job_template_id', Uuid(as_uuid=False), ForeignKey('job_template.id')),
     UniqueConstraint('dept_role_id', 'job_template_id'),
     Index('ix_job_template_required_role_dept_role_id', 'dept_role_id'),
     Index('ix_job_template_required_role_job_template_id', 'job_template_id'),
@@ -63,10 +62,10 @@ job_template_required_role = Table(
 
 
 class DeptChecklistItem(MagModel):
-    department_id = Column(UUID, ForeignKey('department.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    slug = Column(UnicodeText)
-    comments = Column(UnicodeText, default='')
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    slug = Column(String)
+    comments = Column(String, default='')
 
     __table_args__ = (
         UniqueConstraint('department_id', 'attendee_id', 'slug'),
@@ -74,19 +73,19 @@ class DeptChecklistItem(MagModel):
 
 
 class BulkPrintingRequest(MagModel):
-    department_id = Column(UUID, ForeignKey('department.id'))
-    link = Column(UnicodeText)
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+    link = Column(String)
     copies = Column(Integer)
     print_orientation = Column(Choice(c.PRINT_ORIENTATION_OPTS), default=c.PORTRAIT)
     cut_orientation = Column(Choice(c.CUT_ORIENTATION_OPTS), default=c.NONE)
     color = Column(Choice(c.PRINT_REQUEST_COLOR_OPTS), default=c.BW)
     paper_type = Column(Choice(c.PRINT_REQUEST_PAPER_TYPE_OPTS), default=c.STANDARD)
-    paper_type_text = Column(UnicodeText)
+    paper_type_text = Column(String)
     size = Column(Choice(c.PRINT_REQUEST_SIZE_OPTS), default=c.STANDARD)
-    size_text = Column(UnicodeText)
+    size_text = Column(String)
     double_sided = Column(Boolean, default=False)
     stapled = Column(Boolean, default=False)
-    notes = Column(UnicodeText)
+    notes = Column(String)
     required = Column(Boolean, default=False)
     link_is_shared = Column(Boolean, default=False)
 
@@ -95,8 +94,8 @@ class DeptMembership(MagModel):
     is_dept_head = Column(Boolean, default=False)
     is_poc = Column(Boolean, default=False)
     is_checklist_admin = Column(Boolean, default=False)
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    department_id = Column(UUID, ForeignKey('department.id'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
 
     __mapper_args__ = {'confirm_deleted_rows': False}
     __table_args__ = (
@@ -136,12 +135,12 @@ class DeptMembership(MagModel):
 
 
 class DeptMembershipRequest(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
 
     # A NULL value for the department_id indicates the attendee is willing
     # to volunteer for any department (they checked "Anything" for
     # "Where do you want to help?").
-    department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
 
     __mapper_args__ = {'confirm_deleted_rows': False}
     __table_args__ = (
@@ -152,9 +151,9 @@ class DeptMembershipRequest(MagModel):
 
 
 class DeptRole(MagModel):
-    name = Column(UnicodeText)
-    description = Column(UnicodeText)
-    department_id = Column(UUID, ForeignKey('department.id'))
+    name = Column(String)
+    description = Column(String)
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
 
     dept_memberships = relationship(
         'DeptMembership',
@@ -202,15 +201,15 @@ class DeptRole(MagModel):
 
 
 class Department(MagModel):
-    name = Column(UnicodeText, unique=True)
-    description = Column(UnicodeText)
+    name = Column(String, unique=True)
+    description = Column(String)
     solicits_volunteers = Column(Boolean, default=True)
-    parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
+    parent_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
     max_consecutive_minutes = Column(Integer, default=0)
-    from_email = Column(UnicodeText)
+    from_email = Column(String)
     manages_panels = Column(Boolean, default=False)
     handles_cash = Column(Boolean, default=False)
-    panels_desc = Column(UnicodeText)
+    panels_desc = Column(String)
 
     jobs = relationship('Job', backref='department')
     job_templates = relationship('JobTemplate', backref='department')
@@ -268,18 +267,20 @@ class Department(MagModel):
         viewonly=True)
     members = relationship(
         'Attendee',
-        backref=backref('assigned_depts', order_by='Department.name'),
+        backref=backref('assigned_depts', order_by='Department.name', overlaps="dept_memberships,attendee"),
         cascade='save-update,merge,refresh-expire,expunge',
         order_by='Attendee.full_name',
+        overlaps="attendee,dept_memberships",
         secondary='dept_membership')
-    memberships = relationship('DeptMembership', backref='department')
+    memberships = relationship('DeptMembership', backref=backref('department', overlaps="assigned_depts,members"), overlaps="assigned_depts,members")
     membership_requests = relationship('DeptMembershipRequest', backref='department')
     explicitly_requesting_attendees = relationship(
         'Attendee',
-        backref=backref('explicitly_requested_depts', order_by='Department.name'),
+        backref=backref('explicitly_requested_depts', order_by='Department.name', overlaps="attendee,dept_membership_requests,department,membership_requests"),
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='dept_membership_request',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        overlaps="membership_requests,department,attendee,dept_membership_requests")
     requesting_attendees = relationship(
         'Attendee',
         backref=backref('requested_depts', order_by='Department.name'),
@@ -407,12 +408,12 @@ class Job(MagModel):
         (_ONLY_MEMBERS, 'Members of this department'),
         (_ALL_VOLUNTEERS, 'All volunteers')]
 
-    job_template_id = Column(UUID, ForeignKey('job_template.id'), nullable=True)
-    department_id = Column(UUID, ForeignKey('department.id'))
+    job_template_id = Column(Uuid(as_uuid=False), ForeignKey('job_template.id'), nullable=True)
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
 
-    name = Column(UnicodeText)
-    description = Column(UnicodeText)
-    start_time = Column(UTCDateTime)
+    name = Column(String)
+    description = Column(String)
+    start_time = Column(DateTime(timezone=True))
     duration = Column(Integer)
     weight = Column(Float, default=1)
     slots = Column(Integer)
@@ -454,7 +455,7 @@ class Job(MagModel):
 
     @department_name.expression
     def department_name(cls):
-        return select([Department.name]).where(Department.id == cls.department_id).label('department_name')
+        return select(Department.name).where(Department.id == cls.department_id).label('department_name')
 
     @hybrid_property
     def max_consecutive_minutes(self):
@@ -462,7 +463,7 @@ class Job(MagModel):
 
     @max_consecutive_minutes.expression
     def max_consecutive_minutes(cls):
-        return select([Department.max_consecutive_minutes]) \
+        return select(Department.max_consecutive_minutes) \
             .where(Department.id == cls.department_id).label('max_consecutive_minutes')
 
     @hybrid_property
@@ -563,7 +564,7 @@ class Job(MagModel):
 
     @slots_taken.expression
     def slots_taken(cls):
-        return select([func.count(Shift.id)]).where(Shift.job_id == cls.id).label('slots_taken')
+        return select(func.count(Shift.id)).where(Shift.job_id == cls.id).label('slots_taken')
 
     @hybrid_property
     def is_public(self):
@@ -680,12 +681,12 @@ class Job(MagModel):
 
 
 class JobTemplate(MagModel):
-    department_id = Column(UUID, ForeignKey('department.id'))
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
 
-    template_name = Column(UnicodeText)
+    template_name = Column(String)
     type = Column(Choice(c.JOB_TEMPLATE_TYPE_OPTS), default=c.FILL_GAPS)
-    name = Column(UnicodeText)
-    description = Column(UnicodeText)
+    name = Column(String)
+    description = Column(String)
     duration = Column(Integer)
     weight = Column(Float, default=1)
     extra15 = Column(Boolean, default=False)
@@ -911,11 +912,11 @@ class JobTemplate(MagModel):
 
 
 class Shift(MagModel):
-    job_id = Column(UUID, ForeignKey('job.id', ondelete='cascade'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
+    job_id = Column(Uuid(as_uuid=False), ForeignKey('job.id', ondelete='cascade'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade'))
     worked = Column(Choice(c.WORKED_STATUS_OPTS), default=c.SHIFT_UNMARKED)
     rating = Column(Choice(c.RATING_OPTS), default=c.UNRATED)
-    comment = Column(UnicodeText)
+    comment = Column(String)
 
     __table_args__ = (
         Index('ix_shift_job_id', job_id),

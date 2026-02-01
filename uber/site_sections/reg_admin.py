@@ -6,8 +6,8 @@ import math
 import re
 from collections import defaultdict
 from datetime import datetime
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import or_, func, and_
+from sqlalchemy.types import String
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -39,7 +39,7 @@ def _search(all_processor_txns, text):
 
         return receipt_txns.filter(or_(*id_list)), ''
     
-    for attr in [col for col in ReceiptTransaction().__table__.columns if isinstance(col.type, UnicodeText)]:
+    for attr in [col for col in ReceiptTransaction().__table__.columns if isinstance(col.type, String)]:
         if attr != ReceiptTransaction.desc:
             check_list.append(attr.ilike('%' + text + '%'))
 

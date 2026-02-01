@@ -12,10 +12,12 @@ import traceback
 import uber
 import urllib
 import logging
-import warning
+import warnings
+import functools
+import inspect
 
 from collections import defaultdict, OrderedDict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from glob import glob
 from os.path import basename
 from rpctools.jsonrpc import ServerProxy
@@ -23,18 +25,38 @@ from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
 from pytz import UTC
-from sqlalchemy import func, or_, cast, literal
+from sqlalchemy import func, or_, cast, literal, DateTime
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
-from uber.utils import listify
-from uber.custom_tags import readable_join
 log = logging.getLogger(__name__)
 
 
 # ======================================================================
 # String manipulation
 # ======================================================================
+
+def readable_join(xs, conjunction='and', sep=','):
+    """
+    Accepts a list of strings and separates them with commas as grammatically
+    appropriate with a conjunction before the final entry. For example:
+
+    >>> readable_join(['foo'])
+    'foo'
+    >>> readable_join(['foo', 'bar'])
+    'foo and bar'
+    >>> readable_join(['foo', 'bar', 'baz'])
+    'foo, bar, and baz'
+    >>> readable_join(['foo', 'bar', 'baz'], 'or')
+    'foo, bar, or baz'
+    >>> readable_join(['foo', 'bar', 'baz'], 'but never')
+    'foo, bar, but never baz'
+
+    """
+    if len(xs) > 1:
+        xs = list(xs)
+        xs[-1] = conjunction + ' ' + xs[-1]
+    return (sep + ' ' if len(xs) > 2 else ' ').join(xs)
 
 def filename_extension(s):
     """
@@ -246,7 +268,7 @@ def normalize_phone(phone_number, country='US'):
         phonenumbers.parse(phone_number, country),
         PhoneNumberFormat.E164)
 
-RE_NONWORD = re.compile('[\W_]+')
+RE_NONWORD = re.compile(r'[\W_]+')
 def sluggify(s, sep='-'):
     """
     Convert a string into a "slug" suitable for use in a URL.
@@ -270,6 +292,110 @@ def sluggify(s, sep='-'):
     if not s:
         return ''
     return RE_NONWORD.sub(sep, s).lower().strip(sep)
+    
+    
+RE_WHITESPACE_GROUP = re.compile(r'(\s+)', re.M | re.U)
+def camel(s, sep='_', lower_initial=False, upper_segments=None,
+          preserve_upper=False):
+    """
+    Convert underscore_separated string (aka snake_case) to CamelCase.
+
+    Works on full sentences as well as individual words:
+
+    >>> camel("hello_world!")
+    'HelloWorld!'
+    >>> camel("Totally works as_expected, even_with_whitespace!")
+    'Totally Works AsExpected, EvenWithWhitespace!'
+
+    Args:
+        sep (string, optional): Delineates segments of `s` that will be
+            CamelCased. Defaults to an underscore "_".
+
+            For example, if you want to CamelCase a dash separated word:
+
+            >>> camel("xml-http-request", sep="-")
+            'XmlHttpRequest'
+
+        lower_initial (bool, int, or list, optional): If True, the initial
+            character of each camelCased word will be lowercase. If False, the
+            initial character of each CamelCased word will be uppercase.
+            Defaults to False:
+
+            >>> camel("http_request http_response")
+            'HttpRequest HttpResponse'
+            >>> camel("http_request http_response", lower_initial=True)
+            'httpRequest httpResponse'
+
+            Optionally, `lower_initial` can be an int or a list of ints,
+            indicating which individual segments of each CamelCased word
+            should start with a lowercase. Supports negative numbers to index
+            segments from the right:
+
+            >>> camel("xml_http_request", lower_initial=0)
+            'xmlHttpRequest'
+            >>> camel("xml_http_request", lower_initial=-1)
+            'XmlHttprequest'
+            >>> camel("xml_http_request", lower_initial=[0, 1])
+            'xmlhttpRequest'
+
+        upper_segments (int or list, optional): Indicates which segments of
+           CamelCased words should be fully uppercased, instead of just
+           capitalizing the first letter.
+
+           Can be an int, indicating a single segment, or a list of ints,
+           indicating multiple segments. Supports negative numbers to index
+           segments from the right.
+
+           `upper_segments` is helpful when dealing with acronyms:
+
+            >>> camel("tcp_socket_id", upper_segments=0)
+            'TCPSocketId'
+            >>> camel("tcp_socket_id", upper_segments=[0, -1])
+            'TCPSocketID'
+            >>> camel("tcp_socket_id", upper_segments=[0, -1], lower_initial=1)
+            'TCPsocketID'
+
+        preserve_upper (bool): If True, existing uppercase characters will
+            not be automatically lowercased. Defaults to False.
+
+            >>> camel("xml_HTTP_reQuest")
+            'XmlHttpRequest'
+            >>> camel("xml_HTTP_reQuest", preserve_upper=True)
+            'XmlHTTPReQuest'
+
+    Returns:
+        str: CamelCased version of `s`.
+
+    """
+    if isinstance(lower_initial, bool):
+        lower_initial = [0] if lower_initial else []
+    else:
+        lower_initial = listify(lower_initial)
+    upper_segments = listify(upper_segments)
+    result = []
+    for word in RE_WHITESPACE_GROUP.split(s):
+        segments = [segment for segment in word.split(sep) if segment]
+        count = len(segments)
+        for i, segment in enumerate(segments):
+            upper = i in upper_segments or (i - count) in upper_segments
+            lower = i in lower_initial or (i - count) in lower_initial
+            if upper and lower:
+                if preserve_upper:
+                    segment = segment[0] + segment[1:].upper()
+                else:
+                    segment = segment[0].lower() + segment[1:].upper()
+            elif upper:
+                segment = segment.upper()
+            elif lower:
+                if not preserve_upper:
+                    segment = segment.lower()
+            elif preserve_upper:
+                segment = segment[0].upper() + segment[1:]
+            else:
+                segment = segment[0].upper() + segment[1:].lower()
+            result.append(segment)
+
+    return "".join(result)
 
 # ======================================================================
 # Collection functions
@@ -282,7 +408,7 @@ def listify(x):
     Wraps `x` in a list if it isn't one already. 
     Preserves None as an empty list.
     """
-    warning.warn("ensure_list is deprecated.")
+    warnings.warn("ensure_list is deprecated.", stacklevel=2)
     if x is None:
         return []
     
@@ -448,7 +574,7 @@ def groupify(items, keys, val_key=None):
         OrderedDict: Nested OrderedDicts with `items` grouped by `keys`.
 
     """
-    warning.warn("groupify is deprecated.")
+    warnings.warn("groupify is deprecated.", stacklevel=2)
     if not keys:
         return items
     keys = listify(keys)
@@ -477,14 +603,17 @@ def localized_now():
     """
     Returns datetime.now() but localized to the event's timezone.
     """
-    return localize_datetime(datetime.utcnow())
+    return datetime.now(c.EVENT_TIMEZONE)
 
 
 def localize_datetime(dt):
     """
     Converts `dt` to the event's timezone.
     """
-    return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
+    # 1. If the datetime is naive (no timezone), assume it is UTC first
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(c.EVENT_TIMEZONE)
 
 
 def hour_day_format(dt):
@@ -944,9 +1073,7 @@ class GuidebookUtils():
 
     @classmethod
     def cast_jsonb_to_datetime(cls, jsonb_col):
-        from residue import CoerceUTF8 as UnicodeText, UTCDateTime
-
-        return cast(cast(jsonb_col, UnicodeText), UTCDateTime)
+        return cast(jsonb_col.astext, DateTime)
     
     @classmethod
     def get_changed_models(cls, session):
@@ -1084,6 +1211,56 @@ def create_new_hash(password):
 # ======================================================================
 # Miscellaneous helpers
 # ======================================================================
+
+# TODO: This is awful, get rid of it
+def argmod(*args):
+    """
+    Decorator that intercepts and modifies function arguments.
+
+    Args:
+        from_param (str|list): A parameter or list of possible parameters that
+            should be modified using `modifier_func`. Passing a list of
+            possible parameters is useful when a function's parameter names
+            have changed, but you still want to support the old parameter
+            names.
+        to_param (str): Optional. If given, to_param will be used as the
+            parameter name for the modified argument. If not given, to_param
+            will default to the last parameter given in `from_param`.
+        modifier_func (callable): The function used to modify the `from_param`.
+
+    Returns:
+        function: A function that modifies the given `from_param` before the
+            function is called.
+    """
+    from_param = listify(args[0])
+    to_param = from_param[-1] if len(args) < 3 else args[1]
+    modifier_func = args[-1]
+
+    def _decorator(func):
+        argspec = inspect.getfullargspec(unwrap(func))
+        if to_param not in argspec.args:
+            return func
+        arg_index = argspec.args.index(to_param)
+
+        @functools.wraps(func)
+        def _modifier(*args, **kwargs):
+            kwarg = False
+            for arg in from_param:
+                if arg in kwargs:
+                    kwarg = arg
+                    break
+
+            if kwarg:
+                kwargs[to_param] = modifier_func(kwargs.pop(kwarg))
+            elif arg_index < len(args):
+                args = list(args)
+                args[arg_index] = modifier_func(args[arg_index])
+            return func(*args, **kwargs)
+
+        return _modifier
+    return _decorator
+
+department_id_adapter = argmod(['location', 'department', 'department_id'], lambda d: uber.models.Department.to_id(d))
 
 def unwrap(func):
     """

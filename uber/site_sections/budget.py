@@ -3,7 +3,6 @@ import re
 import logging
 
 from collections import defaultdict
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, func, not_, and_
 

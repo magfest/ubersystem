@@ -7,10 +7,9 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from markupsafe import Markup
 
-from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid, JSON
 
 from uber.config import c
 from uber.custom_tags import yesno
@@ -30,8 +29,8 @@ __all__ = [
 
 
 class GuestGroup(MagModel):
-    group_id = Column(UUID, ForeignKey('group.id'))
-    event_id = Column(UUID, ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
+    group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id'))
+    event_id = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
     group_type = Column(Choice(c.GROUP_TYPE_OPTS), default=c.BAND)
     num_hotel_rooms = Column(Integer, default=1, admin_only=True)
     payment = Column(Integer, default=0, admin_only=True)
@@ -292,12 +291,12 @@ class GuestGroup(MagModel):
 
 
 class GuestInfo(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
-    poc_phone = Column(UnicodeText)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    poc_phone = Column(String)
     performer_count = Column(Integer, default=0)
     bringing_vehicle = Column(Boolean, default=False)
-    vehicle_info = Column(UnicodeText)
-    arrival_time = Column(UnicodeText)
+    vehicle_info = Column(String)
+    arrival_time = Column(String)
 
     @property
     def status(self):
@@ -305,7 +304,7 @@ class GuestInfo(MagModel):
 
 
 class GuestImage(MagModel, GuidebookImageMixin):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'))
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
 
     @property
     def url(self):
@@ -322,19 +321,19 @@ class GuestImage(MagModel, GuidebookImageMixin):
 
 
 class GuestBio(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
-    desc = Column(UnicodeText)
-    member_info = Column(UnicodeText)
-    website = Column(UnicodeText)
-    facebook = Column(UnicodeText)
-    twitter = Column(UnicodeText)
-    instagram = Column(UnicodeText)
-    twitch = Column(UnicodeText)
-    bandcamp = Column(UnicodeText)
-    discord = Column(UnicodeText)
-    spotify = Column(UnicodeText)
-    other_social_media = Column(UnicodeText)
-    teaser_song_url = Column(UnicodeText)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    desc = Column(String)
+    member_info = Column(String)
+    website = Column(String)
+    facebook = Column(String)
+    twitter = Column(String)
+    instagram = Column(String)
+    twitch = Column(String)
+    bandcamp = Column(String)
+    discord = Column(String)
+    spotify = Column(String)
+    other_social_media = Column(String)
+    teaser_song_url = Column(String)
 
     @property
     def status(self):
@@ -342,7 +341,7 @@ class GuestBio(MagModel):
 
 
 class GuestTaxes(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     w9_sent = Column(Boolean, default=False)
 
     @property
@@ -351,10 +350,10 @@ class GuestTaxes(MagModel):
 
 
 class GuestStagePlot(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
-    filename = Column(UnicodeText)
-    content_type = Column(UnicodeText)
-    notes = Column(UnicodeText)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    filename = Column(String)
+    content_type = Column(String)
+    notes = Column(String)
 
     @property
     def url(self):
@@ -387,13 +386,13 @@ class GuestStagePlot(MagModel):
 
 
 class GuestPanel(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     wants_panel = Column(Choice(c.GUEST_PANEL_OPTS), nullable=True)
-    name = Column(UnicodeText)
-    length = Column(UnicodeText)
-    desc = Column(UnicodeText)
+    name = Column(String)
+    length = Column(String)
+    desc = Column(String)
     tech_needs = Column(MultiChoice(c.TECH_NEED_OPTS))
-    other_tech_needs = Column(UnicodeText)
+    other_tech_needs = Column(String)
 
     @property
     def status(self):
@@ -401,10 +400,10 @@ class GuestPanel(MagModel):
 
 
 class GuestTrack(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'))
-    filename = Column(UnicodeText)
-    content_type = Column(UnicodeText)
-    extension = Column(UnicodeText)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
+    filename = Column(String)
+    content_type = Column(String)
+    extension = Column(String)
 
     @property
     def file(self):
@@ -442,39 +441,39 @@ class GuestMerch(MagModel):
     _inventory_file_regex = re.compile(r'^(audio|image)(|\-\d+)$')
     _inventory_filename_regex = re.compile(r'^(audio|image)(|\-\d+)_filename$')
 
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     selling_merch = Column(Choice(c.GUEST_MERCH_OPTS), nullable=True)
     delivery_method = Column(Choice(c.GUEST_MERCH_DELIVERY_OPTS), nullable=True)
     payout_method = Column(Choice(c.GUEST_MERCH_PAYOUT_METHOD_OPTS), nullable=True)
-    paypal_email = Column(UnicodeText)
-    check_payable = Column(UnicodeText)
-    check_zip_code = Column(UnicodeText)
-    check_address1 = Column(UnicodeText)
-    check_address2 = Column(UnicodeText)
-    check_city = Column(UnicodeText)
-    check_region = Column(UnicodeText)
-    check_country = Column(UnicodeText)
+    paypal_email = Column(String)
+    check_payable = Column(String)
+    check_zip_code = Column(String)
+    check_address1 = Column(String)
+    check_address2 = Column(String)
+    check_city = Column(String)
+    check_region = Column(String)
+    check_country = Column(String)
 
-    arrival_plans = Column(UnicodeText)
+    arrival_plans = Column(String)
     checkin_time = Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True)
     checkout_time = Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True)
-    merch_events = Column(UnicodeText)
+    merch_events = Column(String)
     inventory = Column(JSON, default={}, server_default='{}')
-    inventory_updated = Column(UTCDateTime, nullable=True)
-    extra_info = Column(UnicodeText)
-    tax_phone = Column(UnicodeText)
+    inventory_updated = Column(DateTime(timezone=True), nullable=True)
+    extra_info = Column(String)
+    tax_phone = Column(String)
 
     poc_is_group_leader = Column(Boolean, default=False)
-    poc_first_name = Column(UnicodeText)
-    poc_last_name = Column(UnicodeText)
-    poc_phone = Column(UnicodeText)
-    poc_email = Column(UnicodeText)
-    poc_zip_code = Column(UnicodeText)
-    poc_address1 = Column(UnicodeText)
-    poc_address2 = Column(UnicodeText)
-    poc_city = Column(UnicodeText)
-    poc_region = Column(UnicodeText)
-    poc_country = Column(UnicodeText)
+    poc_first_name = Column(String)
+    poc_last_name = Column(String)
+    poc_phone = Column(String)
+    poc_email = Column(String)
+    poc_zip_code = Column(String)
+    poc_address1 = Column(String)
+    poc_address2 = Column(String)
+    poc_city = Column(String)
+    poc_region = Column(String)
+    poc_country = Column(String)
 
     handlers = Column(JSON, default=[], server_default='[]')
 
@@ -737,9 +736,9 @@ class GuestMerch(MagModel):
 
 
 class GuestCharity(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     donating = Column(Choice(c.GUEST_CHARITY_OPTS), nullable=True)
-    desc = Column(UnicodeText)
+    desc = Column(String)
 
     @property
     def status(self):
@@ -752,7 +751,7 @@ class GuestCharity(MagModel):
 
 
 class GuestAutograph(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     num = Column(Integer, default=0)
     length = Column(Integer, default=60)  # session length in minutes
     rock_island_autographs = Column(Boolean, nullable=True)
@@ -765,9 +764,9 @@ class GuestAutograph(MagModel):
 
 
 class GuestInterview(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     will_interview = Column(Boolean, default=False)
-    email = Column(UnicodeText)
+    email = Column(String)
     direct_contact = Column(Boolean, default=False)
 
     @presave_adjustment
@@ -778,10 +777,10 @@ class GuestInterview(MagModel):
 
 
 class GuestTravelPlans(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
-    modes_text = Column(UnicodeText)
-    details = Column(UnicodeText)
+    modes_text = Column(String)
+    details = Column(String)
     completed = Column(Boolean, default=False)
 
     @property
@@ -790,32 +789,32 @@ class GuestTravelPlans(MagModel):
 
 
 class GuestHospitality(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     completed = Column(Boolean, default=False)
 
 
 class GuestMediaRequest(MagModel):
-    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     completed = Column(Boolean, default=False)
 
 
 class GuestDetailedTravelPlan(MagModel):
-    travel_plans_id = Column(UUID, ForeignKey('guest_travel_plans.id'), nullable=True)
+    travel_plans_id = Column(Uuid(as_uuid=False), ForeignKey('guest_travel_plans.id'), nullable=True)
     travel_plans = relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
                                 backref=backref('detailed_travel_plans'),
                                 cascade='save-update,merge,refresh-expire,expunge')
     mode = Column(Choice(c.GUEST_TRAVEL_OPTS))
-    mode_text = Column(UnicodeText)
-    traveller = Column(UnicodeText)
-    companions = Column(UnicodeText)
-    luggage_needs = Column(UnicodeText)
-    contact_email = Column(UnicodeText)
-    contact_phone = Column(UnicodeText)
-    arrival_time = Column(UTCDateTime)
-    arrival_details = Column(UnicodeText)
-    departure_time = Column(UTCDateTime)
-    departure_details = Column(UnicodeText)
-    extra_details = Column(UnicodeText)
+    mode_text = Column(String)
+    traveller = Column(String)
+    companions = Column(String)
+    luggage_needs = Column(String)
+    contact_email = Column(String)
+    contact_phone = Column(String)
+    arrival_time = Column(DateTime(timezone=True))
+    arrival_details = Column(String)
+    departure_time = Column(DateTime(timezone=True))
+    departure_details = Column(String)
+    extra_details = Column(String)
 
     @classproperty
     def min_arrival_time(self):

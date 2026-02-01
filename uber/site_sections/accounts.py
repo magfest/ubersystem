@@ -7,12 +7,12 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
-                             department_id_adapter, not_site_mappable, render, site_mappable, public)
+                             not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, WorkstationAssignment
 from uber.tasks.email import send_email
 from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
-                        create_new_hash)
+                        create_new_hash, department_id_adapter)
 
 
 def valid_password(password, account):

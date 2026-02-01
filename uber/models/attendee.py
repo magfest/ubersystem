@@ -5,27 +5,25 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 import logging
 
-from sqlalchemy.sql.elements import not_
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, case, exists, func, or_, select
+from sqlalchemy import and_, case, exists, func, or_, select, not_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, subqueryload, aliased
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
-from sqlalchemy.types import Boolean, Date, Integer
+from sqlalchemy.types import Boolean, Date, Integer, Uuid, String, DateTime
 
 import uber
 from uber.config import c
 from uber.custom_tags import safe_string, time_day_local, readable_join
-from uber.decorators import department_id_adapter, predelete_adjustment, presave_adjustment, \
+from uber.decorators import predelete_adjustment, presave_adjustment, \
     render, cached_property, classproperty
 from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
 from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, \
-    localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode, listify, groupify
+    localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode, listify, groupify, department_id_adapter
 
 log = logging.getLogger(__name__)
 
@@ -149,13 +147,13 @@ normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffix
 
 
 class BadgeInfo(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True, default=None)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True, default=None)
     attendee = relationship('Attendee', backref=backref('allocated_badges', cascade='merge,refresh-expire,expunge'),
                             foreign_keys=attendee_id,
                             cascade='save-update,merge,refresh-expire,expunge', single_parent=True)
     active = Column(Boolean, default=False)
-    picked_up = Column(UTCDateTime, nullable=True, default=None)
-    reported_lost = Column(UTCDateTime, nullable=True, default=None)
+    picked_up = Column(DateTime(timezone=True), nullable=True, default=None)
+    reported_lost = Column(DateTime(timezone=True), nullable=True, default=None)
     ident = Column(Integer, default=0, index=True)
 
     __table_args__ = (
@@ -203,17 +201,17 @@ class BadgeInfo(MagModel):
 
 
 class Attendee(MagModel, TakesPaymentMixin):
-    watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
-    group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    watchlist_id = Column(Uuid(as_uuid=False), ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
+    group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(
         Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
     
-    badge_pickup_group_id = Column(UUID, ForeignKey('badge_pickup_group.id', ondelete='SET NULL'), nullable=True)
+    badge_pickup_group_id = Column(Uuid(as_uuid=False), ForeignKey('badge_pickup_group.id', ondelete='SET NULL'), nullable=True)
     badge_pickup_group = relationship(
         'BadgePickupGroup', backref=backref('attendees', order_by='Attendee.full_name'), foreign_keys=badge_pickup_group_id,
         cascade='save-update,merge,refresh-expire,expunge', single_parent=True)
 
-    creator_id = Column(UUID, ForeignKey('attendee.id', ondelete='set null'), nullable=True)
+    creator_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='set null'), nullable=True)
     creator = relationship(
         'Attendee',
         foreign_keys='Attendee.creator_id',
@@ -222,7 +220,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         remote_side='Attendee.id',
         single_parent=True)
 
-    current_attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    current_attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
     current_attendee = relationship(
         'Attendee',
         foreign_keys='Attendee.current_attendee_id',
@@ -236,7 +234,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(BadgeInfo.attendee_id == Attendee.id,'
         'BadgeInfo.active == True)',
-        uselist=False)
+        uselist=False,
+        overlaps="allocated_badges,attendee")
 
     # NOTE: The cascade relationships for promo_code do NOT include
     # "save-update". During the preregistration workflow, before an Attendee
@@ -248,51 +247,51 @@ class Attendee(MagModel, TakesPaymentMixin):
     #
     # The practical result of this is that we must manually set promo_code_id
     # in order for the relationship to be persisted.
-    promo_code_id = Column(UUID, ForeignKey('promo_code.id'), nullable=True, index=True)
+    promo_code_id = Column(Uuid(as_uuid=False), ForeignKey('promo_code.id'), nullable=True, index=True)
     promo_code = relationship(
         'PromoCode',
         backref=backref('used_by', cascade='merge,refresh-expire,expunge'),
         foreign_keys=promo_code_id,
         cascade='merge,refresh-expire,expunge')
     
-    transfer_code = Column(UnicodeText)
+    transfer_code = Column(String)
 
     placeholder = Column(Boolean, default=False, admin_only=True, index=True)
-    first_name = Column(UnicodeText)
-    last_name = Column(UnicodeText)
-    legal_name = Column(UnicodeText)
-    email = Column(UnicodeText)
+    first_name = Column(String)
+    last_name = Column(String)
+    legal_name = Column(String)
+    email = Column(String)
     birthdate = Column(Date, nullable=True, default=None)
     age_group = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
 
     international = Column(Boolean, default=False)
-    zip_code = Column(UnicodeText)
-    address1 = Column(UnicodeText)
-    address2 = Column(UnicodeText)
-    city = Column(UnicodeText)
-    region = Column(UnicodeText)
-    country = Column(UnicodeText)
-    ec_name = Column(UnicodeText)
-    ec_phone = Column(UnicodeText)
-    onsite_contact = Column(UnicodeText)
+    zip_code = Column(String)
+    address1 = Column(String)
+    address2 = Column(String)
+    city = Column(String)
+    region = Column(String)
+    country = Column(String)
+    ec_name = Column(String)
+    ec_phone = Column(String)
+    onsite_contact = Column(String)
     no_onsite_contact = Column(Boolean, default=False)
-    cellphone = Column(UnicodeText)
+    cellphone = Column(String)
     no_cellphone = Column(Boolean, default=False)
 
     requested_accessibility_services = Column(Boolean, default=False)
 
     interests = Column(MultiChoice(c.INTEREST_OPTS))
-    found_how = Column(UnicodeText)  # TODO: Remove?
-    comments = Column(UnicodeText)  # TODO: Remove?
-    for_review = Column(UnicodeText, admin_only=True)
-    admin_notes = Column(UnicodeText, admin_only=True)
+    found_how = Column(String)  # TODO: Remove?
+    comments = Column(String)  # TODO: Remove?
+    for_review = Column(String, admin_only=True)
+    admin_notes = Column(String, admin_only=True)
 
-    public_id = Column(UUID, default=lambda: str(uuid4()))
+    public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
     badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, index=True, admin_only=True)
     ribbon = Column(MultiChoice(c.RIBBON_OPTS), admin_only=True)
 
-    affiliate = Column(UnicodeText)  # TODO: Remove
+    affiliate = Column(String)  # TODO: Remove
 
     # If [[staff_shirt]] is the same as [[shirt]], we only use the shirt column
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
@@ -300,17 +299,17 @@ class Attendee(MagModel, TakesPaymentMixin):
     num_event_shirts = Column(Choice(c.STAFF_EVENT_SHIRT_OPTS, allow_unspecified=True), default=-1)
     shirt_opt_out = Column(Choice(c.SHIRT_OPT_OUT_OPTS), default=c.OPT_IN)
     can_spam = Column(Boolean, default=False)
-    regdesk_info = Column(UnicodeText, admin_only=True)
-    extra_merch = Column(UnicodeText, admin_only=True)
+    regdesk_info = Column(String, admin_only=True)
+    extra_merch = Column(String, admin_only=True)
     got_merch = Column(Boolean, default=False, admin_only=True)
     got_staff_merch = Column(Boolean, default=False, admin_only=True)
     got_swadge = Column(Boolean, default=False, admin_only=True)
     can_transfer = Column(Boolean, default=False, admin_only=True)
 
     reg_station = Column(Integer, nullable=True, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    confirmed = Column(UTCDateTime, nullable=True, default=None)
-    checked_in = Column(UTCDateTime, nullable=True)
+    registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    confirmed = Column(DateTime(timezone=True), nullable=True, default=None)
+    checked_in = Column(DateTime(timezone=True), nullable=True)
 
     paid = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
     badge_cost = Column(Integer, nullable=True, admin_only=True)
@@ -318,7 +317,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     amount_extra = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     extra_donation = Column(Integer, default=0)
 
-    badge_printed_name = Column(UnicodeText)
+    badge_printed_name = Column(String)
 
     active_receipt = relationship(
         'ModelReceipt',
@@ -435,11 +434,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     staffing = Column(Boolean, default=False)
     agreed_to_volunteer_agreement = Column(Boolean, default=False)
     reviewed_emergency_procedures = Column(Boolean, default=False)
-    reviewed_cash_handling = Column(UTCDateTime, nullable=True, default=None)
-    name_in_credits = Column(UnicodeText, nullable=True)
+    reviewed_cash_handling = Column(DateTime(timezone=True), nullable=True, default=None)
+    name_in_credits = Column(String, nullable=True)
     walk_on_volunteer = Column(Boolean, default=False)
     nonshift_minutes = Column(Integer, default=0, admin_only=True)
-    past_years = Column(UnicodeText, admin_only=True)
+    past_years = Column(String, admin_only=True)
     can_work_setup = Column(Boolean, default=False, admin_only=True)
     can_work_teardown = Column(Boolean, default=False, admin_only=True)
 
@@ -464,7 +463,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     room_assignments = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True))
 
     # The PIN/password used by third party hotel reservation systems
-    hotel_pin = SQLAlchemyColumn(UnicodeText, nullable=True, unique=True)
+    hotel_pin = SQLAlchemyColumn(String, nullable=True, unique=True)
 
     # =========================
     # mits
@@ -719,7 +718,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def times_printed(cls):
         from uber.models import PrintJob
 
-        return select([func.count(PrintJob.id)]
+        return select(func.count(PrintJob.id)
                       ).where(and_(PrintJob.attendee_id == cls.id,
                                    PrintJob.printed != None)).label('times_printed')  # noqa: E711
     
@@ -1182,7 +1181,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_paid(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.payment_total_sql]).outerjoin(ModelReceipt.receipt_txns).where(
+        return select(ModelReceipt.payment_total_sql).outerjoin(ModelReceipt.receipt_txns).where(
             and_(ModelReceipt.owner_id == cls.id,
                  ModelReceipt.owner_model == "Attendee",
                  ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
@@ -1195,7 +1194,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_refunded(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.refund_total_sql]).outerjoin(ModelReceipt.receipt_txns).where(
+        return select(ModelReceipt.refund_total_sql).outerjoin(ModelReceipt.receipt_txns).where(
             and_(ModelReceipt.owner_id == cls.id,
                  ModelReceipt.owner_model == "Attendee")).label('amount_refunded')
 
@@ -1506,7 +1505,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @primary_account_email.expression
     def primary_account_email(cls):
         aliased_account = aliased(AttendeeAccount)
-        return select([aliased_account.email]
+        return select(aliased_account.email
                       ).where(aliased_account.id == attendee_attendee_account.c.attendee_account_id
                               ).where(attendee_attendee_account.c.attendee_id == cls.id).limit(1).label('primary_account_email')
 
@@ -1519,7 +1518,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @group_name.expression
     def group_name(cls):
         aliased_group = aliased(Group)
-        return select([aliased_group.name]).where(aliased_group.id == cls.group_id).label('group_name')
+        return select(aliased_group.name).where(aliased_group.id == cls.group_id).label('group_name')
 
     @group_name.setter
     def group_name(self, value):
@@ -1544,14 +1543,14 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models.promo_code import PromoCode, PromoCodeGroup
         aliased_pc = aliased(PromoCode)
         aliased_pcgroup = aliased(PromoCodeGroup)
-        return case([
+        return case(
             (cls.promo_code != None,  # noqa: E711
-             select([aliased_pcgroup.name]).where(aliased_pcgroup.id == aliased_pc.group_id)
+             select(aliased_pcgroup.name).where(aliased_pcgroup.id == aliased_pc.group_id)
              .where(aliased_pc.id == cls.promo_code_id).label('promo_code_group_name')),
             (cls.promo_code_groups != None,  # noqa: E711
-             select([aliased_pcgroup.name]).where(aliased_pcgroup.buyer_id == cls.id)
+             select(aliased_pcgroup.name).where(aliased_pcgroup.buyer_id == cls.id)
              .label('promo_code_group_name'))
-        ])
+        )
 
     @hybrid_property
     def last_first(self):
@@ -1560,7 +1559,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @last_first.expression
     def last_first(cls):
         return case(
-            [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz'),  # noqa: E711
             else_=func.lower(cls.last_name + ', ' + cls.first_name))
 
     @hybrid_property
@@ -1674,11 +1673,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     # TODO: delete this after Super MAGFest 2018
     @property
     def gets_swadge(self):
-        return self.amount_extra >= c.SUPPORTER_LEVEL
+        return (self.amount_extra or 0) >= c.SUPPORTER_LEVEL
 
     @property
     def paid_for_a_shirt(self):
-        return self.amount_extra >= c.SHIRT_LEVEL
+        return (self.amount_extra or 0) >= c.SHIRT_LEVEL
     
     @property
     def num_potential_free_event_shirts(self):
@@ -1992,7 +1991,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @classproperty
     def searchable_fields(cls):
-        fields = [col.name for col in cls.__table__.columns if isinstance(col.type, UnicodeText)]
+        fields = [col.name for col in cls.__table__.columns if isinstance(col.type, String)]
         if "other_accessibility_requests" in fields:
             fields.remove('other_accessibility_requests')
         return fields
@@ -2571,8 +2570,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 attendee_attendee_account = Table(
     'attendee_attendee_account',
     MagModel.metadata,
-    Column('attendee_id', UUID, ForeignKey('attendee.id')),
-    Column('attendee_account_id', UUID, ForeignKey('attendee_account.id')),
+    Column('attendee_id', Uuid(as_uuid=False), ForeignKey('attendee.id')),
+    Column('attendee_account_id', Uuid(as_uuid=False), ForeignKey('attendee_account.id')),
     UniqueConstraint('attendee_id', 'attendee_account_id'),
     Index('ix_attendee_attendee_account_attendee_id', 'attendee_id'),
     Index('ix_attendee_attendee_account_attendee_account_id', 'attendee_account_id'),
@@ -2580,9 +2579,9 @@ attendee_attendee_account = Table(
 
 
 class AttendeeAccount(MagModel):
-    public_id = Column(UUID, default=lambda: str(uuid4()), nullable=True)
-    email = Column(UnicodeText)
-    hashed = Column(UnicodeText, private=True)
+    public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()), nullable=True)
+    email = Column(String)
+    hashed = Column(String, private=True)
     password_reset = relationship('PasswordReset', backref='attendee_account', uselist=False)
     attendees = relationship(
         'Attendee', backref='managers', order_by='Attendee.registered',
@@ -2706,8 +2705,8 @@ class AttendeeAccount(MagModel):
 
 
 class BadgePickupGroup(MagModel):
-    public_id = Column(UUID, default=lambda: str(uuid4()), nullable=True)
-    account_id = Column(UnicodeText)
+    public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()), nullable=True)
+    account_id = Column(String)
 
     def build_from_account(self, account):
         for attendee in account.attendees:
@@ -2783,10 +2782,10 @@ class BadgePickupGroup(MagModel):
 
 
 class FoodRestrictions(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
     standard = Column(MultiChoice(c.FOOD_RESTRICTION_OPTS))
     sandwich_pref = Column(MultiChoice(c.SANDWICH_OPTS))
-    freeform = Column(UnicodeText)
+    freeform = Column(String)
 
     def __getattr__(self, name):
         try:

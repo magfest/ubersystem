@@ -222,6 +222,9 @@ for setting, value in c.CHERRYPY.items():
         elif value.lower() in ['true', 'false']:
             value = value.lower() == 'true'
     cherrypy_config[setting] = value
+storage_type = c.CHERRYPY.get("tools.sessions.storage_class", "RedisSession")
+if isinstance(storage_type, str):
+    cherrypy_config['tools.sessions.storage_class'] = getattr(cherrypy.lib.sessions, storage_type)
 cherrypy.config.update(cherrypy_config)
 
 libpthread_path = ctypes.util.find_library("pthread")

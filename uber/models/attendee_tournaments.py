@@ -5,9 +5,8 @@ The attendee_tournaments module is no longer used, but has been
 included for backward compatibility with legacy servers.
 """
 
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import func
-from sqlalchemy.types import Boolean
+from sqlalchemy.types import Boolean, String
 
 from uber.config import c
 from uber.models import MagModel, Attendee
@@ -18,16 +17,16 @@ __all__ = ['AttendeeTournament']
 
 
 class AttendeeTournament(MagModel):
-    first_name = Column(UnicodeText)
-    last_name = Column(UnicodeText)
-    email = Column(UnicodeText)
-    cellphone = Column(UnicodeText)
-    game = Column(UnicodeText)
+    first_name = Column(String)
+    last_name = Column(String)
+    email = Column(String)
+    cellphone = Column(String)
+    game = Column(String)
     availability = Column(MultiChoice(c.TOURNAMENT_AVAILABILITY_OPTS))
-    format = Column(UnicodeText)
-    experience = Column(UnicodeText)
-    needs = Column(UnicodeText)
-    why = Column(UnicodeText)
+    format = Column(String)
+    experience = Column(String)
+    needs = Column(String)
+    why = Column(String)
     volunteering = Column(Boolean, default=False)
 
     status = Column(Choice(c.TOURNAMENT_STATUS_OPTS), default=c.NEW, admin_only=True)

@@ -6,17 +6,16 @@ import re
 import shutil
 
 import pytz
-from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.schema import Column
 from sqlalchemy.sql.expression import FunctionElement
-from sqlalchemy.types import Boolean, Integer, TypeDecorator
+from sqlalchemy.types import Boolean, Integer, TypeDecorator, String, DateTime, Uuid, JSON
 
 from uber.config import c, _config as config
-from uber.utils import url_domain, listify
-from uber.custom_tags import camel, fieldify
+from uber.utils import url_domain, listify, camel
+from uber.custom_tags import fieldify
 
 __all__ = [
     'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
@@ -33,7 +32,7 @@ def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
         Field           Old Default     New Default
         -----           ------------    -----------
         nullable        True            False
-        default         None            ''  (only for UnicodeText fields)
+        default         None            ''  (only for String fields)
         server_default  None            <same value as 'default'>
 
     We also have an "admin_only" parameter, which is set as an attribute on
@@ -43,13 +42,13 @@ def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
     """
     kwargs.setdefault('nullable', False)
     type_ = args[0]
-    if type_ is UnicodeText or isinstance(type_, (UnicodeText, MultiChoice)):
+    if type_ is String or isinstance(type_, (String, MultiChoice)):
         kwargs.setdefault('default', '')
     default = kwargs.get('default')
     if isinstance(default, (int, str)):
         kwargs.setdefault('server_default', str(default))
     col = SQLAlchemy_Column(*args, **kwargs)
-    col.admin_only = admin_only or type_ in (UUID, UTCDateTime)
+    col.admin_only = admin_only or type_ in (Uuid(as_uuid=False), DateTime)
     col.private = private
     return col
 
@@ -88,7 +87,7 @@ class utcmax(FunctionElement):
 
     """
     datetime = datetime(9999, 12, 31, 23, 59, 59, tzinfo=pytz.UTC)
-    type = UTCDateTime()
+    type = DateTime(timezone=True)
 
 
 @compiles(utcmax, 'postgresql')
@@ -126,7 +125,7 @@ class utcmin(FunctionElement):
 
     """
     datetime = datetime(1, 1, 1, 0, 0, 0, tzinfo=pytz.UTC)
-    type = UTCDateTime()
+    type = DateTime(timezone=True)
 
 
 @compiles(utcmin, 'postgresql')
@@ -145,7 +144,7 @@ class utcnow(FunctionElement):
     indicating when the row was first created.  Normally we could do something
     like this::
 
-        created = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+        created = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     Unfortunately, there are some cases where we instantiate a model and then
     don't save it until sometime later.  This happens when someone registers
@@ -154,13 +153,13 @@ class utcnow(FunctionElement):
     can set a timestamp based on when the row was inserted rather than when
     the model was instantiated::
 
-        created = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+        created = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
 
     The pg_utcnow and sqlite_utcnow functions below define the implementation
     for postgres and sqlite, and new functions will need to be written if/when
     we decided to support other databases.
     """
-    type = UTCDateTime()
+    type = DateTime(timezone=True)
 
 
 @compiles(utcnow, 'postgresql')
@@ -232,7 +231,8 @@ class UniqueList(TypeDecorator):
     Utility class for storing a list of unique strings or integers.
     The list is stored as a comma-separate string.
     """
-    impl = UnicodeText
+    impl = String
+    inherit_cache = True
 
     def process_bind_param(self, value, dialect):
         """
@@ -255,7 +255,8 @@ class MultiChoice(UniqueList):
     This can be marginally more convenient than a many-to-many table. Like the
     Choice class, this takes an array of tuples of integers and strings.
     """
-    impl = UnicodeText
+    impl = String
+    inherit_cache = True
 
     def __init__(self, choices, **kwargs):
         self.choices = choices
@@ -399,9 +400,9 @@ def JSONColumnMixin(column_name, fields):
 
 
 class GuidebookImageMixin():
-    filename = Column(UnicodeText)
-    content_type = Column(UnicodeText)
-    extension = Column(UnicodeText)
+    filename = Column(String)
+    content_type = Column(String)
+    extension = Column(String)
     is_header = Column(Boolean, default=False)
     is_thumbnail = Column(Boolean, default=False)
 

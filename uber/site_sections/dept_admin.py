@@ -4,12 +4,12 @@ from datetime import timedelta
 
 from uber.config import c
 from uber.custom_tags import pluralize, yesno, readable_join
-from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protected, csv_file, department_id_adapter, \
+from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protected, csv_file, \
     requires_dept_admin, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Department, DeptMembership, DeptRole, Shift
-from uber.utils import check, validate_model
+from uber.utils import check, validate_model, department_id_adapter
 
 
 @all_renderable()

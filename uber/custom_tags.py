@@ -28,7 +28,7 @@ from uber.serializer import serializer
 from uber.config import c
 from uber.decorators import render
 from uber.jinja import JinjaEnv
-from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines, listify
+from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines, listify, readable_join
 
 # This used to be available as markupsafe.text_type, but that was removed in version 1.1.0
 text_type = str
@@ -119,28 +119,7 @@ def unfieldify(s, sep='_'):
     return (' '.join([w for w in s.split(sep) if w])).title()
 
 
-@JinjaEnv.jinja_filter
-def readable_join(xs, conjunction='and', sep=','):
-    """
-    Accepts a list of strings and separates them with commas as grammatically
-    appropriate with a conjunction before the final entry. For example:
-
-    >>> readable_join(['foo'])
-    'foo'
-    >>> readable_join(['foo', 'bar'])
-    'foo and bar'
-    >>> readable_join(['foo', 'bar', 'baz'])
-    'foo, bar, and baz'
-    >>> readable_join(['foo', 'bar', 'baz'], 'or')
-    'foo, bar, or baz'
-    >>> readable_join(['foo', 'bar', 'baz'], 'but never')
-    'foo, bar, but never baz'
-
-    """
-    if len(xs) > 1:
-        xs = list(xs)
-        xs[-1] = conjunction + ' ' + xs[-1]
-    return (sep + ' ' if len(xs) > 2 else ' ').join(xs)
+readable_join = JinjaEnv.jinja_filter(readable_join)
 
 
 @JinjaEnv.jinja_filter(name='datetime')

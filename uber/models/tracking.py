@@ -10,9 +10,8 @@ import cherrypy
 from pytz import UTC
 from sqlalchemy.ext import associationproxy
 
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import Sequence
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, DateTime, String, Uuid
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm.exc import NoResultFound
@@ -33,10 +32,10 @@ serializer.register(associationproxy._AssociationList, list)
 
 
 class ReportTracking(MagModel):
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    who = Column(UnicodeText)
-    supervisor = Column(UnicodeText)
-    page = Column(UnicodeText)
+    when = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    who = Column(String)
+    supervisor = Column(String)
+    page = Column(String)
     params = Column(MutableDict.as_mutable(JSONB), default={})
 
     @property
@@ -58,11 +57,11 @@ class ReportTracking(MagModel):
 
 
 class PageViewTracking(MagModel):
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    who = Column(UnicodeText)
-    supervisor = Column(UnicodeText)
-    page = Column(UnicodeText)
-    which = Column(UnicodeText)
+    when = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    who = Column(String)
+    supervisor = Column(String)
+    page = Column(String)
+    which = Column(String)
 
     @property
     def who_repr(self):
@@ -110,17 +109,17 @@ class PageViewTracking(MagModel):
 
 
 class Tracking(MagModel):
-    fk_id = Column(UUID, index=True)
-    model = Column(UnicodeText)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC), index=True)
-    who = Column(UnicodeText, index=True)
-    supervisor = Column(UnicodeText)
-    page = Column(UnicodeText)
-    which = Column(UnicodeText)
-    links = Column(UnicodeText)
+    fk_id = Column(Uuid(as_uuid=False), index=True)
+    model = Column(String)
+    when = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
+    who = Column(String, index=True)
+    supervisor = Column(String)
+    page = Column(String)
+    which = Column(String)
+    links = Column(String)
     action = Column(Choice(c.TRACKING_OPTS))
-    data = Column(UnicodeText)
-    snapshot = Column(UnicodeText)
+    data = Column(String)
+    snapshot = Column(String)
 
     @property
     def who_repr(self):
@@ -287,15 +286,15 @@ class Tracking(MagModel):
 class TxnRequestTracking(MagModel):
     incr_id_seq = Sequence('txn_request_tracking_incr_id_seq')
     incr_id = Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True)
-    fk_id = Column(UUID, nullable=True)
+    fk_id = Column(Uuid(as_uuid=False), nullable=True)
     workstation_num = Column(Integer, default=0)
-    terminal_id = Column(UnicodeText)
-    who = Column(UnicodeText)
-    requested = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    resolved = Column(UTCDateTime, nullable=True)
+    terminal_id = Column(String)
+    who = Column(String)
+    requested = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    resolved = Column(DateTime(timezone=True), nullable=True)
     success = Column(Boolean, default=False)
     response = Column(MutableDict.as_mutable(JSONB), default={})
-    internal_error = Column(UnicodeText)
+    internal_error = Column(String)
 
     @presave_adjustment
     def log_internal_error(self):

@@ -2,7 +2,6 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 
 import pytz
-from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, cast, exists, func, not_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -10,7 +9,7 @@ from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.sql import text
 from sqlalchemy.sql.expression import bindparam
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
 
 from uber.config import c
 from uber.custom_tags import humanize_timedelta, location_event_name, location_room_name
@@ -31,7 +30,7 @@ class AttractionMixin():
     waitlist_available = Column(Boolean, default=True)
     waitlist_slots = Column(Integer, default=10)
     signups_open_relative = Column(Integer, default=c.DEFAULT_ATTRACTIONS_SIGNUPS_MINUTES)
-    signups_open_time = Column(UTCDateTime, nullable=True)
+    signups_open_time = Column(DateTime(timezone=True), nullable=True)
     slots = Column(Integer, default=1)
 
     @classproperty
@@ -132,17 +131,17 @@ class Attraction(MagModel, AttractionMixin):
         (120, '2 hours before checkin'),
         (1440, '1 day before checkin')]
 
-    name = Column(UnicodeText, unique=True)
-    slug = Column(UnicodeText, unique=True)
-    description = Column(UnicodeText)
-    full_description = Column(UnicodeText)
+    name = Column(String, unique=True)
+    slug = Column(String, unique=True)
+    description = Column(String)
+    full_description = Column(String)
     is_public = Column(Boolean, default=False)
     checkin_reminder = Column(Integer, default=None, nullable=True)
     advance_checkin = Column(Integer, default=0)
     restriction = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
     badge_num_required = Column(Boolean, default=False)
-    department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
-    owner_id = Column(UUID, ForeignKey('admin_account.id'), nullable=True)
+    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
+    owner_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
 
     owner = relationship(
         'AdminAccount',
@@ -314,7 +313,7 @@ class Attraction(MagModel, AttractionMixin):
             event_filters = [AttractionEvent.attraction_id == self.id,
                              AttractionEvent.no_notifications == False]
             if advance_notice == -1:
-                notice_ident = cast(AttractionSignup.attraction_event_id, UnicodeText)
+                notice_ident = cast(AttractionSignup.attraction_event_id, String)
                 notice_param = bindparam('confirm_notice', advance_notice).label('advance_notice')
             else:
                 advance_notice = max(0, advance_notice) + advance_checkin
@@ -344,12 +343,12 @@ class Attraction(MagModel, AttractionMixin):
 
 
 class AttractionFeature(MagModel, AttractionMixin):
-    name = Column(UnicodeText)
-    slug = Column(UnicodeText)
-    description = Column(UnicodeText)
+    name = Column(String)
+    slug = Column(String)
+    description = Column(String)
     is_public = Column(Boolean, default=False)
     badge_num_required = Column(Boolean, default=False)
-    attraction_id = Column(UUID, ForeignKey('attraction.id'))
+    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
 
     events = relationship(
         'AttractionEvent', backref='feature', order_by='[AttractionEvent.start_time, AttractionEvent.id]')
@@ -477,11 +476,11 @@ class AttractionFeature(MagModel, AttractionMixin):
 #       of half hours, thus is not usable by Attractions.
 # =====================================================================
 class AttractionEvent(MagModel, AttractionMixin):
-    attraction_feature_id = Column(UUID, ForeignKey('attraction_feature.id'))
-    attraction_id = Column(UUID, ForeignKey('attraction.id'), index=True)
-    event_location_id = Column(UUID, ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
+    attraction_feature_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_feature.id'))
+    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), index=True)
+    event_location_id = Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
 
-    start_time = Column(UTCDateTime, default=c.EPOCH)
+    start_time = Column(DateTime(timezone=True), default=c.EPOCH)
     duration = Column(Integer, default=60)
 
     signups = relationship('AttractionSignup', backref='event', order_by='AttractionSignup.checkin_time')
@@ -495,10 +494,11 @@ class AttractionEvent(MagModel, AttractionMixin):
 
     attendees = relationship(
         'Attendee',
-        backref='attraction_events',
+        backref=backref('attraction_events', overlaps="attendee,attraction_signups,event,signups"),
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='attraction_signup',
-        order_by='attraction_signup.c.signup_time')
+        order_by='attraction_signup.c.signup_time',
+        overlaps="signups,event,attraction_signups,attendee")
 
     @presave_adjustment
     def _fix_attraction_id(self):
@@ -754,12 +754,12 @@ class AttractionEvent(MagModel, AttractionMixin):
 
 
 class AttractionSignup(MagModel):
-    attraction_event_id = Column(UUID, ForeignKey('attraction_event.id'))
-    attraction_id = Column(UUID, ForeignKey('attraction.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
+    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
 
-    signup_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
-    checkin_time = Column(UTCDateTime, default=lambda: utcmin.datetime, index=True)
+    signup_time = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    checkin_time = Column(DateTime(timezone=True), default=lambda: utcmin.datetime, index=True)
     on_waitlist = Column(Boolean, default=False)
 
     notifications = relationship(
@@ -853,16 +853,16 @@ class AttractionSignup(MagModel):
 
 
 class AttractionNotification(MagModel):
-    attraction_event_id = Column(UUID, ForeignKey('attraction_event.id'))
-    attraction_id = Column(UUID, ForeignKey('attraction.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
+    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
 
     notification_type = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
-    ident = Column(UnicodeText, index=True)
-    sid = Column(UnicodeText)
-    sent_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
-    subject = Column(UnicodeText)
-    body = Column(UnicodeText)
+    ident = Column(String, index=True)
+    sid = Column(String)
+    sent_time = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    subject = Column(String)
+    body = Column(String)
 
     @presave_adjustment
     def _fix_attraction_id(self):
@@ -871,17 +871,17 @@ class AttractionNotification(MagModel):
 
 
 class AttractionNotificationReply(MagModel):
-    attraction_event_id = Column(UUID, ForeignKey('attraction_event.id'), nullable=True)
-    attraction_id = Column(UUID, ForeignKey('attraction.id'), nullable=True)
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'), nullable=True)
+    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), nullable=True)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
 
     notification_type = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
-    from_phonenumber = Column(UnicodeText)
-    to_phonenumber = Column(UnicodeText)
-    sid = Column(UnicodeText, index=True)
-    received_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
-    sent_time = Column(UTCDateTime, default=lambda: datetime.now(pytz.UTC))
-    body = Column(UnicodeText)
+    from_phonenumber = Column(String)
+    to_phonenumber = Column(String)
+    sid = Column(String, index=True)
+    received_time = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    sent_time = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    body = Column(String)
 
     @presave_adjustment
     def _fix_attraction_id(self):

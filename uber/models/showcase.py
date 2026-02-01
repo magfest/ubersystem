@@ -7,10 +7,9 @@ from datetime import datetime, timedelta
 from functools import wraps
 from markupsafe import Markup
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, case, or_
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
@@ -36,16 +35,16 @@ class ReviewMixin:
 
 
 class IndieJudge(MagModel, ReviewMixin):
-    admin_id = Column(UUID, ForeignKey('admin_account.id'))
+    admin_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'))
     status = Column(Choice(c.MIVS_JUDGE_STATUS_OPTS), default=c.UNCONFIRMED)
     assignable_showcases = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
     all_games_showcases = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
     no_game_submission = Column(Boolean, nullable=True)
     genres = Column(MultiChoice(c.MIVS_JUDGE_GENRE_OPTS))
     platforms = Column(MultiChoice(c.MIVS_PLATFORM_OPTS))
-    platforms_text = Column(UnicodeText)
-    vr_text = Column(UnicodeText)
-    staff_notes = Column(UnicodeText)
+    platforms_text = Column(String)
+    vr_text = Column(String)
+    staff_notes = Column(String)
 
     codes = relationship('IndieGameCode', backref='judge')
     reviews = relationship('IndieGameReview', backref='judge')
@@ -98,8 +97,8 @@ class IndieJudge(MagModel, ReviewMixin):
     @showcases.expression
     def showcases(cls):
         return case(
-            [(cls.assignable_showcases == '', cls.all_games_showcases),
-             (cls.all_games_showcases == '', cls.assignable_showcases)],
+            (cls.assignable_showcases == '', cls.all_games_showcases),
+             (cls.all_games_showcases == '', cls.assignable_showcases),
             else_=cls.assignable_showcases + ',' + cls.all_games_showcases)
 
     @property
@@ -129,26 +128,26 @@ class IndieJudge(MagModel, ReviewMixin):
 
 
 class IndieStudio(MagModel):
-    group_id = Column(UUID, ForeignKey('group.id'), nullable=True)
-    name = Column(UnicodeText, unique=True)
-    website = Column(UnicodeText)
+    group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id'), nullable=True)
+    name = Column(String, unique=True)
+    website = Column(String)
     other_links = Column(UniqueList)
 
     status = Column(
         Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW, admin_only=True)
-    staff_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+    staff_notes = Column(String, admin_only=True)
+    registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
 
     accepted_core_hours = Column(Boolean, default=False)
-    discussion_emails = Column(UnicodeText)
+    discussion_emails = Column(String)
     completed_discussion = Column(Boolean, default=False)
     read_handbook = Column(Boolean, default=False)
-    training_password = Column(UnicodeText)
+    training_password = Column(String)
     selling_merch = Column(Choice(c.MIVS_MERCH_OPTS), nullable=True)
     needs_hotel_space = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
-    name_for_hotel = Column(UnicodeText)
-    email_for_hotel = Column(UnicodeText)
-    contact_phone = Column(UnicodeText)
+    name_for_hotel = Column(String)
+    email_for_hotel = Column(String)
+    contact_phone = Column(String)
     show_info_updated = Column(Boolean, default=False)
     logistics_updated = Column(Boolean, default=False)
 
@@ -313,14 +312,14 @@ class IndieStudio(MagModel):
 
 
 class IndieDeveloper(MagModel):
-    studio_id = Column(UUID, ForeignKey('indie_studio.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    studio_id = Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
 
     gets_emails = Column(Boolean, default=False)
-    first_name = Column(UnicodeText)
-    last_name = Column(UnicodeText)
-    email = Column(UnicodeText)
-    cellphone = Column(UnicodeText)
+    first_name = Column(String)
+    last_name = Column(String)
+    email = Column(String)
+    cellphone = Column(String)
     agreed_coc = Column(Boolean, default=False)
     agreed_data_policy = Column(Boolean, default=False)
 
@@ -346,52 +345,52 @@ class IndieDeveloper(MagModel):
 
 
 class IndieGame(MagModel, ReviewMixin):
-    studio_id = Column(UUID, ForeignKey('indie_studio.id'))
-    primary_contact_id = Column(UUID, ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True)
+    studio_id = Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id'))
+    primary_contact_id = Column(Uuid(as_uuid=False), ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True)
     primary_contact = relationship(IndieDeveloper, backref='arcade_games',
                                    foreign_keys=primary_contact_id, cascade='save-update,merge,refresh-expire,expunge')
 
-    title = Column(UnicodeText)
-    brief_description = Column(UnicodeText)
-    description = Column(UnicodeText)
+    title = Column(String)
+    brief_description = Column(String)
+    description = Column(String)
     genres = Column(MultiChoice(c.MIVS_GENRE_OPTS))
-    genres_text = Column(UnicodeText)
+    genres_text = Column(String)
     platforms = Column(MultiChoice(c.MIVS_PLATFORM_OPTS + c.INDIE_RETRO_PLATFORM_OPTS))
-    platforms_text = Column(UnicodeText)
-    player_count = Column(UnicodeText)
-    how_to_play = Column(UnicodeText)
-    link_to_video = Column(UnicodeText)
-    link_to_game = Column(UnicodeText)
+    platforms_text = Column(String)
+    player_count = Column(String)
+    how_to_play = Column(String)
+    link_to_video = Column(String)
+    link_to_game = Column(String)
 
     requires_gamepad = Column(Boolean, default=False)
     is_alumni = Column(Boolean, default=False)
     content_warning = Column(Boolean, default=False)
-    warning_desc = Column(UnicodeText)
+    warning_desc = Column(String)
     photosensitive_warning = Column(Boolean, default=False)
     has_multiplayer = Column(Boolean, default=False)
-    password_to_game = Column(UnicodeText)
+    password_to_game = Column(String)
     code_type = Column(Choice(c.MIVS_CODE_TYPE_OPTS), default=c.NO_CODE)
-    code_instructions = Column(UnicodeText)
+    code_instructions = Column(String)
     build_status = Column(
         Choice(c.MIVS_BUILD_STATUS_OPTS), default=c.PRE_ALPHA)
-    build_notes = Column(UnicodeText)
+    build_notes = Column(String)
 
-    game_hours = Column(UnicodeText)
-    game_hours_text = Column(UnicodeText)
+    game_hours = Column(String)
+    game_hours_text = Column(String)
     game_end_time = Column(Boolean, default=False)
     floorspace = Column(Choice(c.INDIE_ARCADE_FLOORSPACE_OPTS), nullable=True)
-    floorspace_text = Column(UnicodeText)
+    floorspace_text = Column(String)
     cabinet_type = Column(Choice(c.INDIE_ARCADE_CABINET_OPTS), nullable=True)
-    cabinet_type_text = Column(UnicodeText)
-    sanitation_requests = Column(UnicodeText)
-    transit_needs = Column(UnicodeText)
-    found_how = Column(UnicodeText)
-    read_faq = Column(UnicodeText)
+    cabinet_type_text = Column(String)
+    sanitation_requests = Column(String)
+    transit_needs = Column(String)
+    found_how = Column(String)
+    read_faq = Column(String)
     mailing_list = Column(Boolean, default=False)
 
-    publisher_name = Column(UnicodeText)
-    release_date = Column(UnicodeText)
-    other_assets = Column(UnicodeText)
+    publisher_name = Column(String)
+    release_date = Column(String)
+    other_assets = Column(String)
     in_person = Column(Boolean, default=False)
     delivery_method = Column(Choice(c.INDIE_RETRO_DELIVERY_OPTS), nullable=True)
 
@@ -399,13 +398,13 @@ class IndieGame(MagModel, ReviewMixin):
     agreed_showtimes = Column(Boolean, default=False)
     agreed_equipment = Column(Boolean, default=False)
 
-    link_to_promo_video = Column(UnicodeText)
-    link_to_webpage = Column(UnicodeText)
-    link_to_store = Column(UnicodeText)
-    other_social_media = Column(UnicodeText)
+    link_to_promo_video = Column(String)
+    link_to_webpage = Column(String)
+    link_to_store = Column(String)
+    other_social_media = Column(String)
 
     tournament_at_event = Column(Boolean, default=False)
-    tournament_prizes = Column(UnicodeText)
+    tournament_prizes = Column(String)
     multiplayer_game_length = Column(Integer, nullable=True) # Length in minutes
     leaderboard_challenge = Column(Boolean, default=False)
 
@@ -413,10 +412,10 @@ class IndieGame(MagModel, ReviewMixin):
     submitted = Column(Boolean, default=False)
     status = Column(
         Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW, admin_only=True)
-    judge_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    waitlisted = Column(UTCDateTime, nullable=True)
-    accepted = Column(UTCDateTime, nullable=True)
+    judge_notes = Column(String, admin_only=True)
+    registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    waitlisted = Column(DateTime(timezone=True), nullable=True)
+    accepted = Column(DateTime(timezone=True), nullable=True)
 
     codes = relationship('IndieGameCode', backref='game')
     reviews = relationship('IndieGameReview', backref='game')
@@ -657,8 +656,8 @@ class IndieGame(MagModel, ReviewMixin):
 
 
 class IndieGameImage(MagModel, GuidebookImageMixin):
-    game_id = Column(UUID, ForeignKey('indie_game.id'))
-    description = Column(UnicodeText)
+    game_id = Column(Uuid(as_uuid=False), ForeignKey('indie_game.id'))
+    description = Column(String)
     use_in_promo = Column(Boolean, default=False)
     is_screenshot = Column(Boolean, default=True)
 
@@ -697,11 +696,11 @@ class IndieGameImage(MagModel, GuidebookImageMixin):
 
 
 class IndieGameCode(MagModel):
-    game_id = Column(UUID, ForeignKey('indie_game.id'))
-    judge_id = Column(UUID, ForeignKey('indie_judge.id'), nullable=True)
-    code = Column(UnicodeText)
+    game_id = Column(Uuid(as_uuid=False), ForeignKey('indie_game.id'))
+    judge_id = Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id'), nullable=True)
+    code = Column(String)
     unlimited_use = Column(Boolean, default=False)
-    judge_notes = Column(UnicodeText, admin_only=True) # TODO: Remove?
+    judge_notes = Column(String, admin_only=True) # TODO: Remove?
 
     @property
     def type_label(self):
@@ -709,13 +708,13 @@ class IndieGameCode(MagModel):
 
 
 class IndieGameReview(MagModel):
-    game_id = Column(UUID, ForeignKey('indie_game.id'))
-    judge_id = Column(UUID, ForeignKey('indie_judge.id'))
+    game_id = Column(Uuid(as_uuid=False), ForeignKey('indie_game.id'))
+    judge_id = Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id'))
     video_status = Column(
         Choice(c.MIVS_VIDEO_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_status = Column(
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
-    game_status_text = Column(UnicodeText)
+    game_status_text = Column(String)
     game_content_bad = Column(Boolean, default=False)
     read_how_to_play = Column(Boolean, default=False)
 
@@ -723,9 +722,9 @@ class IndieGameReview(MagModel):
     readiness_score = Column(Integer, default=0)
     design_score = Column(Integer, default=0)
     enjoyment_score = Column(Integer, default=0)
-    game_review = Column(UnicodeText)
-    developer_response = Column(UnicodeText)
-    staff_notes = Column(UnicodeText)
+    game_review = Column(String)
+    developer_response = Column(String)
+    staff_notes = Column(String)
     send_to_studio = Column(Boolean, default=False)
 
     __table_args__ = (

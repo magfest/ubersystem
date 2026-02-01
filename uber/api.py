@@ -14,16 +14,13 @@ import logging
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
 from time import mktime
-from residue import UTCDateTime
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, not_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
-from sqlalchemy.types import Boolean, Date
-from sqlalchemy.sql.elements import not_
+from sqlalchemy.types import Boolean, Date, DateTime
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
-from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attraction, AttractionFeature, AttractionEvent,
                          BadgeInfo, Department, DeptMembership,
@@ -31,7 +28,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
-from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, unwrap
+from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, unwrap, department_id_adapter
 
 log = logging.getLogger(__name__)
 
@@ -310,9 +307,9 @@ def _parse_datetime(d):
 
 
 def _parse_if_datetime(key, val):
-    # This should be in the UTCDateTime and Date classes, but they're not defined in this app
+    # This should be in the DateTime and Date classes, but they're not defined in this app
     if hasattr(getattr(Attendee, key), 'type') and (
-            isinstance(getattr(Attendee, key).type, UTCDateTime) or isinstance(getattr(Attendee, key).type, Date)):
+            isinstance(getattr(Attendee, key).type, DateTime) or isinstance(getattr(Attendee, key).type, sa.types.time) or isinstance(getattr(Attendee, key).type, Date)):
         return _parse_datetime(val)
     return val
 

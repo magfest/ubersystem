@@ -7,12 +7,12 @@ from sqlalchemy import select, func, literal
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, \
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, \
     check_can_edit_dept, requires_shifts_admin
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Department, Job, JobTemplate
-from uber.utils import check, localized_now, redirect_to_allowed_dept, validate_model, date_trunc_day
+from uber.utils import check, localized_now, redirect_to_allowed_dept, validate_model, date_trunc_day, department_id_adapter
 
 log = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ class Root:
                 job_filters.append(Job.restricted == False)  # noqa: E712
             if not show_nonpublic:
                 job_filters.append(Job.department_id.in_(
-                    select([Department.id]).where(
+                    select(Department.id).where(
                         Department.solicits_volunteers == True)))  # noqa: E712
 
             jobs = session.jobs().filter(*job_filters)
@@ -209,7 +209,7 @@ class Root:
                 job_filters.append(Job.restricted == False)  # noqa: E712
             if not show_nonpublic:
                 job_filters.append(Job.department_id.in_(
-                    select([Department.id]).where(
+                    select(Department.id).where(
                         Department.solicits_volunteers == True)))  # noqa: E712
 
             jobs = session.jobs().filter(*job_filters)
