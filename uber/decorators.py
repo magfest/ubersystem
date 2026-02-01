@@ -31,7 +31,7 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.errors import CSRFException, HTTPRedirect
 from uber.jinja import JinjaEnv
-from uber.utils import check_csrf, report_critical_exception, ExcelWorksheetStreamWriter, unwrap
+from uber.utils import check_csrf, report_critical_exception, ExcelWorksheetStreamWriter
 
 log = logging.getLogger(__name__)
 
@@ -453,7 +453,7 @@ def cached(func):
 
 
 def cached_page(func):
-    innermost = unwrap(func)
+    innermost = inspect.unwrap(func)
     if hasattr(innermost, 'cached'):
         func.lock = RLock()
 
@@ -559,7 +559,7 @@ def timed(prepend_text=''):
 
 
 def sessionized(func):
-    innermost = unwrap(func)
+    innermost = inspect.unwrap(func)
     if 'session' not in inspect.getfullargspec(innermost).args:
         return func
 

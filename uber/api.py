@@ -10,6 +10,7 @@ import pytz
 import json
 import six
 import traceback
+import inspect
 import logging
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
@@ -28,7 +29,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
-from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, unwrap
+from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines
 
 log = logging.getLogger(__name__)
 
@@ -368,7 +369,7 @@ def api_auth(*required_access):
     required_access = set(required_access)
 
     def _decorator(fn):
-        inner_func = unwrap(fn)
+        inner_func = inspect.unwrap(fn)
         if getattr(inner_func, 'required_access', None) is not None:
             return fn
         else:
@@ -949,7 +950,6 @@ class AttractionLookup:
         with Session() as session:
             return [(id, name) for id, name in session.query(Attraction.id, Attraction.name).order_by(Attraction.name).all()]
 
-    @department_id_adapter
     @api_auth('api_read')
     def features_events(self, attraction_id):
         """
@@ -1041,7 +1041,6 @@ class JobLookup:
         }
     }
 
-    @department_id_adapter
     @api_auth('api_read')
     def lookup(self, department_id, start_time=None, end_time=None):
         """
@@ -1335,7 +1334,6 @@ class DepartmentLookup:
         """
         return c.DEPARTMENTS
 
-    @department_id_adapter
     @api_auth('api_read')
     def members(self, department_id, full=False):
         """
@@ -1364,7 +1362,6 @@ class DepartmentLookup:
                 'members': attendee_fields
             })
 
-    @department_id_adapter
     @api_auth('api_read')
     def jobs(self, department_id):
         """

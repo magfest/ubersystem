@@ -1,9 +1,9 @@
 import re
 from datetime import datetime
-from inspect import signature, getmembers, ismethod
 
 import cherrypy
 import pytz
+import inspect
 import stripe
 from sqlalchemy.orm import subqueryload
 
@@ -11,7 +11,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ApiToken
-from uber.utils import check, unwrap
+from uber.utils import check
 from uber.payments import ReceiptManager
 
 
@@ -44,11 +44,11 @@ class Root:
         for name in sorted(jsonrpc.keys()):
             service = jsonrpc[name]
             methods = []
-            for method_name, method in getmembers(service, ismethod):
+            for method_name, method in inspect.getmembers(service, inspect.ismethod):
                 if not method_name.startswith('_'):
-                    method = unwrap(method)
+                    method = inspect.unwrap(method)
                     doc = method.__doc__ or ''
-                    args = dict(signature(method).parameters)
+                    args = dict(inspect.signature(method).parameters)
                     if 'self' in args:
                         del args['self']
                     access = getattr(method, 'required_access', set())
