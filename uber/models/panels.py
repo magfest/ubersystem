@@ -11,7 +11,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
-    MultiChoice, SocialMediaMixin, UniqueList
+    MultiChoice, UniqueList
 
 
 __all__ = ['AssignedPanelist', 'Event', 'EventLocation', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
@@ -317,7 +317,7 @@ class PanelApplication(MagModel):
         return self.status == c.ACCEPTED
 
 
-class PanelApplicant(SocialMediaMixin, MagModel):
+class PanelApplicant(MagModel):
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     submitter = Column(Boolean, default=False)
     first_name = Column(String)
@@ -334,6 +334,7 @@ class PanelApplicant(SocialMediaMixin, MagModel):
     other_credentials = Column(String)
     guidebook_bio = Column(String)
     display_name = Column(String)
+    social_media_info = Column(String)
 
     @property
     def has_credentials(self):

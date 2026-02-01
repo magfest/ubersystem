@@ -15,12 +15,11 @@ from sqlalchemy.types import Boolean, Integer, TypeDecorator, String, DateTime, 
 
 from uber.config import c, _config as config
 from uber.utils import url_domain, listify, camel
-from uber.custom_tags import fieldify
 
 __all__ = [
     'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
-    'Column', 'DefaultColumn', 'JSONColumnMixin', 'MultiChoice',
-    'SocialMediaMixin', 'TakesPaymentMixin', 'GuidebookImageMixin']
+    'Column', 'DefaultColumn', 'MultiChoice',
+    'TakesPaymentMixin', 'GuidebookImageMixin']
 
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
@@ -293,112 +292,6 @@ class MultiChoice(UniqueList):
         return value
 
 
-def JSONColumnMixin(column_name, fields):
-    """
-    Creates a new mixin class with a JSON column named column_name.
-
-    The newly created mixin class will have a SQLAlchemy JSON Column, named
-    `column_name`, along with two other attributes column_name_fields and
-    column_name_qualified_fields which describe the fields that the JSON
-    Column is expected to hold.
-
-    For example::
-
-        >>> SocialMediaMixin = JSONColumnMixin('social_media', ['Twitter', 'LinkedIn'])
-        >>> SocialMediaMixin.social_media # doctest: +ELLIPSIS
-        Column('social_media', JSON(), ... server_default=DefaultClause('{}', for_update=False))
-        >>> SocialMediaMixin._social_media_fields
-        OrderedDict([('twitter', 'Twitter'), ('linked_in', 'LinkedIn')])
-        >>> SocialMediaMixin._social_media_qualified_fields
-        OrderedDict([('social_media__twitter', 'twitter'), ('social_media__linked_in', 'linked_in')])
-
-    Instances of the newly created mixin class have convenience accessors for
-    the attributes defined by `fields`, both directly and using their fully
-    qualified forms::
-
-        >>> sm = SocialMediaMixin()
-        >>> sm.twitter = 'https://twitter.com/MAGFest'  # Get and set "twitter" directly
-        >>> sm.twitter
-        'https://twitter.com/MAGFest'
-        >>> sm.social_media__twitter  # Get and set qualified "social_media__twitter"
-        'https://twitter.com/MAGFest'
-        >>> sm.social_media__twitter = '@MAGFest'
-        >>> sm.social_media__twitter
-        '@MAGFest'
-        >>> sm.social_media  # Actual column updated appropriately
-        {'linked_in': '', 'twitter': '@MAGFest'}
-
-
-    Args:
-        column_name (str): The name of the column.
-        fields (list): A list of field names you expect the column to hold.
-            This can be:
-              - A single string, if you're only expecting the column to hold a
-                single field.
-              - A list of strings, which will be treated as the column labels,
-                and converted from CamelCase to under_score for the fields.
-              - A map of {string: string}, which will be treated as a mapping
-                of field names to field labels.
-
-    Returns:
-        type: A new mixin class with a JSON column named column_name.
-
-    """
-
-    fields_name = '_{}_fields'.format(column_name)
-    qualified_fields_name = '_{}_qualified_fields'.format(column_name)
-    if isinstance(fields, Mapping):
-        fields = OrderedDict([(fieldify(k), v) for k, v in fields.items()])
-    else:
-        fields = OrderedDict([(fieldify(s), s) for s in listify(fields)])
-
-    qualified_fields = OrderedDict([(column_name + '__' + s, s) for s in fields.keys()])
-    column = Column(column_name, JSON, default={}, server_default='{}')
-    attrs = {
-        column_name: column,
-        fields_name: fields,
-        qualified_fields_name: qualified_fields
-    }
-
-    _Mixin = type(camel(column_name) + 'Mixin', (object,), attrs)
-
-    def _Mixin__init__(self, *args, **kwargs):
-        setattr(self, column_name, {})
-        for attr in getattr(self.__class__, fields_name).keys():
-            setattr(self, attr, kwargs.pop(attr, ''))
-        super(_Mixin, self).__init__(*args, **kwargs)
-    _Mixin.__init__ = _Mixin__init__
-
-    def _Mixin__unqualify(cls, name):
-        if name in getattr(cls, qualified_fields_name):
-            return getattr(cls, qualified_fields_name)[name]
-        else:
-            return name
-    _Mixin.unqualify = classmethod(_Mixin__unqualify)
-
-    def _Mixin__getattr__(self, name):
-        name = self.unqualify(name)
-        if name in getattr(self.__class__, fields_name):
-            return getattr(self, column_name).get(name, '')
-        else:
-            return super(_Mixin, self).__getattr__(name)
-    _Mixin.__getattr__ = _Mixin__getattr__
-
-    def _Mixin__setattr__(self, name, value):
-        name = self.unqualify(name)
-        if name in getattr(self.__class__, fields_name):
-            fields = getattr(self, column_name)
-            if fields.get(name) != value:
-                fields[name] = value
-                flag_modified(self, column_name)  # Fixes bug with this column not updating in some circumstances
-                super(_Mixin, self).__setattr__(column_name, dict(fields))
-        else:
-            super(_Mixin, self).__setattr__(name, value)
-    _Mixin.__setattr__ = _Mixin__setattr__
-
-    return _Mixin
-
-
 class GuidebookImageMixin():
     filename = Column(String)
     content_type = Column(String)
@@ -437,42 +330,6 @@ class GuidebookImageMixin():
         except OSError:
             # This probably isn't an image at all
             return
-
-
-class SocialMediaMixin(JSONColumnMixin('social_media', c.SOCIAL_MEDIA)):
-    _social_media_urls = config.get('social_media_urls', {})
-    _social_media_placeholders = config.get('social_media_placeholders', {})
-
-    @classmethod
-    def get_placeholder(cls, name):
-        name = cls.unqualify(name)
-        return cls._social_media_placeholders.get(name, '')
-
-    @property
-    def has_social_media(self):
-        return any(getattr(self, f) for f in self._social_media_fields.keys())
-
-    def __getattr__(self, name):
-        if name.endswith('_url'):
-            field_name = self.unqualify(name[:-4])
-            if field_name in self._social_media_fields:
-                attr = super(SocialMediaMixin, self).__getattr__(field_name)
-                attr = attr.strip('@#?=. ') if attr else ''
-                if attr:
-                    if attr.startswith('http:') or attr.startswith('https:'):
-                        return attr
-                    else:
-                        url = self._social_media_urls.get(field_name, '{}')
-                        if url_domain(url.format('')) in url_domain(attr):
-                            return attr
-                        return url.format(attr)
-                return ''
-            else:
-                return super(SocialMediaMixin, self).__getattr__(name)
-        elif name.endswith('_placeholder'):
-            return self.get_placeholder(name[:-12])
-        else:
-            return super(SocialMediaMixin, self).__getattr__(name)
 
 
 class TakesPaymentMixin(object):
