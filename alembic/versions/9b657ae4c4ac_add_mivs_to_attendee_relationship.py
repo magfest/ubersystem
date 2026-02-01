@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -52,7 +51,7 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('indie_developer', sa.Column('attendee_id', residue.UUID(), nullable=True))
+    op.add_column('indie_developer', sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=True))
     op.create_unique_constraint(op.f('uq_indie_developer_attendee_id'), 'indie_developer', ['attendee_id'])
     op.create_foreign_key(op.f('fk_indie_developer_attendee_id_attendee'), 'indie_developer', 'attendee', ['attendee_id'], ['id'])
 

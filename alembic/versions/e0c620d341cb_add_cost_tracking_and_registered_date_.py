@@ -14,7 +14,6 @@ branch_labels = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -52,7 +51,7 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.add_column('promo_code', sa.Column('cost', sa.Integer(), nullable=True))
-    op.add_column('promo_code_group', sa.Column('registered', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False))
+    op.add_column('promo_code_group', sa.Column('registered', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False))
 
 
 def downgrade():

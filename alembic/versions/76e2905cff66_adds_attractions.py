@@ -15,7 +15,8 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import JSON
+from sqlalchemy.ext.mutable import MutableDict
 
 
 try:
@@ -53,43 +54,43 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('attraction',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False, unique=True),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('notifications', residue.JSON(), server_default='[]', nullable=False),
+    sa.Column('notifications', MutableDict.as_mutable(JSON), server_default='[]', nullable=False),
     sa.Column('required_checkin', sa.Integer(), server_default='0', nullable=False),
     sa.Column('restriction', sa.Integer(), server_default='0', nullable=False),
-    sa.Column('department_id', residue.UUID(), nullable=True),
-    sa.Column('owner_id', residue.UUID(), nullable=False),
+    sa.Column('department_id', sa.Uuid(as_uuid=False), nullable=True),
+    sa.Column('owner_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_attraction_department_id_department')),
     sa.ForeignKeyConstraint(['owner_id'], ['admin_account.id'], name=op.f('fk_attraction_owner_id_admin_account')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_attraction')),
     )
     op.create_table('attraction_feature',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('attraction_id', residue.UUID(), nullable=False),
+    sa.Column('attraction_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.ForeignKeyConstraint(['attraction_id'], ['attraction.id'], name=op.f('fk_attraction_feature_attraction_id_attraction')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_attraction_feature')),
     sa.UniqueConstraint('name', 'attraction_id'),
     )
     op.create_table('attraction_event',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attraction_feature_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attraction_feature_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('location', sa.Integer(), nullable=False),
-    sa.Column('start_time', residue.UTCDateTime(), nullable=False),
+    sa.Column('start_time', sa.DateTime(timezone=True), nullable=False),
     sa.Column('duration', sa.Integer(), server_default='900', nullable=False),
     sa.Column('slots', sa.Integer(), server_default='1', nullable=False),
     sa.ForeignKeyConstraint(['attraction_feature_id'], ['attraction_feature.id'], name=op.f('fk_attraction_event_attraction_feature_id_attraction_feature')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_attraction_event')),
     )
     op.create_table('attraction_signup',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attraction_event_id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
-    sa.Column('signup_time', residue.UTCDateTime(), server_default=sa.text(utcnow_server_default), nullable=False),
-    sa.Column('checkin_time', residue.UTCDateTime(), nullable=True),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attraction_event_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('signup_time', sa.DateTime(timezone=True), server_default=sa.text(utcnow_server_default), nullable=False),
+    sa.Column('checkin_time', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_attraction_signup_attendee_id_attendee')),
     sa.ForeignKeyConstraint(['attraction_event_id'], ['attraction_event.id'], name=op.f('fk_attraction_signup_attraction_event_id_attraction_event')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_attraction_signup')),

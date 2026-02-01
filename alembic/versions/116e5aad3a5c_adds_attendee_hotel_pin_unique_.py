@@ -14,7 +14,6 @@ branch_labels = None
 depends_on = None
 
 from alembic import op
-import residue
 import sqlalchemy as sa
 from sqlalchemy import func
 from sqlalchemy.sql import and_, table, select
@@ -55,7 +54,7 @@ sqlite_reflect_kwargs = {
 
 attendee_table = table(
     'attendee',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
     sa.Column('hotel_pin', sa.Unicode()),
 )
 
@@ -63,11 +62,11 @@ attendee_table = table(
 def upgrade():
     if not is_sqlite:
         connection = op.get_bind()
-        attendees = connection.execute(select([
+        attendees = connection.execute(select(
             attendee_table.c.hotel_pin,
             func.count(attendee_table.c.id),
             func.array_agg(attendee_table.c.id),
-        ]).where(and_(
+        ).where(and_(
             attendee_table.c.hotel_pin != None,
             attendee_table.c.hotel_pin != '',
         )).group_by(

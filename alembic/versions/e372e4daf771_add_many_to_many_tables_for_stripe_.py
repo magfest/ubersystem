@@ -13,7 +13,6 @@ down_revision = 'f142e4d54e49'
 branch_labels = None
 depends_on = None
 
-import residue
 import sqlalchemy as sa
 import uuid
 import json
@@ -55,16 +54,16 @@ sqlite_reflect_kwargs = {
 
 stripe_txn_table = table(
     'stripe_transaction',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
     sa.Column('amount', sa.Integer()),
     sa.Column('desc', sa.Unicode()),
-    sa.Column('fk_id', residue.UUID()),
+    sa.Column('fk_id', sa.Uuid(as_uuid=False)),
     sa.Column('fk_model', sa.Unicode())
 )
 
 attendee_table = table(
     'attendee',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
     sa.Column('first_name', sa.Unicode()),
     sa.Column('last_name', sa.Unicode()),
     sa.Column('paid', sa.Integer()),
@@ -74,31 +73,31 @@ attendee_table = table(
 
 group_table = table(
     'group',
-    sa.Column('id', residue.UUID()),
-    sa.Column('leader_id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
+    sa.Column('leader_id', sa.Uuid(as_uuid=False)),
     sa.Column('name', sa.Unicode()),
     sa.Column('amount_paid', sa.Integer())
 )
 
 attendee_txn_table = table(
     'stripe_transaction_attendee',
-    sa.Column('id', residue.UUID()),
-    sa.Column('txn_id', residue.UUID()),
-    sa.Column('attendee_id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
+    sa.Column('txn_id', sa.Uuid(as_uuid=False)),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False)),
     sa.Column('share', sa.Integer())
 )
 
 group_txn_table = table(
     'stripe_transaction_group',
-    sa.Column('id', residue.UUID()),
-    sa.Column('txn_id', residue.UUID()),
-    sa.Column('group_id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
+    sa.Column('txn_id', sa.Uuid(as_uuid=False)),
+    sa.Column('group_id', sa.Uuid(as_uuid=False)),
     sa.Column('share', sa.Integer())
 )
 
 tracking_table = table(
     'tracking',
-    sa.Column('fk_id', residue.UUID()),
+    sa.Column('fk_id', sa.Uuid(as_uuid=False)),
     sa.Column('model', sa.Unicode()),
     sa.Column('action', sa.Integer()),
     sa.Column('snapshot', sa.Unicode()),
@@ -215,18 +214,18 @@ def add_model_by_txn(txn, multi=False):
 
 def upgrade():
     op.create_table('stripe_transaction_group',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('txn_id', residue.UUID(), nullable=False),
-    sa.Column('group_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('txn_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('group_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('share', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['group_id'], ['group.id'], name=op.f('fk_stripe_transaction_group_group_id_group')),
     sa.ForeignKeyConstraint(['txn_id'], ['stripe_transaction.id'], name=op.f('fk_stripe_transaction_group_txn_id_stripe_transaction')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_stripe_transaction_group'))
     )
     op.create_table('stripe_transaction_attendee',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('txn_id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('txn_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('share', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_stripe_transaction_attendee_attendee_id_attendee')),
     sa.ForeignKeyConstraint(['txn_id'], ['stripe_transaction.id'], name=op.f('fk_stripe_transaction_attendee_txn_id_stripe_transaction')),
