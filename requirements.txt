@@ -23,6 +23,7 @@ psycopg2-binary==2.9.10
 pycountry==24.6.1
 python-barcode[images]==0.15.1
 python-dateutil==2.9.0.post0
+python-jose[cryptography]==3.5.0
 python3-saml==1.16.0
 pytz==2025.2
 pyyaml==6.0.2
