@@ -767,17 +767,17 @@ class Session(SessionManager):
 
     class SessionMixin:
         def current_admin_account(self):
-            if getattr(cherrypy, 'session', {}).get('account_id'):
-                return self.admin_account(cherrypy.session.get('account_id'))
+            if getattr(cherrypy, 'session', {}).get('account_id', cherrypy.request.admin_account):
+                return self.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
             
         def current_supervisor_admin(self):
             if getattr(cherrypy, 'session', {}).get('kiosk_supervisor_id'):
                 return self.admin_account(cherrypy.session.get('kiosk_supervisor_id'))
 
         def admin_attendee(self):
-            if getattr(cherrypy, 'session', {}).get('account_id'):
+            if getattr(cherrypy, 'session', {}).get('account_id', cherrypy.request.admin_account):
                 try:
-                    return self.admin_account(cherrypy.session.get('account_id')).attendee
+                    return self.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account)).attendee
                 except NoResultFound:
                     return
                 
@@ -789,9 +789,9 @@ class Session(SessionManager):
                     return
 
         def current_attendee_account(self):
-            if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
+            if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id', cherrypy.request.attendee_account):
                 try:
-                    return self.attendee_account(cherrypy.session.get('attendee_account_id'))
+                    return self.attendee_account(cherrypy.session.get('attendee_account_id', cherrypy.request.attendee_account))
                 except sqlalchemy.orm.exc.NoResultFound:
                     cherrypy.session['attendee_account_id'] = ''
 

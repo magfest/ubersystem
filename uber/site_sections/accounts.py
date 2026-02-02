@@ -179,6 +179,9 @@ class Root:
 
     @public
     def login(self, session, message='', original_location=None, **params):
+        if c.OIDC_ENABLED:
+            redirect_url = c.URL_ROOT + create_valid_user_supplied_redirect_url(original_location, default_url='accounts/homepage')
+            cherrypy.tools.oidc.redirect_to_keycloak(target_url=redirect_url)
         if c.SAML_SETTINGS:
             from uber.utils import prepare_saml_request
             from onelogin.saml2.auth import OneLogin_Saml2_Auth
@@ -192,7 +195,7 @@ class Root:
             auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
             raise HTTPRedirect(auth.login(return_to=redirect_url))
 
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='accounts/homepage')
         if 'email' in params:
             try:
                 account = session.get_admin_account_by_email(params['email'])
@@ -219,7 +222,7 @@ class Root:
 
     @public
     def homepage(self, session, message=''):
-        if not cherrypy.session.get('account_id'):
+        if not cherrypy.session.get('account_id', cherrypy.request.admin_account):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         reg_station_id = cherrypy.session.get('reg_station', '')
@@ -237,7 +240,7 @@ class Root:
     @public
     @not_site_mappable
     def attendees(self, session, query=''):
-        if not cherrypy.session.get('account_id'):
+        if not cherrypy.session.get('account_id', cherrypy.request.admin_account):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         attendees = session.access_query_matrix()[query].limit(c.ROW_LOAD_LIMIT).all() if query else None
@@ -308,7 +311,7 @@ class Root:
 
         if updater_password is not None:
             new_password = new_password.strip()
-            updater_account = session.admin_account(cherrypy.session.get('account_id'))
+            updater_account = session.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(updater_password, updater_account):
@@ -336,12 +339,12 @@ class Root:
             csrf_token=None,
             confirm_password=None):
 
-        if not cherrypy.session.get('account_id'):
+        if not cherrypy.session.get('account_id', cherrypy.request.admin_account):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         if old_password is not None:
             new_password = new_password.strip()
-            account = session.admin_account(cherrypy.session.get('account_id'))
+            account = session.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(old_password, account):

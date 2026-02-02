@@ -1471,7 +1471,7 @@ class Root:
                 attendees = list(chain(*attendees_by_name_email.values()))
 
             if models and which_import == 'accounts':
-                admin_id = cherrypy.session.get('account_id')
+                admin_id = cherrypy.session.get('account_id', cherrypy.request.admin_account)
                 admin_name = session.admin_attendee().full_name
                 import_attendee_accounts.delay(models, admin_id, admin_name, target_server, api_token)
                 message = f"{len(models)} attendee accounts queued for import. Existing accounts and pending imports will be skipped."
@@ -1513,7 +1513,7 @@ class Root:
                                api_token,
                                query)
 
-        admin_id = cherrypy.session.get('account_id')
+        admin_id = cherrypy.session.get('account_id', cherrypy.request.admin_account)
         admin_name = session.admin_attendee().full_name
         already_queued = 0
         attendee_ids = attendee_ids if isinstance(attendee_ids, list) else [attendee_ids]
@@ -1571,7 +1571,7 @@ class Root:
                                query,
                                'groups')
 
-        admin_id = cherrypy.session.get('account_id')
+        admin_id = cherrypy.session.get('account_id', cherrypy.request.admin_account)
         admin_name = session.admin_attendee().full_name
         already_queued = 0
         group_ids = group_ids if isinstance(group_ids, list) else [group_ids]

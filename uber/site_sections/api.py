@@ -75,7 +75,7 @@ class Root:
     @ajax
     def create_api_token(self, session, **params):
         if cherrypy.request.method == 'POST':
-            params['admin_account_id'] = cherrypy.session.get('account_id')
+            params['admin_account_id'] = cherrypy.session.get('account_id', cherrypy.request.admin_account)
             api_token = session.api_token(params)
             message = check(api_token)
             if not message:
@@ -127,7 +127,7 @@ class Root:
             new_job.completed = None
             new_job.queued = None
             new_job.errors = ''
-            new_job.admin_id = cherrypy.session.get('account_id')
+            new_job.admin_id = cherrypy.session.get('account_id', cherrypy.request.admin_account)
             new_job.admin_name = session.admin_attendee().full_name
             session.add(new_job)
             message = "API job duplicated."

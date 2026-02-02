@@ -2128,7 +2128,7 @@ class Root:
             else:
                 raise HTTPRedirect('homepage?message={}', "Only full registration admins can see attendee homepages.")
         else:
-            account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
+            account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id', cherrypy.request.attendee_account))
 
         attendees_who_owe_money = {}
         if c.ONLINE_PAYMENT_AVAILABLE:

@@ -1398,41 +1398,6 @@ class ExcelWorksheetStreamWriter:
             self.next_col += 1
 
 
-"""
-class OAuthRequest:
-    This class is not currently in use, but kept in case we want to re-add integration with Auth0.
-    If we need it, re-add the Authlib library so you can import OAuth2Session.
-
-    def __init__(self, scope='openid profile email', state=None):
-        self.redirect_uri = (c.REDIRECT_URL_BASE or c.URL_BASE) + "/accounts/"
-        self.client = OAuth2Session(c.AUTH_CLIENT_ID, c.AUTH_CLIENT_SECRET, scope=scope, state=state,
-                                    redirect_uri=self.redirect_uri + "process_login")
-        self.state = state if state else None
-
-    def set_auth_url(self):
-        self.auth_uri, self.state = self.client.create_authorization_url("https://{}/authorize".format(c.AUTH_DOMAIN),
-                                                                         self.state)
-
-    def set_token(self, code, state):
-        self.auth_token = self.client.fetch_token("https://{}/oauth/token".format(c.AUTH_DOMAIN),
-                                                  code=code, state=state).get('access_token')
-
-    def get_email(self):
-        profile = self.client.get("https://{}/userinfo".format(c.AUTH_DOMAIN)).json()
-        if not profile.get('email', ''):
-            log.error("Tried to authenticate a user but we couldn't retrieve their email. Did we use the right scope?")
-        else:
-            return profile['email']
-
-    @property
-    def logout_uri(self):
-        return "https://{}/v2/logout?client_id={}&returnTo={}".format(
-                    c.AUTH_DOMAIN,
-                    c.AUTH_CLIENT_ID,
-                    self.redirect_uri + "process_logout")
-"""
-
-
 class SignNowRequest:
     def __init__(self, session, group=None, ident='', create_if_none=False):
         self.group = group

@@ -129,7 +129,7 @@ class Root:
         elif flag == 'errors':
             filters += [PrintJob.errors != '']
         elif flag == 'created':
-            filters += [PrintJob.admin_id == cherrypy.session.get('account_id')]
+            filters += [PrintJob.admin_id == cherrypy.session.get('account_id', cherrypy.request.admin_account)]
         elif flag == 'printed':
             filters += [PrintJob.printed != None]  # noqa: E711
 

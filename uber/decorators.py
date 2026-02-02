@@ -55,7 +55,7 @@ def log_pageview(func):
     def with_check(*args, **kwargs):
         with uber.models.Session() as session:
             try:
-                session.admin_account(cherrypy.session.get('account_id'))
+                session.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
             except Exception:
                 pass  # no tracking for non-admins yet
             else:
@@ -132,7 +132,7 @@ department_id_adapter = argmod(['location', 'department', 'department_id'], lamb
 @department_id_adapter
 def check_can_edit_dept(session, department_id=None, inherent_role=None, override_access=None):
     from uber.models import AdminAccount, DeptMembership, Department
-    account_id = cherrypy.session.get('account_id')
+    account_id = cherrypy.session.get('account_id', cherrypy.request.admin_account)
     admin_account = session.query(AdminAccount).get(account_id)
     if not getattr(admin_account, override_access, None):
         dh_filter = [
@@ -170,8 +170,8 @@ def requires_account(models=None):
             if not c.ATTENDEE_ACCOUNTS_ENABLED:
                 return func(*args, **kwargs)
             with uber.models.Session() as session:
-                admin_account_id = cherrypy.session.get('account_id')
-                attendee_account_id = cherrypy.session.get('attendee_account_id')
+                admin_account_id = cherrypy.session.get('account_id', cherrypy.request.admin_account)
+                attendee_account_id = cherrypy.session.get('attendee_account_id', cherrypy.request.attendee_account)
                 message = ''
                 if not models and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
                     # These should all be pages like the prereg form
@@ -283,7 +283,7 @@ def ajax(func):
 def track_report(params):
     with uber.models.Session() as session:
         try:
-            session.admin_account(cherrypy.session.get('account_id'))
+            session.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
         except Exception:
             pass  # no tracking for non-admins yet
         else:
@@ -720,7 +720,7 @@ def attendee_view(func):
 
     @wraps(func)
     def with_check(*args, **kwargs):
-        if cherrypy.session.get('account_id') is None:
+        if cherrypy.session.get('account_id', cherrypy.request.admin_account) is None:
             ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
         if kwargs.get('id') and str(kwargs.get('id')) != "None":
@@ -759,12 +759,16 @@ def restricted(func):
     def with_restrictions(*args, **kwargs):
         if func.public:
             return func(*args, **kwargs)
+        print("Checking restricted page")
+        if not (cherrypy.request.admin_account or cherrypy.request.attendee_account):
+            print("No account available")
+            cherrypy.tools.oidc.redirect_to_keycloak()
 
         if '/staffing/' in c.PAGE_PATH:
             if not cherrypy.session.get('staffer_id'):
                 ajax_or_redirect(func, '../staffing/login?message=', "You are not logged in.", True)
 
-        elif cherrypy.session.get('account_id') is None:
+        elif cherrypy.session.get('account_id', cherrypy.request.admin_account) is None:
             if getattr(func, 'kiosk_login', None):
                 if not cherrypy.session.get('kiosk_supervisor_id'):
                     cherrypy.session.pop('kiosk_operator_id', None)
@@ -783,7 +787,7 @@ def restricted(func):
 
         elif getattr(func, 'any_admin_access', None):
             with uber.models.Session() as session:
-                account = session.admin_account(cherrypy.session.get('account_id'))
+                account = session.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
                 if not account.access_groups:
                     return "You do not have any admin accesses."
         else:
