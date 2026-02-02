@@ -180,7 +180,7 @@ class Root:
     @public
     def login(self, session, message='', original_location=None, **params):
         if c.OIDC_ENABLED:
-            redirect_url = c.URL_ROOT + create_valid_user_supplied_redirect_url(original_location, default_url='accounts/homepage')
+            redirect_url = c.URL_ROOT + create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
             cherrypy.tools.oidc.redirect_to_keycloak(target_url=redirect_url)
         if c.SAML_SETTINGS:
             from uber.utils import prepare_saml_request
@@ -251,12 +251,26 @@ class Root:
 
     @public
     def logout(self):
+        id_token = ""
+        if "session_token" in cherrypy.request.cookie:
+            id_token = cherrypy.request.cookie['session_token'].value
+        for cookie in ['session_token', 'refresh_token']:
+            cherrypy.response.cookie[cookie] = ''
+            cherrypy.response.cookie[cookie]['expires'] = 0
+            cherrypy.response.cookie[cookie]['max-age'] = 0 # Also set max-age for compatibility
+            cherrypy.response.cookie[cookie]['path'] = '/'
         for key in list(cherrypy.session.keys()):
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
 
         if c.SAML_SETTINGS:
             raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
+        elif c.OIDC_ENABLED:
+            token_hint = ""
+            if id_token:
+                token_hint = f"id_token_hint={id_token}&"
+            redirect_to = f"{c.URL_ROOT}/landing/index"
+            raise HTTPRedirect(f"{c.OIDC_LOGOUT_URL}?{token_hint}post_logout_redirect_uri={redirect_to}")
         else:
             raise HTTPRedirect('login?message={}', 'You have been logged out.')
 
