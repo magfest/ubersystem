@@ -195,7 +195,7 @@ class Root:
             auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
             raise HTTPRedirect(auth.login(return_to=redirect_url))
 
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='accounts/homepage')
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
         if 'email' in params:
             try:
                 account = session.get_admin_account_by_email(params['email'])
