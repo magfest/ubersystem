@@ -102,10 +102,14 @@
 {% endif %}
 {% endset %}
 
-{% if show_label and not field_only and 'Checkbox' not in widget and 'SwitchInput' not in widget %}
+{% if show_label and not field_only and 'Checkbox' not in widget and 'SwitchInput' not in widget and 'Hidden' not in widget %}
   <div class="form-text">{{ label(field, label_text, label_required, **label_kwargs) }}</div>
 {% endif %}
-{% if 'CheckboxInput' in widget or 'SwitchInput' in widget %}
+{% if 'Hidden' in widget %}
+  {{ field(**custom_kwargs) }}
+  {{ text_below_field }}
+  {% if caller %}{{ caller() }}{% endif %}
+{% elif 'CheckboxInput' in widget or 'SwitchInput' in widget %}
   <div class="form-check{% if 'SwitchInput' in widget %} form-switch{% endif %}">
     {% if is_readonly %}
     <input type="hidden" name="{{ field.id }}" value="{{ field.data }}" />

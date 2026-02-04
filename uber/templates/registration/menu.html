@@ -22,6 +22,6 @@
     "../badge_printing/attendee_print_jobs?id={id}", "Badge Print Jobs", c.HAS_BADGE_PRINTING_ACCESS and c.BADGE_PRINTING_ENABLED,
     "../reg_admin/receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
     "../registration/watchlist?id={id}", "Watch List Entry", attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS,
-    "../registration/index", "Return to Attendee List", c.PRE_CON or c.POST_CON,
+    "../registration/index", "Return to Attendee List", (c.PRE_CON or c.POST_CON) and not c.BADGE_PICKUP_ENABLED,
     "../registration/index?search_text={id}", "Return to Attendee List", c.AT_THE_CON or c.BADGE_PICKUP_ENABLED,
 ) }}
