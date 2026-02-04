@@ -6,9 +6,8 @@ import math
 import re
 from collections import defaultdict
 from datetime import datetime
-from pockets import groupify
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import or_, func, and_
+from sqlalchemy.types import String
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -20,7 +19,7 @@ from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Grou
     ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment, EscalationTicket
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
-    TaskUtils, Order
+    TaskUtils, Order, groupify
 from uber.payments import ReceiptManager, RefundRequest
 
 
@@ -40,7 +39,7 @@ def _search(all_processor_txns, text):
 
         return receipt_txns.filter(or_(*id_list)), ''
     
-    for attr in [col for col in ReceiptTransaction().__table__.columns if isinstance(col.type, UnicodeText)]:
+    for attr in [col for col in ReceiptTransaction().__table__.columns if isinstance(col.type, String)]:
         if attr != ReceiptTransaction.desc:
             check_list.append(attr.ilike('%' + text + '%'))
 

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy import String, Uuid, DateTime
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
@@ -16,13 +16,13 @@ __all__ = ['ApiToken', 'ApiJob']
 
 
 class ApiToken(MagModel):
-    admin_account_id = Column(UUID, ForeignKey('admin_account.id'))
-    token = Column(UUID, default=lambda: str(uuid.uuid4()), private=True)
+    admin_account_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'))
+    token = Column(Uuid(as_uuid=False), default=lambda: str(uuid.uuid4()), private=True)
     access = Column(MultiChoice(c.API_ACCESS_OPTS))
-    name = Column(UnicodeText)
-    description = Column(UnicodeText)
-    issued_time = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    revoked_time = Column(UTCDateTime, default=None, nullable=True)
+    name = Column(String)
+    description = Column(String)
+    issued_time = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    revoked_time = Column(DateTime(timezone=True), default=None, nullable=True)
 
     @property
     def api_read(self):
@@ -42,14 +42,14 @@ class ApiToken(MagModel):
 
 
 class ApiJob(MagModel):
-    admin_id = Column(UUID, ForeignKey('admin_account.id'), nullable=True)
-    admin_name = Column(UnicodeText)  # Preserve admin's name in case their account is removed
-    queued = Column(UTCDateTime, nullable=True, default=None)
-    completed = Column(UTCDateTime, nullable=True, default=None)
-    cancelled = Column(UTCDateTime, nullable=True, default=None)
-    job_name = Column(UnicodeText)
-    target_server = Column(UnicodeText)
-    query = Column(UnicodeText)
-    api_token = Column(UnicodeText)
-    errors = Column(UnicodeText)
+    admin_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
+    admin_name = Column(String)  # Preserve admin's name in case their account is removed
+    queued = Column(DateTime(timezone=True), nullable=True, default=None)
+    completed = Column(DateTime(timezone=True), nullable=True, default=None)
+    cancelled = Column(DateTime(timezone=True), nullable=True, default=None)
+    job_name = Column(String)
+    target_server = Column(String)
+    query = Column(String)
+    api_token = Column(String)
+    errors = Column(String)
     json_data = Column(MutableDict.as_mutable(JSONB), default={})

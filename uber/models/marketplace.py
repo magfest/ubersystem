@@ -7,9 +7,8 @@ from uber.models.types import Choice, DefaultColumn as Column, default_relations
 from datetime import datetime
 from markupsafe import Markup
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
 from sqlalchemy.schema import ForeignKey
 
 
@@ -19,22 +18,22 @@ __all__ = ['ArtistMarketplaceApplication']
 class ArtistMarketplaceApplication(MagModel):
     MATCHING_DEALER_FIELDS = ['email_address', 'website', 'name']
 
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
     attendee = relationship('Attendee', backref=backref('marketplace_application', uselist=False),
                             cascade='save-update,merge,refresh-expire,expunge',
                             uselist=False)
-    name = Column(UnicodeText)
-    display_name = Column(UnicodeText)
-    email_address = Column(UnicodeText)
-    website = Column(UnicodeText)
-    tax_number = Column(UnicodeText)
+    name = Column(String)
+    display_name = Column(String)
+    email_address = Column(String)
+    website = Column(String)
+    tax_number = Column(String)
     terms_accepted = Column(Boolean, default=False)
-    seating_requests = Column(UnicodeText)
-    accessibility_requests = Column(UnicodeText)
+    seating_requests = Column(String)
+    accessibility_requests = Column(String)
 
     status = Column(Choice(c.MARKETPLACE_STATUS_OPTS), default=c.PENDING, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    accepted = Column(UTCDateTime, nullable=True)
+    registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    accepted = Column(DateTime(timezone=True), nullable=True)
     receipt_items = relationship('ReceiptItem',
                                  primaryjoin='and_('
                                              'ReceiptItem.fk_model == "ArtistMarketplaceApplication", '
@@ -42,7 +41,7 @@ class ArtistMarketplaceApplication(MagModel):
                                  viewonly=True,
                                  uselist=True)
 
-    admin_notes = Column(UnicodeText, admin_only=True)
+    admin_notes = Column(String, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
 
     email_model_name = 'app'

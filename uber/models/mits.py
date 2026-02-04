@@ -1,39 +1,38 @@
 import os
 import cherrypy
 from functools import wraps
-from pockets import sluggify
 from datetime import datetime
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, Uuid, DateTime, String
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
 from uber.models import MagModel
 from uber.models.types import (default_relationship as relationship, utcnow, Choice, DefaultColumn as Column,
                                MultiChoice, GuidebookImageMixin)
+from uber.utils import slugify
 
 
 __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument', 'MITSTimes']
 
 
 class MITSTeam(MagModel):
-    name = Column(UnicodeText)
+    name = Column(String)
     days_available = Column(Integer, nullable=True)
     hours_available = Column(Integer, nullable=True)
     concurrent_attendees = Column(Integer, default=0)
     panel_interest = Column(Boolean, nullable=True, admin_only=True)
     showcase_interest = Column(Boolean, nullable=True, admin_only=True)
     want_to_sell = Column(Boolean, default=False)
-    address = Column(UnicodeText)
-    submitted = Column(UTCDateTime, nullable=True)
-    waiver_signature = Column(UnicodeText)
-    waiver_signed = Column(UTCDateTime, nullable=True)
+    address = Column(String)
+    submitted = Column(DateTime(timezone=True), nullable=True)
+    waiver_signature = Column(String)
+    waiver_signed = Column(DateTime(timezone=True), nullable=True)
 
-    applied = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+    applied = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     status = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
 
     applicants = relationship('MITSApplicant', backref='team')
@@ -41,7 +40,7 @@ class MITSTeam(MagModel):
     schedule = relationship('MITSTimes', uselist=False, backref='team')
     panel_app = relationship('MITSPanelApplication', uselist=False, backref='team')
 
-    duplicate_of = Column(UUID, nullable=True)
+    duplicate_of = Column(Uuid(as_uuid=False), nullable=True)
     deleted = Column(Boolean, default=False)
     # We've found that a lot of people start filling out an application and
     # then instead of continuing their application just start over fresh and
@@ -135,10 +134,10 @@ class MITSApplicant(MagModel):
     team_id = Column(ForeignKey('mits_team.id'))
     attendee_id = Column(ForeignKey('attendee.id'), nullable=True)
     primary_contact = Column(Boolean, default=False)
-    first_name = Column(UnicodeText)
-    last_name = Column(UnicodeText)
-    email = Column(UnicodeText)
-    cellphone = Column(UnicodeText)
+    first_name = Column(String)
+    last_name = Column(String)
+    email = Column(String)
+    cellphone = Column(String)
     contact_method = Column(Choice(c.MITS_CONTACT_OPTS), default=c.TEXTING)
 
     declined_hotel_space = Column(Boolean, default=False)
@@ -162,13 +161,13 @@ class MITSApplicant(MagModel):
 
 class MITSGame(MagModel):
     team_id = Column(ForeignKey('mits_team.id'))
-    name = Column(UnicodeText)
-    promo_blurb = Column(UnicodeText)
-    description = Column(UnicodeText)
-    genre = Column(UnicodeText)
+    name = Column(String)
+    promo_blurb = Column(String)
+    description = Column(String)
+    genre = Column(String)
     phase = Column(Choice(c.MITS_PHASE_OPTS), default=c.DEVELOPMENT)
     min_age = Column(Choice(c.MITS_AGE_OPTS), default=c.CHILD)
-    age_explanation = Column(UnicodeText)
+    age_explanation = Column(String)
     min_players = Column(Integer, default=2)
     max_players = Column(Integer, default=4)
     copyrighted = Column(Choice(c.MITS_COPYRIGHT_OPTS), nullable=True)
@@ -223,7 +222,7 @@ class MITSGame(MagModel):
 
         header = self.guidebook_header
         thumbnail = self.guidebook_thumbnail
-        prepend = sluggify(self.name) + '_'
+        prepend = slugify(self.name) + '_'
 
         header_name = (prepend + header.filename) if header else ''
         thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
@@ -232,8 +231,8 @@ class MITSGame(MagModel):
 
 
 class MITSPicture(MagModel, GuidebookImageMixin):
-    game_id = Column(UUID, ForeignKey('mits_game.id'))
-    description = Column(UnicodeText)
+    game_id = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
+    description = Column(String)
 
     @property
     def url(self):
@@ -245,9 +244,9 @@ class MITSPicture(MagModel, GuidebookImageMixin):
 
 
 class MITSDocument(MagModel):
-    game_id = Column(UUID, ForeignKey('mits_game.id'))
-    filename = Column(UnicodeText)
-    description = Column(UnicodeText)
+    game_id = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
+    filename = Column(String)
+    description = Column(String)
 
     @property
     def url(self):
@@ -266,8 +265,8 @@ class MITSTimes(MagModel):
 
 class MITSPanelApplication(MagModel):
     team_id = Column(ForeignKey('mits_team.id'))
-    name = Column(UnicodeText)
-    description = Column(UnicodeText)
+    name = Column(String)
+    description = Column(String)
     length = Column(Choice(c.PANEL_STRICT_LENGTH_OPTS), default=c.SIXTY_MIN)
     participation_interest = Column(Boolean, default=False)
 

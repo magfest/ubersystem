@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -53,7 +52,7 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     # TODO: Nullable should be set to false for future DBs
-    op.add_column('attendee_account', sa.Column('public_id', residue.UUID(), nullable=True))
+    op.add_column('attendee_account', sa.Column('public_id', sa.Uuid(as_uuid=False), nullable=True))
 
 
 def downgrade():

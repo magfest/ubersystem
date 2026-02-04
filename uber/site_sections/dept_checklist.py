@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber.custom_tags import linebreaksbr, short_datetime_local
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, xlsx_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Department, DeptChecklistItem, BulkPrintingRequest, HotelRequests, RoomAssignment, Shift
@@ -40,7 +40,6 @@ def _submit_checklist_item(session, department_id, submitted, csrf_token, slug, 
 
 @all_renderable()
 class Root:
-    @department_id_adapter
     def index(self, session, department_id=None, message=''):
         attendee = session.admin_attendee()
         if not department_id and len(attendee.can_admin_checklist_depts) != 1:
@@ -63,7 +62,6 @@ class Root:
                 for slug, conf in DeptChecklistConf.instances.items()]
         }
 
-    @department_id_adapter
     @csrf_protected
     def mark_item_complete(self, session, slug, department_id):
         attendee = session.admin_attendee()
@@ -81,7 +79,6 @@ class Root:
         raise HTTPRedirect(
             'index?department_id={}&message={}', department_id, message)
 
-    @department_id_adapter
     def form(self, session, slug, department_id, csrf_token=None, comments=None):
         attendee = session.admin_attendee()
         department = session.query(Department).options(
@@ -229,7 +226,6 @@ class Root:
                 ', '.join([a.full_name for a in dept.checklist_admins])
             ])
 
-    @department_id_adapter
     def placeholders(self, session, department_id=None):
         redirect_to_allowed_dept(session, department_id, 'placeholders')
 
@@ -260,12 +256,10 @@ class Root:
             'placeholders': placeholders
         }
 
-    @department_id_adapter
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
         # We actually submit from this page to `form`, this just lets us render a custom page
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'printed_signs')
 
-    @department_id_adapter
     def bulk_print_jobs(self, session, department_id=None, message='', **params):
         redirect_to_allowed_dept(session, department_id, 'bulk_print_jobs')
 
@@ -353,7 +347,6 @@ class Root:
                 request.notes, short_datetime_local(request.last_updated)
             ])
     
-    @department_id_adapter
     def delete_print_request(self, session, id, department_id=None, **params):
         request = session.bulk_printing_request(id)
         if request:
@@ -361,22 +354,18 @@ class Root:
         raise HTTPRedirect('bulk_print_jobs?department_id={}&message={}',
                            department_id, "Bulk printing request deleted.")
 
-    @department_id_adapter
     def treasury(self, session, department_id=None, submitted=None, csrf_token=None):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'treasury',
                                       'Thanks for completing the MPoints form!')
 
-    @department_id_adapter
     def allotments(self, session, department_id=None, submitted=None, csrf_token=None, **params):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'allotments',
                                       'Treasury checklist data uploaded')
 
-    @department_id_adapter
     def guidebook_schedule(self, session, department_id=None, submitted=None, csrf_token=None):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'guidebook_schedule',
                                       'Thanks for confirming your schedule is ready for Guidebook!')
 
-    @department_id_adapter
     def hotel_eligible(self, session, department_id=None):
         redirect_to_allowed_dept(session, department_id, 'hotel_eligible')
 
@@ -405,7 +394,6 @@ class Root:
             'attendees': attendees
         }  # noqa: E712
 
-    @department_id_adapter
     def hotel_requests(self, session, department_id=None):
         redirect_to_allowed_dept(session, department_id, 'hotel_requests')
 

@@ -1,16 +1,16 @@
 import base64
 import pycountry
 import cherrypy
+import logging
 import random
 import math
 from copy import deepcopy
 from collections import defaultdict
 from datetime import datetime, timedelta
 from dateutil import parser as dateparser
-from pockets.autolog import log
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.types import String
 from ortools.linear_solver import pywraplp
 
 from uber.config import c
@@ -22,6 +22,8 @@ from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, Pa
 from uber.tasks.email import send_email
 from uber.utils import Order, get_page, localized_now, validate_model, get_age_from_birthday, normalize_email_legacy
 
+log = logging.getLogger(__name__)
+
 def _search(session, text):
     applications = session.query(LotteryApplication)
 
@@ -31,7 +33,7 @@ def _search(session, text):
             return applications.filter(or_(LotteryApplication.confirmation_num == terms[0])), ''
     
     check_list = []
-    for attr in [col for col in LotteryApplication().__table__.columns if isinstance(col.type, UnicodeText)]:
+    for attr in [col for col in LotteryApplication().__table__.columns if isinstance(col.type, String)]:
         check_list.append(attr.ilike('%' + text + '%'))
 
     for col_name in ['assigned_hotel', 'assigned_room_type', 'assigned_suite_type']:

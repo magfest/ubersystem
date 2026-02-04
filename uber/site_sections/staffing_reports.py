@@ -10,7 +10,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import all_renderable, csv_file, render, department_id_adapter
+from uber.decorators import all_renderable, csv_file, render
 from uber.models import Attendee, Department, Job
 
 
@@ -108,7 +108,6 @@ class Root:
             'message': message,
         }
     
-    @department_id_adapter
     def volunteer_food(self, session, message='', department_id=None, start_time=None, end_time=None):
         staffers = set()
         start = dateparser.parse(start_time) if start_time else None

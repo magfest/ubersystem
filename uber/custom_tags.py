@@ -23,13 +23,12 @@ import phonenumbers
 from dateutil.relativedelta import relativedelta
 from markupsafe import Markup, escape
 from phonenumbers import PhoneNumberFormat
-from pockets import fieldify, unfieldify, listify, readable_join
 from uber.serializer import serializer
 
 from uber.config import c
 from uber.decorators import render
 from uber.jinja import JinjaEnv
-from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines
+from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines, listify, readable_join
 
 # This used to be available as markupsafe.text_type, but that was removed in version 1.1.0
 text_type = str
@@ -54,8 +53,6 @@ def is_class(value):
     return inspect.isclass(value)
 
 
-fieldify = JinjaEnv.jinja_filter(fieldify)
-unfieldify = JinjaEnv.jinja_filter(unfieldify)
 readable_join = JinjaEnv.jinja_filter(readable_join)
 
 

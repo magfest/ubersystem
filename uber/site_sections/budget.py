@@ -1,9 +1,8 @@
 import math
 import re
+import logging
 
 from collections import defaultdict
-from pockets.autolog import log
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, func, not_, and_
 
@@ -12,6 +11,8 @@ from uber.decorators import all_renderable, log_pageview
 from uber.models import ArbitraryCharge, Attendee, Group, ModelReceipt, MPointsForCash, ReceiptItem, Sale, PromoCodeGroup
 from uber.server import redirect_site_section
 from uber.utils import localized_now, Order
+
+log = logging.getLogger(__name__)
 
 
 def _build_item_subquery(session):

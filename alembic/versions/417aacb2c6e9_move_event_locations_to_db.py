@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -54,20 +53,20 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('event_location',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
-    sa.Column('department_id', residue.UUID(), nullable=True),
+    sa.Column('department_id', sa.Uuid(as_uuid=False), nullable=True),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('room', sa.Unicode(), server_default='', nullable=False),
     sa.Column('tracks', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['department_id'], ['department.id'], name=op.f('fk_event_location_department_id_department'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_event_location'))
     )
-    op.add_column('event', sa.Column('event_location_id', residue.UUID(), nullable=True))
-    op.add_column('event', sa.Column('department_id', residue.UUID(), nullable=True))
+    op.add_column('event', sa.Column('event_location_id', sa.Uuid(as_uuid=False), nullable=True))
+    op.add_column('event', sa.Column('department_id', sa.Uuid(as_uuid=False), nullable=True))
     op.add_column('event', sa.Column('tracks', sa.Unicode(), server_default='', nullable=False))
     op.create_foreign_key(op.f('fk_event_department_id_department'), 'event', 'department', ['department_id'], ['id'], ondelete='SET NULL')
     op.create_foreign_key(op.f('fk_event_location_id_event_location'), 'event', 'event_location', ['event_location_id'], ['id'], ondelete='SET NULL')

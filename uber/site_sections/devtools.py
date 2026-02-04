@@ -6,6 +6,7 @@ import sys
 import subprocess
 import traceback
 import csv
+import logging
 import random
 import six
 import pypsutil
@@ -14,14 +15,15 @@ import threading
 from datetime import datetime
 
 from sqlalchemy.dialects.postgresql.json import JSONB
-from pockets.autolog import log
 from pytz import UTC
 from sqlalchemy.types import Date, Boolean, Integer
 from sqlalchemy import text
 
 from uber.decorators import all_renderable, csv_file, public, site_mappable
-from uber.models import Choice, UniqueList, MultiChoice, Session, UTCDateTime
+from uber.models import Choice, UniqueList, MultiChoice, Session
 from uber.tasks.health import ping
+
+log = logging.getLogger(__name__)
 
 
 # admin utilities.  should not be used during normal ubersystem operations except by developers / sysadmins
@@ -62,7 +64,7 @@ def prepare_model_export(model, filtered_models=None):
                 row.append(' / '.join(getattr(model, col.name + '_labels')))
             elif isinstance(col.type, UniqueList):
                 row.append(', '.join(getattr(model, col.name)))
-            elif isinstance(col.type, UTCDateTime):
+            elif isinstance(col.type, DateTime):
                 # Use the empty string if this is null, otherwise use strftime.
                 # Also you should fill in whatever actual format you want.
                 val = getattr(model, col.name)

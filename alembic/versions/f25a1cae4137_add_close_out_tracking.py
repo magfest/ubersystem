@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -55,8 +54,8 @@ sqlite_reflect_kwargs = {
 def upgrade():
     op.create_table('terminal_settlement',
     sa.Column('batch_timestamp', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('requested', residue.UTCDateTime(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('requested', sa.DateTime(timezone=True), nullable=False),
     sa.Column('workstation_num', sa.Integer(), server_default='0', nullable=False),
     sa.Column('terminal_id', sa.Unicode(), server_default='', nullable=False),
     sa.Column('response', postgresql.JSONB(astext_type=sa.Text()), nullable=False),

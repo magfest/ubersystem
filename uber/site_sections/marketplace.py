@@ -1,7 +1,7 @@
 import cherrypy
+import logging
 
 from datetime import datetime
-from pockets.autolog import log
 
 from uber.config import c
 from uber.custom_tags import email_only
@@ -12,6 +12,8 @@ from uber.models import Attendee, ArtistMarketplaceApplication
 from uber.tasks.email import send_email
 from uber.utils import check, validate_model
 from uber.payments import TransactionRequest, ReceiptManager, RefundRequest
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable(public=True)

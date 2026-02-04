@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
-                             department_id_adapter, not_site_mappable, render, site_mappable, public)
+                             not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, WorkstationAssignment
 from uber.tasks.email import send_email
@@ -109,7 +109,6 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
     @site_mappable
-    @department_id_adapter
     def bulk(self, session, department_id=None, **params):
         department_id = None if department_id == 'All' else department_id
         attendee_filters = [Attendee.dept_memberships.any(department_id=department_id)] if department_id else []

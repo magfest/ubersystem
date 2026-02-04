@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -54,9 +53,9 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('art_show_panel',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('gallery', sa.Integer(), server_default='187837110', nullable=False),
@@ -70,13 +69,13 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_art_show_panel'))
     )
     op.create_table('art_panel_assignment',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
-    sa.Column('panel_id', residue.UUID(), nullable=False),
-    sa.Column('app_id', residue.UUID(), nullable=False),
+    sa.Column('panel_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('app_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('manual', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('assigned_side', sa.Integer(), server_default='184531092', nullable=False),
     sa.ForeignKeyConstraint(['app_id'], ['art_show_application.id'], name=op.f('fk_art_panel_assignment_app_id_art_show_application')),

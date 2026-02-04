@@ -1,11 +1,10 @@
 import re
 from datetime import datetime
-from inspect import signature, getmembers, ismethod
 
 import cherrypy
 import pytz
+import inspect
 import stripe
-from pockets import unwrap
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
@@ -45,11 +44,11 @@ class Root:
         for name in sorted(jsonrpc.keys()):
             service = jsonrpc[name]
             methods = []
-            for method_name, method in getmembers(service, ismethod):
+            for method_name, method in inspect.getmembers(service, inspect.ismethod):
                 if not method_name.startswith('_'):
-                    method = unwrap(method)
+                    method = inspect.unwrap(method)
                     doc = method.__doc__ or ''
-                    args = dict(signature(method).parameters)
+                    args = dict(inspect.signature(method).parameters)
                     if 'self' in args:
                         del args['self']
                     access = getattr(method, 'required_access', set())

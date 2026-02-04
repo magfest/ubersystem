@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -53,8 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('password_reset', sa.Column('admin_id', residue.UUID(), nullable=True))
-    op.add_column('password_reset', sa.Column('attendee_id', residue.UUID(), nullable=True))
+    op.add_column('password_reset', sa.Column('admin_id', sa.Uuid(as_uuid=False), nullable=True))
+    op.add_column('password_reset', sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=True))
     op.create_unique_constraint(op.f('uq_password_reset_admin_id'), 'password_reset', ['admin_id'])
     op.create_unique_constraint(op.f('uq_password_reset_attendee_id'), 'password_reset', ['attendee_id'])
     op.drop_constraint('uq_password_reset_account_id', 'password_reset', type_='unique')

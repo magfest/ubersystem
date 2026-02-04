@@ -4,6 +4,7 @@ import importlib
 import math
 import os
 import phonenumbers
+import unicodedata
 import random
 import re
 import string
@@ -11,27 +12,52 @@ import textwrap
 import traceback
 import uber
 import urllib
+import logging
+import warnings
+import functools
+import inspect
 
 from collections import defaultdict, OrderedDict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from glob import glob
 from os.path import basename
 from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
-from pockets import floor_datetime, listify
-from pockets.autolog import log
 from pytz import UTC
-from sqlalchemy import func, or_, cast, literal
+from sqlalchemy import func, or_, cast, literal, DateTime
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
+log = logging.getLogger(__name__)
 
 
 # ======================================================================
 # String manipulation
 # ======================================================================
+
+def readable_join(xs, conjunction='and', sep=','):
+    """
+    Accepts a list of strings and separates them with commas as grammatically
+    appropriate with a conjunction before the final entry. For example:
+
+    >>> readable_join(['foo'])
+    'foo'
+    >>> readable_join(['foo', 'bar'])
+    'foo and bar'
+    >>> readable_join(['foo', 'bar', 'baz'])
+    'foo, bar, and baz'
+    >>> readable_join(['foo', 'bar', 'baz'], 'or')
+    'foo, bar, or baz'
+    >>> readable_join(['foo', 'bar', 'baz'], 'but never')
+    'foo, bar, but never baz'
+
+    """
+    if len(xs) > 1:
+        xs = list(xs)
+        xs[-1] = conjunction + ' ' + xs[-1]
+    return (sep + ' ' if len(xs) > 2 else ' ').join(xs)
 
 def filename_extension(s):
     """
@@ -244,6 +270,317 @@ def normalize_phone(phone_number, country='US'):
         PhoneNumberFormat.E164)
 
 
+RE_NONWORD = re.compile(r'[\W_]+')
+def slugify(s):
+    """Convert a string into a URL-friendly slug."""
+    if not s: return ''
+    
+    # Normalize to decompose unicode characters (e.g., 'ñ' -> 'n' + '~')
+    s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
+    return RE_NONWORD.sub('-', s).lower().strip('-')
+    
+    
+RE_WHITESPACE_GROUP = re.compile(r'(\s+)', re.M | re.U)
+def camel(s, sep='_', lower_initial=False, upper_segments=None,
+          preserve_upper=False):
+    """
+    Convert underscore_separated string (aka snake_case) to CamelCase.
+
+    Works on full sentences as well as individual words:
+
+    >>> camel("hello_world!")
+    'HelloWorld!'
+    >>> camel("Totally works as_expected, even_with_whitespace!")
+    'Totally Works AsExpected, EvenWithWhitespace!'
+
+    Args:
+        sep (string, optional): Delineates segments of `s` that will be
+            CamelCased. Defaults to an underscore "_".
+
+            For example, if you want to CamelCase a dash separated word:
+
+            >>> camel("xml-http-request", sep="-")
+            'XmlHttpRequest'
+
+        lower_initial (bool, int, or list, optional): If True, the initial
+            character of each camelCased word will be lowercase. If False, the
+            initial character of each CamelCased word will be uppercase.
+            Defaults to False:
+
+            >>> camel("http_request http_response")
+            'HttpRequest HttpResponse'
+            >>> camel("http_request http_response", lower_initial=True)
+            'httpRequest httpResponse'
+
+            Optionally, `lower_initial` can be an int or a list of ints,
+            indicating which individual segments of each CamelCased word
+            should start with a lowercase. Supports negative numbers to index
+            segments from the right:
+
+            >>> camel("xml_http_request", lower_initial=0)
+            'xmlHttpRequest'
+            >>> camel("xml_http_request", lower_initial=-1)
+            'XmlHttprequest'
+            >>> camel("xml_http_request", lower_initial=[0, 1])
+            'xmlhttpRequest'
+
+        upper_segments (int or list, optional): Indicates which segments of
+           CamelCased words should be fully uppercased, instead of just
+           capitalizing the first letter.
+
+           Can be an int, indicating a single segment, or a list of ints,
+           indicating multiple segments. Supports negative numbers to index
+           segments from the right.
+
+           `upper_segments` is helpful when dealing with acronyms:
+
+            >>> camel("tcp_socket_id", upper_segments=0)
+            'TCPSocketId'
+            >>> camel("tcp_socket_id", upper_segments=[0, -1])
+            'TCPSocketID'
+            >>> camel("tcp_socket_id", upper_segments=[0, -1], lower_initial=1)
+            'TCPsocketID'
+
+        preserve_upper (bool): If True, existing uppercase characters will
+            not be automatically lowercased. Defaults to False.
+
+            >>> camel("xml_HTTP_reQuest")
+            'XmlHttpRequest'
+            >>> camel("xml_HTTP_reQuest", preserve_upper=True)
+            'XmlHTTPReQuest'
+
+    Returns:
+        str: CamelCased version of `s`.
+
+    """
+    if isinstance(lower_initial, bool):
+        lower_initial = [0] if lower_initial else []
+    else:
+        lower_initial = listify(lower_initial)
+    upper_segments = listify(upper_segments)
+    result = []
+    for word in RE_WHITESPACE_GROUP.split(s):
+        segments = [segment for segment in word.split(sep) if segment]
+        count = len(segments)
+        for i, segment in enumerate(segments):
+            upper = i in upper_segments or (i - count) in upper_segments
+            lower = i in lower_initial or (i - count) in lower_initial
+            if upper and lower:
+                if preserve_upper:
+                    segment = segment[0] + segment[1:].upper()
+                else:
+                    segment = segment[0].lower() + segment[1:].upper()
+            elif upper:
+                segment = segment.upper()
+            elif lower:
+                if not preserve_upper:
+                    segment = segment.lower()
+            elif preserve_upper:
+                segment = segment[0].upper() + segment[1:]
+            else:
+                segment = segment[0].upper() + segment[1:].lower()
+            result.append(segment)
+
+    return "".join(result)
+
+# ======================================================================
+# Collection functions
+# ======================================================================
+    
+# We probably shouldn't do this ever. We should type inputs more strongly.
+# This is here to maintain compatibility with pockets.listify
+def listify(x):
+    """
+    Wraps `x` in a list if it isn't one already. 
+    Preserves None as an empty list.
+    """
+    warnings.warn("ensure_list is deprecated.", stacklevel=2)
+    if x is None:
+        return []
+    
+    if isinstance(x, list):
+        return x
+    
+    # Handle other common sequences (tuples, sets) by converting them
+    if isinstance(x, (tuple, set)):
+        return list(x)
+    
+    # Treat strings, dicts, and scalars as single items
+    return [x]
+
+def groupify(items, keys, val_key=None):
+    """
+    Groups a list of items into nested OrderedDicts based on the given keys.
+
+    Note:
+        On Python 2.6 the return value will use regular dicts instead of
+        OrderedDicts.
+
+    >>> from json import dumps
+    >>>
+    >>> class Reminder:
+    ...   def __init__(self, when, where, what):
+    ...     self.when = when
+    ...     self.where = where
+    ...     self.what = what
+    ...   def __repr__(self):
+    ...     return 'Reminder({0.when}, {0.where}, {0.what})'.format(self)
+    ...
+    >>> reminders = [
+    ...   Reminder('Fri', 'Home', 'Eat cereal'),
+    ...   Reminder('Fri', 'Work', 'Feed Ivan'),
+    ...   Reminder('Sat', 'Home', 'Sleep in'),
+    ...   Reminder('Sat', 'Home', 'Play Zelda'),
+    ...   Reminder('Sun', 'Home', 'Sleep in'),
+    ...   Reminder('Sun', 'Work', 'Reset database')]
+    >>>
+    >>> print(dumps(groupify(reminders, None),
+    ...             indent=2,
+    ...             sort_keys=True,
+    ...             default=repr)) # doctest: +NORMALIZE_WHITESPACE
+    [
+      "Reminder(Fri, Home, Eat cereal)",
+      "Reminder(Fri, Work, Feed Ivan)",
+      "Reminder(Sat, Home, Sleep in)",
+      "Reminder(Sat, Home, Play Zelda)",
+      "Reminder(Sun, Home, Sleep in)",
+      "Reminder(Sun, Work, Reset database)"
+    ]
+    >>>
+    >>> print(dumps(groupify(reminders, 'when'),
+    ...             indent=2,
+    ...             sort_keys=True,
+    ...             default=repr)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri": [
+        "Reminder(Fri, Home, Eat cereal)",
+        "Reminder(Fri, Work, Feed Ivan)"
+      ],
+      "Sat": [
+        "Reminder(Sat, Home, Sleep in)",
+        "Reminder(Sat, Home, Play Zelda)"
+      ],
+      "Sun": [
+        "Reminder(Sun, Home, Sleep in)",
+        "Reminder(Sun, Work, Reset database)"
+      ]
+    }
+    >>>
+    >>> print(dumps(groupify(reminders, ['when', 'where']),
+    ...             indent=2,
+    ...             sort_keys=True,
+    ...             default=repr)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri": {
+        "Home": [
+          "Reminder(Fri, Home, Eat cereal)"
+        ],
+        "Work": [
+          "Reminder(Fri, Work, Feed Ivan)"
+        ]
+      },
+      "Sat": {
+        "Home": [
+          "Reminder(Sat, Home, Sleep in)",
+          "Reminder(Sat, Home, Play Zelda)"
+        ]
+      },
+      "Sun": {
+        "Home": [
+          "Reminder(Sun, Home, Sleep in)"
+        ],
+        "Work": [
+          "Reminder(Sun, Work, Reset database)"
+        ]
+      }
+    }
+    >>>
+    >>> print(dumps(groupify(reminders, ['when', 'where'], 'what'),
+    ...             indent=2,
+    ...             sort_keys=True)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri": {
+        "Home": [
+          "Eat cereal"
+        ],
+        "Work": [
+          "Feed Ivan"
+        ]
+      },
+      "Sat": {
+        "Home": [
+          "Sleep in",
+          "Play Zelda"
+        ]
+      },
+      "Sun": {
+        "Home": [
+          "Sleep in"
+        ],
+        "Work": [
+          "Reset database"
+        ]
+      }
+    }
+    >>>
+    >>> print(dumps(groupify(reminders,
+    ...                      lambda r: '{0.when} - {0.where}'.format(r),
+    ...                      'what'),
+    ...             indent=2,
+    ...             sort_keys=True)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri - Home": [
+        "Eat cereal"
+      ],
+      "Fri - Work": [
+        "Feed Ivan"
+      ],
+      "Sat - Home": [
+        "Sleep in",
+        "Play Zelda"
+      ],
+      "Sun - Home": [
+        "Sleep in"
+      ],
+      "Sun - Work": [
+        "Reset database"
+      ]
+    }
+
+    Args:
+        items (list): The list of items to arrange in groups.
+        keys (str|callable|list): The key or keys that should be used to group
+            `items`. If multiple keys are given, then each will correspond to
+            an additional level of nesting in the order they are given.
+        val_key (str|callable): A key or callable used to generate the leaf
+            values in the nested OrderedDicts. If `val_key` is `None`, then
+            the item itself is used. Defaults to `None`.
+
+    Returns:
+        OrderedDict: Nested OrderedDicts with `items` grouped by `keys`.
+
+    """
+    warnings.warn("groupify is deprecated.", stacklevel=2)
+    if not keys:
+        return items
+    keys = listify(keys)
+    last_key = keys[-1]
+    is_callable = callable(val_key)
+    groupified = dict()
+    for item in items:
+        current = groupified
+        for key in keys:
+            attr = key(item) if callable(key) else getattr(item, key)
+            if attr not in current:
+                current[attr] = [] if key is last_key else dict()
+            current = current[attr]
+        if val_key:
+            value = val_key(item) if is_callable else getattr(item, val_key)
+        else:
+            value = item
+        current.append(value)
+    return groupified
+
 # ======================================================================
 # Datetime functions
 # ======================================================================
@@ -252,14 +589,17 @@ def localized_now():
     """
     Returns datetime.now() but localized to the event's timezone.
     """
-    return localize_datetime(datetime.utcnow())
+    return datetime.now(c.EVENT_TIMEZONE)
 
 
 def localize_datetime(dt):
     """
     Converts `dt` to the event's timezone.
     """
-    return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
+    # 1. If the datetime is naive (no timezone), assume it is UTC first
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(c.EVENT_TIMEZONE)
 
 
 def hour_day_format(dt):
@@ -276,14 +616,28 @@ def evening_datetime(dt):
     """
     Returns a datetime object for 5pm on the day specified by `dt`.
     """
-    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=17)
+    dt = dt.replace(microsecond=0)
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    secs = (dt - dt_min).total_seconds()
+    nearest_secs = timedelta(days=1).total_seconds()
+    total_delta_secs = secs % nearest_secs
+    delta_days = total_delta_secs // 86400  # (60 * 60 * 24)
+    delta_secs = total_delta_secs % 86400.0  # (60 * 60 * 24)
+    return dt - timedelta(days=delta_days, seconds=delta_secs)  + timedelta(hours=17)
 
 
 def noon_datetime(dt):
     """
     Returns a datetime object for noon on the day given by `dt`.
     """
-    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=12)
+    dt = dt.replace(microsecond=0)
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    secs = (dt - dt_min).total_seconds()
+    nearest_secs = timedelta(days=1).total_seconds()
+    total_delta_secs = secs % nearest_secs
+    delta_days = total_delta_secs // 86400  # (60 * 60 * 24)
+    delta_secs = total_delta_secs % 86400.0  # (60 * 60 * 24)
+    return dt - timedelta(days=delta_days, seconds=delta_secs)  + timedelta(hours=12)
 
 
 def get_age_from_birthday(birthdate, today=None):
@@ -657,8 +1011,6 @@ def check_pii_consent(params, attendee=None):
 class GuidebookUtils():
     @classmethod
     def check_guidebook_image_filetype(cls, pic):
-        from uber.custom_tags import readable_join
-
         if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
             return f'Image {pic.filename} is not one of the allowed extensions: '\
                 f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
@@ -707,9 +1059,7 @@ class GuidebookUtils():
 
     @classmethod
     def cast_jsonb_to_datetime(cls, jsonb_col):
-        from residue import CoerceUTF8 as UnicodeText, UTCDateTime
-
-        return cast(cast(jsonb_col, UnicodeText), UTCDateTime)
+        return cast(jsonb_col.astext, DateTime)
     
     @classmethod
     def get_changed_models(cls, session):

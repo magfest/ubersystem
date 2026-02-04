@@ -19,7 +19,6 @@ import validate
 import configobj
 import pathlib
 from tempfile import NamedTemporaryFile
-from copy import deepcopy
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
 from hashlib import sha512
@@ -28,12 +27,12 @@ from itertools import chain
 
 import cherrypy
 import signnow_python_sdk
-from pockets import nesteddefaultdict, unwrap, cached_property
-from pockets.autolog import log
 from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload, subqueryload
 
 import uber
+
+log = logging.getLogger(__name__)
 
 plugins_dir = pathlib.Path(__file__).parents[1] / "plugins"
 
@@ -130,6 +129,18 @@ def request_cached_property(func):
             threadlocal.set(name, val)
         return val
     return with_caching
+
+def cached_property(func):
+    """Decorator for making readonly, memoized properties."""
+    cache_attr = '_cached_{0}'.format(func.__name__)
+
+    @property
+    @functools.wraps(func)
+    def caching(self, *args, **kwargs):
+        if not hasattr(self, cache_attr):
+            setattr(self, cache_attr, func(self, *args, **kwargs))
+        return getattr(self, cache_attr)
+    return caching
 
 def create_namespace_uuid(s):
     return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
@@ -1268,7 +1279,7 @@ class Config(_Overridable):
                 if getattr(page_method, 'public', False):
                     public_pages.append(module_name + "_" + name)
                 if getattr(method, 'exposed', False):
-                    spec = inspect.getfullargspec(unwrap(method))
+                    spec = inspect.getfullargspec(inspect.unwrap(method))
                     has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
                     if not getattr(method, 'ajax', False) and (getattr(method, 'site_mappable', False)
                                                                or has_defaults and not spec.varkw) \
@@ -1386,13 +1397,13 @@ class Config(_Overridable):
     @dynamic
     def ROOM_TRIE(self):
         def make_room_trie(rooms):
-            root = nesteddefaultdict()
+            root = defaultdict(defaultdict)
             for index, (location, description) in enumerate(rooms):
                 for word in filter(lambda s: s, re.split(r'\W+', description)):
                     current_dict = root
                     current_dict['__rooms__'][location] = index
                     for letter in word:
-                        current_dict = current_dict.setdefault(letter.lower(), nesteddefaultdict())
+                        current_dict = current_dict.setdefault(letter.lower(), defaultdict(defaultdict))
                         current_dict['__rooms__'][location] = index
             return root
 

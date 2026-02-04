@@ -4,7 +4,6 @@ import re
 from collections import defaultdict
 from datetime import timedelta, datetime
 from dateutil import parser as dateparser
-from pockets import sluggify
 from sqlalchemy import or_
 
 from uber.automated_emails import AutomatedEmailFixture, PanelAppEmailFixture
@@ -13,7 +12,7 @@ from uber.decorators import render
 from uber.models import Email, Session, Tracking, Department, EventLocation, AutomatedEmail
 from uber.tasks import celery
 from uber.tasks.email import send_email
-from uber.utils import GuidebookUtils, localized_now
+from uber.utils import GuidebookUtils, localized_now, slugify
 
 
 __all__ = ['panels_waitlist_unaccepted_panels', 'sync_guidebook_models',
@@ -188,7 +187,7 @@ def setup_panel_emails():
             lambda app: True,
             sender=sender,
             shared_ident='panelapps_received',
-            ident=f'panelapps_received_{sluggify(name)}')
+            ident=f'panelapps_received_{slugify(name)}')
 
         custom_panel_app_email(
             'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
@@ -196,7 +195,7 @@ def setup_panel_emails():
             lambda app: app.status == c.ACCEPTED,
             sender=sender,
             shared_ident='panelapps_accepted',
-            ident=f'panelapps_accepted_{sluggify(name)}')
+            ident=f'panelapps_accepted_{slugify(name)}')
 
         custom_panel_app_email(
             'Your {EVENT_NAME} Panel Application Has Been Declined: {{ app.name }}',
@@ -204,7 +203,7 @@ def setup_panel_emails():
             lambda app: app.status == c.DECLINED,
             sender=sender,
             shared_ident='panelapps_declined',
-            ident=f'panelapps_declined_{sluggify(name)}')
+            ident=f'panelapps_declined_{slugify(name)}')
 
         custom_panel_app_email(
             'Your {EVENT_NAME} Panel Application Has Been Waitlisted: {{ app.name }}',
@@ -212,7 +211,7 @@ def setup_panel_emails():
             lambda app: app.status == c.WAITLISTED,
             sender=sender,
             shared_ident='panelapps_waitlisted',
-            ident=f'panelapps_waitlisted_{sluggify(name)}')
+            ident=f'panelapps_waitlisted_{slugify(name)}')
 
         custom_panel_app_email(
             'Last chance to confirm your panel',
@@ -221,7 +220,7 @@ def setup_panel_emails():
                          and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
             sender=sender,
             shared_ident='panelapps_accept_reminder',
-            ident=f'panelapps_accept_reminder_{sluggify(name)}')
+            ident=f'panelapps_accept_reminder_{slugify(name)}')
 
         custom_panel_app_email(
             'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
@@ -229,6 +228,6 @@ def setup_panel_emails():
             lambda app: app.event_id,
             sender=sender,
             shared_ident='panelapps_scheduled',
-            ident=f'panelapps_scheduled_{sluggify(name)}')
+            ident=f'panelapps_scheduled_{slugify(name)}')
     
     AutomatedEmail.reconcile_fixtures()

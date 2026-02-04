@@ -1,8 +1,8 @@
 from collections import defaultdict, OrderedDict
 from datetime import timedelta
 import random
+import logging
 
-from pockets.autolog import log
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -10,6 +10,8 @@ from uber.config import c
 from uber.decorators import all_renderable, csv_file
 from uber.models import Attendee, HotelRequests, Job, Room, RoomAssignment, Shift
 from uber.utils import noon_datetime
+
+log = logging.getLogger(__name__)
 
 
 def _inconsistent_shoulder_shifts(session):

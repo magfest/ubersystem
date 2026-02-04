@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -54,12 +53,12 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('job_template',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
-    sa.Column('department_id', residue.UUID(), nullable=False),
+    sa.Column('department_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('template_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('type', sa.Integer(), server_default='94737193', nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
@@ -78,8 +77,8 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_job_template'))
     )
     op.create_table('job_template_required_role',
-    sa.Column('dept_role_id', residue.UUID(), nullable=False),
-    sa.Column('job_template_id', residue.UUID(), nullable=False),
+    sa.Column('dept_role_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('job_template_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.ForeignKeyConstraint(['dept_role_id'], ['dept_role.id'], name=op.f('fk_job_template_required_role_dept_role_id_dept_role')),
     sa.ForeignKeyConstraint(['job_template_id'], ['job_template.id'], name=op.f('fk_job_template_required_role_job_template_id_job_template')),
     sa.UniqueConstraint('dept_role_id', 'job_template_id', name=op.f('uq_job_template_required_role_dept_role_id'))
@@ -89,7 +88,7 @@ def upgrade():
     op.drop_column('department', 'is_teardown_approval_exempt')
     op.drop_column('department', 'is_setup_approval_exempt')
     op.drop_column('department', 'is_shiftless')
-    op.add_column('job', sa.Column('job_template_id', residue.UUID(), nullable=True))
+    op.add_column('job', sa.Column('job_template_id', sa.Uuid(as_uuid=False), nullable=True))
     op.add_column('job', sa.Column('all_roles_required', sa.Boolean(), server_default='True', nullable=False))
     op.create_foreign_key(op.f('fk_job_job_template_id_job_template'), 'job', 'job_template', ['job_template_id'], ['id'])
     op.drop_column('job', 'type')

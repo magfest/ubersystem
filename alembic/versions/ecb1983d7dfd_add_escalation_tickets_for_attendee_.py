@@ -17,7 +17,6 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import Sequence, CreateSequence, DropSequence
-import residue
 
 
 try:
@@ -56,21 +55,21 @@ sqlite_reflect_kwargs = {
 def upgrade():
     op.execute(CreateSequence(Sequence('escalation_ticket_ticket_id_seq')))
     op.create_table('escalation_ticket',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('ticket_id', sa.Integer(), server_default=sa.text("nextval('escalation_ticket_ticket_id_seq')"), nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
     sa.Column('admin_notes', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('resolved', residue.UTCDateTime(), nullable=True),
+    sa.Column('resolved', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_escalation_ticket')),
     sa.UniqueConstraint('ticket_id', name=op.f('uq_escalation_ticket_ticket_id'))
     )
     op.create_table('attendee_escalation_ticket',
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
-    sa.Column('escalation_ticket_id', residue.UUID(), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('escalation_ticket_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_attendee_escalation_ticket_attendee_id_attendee')),
     sa.ForeignKeyConstraint(['escalation_ticket_id'], ['escalation_ticket.id'], name=op.f('fk_attendee_escalation_ticket_escalation_ticket_id_escalation_ticket')),
     sa.UniqueConstraint('attendee_id', 'escalation_ticket_id', name=op.f('uq_attendee_escalation_ticket_attendee_id'))

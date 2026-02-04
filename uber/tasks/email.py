@@ -4,10 +4,9 @@ import pytz
 import uuid
 from time import sleep, time
 import traceback
+import logging
 
 from celery.schedules import crontab
-from pockets import groupify, listify
-from pockets.autolog import log
 from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload, raiseload, sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
@@ -19,6 +18,8 @@ from uber.config import c
 from uber.decorators import render
 from uber.models import AutomatedEmail, Email, MagModel, Session
 from uber.tasks import celery
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email']
@@ -48,7 +49,7 @@ def send_email(
         automated_email=None,
         session=None):
 
-    to, cc, bcc, replyto = map(lambda x: listify(x if x else []), [to, cc, bcc, replyto])
+    to, cc, bcc, replyto = map(lambda x: utils.listify(x if x else []), [to, cc, bcc, replyto])
     original_to, original_cc, original_bcc, original_replyto = to, cc, bcc, replyto
     ident = ident or subject
     if c.DEV_BOX:
@@ -134,7 +135,7 @@ def notify_admins_of_pending_emails():
 
     with Session() as session:
         pending_emails = session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_pending).all()
-        pending_emails_by_sender = groupify(pending_emails, ['sender', 'ident'])
+        pending_emails_by_sender = utils.groupify(pending_emails, ['sender', 'ident'])
 
         for sender, emails_by_ident in pending_emails_by_sender.items():
             if sender == c.STAFF_EMAIL:
@@ -156,7 +157,7 @@ def notify_admins_of_pending_emails():
             }, encoding=None)
             send_email(c.REPORTS_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
 
-        return groupify(pending_emails, 'sender', 'ident')
+        return utils.groupify(pending_emails, 'sender', 'ident')
 
 
 @celery.schedule(timedelta(minutes=5 if c.DEV_BOX else 15))
@@ -179,7 +180,7 @@ def send_automated_emails():
             active_automated_emails = session.query(AutomatedEmail) \
                 .filter(*AutomatedEmail.filters_for_active).all()
 
-            automated_emails_by_model = groupify(active_automated_emails, 'model')
+            automated_emails_by_model = utils.groupify(active_automated_emails, 'model')
 
             for model, query_func in AutomatedEmailFixture.queries.items():
                 log.debug("Sending automated emails for " + model.__name__)

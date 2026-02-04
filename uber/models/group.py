@@ -3,13 +3,11 @@ from datetime import datetime
 from uuid import uuid4
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, exists, or_, func, select
+from sqlalchemy import and_, exists, or_, func, select, not_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.sql.expression import not_
-from sqlalchemy.types import Boolean, Integer, Numeric
+from sqlalchemy.types import Boolean, Integer, Numeric, String, DateTime, Uuid
 
 from uber.config import c
 from uber.custom_tags import format_currency
@@ -24,8 +22,8 @@ __all__ = ['Group']
 
 
 class Group(MagModel, TakesPaymentMixin):
-    public_id = Column(UUID, default=lambda: str(uuid4()))
-    shared_with_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
+    shared_with_id = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     shared_with = relationship(
         'Group',
         foreign_keys='Group.shared_with_id',
@@ -33,22 +31,22 @@ class Group(MagModel, TakesPaymentMixin):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Group.id',
         single_parent=True)
-    name = Column(UnicodeText)
+    name = Column(String)
     tables = Column(Numeric, default=0)
-    zip_code = Column(UnicodeText)
-    address1 = Column(UnicodeText)
-    address2 = Column(UnicodeText)
-    city = Column(UnicodeText)
-    region = Column(UnicodeText)
-    country = Column(UnicodeText)
-    email_address = Column(UnicodeText)
-    phone = Column(UnicodeText)
-    website = Column(UnicodeText)
-    wares = Column(UnicodeText)
+    zip_code = Column(String)
+    address1 = Column(String)
+    address2 = Column(String)
+    city = Column(String)
+    region = Column(String)
+    country = Column(String)
+    email_address = Column(String)
+    phone = Column(String)
+    website = Column(String)
+    wares = Column(String)
     categories = Column(MultiChoice(c.DEALER_WARES_OPTS))
-    categories_text = Column(UnicodeText)
-    description = Column(UnicodeText)
-    special_needs = Column(UnicodeText)
+    categories_text = Column(String)
+    description = Column(String)
+    special_needs = Column(String)
 
     cost = Column(Integer, default=0, admin_only=True)
     auto_recalc = Column(Boolean, default=True, admin_only=True)
@@ -56,13 +54,13 @@ class Group(MagModel, TakesPaymentMixin):
     can_add = Column(Boolean, default=False, admin_only=True)
     is_dealer = Column(Boolean, default=False, admin_only=True)
     convert_badges = Column(Boolean, default=False, admin_only=True)
-    admin_notes = Column(UnicodeText, admin_only=True)
+    admin_notes = Column(String, admin_only=True)
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    approved = Column(UTCDateTime, nullable=True)
-    leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
+    registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    approved = Column(DateTime(timezone=True), nullable=True)
+    leader_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
                        nullable=True)
-    creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    creator_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
 
     creator = relationship(
         'Attendee',
@@ -86,7 +84,8 @@ class Group(MagModel, TakesPaymentMixin):
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(SignedDocument.fk_id == foreign(Group.id),'
         'SignedDocument.model == "Group")',
-        uselist=False)
+        uselist=False,
+        overlaps="active_receipt")
 
     _repr_attr_names = ['name']
 
@@ -308,7 +307,7 @@ class Group(MagModel, TakesPaymentMixin):
     @badges_purchased.expression
     def badges_purchased(cls):
         from uber.models import Attendee
-        return select([func.count(Attendee.id)]
+        return select(func.count(Attendee.id)
                       ).where(and_(Attendee.group_id == cls.id, Attendee.paid == c.PAID_BY_GROUP)
                               ).label('badges_purchased')
 
@@ -392,7 +391,7 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_paid(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.payment_total_sql]).outerjoin(ModelReceipt.receipt_txns
+        return select(ModelReceipt.payment_total_sql).outerjoin(ModelReceipt.receipt_txns
                       ).where(and_(ModelReceipt.owner_id == cls.id,
                                    ModelReceipt.owner_model == "Group",
                                    ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
@@ -405,7 +404,7 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_refunded(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.refund_total_sql]).outerjoin(ModelReceipt.receipt_txns
+        return select(ModelReceipt.refund_total_sql).outerjoin(ModelReceipt.receipt_txns
                       ).where(and_(ModelReceipt.owner_id == cls.id,
                                    ModelReceipt.owner_model == "Group")).label('amount_refunded')
 

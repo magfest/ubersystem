@@ -5,6 +5,7 @@ import inspect
 import json
 import os
 import re
+import logging
 import sqlalchemy
 import threading
 import traceback
@@ -23,8 +24,6 @@ from cherrypy.lib import profiler
 from cherrypy.lib.static import serve_file
 import six
 import xlsxwriter
-from pockets import argmod, unwrap
-from pockets.autolog import log
 
 import uber
 from uber.serializer import serializer
@@ -33,6 +32,8 @@ from uber.config import c
 from uber.errors import CSRFException, HTTPRedirect
 from uber.jinja import JinjaEnv
 from uber.utils import check_csrf, report_critical_exception, ExcelWorksheetStreamWriter
+
+log = logging.getLogger(__name__)
 
 
 def swallow_exceptions(func):
@@ -126,10 +127,6 @@ def _suffix_property_check(inst, name):
 suffix_property.check = _suffix_property_check
 
 
-department_id_adapter = argmod(['location', 'department', 'department_id'], lambda d: uber.models.Department.to_id(d))
-
-
-@department_id_adapter
 def check_can_edit_dept(session, department_id=None, inherent_role=None, override_access=None):
     from uber.models import AdminAccount, DeptMembership, Department
     account_id = cherrypy.session.get('account_id')
@@ -456,7 +453,7 @@ def cached(func):
 
 
 def cached_page(func):
-    innermost = unwrap(func)
+    innermost = inspect.unwrap(func)
     if hasattr(innermost, 'cached'):
         func.lock = RLock()
 
@@ -562,7 +559,7 @@ def timed(prepend_text=''):
 
 
 def sessionized(func):
-    innermost = unwrap(func)
+    innermost = inspect.unwrap(func)
     if 'session' not in inspect.getfullargspec(innermost).args:
         return func
 
@@ -975,3 +972,95 @@ def check_id_for_model(model, alt_id=None, **params):
     if message:
         log.error("check_id {} error: {}: id={}".format(model.__name__, message, model_id))
     return message, model_id
+
+def cached_property(func):
+    """Decorator for making readonly, memoized properties."""
+    cache_attr = '_cached_{0}'.format(func.__name__)
+
+    @property
+    @wraps(func)
+    def caching(self, *args, **kwargs):
+        if not hasattr(self, cache_attr):
+            setattr(self, cache_attr, func(self, *args, **kwargs))
+        return getattr(self, cache_attr)
+    return caching
+
+class cached_classproperty(property):
+    """
+    Like @cached_property except it works on classes instead of instances.
+
+
+    Note:
+        Class properties created by @cached_classproperty are read-only.
+        Any attempts to write to the property will erase the
+        @cached_classproperty, and the behavior of the underlying method
+        will be lost.
+
+    >>> class MyClass(object):
+    ...     @cached_classproperty
+    ...     def myproperty(cls):
+    ...         return '{0}.myproperty'.format(cls.__name__)
+    >>> MyClass.myproperty
+    'MyClass.myproperty'
+
+    """
+    def __init__(self, fget, *arg, **kw):
+        super(cached_classproperty, self).__init__(fget, *arg, **kw)
+        self.__doc__ = fget.__doc__
+        self.__fget_name__ = fget.__name__
+
+    def __get__(desc, self, cls):
+        cache_attr = '_cached_{0}_{1}'.format(cls.__name__, desc.__fget_name__)
+        if not hasattr(cls, cache_attr):
+            setattr(cls, cache_attr, desc.fget(cls))
+        return getattr(cls, cache_attr)
+
+    def getter(self, fget):
+        raise AttributeError('@cached_classproperty.getter is not supported')
+
+    def setter(self, fset):
+        raise AttributeError('@cached_classproperty.setter is not supported')
+
+    def deleter(self, fdel):
+        raise AttributeError('@cached_classproperty.deleter is not supported')
+
+class classproperty(property):
+    """
+    Decorator to create a read-only class property similar to classmethod.
+
+    For whatever reason, the @property decorator isn't smart enough to
+    recognize @classmethods and behaves differently on them than on instance
+    methods.  This decorator may be used like to create a class-level property,
+    useful for singletons and other one-per-class properties.
+
+    This implementation is partially based on
+    `sqlalchemy.util.langhelpers.classproperty`.
+
+    Note:
+        Class properties created by @classproperty are read-only. Any attempts
+        to write to the property will erase the @classproperty, and the
+        behavior of the underlying method will be lost.
+
+    >>> class MyClass(object):
+    ...     @classproperty
+    ...     def myproperty(cls):
+    ...         return '{0}.myproperty'.format(cls.__name__)
+    >>> MyClass.myproperty
+    'MyClass.myproperty'
+
+    """
+    def __init__(self, fget, *arg, **kw):
+        super(classproperty, self).__init__(fget, *arg, **kw)
+        self.__doc__ = fget.__doc__
+
+    def __get__(desc, self, cls):
+        return desc.fget(cls)
+
+    def getter(self, fget):
+        raise AttributeError('@classproperty.getter is not supported')
+
+    def setter(self, fset):
+        raise AttributeError('@classproperty.setter is not supported')
+
+    def deleter(self, fdel):
+        raise AttributeError('@classproperty.deleter is not supported')

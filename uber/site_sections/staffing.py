@@ -1,6 +1,6 @@
 import cherrypy
 from datetime import datetime, timedelta
-from pockets.autolog import log
+import logging
 import ics
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
@@ -12,6 +12,8 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Job, FoodRestrictions
 from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now, extract_urls, validate_model
+
+log = logging.getLogger(__name__)
 
 
 def _convert_urls(desc):

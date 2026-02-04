@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -53,14 +52,14 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('signed_document',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('fk_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('fk_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('model', sa.Unicode(), server_default='', nullable=False),
     sa.Column('document_id', sa.Unicode(), server_default='', nullable=False),
     sa.Column('link', sa.Unicode(), server_default='', nullable=False),
     sa.Column('ident', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('signed', residue.UTCDateTime(), server_default=None),
-    sa.Column('declined', residue.UTCDateTime(), server_default=None),
+    sa.Column('signed', sa.DateTime(timezone=True), server_default=None),
+    sa.Column('declined', sa.DateTime(timezone=True), server_default=None),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_signed_document'))
     )
     op.create_index(op.f('ix_signed_document_fk_id'), 'signed_document', ['fk_id'], unique=False)

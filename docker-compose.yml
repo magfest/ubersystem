@@ -12,12 +12,13 @@ x-uber: &uber
     - uber_cherrypy_server_socket_timeout=1
     - uber_cherrypy_tools_sessions_host=redis
     - uber_cherrypy_tools_sessions_prefix=uber
-    - uber_cherrypy_tools_sessions_storage_type=redis
+    - uber_cherrypy_tools_sessions_storage_class=cherrypy.lib.sessions.RedisSession
     - uber_loggers_cherrypy_access=DEBUG
     - uber_redis_host=redis
     - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber
     - uber_hostname=localhost
     - uber_dev_box=True
+    - SQLALCHEMY_WARN_20=1
   volumes:
     - .:/app/
     - ${PLUGIN_DIR_SRC:-./README.md}:${PLUGIN_DIR_TARGET:-/tmp/README.md}

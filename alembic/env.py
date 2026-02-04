@@ -6,7 +6,6 @@ from logging.config import fileConfig
 from alembic import context
 
 import uber
-from residue import CoerceUTF8, UTCDateTime, UUID
 from uber.migration import version_locations_option
 from uber.models import Choice, MultiChoice, Session
 
@@ -38,15 +37,6 @@ def render_item(type_, obj, autogen_context):
     if type_ == 'type':
         if isinstance(obj, Choice):
             return 'sa.Integer()'
-        elif isinstance(obj, UTCDateTime):
-            autogen_context.imports.add('import residue')
-            return 'residue.UTCDateTime()'
-        elif isinstance(obj, (CoerceUTF8, MultiChoice)):
-            return 'sa.Unicode()'
-        elif isinstance(obj, UUID):
-            autogen_context.imports.add('import residue')
-            return 'residue.UUID()'
-
     # Default rendering for other objects
     return False
 

@@ -1,18 +1,17 @@
+import logging
 import random
 
 import checkdigit.verhoeff as verhoeff
 from datetime import timedelta, datetime
 from pytz import UTC
 from markupsafe import Markup
-from pockets.autolog import log
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import Sequence, case
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Date, Integer
+from sqlalchemy.types import Boolean, Date, Integer, String, DateTime, Uuid
 
 from uber.config import c
 from uber.custom_tags import readable_join, datetime_local_filter
@@ -20,6 +19,8 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import Choice, default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
 from uber.utils import RegistrationCode
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['NightsMixin', 'HotelRequests', 'Room', 'RoomAssignment', 'LotteryApplication']
@@ -65,11 +66,11 @@ class NightsMixin(object):
 
 
 class HotelRequests(MagModel, NightsMixin):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
     nights = Column(MultiChoice(c.NIGHT_OPTS))
-    wanted_roommates = Column(UnicodeText)
-    unwanted_roommates = Column(UnicodeText)
-    special_needs = Column(UnicodeText)
+    wanted_roommates = Column(String)
+    unwanted_roommates = Column(String)
+    special_needs = Column(String)
     approved = Column(Boolean, default=False, admin_only=True)
 
     def decline(self):
@@ -85,11 +86,11 @@ class HotelRequests(MagModel, NightsMixin):
 
 
 class Room(MagModel, NightsMixin):
-    notes = Column(UnicodeText)
-    message = Column(UnicodeText)
+    notes = Column(String)
+    message = Column(String)
     locked_in = Column(Boolean, default=False)
     nights = Column(MultiChoice(c.NIGHT_OPTS))
-    created = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+    created = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     assignments = relationship('RoomAssignment', backref='room')
 
     @property
@@ -115,32 +116,32 @@ class Room(MagModel, NightsMixin):
 
 
 class RoomAssignment(MagModel):
-    room_id = Column(UUID, ForeignKey('room.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    room_id = Column(Uuid(as_uuid=False), ForeignKey('room.id'))
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
 
 
 class LotteryApplication(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True, nullable=True)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True, nullable=True)
     attendee = relationship('Attendee', backref=backref('lottery_application', uselist=False),
                             cascade='save-update,merge,refresh-expire,expunge',
                             uselist=False)
-    invite_code = Column(UnicodeText) # Not used for now but we're keeping it for later
-    confirmation_num = Column(UnicodeText)
+    invite_code = Column(String) # Not used for now but we're keeping it for later
+    confirmation_num = Column(String)
 
     response_id_seq = Sequence('lottery_application_response_id_seq')
     response_id = Column(Integer, response_id_seq, server_default=response_id_seq.next_value(), unique=True)
     status = Column(Choice(c.HOTEL_LOTTERY_STATUS_OPTS), default=c.PARTIAL, admin_only=True)
-    entry_started = Column(UTCDateTime, nullable=True)
+    entry_started = Column(DateTime(timezone=True), nullable=True)
     entry_metadata = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
     entry_type = Column(Choice(c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS), nullable=True)
     current_step = Column(Integer, default=0)
-    last_submitted = Column(UTCDateTime, nullable=True)
-    admin_notes = Column(UnicodeText)
+    last_submitted = Column(DateTime(timezone=True), nullable=True)
+    admin_notes = Column(String)
     is_staff_entry = Column(Boolean, default=False)
 
-    legal_first_name = Column(UnicodeText)
-    legal_last_name = Column(UnicodeText)
-    cellphone = Column(UnicodeText)
+    legal_first_name = Column(String)
+    legal_last_name = Column(String)
+    cellphone = Column(String)
     earliest_checkin_date = Column(Date, nullable=True)
     latest_checkin_date = Column(Date, nullable=True)
     earliest_checkout_date = Column(Date, nullable=True)
@@ -150,7 +151,7 @@ class LotteryApplication(MagModel):
     hotel_preference = Column(MultiChoice(c.HOTEL_LOTTERY_HOTELS_OPTS))
     room_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS))
     wants_ada = Column(Boolean, default=False)
-    ada_requests = Column(UnicodeText)
+    ada_requests = Column(String)
 
     room_opt_out = Column(Boolean, default=False)
     suite_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS))
@@ -164,7 +165,7 @@ class LotteryApplication(MagModel):
     booking_url_hidden = Column(Boolean, default=True)
 
     # If this is set then the above values are ignored
-    parent_application_id = Column(UUID, ForeignKey('lottery_application.id'), nullable=True)
+    parent_application_id = Column(Uuid(as_uuid=False), ForeignKey('lottery_application.id'), nullable=True)
     parent_application = relationship(
         'LotteryApplication',
         foreign_keys='LotteryApplication.parent_application_id',
@@ -172,9 +173,9 @@ class LotteryApplication(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='LotteryApplication.id',
         single_parent=True)
-    former_parent_id = Column(UUID, nullable=True)
+    former_parent_id = Column(Uuid(as_uuid=False), nullable=True)
 
-    room_group_name = Column(UnicodeText)
+    room_group_name = Column(String)
     email_model_name = 'app'
 
     assigned_hotel = Column(Choice(c.HOTEL_LOTTERY_HOTELS_OPTS), nullable=True)
@@ -183,8 +184,8 @@ class LotteryApplication(MagModel):
     assigned_check_in_date = Column(Date, nullable=True)
     assigned_check_out_date = Column(Date, nullable=True)
     deposit_cutoff_date = Column(Date, nullable=True)
-    lottery_name = Column(UnicodeText)
-    booking_url = Column(UnicodeText)
+    lottery_name = Column(String)
+    booking_url = Column(String)
 
     @presave_adjustment
     def unset_entry_type(self):
@@ -203,7 +204,7 @@ class LotteryApplication(MagModel):
     @assigned_room_or_suite_type.expression
     def assigned_room_or_suite_type(cls):
         return case(
-            [(cls.assigned_suite_type != None, cls.assigned_suite_type)],  # noqa: E711
+            (cls.assigned_suite_type != None, cls.assigned_suite_type),  # noqa: E711
             else_=cls.assigned_room_type)
 
     @hybrid_property

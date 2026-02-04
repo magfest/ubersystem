@@ -1,7 +1,6 @@
 from datetime import datetime
 import traceback
 
-from pockets import groupify, listify
 from sqlalchemy import func, or_
 
 from uber.automated_emails import AutomatedEmailFixture
@@ -10,7 +9,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, publ
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Email
 from uber.tasks.email import send_email
-from uber.utils import get_page
+from uber.utils import get_page, listify, groupify
 
 
 @all_renderable()

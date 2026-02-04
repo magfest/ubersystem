@@ -1,10 +1,8 @@
 from datetime import datetime, timedelta
 
 import cherrypy
-from pockets import classproperty, listify
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import Sequence
+from sqlalchemy import Sequence, Uuid, String, DateTime
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
@@ -12,9 +10,10 @@ from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date, Integer
 
 from uber.config import c
-from uber.decorators import presave_adjustment
-from uber.models import MagModel
+from uber.decorators import presave_adjustment, classproperty
 from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column
+from uber.models import MagModel
+from uber.utils import listify
 
 
 __all__ = ['AccessGroup', 'AdminAccount', 'EscalationTicket', 'PasswordReset', 'WatchList', 'WorkstationAssignment']
@@ -24,8 +23,8 @@ __all__ = ['AccessGroup', 'AdminAccount', 'EscalationTicket', 'PasswordReset', '
 admin_access_group = Table(
     'admin_access_group',
     MagModel.metadata,
-    Column('admin_account_id', UUID, ForeignKey('admin_account.id')),
-    Column('access_group_id', UUID, ForeignKey('access_group.id')),
+    Column('admin_account_id', Uuid(as_uuid=False), ForeignKey('admin_account.id')),
+    Column('access_group_id', Uuid(as_uuid=False), ForeignKey('access_group.id')),
     UniqueConstraint('admin_account_id', 'access_group_id'),
     Index('ix_admin_access_group_admin_account_id', 'admin_account_id'),
     Index('ix_admin_access_group_access_group_id', 'access_group_id'),
@@ -33,11 +32,11 @@ admin_access_group = Table(
 
 
 class AdminAccount(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
     access_groups = relationship(
         'AccessGroup', backref='admin_accounts', cascade='save-update,merge,refresh-expire,expunge',
         secondary='admin_access_group')
-    hashed = Column(UnicodeText, private=True)
+    hashed = Column(String, private=True)
 
     password_reset = relationship('PasswordReset', backref='admin_account', uselist=False)
 
@@ -46,7 +45,8 @@ class AdminAccount(MagModel):
         'ApiToken',
         primaryjoin='and_('
                     'AdminAccount.id == ApiToken.admin_account_id, '
-                    'ApiToken.revoked_time == None)')
+                    'ApiToken.revoked_time == None)',
+        overlaps="admin_account,api_tokens")
 
     judge = relationship('IndieJudge', uselist=False, backref='admin_account')
     print_requests = relationship('PrintJob', backref='admin_account',
@@ -255,10 +255,10 @@ class AdminAccount(MagModel):
 
 
 class PasswordReset(MagModel):
-    admin_id = Column(UUID, ForeignKey('admin_account.id'), unique=True, nullable=True)
-    attendee_id = Column(UUID, ForeignKey('attendee_account.id'), unique=True, nullable=True)
-    generated = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    hashed = Column(UnicodeText, private=True)
+    admin_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), unique=True, nullable=True)
+    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee_account.id'), unique=True, nullable=True)
+    generated = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    hashed = Column(String, private=True)
 
     @property
     def is_expired(self):
@@ -287,11 +287,11 @@ class AccessGroup(MagModel):
         (DEPT, 'All Info in Own Dept(s)'),
         (FULL, 'All Info')]
 
-    name = Column(UnicodeText)
+    name = Column(String)
     access = Column(MutableDict.as_mutable(JSONB), default={})
     read_only_access = Column(MutableDict.as_mutable(JSONB), default={})
-    start_time = Column(UTCDateTime, nullable=True)
-    end_time = Column(UTCDateTime, nullable=True)
+    start_time = Column(DateTime(timezone=True), nullable=True)
+    end_time = Column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
         return f"<AccessGroup id='{self.id}' name='{self.name}'>"
@@ -334,12 +334,12 @@ class AccessGroup(MagModel):
 
 
 class WatchList(MagModel):
-    first_names = Column(UnicodeText)
-    last_name = Column(UnicodeText)
-    email = Column(UnicodeText, default='')
+    first_names = Column(String)
+    last_name = Column(String)
+    email = Column(String, default='')
     birthdate = Column(Date, nullable=True, default=None)
-    reason = Column(UnicodeText)
-    action = Column(UnicodeText)
+    reason = Column(String)
+    action = Column(String)
     expiration = Column(Date, nullable=True, default=None)
     active = Column(Boolean, default=True)
     attendees = relationship('Attendee',  backref=backref('watch_list'), cascade='save-update,merge,refresh-expire,expunge')
@@ -362,8 +362,8 @@ class WatchList(MagModel):
 attendee_escalation_ticket = Table(
     'attendee_escalation_ticket',
     MagModel.metadata,
-    Column('attendee_id', UUID, ForeignKey('attendee.id')),
-    Column('escalation_ticket_id', UUID, ForeignKey('escalation_ticket.id')),
+    Column('attendee_id', Uuid(as_uuid=False), ForeignKey('attendee.id')),
+    Column('escalation_ticket_id', Uuid(as_uuid=False), ForeignKey('escalation_ticket.id')),
     UniqueConstraint('attendee_id', 'escalation_ticket_id'),
     Index('ix_attendee_escalation_ticket_attendee_id', 'attendee_id'),
     Index('ix_attendee_escalation_ticket_escalation_ticket_id', 'escalation_ticket_id'),
@@ -377,10 +377,10 @@ class EscalationTicket(MagModel):
         secondary='attendee_escalation_ticket')
     ticket_id_seq = Sequence('escalation_ticket_ticket_id_seq')
     ticket_id = Column(Integer, ticket_id_seq, server_default=ticket_id_seq.next_value(), unique=True)
-    who = Column(UnicodeText)
-    description = Column(UnicodeText)
-    admin_notes = Column(UnicodeText)
-    resolved = Column(UTCDateTime, nullable=True)
+    who = Column(String)
+    description = Column(String)
+    admin_notes = Column(String)
+    resolved = Column(DateTime(timezone=True), nullable=True)
 
     @property
     def attendee_names(self):
@@ -389,9 +389,9 @@ class EscalationTicket(MagModel):
 
 class WorkstationAssignment(MagModel):
     reg_station_id = Column(Integer)
-    printer_id = Column(UnicodeText)
-    minor_printer_id = Column(UnicodeText)
-    terminal_id = Column(UnicodeText)
+    printer_id = Column(String)
+    minor_printer_id = Column(String)
+    terminal_id = Column(String)
 
     @property
     def separate_printers(self):

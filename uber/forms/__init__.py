@@ -3,18 +3,20 @@ import json
 import re
 import six
 import cherrypy
+import logging
 
 from collections import defaultdict, OrderedDict
 from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, DateField, validators, Label
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError, StopValidation
 from wtforms.utils import unset_value
-from pockets.autolog import log
 from functools import wraps
 
 from uber.config import c
 from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, SwitchInput, Ranking, UniqueList, SelectButtonGroup
 from uber.model_checks import invalid_phone_number
+
+log = logging.getLogger(__name__)
 
 
 def bool_from_text(value):

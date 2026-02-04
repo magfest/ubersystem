@@ -1,12 +1,13 @@
 import cherrypy
-from pockets import sluggify
-from pockets.autolog import log
+import logging
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file, multifile_zipfile
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, MITSTeam, MITSGame
-from uber.utils import add_opt, check_csrf
+from uber.utils import add_opt, check_csrf, slugify
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable()
@@ -184,4 +185,4 @@ class Root:
 
         for game in query:
             for pic in game.pictures:
-                zip_file.write(pic.filepath, sluggify(pic.game.name) + "_" + pic.filename)
+                zip_file.write(pic.filepath, slugify(pic.game.name) + "_" + pic.filename)

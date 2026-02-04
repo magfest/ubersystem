@@ -2,14 +2,13 @@ from datetime import datetime
 
 import cherrypy
 from dateutil import parser as dateparser
-from pockets import sluggify
 from pytz import UTC
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax, ajax_gettable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Attraction, Department, DeptRole, Job, JobTemplate
-from uber.utils import get_api_service_from_server
+from uber.utils import get_api_service_from_server, slugify
 
 
 def _create_copy_department(from_department):
@@ -208,7 +207,7 @@ class Root:
 
                 to_dept_attractions = {attraction.slug: attraction for attraction in to_department.attractions}
                 for from_dept_attraction in from_department['attractions']:
-                    from_slug = sluggify(from_dept_attraction['name'])
+                    from_slug = slugify(from_dept_attraction['name'])
                     to_dept_attraction = to_dept_attractions.get(from_slug, None)
 
                     if not to_dept_attraction:

@@ -2,18 +2,20 @@ from collections import defaultdict
 from datetime import datetime, timedelta, time
 
 import cherrypy
+import logging
 from sqlalchemy import select, func, literal
-from sqlalchemy.orm import subqueryload
 from sqlalchemy.dialects.postgresql import aggregate_order_by
-from pockets.autolog import log
+from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, \
-    check_can_edit_dept, requires_shifts_admin, site_mappable
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, \
+    check_can_edit_dept, requires_shifts_admin
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Department, DeptRole, Job, JobTemplate
 from uber.utils import check, localized_now, redirect_to_allowed_dept, validate_model, date_trunc_day
+
+log = logging.getLogger(__name__)
 
 
 def job_dict(job, shifts=None):
@@ -69,7 +71,6 @@ def update_counts(job, counts):
 
 @all_renderable()
 class Root:
-    @department_id_adapter
     @requires_shifts_admin
     def index(self, session, department_id=None, message='', time=None):
         redirect_to_allowed_dept(session, department_id, 'index')
@@ -115,7 +116,6 @@ class Root:
             'dept_shifts_days': dept_shifts_days,
         }
 
-    @department_id_adapter
     @requires_shifts_admin
     def signups(self, session, department_id=None, message='', toggle_filter=''):
         if not toggle_filter:
@@ -149,7 +149,7 @@ class Root:
                 job_filters.append(Job.restricted == False)  # noqa: E712
             if not show_nonpublic:
                 job_filters.append(Job.department_id.in_(
-                    select([Department.id]).where(
+                    select(Department.id).where(
                         Department.solicits_volunteers == True)))  # noqa: E712
 
             jobs = session.jobs().filter(*job_filters)
@@ -171,7 +171,6 @@ class Root:
             'checklist': department_id and checklist
         }
 
-    @department_id_adapter
     @requires_shifts_admin
     def unfilled_shifts(self, session, department_id=None, message='', toggle_filter=''):
         """
@@ -208,7 +207,7 @@ class Root:
                 job_filters.append(Job.restricted == False)  # noqa: E712
             if not show_nonpublic:
                 job_filters.append(Job.department_id.in_(
-                    select([Department.id]).where(
+                    select(Department.id).where(
                         Department.solicits_volunteers == True)))  # noqa: E712
 
             jobs = session.jobs().filter(*job_filters)
@@ -223,7 +222,6 @@ class Root:
             'jobs': [job_dict(job) for job in jobs],
         }
 
-    @department_id_adapter
     @requires_shifts_admin
     def staffers(self, session, department_id=None, message=''):
         redirect_to_allowed_dept(session, department_id, 'staffers')

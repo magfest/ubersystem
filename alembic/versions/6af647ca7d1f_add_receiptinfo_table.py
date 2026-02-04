@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -54,7 +53,7 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('receipt_info',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('fk_email_model', sa.Unicode(), server_default='', nullable=False),
     sa.Column('fk_email_id', sa.Unicode(), server_default='', nullable=False),
     sa.Column('terminal_id', sa.Unicode(), server_default='', nullable=False),
@@ -64,11 +63,11 @@ def upgrade():
     sa.Column('txn_info', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('emv_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('signature', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('charged', residue.UTCDateTime(), nullable=False),
-    sa.Column('voided', residue.UTCDateTime(), nullable=True),
+    sa.Column('charged', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('voided', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_receipt_info'))
     )
-    op.add_column('receipt_transaction', sa.Column('receipt_info_id', residue.UUID(), nullable=True))
+    op.add_column('receipt_transaction', sa.Column('receipt_info_id', sa.Uuid(as_uuid=False), nullable=True))
     op.create_foreign_key(op.f('fk_receipt_transaction_receipt_info_id_receipt_info'), 'receipt_transaction', 'receipt_info', ['receipt_info_id'], ['id'], ondelete='SET NULL')
 
 
