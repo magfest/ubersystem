@@ -823,7 +823,7 @@ class DeptChecklistEmailFixture(AutomatedEmailFixture):
                 not d.checklist_item_for_slug(conf.slug)
                 for d in a.checklist_admin_depts),
             ident='department_checklist_{}'.format(conf.name),
-            when=[when],
+            when=when,
             sender=c.STAFF_EMAIL,
             extra_data={'conf': conf},
             allow_post_con=conf.email_post_con)
@@ -1010,7 +1010,7 @@ if c.ENABLED_INDIES_STR:
         lambda studio: not studio.games,
         ident='mivs_studio_submission_reminder',
         sender=c.INDIE_SHOWCASE_EMAIL,
-        when=days_before(7, c.MIVS_DEADLINE)
+        when=[days_before(7, c.MIVS_DEADLINE)]
     )
     AutomatedEmailFixture(
         IndieStudio,
@@ -1019,7 +1019,7 @@ if c.ENABLED_INDIES_STR:
         lambda studio: not studio.games,
         ident='mivs_game_submission_final_reminder',
         sender=c.INDIE_SHOWCASE_EMAIL,
-        when=days_before(2, c.MIVS_DEADLINE))
+        when=[days_before(2, c.MIVS_DEADLINE)])
 
     AutomatedEmailFixture(
         IndieJudge,

@@ -12,7 +12,7 @@ x-uber: &uber
     - uber_cherrypy_server_socket_timeout=1
     - uber_cherrypy_tools_sessions_host=redis
     - uber_cherrypy_tools_sessions_prefix=uber
-    - uber_cherrypy_tools_sessions_storage_class=cherrypy.lib.sessions.RedisSession
+    - uber_cherrypy_tools_sessions_storage_class=RedisSession
     - uber_loggers_cherrypy_access=DEBUG
     - uber_redis_host=redis
     - uber_secret_broker_url=amqp://celery:celery@rabbitmq:5672/uber

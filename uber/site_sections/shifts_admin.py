@@ -9,7 +9,7 @@ from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, \
-    check_can_edit_dept, requires_shifts_admin
+    check_can_edit_dept, requires_shifts_admin, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Department, DeptRole, Job, JobTemplate
