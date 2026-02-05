@@ -104,7 +104,7 @@ class AdminAccount(MagModel):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session.get('account_id')
+                id = id or cherrypy.session.get('account_id', cherrypy.request.admin_account)
                 account = session.admin_account(id)
                 if include_read_only:
                     return account.read_or_write_access_set
@@ -178,7 +178,7 @@ class AdminAccount(MagModel):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session.get('account_id')
+                id = id or cherrypy.session.get('account_id', cherrypy.request.admin_account)
                 admin_account = session.admin_account(id)
                 return admin_account.judge or 'showcase_judging' in admin_account.read_or_write_access_set
         except Exception:
