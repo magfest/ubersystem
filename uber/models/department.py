@@ -157,7 +157,7 @@ class DeptRole(MagModel):
 
     dept_memberships = relationship(
         'DeptMembership',
-        backref='dept_roles',
+        backref=backref('dept_roles', lazy='selectin'),
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='dept_membership_dept_role')
 
@@ -211,13 +211,13 @@ class Department(MagModel):
     handles_cash = Column(Boolean, default=False)
     panels_desc = Column(String)
 
-    jobs = relationship('Job', backref='department')
-    job_templates = relationship('JobTemplate', backref='department')
+    jobs = relationship('Job', backref=backref('department', lazy='joined'))
+    job_templates = relationship('JobTemplate', backref=backref('department', lazy='joined'))
     locations = relationship('EventLocation', backref='department')
     events = relationship('Event', backref='department')
 
-    dept_checklist_items = relationship('DeptChecklistItem', backref='department')
-    dept_roles = relationship('DeptRole', backref='department')
+    dept_checklist_items = relationship('DeptChecklistItem', backref=backref('department', lazy='joined'))
+    dept_roles = relationship('DeptRole', backref=backref('department', lazy='joined'))
     dept_heads = relationship(
         'Attendee',
         backref=backref('headed_depts', order_by='Department.name'),
@@ -272,8 +272,9 @@ class Department(MagModel):
         order_by='Attendee.full_name',
         overlaps="attendee,dept_memberships",
         secondary='dept_membership')
-    memberships = relationship('DeptMembership', backref=backref('department', overlaps="assigned_depts,members"), overlaps="assigned_depts,members")
-    membership_requests = relationship('DeptMembershipRequest', backref='department')
+    memberships = relationship('DeptMembership', backref=backref('department', lazy='joined', overlaps="assigned_depts,members"),
+                               overlaps="assigned_depts,members")
+    membership_requests = relationship('DeptMembershipRequest', backref=backref('department', lazy='joined'))
     explicitly_requesting_attendees = relationship(
         'Attendee',
         backref=backref('explicitly_requested_depts', order_by='Department.name', overlaps="attendee,dept_membership_requests,department,membership_requests"),
@@ -422,8 +423,9 @@ class Job(MagModel):
     all_roles_required = Column(Boolean, default=True)
 
     required_roles = relationship(
-        'DeptRole', backref='jobs', cascade='save-update,merge,refresh-expire,expunge', secondary='job_required_role')
-    shifts = relationship('Shift', backref='job')
+        'DeptRole', backref='jobs', lazy='selectin',
+        cascade='save-update,merge,refresh-expire,expunge', secondary='job_required_role')
+    shifts = relationship('Shift', backref=backref('job', lazy='joined'), lazy='selectin')
 
     __table_args__ = (
         Index('ix_job_department_id', department_id),
@@ -700,8 +702,9 @@ class JobTemplate(MagModel):
     interval = Column(Integer, nullable=True)
 
     required_roles = relationship(
-        'DeptRole', backref='job_templates', cascade='save-update,merge,refresh-expire,expunge', secondary='job_template_required_role')
-    jobs = relationship('Job', backref='template', cascade='save-update,merge,refresh-expire,expunge')
+        'DeptRole', backref='job_templates', lazy='selectin',
+        cascade='save-update,merge,refresh-expire,expunge', secondary='job_template_required_role')
+    jobs = relationship('Job', backref=backref('template', lazy='select'), cascade='save-update,merge,refresh-expire,expunge')
 
     @presave_adjustment
     def zero_slots(self):

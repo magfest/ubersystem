@@ -331,12 +331,12 @@ class ReceiptTransaction(MagModel):
 
     receipt_id = Column(Uuid(as_uuid=False), ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
-                           cascade='save-update, merge',
-                           backref=backref('receipt_txns', cascade='save-update, merge'))
+                           cascade='save-update, merge', lazy='joined',
+                           backref=backref('receipt_txns', lazy='selectin', cascade='save-update, merge'))
     receipt_info_id = Column(Uuid(as_uuid=False), ForeignKey('receipt_info.id', ondelete='SET NULL'), nullable=True)
     receipt_info = relationship('ReceiptInfo', foreign_keys=receipt_info_id,
                                 cascade='save-update, merge',
-                                backref=backref('receipt_txns', cascade='save-update, merge'))
+                                backref=backref('receipt_txns', lazy='selectin', cascade='save-update, merge'))
     refunded_txn_id = Column(Uuid(as_uuid=False), ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True)
     refunded_txn = relationship('ReceiptTransaction', foreign_keys='ReceiptTransaction.refunded_txn_id',
                                 backref=backref('refund_txns', order_by='ReceiptTransaction.added'),
@@ -539,11 +539,11 @@ class ReceiptItem(MagModel):
     purchaser_id = Column(Uuid(as_uuid=False), index=True, nullable=True)
     receipt_id = Column(Uuid(as_uuid=False), ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
-                           cascade='save-update, merge',
-                           backref=backref('receipt_items', cascade='save-update, merge'))
+                           cascade='save-update, merge', lazy='joined',
+                           backref=backref('receipt_items', lazy='selectin', cascade='save-update, merge'))
     txn_id = Column(Uuid(as_uuid=False), ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True)
     receipt_txn = relationship('ReceiptTransaction', foreign_keys=txn_id,
-                               cascade='save-update, merge',
+                               cascade='save-update, merge', lazy='joined',
                                backref=backref('receipt_items', cascade='save-update, merge'))
     fk_id = Column(Uuid(as_uuid=False), index=True, nullable=True)
     fk_model = Column(String)

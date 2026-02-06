@@ -10,7 +10,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, String, Uuid, DateTime
 
@@ -19,7 +19,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment, renderable_data, cached_property, classproperty
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column
+from uber.models.types import DefaultColumn as Column, default_relationship as relationship
 from uber.utils import normalize_newlines, request_cached_context, groupify
 
 log = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     active_before = Column(DateTime(timezone=True), nullable=True, default=None)
     revert_changes = Column(MutableDict.as_mutable(JSONB), default={})
 
-    emails = relationship('Email', backref='automated_email', order_by='Email.id')
+    emails = relationship('Email', backref=backref('automated_email', lazy='joined'), order_by='Email.id')
 
     @presave_adjustment
     def date_adjustments(self):

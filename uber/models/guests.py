@@ -41,21 +41,21 @@ class GuestGroup(MagModel):
     wants_mc = Column(Boolean, nullable=True)
     needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
     badges_assigned = Column(Boolean, default=False)
-    info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
+    info = relationship('GuestInfo', backref=backref('guest', lazy='joined'), uselist=False)
     images = relationship(
-        'GuestImage', backref=backref('guest', load_on_pending=True), order_by='GuestImage.id')
-    bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
-    taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
-    stage_plot = relationship('GuestStagePlot', backref=backref('guest', load_on_pending=True), uselist=False)
-    panel = relationship('GuestPanel', backref=backref('guest', load_on_pending=True), uselist=False)
-    merch = relationship('GuestMerch', backref=backref('guest', load_on_pending=True), uselist=False)
-    tracks = relationship('GuestTrack', backref=backref('guest', load_on_pending=True))
-    charity = relationship('GuestCharity', backref=backref('guest', load_on_pending=True), uselist=False)
-    autograph = relationship('GuestAutograph', backref=backref('guest', load_on_pending=True), uselist=False)
-    interview = relationship('GuestInterview', backref=backref('guest', load_on_pending=True), uselist=False)
-    travel_plans = relationship('GuestTravelPlans', backref=backref('guest', load_on_pending=True), uselist=False)
-    hospitality = relationship('GuestHospitality', backref=backref('guest', load_on_pending=True), uselist=False)
-    media_request = relationship('GuestMediaRequest', backref=backref('guest', load_on_pending=True), uselist=False)
+        'GuestImage', backref=backref('guest'), order_by='GuestImage.id')
+    bio = relationship('GuestBio', backref=backref('guest', lazy='joined'), uselist=False)
+    taxes = relationship('GuestTaxes', backref=backref('guest', lazy='joined'), uselist=False)
+    stage_plot = relationship('GuestStagePlot', backref=backref('guest', lazy='joined'), uselist=False)
+    panel = relationship('GuestPanel', backref=backref('guest', lazy='joined'), uselist=False)
+    merch = relationship('GuestMerch', backref=backref('guest', lazy='joined'), uselist=False)
+    tracks = relationship('GuestTrack', backref=backref('guest', lazy='joined'))
+    charity = relationship('GuestCharity', backref=backref('guest', lazy='joined'), uselist=False)
+    autograph = relationship('GuestAutograph', backref=backref('guest', lazy='joined'), uselist=False)
+    interview = relationship('GuestInterview', backref=backref('guest', lazy='joined'), uselist=False)
+    travel_plans = relationship('GuestTravelPlans', backref=backref('guest', lazy='joined'), uselist=False)
+    hospitality = relationship('GuestHospitality', backref=backref('guest', lazy='joined'), uselist=False)
+    media_request = relationship('GuestMediaRequest', backref=backref('guest', lazy='joined'), uselist=False)
 
     email_model_name = 'guest'
 
@@ -801,7 +801,7 @@ class GuestMediaRequest(MagModel):
 class GuestDetailedTravelPlan(MagModel):
     travel_plans_id = Column(Uuid(as_uuid=False), ForeignKey('guest_travel_plans.id'), nullable=True)
     travel_plans = relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
-                                backref=backref('detailed_travel_plans'),
+                                backref=backref('detailed_travel_plans', lazy='selectin'), lazy='joined',
                                 cascade='save-update,merge,refresh-expire,expunge')
     mode = Column(Choice(c.GUEST_TRAVEL_OPTS))
     mode_text = Column(String)

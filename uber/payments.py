@@ -723,7 +723,7 @@ class AuthNetRequestMixin:
     def log_authorizenet_response(self, intent_id, txn_info, card_info):
         from uber.models import ReceiptInfo, ReceiptTransaction, Session
         
-        session = Session().session
+        session = Session()
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
 
         # AuthNet returns "StringElement" but we want strings
@@ -1808,7 +1808,7 @@ class ReceiptManager:
         from uber.tasks.email import send_email
         from uber.decorators import render
 
-        session = Session().session
+        session = Session()
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).filter(
             ReceiptTransaction.charge_id == '').all()
 

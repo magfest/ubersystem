@@ -91,7 +91,7 @@ class Room(MagModel, NightsMixin):
     locked_in = Column(Boolean, default=False)
     nights = Column(MultiChoice(c.NIGHT_OPTS))
     created = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    assignments = relationship('RoomAssignment', backref='room')
+    assignments = relationship('RoomAssignment', backref=backref('room', lazy='joined'))
 
     @property
     def email(self):
@@ -122,7 +122,7 @@ class RoomAssignment(MagModel):
 
 class LotteryApplication(MagModel):
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True, nullable=True)
-    attendee = relationship('Attendee', backref=backref('lottery_application', uselist=False),
+    attendee = relationship('Attendee', lazy='joined', backref=backref('lottery_application', uselist=False),
                             cascade='save-update,merge,refresh-expire,expunge',
                             uselist=False)
     invite_code = Column(String) # Not used for now but we're keeping it for later
@@ -168,6 +168,7 @@ class LotteryApplication(MagModel):
     parent_application_id = Column(Uuid(as_uuid=False), ForeignKey('lottery_application.id'), nullable=True)
     parent_application = relationship(
         'LotteryApplication',
+        lazy='joined',
         foreign_keys='LotteryApplication.parent_application_id',
         backref=backref('group_members'),
         cascade='save-update,merge,refresh-expire,expunge',

@@ -34,13 +34,13 @@ admin_access_group = Table(
 class AdminAccount(MagModel):
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
     access_groups = relationship(
-        'AccessGroup', backref='admin_accounts', cascade='save-update,merge,refresh-expire,expunge',
+        'AccessGroup', backref='admin_accounts', lazy='selectin', cascade='save-update,merge,refresh-expire,expunge',
         secondary='admin_access_group')
     hashed = Column(String, private=True)
 
-    password_reset = relationship('PasswordReset', backref='admin_account', uselist=False)
+    password_reset = relationship('PasswordReset', backref='admin_account', lazy='select', uselist=False)
 
-    api_tokens = relationship('ApiToken', backref='admin_account')
+    api_tokens = relationship('ApiToken', backref=backref('admin_account', lazy='joined'))
     active_api_tokens = relationship(
         'ApiToken',
         primaryjoin='and_('
@@ -342,7 +342,8 @@ class WatchList(MagModel):
     action = Column(String)
     expiration = Column(Date, nullable=True, default=None)
     active = Column(Boolean, default=True)
-    attendees = relationship('Attendee',  backref=backref('watch_list'), cascade='save-update,merge,refresh-expire,expunge')
+    attendees = relationship('Attendee', lazy='selectin',
+                             backref=backref('watch_list'), cascade='save-update,merge,refresh-expire,expunge')
 
     @property
     def full_name(self):
@@ -372,7 +373,7 @@ attendee_escalation_ticket = Table(
 
 class EscalationTicket(MagModel):
     attendees = relationship(
-        'Attendee', backref='escalation_tickets', order_by='Attendee.full_name',
+        'Attendee', lazy='selectin', backref='escalation_tickets', order_by='Attendee.full_name',
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='attendee_escalation_ticket')
     ticket_id_seq = Sequence('escalation_ticket_ticket_id_seq')

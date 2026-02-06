@@ -28,7 +28,7 @@ __all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPay
 
 class ArtShowAgentCode(MagModel):
     app_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id'))
-    app = relationship('ArtShowApplication',
+    app = relationship('ArtShowApplication', lazy='joined',
                        backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
                        foreign_keys=app_id,
                        cascade='merge,refresh-expire,expunge')
@@ -57,7 +57,7 @@ class ArtShowAgentCode(MagModel):
 class ArtShowApplication(MagModel):
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
                          nullable=True)
-    attendee = relationship('Attendee', foreign_keys=attendee_id, cascade='save-update, merge',
+    attendee = relationship('Attendee', lazy='joined', foreign_keys=attendee_id, cascade='save-update, merge',
                             backref=backref('art_show_applications', cascade='save-update, merge'))
     checked_in = Column(DateTime(timezone=True), nullable=True)
     checked_out = Column(DateTime(timezone=True), nullable=True)
@@ -98,10 +98,11 @@ class ArtShowApplication(MagModel):
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(ArtShowApplication.id),'
         'ModelReceipt.owner_model == "ArtShowApplication",'
         'ModelReceipt.closed == None)',
+        lazy='select',
         uselist=False)
     default_cost = Column(Integer, nullable=True)
 
-    assignments = relationship('ArtPanelAssignment', backref='app')
+    assignments = relationship('ArtPanelAssignment', backref=backref('app', lazy='joined'))
 
     email_model_name = 'app'
 
@@ -438,7 +439,7 @@ class ArtShowApplication(MagModel):
 class ArtShowPiece(MagModel):
     app_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id', ondelete='SET NULL'), nullable=True)
     app = relationship('ArtShowApplication', foreign_keys=app_id,
-                       cascade='save-update, merge',
+                       cascade='save-update, merge', lazy='joined',
                        backref=backref('art_show_pieces',
                                        cascade='save-update, merge'))
     receipt_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
@@ -590,7 +591,7 @@ class ArtShowPanel(MagModel):
     start_label = Column(String)
     end_label = Column(String)
 
-    assignments = relationship('ArtPanelAssignment', backref='panel')
+    assignments = relationship('ArtPanelAssignment', lazy='selectin', backref=backref('panel', lazy='joined'))
 
     __table_args__ = (
         UniqueConstraint('gallery', 'surface_type', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'),
@@ -654,9 +655,9 @@ class ArtPanelAssignment(MagModel):
 
 class ArtShowPayment(MagModel):
     receipt_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
-    receipt = relationship('ArtShowReceipt', foreign_keys=receipt_id,
+    receipt = relationship('ArtShowReceipt', lazy='joined', foreign_keys=receipt_id,
                            cascade='save-update, merge',
-                           backref=backref('art_show_payments',
+                           backref=backref('art_show_payments', lazy='selectin',
                                            cascade='save-update, merge'))
     amount = Column(Integer, default=0)
     type = Column(Choice(c.ART_SHOW_PAYMENT_OPTS), default=c.STRIPE, admin_only=True)

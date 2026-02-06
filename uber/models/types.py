@@ -67,6 +67,7 @@ def default_relationship(*args, **kwargs):
         kwargs.setdefault('cascade', 'expunge,refresh-expire,merge')
     else:
         kwargs.setdefault('cascade', 'all,delete-orphan')
+    kwargs.setdefault('lazy', 'raise')
     return SQLAlchemy_relationship(*args, **kwargs)
 
 

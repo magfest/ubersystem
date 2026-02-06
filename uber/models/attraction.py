@@ -166,8 +166,8 @@ class Attraction(MagModel, AttractionMixin):
             uselist=True),
         order_by='Department.name')
     features = relationship(
-        'AttractionFeature',
-        backref='attraction',
+        'AttractionFeature', lazy='selectin',
+        backref=backref('attraction', lazy='joined'),
         order_by='[AttractionFeature.name, AttractionFeature.id]')
     public_features = relationship(
         'AttractionFeature',
@@ -178,11 +178,11 @@ class Attraction(MagModel, AttractionMixin):
         order_by='[AttractionFeature.name, AttractionFeature.id]')
     events = relationship(
         'AttractionEvent',
-        backref='attraction',
+        backref=backref('attraction', lazy='joined'),
         order_by='[AttractionEvent.start_time, AttractionEvent.id]')
     signups = relationship(
         'AttractionSignup',
-        backref='attraction',
+        backref=backref('attraction', lazy='joined'),
         viewonly=True,
         order_by='[AttractionSignup.checkin_time, AttractionSignup.id]')
 
@@ -351,7 +351,8 @@ class AttractionFeature(MagModel, AttractionMixin):
     attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
 
     events = relationship(
-        'AttractionEvent', backref='feature', order_by='[AttractionEvent.start_time, AttractionEvent.id]')
+        'AttractionEvent', backref=backref('feature', lazy='joined'), lazy='selectin',
+        order_by='[AttractionEvent.start_time, AttractionEvent.id]')
 
     __table_args__ = (
         UniqueConstraint('name', 'attraction_id'),
@@ -467,14 +468,6 @@ class AttractionFeature(MagModel, AttractionMixin):
         return groupify(self.available_events, 'start_day_local')
 
 
-# =====================================================================
-# TODO: This, along with the panels.models.Event class, should be
-#       refactored into a more generic "SchedulableMixin". Any model
-#       class that has a location, a start time, and a duration would
-#       inherit from the SchedulableMixin. Unfortunately the
-#       panels.models.Event stores its duration as an integer number
-#       of half hours, thus is not usable by Attractions.
-# =====================================================================
 class AttractionEvent(MagModel, AttractionMixin):
     attraction_feature_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_feature.id'))
     attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), index=True)
@@ -483,14 +476,17 @@ class AttractionEvent(MagModel, AttractionMixin):
     start_time = Column(DateTime(timezone=True), default=c.EPOCH)
     duration = Column(Integer, default=60)
 
-    signups = relationship('AttractionSignup', backref='event', order_by='AttractionSignup.checkin_time')
+    signups = relationship('AttractionSignup', backref=backref('event', lazy='joined'),
+                           order_by='AttractionSignup.checkin_time')
 
     attendee_signups = association_proxy('signups', 'attendee')
 
-    notifications = relationship('AttractionNotification', backref='event', order_by='AttractionNotification.sent_time')
+    notifications = relationship('AttractionNotification', backref=backref('event', lazy='joined'),
+                                 order_by='AttractionNotification.sent_time')
 
     notification_replies = relationship(
-        'AttractionNotificationReply', backref='event', order_by='AttractionNotificationReply.sid')
+        'AttractionNotificationReply', backref=backref('event', lazy='joined'),
+        order_by='AttractionNotificationReply.sid')
 
     attendees = relationship(
         'Attendee',
@@ -765,7 +761,7 @@ class AttractionSignup(MagModel):
     notifications = relationship(
         'AttractionNotification',
         backref=backref(
-            'signup',
+            'signup', lazy='joined',
             cascade='merge',
             uselist=False,
             viewonly=True),

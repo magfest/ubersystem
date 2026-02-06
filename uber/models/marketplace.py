@@ -19,7 +19,7 @@ class ArtistMarketplaceApplication(MagModel):
     MATCHING_DEALER_FIELDS = ['email_address', 'website', 'name']
 
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
-    attendee = relationship('Attendee', backref=backref('marketplace_application', uselist=False),
+    attendee = relationship('Attendee', lazy='joined', backref=backref('marketplace_application', uselist=False),
                             cascade='save-update,merge,refresh-expire,expunge',
                             uselist=False)
     name = Column(String)

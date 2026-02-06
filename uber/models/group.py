@@ -70,14 +70,16 @@ class Group(MagModel, TakesPaymentMixin):
         remote_side='Attendee.id',
         single_parent=True)
     leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
-    studio = relationship('IndieStudio', uselist=False, backref='group', cascade='save-update,merge,refresh-expire,expunge')
-    guest = relationship('GuestGroup', backref='group', uselist=False)
+    studio = relationship('IndieStudio', uselist=False, backref='group',
+                          cascade='save-update,merge,refresh-expire,expunge')
+    guest = relationship('GuestGroup', backref=backref('group', lazy='joined'), uselist=False)
     active_receipt = relationship(
         'ModelReceipt',
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Group.id),'
         'ModelReceipt.owner_model == "Group",'
         'ModelReceipt.closed == None)',
+        lazy='select',
         uselist=False)
     terms_conditions_doc = relationship(
         'SignedDocument',

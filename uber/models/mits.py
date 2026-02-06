@@ -5,6 +5,7 @@ from datetime import datetime
 
 from pytz import UTC
 from sqlalchemy import and_
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Uuid, DateTime, String
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -35,10 +36,10 @@ class MITSTeam(MagModel):
     applied = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     status = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
 
-    applicants = relationship('MITSApplicant', backref='team')
-    games = relationship('MITSGame', backref='team')
-    schedule = relationship('MITSTimes', uselist=False, backref='team')
-    panel_app = relationship('MITSPanelApplication', uselist=False, backref='team')
+    applicants = relationship('MITSApplicant', backref=backref('team', lazy='joined'))
+    games = relationship('MITSGame', lazy='selectin', backref=backref('team', lazy='joined'))
+    schedule = relationship('MITSTimes', uselist=False, backref=backref('team', lazy='joined'))
+    panel_app = relationship('MITSPanelApplication', uselist=False, backref=backref('team', lazy='joined'))
 
     duplicate_of = Column(Uuid(as_uuid=False), nullable=True)
     deleted = Column(Boolean, default=False)
@@ -175,8 +176,8 @@ class MITSGame(MagModel):
     unlicensed = Column(Boolean, default=False)
     professional = Column(Boolean, default=False)
     tournament = Column(Boolean, default=False)
-    pictures = relationship('MITSPicture', backref='game')
-    documents = relationship('MITSDocument', backref='game')
+    pictures = relationship('MITSPicture', lazy='selectin', backref=backref('game', lazy='joined'))
+    documents = relationship('MITSDocument', lazy='selectin', backref=backref('game', lazy='joined'))
 
     @hybrid_property
     def has_been_accepted(self):

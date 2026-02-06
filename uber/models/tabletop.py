@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pytz import UTC
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, DateTime, String, Uuid
 
@@ -16,7 +17,7 @@ class TabletopGame(MagModel):
     name = Column(String)
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
     returned = Column(Boolean, default=False)
-    checkouts = relationship('TabletopCheckout', order_by='TabletopCheckout.checked_out', backref='game')
+    checkouts = relationship('TabletopCheckout', order_by='TabletopCheckout.checked_out', backref=backref('game', lazy='joined'))
 
     _repr_attr_names = ['name']
 

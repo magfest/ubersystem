@@ -185,6 +185,13 @@ class MagModel(DeclarativeBase):
     def _class_attrs(cls):
         return {s: getattr(cls, s) for s in cls._class_attr_names}
 
+    @cached_classproperty
+    def to_dict_default_attrs(cls):
+        try:
+            return list(cls.__table__.columns.keys())
+        except AttributeError:
+            raise NotImplementedError("to_dict_default_attrs is only availale for tables")
+
     def _invoke_adjustment_callbacks(self, label):
         callbacks = []
         for name, attr in self._class_attrs.items():
@@ -2218,6 +2225,13 @@ class UberSession(sqlalchemy.orm.Session):
         return collect_subclasses(cls.BaseClass)
 
     @classmethod
+    def resolve_model(cls, name):
+        models_by_class = {ModelClass.__name__: ModelClass for ModelClass in cls.all_models()}
+        if name in models_by_class:
+            return models_by_class[name]
+        raise ValueError('Unrecognized model: {}'.format(name))
+
+    @classmethod
     def model_mixin(cls, model):
         if model.__name__ in ['SessionMixin', 'QuerySubclass']:
             target = getattr(cls, model.__name__)
@@ -2251,6 +2265,7 @@ SessionFactory = sessionmaker(
 _ScopedSession = scoped_session(SessionFactory)
 _ScopedSession.model_mixin = UberSession.model_mixin
 _ScopedSession.all_models = UberSession.all_models
+_ScopedSession.resolve_model = UberSession.resolve_model
 _ScopedSession.engine = engine
 _ScopedSession.BaseClass = DeclarativeBase
 _ScopedSession.SessionMixin = UberSession.SessionMixin

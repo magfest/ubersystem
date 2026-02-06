@@ -9,6 +9,7 @@ from pytz import UTC
 from dateutil import parser as dateparser
 from sqlalchemy import exists, func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import Index, ForeignKey
 from sqlalchemy.types import Integer, Uuid, String, DateTime
 
@@ -136,7 +137,7 @@ class PromoCodeGroup(MagModel):
     registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     buyer_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     buyer = relationship(
-        'Attendee', backref='promo_code_groups',
+        'Attendee', backref='promo_code_groups', lazy='joined',
         foreign_keys=buyer_id,
         cascade='save-update,merge,refresh-expire,expunge')
 
@@ -318,7 +319,7 @@ class PromoCode(MagModel):
 
     group_id = Column(Uuid(as_uuid=False), ForeignKey('promo_code_group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(
-        PromoCodeGroup, backref='promo_codes',
+        PromoCodeGroup, backref=backref('promo_codes', lazy='selectin'), lazy='joined',
         foreign_keys=group_id,
         cascade='save-update,merge,refresh-expire,expunge')
 

@@ -8,6 +8,7 @@ from functools import wraps
 from markupsafe import Markup
 from pytz import UTC
 from sqlalchemy import func, case, or_
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -46,8 +47,8 @@ class IndieJudge(MagModel, ReviewMixin):
     vr_text = Column(String)
     staff_notes = Column(String)
 
-    codes = relationship('IndieGameCode', backref='judge')
-    reviews = relationship('IndieGameReview', backref='judge')
+    codes = relationship('IndieGameCode', lazy='selectin', backref=backref('judge', lazy='joined'))
+    reviews = relationship('IndieGameReview', lazy='selectin', backref=backref('judge', lazy='joined'))
 
     email_model_name = 'judge'
 
@@ -152,10 +153,10 @@ class IndieStudio(MagModel):
     logistics_updated = Column(Boolean, default=False)
 
     games = relationship(
-        'IndieGame', backref='studio', order_by='IndieGame.title')
+        'IndieGame', backref=backref('studio', lazy='joined'), lazy='selectin', order_by='IndieGame.title')
     developers = relationship(
         'IndieDeveloper',
-        backref='studio',
+        backref=backref('studio', lazy='joined'),
         order_by='IndieDeveloper.last_name')
 
     email_model_name = 'studio'
@@ -347,7 +348,7 @@ class IndieDeveloper(MagModel):
 class IndieGame(MagModel, ReviewMixin):
     studio_id = Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id'))
     primary_contact_id = Column(Uuid(as_uuid=False), ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True)
-    primary_contact = relationship(IndieDeveloper, backref='arcade_games',
+    primary_contact = relationship(IndieDeveloper, backref='arcade_games', lazy='joined',
                                    foreign_keys=primary_contact_id, cascade='save-update,merge,refresh-expire,expunge')
 
     title = Column(String)
@@ -417,10 +418,10 @@ class IndieGame(MagModel, ReviewMixin):
     waitlisted = Column(DateTime(timezone=True), nullable=True)
     accepted = Column(DateTime(timezone=True), nullable=True)
 
-    codes = relationship('IndieGameCode', backref='game')
-    reviews = relationship('IndieGameReview', backref='game')
+    codes = relationship('IndieGameCode', lazy='selectin', backref=backref('game', lazy='joined'))
+    reviews = relationship('IndieGameReview', backref=backref('game', lazy='joined'))
     images = relationship(
-        'IndieGameImage', backref='game', order_by='IndieGameImage.id')
+        'IndieGameImage', lazy='selectin', backref=backref('game', lazy='joined'), order_by='IndieGameImage.id')
 
     email_model_name = 'game'
 

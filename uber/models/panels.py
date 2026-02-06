@@ -35,9 +35,9 @@ class EventLocation(MagModel):
     room = Column(String)
     tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
 
-    events = relationship('Event', backref=backref('location', cascade="save-update,merge"),
+    events = relationship('Event', backref=backref('location', lazy='joined', cascade="save-update,merge"),
                           cascade="save-update,merge", single_parent=True)
-    attractions = relationship('AttractionEvent', backref=backref('location', cascade="save-update,merge"),
+    attractions = relationship('AttractionEvent', backref=backref('location', lazy='joined', cascade="save-update,merge"),
                           cascade="save-update,merge", single_parent=True)
 
     @property
@@ -89,14 +89,14 @@ class Event(MagModel):
     public_description = Column(String)
     tracks = Column(MultiChoice(c.EVENT_TRACK_OPTS))
 
-    assigned_panelists = relationship('AssignedPanelist', backref='event')
-    applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"),
+    assigned_panelists = relationship('AssignedPanelist', backref=backref('event', lazy='joined'))
+    applications = relationship('PanelApplication', backref=backref('event', lazy='joined', cascade="save-update,merge"),
                                 cascade="save-update,merge")
     panel_feedback = relationship('EventFeedback', backref='event')
     guest = relationship('GuestGroup', backref=backref('event', cascade="save-update,merge"),
                          cascade='save-update,merge')
     attraction = relationship('AttractionEvent', backref=backref(
-        'schedule_item', cascade="save-update,merge", uselist=False
+        'schedule_item', lazy='joined', cascade="save-update,merge", uselist=False
         ), cascade='save-update,merge')
 
     @property
@@ -205,7 +205,7 @@ class PanelApplication(MagModel):
     comments = Column(String, admin_only=True)
     tags = Column(UniqueList, admin_only=True)
 
-    applicants = relationship('PanelApplicant', backref='applications',
+    applicants = relationship('PanelApplicant', lazy='selectin', backref=backref('applications', lazy='selectin'),
                               cascade='save-update,merge,refresh-expire,expunge',
                               secondary='panel_applicant_application')
 

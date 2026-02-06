@@ -149,7 +149,7 @@ normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffix
 class BadgeInfo(MagModel):
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True, default=None)
     attendee = relationship('Attendee', backref=backref('allocated_badges', cascade='merge,refresh-expire,expunge'),
-                            foreign_keys=attendee_id,
+                            foreign_keys=attendee_id, lazy='joined',
                             cascade='save-update,merge,refresh-expire,expunge', single_parent=True)
     active = Column(Boolean, default=False)
     picked_up = Column(DateTime(timezone=True), nullable=True, default=None)
@@ -204,11 +204,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     watchlist_id = Column(Uuid(as_uuid=False), ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
     group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(
-        Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
+        Group, backref=(backref('attendees', lazy='selectin')),
+        foreign_keys=group_id, lazy='select', cascade='save-update,merge,refresh-expire,expunge')
     
     badge_pickup_group_id = Column(Uuid(as_uuid=False), ForeignKey('badge_pickup_group.id', ondelete='SET NULL'), nullable=True)
     badge_pickup_group = relationship(
-        'BadgePickupGroup', backref=backref('attendees', order_by='Attendee.full_name'), foreign_keys=badge_pickup_group_id,
+        'BadgePickupGroup', backref=backref('attendees', lazy='selectin', order_by='Attendee.full_name'), foreign_keys=badge_pickup_group_id,
         cascade='save-update,merge,refresh-expire,expunge', single_parent=True)
 
     creator_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='set null'), nullable=True)
@@ -235,6 +236,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         primaryjoin='and_(BadgeInfo.attendee_id == Attendee.id,'
         'BadgeInfo.active == True)',
         uselist=False,
+        lazy='joined',
         overlaps="allocated_badges,attendee")
 
     # NOTE: The cascade relationships for promo_code do NOT include
@@ -250,6 +252,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     promo_code_id = Column(Uuid(as_uuid=False), ForeignKey('promo_code.id'), nullable=True, index=True)
     promo_code = relationship(
         'PromoCode',
+        lazy='select',
         backref=backref('used_by', cascade='merge,refresh-expire,expunge'),
         foreign_keys=promo_code_id,
         cascade='merge,refresh-expire,expunge')
@@ -325,18 +328,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Attendee.id),'
         'ModelReceipt.owner_model == "Attendee",'
         'ModelReceipt.closed == None)',
+        lazy='select',
         uselist=False)
     default_cost = Column(Integer, nullable=True)
 
-    dept_memberships = relationship('DeptMembership', backref='attendee')
+    dept_memberships = relationship('DeptMembership', backref='attendee', lazy='select')
     dept_membership_requests = relationship('DeptMembershipRequest', backref='attendee')
-    anywhere_dept_membership_request = relationship(
-        'DeptMembershipRequest',
-        primaryjoin='and_('
-                    'DeptMembershipRequest.attendee_id == Attendee.id, '
-                    'DeptMembershipRequest.department_id == None)',
-        uselist=False,
-        viewonly=True)
     dept_roles = relationship(
         'DeptRole',
         backref='attendees',
@@ -346,18 +343,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         secondary='join(DeptMembership, dept_membership_dept_role)',
         order_by='DeptRole.name',
         viewonly=True)
-    shifts = relationship('Shift', backref='attendee')
+    shifts = relationship('Shift', backref=backref('attendee', lazy='joined'))
     jobs = relationship(
         'Job',
         backref='attendees_working_shifts',
         secondary='shift',
-        order_by='Job.name',
-        viewonly=True)
-    jobs_in_assigned_depts = relationship(
-        'Job',
-        backref='attendees_in_dept',
-        secondaryjoin='DeptMembership.department_id == Job.department_id',
-        secondary='dept_membership',
         order_by='Job.name',
         viewonly=True)
     depts_where_working = relationship(
@@ -384,18 +374,6 @@ class Attendee(MagModel, TakesPaymentMixin):
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.has_role)',
         viewonly=True)
-    dept_memberships_as_dept_head = relationship(
-        'DeptMembership',
-        primaryjoin='and_('
-                    'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.is_dept_head == True)',
-        viewonly=True)
-    dept_memberships_as_poc = relationship(
-        'DeptMembership',
-        primaryjoin='and_('
-                    'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.is_poc == True)',
-        viewonly=True)
     dept_memberships_where_can_admin_checklist = relationship(
         'DeptMembership',
         primaryjoin='and_('
@@ -409,26 +387,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.is_checklist_admin == True)',
-        viewonly=True)
-    pocs_for_depts_where_working = relationship(
-        'Attendee',
-        primaryjoin='Attendee.id == Shift.attendee_id',
-        secondaryjoin='and_('
-                      'DeptMembership.attendee_id == Attendee.id, '
-                      'DeptMembership.is_poc == True)',
-        secondary='join(Shift, Job).join(DeptMembership, '
-                  'DeptMembership.department_id == Job.department_id)',
-        order_by='Attendee.full_name',
-        viewonly=True)
-    dept_heads_for_depts_where_working = relationship(
-        'Attendee',
-        primaryjoin='Attendee.id == Shift.attendee_id',
-        secondaryjoin='and_('
-                      'DeptMembership.attendee_id == Attendee.id, '
-                      'DeptMembership.is_dept_head == True)',
-        secondary='join(Shift, Job).join(DeptMembership, '
-                  'DeptMembership.department_id == Job.department_id)',
-        order_by='Attendee.full_name',
         viewonly=True)
 
     staffing = Column(Boolean, default=False)
@@ -444,23 +402,23 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     # TODO: a record of when an attendee is unable to pickup a shirt
     # (which type? swag or staff? prob swag)
-    no_shirt = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
+    no_shirt = relationship('NoShirt', backref=backref('attendee'), uselist=False)
 
-    admin_account = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
+    admin_account = relationship('AdminAccount', backref=backref('attendee', lazy='joined'), uselist=False)
     food_restrictions = relationship(
-        'FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
+        'FoodRestrictions', backref=backref('attendee', lazy='joined'), uselist=False)
 
     sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
     mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
-    dept_checklist_items = relationship('DeptChecklistItem', backref=backref('attendee', lazy='subquery'))
+    dept_checklist_items = relationship('DeptChecklistItem', backref=backref('attendee', lazy='selectin'))
 
     indie_developer = relationship(
-        'IndieDeveloper', backref=backref('attendee', load_on_pending=True), uselist=False)
+        'IndieDeveloper', backref=backref('attendee'), uselist=False)
 
     hotel_eligible = Column(Boolean, default=False, admin_only=True)
-    hotel_requests = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False)
-    room_assignments = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True))
+    hotel_requests = relationship('HotelRequests', backref=backref('attendee', lazy='joined'), uselist=False)
+    room_assignments = relationship('RoomAssignment', backref=backref('attendee', lazy='joined'))
 
     # The PIN/password used by third party hotel reservation systems
     hotel_pin = SQLAlchemyColumn(String, nullable=True, unique=True)
@@ -473,8 +431,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     # panels
     # =========================
-    assigned_panelists = relationship('AssignedPanelist', backref='attendee')
-    panel_applicants = relationship('PanelApplicant', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
+    assigned_panelists = relationship('AssignedPanelist', backref=backref('attendee', lazy='joined'))
+    panel_applicants = relationship('PanelApplicant', backref=backref('attendee', lazy='joined'), cascade='save-update,merge,refresh-expire,expunge')
     panel_applications = relationship('PanelApplication', backref='poc')
     panel_feedback = relationship('EventFeedback', backref='attendee')
     submitted_panels = relationship(
@@ -499,34 +457,34 @@ class Attendee(MagModel, TakesPaymentMixin):
     notification_pref = Column(Choice(_NOTIFICATION_PREF_OPTS), default=_NOTIFICATION_EMAIL)
     attractions_opt_out = Column(Boolean, default=False)
 
-    attraction_signups = relationship('AttractionSignup', backref='attendee', order_by='AttractionSignup.signup_time')
+    attraction_signups = relationship('AttractionSignup', backref=backref('attendee', lazy='joined'), order_by='AttractionSignup.signup_time')
     attraction_event_signups = association_proxy('attraction_signups', 'event')
     attraction_notifications = relationship(
-        'AttractionNotification', backref='attendee', order_by='AttractionNotification.sent_time')
+        'AttractionNotification', backref=backref('attendee', lazy='joined'), order_by='AttractionNotification.sent_time')
 
     # =========================
     # tabletop
     # =========================
-    games = relationship('TabletopGame', backref='attendee')
-    checkouts = relationship('TabletopCheckout', backref='attendee')
+    games = relationship('TabletopGame', backref=backref('attendee', lazy='joined'))
+    checkouts = relationship('TabletopCheckout', backref=backref('attendee', lazy='joined'))
     
     # =========================
     # badge printing
     # =========================
-    print_requests = relationship('PrintJob', backref='attendee', order_by='desc(PrintJob.last_updated)')
+    print_requests = relationship('PrintJob', backref=backref('attendee', lazy='joined'), order_by='desc(PrintJob.last_updated)')
 
     # =========================
     # art show
     # =========================
-    art_show_bidder = relationship('ArtShowBidder', backref=backref('attendee', load_on_pending=True), uselist=False)
+    art_show_bidder = relationship('ArtShowBidder', backref=backref('attendee', lazy='joined'), uselist=False)
     art_show_purchases = relationship(
         'ArtShowPiece',
-        backref='buyer',
+        backref=backref('buyer', lazy='joined'),
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='art_show_receipt')
     art_agent_apps = relationship(
         'ArtShowApplication',
-        backref='agents',
+        backref=backref('agents', lazy='joined'),
         secondaryjoin='and_(ArtShowAgentCode.app_id == ArtShowApplication.id, ArtShowAgentCode.cancelled == None)',
         secondary='art_show_agent_code',
         viewonly=True)
@@ -2294,13 +2252,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_type == c.STAFF_BADGE and (self.is_new or self.orig_value_of('badge_type') != c.STAFF_BADGE):
             self.hotel_eligible = True
 
-    @presave_adjustment
-    def staffer_setup_teardown(self):
-        if self.setup_hotel_approved:
-            self.can_work_setup = True
-        if self.teardown_hotel_approved:
-            self.can_work_teardown = True
-
     @property
     def hotel_shifts_required(self):
         return bool(c.VOLUNTEER_CHECKLIST_OPEN and self.hotel_nights and not self.is_dept_head and self.takes_shifts)
@@ -2563,7 +2514,7 @@ class AttendeeAccount(MagModel):
     public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()), nullable=True)
     email = Column(String)
     hashed = Column(String, private=True)
-    password_reset = relationship('PasswordReset', backref='attendee_account', uselist=False)
+    password_reset = relationship('PasswordReset', backref='attendee_account', lazy='select', uselist=False)
     attendees = relationship(
         'Attendee', backref='managers', order_by='Attendee.registered',
         cascade='save-update,merge,refresh-expire,expunge',

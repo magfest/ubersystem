@@ -6,12 +6,12 @@ from collections import defaultdict, OrderedDict
 from datetime import timedelta
 from dateutil import parser as dateparser
 
-from sqlalchemy import or_
+from sqlalchemy import and_
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, render
-from uber.models import Attendee, Department, Job
+from uber.models import Attendee, Department, DeptMembership, Job
 
 
 def volunteer_checklists(session):
@@ -152,7 +152,11 @@ class Root:
     @csv_file
     def dept_head_contact_info(self, out, session):
         out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
-        for a in session.query(Attendee).filter(Attendee.dept_memberships_as_dept_head.any()).order_by('last_name'):
+        dept_heads = session.query(Attendee).join(DeptMembership,
+                                                  and_(
+                                                      Attendee.id == DeptMembership.attendee_id,
+                                                      DeptMembership.is_dept_head == True))
+        for a in dept_heads.order_by(Attendee.last_name):
             for label in a.assigned_depts_labels:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 
