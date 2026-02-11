@@ -25,7 +25,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Query, joinedload, subqueryload, DeclarativeBase, declared_attr, sessionmaker, scoped_session
 import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
-from sqlalchemy.schema import MetaData
+from sqlalchemy.schema import MetaData, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric, DateTime, Uuid, JSON
 
 import uber
@@ -143,14 +143,14 @@ class MagModel(DeclarativeBase):
             elif isinstance(fields, dict):
                 enabled_fields = [x for x in fields.keys() if fields[x]]
 
-        for col in (enabled_fields or self.__table__.columns):
-            val = getattr(self, col.name)
+        for field in (enabled_fields or self.to_dict_default_attrs):
+            val = getattr(self, field)
             if isinstance(val, (datetime, date)):
                 val = val.isoformat()
             elif isinstance(val, uuid.UUID):
                 val = str(val)
             
-            data[col.name] = val
+            data[field] = val
         return data
     
     id = Column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
@@ -169,6 +169,50 @@ class MagModel(DeclarativeBase):
 
     required = ()
     is_actually_old = False  # Set to true to force preview models to return False for `is_new`
+    _repr_attr_names = ()
+
+    def __repr__(self):
+        """
+        Useful string representation for logging.
+
+        Note:
+            __repr__ does NOT return unicode on Python 2, since python decodes
+            it using the default encoding: http://bugs.python.org/issue5876.
+
+        """
+        # If no repr attr names have been set, default to the set of all
+        # unique constraints. This is unordered normally, so we'll order and
+        # use it here.
+        if not self._repr_attr_names:
+            unique_constraint_column_names = [[column.name for column in constraint.columns]
+                                              for constraint in self.__table__.constraints
+                                              if isinstance(constraint, UniqueConstraint)]
+
+            # this flattens the unique constraint list
+            _unique_attrs = chain.from_iterable(unique_constraint_column_names)
+            _primary_keys = [column.name for column in self.__table__.primary_key.columns]
+
+            attr_names = tuple(sorted(set(chain(_unique_attrs,
+                                                _primary_keys))))
+        else:
+            attr_names = self._repr_attr_names
+
+        if not attr_names and hasattr(self, 'id'):
+            # there should be SOMETHING, so use id as a fallback
+            attr_names = ('id',)
+
+        if attr_names:
+            _kwarg_list = ' '.join('%s=%s' % (name, repr(getattr(self, name, 'undefined')))
+                                   for name in attr_names)
+            kwargs_output = ' %s' % _kwarg_list
+        else:
+            kwargs_output = ''
+
+        # specifically using the string interpolation operator and the repr of
+        # getattr so as to avoid any "hilarious" encode errors for non-ascii
+        # characters
+        u = '<%s%s>' % (self.__class__.__name__, kwargs_output)
+        return u if six.PY3 else u.encode('utf-8')
 
     @cached_classproperty
     def NAMESPACE(cls):
