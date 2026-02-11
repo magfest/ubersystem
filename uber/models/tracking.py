@@ -78,28 +78,28 @@ class PageViewTracking(MagModel):
             which = "Budget page"
         else:
             # Only log the page view if there's a valid model ID
-            if 'id' not in params or params['id'] == 'None':
+            if 'id' not in params or params['id'] in [None, '', 'None']:
                 return
 
-        from uber.models import Session
-        with Session() as session:
-            # Get instance repr
-            model = None
-            id = params.get('id')
-            try:
-                model = session.attendee(id)
-            except NoResultFound:
+            from uber.models import Session
+            with Session() as session:
+                # Get instance repr
+                model = None
+                id = params.get('id')
                 try:
-                    model = session.group(id)
+                    model = session.attendee(id)
                 except NoResultFound:
                     try:
-                        model = session.art_show_application(id)
+                        model = session.group(id)
                     except NoResultFound:
-                        pass
-            if model:
-                which = repr(model)
-            else:
-                return
+                        try:
+                            model = session.art_show_application(id)
+                        except NoResultFound:
+                            pass
+                if model:
+                    which = repr(model)
+                else:
+                    return
 
             session.add(PageViewTracking(
                 who=AdminAccount.admin_or_volunteer_name(),
