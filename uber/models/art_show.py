@@ -27,6 +27,9 @@ __all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPay
 
 
 class ArtShowAgentCode(MagModel):
+    """
+    ArtShowApplication: joined
+    """
     app_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id'))
     app = relationship('ArtShowApplication', lazy='joined',
                        backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
@@ -55,6 +58,11 @@ class ArtShowAgentCode(MagModel):
 
 
 class ArtShowApplication(MagModel):
+    """
+    Attendee: joined
+    ModelReceipt: select
+    """
+    
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
                          nullable=True)
     attendee = relationship('Attendee', lazy='joined', foreign_keys=attendee_id, cascade='save-update, merge',
@@ -437,6 +445,11 @@ class ArtShowApplication(MagModel):
 
 
 class ArtShowPiece(MagModel):
+    """
+    ArtShowApplication: joined
+    Attendee (buyer): joined
+    """
+
     app_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id', ondelete='SET NULL'), nullable=True)
     app = relationship('ArtShowApplication', foreign_keys=app_id,
                        cascade='save-update, merge', lazy='joined',
@@ -446,7 +459,7 @@ class ArtShowPiece(MagModel):
     receipt = relationship('ArtShowReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
                            overlaps="art_show_purchases,buyer",
-                           backref=backref('pieces', cascade='save-update, merge', overlaps="art_show_purchases,buyer"))
+                           backref=backref('pieces', lazy='selectin', cascade='save-update, merge', overlaps="art_show_purchases,buyer"))
     winning_bidder_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_bidder.id', ondelete='SET NULL'), nullable=True)
     winning_bidder = relationship('ArtShowBidder', foreign_keys=winning_bidder_id,
                                   cascade='save-update, merge',
@@ -581,6 +594,10 @@ class ArtShowPiece(MagModel):
 
 
 class ArtShowPanel(MagModel):
+    """
+    ArtPanelAssignment: selectin
+    """
+
     gallery = Column(Choice(c.ART_PIECE_GALLERY_OPTS), default=c.GENERAL)
     surface_type = Column(Choice(c.ART_SHOW_PANEL_TYPE_OPTS), default=c.PANEL)
     origin_x = Column(Integer, default=0)
@@ -622,6 +639,11 @@ class ArtShowPanel(MagModel):
     
 
 class ArtPanelAssignment(MagModel):
+    """
+    ArtShowApplication: joined
+    ArtShowPanel: joined
+    """
+
     panel_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_panel.id'))
     app_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id'))
     manual = Column(Boolean, default=False)
@@ -654,6 +676,10 @@ class ArtPanelAssignment(MagModel):
 
 
 class ArtShowPayment(MagModel):
+    """
+    ArtShowReceipt: joined
+    """
+
     receipt_id = Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ArtShowReceipt', lazy='joined', foreign_keys=receipt_id,
                            cascade='save-update, merge',
@@ -665,10 +691,16 @@ class ArtShowPayment(MagModel):
 
 
 class ArtShowReceipt(MagModel):
+    """
+    Attendee: joined
+    ArtShowPiece: selectin
+    ArtShowPayment: selectin
+    """
+
     invoice_num = Column(Integer, default=0)
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     attendee = relationship('Attendee', foreign_keys=attendee_id,
-                            cascade='save-update, merge',
+                            cascade='save-update, merge', lazy='joined',
                             overlaps="art_show_purchases,buyer",
                             backref=backref('art_show_receipts',
                                             cascade='save-update, merge',
@@ -728,6 +760,10 @@ class ArtShowReceipt(MagModel):
 
 
 class ArtShowBidder(MagModel):
+    """
+    Attendee: joined
+    """
+
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     bidder_num = Column(String)
     admin_notes = Column(String)

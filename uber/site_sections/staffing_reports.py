@@ -7,7 +7,7 @@ from datetime import timedelta
 from dateutil import parser as dateparser
 
 from sqlalchemy import and_
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import subqueryload, selectinload
 
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, render
@@ -18,7 +18,10 @@ def volunteer_checklists(session):
     attendees = session.query(Attendee) \
         .filter(
             Attendee.staffing == True,  # noqa: E712
-            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
+            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])).options(
+                selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.shifts)
+            ) \
         .order_by(Attendee.full_name, Attendee.id).all()
 
     checklist_items = OrderedDict()

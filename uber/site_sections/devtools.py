@@ -16,7 +16,7 @@ from datetime import datetime
 
 from sqlalchemy.dialects.postgresql.json import JSONB
 from pytz import UTC
-from sqlalchemy.types import Date, Boolean, Integer
+from sqlalchemy.types import DateTime
 from sqlalchemy import text
 
 from uber.decorators import all_renderable, csv_file, public, site_mappable

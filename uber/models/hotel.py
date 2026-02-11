@@ -66,6 +66,10 @@ class NightsMixin(object):
 
 
 class HotelRequests(MagModel, NightsMixin):
+    """
+    Attendee: joined
+    """
+
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
     nights = Column(MultiChoice(c.NIGHT_OPTS))
     wanted_roommates = Column(String)
@@ -116,11 +120,21 @@ class Room(MagModel, NightsMixin):
 
 
 class RoomAssignment(MagModel):
+    """
+    Attendee: joined
+    Room: joined
+    """
+
     room_id = Column(Uuid(as_uuid=False), ForeignKey('room.id'))
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
 
 
 class LotteryApplication(MagModel):
+    """
+    Attendee: joined
+    LotteryApplication (parent_application): joined
+    """
+
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True, nullable=True)
     attendee = relationship('Attendee', lazy='joined', backref=backref('lottery_application', uselist=False),
                             cascade='save-update,merge,refresh-expire,expunge',

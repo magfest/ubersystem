@@ -1,5 +1,5 @@
 import cherrypy
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import joinedload, selectinload
 from datetime import timedelta
 
 from uber.config import c
@@ -26,8 +26,9 @@ class Root:
 
         forms = load_forms({}, Department(), ['DepartmentInfo'])
 
-        departments = session.query(Department).filter(*dept_filter) \
-            .order_by(Department.name).all()
+        departments = session.query(Department).filter(*dept_filter).options(
+            selectinload(Department.memberships)
+        ).order_by(Department.name).all()
         return {
             'filtered': filtered,
             'message': message,
@@ -60,12 +61,13 @@ class Root:
                 .filter_by(id=department_id) \
                 .order_by(Department.id) \
                 .options(
-                    subqueryload(Department.dept_roles).subqueryload(DeptRole.dept_memberships),
-                    subqueryload(Department.members).subqueryload(Attendee.shifts).subqueryload(Shift.job),
-                    subqueryload(Department.members).subqueryload(Attendee.admin_account),
-                    subqueryload(Department.dept_heads).subqueryload(Attendee.dept_memberships),
-                    subqueryload(Department.pocs).subqueryload(Attendee.dept_memberships),
-                    subqueryload(Department.checklist_admins).subqueryload(Attendee.dept_memberships)) \
+                    selectinload(Department.memberships),
+                    selectinload(Department.dept_roles).selectinload(DeptRole.dept_memberships),
+                    selectinload(Department.members).selectinload(Attendee.shifts).joinedload(Shift.job),
+                    selectinload(Department.members).joinedload(Attendee.admin_account),
+                    selectinload(Department.dept_heads).selectinload(Attendee.dept_memberships),
+                    selectinload(Department.pocs).selectinload(Attendee.dept_memberships),
+                    selectinload(Department.checklist_admins).selectinload(Attendee.dept_memberships)) \
                 .one()
 
         return {
@@ -177,7 +179,9 @@ class Root:
         if not department_id:
             raise HTTPRedirect('index')
 
-        department = session.query(Department).get(department_id)
+        department = session.query(Department).filter(Department.id == department_id).options(
+            selectinload(Department.unassigned_explicitly_requesting_attendees)
+        ).first()
         if cherrypy.request.method == 'POST':
             attendee_ids = [s for s in params.get('attendee_ids', []) if s]
             if attendee_ids:
@@ -203,7 +207,10 @@ class Root:
 
     @csv_file
     def dept_requests_export(self, out, session, department_id, requested_any=False, message='', **params):
-        department = session.query(Department).get(department_id)
+        department = session.query(Department).filter(Department.id == department_id).options(
+            selectinload(Department.unassigned_explicitly_requesting_attendees),
+            selectinload(Department.unassigned_requesting_attendees),
+        ).first()
 
         requesting_attendees = department.unassigned_requesting_attendees \
             if requested_any else department.unassigned_explicitly_requesting_attendees

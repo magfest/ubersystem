@@ -8,13 +8,13 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta
 from dateutil import parser as dateparser
 from time import mktime
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from uber.config import c
 from uber.decorators import ajax, ajax_gettable, all_renderable, cached, csrf_protected, csv_file, render, schedule_view, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import AssignedPanelist, Attendee, Event, EventLocation, PanelApplication
+from uber.models import AssignedPanelist, Attendee, Event, EventLocation, PanelApplication, Department
 from uber.utils import check, localized_now, normalize_newlines, validate_model, load_locations_from_config, listify
 
 log = logging.getLogger(__name__)
@@ -121,16 +121,16 @@ class Root:
             now = c.EVENT_TIMEZONE.localize(datetime.combine(localized_now().date(), time(localized_now().hour)))
 
         current, upcoming = [], []
-        for loc, desc in c.SCHEDULE_LOCATION_OPTS:
-            approx = session.query(Event).filter(Event.location == loc,
-                                                 Event.start_time >= now - timedelta(hours=6),
-                                                 Event.start_time <= now).all()
+        for location_id, name in c.SCHEDULE_LOCATION_OPTS:
+            approx = session.query(Event).join(Event.location).filter(
+                EventLocation.id == location_id,
+                Event.start_time >= now - timedelta(hours=6), Event.start_time <= now).all()
             for event in approx:
                 if now in event.minutes:
                     current.append(event)
 
-            next_events = session.query(Event).filter(
-                Event.location == loc,
+            next_events = session.query(Event).join(Event.location).filter(
+                EventLocation.id == location_id,
                 Event.start_time >= now + timedelta(minutes=30),
                 Event.start_time <= now + timedelta(hours=4)).order_by('start_time').all()
 
@@ -325,7 +325,9 @@ class Root:
 
         locations = []
 
-        event_locations = session.query(EventLocation)
+        event_locations = session.query(EventLocation).options(
+            selectinload(EventLocation.events)
+        )
 
         if not event_locations.first():
             load_locations_from_config(session)
@@ -428,8 +430,13 @@ class Root:
     @csv_file
     def panel_tech_needs(self, out, session):
         panels = defaultdict(dict)
-        panel_applications = session.query(PanelApplication).filter(
-            PanelApplication.event_id == Event.id, Event.location.in_(c.PANEL_ROOMS))
+        panel_applications = session.query(PanelApplication).join(PanelApplication.event).join(
+            Event.location).join(EventLocation.department).filter(
+                Department.manages_panels == True,
+                PanelApplication.event_id == Event.id)
+        
+        panel_rooms = session.query(EventLocation).join(EventLocation.department).filter(
+            Department.manages_panels == True)
 
         for panel in panel_applications:
             panels[panel.event.start_time_local][panel.event.event_location_id] = panel
@@ -441,7 +448,7 @@ class Root:
         out.writerow(['Panel Starts'] + [c.SCHEDULE_LOCATIONS[room] for room in c.PANEL_ROOMS])
         while curr_time <= last_time:
             row = [curr_time.strftime('%H:%M %a')]
-            for room in c.PANEL_ROOMS:
+            for room in panel_rooms:
                 p = panels[curr_time].get(room)
                 row.append('' if not p else '{}\n{}\n{}\n{}'.format(
                     p.event.name,

@@ -22,7 +22,7 @@ from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Query, joinedload, subqueryload, DeclarativeBase, declared_attr, sessionmaker, scoped_session
+from sqlalchemy.orm import Query, joinedload, selectinload, subqueryload, contains_eager, DeclarativeBase, declared_attr, sessionmaker, scoped_session
 import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData, UniqueConstraint
@@ -848,7 +848,10 @@ class UberSession(sqlalchemy.orm.Session):
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
                 try:
-                    return self.admin_account(cherrypy.session.get('account_id')).attendee
+                    return self.query(Attendee).join(Attendee.admin_account).filter(
+                        AdminAccount.id == cherrypy.session.get('account_id')).options(
+                            contains_eager(Attendee.admin_account)
+                        ).one()
                 except NoResultFound:
                     return
                 
@@ -878,7 +881,10 @@ class UberSession(sqlalchemy.orm.Session):
                 return attendee.managers[0]
 
         def logged_in_volunteer(self):
-            return self.attendee(cherrypy.session.get('staffer_id'))
+            return self.query(Attendee).filter(Attendee.id == cherrypy.session.get('staffer_id')).options(
+                selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.shifts)
+            ).one()
 
         def admin_has_staffer_access(self, staffer, access="view"):
             admin = self.current_admin_account()
@@ -1060,7 +1066,9 @@ class UberSession(sqlalchemy.orm.Session):
             if not department_id:
                 return {'conf': conf, 'relevant': False, 'completed': None}
 
-            department = self.query(Department).get(department_id)
+            department = self.query(Department).filter(Department.id == department_id).options(
+                selectinload(Department.dept_checklist_items)
+            ).first()
             if department:
                 return {
                     'conf': conf,
@@ -2154,14 +2162,15 @@ class UberSession(sqlalchemy.orm.Session):
         # ========================
 
         def logged_in_judge(self):
-            judge = self.admin_attendee().admin_account.judge
-            if judge:
-                return judge
-            else:
-                raise HTTPRedirect(
-                    '../accounts/homepage?message={}',
-                    'You have been given judge access but not had a judge entry created for you - '
-                    'please contact a MIVS admin to correct this.')
+            if getattr(cherrypy, 'session', {}).get('account_id'):
+                try:
+                    return self.query(IndieJudge).join(IndieJudge.admin_account).filter(
+                        AdminAccount.id == cherrypy.session.get('account_id')).one()
+                except NoResultFound:
+                    raise HTTPRedirect(
+                        '../accounts/homepage?message={}',
+                        'You have been given judge access but not had a judge entry created for you - '
+                        'please contact a MIVS admin to correct this.')
 
         def code_for(self, game):
             if game.unlimited_code:

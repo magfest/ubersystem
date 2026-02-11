@@ -36,6 +36,11 @@ class ReviewMixin:
 
 
 class IndieJudge(MagModel, ReviewMixin):
+    """
+    IndieGameCode: selectin
+    IndieGameReview: selectin
+    """
+
     admin_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'))
     status = Column(Choice(c.MIVS_JUDGE_STATUS_OPTS), default=c.UNCONFIRMED)
     assignable_showcases = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
@@ -129,6 +134,10 @@ class IndieJudge(MagModel, ReviewMixin):
 
 
 class IndieStudio(MagModel):
+    """
+    IndieGame: selectin
+    """
+
     group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id'), nullable=True)
     name = Column(String, unique=True)
     website = Column(String)
@@ -313,6 +322,10 @@ class IndieStudio(MagModel):
 
 
 class IndieDeveloper(MagModel):
+    """
+    IndieStudio: joined
+    """
+
     studio_id = Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id'))
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
 
@@ -346,6 +359,13 @@ class IndieDeveloper(MagModel):
 
 
 class IndieGame(MagModel, ReviewMixin):
+    """
+    IndieStudio: joined
+    IndieDeveloper: joined
+    IndieGameCode: selectin
+    IndieGameImage: selectin
+    """
+
     studio_id = Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id'))
     primary_contact_id = Column(Uuid(as_uuid=False), ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True)
     primary_contact = relationship(IndieDeveloper, backref='arcade_games', lazy='joined',
@@ -657,6 +677,10 @@ class IndieGame(MagModel, ReviewMixin):
 
 
 class IndieGameImage(MagModel, GuidebookImageMixin):
+    """
+    IndieGame: joined
+    """
+    
     game_id = Column(Uuid(as_uuid=False), ForeignKey('indie_game.id'))
     description = Column(String)
     use_in_promo = Column(Boolean, default=False)
@@ -697,6 +721,11 @@ class IndieGameImage(MagModel, GuidebookImageMixin):
 
 
 class IndieGameCode(MagModel):
+    """
+    IndieGame: joined
+    IndieJudge: joined
+    """
+
     game_id = Column(Uuid(as_uuid=False), ForeignKey('indie_game.id'))
     judge_id = Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id'), nullable=True)
     code = Column(String)
@@ -709,6 +738,11 @@ class IndieGameCode(MagModel):
 
 
 class IndieGameReview(MagModel):
+    """
+    IndieGame: joined
+    IndieJudge: joined
+    """
+
     game_id = Column(Uuid(as_uuid=False), ForeignKey('indie_game.id'))
     judge_id = Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id'))
     video_status = Column(

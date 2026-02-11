@@ -16,6 +16,10 @@ __all__ = ['ApiToken', 'ApiJob']
 
 
 class ApiToken(MagModel):
+    """
+    AdminAccount: joined
+    """
+
     admin_account_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'))
     token = Column(Uuid(as_uuid=False), default=lambda: str(uuid.uuid4()), private=True)
     access = Column(MultiChoice(c.API_ACCESS_OPTS))

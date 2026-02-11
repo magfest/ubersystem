@@ -28,7 +28,7 @@ from itertools import chain
 import cherrypy
 import signnow_python_sdk
 from sqlalchemy import or_, func
-from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.orm import joinedload, selectinload
 
 import uber
 
@@ -1033,11 +1033,12 @@ class Config(_Overridable):
             from uber.models import Session, AdminAccount, Attendee
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']
-                admin_account = session.query(AdminAccount) \
-                    .filter_by(id=cherrypy.session.get('account_id')) \
-                    .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts)).one()
-
-                return admin_account.attendee.to_dict(attrs)
+                admin_attendee = session.query(Attendee).join(Attendee.admin_account) \
+                    .filter(AdminAccount.id == cherrypy.session.get('account_id')) \
+                    .options(
+                        joinedload(Attendee.admin_account),
+                        selectinload(Attendee.assigned_depts)).one()
+                return admin_attendee.to_dict(attrs)
         except Exception:
             return {}
 

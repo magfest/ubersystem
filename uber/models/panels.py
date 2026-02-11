@@ -79,6 +79,10 @@ class EventLocation(MagModel):
 
 
 class Event(MagModel):
+    """
+    EventLocation: joined
+    """
+
     event_location_id = Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
     department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
     attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id', ondelete='SET NULL'), nullable=True)
@@ -154,6 +158,11 @@ class Event(MagModel):
 
 
 class AssignedPanelist(MagModel):
+    """
+    Attendee: joined
+    Event: joined
+    """
+
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade'))
     event_id = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='cascade'))
 
@@ -166,6 +175,11 @@ class AssignedPanelist(MagModel):
 
 
 class PanelApplication(MagModel):
+    """
+    Event: joined
+    PanelApplicant: selectin
+    """
+
     event_id = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
     poc_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     submitter_id = Column(Uuid(as_uuid=False), ForeignKey('panel_applicant.id', ondelete='SET NULL'), nullable=True)
@@ -318,6 +332,11 @@ class PanelApplication(MagModel):
 
 
 class PanelApplicant(MagModel):
+    """
+    Attendee: joined
+    PanelApplicant: selectin
+    """
+
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     submitter = Column(Boolean, default=False)
     first_name = Column(String)

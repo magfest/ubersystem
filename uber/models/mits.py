@@ -21,6 +21,10 @@ __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument
 
 
 class MITSTeam(MagModel):
+    """
+    MITSGame: selectin
+    """
+
     name = Column(String)
     days_available = Column(Integer, nullable=True)
     hours_available = Column(Integer, nullable=True)
@@ -132,6 +136,10 @@ class MITSTeam(MagModel):
 
 
 class MITSApplicant(MagModel):
+    """
+    MITSTeam: joined
+    """
+
     team_id = Column(ForeignKey('mits_team.id'))
     attendee_id = Column(ForeignKey('attendee.id'), nullable=True)
     primary_contact = Column(Boolean, default=False)
@@ -161,6 +169,12 @@ class MITSApplicant(MagModel):
 
 
 class MITSGame(MagModel):
+    """
+    MITSTeam: joined
+    MITSPicture: selectin
+    MITSDocument: selectin
+    """
+
     team_id = Column(ForeignKey('mits_team.id'))
     name = Column(String)
     promo_blurb = Column(String)
@@ -232,6 +246,10 @@ class MITSGame(MagModel):
 
 
 class MITSPicture(MagModel, GuidebookImageMixin):
+    """
+    MITSGame: joined
+    """
+
     game_id = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
     description = Column(String)
 
@@ -245,6 +263,10 @@ class MITSPicture(MagModel, GuidebookImageMixin):
 
 
 class MITSDocument(MagModel):
+    """
+    MITSGame: joined
+    """
+    
     game_id = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
     filename = Column(String)
     description = Column(String)
@@ -259,12 +281,20 @@ class MITSDocument(MagModel):
 
 
 class MITSTimes(MagModel):
+    """
+    MITSTeam: joined
+    """
+
     team_id = Column(ForeignKey('mits_team.id'))
     showcase_availability = Column(MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS))
     availability = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
 
 
 class MITSPanelApplication(MagModel):
+    """
+    MITSTeam: joined
+    """
+
     team_id = Column(ForeignKey('mits_team.id'))
     name = Column(String)
     description = Column(String)

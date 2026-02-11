@@ -42,16 +42,15 @@ def check_atd(func):
     return checking_at_the_door
 
 
-def load_attendee(session, params, add_to_session=True,):
+def load_attendee(session, params):
     id = params.get('id', None)
 
     if id in [None, '', 'None']:
         attendee = Attendee()
-        if add_to_session:
-            session.add(attendee)
     else:
         attendee = session.query(Attendee).filter(Attendee.id == id).options(
             selectinload(Attendee.dept_membership_requests),
+            selectinload(Attendee.dept_memberships_with_role),
             selectinload(Attendee.dept_memberships_with_inherent_role),
             joinedload(Attendee.shifts),
             joinedload(Attendee.panel_applicants),
@@ -61,6 +60,7 @@ def load_attendee(session, params, add_to_session=True,):
 
 
 def save_attendee(session, attendee, params):
+    session.add(attendee)
     if cherrypy.request.method == 'POST':
         receipt_items = ReceiptManager.auto_update_receipt(
             attendee, session.get_receipt_by_model(attendee), params.copy(), who=AdminAccount.admin_name() or 'non-admin')
@@ -162,7 +162,7 @@ class Root:
     @ajax
     @any_admin_access
     def validate_attendee(self, session, form_list=[], **params):
-        attendee = load_attendee(session, params, add_to_session=False)
+        attendee = load_attendee(session, params)
 
         if not form_list:
             form_list = ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'AdminBadgeFlags',
@@ -1470,12 +1470,7 @@ class Root:
     @attendee_view
     @cherrypy.expose(['attendee_data'])
     def attendee_form(self, session, message='', tab_view=None, **params):
-        id = params.get('id', None)
-
-        if id in [None, '', 'None']:
-            attendee = Attendee()
-        else:
-            attendee = session.attendee(id)
+        attendee = load_attendee(session, params)
 
         forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
                                               'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])

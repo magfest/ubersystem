@@ -9,7 +9,7 @@ from pytz import UTC
 from sqlalchemy import and_, case, exists, func, or_, select, not_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, subqueryload, aliased
+from sqlalchemy.orm import backref, subqueryload, aliased, selectinload, joinedload
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer, Uuid, String, DateTime
 
@@ -147,6 +147,10 @@ normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffix
 
 
 class BadgeInfo(MagModel):
+    """
+    Attendee: joined
+    """
+
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True, default=None)
     attendee = relationship('Attendee', backref=backref('allocated_badges', cascade='merge,refresh-expire,expunge'),
                             foreign_keys=attendee_id, lazy='joined',
@@ -201,6 +205,14 @@ class BadgeInfo(MagModel):
 
 
 class Attendee(MagModel, TakesPaymentMixin):
+    """
+    Group: select
+    AdminAccount: select
+    PromoCode: select
+    ModelReceipt: select
+    DeptMembership: select
+    """
+
     watchlist_id = Column(Uuid(as_uuid=False), ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
     group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(
@@ -253,7 +265,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     promo_code = relationship(
         'PromoCode',
         lazy='select',
-        backref=backref('used_by', cascade='merge,refresh-expire,expunge'),
+        backref=backref('used_by', lazy='selectin', cascade='merge,refresh-expire,expunge'),
         foreign_keys=promo_code_id,
         cascade='merge,refresh-expire,expunge')
     
@@ -332,8 +344,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         uselist=False)
     default_cost = Column(Integer, nullable=True)
 
-    dept_memberships = relationship('DeptMembership', backref='attendee', lazy='select')
-    dept_membership_requests = relationship('DeptMembershipRequest', backref='attendee')
+    dept_memberships = relationship('DeptMembership', backref=backref('attendee', lazy='joined'), lazy='select')
+    dept_membership_requests = relationship('DeptMembershipRequest', backref=backref('attendee', lazy='joined'))
     dept_roles = relationship(
         'DeptRole',
         backref='attendees',
@@ -404,14 +416,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     # (which type? swag or staff? prob swag)
     no_shirt = relationship('NoShirt', backref=backref('attendee'), uselist=False)
 
-    admin_account = relationship('AdminAccount', backref=backref('attendee', lazy='joined'), uselist=False)
+    admin_account = relationship('AdminAccount', lazy='select', backref=backref('attendee', lazy='joined'), uselist=False)
     food_restrictions = relationship(
         'FoodRestrictions', backref=backref('attendee', lazy='joined'), uselist=False)
 
     sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
     mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
     old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
-    dept_checklist_items = relationship('DeptChecklistItem', backref=backref('attendee', lazy='selectin'))
+    dept_checklist_items = relationship('DeptChecklistItem', backref=backref('attendee', lazy='joined'))
 
     indie_developer = relationship(
         'IndieDeveloper', backref=backref('attendee'), uselist=False)
@@ -465,7 +477,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     # tabletop
     # =========================
-    games = relationship('TabletopGame', backref=backref('attendee', lazy='joined'))
+    games = relationship('TabletopGame', backref='attendee')
     checkouts = relationship('TabletopCheckout', backref=backref('attendee', lazy='joined'))
     
     # =========================
@@ -484,7 +496,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         secondary='art_show_receipt')
     art_agent_apps = relationship(
         'ArtShowApplication',
-        backref=backref('agents', lazy='joined'),
+        backref='agents',
         secondaryjoin='and_(ArtShowAgentCode.app_id == ArtShowApplication.id, ArtShowAgentCode.cancelled == None)',
         secondary='art_show_agent_code',
         viewonly=True)
@@ -529,8 +541,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.age_group = self.age_group_conf['val']
 
         for attr in ['first_name', 'last_name']:
-            value = getattr(self, attr)
-            if (value.isupper() or value.islower()):
+            value = getattr(self, attr, '')
+            if value and (value.isupper() or value.islower()):
                 setattr(self, attr, value.title())
 
         if self.legal_name and self.full_name == self.legal_name:
@@ -1709,7 +1721,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def donation_swag(self):
         donation_items = [
-            desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and self.amount_extra >= amount]
+            desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and (self.amount_extra or 0) >= amount]
         extra_donations = ['Extra donation of ${}'.format(self.extra_donation)] if self.extra_donation else []
         return donation_items + extra_donations
 
@@ -1750,7 +1762,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         """
         merch = []
         for amount, desc in sorted(c.DONATION_TIERS.items()):
-            if amount and self.amount_extra >= amount:
+            if amount and (self.amount_extra or 0) >= amount:
                 merch.append(desc)
                 items = c.DONATION_TIER_ITEMS.get(amount, [])
                 if len(items) == 1:
@@ -2031,12 +2043,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def weighted_hours(self):
         weighted_hours = sum(s.job.weighted_hours for s in self.shifts)
-        return weighted_hours + self.nonshift_minutes / 60
+        return weighted_hours + (self.nonshift_minutes or 0) / 60
 
     @property
     def unweighted_hours(self):
         unweighted_hours = sum(s.job.real_duration for s in self.shifts) / 60
-        return unweighted_hours + self.nonshift_minutes / 60
+        return unweighted_hours + (self.nonshift_minutes or 0) / 60
 
     def weighted_hours_in(self, department_id):
         if not department_id:
@@ -2051,12 +2063,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def worked_hours(self):
         weighted_hours = sum(s.job.weighted_hours for s in self.worked_shifts)
-        return weighted_hours + self.nonshift_minutes / 60
+        return weighted_hours + (self.nonshift_minutes or 0) / 60
 
     @property
     def unweighted_worked_hours(self):
         unweighted_hours = sum(s.job.real_duration / 60 for s in self.worked_shifts)
-        return unweighted_hours + self.nonshift_minutes / 60
+        return unweighted_hours + (self.nonshift_minutes or 0) / 60
 
     def worked_hours_in(self, department_id):
         if not department_id:
@@ -2183,7 +2195,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def depts_where_can_admin(self):
         if self.admin_account and self.admin_account.full_dept_admin:
             from uber.models.department import Department
-            return self.session.query(Department).order_by(Department.name).all()
+            return self.session.query(Department).options(
+                selectinload(Department.dept_roles), selectinload(Department.job_templates)
+            ).order_by(Department.name).all()
         return self.depts_with_inherent_role
 
     def has_shifts_in(self, department):
@@ -2511,6 +2525,10 @@ attendee_attendee_account = Table(
 
 
 class AttendeeAccount(MagModel):
+    """
+    PasswordReset: select
+    """
+
     public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()), nullable=True)
     email = Column(String)
     hashed = Column(String, private=True)
@@ -2637,6 +2655,10 @@ class AttendeeAccount(MagModel):
 
 
 class BadgePickupGroup(MagModel):
+    """
+    Attendee: selectin
+    """
+
     public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()), nullable=True)
     account_id = Column(String)
 
@@ -2714,6 +2736,10 @@ class BadgePickupGroup(MagModel):
 
 
 class FoodRestrictions(MagModel):
+    """
+    Attendee: joined
+    """
+
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
     standard = Column(MultiChoice(c.FOOD_RESTRICTION_OPTS))
     sandwich_pref = Column(MultiChoice(c.SANDWICH_OPTS))

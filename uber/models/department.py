@@ -62,6 +62,11 @@ job_template_required_role = Table(
 
 
 class DeptChecklistItem(MagModel):
+    """
+    Attendee: joined
+    Department: joined
+    """
+
     department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
     slug = Column(String)
@@ -91,6 +96,12 @@ class BulkPrintingRequest(MagModel):
 
 
 class DeptMembership(MagModel):
+    """
+    Attendee: joined
+    Department: joined
+    DeptRole: selectin
+    """
+
     is_dept_head = Column(Boolean, default=False)
     is_poc = Column(Boolean, default=False)
     is_checklist_admin = Column(Boolean, default=False)
@@ -135,6 +146,11 @@ class DeptMembership(MagModel):
 
 
 class DeptMembershipRequest(MagModel):
+    """
+    Attendee: joined
+    Department: joined
+    """
+
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
 
     # A NULL value for the department_id indicates the attendee is willing
@@ -151,6 +167,10 @@ class DeptMembershipRequest(MagModel):
 
 
 class DeptRole(MagModel):
+    """
+    Department: joined
+    """
+
     name = Column(String)
     description = Column(String)
     department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
@@ -376,7 +396,7 @@ class Department(MagModel):
     @classmethod
     def normalize_name(cls, name):
         return name.lower().replace('_', '').replace(' ', '')
-    
+
     @property
     def dept_roles_choices(self):
         return [(role.id, role.name) for role in self.dept_roles]
@@ -403,6 +423,13 @@ class Department(MagModel):
 
 
 class Job(MagModel):
+    """
+    Department: joined
+    DeptRole: selectin
+    Shift: selectin
+    JobTemplate: select
+    """
+
     _ONLY_MEMBERS = 0
     _ALL_VOLUNTEERS = 2
     _VISIBILITY_OPTS = [
@@ -474,7 +501,7 @@ class Job(MagModel):
 
     @restricted.expression
     def restricted(cls):
-        return exists([job_required_role.c.dept_role_id]) \
+        return exists(job_required_role.c.dept_role_id) \
             .where(job_required_role.c.job_id == cls.id).label('restricted')
 
     @property
@@ -646,10 +673,10 @@ class Job(MagModel):
             query = query.filter(Attendee.staffing == True)  # noqa: E712
 
         if self.required_roles:
-            query = query.join(Attendee.dept_roles, aliased=True).filter(
+            query = query.join(Attendee.dept_roles).filter(
                 and_(*[DeptRole.id == r.id for r in self.required_roles]))
         else:
-            query = query.join(Attendee.dept_memberships, aliased=True).filter(
+            query = query.join(Attendee.dept_memberships).filter(
                 DeptMembership.department_id == self.department_id)
 
         return query.order_by(order_by).all()
@@ -683,6 +710,11 @@ class Job(MagModel):
 
 
 class JobTemplate(MagModel):
+    """
+    Department: joined
+    DeptRole: selectin
+    """
+
     department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
 
     template_name = Column(String)
@@ -915,6 +947,11 @@ class JobTemplate(MagModel):
 
 
 class Shift(MagModel):
+    """
+    Attendee: joined
+    Job: joined
+    """
+
     job_id = Column(Uuid(as_uuid=False), ForeignKey('job.id', ondelete='cascade'))
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade'))
     worked = Column(Choice(c.WORKED_STATUS_OPTS), default=c.SHIFT_UNMARKED)

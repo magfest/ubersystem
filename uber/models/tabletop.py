@@ -30,6 +30,11 @@ class TabletopGame(MagModel):
 
 
 class TabletopCheckout(MagModel):
+    """
+    Attendee: joined
+    TabletopGame: joined
+    """
+
     game_id = Column(Uuid(as_uuid=False), ForeignKey('tabletop_game.id'))
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
     checked_out = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

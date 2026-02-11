@@ -347,6 +347,10 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
 
 
 class Email(MagModel, BaseEmailMixin):
+    """
+    AutomatedEmail: joined
+    """
+    
     automated_email_id = Column(
         Uuid(as_uuid=False), ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None, index=True)
 
@@ -357,7 +361,7 @@ class Email(MagModel, BaseEmailMixin):
 
     @cached_property
     def fk(self):
-        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() \
+        return self.session.query(self.model_class).filter(self.model_class.id == self.fk_id).first() \
             if self.session and self.fk_id else None
 
     @property

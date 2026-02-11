@@ -132,6 +132,11 @@ c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord._PARTS_OF_SPEECH
 
 
 class PromoCodeGroup(MagModel):
+    """
+    Attendee: joined
+    PromoCode: selectin
+    """
+
     name = Column(String)
     code = Column(String, admin_only=True)
     registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
@@ -226,6 +231,8 @@ class PromoCodeGroup(MagModel):
 class PromoCode(MagModel):
     """
     Promo codes used by attendees to purchase badges at discounted prices.
+    Attendee: selectin
+    PromoCodeGroup: joined
 
     Attributes:
         code (str): The actual textual representation of the promo code. This

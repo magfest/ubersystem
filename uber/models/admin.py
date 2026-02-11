@@ -32,6 +32,12 @@ admin_access_group = Table(
 
 
 class AdminAccount(MagModel):
+    """
+    Attendee: joined
+    AccessGroup: selectin
+    PasswordReset: select
+    """
+
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
     access_groups = relationship(
         'AccessGroup', backref='admin_accounts', lazy='selectin', cascade='save-update,merge,refresh-expire,expunge',
@@ -334,6 +340,10 @@ class AccessGroup(MagModel):
 
 
 class WatchList(MagModel):
+    """
+    Attendee: selectin
+    """
+
     first_names = Column(String)
     last_name = Column(String)
     email = Column(String, default='')
@@ -372,6 +382,9 @@ attendee_escalation_ticket = Table(
 
 
 class EscalationTicket(MagModel):
+    """
+    Attendee: selectin
+    """
     attendees = relationship(
         'Attendee', lazy='selectin', backref='escalation_tickets', order_by='Attendee.full_name',
         cascade='save-update,merge,refresh-expire,expunge',

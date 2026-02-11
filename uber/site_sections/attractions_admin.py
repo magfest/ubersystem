@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import cherrypy
 from dateutil import parser as dateparser
 import pytz
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import subqueryload, joinedload, selectinload, defaultload
 
 from uber.config import c
 from uber.custom_tags import readable_join
@@ -216,7 +216,10 @@ class Root:
         if not attraction_id or attraction_id == 'None':
             raise HTTPRedirect('index')
         
-        attraction = session.attraction(attraction_id)
+        attraction = session.query(Attraction).filter(Attraction.id == attraction_id).options(
+            joinedload(Attraction.department), selectinload(Attraction.events),
+            defaultload(Attraction.features).defaultload(AttractionFeature.events).selectinload(AttractionEvent.signups),
+        ).first()
         
         forms = load_forms(params, attraction, ['AttractionInfo'])
 
@@ -234,15 +237,6 @@ class Root:
                 'form?id={}&message={}',
                 attraction.id,
                 '{} updated successfully.'.format(attraction.name))
-        else:
-            attraction = session.query(Attraction) \
-                .filter_by(id=attraction_id) \
-                .options(
-                    subqueryload(Attraction.department),
-                    subqueryload(Attraction.features)
-                    .subqueryload(AttractionFeature.events)
-                    .subqueryload(AttractionEvent.attendees)) \
-                .order_by(Attraction.id).one()
 
         return {
             'admin_account': session.current_admin_account(),
@@ -503,7 +497,8 @@ class Root:
                 'form?id={}&message={}', feature.attraction_id, message)
 
         return {
-            'attraction': feature.attraction,
+            'attraction': session.query(Attraction).filter(Attraction.id == feature.attraction_id).options(
+                selectinload(Attraction.events)).first(),
             'feature': feature,
             'event': event,
             'forms': forms,
@@ -692,7 +687,9 @@ class Root:
         except Exception:
             filters = [Attraction.slug.startswith(slugify(id))]
 
-        attraction = session.query(Attraction).filter(*filters).first()
+        attraction = session.query(Attraction).filter(*filters).options(
+            joinedload(Attraction.department)
+        ).first()
         if not attraction:
             raise HTTPRedirect('index')
         

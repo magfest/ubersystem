@@ -22,6 +22,11 @@ __all__ = ['Group']
 
 
 class Group(MagModel, TakesPaymentMixin):
+    """
+    Attendee: selectin
+    ModelReceipt: select
+    """
+
     public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
     shared_with_id = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     shared_with = relationship(

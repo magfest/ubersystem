@@ -93,6 +93,10 @@ class AttractionMixin():
         return same_time_settings, update_attrs
 
 class Attraction(MagModel, AttractionMixin):
+    """
+    AttractionFeature: selectin
+    """
+
     _NONE = 0
     _PER_FEATURE = 1
     _PER_ATTRACTION = 2
@@ -343,6 +347,11 @@ class Attraction(MagModel, AttractionMixin):
 
 
 class AttractionFeature(MagModel, AttractionMixin):
+    """
+    Attraction: joined
+    AttractionEvent: selectin
+    """
+
     name = Column(String)
     slug = Column(String)
     description = Column(String)
@@ -469,6 +478,13 @@ class AttractionFeature(MagModel, AttractionMixin):
 
 
 class AttractionEvent(MagModel, AttractionMixin):
+    """
+    Attraction: joined
+    AttractionFeature: joined
+    EventLocation: joined
+    Event: joined
+    """
+
     attraction_feature_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_feature.id'))
     attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), index=True)
     event_location_id = Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
@@ -750,6 +766,12 @@ class AttractionEvent(MagModel, AttractionMixin):
 
 
 class AttractionSignup(MagModel):
+    """
+    Attendee: joined
+    Attraction: joined
+    AttractionEvent: joined
+    """
+
     attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
     attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
@@ -849,6 +871,12 @@ class AttractionSignup(MagModel):
 
 
 class AttractionNotification(MagModel):
+    """
+    Attendee: joined
+    AttractionEvent: joined
+    AttractionSignup: joined
+    """
+
     attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
     attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
@@ -867,6 +895,10 @@ class AttractionNotification(MagModel):
 
 
 class AttractionNotificationReply(MagModel):
+    """
+    AttractionEvent: joined
+    """
+
     attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'), nullable=True)
     attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), nullable=True)
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)

@@ -29,6 +29,10 @@ __all__ = [
 
 
 class GuestGroup(MagModel):
+    """
+    Group: joined
+    """
+    
     group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id'))
     event_id = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
     group_type = Column(Choice(c.GROUP_TYPE_OPTS), default=c.BAND)
@@ -291,6 +295,10 @@ class GuestGroup(MagModel):
 
 
 class GuestInfo(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     poc_phone = Column(String)
     performer_count = Column(Integer, default=0)
@@ -321,6 +329,10 @@ class GuestImage(MagModel, GuidebookImageMixin):
 
 
 class GuestBio(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     desc = Column(String)
     member_info = Column(String)
@@ -341,6 +353,10 @@ class GuestBio(MagModel):
 
 
 class GuestTaxes(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     w9_sent = Column(Boolean, default=False)
 
@@ -350,6 +366,10 @@ class GuestTaxes(MagModel):
 
 
 class GuestStagePlot(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     filename = Column(String)
     content_type = Column(String)
@@ -386,6 +406,10 @@ class GuestStagePlot(MagModel):
 
 
 class GuestPanel(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     wants_panel = Column(Choice(c.GUEST_PANEL_OPTS), nullable=True)
     name = Column(String)
@@ -400,6 +424,10 @@ class GuestPanel(MagModel):
 
 
 class GuestTrack(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
     filename = Column(String)
     content_type = Column(String)
@@ -438,6 +466,10 @@ class GuestTrack(MagModel):
 
 
 class GuestMerch(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     _inventory_file_regex = re.compile(r'^(audio|image)(|\-\d+)$')
     _inventory_filename_regex = re.compile(r'^(audio|image)(|\-\d+)_filename$')
 
@@ -736,6 +768,10 @@ class GuestMerch(MagModel):
 
 
 class GuestCharity(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     donating = Column(Choice(c.GUEST_CHARITY_OPTS), nullable=True)
     desc = Column(String)
@@ -751,6 +787,10 @@ class GuestCharity(MagModel):
 
 
 class GuestAutograph(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     num = Column(Integer, default=0)
     length = Column(Integer, default=60)  # session length in minutes
@@ -764,6 +804,10 @@ class GuestAutograph(MagModel):
 
 
 class GuestInterview(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     will_interview = Column(Boolean, default=False)
     email = Column(String)
@@ -777,6 +821,11 @@ class GuestInterview(MagModel):
 
 
 class GuestTravelPlans(MagModel):
+    """
+    GuestGroup: joined
+    GuestDetailedTravelPlan: selectin
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
     modes_text = Column(String)
@@ -789,16 +838,28 @@ class GuestTravelPlans(MagModel):
 
 
 class GuestHospitality(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     completed = Column(Boolean, default=False)
 
 
 class GuestMediaRequest(MagModel):
+    """
+    GuestGroup: joined
+    """
+
     guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
     completed = Column(Boolean, default=False)
 
 
 class GuestDetailedTravelPlan(MagModel):
+    """
+    GuestTravelPlans: joined
+    """
+
     travel_plans_id = Column(Uuid(as_uuid=False), ForeignKey('guest_travel_plans.id'), nullable=True)
     travel_plans = relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
                                 backref=backref('detailed_travel_plans', lazy='selectin'), lazy='joined',

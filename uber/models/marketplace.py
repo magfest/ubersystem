@@ -16,6 +16,10 @@ __all__ = ['ArtistMarketplaceApplication']
 
 
 class ArtistMarketplaceApplication(MagModel):
+    """
+    Attendee: joined
+    """
+    
     MATCHING_DEALER_FIELDS = ['email_address', 'website', 'name']
 
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))

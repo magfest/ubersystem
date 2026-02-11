@@ -12,6 +12,10 @@ __all__ = ['PrintJob']
 
 
 class PrintJob(MagModel):
+    """
+    Attendee: joined
+    """
+    
     attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
     admin_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
     admin_name = Column(String)  # Preserve admin's name in case their account is removed
