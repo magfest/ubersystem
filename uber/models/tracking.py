@@ -15,6 +15,8 @@ from sqlalchemy.types import Boolean, Integer, DateTime, String, Uuid
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm.exc import NoResultFound
+from sqlmodel import Field, Relationship
+from typing import Any, ClassVar
 
 from uber.serializer import serializer
 from uber.config import c
@@ -31,12 +33,12 @@ __all__ = ['PageViewTracking', 'ReportTracking', 'Tracking', 'TxnRequestTracking
 serializer.register(associationproxy._AssociationList, list)
 
 
-class ReportTracking(MagModel):
-    when = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    who = Column(String)
-    supervisor = Column(String)
-    page = Column(String)
-    params = Column(MutableDict.as_mutable(JSONB), default={})
+class ReportTracking(MagModel, table=True):
+    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    who: str = Column(String)
+    supervisor: str = Column(String)
+    page: str = Column(String)
+    params: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
     @property
     def who_repr(self):
@@ -56,12 +58,12 @@ class ReportTracking(MagModel):
             session.commit()
 
 
-class PageViewTracking(MagModel):
-    when = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    who = Column(String)
-    supervisor = Column(String)
-    page = Column(String)
-    which = Column(String)
+class PageViewTracking(MagModel, table=True):
+    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    who: str = Column(String)
+    supervisor: str = Column(String)
+    page: str = Column(String)
+    which: str = Column(String)
 
     @property
     def who_repr(self):
@@ -108,18 +110,18 @@ class PageViewTracking(MagModel):
             session.commit()
 
 
-class Tracking(MagModel):
-    fk_id = Column(Uuid(as_uuid=False), index=True)
-    model = Column(String)
-    when = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
-    who = Column(String, index=True)
-    supervisor = Column(String)
-    page = Column(String)
-    which = Column(String)
-    links = Column(String)
-    action = Column(Choice(c.TRACKING_OPTS))
-    data = Column(String)
-    snapshot = Column(String)
+class Tracking(MagModel, table=True):
+    fk_id: str = Column(Uuid(as_uuid=False), index=True)
+    model: str = Column(String)
+    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
+    who: str = Column(String, index=True)
+    supervisor: str = Column(String)
+    page: str = Column(String)
+    which: str = Column(String)
+    links: str = Column(String)
+    action: int = Column(Choice(c.TRACKING_OPTS))
+    data: str = Column(String)
+    snapshot: str = Column(String)
 
     @property
     def who_repr(self):
@@ -283,18 +285,18 @@ class Tracking(MagModel):
                 _insert(session)
 
 
-class TxnRequestTracking(MagModel):
-    incr_id_seq = Sequence('txn_request_tracking_incr_id_seq')
-    incr_id = Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True)
-    fk_id = Column(Uuid(as_uuid=False), nullable=True)
-    workstation_num = Column(Integer, default=0)
-    terminal_id = Column(String)
-    who = Column(String)
-    requested = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    resolved = Column(DateTime(timezone=True), nullable=True)
-    success = Column(Boolean, default=False)
-    response = Column(MutableDict.as_mutable(JSONB), default={})
-    internal_error = Column(String)
+class TxnRequestTracking(MagModel, table=True):
+    incr_id_seq: ClassVar = Sequence('txn_request_tracking_incr_id_seq')
+    incr_id: int = Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True)
+    fk_id: str | None = Column(Uuid(as_uuid=False), nullable=True)
+    workstation_num: int = Column(Integer, default=0)
+    terminal_id: str = Column(String)
+    who: str = Column(String)
+    requested: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    resolved: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    success: bool = Column(Boolean, default=False)
+    response: dict[Any, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    internal_error: str = Column(String)
 
     @presave_adjustment
     def log_internal_error(self):

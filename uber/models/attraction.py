@@ -10,6 +10,8 @@ from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.sql import text
 from sqlalchemy.sql.expression import bindparam
 from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
+from sqlmodel import Field, Relationship
+from typing import ClassVar
 
 from uber.config import c
 from uber.custom_tags import humanize_timedelta, location_event_name, location_room_name
@@ -25,13 +27,13 @@ __all__ = [
 
 
 class AttractionMixin():
-    populate_schedule = Column(Boolean, default=True)
-    no_notifications = Column(Boolean, default=False)
-    waitlist_available = Column(Boolean, default=True)
-    waitlist_slots = Column(Integer, default=10)
-    signups_open_relative = Column(Integer, default=c.DEFAULT_ATTRACTIONS_SIGNUPS_MINUTES)
-    signups_open_time = Column(DateTime(timezone=True), nullable=True)
-    slots = Column(Integer, default=1)
+    populate_schedule: bool = Column(Boolean, default=True)
+    no_notifications: bool = Column(Boolean, default=False)
+    waitlist_available: bool = Column(Boolean, default=True)
+    waitlist_slots: int = Column(Integer, default=10)
+    signups_open_relative: int = Column(Integer, default=c.DEFAULT_ATTRACTIONS_SIGNUPS_MINUTES)
+    signups_open_time: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    slots: int = Column(Integer, default=1)
 
     @classproperty
     def inherited_cols(cls):
@@ -92,15 +94,15 @@ class AttractionMixin():
         
         return same_time_settings, update_attrs
 
-class Attraction(MagModel, AttractionMixin):
+class Attraction(MagModel, AttractionMixin, table=True):
     """
     AttractionFeature: selectin
     """
 
-    _NONE = 0
-    _PER_FEATURE = 1
-    _PER_ATTRACTION = 2
-    _RESTRICTION_OPTS = [(
+    _NONE: ClassVar = 0
+    _PER_FEATURE: ClassVar = 1
+    _PER_ATTRACTION: ClassVar = 2
+    _RESTRICTION_OPTS: ClassVar = [(
         _NONE,
         'Attendees can attend as many events as they wish '
         '(least restrictive)'
@@ -112,9 +114,9 @@ class Attraction(MagModel, AttractionMixin):
         'Attendees can only attend one event in this attraction '
         '(most restrictive)'
     )]
-    _RESTRICTIONS = dict(_RESTRICTION_OPTS)
+    _RESTRICTIONS: ClassVar = dict(_RESTRICTION_OPTS)
 
-    _ADVANCE_CHECKIN_OPTS = [
+    _ADVANCE_CHECKIN_OPTS: ClassVar = [
         (-1, 'Anytime during event'),
         (0, 'When the event starts'),
         (5, '5 minutes before'),
@@ -125,7 +127,7 @@ class Attraction(MagModel, AttractionMixin):
         (45, '45 minutes before'),
         (60, '1 hour before')]
 
-    _ADVANCE_NOTICES_OPTS = [
+    _ADVANCE_NOTICES_OPTS: ClassVar = [
         ('', 'Never'),
         (0, 'When checkin starts'),
         (5, '5 minutes before checkin'),
@@ -135,60 +137,60 @@ class Attraction(MagModel, AttractionMixin):
         (120, '2 hours before checkin'),
         (1440, '1 day before checkin')]
 
-    name = Column(String, unique=True)
-    slug = Column(String, unique=True)
-    description = Column(String)
-    full_description = Column(String)
-    is_public = Column(Boolean, default=False)
-    checkin_reminder = Column(Integer, default=None, nullable=True)
-    advance_checkin = Column(Integer, default=0)
-    restriction = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
-    badge_num_required = Column(Boolean, default=False)
-    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
-    owner_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
+    name: str = Column(String, unique=True)
+    slug: str = Column(String, unique=True)
+    description: str = Column(String)
+    full_description: str = Column(String)
+    is_public: bool = Column(Boolean, default=False)
+    checkin_reminder: int | None = Column(Integer, default=None, nullable=True)
+    advance_checkin: int = Column(Integer, default=0)
+    restriction: int = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
+    badge_num_required: bool = Column(Boolean, default=False)
+    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
+    owner_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
 
-    owner = relationship(
+    owner: 'AdminAccount' = Relationship(sa_relationship=relationship(
         'AdminAccount',
         cascade='save-update,merge',
         backref=backref(
             'attractions',
             cascade='save-update,merge,refresh-expire,expunge',
             uselist=True,
-            order_by='Attraction.name'))
-    owner_attendee = relationship(
+            order_by='Attraction.name')))
+    owner_attendee: 'Attendee' = Relationship(sa_relationship=relationship(
         'Attendee',
         cascade='merge',
         secondary='admin_account',
         uselist=False,
-        viewonly=True)
-    department = relationship(
+        viewonly=True))
+    department: 'Department' = Relationship(sa_relationship=relationship(
         'Department',
         cascade='save-update,merge',
         backref=backref(
             'attractions',
             cascade='save-update,merge',
             uselist=True),
-        order_by='Department.name')
-    features = relationship(
+        order_by='Department.name'))
+    features: list['AttractionFeature'] = Relationship(sa_relationship=relationship(
         'AttractionFeature', lazy='selectin',
         backref=backref('attraction', lazy='joined'),
-        order_by='[AttractionFeature.name, AttractionFeature.id]')
-    public_features = relationship(
+        order_by='[AttractionFeature.name, AttractionFeature.id]'))
+    public_features: list['AttractionFeature'] = Relationship(sa_relationship=relationship(
         'AttractionFeature',
         primaryjoin='and_('
                     'AttractionFeature.attraction_id == Attraction.id,'
                     'AttractionFeature.is_public == True)',
         viewonly=True,
-        order_by='[AttractionFeature.name, AttractionFeature.id]')
-    events = relationship(
+        order_by='[AttractionFeature.name, AttractionFeature.id]'))
+    events: list['AttractionEvent'] = Relationship(sa_relationship=relationship(
         'AttractionEvent',
         backref=backref('attraction', lazy='joined'),
-        order_by='[AttractionEvent.start_time, AttractionEvent.id]')
-    signups = relationship(
+        order_by='[AttractionEvent.start_time, AttractionEvent.id]'))
+    signups: list['AttractionSignup'] = Relationship(sa_relationship=relationship(
         'AttractionSignup',
         backref=backref('attraction', lazy='joined'),
         viewonly=True,
-        order_by='[AttractionSignup.checkin_time, AttractionSignup.id]')
+        order_by='[AttractionSignup.checkin_time, AttractionSignup.id]'))
 
     @presave_adjustment
     def slugify_name(self):
@@ -346,22 +348,22 @@ class Attraction(MagModel, AttractionMixin):
         return groupify(query, lambda x: x[0], lambda x: x[1])
 
 
-class AttractionFeature(MagModel, AttractionMixin):
+class AttractionFeature(MagModel, AttractionMixin, table=True):
     """
     Attraction: joined
     AttractionEvent: selectin
     """
 
-    name = Column(String)
-    slug = Column(String)
-    description = Column(String)
-    is_public = Column(Boolean, default=False)
-    badge_num_required = Column(Boolean, default=False)
-    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
+    name: str = Column(String)
+    slug: str = Column(String)
+    description: str = Column(String)
+    is_public: bool = Column(Boolean, default=False)
+    badge_num_required: bool = Column(Boolean, default=False)
+    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
 
-    events = relationship(
+    events: list['AttractionEvent'] = Relationship(sa_relationship=relationship(
         'AttractionEvent', backref=backref('feature', lazy='joined'), lazy='selectin',
-        order_by='[AttractionEvent.start_time, AttractionEvent.id]')
+        order_by='[AttractionEvent.start_time, AttractionEvent.id]'))
 
     __table_args__ = (
         UniqueConstraint('name', 'attraction_id'),
@@ -477,7 +479,7 @@ class AttractionFeature(MagModel, AttractionMixin):
         return groupify(self.available_events, 'start_day_local')
 
 
-class AttractionEvent(MagModel, AttractionMixin):
+class AttractionEvent(MagModel, AttractionMixin, table=True):
     """
     Attraction: joined
     AttractionFeature: joined
@@ -485,32 +487,32 @@ class AttractionEvent(MagModel, AttractionMixin):
     Event: joined
     """
 
-    attraction_feature_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_feature.id'))
-    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), index=True)
-    event_location_id = Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
+    attraction_feature_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction_feature.id'))
+    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), index=True)
+    event_location_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
 
-    start_time = Column(DateTime(timezone=True), default=c.EPOCH)
-    duration = Column(Integer, default=60)
+    start_time: datetime = Column(DateTime(timezone=True), default=c.EPOCH)
+    duration: int = Column(Integer, default=60)
 
-    signups = relationship('AttractionSignup', backref=backref('event', lazy='joined'),
-                           order_by='AttractionSignup.checkin_time')
+    signups: list['AttractionSignup'] = Relationship(sa_relationship=relationship('AttractionSignup', backref=backref('event', lazy='joined'),
+                           order_by='AttractionSignup.checkin_time'))
 
     attendee_signups = association_proxy('signups', 'attendee')
 
-    notifications = relationship('AttractionNotification', backref=backref('event', lazy='joined'),
-                                 order_by='AttractionNotification.sent_time')
+    notifications: list['AttractionNotification'] = Relationship(sa_relationship=relationship('AttractionNotification', backref=backref('event', lazy='joined'),
+                                 order_by='AttractionNotification.sent_time'))
 
-    notification_replies = relationship(
+    notification_replies: list['AttractionNotificationReply'] = Relationship(sa_relationship=relationship(
         'AttractionNotificationReply', backref=backref('event', lazy='joined'),
-        order_by='AttractionNotificationReply.sid')
+        order_by='AttractionNotificationReply.sid'))
 
-    attendees = relationship(
+    attendees: list['Attendee'] = Relationship(sa_relationship=relationship(
         'Attendee',
         backref=backref('attraction_events', overlaps="attendee,attraction_signups,event,signups"),
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='attraction_signup',
         order_by='attraction_signup.c.signup_time',
-        overlaps="signups,event,attraction_signups,attendee")
+        overlaps="signups,event,attraction_signups,attendee"))
 
     @presave_adjustment
     def _fix_attraction_id(self):
@@ -765,22 +767,22 @@ class AttractionEvent(MagModel, AttractionMixin):
             return int((earliest_end - latest_start).total_seconds())
 
 
-class AttractionSignup(MagModel):
+class AttractionSignup(MagModel, table=True):
     """
     Attendee: joined
     Attraction: joined
     AttractionEvent: joined
     """
 
-    attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
-    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    attraction_event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
+    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
+    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
 
-    signup_time = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
-    checkin_time = Column(DateTime(timezone=True), default=lambda: utcmin.datetime, index=True)
-    on_waitlist = Column(Boolean, default=False)
+    signup_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    checkin_time: datetime = Column(DateTime(timezone=True), default=lambda: utcmin.datetime, index=True)
+    on_waitlist: bool = Column(Boolean, default=False)
 
-    notifications = relationship(
+    notifications: list['AttractionNotification'] = Relationship(sa_relationship=relationship(
         'AttractionNotification',
         backref=backref(
             'signup', lazy='joined',
@@ -791,7 +793,7 @@ class AttractionSignup(MagModel):
                     'AttractionSignup.attendee_id == foreign(AttractionNotification.attendee_id),'
                     'AttractionSignup.attraction_event_id == foreign(AttractionNotification.attraction_event_id))',
         order_by='AttractionNotification.sent_time',
-        viewonly=True)
+        viewonly=True))
 
     __mapper_args__ = {'confirm_deleted_rows': False}
     __table_args__ = (UniqueConstraint('attraction_event_id', 'attendee_id'),)
@@ -870,23 +872,23 @@ class AttractionSignup(MagModel):
             # TODO: Handle text notifs too
 
 
-class AttractionNotification(MagModel):
+class AttractionNotification(MagModel, table=True):
     """
     Attendee: joined
     AttractionEvent: joined
     AttractionSignup: joined
     """
 
-    attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
-    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    attraction_event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
+    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
+    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
 
-    notification_type = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
-    ident = Column(String, index=True)
-    sid = Column(String)
-    sent_time = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
-    subject = Column(String)
-    body = Column(String)
+    notification_type: int = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
+    ident: str = Column(String, index=True)
+    sid: str = Column(String)
+    sent_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    subject: str = Column(String)
+    body: str = Column(String)
 
     @presave_adjustment
     def _fix_attraction_id(self):
@@ -894,22 +896,22 @@ class AttractionNotification(MagModel):
             self.attraction_id = self.event.attraction_id
 
 
-class AttractionNotificationReply(MagModel):
+class AttractionNotificationReply(MagModel, table=True):
     """
     AttractionEvent: joined
     """
 
-    attraction_event_id = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'), nullable=True)
-    attraction_id = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), nullable=True)
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
+    attraction_event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'), nullable=True)
+    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), nullable=True)
+    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
 
-    notification_type = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
-    from_phonenumber = Column(String)
-    to_phonenumber = Column(String)
-    sid = Column(String, index=True)
-    received_time = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
-    sent_time = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
-    body = Column(String)
+    notification_type: int = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
+    from_phonenumber: str = Column(String)
+    to_phonenumber: str = Column(String)
+    sid: str = Column(String, index=True)
+    received_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    sent_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    body: str = Column(String)
 
     @presave_adjustment
     def _fix_attraction_id(self):

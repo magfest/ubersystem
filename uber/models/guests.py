@@ -10,6 +10,8 @@ from markupsafe import Markup
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid, JSON
+from sqlmodel import Field, Relationship
+from typing import Any, ClassVar
 
 from uber.config import c
 from uber.custom_tags import yesno
@@ -28,40 +30,40 @@ __all__ = [
     'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality', 'GuestTrack']
 
 
-class GuestGroup(MagModel):
+class GuestGroup(MagModel, table=True):
     """
     Group: joined
     """
     
-    group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id'))
-    event_id = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
-    group_type = Column(Choice(c.GROUP_TYPE_OPTS), default=c.BAND)
-    num_hotel_rooms = Column(Integer, default=1, admin_only=True)
-    payment = Column(Integer, default=0, admin_only=True)
-    vehicles = Column(Integer, default=1, admin_only=True)
-    estimated_loadin_minutes = Column(Integer, default=c.DEFAULT_LOADIN_MINUTES, admin_only=True)
-    estimated_performance_minutes = Column(Integer, default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
+    group_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('group.id'))
+    event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
+    group_type: int = Column(Choice(c.GROUP_TYPE_OPTS), default=c.BAND)
+    num_hotel_rooms: int = Column(Integer, default=1, admin_only=True)
+    payment: int = Column(Integer, default=0, admin_only=True)
+    vehicles: int = Column(Integer, default=1, admin_only=True)
+    estimated_loadin_minutes: int = Column(Integer, default=c.DEFAULT_LOADIN_MINUTES, admin_only=True)
+    estimated_performance_minutes: int = Column(Integer, default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
 
-    wants_mc = Column(Boolean, nullable=True)
-    needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
-    badges_assigned = Column(Boolean, default=False)
-    info = relationship('GuestInfo', backref=backref('guest', lazy='joined'), uselist=False)
-    images = relationship(
-        'GuestImage', backref=backref('guest'), order_by='GuestImage.id')
-    bio = relationship('GuestBio', backref=backref('guest', lazy='joined'), uselist=False)
-    taxes = relationship('GuestTaxes', backref=backref('guest', lazy='joined'), uselist=False)
-    stage_plot = relationship('GuestStagePlot', backref=backref('guest', lazy='joined'), uselist=False)
-    panel = relationship('GuestPanel', backref=backref('guest', lazy='joined'), uselist=False)
-    merch = relationship('GuestMerch', backref=backref('guest', lazy='joined'), uselist=False)
-    tracks = relationship('GuestTrack', backref=backref('guest', lazy='joined'))
-    charity = relationship('GuestCharity', backref=backref('guest', lazy='joined'), uselist=False)
-    autograph = relationship('GuestAutograph', backref=backref('guest', lazy='joined'), uselist=False)
-    interview = relationship('GuestInterview', backref=backref('guest', lazy='joined'), uselist=False)
-    travel_plans = relationship('GuestTravelPlans', backref=backref('guest', lazy='joined'), uselist=False)
-    hospitality = relationship('GuestHospitality', backref=backref('guest', lazy='joined'), uselist=False)
-    media_request = relationship('GuestMediaRequest', backref=backref('guest', lazy='joined'), uselist=False)
+    wants_mc: bool | None = Column(Boolean, nullable=True)
+    needs_rehearsal: int | None = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
+    badges_assigned: bool = Column(Boolean, default=False)
+    info: 'GuestInfo' = Relationship(sa_relationship=relationship('GuestInfo', backref=backref('guest', lazy='joined'), uselist=False))
+    images: list['GuestImage'] = Relationship(sa_relationship=relationship(
+        'GuestImage', backref=backref('guest'), order_by='GuestImage.id'))
+    bio: 'GuestBio' = Relationship(sa_relationship=relationship('GuestBio', backref=backref('guest', lazy='joined'), uselist=False))
+    taxes: 'GuestTaxes' = Relationship(sa_relationship=relationship('GuestTaxes', backref=backref('guest', lazy='joined'), uselist=False))
+    stage_plot: 'GuestStagePlot' = Relationship(sa_relationship=relationship('GuestStagePlot', backref=backref('guest', lazy='joined'), uselist=False))
+    panel: 'GuestPanel' = Relationship(sa_relationship=relationship('GuestPanel', backref=backref('guest', lazy='joined'), uselist=False))
+    merch: 'GuestMerch' = Relationship(sa_relationship=relationship('GuestMerch', backref=backref('guest', lazy='joined'), uselist=False))
+    tracks: list['GuestTrack'] = Relationship(sa_relationship=relationship('GuestTrack', backref=backref('guest', lazy='joined')))
+    charity: 'GuestCharity' = Relationship(sa_relationship=relationship('GuestCharity', backref=backref('guest', lazy='joined'), uselist=False))
+    autograph: 'GuestAutograph' = Relationship(sa_relationship=relationship('GuestAutograph', backref=backref('guest', lazy='joined'), uselist=False))
+    interview: 'GuestInterview' = Relationship(sa_relationship=relationship('GuestInterview', backref=backref('guest', lazy='joined'), uselist=False))
+    travel_plans: 'GuestTravelPlans' = Relationship(sa_relationship=relationship('GuestTravelPlans', backref=backref('guest', lazy='joined'), uselist=False))
+    hospitality: 'GuestHospitality' = Relationship(sa_relationship=relationship('GuestHospitality', backref=backref('guest', lazy='joined'), uselist=False))
+    media_request: 'GuestMediaRequest' = Relationship(sa_relationship=relationship('GuestMediaRequest', backref=backref('guest', lazy='joined'), uselist=False))
 
-    email_model_name = 'guest'
+    email_model_name: ClassVar = 'guest'
 
     def __getattr__(self, name):
         """
@@ -294,25 +296,25 @@ class GuestGroup(MagModel):
         return [header_name, thumbnail_name], [header, thumbnail]
 
 
-class GuestInfo(MagModel):
+class GuestInfo(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    poc_phone = Column(String)
-    performer_count = Column(Integer, default=0)
-    bringing_vehicle = Column(Boolean, default=False)
-    vehicle_info = Column(String)
-    arrival_time = Column(String)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    poc_phone: str = Column(String)
+    performer_count: int = Column(Integer, default=0)
+    bringing_vehicle: bool = Column(Boolean, default=False)
+    vehicle_info: str = Column(String)
+    arrival_time: str = Column(String)
 
     @property
     def status(self):
         return "Yes" if self.poc_phone else ""
 
 
-class GuestImage(MagModel, GuidebookImageMixin):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
+class GuestImage(MagModel, GuidebookImageMixin, table=True):
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
 
     @property
     def url(self):
@@ -328,52 +330,52 @@ class GuestImage(MagModel, GuidebookImageMixin):
         return name + '.' + self.pic_extension
 
 
-class GuestBio(MagModel):
+class GuestBio(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    desc = Column(String)
-    member_info = Column(String)
-    website = Column(String)
-    facebook = Column(String)
-    twitter = Column(String)
-    instagram = Column(String)
-    twitch = Column(String)
-    bandcamp = Column(String)
-    discord = Column(String)
-    spotify = Column(String)
-    other_social_media = Column(String)
-    teaser_song_url = Column(String)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    desc: str = Column(String)
+    member_info: str = Column(String)
+    website: str = Column(String)
+    facebook: str = Column(String)
+    twitter: str = Column(String)
+    instagram: str = Column(String)
+    twitch: str = Column(String)
+    bandcamp: str = Column(String)
+    discord: str = Column(String)
+    spotify: str = Column(String)
+    other_social_media: str = Column(String)
+    teaser_song_url: str = Column(String)
 
     @property
     def status(self):
         return 'Yes' if self.desc else ''
 
 
-class GuestTaxes(MagModel):
+class GuestTaxes(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    w9_sent = Column(Boolean, default=False)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    w9_sent: bool = Column(Boolean, default=False)
 
     @property
     def status(self):
         return str(self.w9_sent)
 
 
-class GuestStagePlot(MagModel):
+class GuestStagePlot(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    filename = Column(String)
-    content_type = Column(String)
-    notes = Column(String)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    filename: str = Column(String)
+    content_type: str = Column(String)
+    notes: str = Column(String)
 
     @property
     def url(self):
@@ -405,33 +407,33 @@ class GuestStagePlot(MagModel):
         return self.notes
 
 
-class GuestPanel(MagModel):
+class GuestPanel(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    wants_panel = Column(Choice(c.GUEST_PANEL_OPTS), nullable=True)
-    name = Column(String)
-    length = Column(String)
-    desc = Column(String)
-    tech_needs = Column(MultiChoice(c.TECH_NEED_OPTS))
-    other_tech_needs = Column(String)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    wants_panel: int | None = Column(Choice(c.GUEST_PANEL_OPTS), nullable=True)
+    name: str = Column(String)
+    length: str = Column(String)
+    desc: str = Column(String)
+    tech_needs: str = Column(MultiChoice(c.TECH_NEED_OPTS))
+    other_tech_needs: str = Column(String)
 
     @property
     def status(self):
         return self.wants_panel_label
 
 
-class GuestTrack(MagModel):
+class GuestTrack(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
-    filename = Column(String)
-    content_type = Column(String)
-    extension = Column(String)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
+    filename: str = Column(String)
+    content_type: str = Column(String)
+    extension: str = Column(String)
 
     @property
     def file(self):
@@ -465,49 +467,49 @@ class GuestTrack(MagModel):
         return os.path.join(c.GUESTS_INVENTORY_DIR, str('track_' + self.id))
 
 
-class GuestMerch(MagModel):
+class GuestMerch(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    _inventory_file_regex = re.compile(r'^(audio|image)(|\-\d+)$')
-    _inventory_filename_regex = re.compile(r'^(audio|image)(|\-\d+)_filename$')
+    _inventory_file_regex: ClassVar = re.compile(r'^(audio|image)(|\-\d+)$')
+    _inventory_filename_regex: ClassVar = re.compile(r'^(audio|image)(|\-\d+)_filename$')
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    selling_merch = Column(Choice(c.GUEST_MERCH_OPTS), nullable=True)
-    delivery_method = Column(Choice(c.GUEST_MERCH_DELIVERY_OPTS), nullable=True)
-    payout_method = Column(Choice(c.GUEST_MERCH_PAYOUT_METHOD_OPTS), nullable=True)
-    paypal_email = Column(String)
-    check_payable = Column(String)
-    check_zip_code = Column(String)
-    check_address1 = Column(String)
-    check_address2 = Column(String)
-    check_city = Column(String)
-    check_region = Column(String)
-    check_country = Column(String)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    selling_merch: int | None = Column(Choice(c.GUEST_MERCH_OPTS), nullable=True)
+    delivery_method: int | None = Column(Choice(c.GUEST_MERCH_DELIVERY_OPTS), nullable=True)
+    payout_method: int | None = Column(Choice(c.GUEST_MERCH_PAYOUT_METHOD_OPTS), nullable=True)
+    paypal_email: str = Column(String)
+    check_payable: str = Column(String)
+    check_zip_code: str = Column(String)
+    check_address1: str = Column(String)
+    check_address2: str = Column(String)
+    check_city: str = Column(String)
+    check_region: str = Column(String)
+    check_country: str = Column(String)
 
-    arrival_plans = Column(String)
-    checkin_time = Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True)
-    checkout_time = Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True)
-    merch_events = Column(String)
-    inventory = Column(JSON, default={}, server_default='{}')
-    inventory_updated = Column(DateTime(timezone=True), nullable=True)
-    extra_info = Column(String)
-    tax_phone = Column(String)
+    arrival_plans: str = Column(String)
+    checkin_time: int | None = Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True)
+    checkout_time: int | None = Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True)
+    merch_events: str = Column(String)
+    inventory: dict[Any, Any] = Column(JSON, default={}, server_default='{}')
+    inventory_updated: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    extra_info: str = Column(String)
+    tax_phone: str = Column(String)
 
-    poc_is_group_leader = Column(Boolean, default=False)
-    poc_first_name = Column(String)
-    poc_last_name = Column(String)
-    poc_phone = Column(String)
-    poc_email = Column(String)
-    poc_zip_code = Column(String)
-    poc_address1 = Column(String)
-    poc_address2 = Column(String)
-    poc_city = Column(String)
-    poc_region = Column(String)
-    poc_country = Column(String)
+    poc_is_group_leader: bool = Column(Boolean, default=False)
+    poc_first_name: str = Column(String)
+    poc_last_name: str = Column(String)
+    poc_phone: str = Column(String)
+    poc_email: str = Column(String)
+    poc_zip_code: str = Column(String)
+    poc_address1: str = Column(String)
+    poc_address2: str = Column(String)
+    poc_city: str = Column(String)
+    poc_region: str = Column(String)
+    poc_country: str = Column(String)
 
-    handlers = Column(JSON, default=[], server_default='[]')
+    handlers: dict[str, Any] = Column(JSON, default=[], server_default='[]')
 
     @property
     def full_name(self):
@@ -767,14 +769,14 @@ class GuestMerch(MagModel):
         self.inventory_updated = datetime.now()
 
 
-class GuestCharity(MagModel):
+class GuestCharity(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    donating = Column(Choice(c.GUEST_CHARITY_OPTS), nullable=True)
-    desc = Column(String)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    donating: int | None = Column(Choice(c.GUEST_CHARITY_OPTS), nullable=True)
+    desc: str = Column(String)
 
     @property
     def status(self):
@@ -786,16 +788,16 @@ class GuestCharity(MagModel):
             self.desc = ''
 
 
-class GuestAutograph(MagModel):
+class GuestAutograph(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    num = Column(Integer, default=0)
-    length = Column(Integer, default=60)  # session length in minutes
-    rock_island_autographs = Column(Boolean, nullable=True)
-    rock_island_length = Column(Integer, default=60)  # session length in minutes
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    num: int = Column(Integer, default=0)
+    length: int = Column(Integer, default=60)  # session length in minutes
+    rock_island_autographs: bool | None = Column(Boolean, nullable=True)
+    rock_island_length: int = Column(Integer, default=60)  # session length in minutes
 
     @presave_adjustment
     def no_length_if_zero_autographs(self):
@@ -803,15 +805,15 @@ class GuestAutograph(MagModel):
             self.length = 0
 
 
-class GuestInterview(MagModel):
+class GuestInterview(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    will_interview = Column(Boolean, default=False)
-    email = Column(String)
-    direct_contact = Column(Boolean, default=False)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    will_interview: bool = Column(Boolean, default=False)
+    email: str = Column(String)
+    direct_contact: bool = Column(Boolean, default=False)
 
     @presave_adjustment
     def no_details_if_no_interview(self):
@@ -820,62 +822,62 @@ class GuestInterview(MagModel):
             self.direct_contact = False
 
 
-class GuestTravelPlans(MagModel):
+class GuestTravelPlans(MagModel, table=True):
     """
     GuestGroup: joined
     GuestDetailedTravelPlan: selectin
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
-    modes_text = Column(String)
-    details = Column(String)
-    completed = Column(Boolean, default=False)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    modes: str = Column(MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
+    modes_text: str = Column(String)
+    details: str = Column(String)
+    completed: bool = Column(Boolean, default=False)
 
     @property
     def num_detailed_travel_plans(self):
         return len(self.detailed_travel_plans)
 
 
-class GuestHospitality(MagModel):
+class GuestHospitality(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    completed = Column(Boolean, default=False)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    completed: bool = Column(Boolean, default=False)
 
 
-class GuestMediaRequest(MagModel):
+class GuestMediaRequest(MagModel, table=True):
     """
     GuestGroup: joined
     """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    completed = Column(Boolean, default=False)
+    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    completed: bool = Column(Boolean, default=False)
 
 
-class GuestDetailedTravelPlan(MagModel):
+class GuestDetailedTravelPlan(MagModel, table=True):
     """
     GuestTravelPlans: joined
     """
 
-    travel_plans_id = Column(Uuid(as_uuid=False), ForeignKey('guest_travel_plans.id'), nullable=True)
-    travel_plans = relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
+    travel_plans_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_travel_plans.id'), nullable=True)
+    travel_plans: 'GuestTravelPlans' = Relationship(sa_relationship=relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
                                 backref=backref('detailed_travel_plans', lazy='selectin'), lazy='joined',
-                                cascade='save-update,merge,refresh-expire,expunge')
-    mode = Column(Choice(c.GUEST_TRAVEL_OPTS))
-    mode_text = Column(String)
-    traveller = Column(String)
-    companions = Column(String)
-    luggage_needs = Column(String)
-    contact_email = Column(String)
-    contact_phone = Column(String)
-    arrival_time = Column(DateTime(timezone=True))
-    arrival_details = Column(String)
-    departure_time = Column(DateTime(timezone=True))
-    departure_details = Column(String)
-    extra_details = Column(String)
+                                cascade='save-update,merge,refresh-expire,expunge'))
+    mode: int = Column(Choice(c.GUEST_TRAVEL_OPTS))
+    mode_text: str = Column(String)
+    traveller: str = Column(String)
+    companions: str = Column(String)
+    luggage_needs: str = Column(String)
+    contact_email: str = Column(String)
+    contact_phone: str = Column(String)
+    arrival_time: datetime = Column(DateTime(timezone=True))
+    arrival_details: str = Column(String)
+    departure_time: datetime = Column(DateTime(timezone=True))
+    departure_details: str = Column(String)
+    extra_details: str = Column(String)
 
     @classproperty
     def min_arrival_time(self):

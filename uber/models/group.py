@@ -2,12 +2,15 @@ import math
 from datetime import datetime
 from uuid import uuid4
 
+from decimal import Decimal
 from pytz import UTC
 from sqlalchemy import and_, exists, or_, func, select, not_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Numeric, String, DateTime, Uuid
+from sqlmodel import Field, Relationship
+from typing import ClassVar
 
 from uber.config import c
 from uber.custom_tags import format_currency
@@ -21,80 +24,80 @@ from uber.utils import add_opt
 __all__ = ['Group']
 
 
-class Group(MagModel, TakesPaymentMixin):
+class Group(MagModel, TakesPaymentMixin, table=True):
     """
     Attendee: selectin
     ModelReceipt: select
     """
 
-    public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
-    shared_with_id = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
-    shared_with = relationship(
+    public_id: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
+    shared_with_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    shared_with: 'Group' = Relationship(sa_relationship=relationship(
         'Group',
         foreign_keys='Group.shared_with_id',
         backref=backref('table_shares', viewonly=True),
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Group.id',
-        single_parent=True)
-    name = Column(String)
-    tables = Column(Numeric, default=0)
-    zip_code = Column(String)
-    address1 = Column(String)
-    address2 = Column(String)
-    city = Column(String)
-    region = Column(String)
-    country = Column(String)
-    email_address = Column(String)
-    phone = Column(String)
-    website = Column(String)
-    wares = Column(String)
-    categories = Column(MultiChoice(c.DEALER_WARES_OPTS))
-    categories_text = Column(String)
-    description = Column(String)
-    special_needs = Column(String)
+        single_parent=True))
+    name: str = Column(String)
+    tables: Decimal = Column(Numeric, default=0)
+    zip_code: str = Column(String)
+    address1: str = Column(String)
+    address2: str = Column(String)
+    city: str = Column(String)
+    region: str = Column(String)
+    country:str = Column(String)
+    email_address: str = Column(String)
+    phone: str = Column(String)
+    website: str = Column(String)
+    wares: str = Column(String)
+    categories: str = Column(MultiChoice(c.DEALER_WARES_OPTS))
+    categories_text: str = Column(String)
+    description: str = Column(String)
+    special_needs: str = Column(String)
 
-    cost = Column(Integer, default=0, admin_only=True)
-    auto_recalc = Column(Boolean, default=True, admin_only=True)
+    cost: int = Column(Integer, default=0, admin_only=True)
+    auto_recalc: bool = Column(Boolean, default=True, admin_only=True)
 
-    can_add = Column(Boolean, default=False, admin_only=True)
-    is_dealer = Column(Boolean, default=False, admin_only=True)
-    convert_badges = Column(Boolean, default=False, admin_only=True)
-    admin_notes = Column(String, admin_only=True)
-    status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    approved = Column(DateTime(timezone=True), nullable=True)
-    leader_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
+    can_add: bool = Column(Boolean, default=False, admin_only=True)
+    is_dealer: bool = Column(Boolean, default=False, admin_only=True)
+    convert_badges: bool = Column(Boolean, default=False, admin_only=True)
+    admin_notes: str = Column(String, admin_only=True)
+    status: int = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
+    registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    approved: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    leader_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
                        nullable=True)
-    creator_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
+    creator_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
 
-    creator = relationship(
+    creator: 'Attendee' = Relationship(sa_relationship=relationship(
         'Attendee',
         foreign_keys=creator_id,
         backref=backref('created_groups', order_by='Group.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Attendee.id',
-        single_parent=True)
-    leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
-    studio = relationship('IndieStudio', uselist=False, backref='group',
-                          cascade='save-update,merge,refresh-expire,expunge')
-    guest = relationship('GuestGroup', backref=backref('group', lazy='joined'), uselist=False)
-    active_receipt = relationship(
+        single_parent=True))
+    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all'))
+    studio: 'IndieStudio' = Relationship(sa_relationship=relationship('IndieStudio', uselist=False, backref='group',
+                          cascade='save-update,merge,refresh-expire,expunge'))
+    guest: 'GuestGroup' = Relationship(sa_relationship=relationship('GuestGroup', backref=backref('group', lazy='joined'), uselist=False))
+    active_receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship(
         'ModelReceipt',
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Group.id),'
         'ModelReceipt.owner_model == "Group",'
         'ModelReceipt.closed == None)',
         lazy='select',
-        uselist=False)
-    terms_conditions_doc = relationship(
+        uselist=False))
+    terms_conditions_doc: 'SignedDocument' = Relationship(sa_relationship=relationship(
         'SignedDocument',
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(SignedDocument.fk_id == foreign(Group.id),'
         'SignedDocument.model == "Group")',
         uselist=False,
-        overlaps="active_receipt")
+        overlaps="active_receipt"))
 
-    _repr_attr_names = ['name']
+    _repr_attr_names: ClassVar = ['name']
 
     @presave_adjustment
     def _cost_and_leader(self):

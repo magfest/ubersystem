@@ -6,6 +6,8 @@ from sqlalchemy import String, Uuid, DateTime
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
+from sqlmodel import Field, Relationship
+from typing import Any
 
 from uber.config import c
 from uber.models import MagModel
@@ -15,18 +17,18 @@ from uber.models.types import DefaultColumn as Column, MultiChoice
 __all__ = ['ApiToken', 'ApiJob']
 
 
-class ApiToken(MagModel):
+class ApiToken(MagModel, table=True):
     """
     AdminAccount: joined
     """
 
-    admin_account_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'))
-    token = Column(Uuid(as_uuid=False), default=lambda: str(uuid.uuid4()), private=True)
-    access = Column(MultiChoice(c.API_ACCESS_OPTS))
-    name = Column(String)
-    description = Column(String)
-    issued_time = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    revoked_time = Column(DateTime(timezone=True), default=None, nullable=True)
+    admin_account_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'))
+    token: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid.uuid4()), private=True)
+    access: int = Column(MultiChoice(c.API_ACCESS_OPTS))
+    name: str = Column(String)
+    description: str = Column(String)
+    issued_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    revoked_time: datetime = Column(DateTime(timezone=True), default=None, nullable=True)
 
     @property
     def api_read(self):
@@ -45,15 +47,15 @@ class ApiToken(MagModel):
         return c.API_DELETE in self.access_ints
 
 
-class ApiJob(MagModel):
-    admin_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
-    admin_name = Column(String)  # Preserve admin's name in case their account is removed
-    queued = Column(DateTime(timezone=True), nullable=True, default=None)
-    completed = Column(DateTime(timezone=True), nullable=True, default=None)
-    cancelled = Column(DateTime(timezone=True), nullable=True, default=None)
-    job_name = Column(String)
-    target_server = Column(String)
-    query = Column(String)
-    api_token = Column(String)
-    errors = Column(String)
-    json_data = Column(MutableDict.as_mutable(JSONB), default={})
+class ApiJob(MagModel, table=True):
+    admin_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
+    admin_name: str = Column(String)  # Preserve admin's name in case their account is removed
+    queued: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
+    completed: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
+    cancelled: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
+    job_name: str = Column(String)
+    target_server: str = Column(String)
+    query: str = Column(String)
+    api_token: str = Column(String)
+    errors: str = Column(String)
+    json_data: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)

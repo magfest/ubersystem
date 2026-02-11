@@ -8,6 +8,8 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date, Integer
+from sqlmodel import Field, Relationship
+from typing import ClassVar
 
 from uber.config import c
 from uber.decorators import presave_adjustment, classproperty
@@ -31,33 +33,33 @@ admin_access_group = Table(
 )
 
 
-class AdminAccount(MagModel):
+class AdminAccount(MagModel, table=True):
     """
     Attendee: joined
     AccessGroup: selectin
     PasswordReset: select
     """
 
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
-    access_groups = relationship(
+    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
+    access_groups: list['AccessGroup'] = Relationship(sa_relationship=relationship(
         'AccessGroup', backref='admin_accounts', lazy='selectin', cascade='save-update,merge,refresh-expire,expunge',
-        secondary='admin_access_group')
-    hashed = Column(String, private=True)
+        secondary='admin_access_group'))
+    hashed: str = Column(String, private=True)
 
-    password_reset = relationship('PasswordReset', backref='admin_account', lazy='select', uselist=False)
+    password_reset: "PasswordReset" = Relationship(sa_relationship=relationship('PasswordReset', backref='admin_account', lazy='select', uselist=False))
 
-    api_tokens = relationship('ApiToken', backref=backref('admin_account', lazy='joined'))
-    active_api_tokens = relationship(
+    api_tokens: list['ApiToken'] = Relationship(sa_relationship=relationship('ApiToken', backref=backref('admin_account', lazy='joined')))
+    active_api_tokens: list['ApiToken'] = Relationship(sa_relationship=relationship(
         'ApiToken',
         primaryjoin='and_('
                     'AdminAccount.id == ApiToken.admin_account_id, '
                     'ApiToken.revoked_time == None)',
-        overlaps="admin_account,api_tokens")
+        overlaps="admin_account,api_tokens"))
 
-    judge = relationship('IndieJudge', uselist=False, backref='admin_account')
-    print_requests = relationship('PrintJob', backref='admin_account',
-                                  cascade='save-update,merge,refresh-expire,expunge')
-    api_jobs = relationship('ApiJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge')
+    judge: 'IndieJudge' = Relationship(sa_relationship=relationship('IndieJudge', uselist=False, backref='admin_account'))
+    print_requests: list['PrintJob'] = Relationship(sa_relationship=relationship('PrintJob', backref='admin_account',
+                                  cascade='save-update,merge,refresh-expire,expunge'))
+    api_jobs: list['ApiJob'] = Relationship(sa_relationship=relationship('ApiJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge'))
 
     def __repr__(self):
         return f"<Admin full_name='{self.attendee.full_name}'>"
@@ -260,44 +262,44 @@ class AdminAccount(MagModel):
         return removed_api
 
 
-class PasswordReset(MagModel):
-    admin_id = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), unique=True, nullable=True)
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee_account.id'), unique=True, nullable=True)
-    generated = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    hashed = Column(String, private=True)
+class PasswordReset(MagModel, table=True):
+    admin_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), unique=True, nullable=True)
+    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee_account.id'), unique=True, nullable=True)
+    generated: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    hashed: str = Column(String, private=True)
 
     @property
     def is_expired(self):
         return self.generated < datetime.now(UTC) - timedelta(hours=c.PASSWORD_RESET_HOURS)
 
 
-class AccessGroup(MagModel):
+class AccessGroup(MagModel, table=True):
     """
     Sets of accesses to grant to admin accounts.
     """
-    NONE = 0
-    LIMITED = 1
-    CONTACT = 2
-    DEPT = 3
-    FULL = 5
-    READ_LEVEL_OPTS = [
+    NONE: ClassVar = 0
+    LIMITED: ClassVar = 1
+    CONTACT: ClassVar = 2
+    DEPT: ClassVar = 3
+    FULL: ClassVar = 5
+    READ_LEVEL_OPTS: ClassVar = [
         (NONE, 'Same as Read-Write Access'),
         (LIMITED, 'Limited'),
         (CONTACT, 'Contact Info'),
         (DEPT, 'All Info in Own Dept(s)'),
         (FULL, 'All Info')]
-    WRITE_LEVEL_OPTS = [
+    WRITE_LEVEL_OPTS: ClassVar = [
         (NONE, 'No Access'),
         (LIMITED, 'Limited'),
         (CONTACT, 'Contact Info'),
         (DEPT, 'All Info in Own Dept(s)'),
         (FULL, 'All Info')]
 
-    name = Column(String)
-    access = Column(MutableDict.as_mutable(JSONB), default={})
-    read_only_access = Column(MutableDict.as_mutable(JSONB), default={})
-    start_time = Column(DateTime(timezone=True), nullable=True)
-    end_time = Column(DateTime(timezone=True), nullable=True)
+    name: str = Column(String)
+    access: dict[str, int] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    read_only_access: dict[str, int] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    start_time: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    end_time: datetime | None = Column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
         return f"<AccessGroup id='{self.id}' name='{self.name}'>"
@@ -339,21 +341,21 @@ class AccessGroup(MagModel):
         return compare(int(self.access.get(access_to, 0)), access_level)
 
 
-class WatchList(MagModel):
+class WatchList(MagModel, table=True):
     """
     Attendee: selectin
     """
 
-    first_names = Column(String)
-    last_name = Column(String)
-    email = Column(String, default='')
-    birthdate = Column(Date, nullable=True, default=None)
-    reason = Column(String)
-    action = Column(String)
-    expiration = Column(Date, nullable=True, default=None)
-    active = Column(Boolean, default=True)
-    attendees = relationship('Attendee', lazy='selectin',
-                             backref=backref('watch_list'), cascade='save-update,merge,refresh-expire,expunge')
+    first_names: str = Column(String)
+    last_name: str = Column(String)
+    email: str = Column(String, default='')
+    birthdate: datetime | None = Column(Date, nullable=True, default=None)
+    reason: str = Column(String)
+    action: str = Column(String)
+    expiration: datetime | None = Column(Date, nullable=True, default=None)
+    active: bool = Column(Boolean, default=True)
+    attendees: list['Attendee'] = Relationship(sa_relationship=relationship('Attendee', lazy='selectin',
+                             backref=backref('watch_list'), cascade='save-update,merge,refresh-expire,expunge'))
 
     @property
     def full_name(self):
@@ -381,31 +383,31 @@ attendee_escalation_ticket = Table(
 )
 
 
-class EscalationTicket(MagModel):
+class EscalationTicket(MagModel, table=True):
     """
     Attendee: selectin
     """
-    attendees = relationship(
+    attendees: list['Attendee'] = Relationship(sa_relationship=relationship(
         'Attendee', lazy='selectin', backref='escalation_tickets', order_by='Attendee.full_name',
         cascade='save-update,merge,refresh-expire,expunge',
-        secondary='attendee_escalation_ticket')
-    ticket_id_seq = Sequence('escalation_ticket_ticket_id_seq')
-    ticket_id = Column(Integer, ticket_id_seq, server_default=ticket_id_seq.next_value(), unique=True)
-    who = Column(String)
-    description = Column(String)
-    admin_notes = Column(String)
-    resolved = Column(DateTime(timezone=True), nullable=True)
+        secondary='attendee_escalation_ticket'))
+    ticket_id_seq: ClassVar = Sequence('escalation_ticket_ticket_id_seq')
+    ticket_id: int = Column(Integer, ticket_id_seq, server_default=ticket_id_seq.next_value(), unique=True)
+    who: str = Column(String)
+    description: str = Column(String)
+    admin_notes: str = Column(String)
+    resolved: datetime | None = Column(DateTime(timezone=True), nullable=True)
 
     @property
     def attendee_names(self):
         return [a.full_name for a in self.attendees]
 
 
-class WorkstationAssignment(MagModel):
-    reg_station_id = Column(Integer)
-    printer_id = Column(String)
-    minor_printer_id = Column(String)
-    terminal_id = Column(String)
+class WorkstationAssignment(MagModel, table=True):
+    reg_station_id: int = Column(Integer)
+    printer_id: str = Column(String)
+    minor_printer_id: str = Column(String)
+    terminal_id: str = Column(String)
 
     @property
     def separate_printers(self):

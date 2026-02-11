@@ -9,8 +9,10 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
 from itertools import chain
+from pydantic import ConfigDict
 from uuid import uuid4
 from types import MethodType
+from typing import Any, ClassVar
 
 import cherrypy
 import six
@@ -21,12 +23,14 @@ from sqlalchemy import and_, func, or_, create_engine
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Query, joinedload, selectinload, subqueryload, contains_eager, DeclarativeBase, declared_attr, sessionmaker, scoped_session
 import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric, DateTime, Uuid, JSON
+from sqlmodel import Field, SQLModel
 
 import uber
 from uber.config import c, create_namespace_uuid
@@ -126,7 +130,9 @@ def uncamel(s, sep='_'):
     return RE_UNCAMEL.sub(r'{0}\1'.format(sep), s).lower()
 
 DeclarativeBase.metadata = MetaData()
-class MagModel(DeclarativeBase):
+class MagModel(SQLModel):
+    model_config = ConfigDict(ignored_types=(hybrid_method, hybrid_property))
+
     @declared_attr.directive
     def __tablename__(cls) -> str:
         # Convert the model name from camel to snake-case to name the db table
@@ -153,9 +159,9 @@ class MagModel(DeclarativeBase):
             data[field] = val
         return data
     
-    id = Column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    created = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    last_updated = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=str(uuid4()), primary_key=True)
+    created: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=datetime.now(UTC))
+    last_updated: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=datetime.now(UTC))
 
     """
     The two columns below allow tracking any object in external sources,
@@ -164,12 +170,12 @@ class MagModel(DeclarativeBase):
     dictionary (if there are multiple objects to track in the external service)
     or just strings and datetime objects, respectively.
     """
-    external_id = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
-    last_synced = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
+    external_id: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    last_synced: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
-    required = ()
-    is_actually_old = False  # Set to true to force preview models to return False for `is_new`
-    _repr_attr_names = ()
+    required: ClassVar = ()
+    is_actually_old: ClassVar = False  # Set to true to force preview models to return False for `is_new`
+    _repr_attr_names: ClassVar = ()
 
     def __repr__(self):
         """
@@ -738,7 +744,6 @@ from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
 from uber.models.hotel import *  # noqa: F401,E402,F403
-from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
 from uber.models.marketplace import *  # noqa: F401,E402,F403
 from uber.models.showcase import *  # noqa: F401,E402,F403
 from uber.models.mits import *  # noqa: F401,E402,F403

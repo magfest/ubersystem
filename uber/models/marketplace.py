@@ -10,45 +10,47 @@ from pytz import UTC
 from sqlalchemy.orm import backref
 from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
 from sqlalchemy.schema import ForeignKey
+from sqlmodel import Field, Relationship
+from typing import ClassVar
 
 
 __all__ = ['ArtistMarketplaceApplication']
 
 
-class ArtistMarketplaceApplication(MagModel):
+class ArtistMarketplaceApplication(MagModel, table=True):
     """
     Attendee: joined
     """
     
-    MATCHING_DEALER_FIELDS = ['email_address', 'website', 'name']
+    MATCHING_DEALER_FIELDS: ClassVar = ['email_address', 'website', 'name']
 
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
-    attendee = relationship('Attendee', lazy='joined', backref=backref('marketplace_application', uselist=False),
+    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', lazy='joined', backref=backref('marketplace_application', uselist=False),
                             cascade='save-update,merge,refresh-expire,expunge',
-                            uselist=False)
-    name = Column(String)
-    display_name = Column(String)
-    email_address = Column(String)
-    website = Column(String)
-    tax_number = Column(String)
-    terms_accepted = Column(Boolean, default=False)
-    seating_requests = Column(String)
-    accessibility_requests = Column(String)
+                            uselist=False))
+    name: str = Column(String)
+    display_name: str = Column(String)
+    email_address: str = Column(String)
+    website: str = Column(String)
+    tax_number: str = Column(String)
+    terms_accepted: bool = Column(Boolean, default=False)
+    seating_requests: str = Column(String)
+    accessibility_requests: str = Column(String)
 
-    status = Column(Choice(c.MARKETPLACE_STATUS_OPTS), default=c.PENDING, admin_only=True)
-    registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    accepted = Column(DateTime(timezone=True), nullable=True)
-    receipt_items = relationship('ReceiptItem',
+    status: int = Column(Choice(c.MARKETPLACE_STATUS_OPTS), default=c.PENDING, admin_only=True)
+    registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    accepted: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    receipt_items: list['ReceiptItem'] = Relationship(sa_relationship=relationship('ReceiptItem',
                                  primaryjoin='and_('
                                              'ReceiptItem.fk_model == "ArtistMarketplaceApplication", '
                                              'remote(ReceiptItem.fk_id) == foreign(ArtistMarketplaceApplication.id))',
                                  viewonly=True,
-                                 uselist=True)
+                                 uselist=True))
 
-    admin_notes = Column(String, admin_only=True)
-    overridden_price = Column(Integer, nullable=True, admin_only=True)
+    admin_notes: str = Column(String, admin_only=True)
+    overridden_price: int | None = Column(Integer, nullable=True, admin_only=True)
 
-    email_model_name = 'app'
+    email_model_name: ClassVar = 'app'
 
     @presave_adjustment
     def _cost_adjustments(self):

@@ -9,6 +9,8 @@ from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Uuid, DateTime, String
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlmodel import Field, Relationship
+from typing import ClassVar
 
 from uber.config import c
 from uber.models import MagModel
@@ -20,33 +22,33 @@ from uber.utils import slugify
 __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument', 'MITSTimes']
 
 
-class MITSTeam(MagModel):
+class MITSTeam(MagModel, table=True):
     """
     MITSGame: selectin
     """
 
-    name = Column(String)
-    days_available = Column(Integer, nullable=True)
-    hours_available = Column(Integer, nullable=True)
-    concurrent_attendees = Column(Integer, default=0)
-    panel_interest = Column(Boolean, nullable=True, admin_only=True)
-    showcase_interest = Column(Boolean, nullable=True, admin_only=True)
-    want_to_sell = Column(Boolean, default=False)
-    address = Column(String)
-    submitted = Column(DateTime(timezone=True), nullable=True)
-    waiver_signature = Column(String)
-    waiver_signed = Column(DateTime(timezone=True), nullable=True)
+    name: str = Column(String)
+    days_available: int | None = Column(Integer, nullable=True)
+    hours_available: int | None = Column(Integer, nullable=True)
+    concurrent_attendees: int | None = Column(Integer, default=0)
+    panel_interest: bool | None = Column(Boolean, nullable=True, admin_only=True)
+    showcase_interest: bool | None = Column(Boolean, nullable=True, admin_only=True)
+    want_to_sell: bool = Column(Boolean, default=False)
+    address: str = Column(String)
+    submitted: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    waiver_signature: str = Column(String)
+    waiver_signed: datetime | None = Column(DateTime(timezone=True), nullable=True)
 
-    applied = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    status = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
+    applied: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    status: int = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
 
-    applicants = relationship('MITSApplicant', backref=backref('team', lazy='joined'))
-    games = relationship('MITSGame', lazy='selectin', backref=backref('team', lazy='joined'))
-    schedule = relationship('MITSTimes', uselist=False, backref=backref('team', lazy='joined'))
-    panel_app = relationship('MITSPanelApplication', uselist=False, backref=backref('team', lazy='joined'))
+    applicants: list['MITSApplicant'] = Relationship(sa_relationship=relationship('MITSApplicant', backref=backref('team', lazy='joined')))
+    games: list['MITSGame'] = Relationship(sa_relationship=relationship('MITSGame', lazy='selectin', backref=backref('team', lazy='joined')))
+    schedule: 'MITSTimes' = Relationship(sa_relationship=relationship('MITSTimes', uselist=False, backref=backref('team', lazy='joined')))
+    panel_app: 'MITSPanelApplication' = Relationship(sa_relationship=relationship('MITSPanelApplication', uselist=False, backref=backref('team', lazy='joined')))
 
-    duplicate_of = Column(Uuid(as_uuid=False), nullable=True)
-    deleted = Column(Boolean, default=False)
+    duplicate_of: str | None = Column(Uuid(as_uuid=False), nullable=True)
+    deleted: bool = Column(Boolean, default=False)
     # We've found that a lot of people start filling out an application and
     # then instead of continuing their application just start over fresh and
     # fill out a new one.  In these cases we mark the application as
@@ -54,7 +56,7 @@ class MITSTeam(MagModel):
     # applicant tries to log into the original application, we can redirect
     # them to the correct application.
 
-    email_model_name = 'team'
+    email_model_name: ClassVar = 'team'
 
     @property
     def accepted(self):
@@ -135,24 +137,24 @@ class MITSTeam(MagModel):
         return 100 * self.steps_completed // c.MITS_APPLICATION_STEPS
 
 
-class MITSApplicant(MagModel):
+class MITSApplicant(MagModel, table=True):
     """
     MITSTeam: joined
     """
 
-    team_id = Column(ForeignKey('mits_team.id'))
-    attendee_id = Column(ForeignKey('attendee.id'), nullable=True)
-    primary_contact = Column(Boolean, default=False)
-    first_name = Column(String)
-    last_name = Column(String)
-    email = Column(String)
-    cellphone = Column(String)
-    contact_method = Column(Choice(c.MITS_CONTACT_OPTS), default=c.TEXTING)
+    team_id: str | None = Column(ForeignKey('mits_team.id'))
+    attendee_id: str | None = Column(ForeignKey('attendee.id'), nullable=True)
+    primary_contact: bool = Column(Boolean, default=False)
+    first_name: str = Column(String)
+    last_name: str = Column(String)
+    email: str = Column(String)
+    cellphone: str = Column(String)
+    contact_method: int = Column(Choice(c.MITS_CONTACT_OPTS), default=c.TEXTING)
 
-    declined_hotel_space = Column(Boolean, default=False)
-    requested_room_nights = Column(MultiChoice(c.MITS_ROOM_NIGHT_OPTS), default='')
+    declined_hotel_space: bool = Column(Boolean, default=False)
+    requested_room_nights: str = Column(MultiChoice(c.MITS_ROOM_NIGHT_OPTS), default='')
 
-    email_model_name = 'applicant'
+    email_model_name: ClassVar = 'applicant'
 
     @property
     def email_to_address(self):
@@ -168,30 +170,30 @@ class MITSApplicant(MagModel):
         return night in self.requested_room_nights_ints
 
 
-class MITSGame(MagModel):
+class MITSGame(MagModel, table=True):
     """
     MITSTeam: joined
     MITSPicture: selectin
     MITSDocument: selectin
     """
 
-    team_id = Column(ForeignKey('mits_team.id'))
-    name = Column(String)
-    promo_blurb = Column(String)
-    description = Column(String)
-    genre = Column(String)
-    phase = Column(Choice(c.MITS_PHASE_OPTS), default=c.DEVELOPMENT)
-    min_age = Column(Choice(c.MITS_AGE_OPTS), default=c.CHILD)
-    age_explanation = Column(String)
-    min_players = Column(Integer, default=2)
-    max_players = Column(Integer, default=4)
-    copyrighted = Column(Choice(c.MITS_COPYRIGHT_OPTS), nullable=True)
-    personally_own = Column(Boolean, default=False)
-    unlicensed = Column(Boolean, default=False)
-    professional = Column(Boolean, default=False)
-    tournament = Column(Boolean, default=False)
-    pictures = relationship('MITSPicture', lazy='selectin', backref=backref('game', lazy='joined'))
-    documents = relationship('MITSDocument', lazy='selectin', backref=backref('game', lazy='joined'))
+    team_id: str | None = Column(ForeignKey('mits_team.id'))
+    name: str = Column(String)
+    promo_blurb: str = Column(String)
+    description: str = Column(String)
+    genre: str = Column(String)
+    phase: int = Column(Choice(c.MITS_PHASE_OPTS), default=c.DEVELOPMENT)
+    min_age: int = Column(Choice(c.MITS_AGE_OPTS), default=c.CHILD)
+    age_explanation: str = Column(String)
+    min_players: int = Column(Integer, default=2)
+    max_players: int = Column(Integer, default=4)
+    copyrighted: int | None = Column(Choice(c.MITS_COPYRIGHT_OPTS), nullable=True)
+    personally_own: bool = Column(Boolean, default=False)
+    unlicensed: bool = Column(Boolean, default=False)
+    professional: bool = Column(Boolean, default=False)
+    tournament: bool = Column(Boolean, default=False)
+    pictures: list['MITSPicture'] = Relationship(sa_relationship=relationship('MITSPicture', lazy='selectin', backref=backref('game', lazy='joined')))
+    documents: list['MITSDocument'] = Relationship(sa_relationship=relationship('MITSDocument', lazy='selectin', backref=backref('game', lazy='joined')))
 
     @hybrid_property
     def has_been_accepted(self):
@@ -245,13 +247,13 @@ class MITSGame(MagModel):
         return [header_name, thumbnail_name], [header, thumbnail]
 
 
-class MITSPicture(MagModel, GuidebookImageMixin):
+class MITSPicture(MagModel, GuidebookImageMixin, table=True):
     """
     MITSGame: joined
     """
 
-    game_id = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
-    description = Column(String)
+    game_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
+    description: str = Column(String)
 
     @property
     def url(self):
@@ -262,14 +264,14 @@ class MITSPicture(MagModel, GuidebookImageMixin):
         return os.path.join(c.MITS_PICTURE_DIR, str(self.id))
 
 
-class MITSDocument(MagModel):
+class MITSDocument(MagModel, table=True):
     """
     MITSGame: joined
     """
     
-    game_id = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
-    filename = Column(String)
-    description = Column(String)
+    game_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
+    filename: str = Column(String)
+    description: str = Column(String)
 
     @property
     def url(self):
@@ -280,26 +282,26 @@ class MITSDocument(MagModel):
         return os.path.join(c.MITS_PICTURE_DIR, str(self.id))
 
 
-class MITSTimes(MagModel):
+class MITSTimes(MagModel, table=True):
     """
     MITSTeam: joined
     """
 
-    team_id = Column(ForeignKey('mits_team.id'))
-    showcase_availability = Column(MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS))
-    availability = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
+    team_id: str | None = Column(ForeignKey('mits_team.id'))
+    showcase_availability: str = Column(MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS))
+    availability: str = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
 
 
-class MITSPanelApplication(MagModel):
+class MITSPanelApplication(MagModel, table=True):
     """
     MITSTeam: joined
     """
 
-    team_id = Column(ForeignKey('mits_team.id'))
-    name = Column(String)
-    description = Column(String)
-    length = Column(Choice(c.PANEL_STRICT_LENGTH_OPTS), default=c.SIXTY_MIN)
-    participation_interest = Column(Boolean, default=False)
+    team_id: str | None = Column(ForeignKey('mits_team.id'))
+    name: str = Column(String)
+    description: str = Column(String)
+    length: int = Column(Choice(c.PANEL_STRICT_LENGTH_OPTS), default=c.SIXTY_MIN)
+    participation_interest: bool = Column(Boolean, default=False)
 
 
 def add_applicant_restriction():

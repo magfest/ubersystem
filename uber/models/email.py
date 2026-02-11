@@ -13,6 +13,8 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, String, Uuid, DateTime
+from sqlmodel import Field, Relationship
+from typing import Any, ClassVar
 
 from uber import utils
 from uber.config import c
@@ -29,17 +31,17 @@ __all__ = ['AutomatedEmail', 'Email']
 
 
 class BaseEmailMixin(object):
-    model = Column(String)
+    model: str = Column(String)
 
-    subject = Column(String)
-    body = Column(String)
+    subject: str = Column(String)
+    body: str = Column(String)
 
-    sender = Column(String)
-    cc = Column(String)
-    bcc = Column(String)
-    replyto = Column(String)
+    sender: str = Column(String)
+    cc: str = Column(String)
+    bcc: str = Column(String)
+    replyto: str = Column(String)
 
-    _repr_attr_names = ['subject']
+    _repr_attr_names: ClassVar = ['subject']
 
     @property
     def body_with_body_tag_stripped(self):
@@ -66,27 +68,27 @@ class BaseEmailMixin(object):
             return None
 
 
-class AutomatedEmail(MagModel, BaseEmailMixin):
-    _fixtures = OrderedDict()
-    email_overrides = [] # Used in plugins, list of (ident, key, val) tuples
+class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
+    _fixtures: ClassVar = OrderedDict()
+    email_overrides: ClassVar = [] # Used in plugins, list of (ident, key, val) tuples
 
-    format = Column(String, default='text')
-    ident = Column(String, unique=True)
+    format: str = Column(String, default='text')
+    ident: str = Column(String, unique=True)
 
-    approved = Column(Boolean, default=False)
-    needs_approval = Column(Boolean, default=True)
-    unapproved_count = Column(Integer, default=0)
-    currently_sending = Column(Boolean, default=False)
-    last_send_time = Column(DateTime(timezone=True), nullable=True, default=None)
+    approved: bool = Column(Boolean, default=False)
+    needs_approval: bool = Column(Boolean, default=True)
+    unapproved_count: int = Column(Integer, default=0)
+    currently_sending: bool = Column(Boolean, default=False)
+    last_send_time: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
 
-    allow_at_the_con = Column(Boolean, default=False)
-    allow_post_con = Column(Boolean, default=False)
+    allow_at_the_con: bool = Column(Boolean, default=False)
+    allow_post_con: bool = Column(Boolean, default=False)
 
-    active_after = Column(DateTime(timezone=True), nullable=True, default=None)
-    active_before = Column(DateTime(timezone=True), nullable=True, default=None)
-    revert_changes = Column(MutableDict.as_mutable(JSONB), default={})
+    active_after: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
+    active_before: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
+    revert_changes: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
-    emails = relationship('Email', backref=backref('automated_email', lazy='joined'), order_by='Email.id')
+    emails: list['Email'] = Relationship(sa_relationship=relationship('Email', backref=backref('automated_email', lazy='joined'), order_by='Email.id'))
 
     @presave_adjustment
     def date_adjustments(self):
@@ -346,18 +348,18 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         return model_instance and getattr(model_instance, 'email_to_address', False) and self.filter(model_instance)
 
 
-class Email(MagModel, BaseEmailMixin):
+class Email(MagModel, BaseEmailMixin, table=True):
     """
     AutomatedEmail: joined
     """
     
-    automated_email_id = Column(
+    automated_email_id: str | None = Column(
         Uuid(as_uuid=False), ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None, index=True)
 
-    fk_id = Column(Uuid(as_uuid=False), nullable=True)
-    ident = Column(String)
-    to = Column(String)
-    when = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    fk_id: str | None = Column(Uuid(as_uuid=False), nullable=True)
+    ident: str = Column(String)
+    to: str = Column(String)
+    when: str = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     @cached_property
     def fk(self):
