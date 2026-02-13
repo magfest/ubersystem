@@ -1,26 +1,26 @@
-"""Add extra donation column
+"""Add missing columns from SQLAlchemy upgrade
 
-Revision ID: d0c15c44a031
-Revises: c755142df6c1
-Create Date: 2017-07-28 14:31:27.080065
+Revision ID: 3d942ce689fc
+Revises: 5a0e898174d4
+Create Date: 2026-02-05 16:34:19.803186
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'd0c15c44a031'
-down_revision = 'c755142df6c1'
+revision = '3d942ce689fc'
+down_revision = '5a0e898174d4'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects import postgresql
 
 
 try:
     is_sqlite = op.get_context().dialect.name == 'sqlite'
-except:
+except Exception:
     is_sqlite = False
 
 if is_sqlite:
@@ -52,16 +52,14 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    conn = op.get_bind()
-    if is_sqlite:
-        with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.add_column(sa.Column('extra_donation', sa.Integer(), server_default='0', nullable=False))
-    else:
-        # Because this column used to be in an event plugin, we check for its existence before making it
-        exists = conn.execute(sa.text("SELECT COLUMN_NAME FROM information_schema.columns where TABLE_NAME = 'attendee' and COLUMN_NAME = 'extra_donation'")).fetchall()
-        if not exists:
-            op.add_column('attendee', sa.Column('extra_donation', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('panel_applicant', sa.Column('social_media_info', sa.String(), server_default='', nullable=False))
+    op.drop_column('panel_applicant', 'social_media')
+    op.drop_index(op.f('uq_promo_code_word_normalized_word_part_of_speech'), table_name='promo_code_word')
+    op.create_index('uq_promo_code_word_normalized_word_part_of_speech', 'promo_code_word', [sa.literal_column('lower(trim(word))'), 'part_of_speech'], unique=True)
 
 
 def downgrade():
-    op.drop_column('attendee', 'extra_donation')
+    op.drop_index('uq_promo_code_word_normalized_word_part_of_speech', table_name='promo_code_word')
+    op.create_index(op.f('uq_promo_code_word_normalized_word_part_of_speech'), 'promo_code_word', [sa.literal_column('lower(TRIM(BOTH FROM word))'), 'part_of_speech'], unique=True)
+    op.add_column('panel_applicant', sa.Column('social_media', postgresql.JSON(astext_type=sa.Text()), server_default=sa.text("'{}'::json"), autoincrement=False, nullable=False))
+    op.drop_column('panel_applicant', 'social_media_info')

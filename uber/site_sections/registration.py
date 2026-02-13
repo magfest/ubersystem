@@ -13,7 +13,7 @@ from cherrypy.lib.static import serve_file
 from aztec_code_generator import AztecCode
 from pytz import UTC
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -47,14 +47,20 @@ def load_attendee(session, params):
 
     if id in [None, '', 'None']:
         attendee = Attendee()
-        session.add(attendee)
     else:
-        attendee = session.attendee(id)
+        attendee = session.query(Attendee).filter(Attendee.id == id).options(
+            selectinload(Attendee.dept_membership_requests),
+            selectinload(Attendee.dept_memberships_with_role),
+            selectinload(Attendee.dept_memberships_with_inherent_role),
+            joinedload(Attendee.shifts),
+            joinedload(Attendee.panel_applicants),
+            joinedload(Attendee.admin_account)).one()
 
     return attendee
 
 
 def save_attendee(session, attendee, params):
+    session.add(attendee)
     if cherrypy.request.method == 'POST':
         receipt_items = ReceiptManager.auto_update_receipt(
             attendee, session.get_receipt_by_model(attendee), params.copy(), who=AdminAccount.admin_name() or 'non-admin')
@@ -156,10 +162,7 @@ class Root:
     @ajax
     @any_admin_access
     def validate_attendee(self, session, form_list=[], **params):
-        if params.get('id') in [None, '', 'None']:
-            attendee = Attendee()
-        else:
-            attendee = session.attendee(params.get('id'))
+        attendee = load_attendee(session, params)
 
         if not form_list:
             form_list = ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'AdminBadgeFlags',
@@ -1467,12 +1470,7 @@ class Root:
     @attendee_view
     @cherrypy.expose(['attendee_data'])
     def attendee_form(self, session, message='', tab_view=None, **params):
-        id = params.get('id', None)
-
-        if id in [None, '', 'None']:
-            attendee = Attendee()
-        else:
-            attendee = session.attendee(id)
+        attendee = load_attendee(session, params)
 
         forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
                                               'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
@@ -1514,7 +1512,10 @@ class Root:
     @attendee_view
     @cherrypy.expose(['shifts'])
     def attendee_shifts(self, session, id, **params):
-        attendee = session.attendee(id, allow_invalid=True)
+        attendee = session.query(Attendee).filter(Attendee.id == id).options(
+            joinedload(Attendee.shifts),
+            selectinload(Attendee.dept_membership_requests),
+            selectinload(Attendee.dept_memberships_with_dept_role)).first()
         attrs = Shift.to_dict_default_attrs + ['worked_label']
 
         return_dict = {

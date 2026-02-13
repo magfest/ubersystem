@@ -333,6 +333,7 @@ class Root:
                 c.MANUAL: "Stripe"}
         }
 
+    @not_site_mappable
     def create_receipt(self, session, id='', blank=False):
         try:
             model = session.attendee(id)

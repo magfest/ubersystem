@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import joinedload, contains_eager
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 from io import BytesIO
 
@@ -35,18 +35,18 @@ class Root:
     def index(self, session, message=''):
         return {
             'message': message,
-            'applications': session.query(ArtShowApplication).options(joinedload(ArtShowApplication.attendee))
+            'applications': session.query(ArtShowApplication).options(joinedload(ArtShowApplication.active_receipt))
         }
 
     def form(self, session, new_app='', message='', **params):
         if new_app and 'attendee_id' in params:
-            app = session.art_show_application(params, ignore_csrf=True, bools=['us_only'])
+            app = ArtShowApplication(attendee_id = params['attendee_id'])
         else:
+            app = session.query(ArtShowApplication).filter(ArtShowApplication.id == params['id']).options(
+                selectinload(ArtShowApplication.art_show_pieces), joinedload(ArtShowApplication.active_receipt)).one()
             if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-                app = session.art_show_application(params.get('id'))
-                receipt_items = ReceiptManager.auto_update_receipt(app, session.get_receipt_by_model(app), params.copy())
+                receipt_items = ReceiptManager.auto_update_receipt(app, app.active_receipt, params.copy())
                 session.add_all(receipt_items)
-            app = session.art_show_application(params, bools=['us_only'])
         attendee = None
         app_paid = 0 if new_app else app.amount_paid
 
@@ -71,7 +71,6 @@ class Root:
                     session.attendee_from_art_show_app(**params)
             else:
                 attendee = app.attendee
-            message = message or check(app)
 
             if not message:
                 if attendee:
@@ -121,7 +120,8 @@ class Root:
         return {"success": True}
 
     def pieces(self, session, id, message=''):
-        app = session.art_show_application(id)
+        app = session.query(ArtShowApplication).filter(ArtShowApplication.id == id).options(
+            selectinload(ArtShowApplication.art_show_pieces)).one()
         return {
             'app': app,
             'message': message,
@@ -250,12 +250,12 @@ class Root:
                             message = "ERROR: This bidder number does not have an attendee attached so we cannot sell anything to them."
 
                 if found_bidder and not message:
-                    if not found_bidder.attendee.art_show_receipt:
+                    receipt = session.query(ArtShowReceipt).filter(
+                        ArtShowReceipt.attendee_id == found_bidder.attendee.id).first()
+                    if not receipt:
                         receipt = ArtShowReceipt(attendee=found_bidder.attendee)
                         session.add(receipt)
                         session.commit()
-                    else:
-                        receipt = found_bidder.attendee.art_show_receipt
 
                     if not message:
                         found_piece.status = c.SOLD
@@ -311,7 +311,7 @@ class Root:
         applications = session.query(ArtShowApplication).join(ArtShowApplication.attendee)\
             .filter(*filters).filter(or_(*search_filters))\
             .order_by(Attendee.first_name.desc() if '-' in str(order) else Attendee.first_name).options(
-                joinedload(ArtShowApplication.art_show_pieces))
+                selectinload(ArtShowApplication.art_show_pieces))
 
         count = applications.count()
         page = int(page) or 1
@@ -358,7 +358,8 @@ class Root:
 
     @public
     def print_check_in_out_form(self, session, id, checkout='', **params):
-        app = session.art_show_application(id)
+        app = session.query(ArtShowApplication).filter(ArtShowApplication.id == id).options(
+            selectinload(ArtShowApplication.art_show_pieces)).one()
         attendee = app.attendee
 
         # We want to always use these properties for the printed forms as they have useful fallbacks
@@ -581,7 +582,9 @@ class Root:
         artists_json = []
         valid_panel_ids = []
 
-        valid_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED)
+        valid_apps = session.query(ArtShowApplication).filter(ArtShowApplication.status == c.APPROVED).options(
+            selectinload(ArtShowApplication.assignments)
+        )
         panels = session.query(ArtShowPanel).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.surface_type == surface_type)
 
         for panel in panels:
@@ -692,8 +695,7 @@ class Root:
 
         # Update/remove existing panel assignments
         for assignment in session.query(ArtPanelAssignment).join(ArtPanelAssignment.panel
-                                        ).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.surface_type == surface_type
-                                                 ).options(contains_eager(ArtPanelAssignment.panel)):
+                                        ).filter(ArtShowPanel.gallery == gallery, ArtShowPanel.surface_type == surface_type):
             panel_json_str = f"{assignment.panel.origin_x}_{assignment.panel.origin_y}|{assignment.panel.terminus_x}_{assignment.panel.terminus_y}"
             json_str = f"{panel_json_str}|{assignment.assigned_side}"
             # We might have assignments uploaded with no corresponding panels
@@ -771,7 +773,7 @@ class Root:
     def bid_sheet_pdf(self, session, id, **params):
         import fpdf
 
-        app = session.art_show_application(id)
+        app = session.query(ArtShowApplication.id == id).options(selectinload(ArtShowApplication.art_show_pieces)).one()
 
         if 'piece_id' in params:
             pieces = [session.art_show_piece(params['piece_id'])]
@@ -846,6 +848,8 @@ class Root:
                     if error:
                         raise HTTPRedirect('bidder_signup?search_text={}&order={}&message={}'
                                         ).format(search_text, order, error)
+                    else:
+                        attendees = attendees.options(joinedload(Attendee.art_show_bidder))
                 else:
                     # For systems that run registration, search is limited for data privacy
                     try:
@@ -857,7 +861,8 @@ class Root:
                                            and_(Attendee.art_show_bidder != None,
                                                 ArtShowBidder.bidder_num.ilike('%{search_text}%'))))
                     attendees = session.query(Attendee).join(BadgeInfo).outerjoin(
-                        ArtShowBidder).filter(*filters).filter(Attendee.is_valid == True)  # noqa: E712
+                        ArtShowBidder).filter(*filters).filter(Attendee.is_valid == True).options(  # noqa: E712
+                            joinedload(Attendee.art_show_bidder))
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_bidder)
 
@@ -900,7 +905,8 @@ class Root:
     @ajax
     def validate_bidder_signup(self, session, form_list=[], **params):
         try:
-            attendee = session.attendee(params['attendee_id'])
+            attendee = session.query(Attendee).filter(
+                Attendee.id == params['attendee_id']).options(joinedload(Attendee.art_show_bidder)).one()
         except NoResultFound:
             if c.INDEPENDENT_ART_SHOW:
                 attendee = Attendee(
@@ -938,7 +944,8 @@ class Root:
     @ajax
     def sign_up_bidder(self, session, **params):
         try:
-            attendee = session.attendee(params['attendee_id'])
+            attendee = session.query(Attendee).filter(
+                Attendee.id == params['attendee_id']).options(joinedload(Attendee.art_show_bidder)).one()
         except NoResultFound:
             if c.INDEPENDENT_ART_SHOW:
                 attendee = Attendee(
@@ -946,12 +953,12 @@ class Root:
                     placeholder=True,
                     badge_status=c.NOT_ATTENDING,
                     )
-                session.add(attendee)
             else:
                 return {'success': False, 'error': "No attendee found for this bidder!"}
         
         bidder = attendee.art_show_bidder or ArtShowBidder(attendee_id=attendee.id)
         attendee.art_show_bidder = bidder
+        session.add(attendee)
 
         success = 'Bidder updated.'
         signed_up_str = ''
@@ -979,7 +986,8 @@ class Root:
         }
 
     def print_bidder_form(self, session, attendee_id, **params):
-        attendee = session.attendee(attendee_id)
+        attendee = attendee = session.query(Attendee).filter(
+            Attendee.id == attendee_id).options(joinedload(Attendee.art_show_bidder)).one()
         bidder = attendee.art_show_bidder
 
         forms = load_forms(params, bidder, ['AdminBidderSignup'], field_prefix=attendee.id,
@@ -1008,7 +1016,9 @@ class Root:
                     raise HTTPRedirect('sales_search?message={}', 'Please search by bidder number or badge number.')
                 else:
                     filters.append(or_(BadgeInfo.ident == badge_num))
-                attendees = session.query(Attendee).filter(*filters)
+                attendees = session.query(Attendee).filter(*filters).options(
+                    joinedload(Attendee.art_show_bidder),
+                    selectinload(Attendee.art_show_receipts))
         else:
             attendees = session.query(Attendee).join(Attendee.art_show_receipts)
 
@@ -1045,17 +1055,17 @@ class Root:
 
     def pieces_bought(self, session, id, search_text='', message='', **params):
         try:
-            receipt = session.art_show_receipt(id)
-        except Exception:
-            attendee = session.attendee(id)
-            if not attendee.art_show_receipt:
-                receipt = ArtShowReceipt(attendee=attendee)
-                session.add(receipt)
-                session.commit()
-            else:
-                receipt = attendee.art_show_receipt
+            receipt = session.query(ArtShowReceipt).filter(or_(ArtShowReceipt.id == id,
+                                                               ArtShowReceipt.attendee_id == id)).one()
+        except NoResultFound:
+            attendee = session.query(Attendee).filter(Attendee.id == id).options(
+                selectinload(Attendee.art_show_purchases)).one()
+            receipt = ArtShowReceipt(attendee=attendee)
+            session.add(receipt)
+            session.commit()
         else:
-            attendee = receipt.attendee
+            attendee = session.query(Attendee).filter(Attendee.id == receipt.attendee_id).options(
+                selectinload(Attendee.art_show_purchases)).first()
 
         must_choose = False
         unclaimed_pieces = []
@@ -1076,12 +1086,14 @@ class Root:
             else:
                 pieces = session.query(ArtShowPiece).filter(ArtShowPiece.name.ilike('%{}%'.format(search_text)))
 
-            unclaimed_pieces = pieces.filter(ArtShowPiece.buyer == None,  # noqa: E711
-                                             ArtShowPiece.status != c.RETURN)
-            unclaimed_pieces = [piece for piece in unclaimed_pieces if piece.sale_price > 0]
-            unpaid_pieces = pieces.join(ArtShowReceipt).filter(ArtShowReceipt.closed != None,  # noqa: E711
-                                                               ArtShowPiece.status != c.PAID)
-            unpaid_pieces = [piece for piece in unpaid_pieces if piece.sale_price > 0]
+            unpaid_pieces_query = pieces.join(ArtShowReceipt).filter(ArtShowReceipt.closed != None,  # noqa: E711
+                                                                     ArtShowPiece.status != c.PAID)
+            unpaid_pieces = [piece for piece in unpaid_pieces_query if piece.sale_price > 0]
+
+            pieces = pieces.options(joinedload(ArtShowPiece.receipt))
+            unclaimed_pieces_query = pieces.filter(ArtShowPiece.buyer == None,  # noqa: E711
+                                                   ArtShowPiece.status != c.RETURN)
+            unclaimed_pieces = [piece for piece in unclaimed_pieces_query if piece.sale_price > 0]
 
             if pieces.count() == 0:
                 message = "No pieces found with ID or title {}.".format(search_text)
@@ -1135,7 +1147,7 @@ class Root:
 
     def unclaim_piece(self, session, id, piece_id, **params):
         receipt = session.art_show_receipt(id)
-        piece = session.art_show_piece(piece_id)
+        piece = session.query(ArtShowPiece).filter(ArtShowPiece.id == piece_id).options(joinedload(ArtShowPiece.receipt))
 
         if receipt.closed:
             raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id,

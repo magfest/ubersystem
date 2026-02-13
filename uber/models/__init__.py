@@ -9,8 +9,10 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
 from itertools import chain
+from pydantic import ConfigDict
 from uuid import uuid4
 from types import MethodType
+from typing import Any, ClassVar
 
 import cherrypy
 import six
@@ -21,12 +23,14 @@ from sqlalchemy import and_, func, or_, create_engine
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Query, joinedload, subqueryload, DeclarativeBase, declared_attr, sessionmaker, scoped_session
+from sqlalchemy.orm import Query, joinedload, selectinload, subqueryload, contains_eager, DeclarativeBase, declared_attr, sessionmaker, scoped_session
 import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
-from sqlalchemy.schema import MetaData
+from sqlalchemy.schema import MetaData, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric, DateTime, Uuid, JSON
+from sqlmodel import Field, SQLModel
 
 import uber
 from uber.config import c, create_namespace_uuid
@@ -126,7 +130,9 @@ def uncamel(s, sep='_'):
     return RE_UNCAMEL.sub(r'{0}\1'.format(sep), s).lower()
 
 DeclarativeBase.metadata = MetaData()
-class MagModel(DeclarativeBase):
+class MagModel(SQLModel):
+    model_config: ClassVar = ConfigDict(ignored_types=(hybrid_method, hybrid_property))
+
     @declared_attr.directive
     def __tablename__(cls) -> str:
         # Convert the model name from camel to snake-case to name the db table
@@ -143,19 +149,19 @@ class MagModel(DeclarativeBase):
             elif isinstance(fields, dict):
                 enabled_fields = [x for x in fields.keys() if fields[x]]
 
-        for col in (enabled_fields or self.__table__.columns):
-            val = getattr(self, col.name)
+        for field in (enabled_fields or self.to_dict_default_attrs):
+            val = getattr(self, field)
             if isinstance(val, (datetime, date)):
                 val = val.isoformat()
             elif isinstance(val, uuid.UUID):
                 val = str(val)
             
-            data[col.name] = val
+            data[field] = val
         return data
     
-    id = Column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    created = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    last_updated = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), primary_key=True)
+    created: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
+    last_updated: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
 
     """
     The two columns below allow tracking any object in external sources,
@@ -164,11 +170,55 @@ class MagModel(DeclarativeBase):
     dictionary (if there are multiple objects to track in the external service)
     or just strings and datetime objects, respectively.
     """
-    external_id = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
-    last_synced = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
+    external_id: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    last_synced: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
-    required = ()
-    is_actually_old = False  # Set to true to force preview models to return False for `is_new`
+    required: ClassVar = ()
+    is_actually_old: ClassVar = False  # Set to true to force preview models to return False for `is_new`
+    _repr_attr_names: ClassVar = ()
+
+    def __repr__(self):
+        """
+        Useful string representation for logging.
+
+        Note:
+            __repr__ does NOT return unicode on Python 2, since python decodes
+            it using the default encoding: http://bugs.python.org/issue5876.
+
+        """
+        # If no repr attr names have been set, default to the set of all
+        # unique constraints. This is unordered normally, so we'll order and
+        # use it here.
+        if not self._repr_attr_names:
+            unique_constraint_column_names = [[column.name for column in constraint.columns]
+                                              for constraint in self.__table__.constraints
+                                              if isinstance(constraint, UniqueConstraint)]
+
+            # this flattens the unique constraint list
+            _unique_attrs = chain.from_iterable(unique_constraint_column_names)
+            _primary_keys = [column.name for column in self.__table__.primary_key.columns]
+
+            attr_names = tuple(sorted(set(chain(_unique_attrs,
+                                                _primary_keys))))
+        else:
+            attr_names = self._repr_attr_names
+
+        if not attr_names and hasattr(self, 'id'):
+            # there should be SOMETHING, so use id as a fallback
+            attr_names = ('id',)
+
+        if attr_names:
+            _kwarg_list = ' '.join('%s=%s' % (name, repr(getattr(self, name, 'undefined')))
+                                   for name in attr_names)
+            kwargs_output = ' %s' % _kwarg_list
+        else:
+            kwargs_output = ''
+
+        # specifically using the string interpolation operator and the repr of
+        # getattr so as to avoid any "hilarious" encode errors for non-ascii
+        # characters
+        u = '<%s%s>' % (self.__class__.__name__, kwargs_output)
+        return u if six.PY3 else u.encode('utf-8')
 
     @cached_classproperty
     def NAMESPACE(cls):
@@ -184,6 +234,13 @@ class MagModel(DeclarativeBase):
     @cached_classproperty
     def _class_attrs(cls):
         return {s: getattr(cls, s) for s in cls._class_attr_names}
+
+    @cached_classproperty
+    def to_dict_default_attrs(cls):
+        try:
+            return list(cls.__table__.columns.keys())
+        except AttributeError:
+            raise NotImplementedError("to_dict_default_attrs is only availale for tables")
 
     def _invoke_adjustment_callbacks(self, label):
         callbacks = []
@@ -687,7 +744,6 @@ from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
 from uber.models.hotel import *  # noqa: F401,E402,F403
-from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
 from uber.models.marketplace import *  # noqa: F401,E402,F403
 from uber.models.showcase import *  # noqa: F401,E402,F403
 from uber.models.mits import *  # noqa: F401,E402,F403
@@ -716,7 +772,7 @@ from uber.models.tracking import Tracking  # noqa: E402
 
 class UberSession(sqlalchemy.orm.Session):
     engine = engine
-    BaseClass = DeclarativeBase
+    BaseClass = SQLModel
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -797,7 +853,10 @@ class UberSession(sqlalchemy.orm.Session):
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
                 try:
-                    return self.admin_account(cherrypy.session.get('account_id')).attendee
+                    return self.query(Attendee).join(Attendee.admin_account).filter(
+                        AdminAccount.id == cherrypy.session.get('account_id')).options(
+                            contains_eager(Attendee.admin_account)
+                        ).one()
                 except NoResultFound:
                     return
                 
@@ -827,7 +886,10 @@ class UberSession(sqlalchemy.orm.Session):
                 return attendee.managers[0]
 
         def logged_in_volunteer(self):
-            return self.attendee(cherrypy.session.get('staffer_id'))
+            return self.query(Attendee).filter(Attendee.id == cherrypy.session.get('staffer_id')).options(
+                selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.shifts)
+            ).one()
 
         def admin_has_staffer_access(self, staffer, access="view"):
             admin = self.current_admin_account()
@@ -1009,7 +1071,9 @@ class UberSession(sqlalchemy.orm.Session):
             if not department_id:
                 return {'conf': conf, 'relevant': False, 'completed': None}
 
-            department = self.query(Department).get(department_id)
+            department = self.query(Department).filter(Department.id == department_id).options(
+                selectinload(Department.dept_checklist_items)
+            ).first()
             if department:
                 return {
                     'conf': conf,
@@ -2103,14 +2167,15 @@ class UberSession(sqlalchemy.orm.Session):
         # ========================
 
         def logged_in_judge(self):
-            judge = self.admin_attendee().admin_account.judge
-            if judge:
-                return judge
-            else:
-                raise HTTPRedirect(
-                    '../accounts/homepage?message={}',
-                    'You have been given judge access but not had a judge entry created for you - '
-                    'please contact a MIVS admin to correct this.')
+            if getattr(cherrypy, 'session', {}).get('account_id'):
+                try:
+                    return self.query(IndieJudge).join(IndieJudge.admin_account).filter(
+                        AdminAccount.id == cherrypy.session.get('account_id')).one()
+                except NoResultFound:
+                    raise HTTPRedirect(
+                        '../accounts/homepage?message={}',
+                        'You have been given judge access but not had a judge entry created for you - '
+                        'please contact a MIVS admin to correct this.')
 
         def code_for(self, game):
             if game.unlimited_code:
@@ -2218,6 +2283,13 @@ class UberSession(sqlalchemy.orm.Session):
         return collect_subclasses(cls.BaseClass)
 
     @classmethod
+    def resolve_model(cls, name):
+        models_by_class = {ModelClass.__name__: ModelClass for ModelClass in cls.all_models()}
+        if name in models_by_class:
+            return models_by_class[name]
+        raise ValueError('Unrecognized model: {}'.format(name))
+
+    @classmethod
     def model_mixin(cls, model):
         if model.__name__ in ['SessionMixin', 'QuerySubclass']:
             target = getattr(cls, model.__name__)
@@ -2251,8 +2323,9 @@ SessionFactory = sessionmaker(
 _ScopedSession = scoped_session(SessionFactory)
 _ScopedSession.model_mixin = UberSession.model_mixin
 _ScopedSession.all_models = UberSession.all_models
+_ScopedSession.resolve_model = UberSession.resolve_model
 _ScopedSession.engine = engine
-_ScopedSession.BaseClass = DeclarativeBase
+_ScopedSession.BaseClass = SQLModel
 _ScopedSession.SessionMixin = UberSession.SessionMixin
 _ScopedSession.session_factory = SessionFactory
 
@@ -2281,7 +2354,7 @@ def initialize_db():
         log.info(f"Initializing model {str(model)}")
         if not hasattr(Session.SessionMixin, model.__tablename__):
             setattr(Session.SessionMixin, model.__tablename__, _make_getter(model))
-    DeclarativeBase.metadata.create_all(engine)
+    SQLModel.metadata.create_all(engine)
 cherrypy.engine.subscribe('start', initialize_db, priority=97)
 
 def _attendee_validity_check():

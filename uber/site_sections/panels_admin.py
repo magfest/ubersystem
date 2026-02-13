@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render
 from uber.errors import HTTPRedirect
-from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
+from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, EventLocation, Department, \
     PanelApplicant, PanelApplication, GuestGroup
 from uber.utils import add_opt, check, localized_now, validate_model, groupify
 from uber.forms import load_forms
@@ -290,7 +290,8 @@ class Root:
         return {
             'app': app,
             'message': message,
-            'panels': session.query(Event).filter(Event.location.in_(c.PANEL_ROOMS)).order_by('name')
+            'panels': session.query(Event).join(Event.location).join(
+                EventLocation.department).filter(Department.manages_panels == True).order_by('name')
         }
 
     def badges(self, session):
@@ -386,7 +387,8 @@ class Root:
             feedback[fb.event].append(fb)
 
         events = []
-        for event in session.query(Event).filter(Event.location.in_(c.PANEL_ROOMS)).order_by('name'):
+        for event in session.query(Event).join(Event.location).join(
+                EventLocation.department).filter(Department.manages_panels == True).order_by('name'):
             events.append([event, feedback[event]])
 
         for event, fb in feedback.items():

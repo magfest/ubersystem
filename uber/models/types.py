@@ -67,6 +67,7 @@ def default_relationship(*args, **kwargs):
         kwargs.setdefault('cascade', 'expunge,refresh-expire,merge')
     else:
         kwargs.setdefault('cascade', 'all,delete-orphan')
+    kwargs.setdefault('lazy', 'raise')
     return SQLAlchemy_relationship(*args, **kwargs)
 
 
@@ -293,11 +294,11 @@ class MultiChoice(UniqueList):
 
 
 class GuidebookImageMixin():
-    filename = Column(String)
-    content_type = Column(String)
-    extension = Column(String)
-    is_header = Column(Boolean, default=False)
-    is_thumbnail = Column(Boolean, default=False)
+    filename: str = Column(String)
+    content_type: str = Column(String)
+    extension: str = Column(String)
+    is_header: bool = Column(Boolean, default=False)
+    is_thumbnail: bool = Column(Boolean, default=False)
 
     @property
     def url(self):

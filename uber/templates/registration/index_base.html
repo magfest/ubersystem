@@ -209,7 +209,7 @@
 {% endif %}
 {% endblock admin_controls %}
 {% block table %}
-{% set page_count = pages[-1] %}
+{% set page_count = pages[-1] if pages else 1 %}
 {% if page_count <= 50 %}
     {% set skip_pages = 1 %}
 {% else %}

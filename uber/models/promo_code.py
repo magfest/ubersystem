@@ -9,8 +9,11 @@ from pytz import UTC
 from dateutil import parser as dateparser
 from sqlalchemy import exists, func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import Index, ForeignKey
 from sqlalchemy.types import Integer, Uuid, String, DateTime
+from sqlmodel import Field, Relationship
+from typing import ClassVar
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -22,7 +25,7 @@ from uber.utils import localized_now, RegistrationCode
 __all__ = ['PromoCodeWord', 'PromoCodeGroup', 'PromoCode']
 
 
-class PromoCodeWord(MagModel):
+class PromoCodeWord(MagModel, table=True):
     """
     Words used to generate promo codes.
 
@@ -45,30 +48,21 @@ class PromoCodeWord(MagModel):
             `part_of_speech`.
     """
 
-    _ADJECTIVE = 0
-    _NOUN = 1
-    _VERB = 2
-    _ADVERB = 3
-    _PART_OF_SPEECH_OPTS = [
+    _ADJECTIVE: ClassVar = 0
+    _NOUN: ClassVar = 1
+    _VERB: ClassVar = 2
+    _ADVERB: ClassVar = 3
+    _PART_OF_SPEECH_OPTS: ClassVar = [
         (_ADJECTIVE, 'adjective'),
         (_NOUN, 'noun'),
         (_VERB, 'verb'),
         (_ADVERB, 'adverb')]
-    _PARTS_OF_SPEECH = dict(_PART_OF_SPEECH_OPTS)
+    _PARTS_OF_SPEECH: ClassVar = dict(_PART_OF_SPEECH_OPTS)
 
-    word = Column(String)
-    part_of_speech = Column(Choice(_PART_OF_SPEECH_OPTS), default=_ADJECTIVE)
+    word: str = Column(String)
+    part_of_speech: int = Column(Choice(_PART_OF_SPEECH_OPTS), default=_ADJECTIVE)
 
-    __table_args__ = (
-        Index(
-            'uq_promo_code_word_normalized_word_part_of_speech',
-            func.lower(func.trim(word)),
-            part_of_speech,
-            unique=True),
-        CheckConstraint(func.trim(word) != '', name='ck_promo_code_word_non_empty_word')
-    )
-
-    _repr_attr_names = ('word',)
+    _repr_attr_names: ClassVar = ('word',)
 
     @hybrid_property
     def normalized_word(self):
@@ -128,19 +122,30 @@ class PromoCodeWord(MagModel):
 
 c.PROMO_CODE_WORD_PART_OF_SPEECH_OPTS = PromoCodeWord._PART_OF_SPEECH_OPTS
 c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord._PARTS_OF_SPEECH
+Index(
+    'uq_promo_code_word_normalized_word_part_of_speech',
+    func.lower(func.trim(PromoCodeWord.word)),
+    PromoCodeWord.part_of_speech,
+    unique=True),
+CheckConstraint(func.trim(PromoCodeWord.word) != '', name='ck_promo_code_word_non_empty_word')
 
 
-class PromoCodeGroup(MagModel):
-    name = Column(String)
-    code = Column(String, admin_only=True)
-    registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    buyer_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
-    buyer = relationship(
-        'Attendee', backref='promo_code_groups',
-        foreign_keys=buyer_id,
-        cascade='save-update,merge,refresh-expire,expunge')
+class PromoCodeGroup(MagModel, table=True):
+    """
+    Attendee: joined
+    PromoCode: selectin
+    """
 
-    email_model_name = 'group'
+    name: str = Column(String)
+    code: str = Column(String, admin_only=True)
+    registered: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC)))
+    buyer_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
+    buyer: 'Attendee' = Relationship(sa_relationship=relationship(
+        'Attendee', backref='promo_code_groups', lazy='joined',
+        foreign_keys='PromoCodeGroup.buyer_id',
+        cascade='save-update,merge,refresh-expire,expunge'))
+
+    email_model_name: ClassVar = 'group'
 
     @presave_adjustment
     def group_code(self):
@@ -222,9 +227,11 @@ class PromoCodeGroup(MagModel):
         return 1 if self.hours_remaining_in_grace_period > 0 else c.MIN_GROUP_ADDITION
 
 
-class PromoCode(MagModel):
+class PromoCode(MagModel, table=True):
     """
     Promo codes used by attendees to purchase badges at discounted prices.
+    Attendee: selectin
+    PromoCodeGroup: joined
 
     Attributes:
         code (str): The actual textual representation of the promo code. This
@@ -299,38 +306,30 @@ class PromoCode(MagModel):
             uses_remaining.
     """
 
-    _FIXED_DISCOUNT = 0
-    _FIXED_PRICE = 1
-    _PERCENT_DISCOUNT = 2
-    _DISCOUNT_TYPE_OPTS = [
+    _FIXED_DISCOUNT: ClassVar = 0
+    _FIXED_PRICE: ClassVar = 1
+    _PERCENT_DISCOUNT: ClassVar = 2
+    _DISCOUNT_TYPE_OPTS: ClassVar = [
         (_FIXED_DISCOUNT, 'Fixed Discount'),
         (_FIXED_PRICE, 'Fixed Price'),
         (_PERCENT_DISCOUNT, 'Percent Discount')]
 
     
-    code = Column(String)
-    discount = Column(Integer, nullable=True, default=None)
-    discount_type = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
-    expiration_date = Column(DateTime(timezone=True), default=c.ESCHATON)
-    uses_allowed = Column(Integer, nullable=True, default=None)
-    cost = Column(Integer, nullable=True, default=None)
-    admin_notes = Column(String)
+    code: str = Column(String)
+    discount: int | None = Column(Integer, nullable=True, default=None)
+    discount_type: int = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
+    expiration_date: datetime = Column(DateTime(timezone=True), default=c.ESCHATON)
+    uses_allowed: int | None = Column(Integer, nullable=True, default=None)
+    cost: int | None = Column(Integer, nullable=True, default=None)
+    admin_notes: str = Column(String)
 
-    group_id = Column(Uuid(as_uuid=False), ForeignKey('promo_code_group.id', ondelete='SET NULL'), nullable=True)
-    group = relationship(
-        PromoCodeGroup, backref='promo_codes',
-        foreign_keys=group_id,
-        cascade='save-update,merge,refresh-expire,expunge')
+    group_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('promo_code_group.id', ondelete='SET NULL'), nullable=True))
+    group: 'PromoCodeGroup' = Relationship(sa_relationship=relationship(
+        PromoCodeGroup, backref=backref('promo_codes', lazy='selectin'), lazy='joined',
+        foreign_keys='PromoCode.group_id',
+        cascade='save-update,merge,refresh-expire,expunge'))
 
-    __table_args__ = (
-        Index(
-            'uq_promo_code_normalized_code',
-            func.replace(func.replace(func.lower(code), '-', ''), ' ', ''),
-            unique=True),
-        CheckConstraint(func.trim(code) != '', name='ck_promo_code_non_empty_code')
-    )
-
-    _repr_attr_names = ('code',)
+    _repr_attr_names: ClassVar = ('code',)
 
     @classmethod
     def normalize_expiration_date(cls, dt):
@@ -508,3 +507,8 @@ class PromoCode(MagModel):
 
 
 c.PROMO_CODE_DISCOUNT_TYPE_OPTS = PromoCode._DISCOUNT_TYPE_OPTS
+Index(
+    'uq_promo_code_normalized_code',
+    func.replace(func.replace(func.lower(PromoCode.code), '-', ''), ' ', ''),
+    unique=True),
+CheckConstraint(func.trim(PromoCode.code) != '', name='ck_promo_code_non_empty_code')

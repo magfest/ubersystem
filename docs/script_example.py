@@ -6,4 +6,4 @@ from uber.models import Attendee, initialize_db, Session
 
 with Session() as session:
     initialize_db()
-    session = Session().session
+    session = Session()

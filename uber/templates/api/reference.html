@@ -354,10 +354,17 @@
   {%-
     set examples = {
       'attendee': '{"method": "attendee.search", "params": ["' ~ admin_account.attendee.full_name ~ '"]}',
+      'attendee_account': '{"method": "attendee_account.export", "params": ["query", "all"]}',
+      'attraction': '{"method": "attraction.list"}',
       'barcode': '{"method": "barcode.lookup_attendee_from_barcode", "params": ["~v22pcw"]}',
       'config': '{"method": "config.info"}',
       'dept': '{"method": "dept.jobs", "params": {"department_id": "' ~ c.DEFAULT_DEPARTMENT_ID ~ '"}}',
+      'group': '{"method": "group.dealers", "params": ["New"]}',
       'guest': '{"method": "guest.list", "params": ["guest"]}',
+      'hotel': '{"method": "hotel.eligible_attendees"}',
+      'mivs': '{"method": "mivs.list", "params": [""]}',
+      'print_job': '{"method": "print_job.get_pending", "params": ["", "", "true"]}',
+      'schedule': '{"method": "schedule.schedule"}',
       'shifts': '{"method": "shifts.lookup", "params": {"department_id": "' ~ c.DEFAULT_DEPARTMENT_ID ~ '", "start_time": "now"}}'
     }
   -%}
